@@ -13,7 +13,7 @@ namespace LocalGPT.Controller;
 /// <param name="logger">Writes bounded localization diagnostics.</param>
 [ApiController]
 [Route("api/localization")]
-[DocumentationUpdated("2.1.21")]
+[DocumentationUpdated("2.2.1")]
 public sealed class LocalizationController(ILocalGptLocalizationService localization, ILogger<LocalizationController> logger) : ControllerBase
 {
     /// <summary>Returns strings for the current UI culture.</summary>
@@ -82,7 +82,7 @@ public sealed class LocalizationController(ILocalGptLocalizationService localiza
 /// <summary>
 /// Carries one user localization-catalog import request.
 /// </summary>
-[DocumentationUpdated("2.1.21")]
+[DocumentationUpdated("2.2.1")]
 public sealed class ImportLocalizationCatalogRequest
 {
     /// <summary>Gets or sets the requested .NET culture name.</summary>

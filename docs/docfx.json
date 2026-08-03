@@ -1,4 +1,4 @@
-﻿{
+{
   "metadata": [
     {
       "src": [
@@ -53,14 +53,13 @@
     "globalMetadata": {
       "_appName": "LocalGPT",
       "_appTitle": "LocalGPT Documentation",
-      "_appFooter": "LocalGPT 2.1.23 Â· generated documentation",
+      "_appFooter": "LocalGPT 2.2.1 · generated documentation",
       "_enableSearch": true,
       "_disableContribution": true,
       "_disableTocFilter": false,
       "_disableNextArticle": false,
       "_lang": "en",
-      "localgptVersion": "2.1.23"
+      "localgptVersion": "2.2.1"
     }
   }
 }
-

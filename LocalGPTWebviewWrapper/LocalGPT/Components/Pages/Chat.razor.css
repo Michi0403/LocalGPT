@@ -1852,3 +1852,27 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/* v2.2.1: the provider chooser stays inside the modal scroll owner and no longer relies on a clipped popup. */
+.chat-provider-native-select {
+    min-height: 3.25rem;
+    width: 100%;
+    padding-inline: .8rem 2.6rem;
+    border-radius: .55rem;
+    color: var(--bs-body-color);
+    background-color: var(--bs-body-bg);
+    font-weight: 700;
+    text-overflow: ellipsis;
+}
+
+.chat-provider-native-select option {
+    color: CanvasText;
+    background: Canvas;
+    font-weight: 500;
+}
+
+.chat-provider-native-select:focus-visible {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--bs-primary) 22%, transparent);
+}

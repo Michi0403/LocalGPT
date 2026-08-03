@@ -4,8 +4,9 @@
 @inject IFirstRunOnboardingService Onboarding
 @inject ILogger<Index> Logger
 @inject IComponentActivityService ComponentActivity
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
-<PageTitle>Welcome</PageTitle>
+<PageTitle>@T("Welcome")</PageTitle>
 
 <div class="main-content">
     @if (_onboarding is { IsCompleted: false })
@@ -97,41 +98,41 @@
         <Items>
             <DxGridLayoutItem Area="header" CssClass="title">
                 <Template>
-                    <div class="title-header-text">Hello World!</div>
-                    <div class="title-content-text">Welcome to your LocalChatGPT</div>
-                    <div class="title-content-text">Configure at least one local or cloud AI provider before starting Chat.</div>
-                    <div class="title-content-text">The installer, generated documentation and seeded Council teams remain available from the cards below.</div>
+                    <div class="title-header-text">@T("Hello World!")</div>
+                    <div class="title-content-text">@T("Welcome to your LocalChatGPT")</div>
+                    <div class="title-content-text">@T("Configure at least one local or cloud AI provider before starting Chat.")</div>
+                    <div class="title-content-text">@T("The installer, generated documentation and seeded Council teams remain available from the cards below.")</div>
                 </Template>
             </DxGridLayoutItem>
             <DxGridLayoutItem Area="cards" CssClass="welcome-cards">
                 <Template>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/chat", ToggledSidebar)">
                         <svg class="welcome-card-img" alt="chat card"><use href="images/aichat-card.svg"></use></svg>
-                        <div class="welcome-card-text">Local ChatGPT</div><div class="welcome-card-back"></div>
+                        <div class="welcome-card-text">@T("Local ChatGPT")</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/model-council", ToggledSidebar)">
                         <svg class="welcome-card-img" alt="AI council card"><use href="images/model-council-card.svg"></use></svg>
-                        <div class="welcome-card-text">AI Council</div><div class="welcome-card-back"></div>
+                        <div class="welcome-card-text">@T("AI Council")</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/council-teams", ToggledSidebar)">
                         <img class="welcome-card-img" src="images/Information.svg" alt="council teams card" />
-                        <div class="welcome-card-text">Council Teams & Workflows</div><div class="welcome-card-back"></div>
+                        <div class="welcome-card-text">@T("Council Teams & Workflows")</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/minecraft-mod-builder", ToggledSidebar)">
                         <svg class="welcome-card-img" alt="minecraft mod builder card"><use href="images/minecraft-mod-builder-card.svg"></use></svg>
-                        <div class="welcome-card-text">Minecraft Mod Builder</div><div class="welcome-card-back"></div>
+                        <div class="welcome-card-text">@T("Minecraft Mod Builder")</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/test-lab", ToggledSidebar)">
                         <img class="welcome-card-img" src="images/Information.svg" alt="test lab card" />
-                        <div class="welcome-card-text">Test Lab</div><div class="welcome-card-back"></div>
+                        <div class="welcome-card-text">@T("Test Lab")</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/install", ToggledSidebar)">
                         <svg class="welcome-card-img" alt="install card"><use href="images/installation-card.svg"></use></svg>
-                        <div class="welcome-card-text">Install - Configure AI Connectivity</div><div class="welcome-card-back"></div>
+                        <div class="welcome-card-text">@T("Install - Configure AI Connectivity")</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/help", ToggledSidebar)">
                         <svg class="welcome-card-img" alt="help card"><use href="images/help-card.svg"></use></svg>
-                        <div class="welcome-card-text">Documentation</div><div class="welcome-card-back"></div>
+                        <div class="welcome-card-text">@T("Documentation")</div><div class="welcome-card-back"></div>
                     </NavLink>
                 </Template>
             </DxGridLayoutItem>
@@ -141,6 +142,12 @@
 
 @code {
     private FirstRunOnboardingStatus? _onboarding;
+
+    private string T(string source)
+    {
+        var key = "Text." + source.Replace(" ", "␠", StringComparison.Ordinal);
+        return Localization.Get(key, fallback: source);
+    }
     private bool _onboardingBusy = true;
 
     /// <summary>

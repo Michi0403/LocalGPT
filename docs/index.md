@@ -1,6 +1,6 @@
-﻿# LocalGPT documentation
+# LocalGPT documentation
 
-**Version 2.1.23**
+**Version 2.2.1**
 
 This documentation is generated during LocalGPT builds from every maintained Markdown document under `docs` and the XML documentation emitted beside `LocalGPT.dll`.
 
@@ -14,7 +14,6 @@ LocalGPT is a local-first AI workbench for chat, configurable AI Councils, knowl
 - [GameDirector runtime](articles/game-director.md)
 - [Security and local execution](articles/security.md)
 - [Generated documentation and XML comments](articles/documentation.md)
-- [Complete API reference](api/index.md)
+- [Complete API reference](api/)
 
-The generated PDF is named `LocalGPT-2.1.23.pdf` and follows the same complete table of contents, including the XML-generated API reference.
-
+The generated PDF is named `LocalGPT-2.2.1.pdf` and follows the same complete table of contents, including the XML-generated API reference.

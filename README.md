@@ -1,7 +1,5 @@
 <div align="center">
 
-https://michi0403.github.io/LocalGPT/
-
 # LocalGPT
 
 ### Garage-built for personal use. Open for everyone. Powerful enough for much more.
@@ -350,6 +348,13 @@ Version 2.1.22 keeps the benchmark/development onboarding surface permanently av
 The documentation build now stages referenced assemblies for DocFX metadata extraction and falls back to a compiler-XML Markdown API catalog when metadata extraction is unavailable. Diagnostic builds preserve the last generated documentation instead of failing after the application assembly already compiled.
 
 See `CHANGELOG-v2.1.22-direct-council-starters-docfx-modals-shortcuts.md`.
+
+
+## LocalGPT 2.2.1 localization, documentation and provider-maintenance release
+
+Version 2.2.1 restores language switching after Blazor becomes interactive, keeps installed DocFX content discoverable below the application directory, fixes the AI-provider selector inside the Chat configuration workspace, removes forbidden service statics and corrects the GitHub Pages API route. The separately versioned 1-Wire protocol remains unchanged.
+
+See `CHANGELOG-v2.2.1-localization-docs-provider-maintenance.md`.
 
 ## LocalGPT 2.1.23 release-safe documentation, Council handoff, toolchains and durable feature data
 

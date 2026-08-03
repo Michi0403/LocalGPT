@@ -10,7 +10,7 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Resolves generated DocFX artifacts and compiler-generated XML comments without exposing arbitrary filesystem paths.
 /// </summary>
-[DocumentationUpdated("2.1.20")]
+[DocumentationUpdated("2.2.1")]
 public sealed class DocumentationCatalogService(
     IWebHostEnvironment environment,
     ICustomVersion version,
@@ -340,7 +340,7 @@ public sealed class DocumentationCatalogService(
         return results;
     }
 
-    private static void AddDocumentationRoot(ISet<string> roots, string path)
+    private void AddDocumentationRoot(ISet<string> roots, string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return;
         try
@@ -430,7 +430,7 @@ public sealed class DocumentationCatalogService(
         return candidates.Where(path => !string.IsNullOrWhiteSpace(path)).FirstOrDefault(path => File.Exists(path));
     }
 
-    private static bool IsWithinRoot(string root, string candidate)
+    private bool IsWithinRoot(string root, string candidate)
     {
         var normalizedRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var normalizedCandidate = Path.GetFullPath(candidate);
@@ -438,10 +438,10 @@ public sealed class DocumentationCatalogService(
             normalizedCandidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static System.Version? ParseVersion(string? value)
+    private System.Version? ParseVersion(string? value)
         => System.Version.TryParse(value, out var parsed) ? parsed : null;
 
-    private static System.Version ParseVersionOrZero(string? value)
+    private System.Version ParseVersionOrZero(string? value)
         => ParseVersion(value) ?? new System.Version(0, 0);
 
     private string BuildDisplayName(string memberId)

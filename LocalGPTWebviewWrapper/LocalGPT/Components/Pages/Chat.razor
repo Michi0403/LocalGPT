@@ -78,30 +78,23 @@
         <div class="chat-provider-row" data-testid="chat-top-controls">
             <label class="chat-provider-selector" title="Choose the local or cloud model for the next response.">
                 <span>AI provider</span>
-                <DxComboBox Data="@ModelsList"
-                            Value="ChatClientProvider.SelectedSession"
-                            CssClass="selector-container-combo-editor"
-                            TextFieldName="@nameof(ChatClientSession.Name)"
-                            ValueChanged="@((ChatClientSession session) => OnModelChanged(session))">
-                    <ItemDisplayTemplate>
-                        @if (context.DataItem is ChatClientSession session)
+                <select class="form-select selector-container-combo-editor chat-provider-native-select"
+                        aria-label="AI provider"
+                        value="@SelectedProviderSessionName"
+                        @onchange="OnProviderSelectionChanged"
+                        disabled="@(ModelsList.Count == 0)">
+                    @if (ModelsList.Count == 0)
+                    {
+                        <option value="">No configured AI provider</option>
+                    }
+                    else
+                    {
+                        @foreach (var session in ModelsList)
                         {
-                            <div class="ai-kernel-option">
-                                <strong>@session.ModelName</strong>
-                                <small><span>@session.Provider</span>@if (!string.IsNullOrWhiteSpace(session.Endpoint)) { <span> · @session.Endpoint</span> }</small>
-                            </div>
+                            <option value="@session.Name">@ProviderOptionLabel(session)</option>
                         }
-                    </ItemDisplayTemplate>
-                    <EditBoxDisplayTemplate>
-                        @if (context.DataItem is ChatClientSession session)
-                        {
-                            <div class="ai-kernel-option ai-kernel-selected">
-                                <strong>@session.ModelName</strong>
-                                <small><span>@session.Provider</span>@if (!string.IsNullOrWhiteSpace(session.Endpoint)) { <span> · @session.Endpoint</span> }</small>
-                            </div>
-                        }
-                    </EditBoxDisplayTemplate>
-                </DxComboBox>
+                    }
+                </select>
             </label>
             <label class="inline-dx-check" title="Keeps the current chat visible when switching to another configured AI.">
                 <DxCheckBox @bind-Checked="ReuseContextWhenSwitching" />
@@ -619,6 +612,7 @@
     CompositeChatClient? ChatClientProvider => ChatClient as CompositeChatClient;
     DxAIChat? DxAiChat { get; set; }
     List<ChatClientSession> ModelsList => ChatClientProvider?.AvailableChatClients ?? new();
+    string SelectedProviderSessionName => ChatClientProvider?.SelectedSession?.Name ?? string.Empty;
     string toastName = "ChatToasts";
 
     bool ReuseContextWhenSwitching { get; set; } = true;
@@ -1233,6 +1227,39 @@
             ComponentActivity.RecordFailure(nameof(Chat), nameof(ResetArchitecturePoll), exception);
             Notifier.ShowError(toastName, "Architecture choices could not be reset. See local logs for details.", "Reset failed");
         }
+    }
+
+    private async Task OnProviderSelectionChanged(ChangeEventArgs args)
+    {
+        try
+        {
+            var selectedName = args.Value?.ToString();
+            if (string.IsNullOrWhiteSpace(selectedName)) return;
+            var selectedSession = ModelsList.FirstOrDefault(session =>
+                string.Equals(session.Name, selectedName, StringComparison.Ordinal));
+            if (selectedSession is null)
+            {
+                Logger.LogWarning("The selected AI provider session was no longer available.");
+                return;
+            }
+
+            await OnModelChanged(selectedSession).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Selecting an AI provider from the Chat configuration failed.");
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(OnProviderSelectionChanged), exception);
+            Notifier.ShowError(toastName, "The AI provider selection could not be changed. See local logs for details.", "Provider selection failed");
+        }
+    }
+
+    private string ProviderOptionLabel(ChatClientSession session)
+    {
+        var provider = string.IsNullOrWhiteSpace(session.Provider) ? session.Name : session.Provider;
+        var model = string.IsNullOrWhiteSpace(session.ModelName) ? session.Name : session.ModelName;
+        return string.IsNullOrWhiteSpace(session.Endpoint)
+            ? $"{model} — {provider}"
+            : $"{model} — {provider} — {session.Endpoint}";
     }
 
     private async Task OnModelChanged(ChatClientSession value)

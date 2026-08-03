@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
             Name = "LocalGPT Core",
             Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
             RootPath = repositoryRoot,
-            CurrentVersion = "2.1.23",
+            CurrentVersion = "2.2.1",
             Status = "Active",
             RecommendGit = true,
             CreatedAtUtc = now,
@@ -449,6 +449,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.1.23", repositoryRoot, "Release-safe documentation fallback, direct Council autostart, compiler discovery UI and durable feature records.");
         EnsureRevision(core, "main", "seed-v2.1.23", repositoryRoot,
             "Added static HTML/PDF documentation fallback, fixed Council starter dispatch, restored normal quick prompts, exposed toolchains, and persisted newer feature records with CRUD APIs.");
+        EnsureVersion(core, "2.2.1", repositoryRoot, "Maintenance release with reliable localization, installed-documentation discovery, grouped responsive Test Lab panels, stable AI-provider selection and GitHub Pages API navigation.");
+        EnsureRevision(core, "main", "seed-v2.2.1", repositoryRoot,
+            "Restores end-to-end language switching after interactive Blazor attachment, removes forbidden service statics, replaces the clipped Council/provider combo, keeps recursive installed documentation discovery and fixes the generated API reference link.");
 
 
         EnsureRequirement(core, "Preflight database and capability audit",
