@@ -1,4 +1,4 @@
-# LocalGPT documentation
+﻿# LocalGPT documentation
 
 **Version 2.2.2**
 
@@ -17,3 +17,5 @@ LocalGPT is a local-first AI workbench for chat, configurable AI Councils, knowl
 - [Complete API reference](api/index.md)
 
 The generated PDF is named `LocalGPT-2.2.2.pdf` and follows the same complete table of contents, including the XML-generated API reference.
+
+
