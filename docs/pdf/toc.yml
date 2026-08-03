@@ -1,4 +1,4 @@
-﻿order: 200
+order: 200
 pdf: true
 pdfFileName: LocalGPT-2.2.2.pdf
 pdfTocPage: true
@@ -9,4 +9,3 @@ items:
   href: ../guide/toc.yml
 - name: API reference
   href: ../api/toc.yml
-
