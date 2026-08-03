@@ -1,6 +1,6 @@
 ﻿# LocalGPT documentation
 
-**Version 2.2.1**
+**Version 2.2.2**
 
 This documentation is generated during LocalGPT builds from every maintained Markdown document under `docs` and the XML documentation emitted beside `LocalGPT.dll`.
 
@@ -16,8 +16,5 @@ LocalGPT is a local-first AI workbench for chat, configurable AI Councils, knowl
 - [Generated documentation and XML comments](articles/documentation.md)
 - <a href="api/index.html">Complete API reference</a>
 
-The generated PDF is named `LocalGPT-2.2.1.pdf` and follows the same complete table of contents, including the XML-generated API reference.
-
-
-
+The generated PDF is named `LocalGPT-2.2.2.pdf` and follows the same complete table of contents, including the XML-generated API reference.
 

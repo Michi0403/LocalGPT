@@ -78,23 +78,36 @@
             </div>
             @if (ShowControlGuide)
             {
-                <aside class="chat-game-control-guide" role="group" aria-label="Your game controls">
+                <aside class="chat-game-control-guide" role="group" aria-label="Your game controls" aria-busy="@InputBusyState">
                     <div class="chat-game-control-card">
                         <strong>Your turn</strong>
-                        <span>@snapshot.InputReason</span>
+                        <div class="chat-game-control-status">
+                            @if (inputInFlight)
+                            {
+                                <span role="status">Applying move…</span>
+                            }
+                            else if (snapshot.HumanInputRequired)
+                            {
+                                <span>@snapshot.InputReason</span>
+                            }
+                            else
+                            {
+                                <span role="status">Waiting for your next turn…</span>
+                            }
+                        </div>
                         <div class="chat-game-touch-grid">
-                            <button type="button" class="up" data-game-action="move-forward" @onclick='@(() => SendControlAsync("move-forward"))'>▲</button>
-                            <button type="button" class="left" data-game-action="left" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left"))'>◀</button>
-                            <button type="button" class="down" data-game-action="move-backward" @onclick='@(() => SendControlAsync("move-backward"))'>▼</button>
-                            <button type="button" class="right" data-game-action="right" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right"))'>▶</button>
-                            <button type="button" data-game-action="turn-left" @onclick='@(() => SendControlAsync("turn-left"))'>Aim ◁</button>
-                            <button type="button" data-game-action="turn-right" @onclick='@(() => SendControlAsync("turn-right"))'>Aim ▷</button>
+                            <button type="button" class="up" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-forward" @onclick='@(() => SendControlAsync("move-forward"))'>▲</button>
+                            <button type="button" class="left" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="left" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-left" : "strafe-left"))'>◀</button>
+                            <button type="button" class="down" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="move-backward" @onclick='@(() => SendControlAsync("move-backward"))'>▼</button>
+                            <button type="button" class="right" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="right" @onclick='@(() => SendControlAsync(snapshot.GameKey == "green-dragon" ? "turn-right" : "strafe-right"))'>▶</button>
+                            <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-left" @onclick='@(() => SendControlAsync("turn-left"))'>Aim ◁</button>
+                            <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="turn-right" @onclick='@(() => SendControlAsync("turn-right"))'>Aim ▷</button>
                             @if (snapshot.GameKey == "ascii-doom")
                             {
-                                <button type="button" class="primary" data-game-action="shoot" @onclick='@(() => SendControlAsync("shoot"))'>Shoot</button>
-                                <button type="button" data-game-action="duck" @onclick='@(() => SendControlAsync("duck"))'>Duck</button>
+                                <button type="button" class="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="shoot" @onclick='@(() => SendControlAsync("shoot"))'>Shoot</button>
+                                <button type="button" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="duck" @onclick='@(() => SendControlAsync("duck"))'>Duck</button>
                             }
-                            <button type="button" class="primary" data-game-action="use" @onclick='@(() => SendControlAsync("use"))'>Use</button>
+                            <button type="button" class="primary" aria-disabled="@(!CanSubmitHumanControl)" data-game-action="use" @onclick='@(() => SendControlAsync("use"))'>Use</button>
                         </div>
                         <small>Keyboard and connected gamepads use these exact actions. Fit mode scales the frame in fullscreen; Native mode keeps the original monospace size and enables scrolling.</small>
                     </div>
@@ -119,7 +132,9 @@
     private bool showControls = true;
     private bool inputInFlight;
     private string fullscreenScaleMode = "Fit";
-    private bool ShowControlGuide => snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai } && showControls && !inputInFlight;
+    private bool ShowControlGuide => snapshot is { ControlMode: not CouncilGameControlMode.Ai } && showControls;
+    private bool CanSubmitHumanControl => snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai } && !inputInFlight;
+    private string InputBusyState => inputInFlight ? "true" : "false";
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,7 +156,7 @@
             await JS.InvokeVoidAsync("localGptGameConsole.attach", elementId, reference).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
             attached = true;
         }
-        var inputEnabled = snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai };
+        var inputEnabled = CanSubmitHumanControl;
         await JS.InvokeVoidAsync("localGptGameConsole.setEnabled", elementId, inputEnabled).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
         await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
     }
@@ -210,7 +225,7 @@
 
     private async Task SendControlAsync(string action)
     {
-        if (snapshot is null || inputInFlight) return;
+        if (snapshot is null || !CanSubmitHumanControl) return;
         var sessionId = snapshot.Id;
         var expectedTurn = snapshot.Turn;
         inputInFlight = true;

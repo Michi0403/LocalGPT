@@ -60,6 +60,12 @@ if ($englishKeys.Count -lt 1200) { Fail "English catalog coverage unexpectedly d
 if (($englishKeys -join "`n") -cne ($germanKeys -join "`n")) { Fail 'English and German catalog keys differ.' }
 $requiredTemplates = @(
     'Text.Start<SP>new<SP>chat',
+    'Text.Language',
+    'Text.Apply<SP>language',
+    'Text.Show<SP>ASCII<SP>games',
+    'Text.Chat<SP>configuration',
+    'Text.Running<SP>session<SP>tools',
+    'Text.No<SP>Council<SP>heartbeat<SP>is<SP>running',
     'Text.Send<SP>message',
     'Text.Attach<SP>files',
     'Text.Former<SP>model<SP>thoughts',

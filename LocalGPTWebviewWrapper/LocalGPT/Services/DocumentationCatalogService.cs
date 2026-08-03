@@ -10,7 +10,7 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Resolves generated DocFX artifacts and compiler-generated XML comments without exposing arbitrary filesystem paths.
 /// </summary>
-[DocumentationUpdated("2.2.1")]
+[DocumentationUpdated("2.2.2")]
 public sealed class DocumentationCatalogService(
     IWebHostEnvironment environment,
     ICustomVersion version,
@@ -33,7 +33,7 @@ public sealed class DocumentationCatalogService(
         {
             var documentationRoot = ResolveDocumentationRoot();
             var manifest = ReadBuildManifest(documentationRoot);
-            var pdfPath = ResolvePdfPath(documentationRoot, manifest?.Version);
+            var pdfPath = ResolveInstalledPdfPath(documentationRoot, manifest?.Version);
             var xmlDocumentationPath = ResolveXmlDocumentationPath(documentationRoot);
             var comments = GetCommentCatalog();
             return new LocalGptDocumentationStatus
@@ -65,7 +65,7 @@ public sealed class DocumentationCatalogService(
         {
             var documentationRoot = ResolveDocumentationRoot();
             var manifest = ReadBuildManifest(documentationRoot);
-            return ResolvePdfPath(documentationRoot, manifest?.Version);
+            return ResolveInstalledPdfPath(documentationRoot, manifest?.Version);
         }
         catch (Exception exception)
         {
@@ -360,8 +360,8 @@ public sealed class DocumentationCatalogService(
         {
             var indexPath = Path.Combine(path, "index.html");
             var manifestPath = Path.Combine(path, "documentation-status.json");
-            var pdfFiles = Directory.GetFiles(path, "LocalGPT-*.pdf", SearchOption.TopDirectoryOnly);
-            if (!File.Exists(indexPath) && !File.Exists(manifestPath) && pdfFiles.Length == 0) return null;
+            var pdfFiles = EnumeratePdfFiles(path);
+            if (!File.Exists(indexPath) && !File.Exists(manifestPath) && pdfFiles.Count == 0) return null;
 
             var manifest = ReadBuildManifest(path);
             var candidateVersion = manifest?.Version;
@@ -396,27 +396,85 @@ public sealed class DocumentationCatalogService(
         }
     }
 
-    private string? ResolvePdfPath(string? documentationRoot, string? manifestVersion)
+    private IReadOnlyList<string> EnumeratePdfFiles(string documentationRoot)
     {
-        if (documentationRoot is null) return null;
-        foreach (var requestedVersion in new[] { version.Version, manifestVersion }.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase))
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pending = new Queue<(string Path, int Depth)>();
+        pending.Enqueue((documentationRoot, 0));
+        var inspected = 0;
+        while (pending.Count > 0 && inspected < 256)
         {
-            var exact = Path.GetFullPath(Path.Combine(documentationRoot, $"LocalGPT-{requestedVersion}.pdf"));
-            if (IsWithinRoot(documentationRoot, exact) && File.Exists(exact)) return exact;
+            var current = pending.Dequeue();
+            inspected++;
+            try
+            {
+                foreach (var file in Directory.GetFiles(current.Path, "LocalGPT-*.pdf", SearchOption.TopDirectoryOnly))
+                {
+                    var fullPath = Path.GetFullPath(file);
+                    if (IsWithinRoot(documentationRoot, fullPath)) result.Add(fullPath);
+                }
+                if (current.Depth >= 4) continue;
+                foreach (var child in Directory.GetDirectories(current.Path))
+                {
+                    var attributes = File.GetAttributes(child);
+                    if ((attributes & FileAttributes.ReparsePoint) == 0)
+                        pending.Enqueue((child, current.Depth + 1));
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                logger.LogDebug(exception, "Skipping a documentation PDF search directory that is temporarily unavailable.");
+            }
         }
+        return result.ToArray();
+    }
 
+    private string? ResolveInstalledPdfPath(string? documentationRoot, string? manifestVersion)
+    {
         try
         {
-            return Directory.GetFiles(documentationRoot, "LocalGPT-*.pdf", SearchOption.TopDirectoryOnly)
+            var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (documentationRoot is not null)
+                AddPdfFiles(files, documentationRoot);
+            foreach (var root in EnumerateDocumentationRoots())
+                AddPdfFiles(files, root);
+
+            // Installed desktop layouts may place the runtime in a version/RID directory while the
+            // generated help payload is below a sibling directory. Search both trusted application
+            // roots as a final bounded fallback instead of tying PDF availability to one HTML root.
+            AddPdfFiles(files, applicationRoot);
+            AddPdfFiles(files, environment.ContentRootPath);
+
+            foreach (var requestedVersion in new[] { version.Version, manifestVersion }
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var expectedName = $"LocalGPT-{requestedVersion}.pdf";
+                var exact = files
+                    .Where(file => string.Equals(Path.GetFileName(file), expectedName, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(File.GetLastWriteTimeUtc)
+                    .FirstOrDefault();
+                if (exact is not null) return exact;
+            }
+
+            return files
+                .Where(file => Path.GetFileNameWithoutExtension(file).StartsWith("LocalGPT-", StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(file => ParseVersionOrZero(Path.GetFileNameWithoutExtension(file)[9..]))
                 .ThenByDescending(File.GetLastWriteTimeUtc)
                 .FirstOrDefault();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            logger.LogDebug(exception, "The selected documentation root could not be inspected for PDF files.");
+            logger.LogDebug(exception, "The installed application roots could not be inspected for PDF files.");
             return null;
         }
+    }
+
+    private void AddPdfFiles(ISet<string> files, string root)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return;
+        foreach (var file in EnumeratePdfFiles(root))
+            files.Add(file);
     }
 
     private string? ResolveXmlDocumentationPath(string? documentationRoot)

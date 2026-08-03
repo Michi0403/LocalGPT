@@ -350,6 +350,12 @@ The documentation build now stages referenced assemblies for DocFX metadata extr
 See `CHANGELOG-v2.1.22-direct-council-starters-docfx-modals-shortcuts.md`.
 
 
+## LocalGPT 2.2.2 localization, game-layout, PDF and catalog follow-up release
+
+Version 2.2.2 preserves the published 2.2.1 release and carries the subsequent maintenance corrections under a new patch number. It completes full-request culture switching, retains the native AI-provider selector, stabilizes the centered ASCII-game guide, resolves installed PDF discovery, makes DX-function catalog synchronization resilient to legacy unique rows, and keeps the generated GitHub Pages API route valid. The separately versioned 1-Wire protocol remains unchanged at 2.1.0.
+
+See `CHANGELOG-v2.2.2-localization-game-pdf-catalog-followup.md`.
+
 ## LocalGPT 2.2.1 localization, documentation and provider-maintenance release
 
 Version 2.2.1 restores language switching after Blazor becomes interactive, keeps installed DocFX content discoverable below the application directory, fixes the AI-provider selector inside the Chat configuration workspace, removes forbidden service statics and corrects the GitHub Pages API route. The separately versioned 1-Wire protocol remains unchanged.

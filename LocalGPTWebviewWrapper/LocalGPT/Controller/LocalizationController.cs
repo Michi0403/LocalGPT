@@ -13,7 +13,7 @@ namespace LocalGPT.Controller;
 /// <param name="logger">Writes bounded localization diagnostics.</param>
 [ApiController]
 [Route("api/localization")]
-[DocumentationUpdated("2.2.1")]
+[DocumentationUpdated("2.2.2")]
 public sealed class LocalizationController(ILocalGptLocalizationService localization, ILogger<LocalizationController> logger) : ControllerBase
 {
     /// <summary>Returns strings for the current UI culture.</summary>
@@ -62,27 +62,33 @@ public sealed class LocalizationController(ILocalGptLocalizationService localiza
     [HttpGet("select")]
     public IActionResult Select([FromQuery] string culture, [FromQuery] string? returnUrl = "/")
     {
-        var selected = localization.GetAvailableCultures()
-            .FirstOrDefault(item => string.Equals(item, culture, StringComparison.OrdinalIgnoreCase)) ?? "en-US";
+        var selected = localization.ResolveAvailableCulture(culture);
+        Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+        Response.Headers["Pragma"] = "no-cache";
         Response.Cookies.Append(
             CookieRequestCultureProvider.DefaultCookieName,
             CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(selected)),
             new CookieOptions
             {
                 IsEssential = true,
+                HttpOnly = false,
                 SameSite = SameSiteMode.Lax,
+                Secure = Request.IsHttps,
                 Path = "/",
+                MaxAge = TimeSpan.FromDays(365),
                 Expires = DateTimeOffset.UtcNow.AddYears(1)
             });
-        logger.LogInformation("LocalGPT UI culture changed to {Culture}.", selected);
-        return LocalRedirect(string.IsNullOrWhiteSpace(returnUrl) || !Url.IsLocalUrl(returnUrl) ? "/" : returnUrl);
+        var localReturnUrl = string.IsNullOrWhiteSpace(returnUrl) || !Url.IsLocalUrl(returnUrl) ? "/" : returnUrl;
+        var redirectUrl = localization.BuildCultureRedirectUrl(localReturnUrl, selected);
+        logger.LogInformation("LocalGPT UI culture changed to {Culture}; reloading {ReturnUrl} with an explicit request culture.", selected, redirectUrl);
+        return LocalRedirect(redirectUrl);
     }
 }
 
 /// <summary>
 /// Carries one user localization-catalog import request.
 /// </summary>
-[DocumentationUpdated("2.2.1")]
+[DocumentationUpdated("2.2.2")]
 public sealed class ImportLocalizationCatalogRequest
 {
     /// <summary>Gets or sets the requested .NET culture name.</summary>

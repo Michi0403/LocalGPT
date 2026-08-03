@@ -20,7 +20,10 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     let loadGeneration = 0;
 
     const normalize = value => String(value || '').replace(/\s+/g, ' ').trim();
-    const currentCulture = () => normalize(document.documentElement.getAttribute('lang')) || 'en-US';
+    const currentCulture = () => {
+        const query = new URLSearchParams(globalThis.location?.search || '');
+        return normalize(query.get('ui-culture') || query.get('culture') || document.documentElement.getAttribute('lang')) || 'en-US';
+    };
 
     function rebuildMaps() {
         exact = new Map();
@@ -106,19 +109,29 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             const replacement = translate(element.value);
             if (replacement && replacement !== element.value) element.value = replacement;
         }
-        for (const node of element.childNodes) if (node instanceof Text) translateTextNode(node);
+    }
+
+    function translateTextTree(root) {
+        if (root instanceof Text) {
+            translateTextNode(root);
+            return;
+        }
+        if (!(root instanceof Element || root instanceof Document || root instanceof DocumentFragment)) return;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let node = walker.nextNode();
+        while (node) {
+            translateTextNode(node);
+            node = walker.nextNode();
+        }
     }
 
     function apply(root = document.body) {
         if (!root || applying) return;
         applying = true;
         try {
-            if (root instanceof Text) {
-                translateTextNode(root);
-                return;
-            }
+            translateTextTree(root);
             if (root instanceof Element) translateElement(root);
-            root.querySelectorAll?.('button,label,option,summary,h1,h2,h3,h4,p,span,strong,small,a,input,select,[title],[aria-label],[placeholder]').forEach(translateElement);
+            root.querySelectorAll?.('[title],[aria-label],[placeholder],input[type="button"],input[type="submit"],input[type="reset"]').forEach(translateElement);
         } finally {
             applying = false;
         }
@@ -167,6 +180,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             dictionary = {};
         }
         rebuildMaps();
+        document.documentElement.lang = culture;
         document.documentElement.dataset.localgptLocalizationCulture = culture;
         const translatedTitle = translate(document.title);
         if (translatedTitle) document.title = translatedTitle;

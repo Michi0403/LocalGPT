@@ -259,7 +259,7 @@ namespace LocalGPT
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
-                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.2.1"));
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.2.2"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<ILocalGptRequestFactoryService, LocalGptRequestFactoryService>();
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
@@ -665,7 +665,15 @@ namespace LocalGPT
                     options.DefaultRequestCulture = new RequestCulture("en-US");
                     options.SupportedCultures = cultures;
                     options.SupportedUICultures = cultures;
-                    options.RequestCultureProviders = [new CookieRequestCultureProvider()];
+                    options.RequestCultureProviders =
+                    [
+                        new QueryStringRequestCultureProvider
+                        {
+                            QueryStringKey = "culture",
+                            UIQueryStringKey = "ui-culture"
+                        },
+                        new CookieRequestCultureProvider()
+                    ];
                 });
                 builder.Services.AddHealthChecks();
                 builder.Services.AddDevExpressBlazor(options => options.SizeMode = DevExpress.Blazor.SizeMode.Medium);

@@ -34,12 +34,24 @@
                             <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Back to Home" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="icon icon-back"></DxButton>
                         </NavLink>
                     }
-                    <div class="language-switcher" aria-label="Language">
-                        <label for="localgpt-language-select" class="visually-hidden">Language</label>
-                        <select id="localgpt-language-select" value="@System.Globalization.CultureInfo.CurrentUICulture.Name" @onchange="ChangeCulture">
+                    <div class="language-switcher" aria-label="@LanguageLabel">
+                        <label for="localgpt-language-select" class="visually-hidden">@LanguageLabel</label>
+                        <select id="localgpt-language-select"
+                                name="culture"
+                                aria-label="@LanguageLabel"
+                                data-enhance-nav="false"
+                                onchange="window.location.assign(this.selectedOptions[0].dataset.selectionUrl)">
                             @foreach (var culture in Localization.GetAvailableCultures())
                             {
-                                <option value="@culture">@CultureLabel(culture)</option>
+                                var selectionUrl = Localization.BuildCultureSelectionUrl(NavigationManager.Uri, culture);
+                                if (string.Equals(culture, CurrentCulture, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <option value="@culture" data-selection-url="@selectionUrl" selected>@CultureLabel(culture)</option>
+                                }
+                                else
+                                {
+                                    <option value="@culture" data-selection-url="@selectionUrl">@CultureLabel(culture)</option>
+                                }
                             }
                         </select>
                     </div>
@@ -89,13 +101,8 @@
         }
     }
 
-    /// <summary>Persists and reloads the culture selected from the open catalog list.</summary>
-    private void ChangeCulture(ChangeEventArgs args)
-    {
-        var culture = args.Value?.ToString();
-        if (string.IsNullOrWhiteSpace(culture)) return;
-        NavigationManager.NavigateTo(CultureUrl(culture), forceLoad: true);
-    }
+    private string CurrentCulture => Localization.ResolveAvailableCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
+    private string LanguageLabel => Localization.GetText("Language");
 
     /// <summary>Creates a native-language label for one culture option.</summary>
     private string CultureLabel(string culture)
@@ -108,23 +115,6 @@
         catch (System.Globalization.CultureNotFoundException)
         {
             return culture;
-        }
-    }
-
-    private string CultureUrl(string culture)
-    {
-        try
-        {
-            var returnUrl = new Uri(NavigationManager.Uri).PathAndQuery;
-            Logger.LogDebug("Created a localization navigation URL for culture {Culture}.", culture);
-            return $"/api/localization/select?culture={Uri.EscapeDataString(culture)}&returnUrl={Uri.EscapeDataString(returnUrl)}";
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Could not create the localization navigation URL for culture {Culture}.", culture);
-            ComponentActivity.RecordFailure(nameof(MainLayout), nameof(CultureUrl), ex);
-            Notifier.ShowError("ComponentSafetyToasts", "The language switch link could not be created. See local logs for details.", "Language switch error");
-            return "/";
         }
     }
 

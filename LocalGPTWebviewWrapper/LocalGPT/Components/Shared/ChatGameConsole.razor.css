@@ -147,3 +147,92 @@
     .chat-game-control-card { padding:.5rem; }
     .chat-game-touch-grid button { min-height:2.7rem; padding:.3rem; }
 }
+
+/* v2.2.1 runtime stabilization: keep the guide mounted, retain control focus,
+   and reserve equal guide-sized gutters so the ASCII frame remains centered against
+   the complete stage rather than shifting into the space left beside the guide. */
+.chat-game-console,
+.chat-game-stage {
+    overflow-anchor: none;
+}
+
+.chat-game-stage.has-guide {
+    grid-template-columns: clamp(18rem, 24vw, 25rem) minmax(0, 1fr) clamp(18rem, 24vw, 25rem);
+}
+
+.chat-game-stage.has-guide::before {
+    content: "";
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+}
+
+.chat-game-screen-viewport {
+    position: relative;
+    place-content: safe center;
+    overflow-anchor: none;
+    scroll-behavior: auto;
+    scrollbar-gutter: stable both-edges;
+    contain: layout paint;
+}
+
+.chat-game-stage.has-guide .chat-game-screen-viewport {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.chat-game-screen {
+    justify-self: safe center;
+    align-self: safe center;
+    margin: auto;
+}
+
+.chat-game-control-guide {
+    scrollbar-gutter: stable;
+    contain: layout paint;
+}
+
+.chat-game-stage.has-guide .chat-game-control-guide {
+    grid-column: 3;
+    grid-row: 1;
+}
+
+.chat-game-control-status {
+    align-items: flex-start;
+    display: flex;
+    min-height: 2.75rem;
+}
+
+.chat-game-touch-grid button[aria-disabled="true"] {
+    cursor: wait;
+    opacity: .58;
+    transform: none;
+    box-shadow: none;
+}
+
+@media (max-width: 1000px) {
+    .chat-game-stage.has-guide {
+        grid-template-columns: clamp(15rem, 28vw, 20rem) minmax(0, 1fr) clamp(15rem, 28vw, 20rem);
+    }
+}
+
+@media (max-width: 760px) {
+    .chat-game-stage.has-guide {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(12rem, 1fr) auto;
+    }
+
+    .chat-game-stage.has-guide::before {
+        display: none;
+    }
+
+    .chat-game-stage.has-guide .chat-game-screen-viewport {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .chat-game-stage.has-guide .chat-game-control-guide {
+        grid-column: 1;
+        grid-row: 2;
+    }
+}

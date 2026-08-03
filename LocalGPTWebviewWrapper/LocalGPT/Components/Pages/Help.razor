@@ -4,6 +4,7 @@
 @inject ILogger<Help> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 <PageTitle>Documentation</PageTitle>
 
@@ -25,7 +26,7 @@
         </div>
         <div class="help-actions" aria-label="Documentation actions">
             <a class="btn btn-primary" href="/help-docs/index.html" target="_blank" rel="noopener">Open HTML documentation</a>
-            <a class="btn btn-outline-secondary" href="/api/documentation/pdf" target="_blank" rel="noopener">Download LocalGPT-@Version.Version PDF</a>
+            <a class="btn btn-outline-secondary" href="@documentationStatus.PdfUrl" data-enhance-nav="false">@Localization.GetText("Open PDF documentation")</a>
             <a class="btn btn-outline-secondary" href="/api/documentation/status" target="_blank" rel="noopener">Build status JSON</a>
             <a class="btn btn-outline-secondary" href="/api/documentation/comments?limit=100" target="_blank" rel="noopener">Browse XML comments</a>
         </div>

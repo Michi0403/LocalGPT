@@ -10,7 +10,7 @@ namespace LocalGPT.Controller;
 /// </summary>
 [ApiController]
 [Route("api/documentation")]
-[DocumentationUpdated("2.1.20")]
+[DocumentationUpdated("2.2.2")]
 public sealed class DocumentationController(
     IDocumentationCatalogService documentation,
     ILogger<DocumentationController> logger) : ControllerBase
@@ -96,11 +96,13 @@ public sealed class DocumentationController(
     {
         try
         {
-            var status = documentation.GetStatus();
             var path = documentation.GetPdfPath();
-            return path is null
-                ? NotFound(new { error = "The versioned documentation PDF has not been generated for this build." })
-                : PhysicalFile(path, "application/pdf", status.PdfFileName, enableRangeProcessing: true);
+            if (path is null)
+                return NotFound(new { error = "The versioned documentation PDF has not been generated for this build." });
+
+            var fileName = Path.GetFileName(path);
+            Response.Headers["Content-Disposition"] = $"inline; filename=\"{fileName}\"";
+            return new PhysicalFileResult(path, "application/pdf") { EnableRangeProcessing = true };
         }
         catch (Exception exception)
         {

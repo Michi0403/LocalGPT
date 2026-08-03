@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.WebUtilities;
 using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Services.Localization;
@@ -9,7 +10,7 @@ namespace LocalGPT.Services.Localization;
 /// <summary>
 /// Reads built-in localization catalogs and persistent user-supplied culture overrides.
 /// </summary>
-[DocumentationUpdated("2.2.1")]
+[DocumentationUpdated("2.2.2")]
 public interface ILocalGptLocalizationService
 {
     /// <summary>Gets all cultures represented by built-in or user catalogs.</summary>
@@ -29,6 +30,28 @@ public interface ILocalGptLocalizationService
     /// <param name="culture">Optional requested culture; the current request culture is used when omitted.</param>
     /// <returns>The localized sentence, or the source text when no catalog value exists.</returns>
     string GetText(string source, string? culture = null);
+
+    /// <summary>Resolves a requested culture to one available LocalGPT catalog.</summary>
+    /// <param name="culture">Requested culture name.</param>
+    /// <returns>The normalized available culture or en-US.</returns>
+    string ResolveAvailableCulture(string? culture);
+
+    /// <summary>Builds a local return URL without stale culture query values.</summary>
+    /// <param name="absoluteUri">Current absolute application URI.</param>
+    /// <returns>A local path and query suitable for culture selection.</returns>
+    string BuildCultureReturnUrl(string absoluteUri);
+
+    /// <summary>Adds an explicit request culture to one validated local return URL.</summary>
+    /// <param name="returnUrl">Local path and query.</param>
+    /// <param name="culture">Requested available culture.</param>
+    /// <returns>A local redirect URL carrying culture and UI-culture values.</returns>
+    string BuildCultureRedirectUrl(string? returnUrl, string culture);
+
+    /// <summary>Builds the absolute application endpoint used to select and persist one culture.</summary>
+    /// <param name="absoluteUri">Current absolute application URI.</param>
+    /// <param name="culture">Requested available culture.</param>
+    /// <returns>A local culture-selection endpoint URL that performs a full page reload.</returns>
+    string BuildCultureSelectionUrl(string absoluteUri, string culture);
 
     /// <summary>Validates a user localization JSON dictionary without writing it.</summary>
     /// <param name="culture">Requested .NET culture name, for example fr-FR.</param>
@@ -55,7 +78,7 @@ public interface ILocalGptLocalizationService
 /// </summary>
 /// <param name="environment">Provides the application content root containing built-in catalogs.</param>
 /// <param name="logger">Writes bounded catalog discovery and validation diagnostics.</param>
-[DocumentationUpdated("2.2.1")]
+[DocumentationUpdated("2.2.2")]
 public sealed class LocalGptLocalizationService(
     IWebHostEnvironment environment,
     ILogger<LocalGptLocalizationService> logger) : ILocalGptLocalizationService
@@ -130,6 +153,63 @@ public sealed class LocalGptLocalizationService(
         if (string.IsNullOrWhiteSpace(source)) return string.Empty;
         var key = "Text." + source.Replace(" ", "␠", StringComparison.Ordinal);
         return Get(key, culture, source);
+    }
+
+
+    /// <inheritdoc />
+    public string ResolveAvailableCulture(string? culture)
+    {
+        var normalized = NormalizeCulture(culture);
+        return GetAvailableCultures().FirstOrDefault(item =>
+            string.Equals(item, normalized, StringComparison.OrdinalIgnoreCase)) ?? "en-US";
+    }
+
+    /// <inheritdoc />
+    public string BuildCultureReturnUrl(string absoluteUri)
+    {
+        if (!Uri.TryCreate(absoluteUri, UriKind.Absolute, out var current)) return "/";
+        return BuildCultureUrl(current.AbsolutePath, current.Query, null);
+    }
+
+    /// <inheritdoc />
+    public string BuildCultureRedirectUrl(string? returnUrl, string culture)
+    {
+        var selected = ResolveAvailableCulture(culture);
+        var local = string.IsNullOrWhiteSpace(returnUrl) || !returnUrl.StartsWith("/", StringComparison.Ordinal) || returnUrl.StartsWith("//", StringComparison.Ordinal)
+            ? "/"
+            : returnUrl;
+        if (!Uri.TryCreate("http://localgpt.invalid" + local, UriKind.Absolute, out var parsed))
+            return "/?culture=" + Uri.EscapeDataString(selected) + "&ui-culture=" + Uri.EscapeDataString(selected);
+        return BuildCultureUrl(parsed.AbsolutePath, parsed.Query, selected);
+    }
+
+    /// <inheritdoc />
+    public string BuildCultureSelectionUrl(string absoluteUri, string culture)
+    {
+        var selected = ResolveAvailableCulture(culture);
+        var returnUrl = BuildCultureReturnUrl(absoluteUri);
+        var endpoint = QueryHelpers.AddQueryString("/api/localization/select", "culture", selected);
+        return QueryHelpers.AddQueryString(endpoint, "returnUrl", returnUrl);
+    }
+
+    /// <summary>Builds one local route while preserving non-localization query values.</summary>
+    private string BuildCultureUrl(string absolutePath, string query, string? culture)
+    {
+        var result = string.IsNullOrWhiteSpace(absolutePath) ? "/" : absolutePath;
+        foreach (var pair in QueryHelpers.ParseQuery(query))
+        {
+            if (string.Equals(pair.Key, "culture", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(pair.Key, "ui-culture", StringComparison.OrdinalIgnoreCase))
+                continue;
+            foreach (var value in pair.Value)
+                result = QueryHelpers.AddQueryString(result, pair.Key, value);
+        }
+        if (!string.IsNullOrWhiteSpace(culture))
+        {
+            result = QueryHelpers.AddQueryString(result, "culture", culture);
+            result = QueryHelpers.AddQueryString(result, "ui-culture", culture);
+        }
+        return result;
     }
 
     /// <inheritdoc />

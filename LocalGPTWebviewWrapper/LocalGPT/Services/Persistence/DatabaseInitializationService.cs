@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
             Name = "LocalGPT Core",
             Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
             RootPath = repositoryRoot,
-            CurrentVersion = "2.2.1",
+            CurrentVersion = "2.2.2",
             Status = "Active",
             RecommendGit = true,
             CreatedAtUtc = now,
@@ -452,6 +452,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.2.1", repositoryRoot, "Maintenance release with reliable localization, installed-documentation discovery, grouped responsive Test Lab panels, stable AI-provider selection and GitHub Pages API navigation.");
         EnsureRevision(core, "main", "seed-v2.2.1", repositoryRoot,
             "Restores end-to-end language switching after interactive Blazor attachment, removes forbidden service statics, replaces the clipped Council/provider combo, keeps recursive installed documentation discovery and fixes the generated API reference link.");
+        EnsureVersion(core, "2.2.2", repositoryRoot, "Patch release preserving the published 2.2.1 history while completing culture switching, installed PDF discovery, centered ASCII-game guide behavior, resilient DX catalog synchronization and generated API navigation.");
+        EnsureRevision(core, "main", "seed-v2.2.2", repositoryRoot,
+            "Advances the application package after 2.2.1 was published. Retains all frontend features and applies the follow-up localization, game-layout, documentation, persistence and build-policy corrections without changing the separately versioned 1-Wire protocol package.");
 
 
         EnsureRequirement(core, "Preflight database and capability audit",
