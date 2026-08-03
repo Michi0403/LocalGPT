@@ -13,7 +13,7 @@
       "filter": "filterConfig.yml",
       "disableGitFeatures": true,
       "namespaceLayout": "nested",
-      "memberLayout": "samePage"
+      "memberLayout": "separatePages"
     }
   ],
   "build": {
@@ -25,7 +25,9 @@
           "articles/**/*.md",
           "articles/**/toc.yml",
           "api/**/*.yml",
-          "api/**/*.md"
+          "api/**/*.md",
+          "guide/toc.yml",
+          "pdf/toc.yml"
         ],
         "exclude": [
           "_site/**",
@@ -57,16 +59,10 @@
       "_disableTocFilter": false,
       "_disableNextArticle": false,
       "_lang": "en",
-      "pdf": true,
       "localgptVersion": "2.1.23"
-    },
-    "fileMetadata": {
-      "pdf": {
-        "toc.yml": true,
-        "api/toc.yml": false
-      }
     }
   }
 }
+
 
 

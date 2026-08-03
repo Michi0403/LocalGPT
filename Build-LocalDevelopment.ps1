@@ -65,7 +65,8 @@ function Assert-LocalGptDocumentation {
     if ([string]$status.pdfMode -ne "docfx") { throw "The LocalGPT development build did not produce the complete DocFX PDF." }
     if (-not ([bool]$status.completeApiReference)) { throw "The LocalGPT development documentation does not contain the complete XML-generated API reference." }
     if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "The LocalGPT development documentation API graph is incomplete." }
-    if ([long]$status.pdfBytes -le 4096) { throw "The LocalGPT development PDF is unexpectedly small and is not accepted as complete." }
+    if ([long]$status.pdfBytes -lt 65536) { throw "The LocalGPT development PDF is unexpectedly small and is not accepted as complete." }
+    if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "The LocalGPT development build did not record a real DocFX PDF candidate." }
 
     Write-Host "Verified complete LocalGPT $Version DocFX modern HTML, XML API reference and PDF documentation." -ForegroundColor Green
 }

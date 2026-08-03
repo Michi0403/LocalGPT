@@ -2,14 +2,14 @@
 
 LocalGPT documentation is built from two maintained sources:
 
-1. Every Markdown document under `docs`, organized through the root `toc.yml`.
+1. Every maintained Markdown document under `docs`, organized through `guide/toc.yml`.
 2. Compiler-generated `LocalGPT.xml` comments for public services, controllers, business contracts, and capabilities.
 
-DocFX reflects `LocalGPT.dll` with the side-by-side XML file and creates the API YAML graph under `docs/api`. The root table of contents imports the generated `api/toc.yml`, so the website and the versioned PDF contain the same namespace, type, and member reference.
+DocFX reflects `LocalGPT.dll` with the side-by-side XML file and creates the API YAML graph under `docs/api`. The root `toc.yml` is intentionally navbar-only. `guide/toc.yml` provides the Microsoft Learn-style conceptual sidebar, while the generated `api/toc.yml` provides the nested namespace/type/member sidebar.
 
 ## Build outputs
 
-A Windows LocalGPT build restores the repository-local DocFX tool, extracts metadata, builds the modern DocFX website, and generates one complete PDF from the root table of contents. The output uses the built-in `default` plus `modern` templates with small Microsoft Learn-style typography and spacing overrides.
+A Windows LocalGPT build restores the repository-local DocFX tool, extracts metadata, builds the modern DocFX website, and generates one complete PDF from the dedicated `pdf/toc.yml`. That PDF TOC nests both `guide/toc.yml` and the generated `api/toc.yml`. The output uses the built-in `default` plus `modern` templates with small Microsoft Learn-style typography and spacing overrides.
 
 The running application exposes:
 
@@ -24,7 +24,7 @@ The running application exposes:
 
 HTML and API generation require the .NET SDK and the repository-local DocFX tool. Complete PDF generation additionally requires Node.js 20 or later. Normal development and release commands require the DocFX site and DocFX PDF by default; they no longer accept a one-page fallback index as a successful documentation payload.
 
-Set `BuildLocalGptDocumentation=false` only for an explicit infrastructure diagnosis. Set `RequireLocalGptDocumentationPdf=false` only when intentionally allowing the deterministic static fallback during such a diagnosis. Release publishing continues to require the complete DocFX PDF.
+Set `BuildLocalGptDocumentation=false` only for an explicit infrastructure diagnosis. A normal LocalGPT build requires the complete DocFX PDF. `RequireLocalGptDocumentationPdf=false` is reserved for an explicit HTML-only diagnosis and does not create or accept a one-page fallback PDF.
 
 ## Verification
 

@@ -1,6 +1,6 @@
-/* LocalGPT keeps the built-in DocFX modern template and only applies Microsoft Learn-like typography and spacing. */
+/* Keep the built-in DocFX modern template. These overrides only align typography and PDF printing with Microsoft Learn. */
 :root {
-  --bs-font-sans-serif: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --bs-font-sans-serif: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --bs-link-color-rgb: 0, 103, 184;
   --bs-primary-rgb: 0, 120, 212;
 }
@@ -12,28 +12,6 @@
 
 body {
   font-family: var(--bs-font-sans-serif);
-  letter-spacing: 0;
-}
-
-article {
-  max-width: none;
-}
-
-article h1 {
-  font-size: clamp(2rem, 3vw, 2.75rem);
-  font-weight: 600;
-  letter-spacing: -0.025em;
-}
-
-article h2 {
-  margin-top: 2.25rem;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px solid var(--bs-border-color);
-}
-
-article table {
-  display: table;
-  width: 100%;
 }
 
 article pre,
@@ -52,5 +30,11 @@ article code {
 
   article {
     max-width: none !important;
+  }
+
+  pre,
+  table,
+  blockquote {
+    break-inside: avoid;
   }
 }

@@ -26,13 +26,15 @@ $apiRoot = Join-Path $docsRoot "api"
 $sourceWebRoot = Join-Path $RepositoryRoot "LocalGPTWebviewWrapper\LocalGPT\wwwroot\help-docs"
 $configPath = Join-Path $docsRoot "docfx.json"
 $tocPath = Join-Path $docsRoot "toc.yml"
+$guideTocPath = Join-Path $docsRoot "guide\toc.yml"
+$pdfTocPath = Join-Path $docsRoot "pdf\toc.yml"
 $pdfCoverPath = Join-Path $docsRoot "pdf-cover.html"
 $manifestPath = Join-Path $RepositoryRoot ".config\dotnet-tools.json"
 $fallbackToolRoot = Join-Path $docsRoot ".tools"
 $pdfName = "LocalGPT-$Version.pdf"
 $warnings = [System.Collections.Generic.List[string]]::new()
 $documentationMode = "static-fallback"
-$pdfMode = "fallback-index"
+$pdfMode = "unavailable"
 $toolSource = "unavailable"
 $apiYamlCount = 0
 $apiHtmlCount = 0
@@ -46,6 +48,9 @@ $articleSourceCount = @(
         }
 ).Count
 $pdfFileSize = 0
+$pdfGeneratedSourcePath = ""
+$pdfCandidateCount = 0
+$minimumCompletePdfBytes = 65536
 $minimumNodeMajor = 20
 $provisionedNodeVersion = "22.23.2"
 $provisionedNodeArchiveName = "node-v$provisionedNodeVersion-win-x64.zip"
@@ -227,56 +232,42 @@ function New-LocalGptStaticDocumentation {
     Copy-Item -LiteralPath $XmlPath -Destination (Join-Path $Destination "LocalGPT.xml") -Force
 }
 
-function Escape-LocalGptPdfText {
-    param([Parameter(Mandatory)][string]$Text)
-    return $Text.Replace('\', '\\').Replace('(', '\(').Replace(')', '\)')
+function Get-LocalGptRelativePath {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    $rootFull = [IO.Path]::GetFullPath($Root).TrimEnd([char[]]@('\', '/'))
+    $pathFull = [IO.Path]::GetFullPath($Path)
+    $prefix = $rootFull + [IO.Path]::DirectorySeparatorChar
+    if ($pathFull.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        return $pathFull.Substring($prefix.Length)
+    }
+    return $pathFull
 }
 
-function New-LocalGptFallbackPdf {
+function Test-LocalGptCompletePdf {
     param(
         [Parameter(Mandatory)][string]$Path,
-        [Parameter(Mandatory)][int]$XmlMemberCount
+        [long]$MinimumBytes = 65536
     )
-    $lines = @(
-        "LocalGPT $Version Documentation",
-        "Deterministic fallback documentation index",
-        "Generated: $([DateTime]::UtcNow.ToString('u'))",
-        "Compiler XML members: $XmlMemberCount",
-        "The complete searchable documentation is available in index.html.",
-        "This PDF is intentionally dependency-free so release publishing is not blocked by DocFX or Node.js."
-    )
-    $streamLines = [System.Collections.Generic.List[string]]::new()
-    $streamLines.Add("BT")
-    $streamLines.Add("/F1 18 Tf")
-    $streamLines.Add("72 760 Td")
-    $first = $true
-    foreach ($line in $lines) {
-        if (-not $first) { $streamLines.Add("0 -30 Td") }
-        $streamLines.Add("($(Escape-LocalGptPdfText $line)) Tj")
-        $first = $false
+
+    $file = Get-Item -LiteralPath $Path -ErrorAction SilentlyContinue
+    if ($null -eq $file -or $file.Length -lt $MinimumBytes) { return $false }
+
+    $stream = [IO.File]::OpenRead($file.FullName)
+    try {
+        $buffer = New-Object byte[] 16384
+        $read = $stream.Read($buffer, 0, $buffer.Length)
+        if ($read -le 0) { return $false }
+        $prefix = [Text.Encoding]::ASCII.GetString($buffer, 0, $read)
+        return $prefix.StartsWith("%PDF-", [StringComparison]::Ordinal) -and
+            $prefix -notmatch 'Deterministic fallback documentation index'
     }
-    $streamLines.Add("ET")
-    $stream = ($streamLines -join "`n") + "`n"
-    $streamLength = [Text.Encoding]::ASCII.GetByteCount($stream)
-    $objects = @(
-        "1 0 obj`n<< /Type /Catalog /Pages 2 0 R >>`nendobj",
-        "2 0 obj`n<< /Type /Pages /Kids [3 0 R] /Count 1 >>`nendobj",
-        "3 0 obj`n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`nendobj",
-        "4 0 obj`n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>`nendobj",
-        "5 0 obj`n<< /Length $streamLength >>`nstream`n$stream" + "endstream`nendobj"
-    )
-    $pdf = "%PDF-1.4`n"
-    $offsets = [System.Collections.Generic.List[int]]::new()
-    $offsets.Add(0)
-    foreach ($object in $objects) {
-        $offsets.Add([Text.Encoding]::ASCII.GetByteCount($pdf))
-        $pdf += $object + "`n"
+    finally {
+        $stream.Dispose()
     }
-    $xrefOffset = [Text.Encoding]::ASCII.GetByteCount($pdf)
-    $pdf += "xref`n0 6`n0000000000 65535 f `n"
-    for ($i = 1; $i -le 5; $i++) { $pdf += ("{0:D10} 00000 n `n" -f $offsets[$i]) }
-    $pdf += "trailer`n<< /Size 6 /Root 1 0 R >>`nstartxref`n$xrefOffset`n%%EOF`n"
-    [IO.File]::WriteAllBytes($Path, [Text.Encoding]::ASCII.GetBytes($pdf))
 }
 
 function Get-LocalGptNodeInfo {
@@ -468,10 +459,10 @@ if (Test-Path -LiteralPath $indexPath) {
     Set-Content -LiteralPath $indexPath -Value $index -Encoding utf8
 }
 
-if (Test-Path -LiteralPath $tocPath) {
-    $toc = Get-Content -LiteralPath $tocPath -Raw
-    $toc = [regex]::Replace($toc, '(?m)^pdfFileName:\s*LocalGPT-[^\r\n]+\.pdf\s*$', "pdfFileName: $pdfName")
-    Set-Content -LiteralPath $tocPath -Value $toc -Encoding utf8
+if (Test-Path -LiteralPath $pdfTocPath) {
+    $pdfToc = Get-Content -LiteralPath $pdfTocPath -Raw
+    $pdfToc = [regex]::Replace($pdfToc, '(?m)^pdfFileName:\s*LocalGPT-[^\r\n]+\.pdf\s*$', "pdfFileName: $pdfName")
+    Set-Content -LiteralPath $pdfTocPath -Value $pdfToc -Encoding utf8
 }
 
 if (Test-Path -LiteralPath $pdfCoverPath) {
@@ -494,9 +485,23 @@ if (Test-Path -LiteralPath $configPath) {
     if (@($docfxConfig.build.template) -notcontains "modern") {
         throw "DocFX modern template is required for the LocalGPT documentation site."
     }
+    $metadataConfig = @($docfxConfig.metadata) | Select-Object -First 1
+    if ([string]$metadataConfig.namespaceLayout -ne "nested") {
+        throw "DocFX namespaceLayout must be nested for the Microsoft Learn-style API hierarchy."
+    }
+    if ([string]$metadataConfig.memberLayout -ne "separatePages") {
+        throw "DocFX memberLayout must be separatePages so the complete API has dedicated member pages."
+    }
     $tocText = Get-Content -LiteralPath $tocPath -Raw
-    if ($tocText -notmatch '(?m)^\s*href:\s*api/toc\.yml\s*$') {
-        throw "The root DocFX TOC must import api/toc.yml so HTML and PDF include compiler XML API pages."
+    if ($tocText -notmatch '(?m)^\s*href:\s*guide/\s*$' -or $tocText -notmatch '(?m)^\s*href:\s*api/\s*$') {
+        throw "The root DocFX TOC must remain navbar-only and reference the guide and API TOCs."
+    }
+    if (-not (Test-Path -LiteralPath $guideTocPath -PathType Leaf)) {
+        throw "The Microsoft Learn-style guide TOC is missing: $guideTocPath"
+    }
+    $pdfTocText = Get-Content -LiteralPath $pdfTocPath -Raw
+    if ($pdfTocText -notmatch '(?m)^\s*href:\s*\.\./guide/toc\.yml\s*$' -or $pdfTocText -notmatch '(?m)^\s*href:\s*\.\./api/toc\.yml\s*$') {
+        throw "The dedicated PDF TOC must nest both guide/toc.yml and api/toc.yml."
     }
 }
 
@@ -583,6 +588,18 @@ The namespace, type, and member pages below are generated by DocFX and are inclu
 "@
                 Set-Content -LiteralPath (Join-Path $apiRoot "index.md") -Value $apiIndex -Encoding utf8
 
+                $apiTocText = Get-Content -LiteralPath $apiTocPath -Raw
+                if ($apiTocText -notmatch '(?m)^\s*-\s+name:\s+API overview\s*$') {
+                    $updatedApiTocText = [regex]::Replace(
+                        $apiTocText,
+                        '(?s)\A(?:\uFEFF)?items:\s*\r?\n',
+                        "items:`r`n- name: API overview`r`n  href: index.md`r`n")
+                    if ([string]::Equals($updatedApiTocText, $apiTocText, [StringComparison]::Ordinal)) {
+                        throw "The generated API TOC did not contain the expected root items node: $apiTocPath"
+                    }
+                    Set-Content -LiteralPath $apiTocPath -Value $updatedApiTocText -Encoding utf8
+                }
+
                 $buildResult = Invoke-LocalGptDocfx -Arguments @("build", $configPath)
                 $apiHtmlRoot = Join-Path $siteRoot "api"
                 $apiHtmlCount = @(Get-ChildItem -LiteralPath $apiHtmlRoot -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue).Count
@@ -635,30 +652,49 @@ The namespace, type, and member pages below are generated by DocFX and are inclu
 
             Write-Host "Generating the complete DocFX PDF with Node.js $nodeVersionUsed; browser cache=$playwrightBrowserRoot; timeout=$($env:DOCFX_PDF_TIMEOUT) ms." -ForegroundColor Cyan
             try {
+                # A previous HTML-only build may have left the deterministic one-page PDF behind.
+                # Remove every old PDF before invoking DocFX so stale output can never be accepted.
+                Get-ChildItem -LiteralPath $siteRoot -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue |
+                    Remove-Item -Force -ErrorAction SilentlyContinue
+
                 $pdfResult = Invoke-LocalGptDocfx -Arguments @("pdf", $configPath)
-                if ($pdfResult.ExitCode -eq 0) {
-                    $docfxPdf = Get-Item -LiteralPath $pdfPath -ErrorAction SilentlyContinue
-                    if ($null -eq $docfxPdf) {
-                        $docfxPdf = Get-Item -LiteralPath (Join-Path $siteRoot "toc.pdf") -ErrorAction SilentlyContinue
+                $pdfCandidates = @(
+                    Get-ChildItem -LiteralPath $siteRoot -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue |
+                        Sort-Object @{ Expression = { if ($_.Name -eq $pdfName) { 0 } else { 1 } } },
+                            @{ Expression = { $_.Length }; Descending = $true }
+                )
+                $pdfCandidateCount = $pdfCandidates.Count
+
+                if ($pdfResult.ExitCode -eq 0 -and $pdfCandidateCount -gt 0) {
+                    $docfxPdf = $pdfCandidates |
+                        Where-Object { $_.Name -eq $pdfName } |
+                        Select-Object -First 1
+                    if ($null -eq $docfxPdf) { $docfxPdf = $pdfCandidates | Select-Object -First 1 }
+
+                    $pdfGeneratedSourcePath = Get-LocalGptRelativePath -Root $siteRoot -Path $docfxPdf.FullName
+                    Write-Host "DocFX produced PDF candidate $pdfGeneratedSourcePath ($($docfxPdf.Length) bytes)." -ForegroundColor Cyan
+                    if (-not [string]::Equals($docfxPdf.FullName, $pdfPath, [StringComparison]::OrdinalIgnoreCase)) {
+                        Copy-Item -LiteralPath $docfxPdf.FullName -Destination $pdfPath -Force
                     }
-                    if ($null -ne $docfxPdf) {
-                        if (-not [string]::Equals($docfxPdf.FullName, $pdfPath, [StringComparison]::OrdinalIgnoreCase)) {
-                            Copy-Item -LiteralPath $docfxPdf.FullName -Destination $pdfPath -Force
-                        }
-                        $resolvedPdf = Get-Item -LiteralPath $pdfPath -ErrorAction SilentlyContinue
-                        $pdfGenerated = $null -ne $resolvedPdf -and $resolvedPdf.Length -gt 4096
-                        if ($pdfGenerated) {
-                            $pdfFileSize = $resolvedPdf.Length
-                            $pdfMode = "docfx"
-                        }
+
+                    $pdfGenerated = Test-LocalGptCompletePdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
+                    if ($pdfGenerated) {
+                        $resolvedPdf = Get-Item -LiteralPath $pdfPath
+                        $pdfFileSize = $resolvedPdf.Length
+                        $pdfMode = "docfx"
+                    }
+                    else {
+                        $warnings.Add("DocFX produced a PDF candidate, but it was smaller than $minimumCompletePdfBytes bytes or matched the retired fallback marker: $pdfGeneratedSourcePath")
                     }
                 }
+
                 if (-not $pdfGenerated) {
-                    $diagnosticTail = @($pdfResult.Output | Select-Object -Last 12) -join " | "
+                    $candidateSummary = @($pdfCandidates | ForEach-Object { "$(Get-LocalGptRelativePath -Root $siteRoot -Path $_.FullName)=$($_.Length)" }) -join ", "
+                    $diagnosticTail = @($pdfResult.Output | Select-Object -Last 20) -join " | "
                     if ([string]::IsNullOrWhiteSpace($diagnosticTail)) {
                         $diagnosticTail = "DocFX returned no PDF diagnostics."
                     }
-                    $warnings.Add("DocFX PDF generation exited with code $($pdfResult.ExitCode): $diagnosticTail")
+                    $warnings.Add("DocFX PDF generation exited with code $($pdfResult.ExitCode); candidates=[$candidateSummary]: $diagnosticTail")
                 }
             }
             catch {
@@ -670,15 +706,7 @@ The namespace, type, and member pages below are generated by DocFX and are inclu
         }
     }
     elseif ($docfxBuildSucceeded) {
-        $warnings.Add("Complete DocFX PDF generation was not requested for this build; the lightweight fallback index is emitted instead.")
-    }
-
-    if (-not $pdfGenerated -and -not $RequirePdf) {
-        New-LocalGptFallbackPdf -Path $pdfPath -XmlMemberCount $xmlMemberCount
-        $resolvedPdf = Get-Item -LiteralPath $pdfPath -ErrorAction SilentlyContinue
-        $pdfGenerated = $null -ne $resolvedPdf
-        if ($pdfGenerated) { $pdfFileSize = $resolvedPdf.Length }
-        $pdfMode = "fallback-index"
+        $warnings.Add("Complete DocFX PDF generation was explicitly disabled; this HTML-only diagnostic build does not emit a fallback PDF.")
     }
 
     if ($RequirePdf -and (-not $pdfGenerated -or $pdfMode -ne "docfx")) {
@@ -718,6 +746,9 @@ foreach ($publishRoot in $publishRoots) {
         apiYamlCount = $apiYamlCount
         apiHtmlCount = $apiHtmlCount
         pdfBytes = $pdfFileSize
+        pdfGeneratedSourcePath = $pdfGeneratedSourcePath
+        pdfCandidateCount = $pdfCandidateCount
+        minimumCompletePdfBytes = $minimumCompletePdfBytes
         nodeVersion = $nodeVersionUsed
         nodeProvisioned = $nodeProvisioned
         pdfTimeoutMilliseconds = $pdfTimeoutMilliseconds
@@ -727,12 +758,13 @@ foreach ($publishRoot in $publishRoots) {
     $statusPath = Join-Path $publishRoot "documentation-status.json"
     $status | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $statusPath -Encoding utf8
 
-    $requiredArtifacts = @(
-        (Join-Path $publishRoot "index.html"),
-        (Join-Path $publishRoot "LocalGPT.xml"),
-        (Join-Path $publishRoot $pdfName),
-        $statusPath
-    )
+    $requiredArtifacts = [System.Collections.Generic.List[string]]::new()
+    $requiredArtifacts.Add((Join-Path $publishRoot "index.html"))
+    $requiredArtifacts.Add((Join-Path $publishRoot "LocalGPT.xml"))
+    $requiredArtifacts.Add($statusPath)
+    if ($RequirePdf -or $pdfGenerated) {
+        $requiredArtifacts.Add((Join-Path $publishRoot $pdfName))
+    }
     foreach ($requiredArtifact in $requiredArtifacts) {
         if (-not (Test-Path -LiteralPath $requiredArtifact -PathType Leaf)) {
             throw "Documentation generation did not produce the required artifact: $requiredArtifact"

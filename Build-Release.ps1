@@ -1,4 +1,4 @@
-﻿param(
+param(
     [ValidateSet("all", "win-x64", "win-x86", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")]
     [string]$Runtime = "all",
     [ValidateSet("Release", "Debug")]
@@ -71,7 +71,8 @@ function Assert-LocalGptDocumentationPayload {
     if ([string]$status.pdfMode -ne "docfx") { throw "Published LocalGPT documentation does not contain the complete DocFX PDF." }
     if (-not ([bool]$status.completeApiReference)) { throw "Published LocalGPT documentation is missing the complete XML-generated API reference." }
     if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "Published LocalGPT documentation contains an incomplete API graph." }
-    if ([long]$status.pdfBytes -le 4096) { throw "Published LocalGPT documentation contains an unexpectedly small PDF." }
+    if ([long]$status.pdfBytes -lt 65536) { throw "Published LocalGPT documentation contains an unexpectedly small PDF." }
+    if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "Published LocalGPT documentation did not record a real DocFX PDF candidate." }
 
     Write-Host "Verified complete LocalGPT $Version DocFX modern documentation in $documentationRoot" -ForegroundColor Green
 }
