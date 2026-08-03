@@ -116,10 +116,9 @@
         Blazor.start({
             ssr: { disableDomPreservation: true }
         })
-            .then(async () => {
-                await window.localGptLocalization?.refresh?.();
-                window.localGptReady.markInteractive();
-            })
+            .then(() => Promise.resolve(window.localGptLocalization?.refresh?.())
+                .catch(error => window.localGptJavaScriptDiagnostics.report('localGptLocalization.refresh', error)))
+            .then(() => window.localGptReady.markInteractive())
             .catch(error => {
                 window.localGptJavaScriptDiagnostics.report('Blazor.start', error);
                 document.documentElement.classList.add('localgpt-interactive-error');

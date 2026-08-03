@@ -57,6 +57,7 @@
       "LoadSavedConversationAsync",
       "LoadSelectedChatProjectDetailsAsync",
       "MigrateCouncilDefaultsAsync",
+      "OnProviderSelectionChanged",
       "RefreshHumanCollaborationAsync",
       "RefreshMemoryAsync",
       "RunUiActionAsync",

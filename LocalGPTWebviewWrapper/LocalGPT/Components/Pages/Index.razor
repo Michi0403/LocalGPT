@@ -143,11 +143,7 @@
 @code {
     private FirstRunOnboardingStatus? _onboarding;
 
-    private string T(string source)
-    {
-        var key = "Text." + source.Replace(" ", "␠", StringComparison.Ordinal);
-        return Localization.Get(key, fallback: source);
-    }
+    private string T(string source) => Localization.GetText(source);
     private bool _onboardingBusy = true;
 
     /// <summary>

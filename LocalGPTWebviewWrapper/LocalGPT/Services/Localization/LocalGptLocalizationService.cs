@@ -9,7 +9,7 @@ namespace LocalGPT.Services.Localization;
 /// <summary>
 /// Reads built-in localization catalogs and persistent user-supplied culture overrides.
 /// </summary>
-[DocumentationUpdated("2.1.21")]
+[DocumentationUpdated("2.2.1")]
 public interface ILocalGptLocalizationService
 {
     /// <summary>Gets all cultures represented by built-in or user catalogs.</summary>
@@ -23,6 +23,12 @@ public interface ILocalGptLocalizationService
 
     /// <summary>Gets one localized value with English and caller-provided fallback behavior.</summary>
     string Get(string key, string? culture = null, string? fallback = null);
+
+    /// <summary>Gets a localized UI sentence by deriving its maintained text-catalog key.</summary>
+    /// <param name="source">English source text used as the fallback and stable catalog-key source.</param>
+    /// <param name="culture">Optional requested culture; the current request culture is used when omitted.</param>
+    /// <returns>The localized sentence, or the source text when no catalog value exists.</returns>
+    string GetText(string source, string? culture = null);
 
     /// <summary>Validates a user localization JSON dictionary without writing it.</summary>
     /// <param name="culture">Requested .NET culture name, for example fr-FR.</param>
@@ -49,7 +55,7 @@ public interface ILocalGptLocalizationService
 /// </summary>
 /// <param name="environment">Provides the application content root containing built-in catalogs.</param>
 /// <param name="logger">Writes bounded catalog discovery and validation diagnostics.</param>
-[DocumentationUpdated("2.1.21")]
+[DocumentationUpdated("2.2.1")]
 public sealed class LocalGptLocalizationService(
     IWebHostEnvironment environment,
     ILogger<LocalGptLocalizationService> logger) : ILocalGptLocalizationService
@@ -116,6 +122,14 @@ public sealed class LocalGptLocalizationService(
         if (GetStrings(culture).TryGetValue(key, out var value)) return value;
         if (GetStrings("en-US").TryGetValue(key, out value)) return value;
         return fallback ?? key;
+    }
+
+    /// <inheritdoc />
+    public string GetText(string source, string? culture = null)
+    {
+        if (string.IsNullOrWhiteSpace(source)) return string.Empty;
+        var key = "Text." + source.Replace(" ", "␠", StringComparison.Ordinal);
+        return Get(key, culture, source);
     }
 
     /// <inheritdoc />
