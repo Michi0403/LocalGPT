@@ -67,7 +67,13 @@ public sealed class LocalizationController(ILocalGptLocalizationService localiza
         Response.Cookies.Append(
             CookieRequestCultureProvider.DefaultCookieName,
             CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(selected)),
-            new CookieOptions { IsEssential = true, SameSite = SameSiteMode.Lax, Expires = DateTimeOffset.UtcNow.AddYears(1) });
+            new CookieOptions
+            {
+                IsEssential = true,
+                SameSite = SameSiteMode.Lax,
+                Path = "/",
+                Expires = DateTimeOffset.UtcNow.AddYears(1)
+            });
         logger.LogInformation("LocalGPT UI culture changed to {Culture}.", selected);
         return LocalRedirect(string.IsNullOrWhiteSpace(returnUrl) || !Url.IsLocalUrl(returnUrl) ? "/" : returnUrl);
     }

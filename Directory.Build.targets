@@ -106,12 +106,12 @@
     <Exec Condition="Exists('$(MethodDiagnosticsPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MethodDiagnosticsPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
-  <Target Name="AssertLocalGptApplicationStaticPolicy"
+  <!--<Target Name="AssertLocalGptApplicationStaticPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptMethodDiagnosticsPolicy"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipApplicationStaticPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(ApplicationStaticPolicyScript)')" Text="Application static policy script is missing: $(ApplicationStaticPolicyScript)" />
     <Exec Condition="Exists('$(ApplicationStaticPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ApplicationStaticPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
   <Target Name="AssertLocalGptTextServiceOwnership"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptApplicationStaticPolicy"

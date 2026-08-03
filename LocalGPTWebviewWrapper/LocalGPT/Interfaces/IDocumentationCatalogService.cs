@@ -11,8 +11,11 @@ public interface IDocumentationCatalogService
     /// <summary>Returns availability, version and application-relative links for generated documentation.</summary>
     LocalGptDocumentationStatus GetStatus();
 
-    /// <summary>Returns the absolute PDF path when the current versioned documentation artifact exists.</summary>
+    /// <summary>Returns the absolute PDF path when a compatible generated documentation artifact exists.</summary>
     string? GetPdfPath();
+
+    /// <summary>Returns one generated HTML or supporting asset path from the selected documentation root.</summary>
+    string? GetHtmlFilePath(string? relativePath);
 
     /// <summary>Returns one localized XML documentation member by its stable compiler member identifier.</summary>
     LocalGptDocumentationComment? GetComment(string memberId, string? culture = null);

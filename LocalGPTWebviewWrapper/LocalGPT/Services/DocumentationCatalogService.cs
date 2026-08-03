@@ -18,34 +18,37 @@ public sealed class DocumentationCatalogService(
     ILogger<DocumentationCatalogService> logger) : IDocumentationCatalogService
 {
     private readonly object commentSync = new();
-    private readonly string documentationRoot = Path.GetFullPath(Path.Combine(environment.WebRootPath, "help-docs"));
-    private readonly string xmlDocumentationPath = File.Exists(Path.Combine(AppContext.BaseDirectory, "LocalGPT.xml"))
-        ? Path.Combine(AppContext.BaseDirectory, "LocalGPT.xml")
-        : Path.Combine(environment.ContentRootPath, "LocalGPT.xml");
+    private readonly object documentationRootSync = new();
+    private readonly string applicationRoot = Path.GetFullPath(AppContext.BaseDirectory);
     private IReadOnlyList<LocalGptDocumentationComment>? commentCache;
+    private string? commentCachePath;
     private DateTime commentCacheWriteUtc;
+    private string? documentationRootCache;
+    private DateTime documentationRootCacheExpiresUtc;
 
     /// <inheritdoc />
     public LocalGptDocumentationStatus GetStatus()
     {
         try
         {
-            var pdfFileName = $"LocalGPT-{version.Version}.pdf";
-            var manifest = ReadBuildManifest();
+            var documentationRoot = ResolveDocumentationRoot();
+            var manifest = ReadBuildManifest(documentationRoot);
+            var pdfPath = ResolvePdfPath(documentationRoot, manifest?.Version);
+            var xmlDocumentationPath = ResolveXmlDocumentationPath(documentationRoot);
             var comments = GetCommentCatalog();
             return new LocalGptDocumentationStatus
             {
-                Version = version.Version,
+                Version = string.IsNullOrWhiteSpace(manifest?.Version) ? version.Version : manifest.Version,
                 InspectedAtUtc = DateTime.UtcNow,
                 GeneratedAtUtc = manifest?.GeneratedAtUtc,
-                HtmlAvailable = File.Exists(Path.Combine(documentationRoot, "index.html")),
-                PdfAvailable = File.Exists(Path.Combine(documentationRoot, pdfFileName)),
-                XmlCommentsAvailable = File.Exists(xmlDocumentationPath),
+                HtmlAvailable = documentationRoot is not null && File.Exists(Path.Combine(documentationRoot, "index.html")),
+                PdfAvailable = pdfPath is not null,
+                XmlCommentsAvailable = xmlDocumentationPath is not null,
                 CommentCount = comments.Count,
                 HtmlUrl = "/help-docs/index.html",
                 PdfUrl = "/api/documentation/pdf",
                 CommentsUrl = "/api/documentation/comments",
-                PdfFileName = pdfFileName
+                PdfFileName = pdfPath is null ? $"LocalGPT-{version.Version}.pdf" : Path.GetFileName(pdfPath)
             };
         }
         catch (Exception exception)
@@ -60,15 +63,37 @@ public sealed class DocumentationCatalogService(
     {
         try
         {
-            var candidate = Path.GetFullPath(Path.Combine(documentationRoot, $"LocalGPT-{version.Version}.pdf"));
-            if (!candidate.StartsWith(documentationRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                return null;
-            return File.Exists(candidate) ? candidate : null;
+            var documentationRoot = ResolveDocumentationRoot();
+            var manifest = ReadBuildManifest(documentationRoot);
+            return ResolvePdfPath(documentationRoot, manifest?.Version);
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Resolving the generated LocalGPT PDF path failed.");
             throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public string? GetHtmlFilePath(string? relativePath)
+    {
+        try
+        {
+            var documentationRoot = ResolveDocumentationRoot();
+            if (documentationRoot is null) return null;
+
+            var normalized = string.IsNullOrWhiteSpace(relativePath)
+                ? "index.html"
+                : relativePath.Trim().TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
+            var candidate = Path.GetFullPath(Path.Combine(documentationRoot, normalized));
+            if (!IsWithinRoot(documentationRoot, candidate)) return null;
+            if (Directory.Exists(candidate)) candidate = Path.Combine(candidate, "index.html");
+            return File.Exists(candidate) ? candidate : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            logger.LogWarning(exception, "Resolving a generated documentation HTML asset failed.");
+            return null;
         }
     }
 
@@ -116,20 +141,24 @@ public sealed class DocumentationCatalogService(
 
     private IReadOnlyList<LocalGptDocumentationComment> GetCommentCatalog()
     {
-        if (!File.Exists(xmlDocumentationPath)) return [];
+        var xmlDocumentationPath = ResolveXmlDocumentationPath(ResolveDocumentationRoot());
+        if (xmlDocumentationPath is null) return [];
         var writeUtc = File.GetLastWriteTimeUtc(xmlDocumentationPath);
         lock (commentSync)
         {
-            if (commentCache is not null && commentCacheWriteUtc == writeUtc)
+            if (commentCache is not null &&
+                commentCacheWriteUtc == writeUtc &&
+                string.Equals(commentCachePath, xmlDocumentationPath, StringComparison.OrdinalIgnoreCase))
                 return commentCache;
 
-            commentCache = LoadCommentCatalog();
+            commentCache = LoadCommentCatalog(xmlDocumentationPath);
+            commentCachePath = xmlDocumentationPath;
             commentCacheWriteUtc = writeUtc;
             return commentCache;
         }
     }
 
-    private IReadOnlyList<LocalGptDocumentationComment> LoadCommentCatalog()
+    private IReadOnlyList<LocalGptDocumentationComment> LoadCommentCatalog(string xmlDocumentationPath)
     {
         var document = XDocument.Load(xmlDocumentationPath, LoadOptions.PreserveWhitespace);
         var assembly = typeof(DocumentationCatalogService).Assembly;
@@ -209,8 +238,9 @@ public sealed class DocumentationCatalogService(
         return null;
     }
 
-    private DocumentationBuildManifest? ReadBuildManifest()
+    private DocumentationBuildManifest? ReadBuildManifest(string? documentationRoot)
     {
+        if (documentationRoot is null) return null;
         var path = Path.Combine(documentationRoot, "documentation-status.json");
         if (!File.Exists(path)) return null;
         try
@@ -225,6 +255,195 @@ public sealed class DocumentationCatalogService(
         }
     }
 
+    private string? ResolveDocumentationRoot()
+    {
+        lock (documentationRootSync)
+        {
+            if (DateTime.UtcNow < documentationRootCacheExpiresUtc &&
+                (documentationRootCache is null || Directory.Exists(documentationRootCache)))
+                return documentationRootCache;
+
+            var previous = documentationRootCache;
+            var selected = EnumerateDocumentationRoots()
+                .Select(InspectDocumentationRoot)
+                .Where(candidate => candidate is not null)
+                .Cast<DocumentationRootCandidate>()
+                .OrderByDescending(candidate => candidate.IsCurrentVersion)
+                .ThenByDescending(candidate => candidate.ParsedVersion ?? new System.Version(0, 0))
+                .ThenByDescending(candidate => candidate.GeneratedAtUtc)
+                .ThenByDescending(candidate => candidate.LastWriteUtc)
+                .FirstOrDefault();
+
+            documentationRootCache = selected?.Path;
+            documentationRootCacheExpiresUtc = DateTime.UtcNow.AddSeconds(20);
+            if (!string.Equals(previous, documentationRootCache, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation(
+                    "Resolved LocalGPT documentation root to {DocumentationRoot}; recursive application search inspected generated versions below {ApplicationRoot}.",
+                    documentationRootCache ?? "not found",
+                    applicationRoot);
+            }
+            return documentationRootCache;
+        }
+    }
+
+    private IEnumerable<string> EnumerateDocumentationRoots()
+    {
+        var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        AddDocumentationRoot(results, Path.Combine(environment.WebRootPath ?? string.Empty, "help-docs"));
+        AddDocumentationRoot(results, Path.Combine(applicationRoot, "wwwroot", "help-docs"));
+        AddDocumentationRoot(results, Path.Combine(environment.ContentRootPath, "wwwroot", "help-docs"));
+
+        foreach (var searchRoot in new[] { applicationRoot, environment.ContentRootPath }.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!Directory.Exists(searchRoot)) continue;
+            var pending = new Queue<(string Path, int Depth)>();
+            pending.Enqueue((searchRoot, 0));
+            var inspected = 0;
+            while (pending.Count > 0 && inspected < 4096)
+            {
+                var current = pending.Dequeue();
+                inspected++;
+                if (current.Depth >= 8) continue;
+
+                string[] children;
+                try { children = Directory.GetDirectories(current.Path); }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogDebug(exception, "Skipping an inaccessible documentation search directory.");
+                    continue;
+                }
+
+                foreach (var child in children)
+                {
+                    try
+                    {
+                        var attributes = File.GetAttributes(child);
+                        if ((attributes & FileAttributes.ReparsePoint) != 0) continue;
+                    }
+                    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                    {
+                        logger.LogDebug(exception, "Skipping an inaccessible documentation search candidate.");
+                        continue;
+                    }
+
+                    if (string.Equals(Path.GetFileName(child), "help-docs", StringComparison.OrdinalIgnoreCase))
+                    {
+                        AddDocumentationRoot(results, child);
+                        continue;
+                    }
+                    pending.Enqueue((child, current.Depth + 1));
+                }
+            }
+        }
+
+        return results;
+    }
+
+    private static void AddDocumentationRoot(ISet<string> roots, string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        try
+        {
+            var fullPath = Path.GetFullPath(path);
+            if (Directory.Exists(fullPath)) roots.Add(fullPath);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            _ = exception;
+        }
+    }
+
+    private DocumentationRootCandidate? InspectDocumentationRoot(string path)
+    {
+        try
+        {
+            var indexPath = Path.Combine(path, "index.html");
+            var manifestPath = Path.Combine(path, "documentation-status.json");
+            var pdfFiles = Directory.GetFiles(path, "LocalGPT-*.pdf", SearchOption.TopDirectoryOnly);
+            if (!File.Exists(indexPath) && !File.Exists(manifestPath) && pdfFiles.Length == 0) return null;
+
+            var manifest = ReadBuildManifest(path);
+            var candidateVersion = manifest?.Version;
+            if (string.IsNullOrWhiteSpace(candidateVersion))
+            {
+                candidateVersion = pdfFiles
+                    .Select(file => Path.GetFileNameWithoutExtension(file))
+                    .Where(name => name.StartsWith("LocalGPT-", StringComparison.OrdinalIgnoreCase))
+                    .Select(name => name[9..])
+                    .OrderByDescending(ParseVersionOrZero)
+                    .FirstOrDefault();
+            }
+
+            var parsedVersion = ParseVersion(candidateVersion);
+            var generatedAtUtc = manifest?.GeneratedAtUtc ?? DateTime.MinValue;
+            var lastWriteUtc = new[] { indexPath, manifestPath }.Concat(pdfFiles)
+                .Where(File.Exists)
+                .Select(File.GetLastWriteTimeUtc)
+                .DefaultIfEmpty(DateTime.MinValue)
+                .Max();
+            return new DocumentationRootCandidate(
+                path,
+                parsedVersion,
+                string.Equals(candidateVersion, version.Version, StringComparison.OrdinalIgnoreCase),
+                generatedAtUtc,
+                lastWriteUtc);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(exception, "Skipping a generated documentation root that is temporarily unavailable.");
+            return null;
+        }
+    }
+
+    private string? ResolvePdfPath(string? documentationRoot, string? manifestVersion)
+    {
+        if (documentationRoot is null) return null;
+        foreach (var requestedVersion in new[] { version.Version, manifestVersion }.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var exact = Path.GetFullPath(Path.Combine(documentationRoot, $"LocalGPT-{requestedVersion}.pdf"));
+            if (IsWithinRoot(documentationRoot, exact) && File.Exists(exact)) return exact;
+        }
+
+        try
+        {
+            return Directory.GetFiles(documentationRoot, "LocalGPT-*.pdf", SearchOption.TopDirectoryOnly)
+                .OrderByDescending(file => ParseVersionOrZero(Path.GetFileNameWithoutExtension(file)[9..]))
+                .ThenByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(exception, "The selected documentation root could not be inspected for PDF files.");
+            return null;
+        }
+    }
+
+    private string? ResolveXmlDocumentationPath(string? documentationRoot)
+    {
+        var candidates = new[]
+        {
+            documentationRoot is null ? null : Path.Combine(documentationRoot, "LocalGPT.xml"),
+            Path.Combine(applicationRoot, "LocalGPT.xml"),
+            Path.Combine(environment.ContentRootPath, "LocalGPT.xml")
+        };
+        return candidates.Where(path => !string.IsNullOrWhiteSpace(path)).FirstOrDefault(path => File.Exists(path));
+    }
+
+    private static bool IsWithinRoot(string root, string candidate)
+    {
+        var normalizedRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedCandidate = Path.GetFullPath(candidate);
+        return string.Equals(normalizedRoot, normalizedCandidate, StringComparison.OrdinalIgnoreCase) ||
+            normalizedCandidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static System.Version? ParseVersion(string? value)
+        => System.Version.TryParse(value, out var parsed) ? parsed : null;
+
+    private static System.Version ParseVersionOrZero(string? value)
+        => ParseVersion(value) ?? new System.Version(0, 0);
+
     private string BuildDisplayName(string memberId)
     {
         var value = memberId.Length > 2 ? memberId[2..] : memberId;
@@ -238,6 +457,14 @@ public sealed class DocumentationCatalogService(
 
     private sealed class DocumentationBuildManifest
     {
+        public string Version { get; set; } = string.Empty;
         public DateTime? GeneratedAtUtc { get; set; }
     }
+
+    private sealed record DocumentationRootCandidate(
+        string Path,
+        System.Version? ParsedVersion,
+        bool IsCurrentVersion,
+        DateTime? GeneratedAtUtc,
+        DateTime LastWriteUtc);
 }

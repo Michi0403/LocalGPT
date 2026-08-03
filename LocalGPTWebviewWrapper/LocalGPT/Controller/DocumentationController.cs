@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace LocalGPT.Controller;
 
@@ -62,6 +63,30 @@ public sealed class DocumentationController(
         {
             logger.LogError(exception, "Reading LocalGPT XML documentation member failed; member id was omitted.");
             return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Documentation member failed");
+        }
+    }
+
+
+    /// <summary>Serves generated DocFX HTML and supporting assets from the recursively resolved installed documentation root.</summary>
+    [HttpGet("/help-docs")]
+    [HttpGet("/help-docs/{**relativePath}")]
+    public IActionResult Html([FromRoute] string? relativePath = null)
+    {
+        try
+        {
+            var path = documentation.GetHtmlFilePath(relativePath);
+            if (path is null)
+                return NotFound(new { error = "Generated documentation was not found below the application directory." });
+
+            var contentTypes = new FileExtensionContentTypeProvider();
+            if (!contentTypes.TryGetContentType(path, out var contentType))
+                contentType = "application/octet-stream";
+            return new PhysicalFileResult(path, contentType) { EnableRangeProcessing = true };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Serving an installed LocalGPT documentation asset failed.");
+            return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Documentation asset failed");
         }
     }
 

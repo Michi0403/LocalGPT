@@ -117,7 +117,7 @@
         {
             var returnUrl = new Uri(NavigationManager.Uri).PathAndQuery;
             Logger.LogDebug("Created a localization navigation URL for culture {Culture}.", culture);
-            return $"api/localization/select?culture={Uri.EscapeDataString(culture)}&returnUrl={Uri.EscapeDataString(returnUrl)}";
+            return $"/api/localization/select?culture={Uri.EscapeDataString(culture)}&returnUrl={Uri.EscapeDataString(returnUrl)}";
         }
         catch (Exception ex)
         {

@@ -225,3 +225,49 @@
 .remote-knowledge-panel > *,
 .test-lab-panel,
 .help-wide { min-width: 0; max-width: none; width: 100%; }
+
+
+/* Wide Test Lab panels use the available workspace instead of collapsing into the first grid track. */
+.frontend-api-smoke-panel,
+.remote-knowledge-panel {
+    grid-column: 1 / -1;
+}
+
+.frontend-api-smoke-panel .test-lab-actions,
+.remote-source-presets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+    width: 100%;
+}
+
+.frontend-api-smoke-panel .test-lab-actions > *,
+.remote-source-presets > * {
+    min-width: 0;
+    width: 100%;
+}
+
+.remote-knowledge-fields {
+    display: grid;
+    gap: .75rem;
+    width: 100%;
+}
+
+.remote-source-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.remote-role-fields {
+    grid-template-columns: minmax(14rem, .8fr) minmax(20rem, 2fr);
+}
+
+.remote-knowledge-fields > .test-lab-field {
+    min-width: 0;
+    width: 100%;
+}
+
+@media (max-width: 840px) {
+    .remote-source-fields,
+    .remote-role-fields {
+        grid-template-columns: 1fr;
+    }
+}

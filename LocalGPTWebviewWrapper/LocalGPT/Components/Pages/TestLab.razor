@@ -22,7 +22,7 @@
     </section>
     <ToastWrapper Name="@toastName" />
     <section class="test-lab-grid">
-        <article class="help-panel test-lab-panel">
+        <article class="help-panel test-lab-panel frontend-api-smoke-panel">
             <h2>Frontend API Smoke</h2>
             <p>These checks stay on the local loopback server and are useful before loading a heavy model.</p>
             <div class="test-lab-actions">
@@ -134,7 +134,7 @@
                 <span>GitHub repository or webpage URL</span>
                 <input @bind="remoteSourceUrl" @bind:after="ResetRemoteApproval" placeholder="https://github.com/owner/repository or https://example.org/docs" />
             </label>
-            <div class="test-lab-custom">
+            <div class="test-lab-custom remote-knowledge-fields remote-source-fields">
                 <label class="test-lab-field compact-field"><span>Source kind</span><select @bind="remoteSourceKind"><option>Auto</option><option>GitHub</option><option>Web</option></select></label>
                 <label class="test-lab-field compact-field"><span>Branch</span><input @bind="remoteBranch" /></label>
                 <label class="test-lab-field compact-field"><span>Max files</span><input type="number" min="1" max="20000" @bind="remoteMaxFiles" /></label>
@@ -143,7 +143,7 @@
                 <span>File include regex</span>
                 <input @bind="remoteFileRegex" />
             </label>
-            <div class="test-lab-custom">
+            <div class="test-lab-custom remote-knowledge-fields remote-role-fields">
                 <label class="test-lab-field compact-field">
                     <span>Existing Council role</span>
                     <select @bind="remoteSelectedRoleKey">
