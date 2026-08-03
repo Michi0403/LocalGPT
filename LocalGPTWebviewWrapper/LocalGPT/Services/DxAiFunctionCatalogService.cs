@@ -2,6 +2,7 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -25,6 +26,7 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     ILogger<DxAiFunctionCatalogService> logger) : IDxAiFunctionCatalogService
 {
     private const string DataType = "DxAiFunctionCatalogEntry";
+    private const string StorageNamePrefix = "DxFunctionCatalog.";
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> SynchronizeAsync(CancellationToken cancellationToken = default)
@@ -33,81 +35,185 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
         await synchronizationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-            var variables = await db.SystemVariables
-                .Where(item => item.DataType == DataType)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-            var storedRows = variables
-                .Select(variable => (Variable: variable, Entry: Deserialize(variable.ValueString)))
-                .Where(item => item.Entry is not null && !string.IsNullOrWhiteSpace(item.Entry.CatalogKey))
-                .Select(item => (item.Variable, Entry: item.Entry!))
-                .ToList();
-            var existing = new Dictionary<string, (SystemVariable Variable, DxAiFunctionCatalogEntry Entry)>(StringComparer.OrdinalIgnoreCase);
-            var duplicateCount = 0;
-            foreach (var group in storedRows.GroupBy(item => GetSemanticIdentity(item.Entry), StringComparer.OrdinalIgnoreCase))
+            for (var attempt = 1; ; attempt++)
             {
-                var canonical = SelectCanonicalCatalogRow(group);
-                canonical.Variable.DataType = DataType;
-                existing[group.Key] = canonical;
-                foreach (var duplicate in group.Where(item => item.Variable.Id != canonical.Variable.Id))
+                try
                 {
-                    db.SystemVariables.Remove(duplicate.Variable);
-                    duplicateCount++;
+                    return await SynchronizeCoreAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (DbUpdateException exception) when (
+                    attempt < 3 && IsSystemVariableNameConflict(exception))
+                {
+                    logger.LogWarning(
+                        exception,
+                        "DX function catalog storage changed concurrently. Retrying synchronization attempt {Attempt} of 3 without replacing user policy.",
+                        attempt + 1);
+                    await Task.Delay(TimeSpan.FromMilliseconds(150 * attempt), cancellationToken).ConfigureAwait(false);
                 }
             }
-
-            if (duplicateCount > 0)
-                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-            var discovered = DiscoverEntries();
-            var discoveredKeys = discovered.Select(GetSemanticIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (var descriptor in discovered)
-            {
-                var semanticIdentity = GetSemanticIdentity(descriptor);
-                if (existing.TryGetValue(semanticIdentity, out var stored))
-                {
-                    PreservePolicyAndRefreshDescriptor(stored.Entry, descriptor);
-                    stored.Variable.Name = BuildStorageName(stored.Entry.CatalogKey);
-                    stored.Variable.DataType = DataType;
-                    stored.Variable.ValueString = JsonSerializer.Serialize(stored.Entry, JsonOptions);
-                    stored.Variable.LastUpdated = DateTime.UtcNow;
-                }
-                else
-                {
-                    var variable = new SystemVariable
-                    {
-                        Name = BuildStorageName(descriptor.CatalogKey),
-                        DataType = DataType,
-                        ValueString = JsonSerializer.Serialize(descriptor, JsonOptions),
-                        LastUpdated = DateTime.UtcNow
-                    };
-                    db.SystemVariables.Add(variable);
-                    existing[semanticIdentity] = (variable, descriptor);
-                }
-            }
-
-            foreach (var stored in existing.Values.Where(item => !discoveredKeys.Contains(GetSemanticIdentity(item.Entry))))
-            {
-                stored.Entry.IsAvailable = false;
-                stored.Entry.UpdatedAtUtc = DateTime.UtcNow;
-                stored.Entry.UpdatedBy = "LocalGPT runtime catalog";
-                stored.Variable.ValueString = JsonSerializer.Serialize(stored.Entry, JsonOptions);
-                stored.Variable.LastUpdated = DateTime.UtcNow;
-            }
-
-            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            var result = await ReadEntriesAsync(db, cancellationToken).ConfigureAwait(false);
-            logger.LogInformation(
-                "Synchronized {CatalogCount} unique DX function/public service catalog entries and removed {DuplicateCount} duplicate rows without replacing user policy.",
-                result.Count,
-                duplicateCount);
-            return result;
         }
         finally
         {
             synchronizationGate.Release();
         }
+    }
+
+    private async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> SynchronizeCoreAsync(CancellationToken cancellationToken)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        // Catalog rows from earlier versions may carry a legacy DataType or a partially written payload.
+        // Load both the owned storage-name range and the current DataType so a unique Name is always reused
+        // instead of queued as a second INSERT.
+        var variables = await db.SystemVariables
+            .Where(item => item.DataType == DataType || item.Name.StartsWith(StorageNamePrefix))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var storedRows = variables
+            .Select(variable => (Variable: variable, Entry: Deserialize(variable.ValueString)))
+            .Where(item => item.Entry is not null && !string.IsNullOrWhiteSpace(item.Entry.CatalogKey))
+            .Select(item => (item.Variable, Entry: item.Entry!))
+            .ToList();
+        var existing = new Dictionary<string, (SystemVariable Variable, DxAiFunctionCatalogEntry Entry)>(StringComparer.OrdinalIgnoreCase);
+        var duplicateCount = 0;
+        var removedVariables = new HashSet<SystemVariable>();
+        foreach (var group in storedRows.GroupBy(item => GetSemanticIdentity(item.Entry), StringComparer.OrdinalIgnoreCase))
+        {
+            var canonical = SelectCanonicalCatalogRow(group);
+            canonical.Variable.DataType = DataType;
+            existing[group.Key] = canonical;
+            foreach (var duplicate in group.Where(item => item.Variable.Id != canonical.Variable.Id))
+            {
+                db.SystemVariables.Remove(duplicate.Variable);
+                removedVariables.Add(duplicate.Variable);
+                duplicateCount++;
+            }
+        }
+
+        if (duplicateCount > 0)
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        var variablesByName = variables
+            .Where(variable => !removedVariables.Contains(variable))
+            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.OrderByDescending(variable => variable.LastUpdated).ThenBy(variable => variable.Id).First(),
+                StringComparer.OrdinalIgnoreCase);
+        var claimedVariables = new HashSet<SystemVariable>();
+        var discovered = DiscoverEntries();
+        var discoveredKeys = discovered.Select(GetSemanticIdentity).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var descriptor in discovered)
+        {
+            var semanticIdentity = GetSemanticIdentity(descriptor);
+            var storageName = BuildStorageName(descriptor.CatalogKey);
+            var hasStored = existing.TryGetValue(semanticIdentity, out var stored);
+            variablesByName.TryGetValue(storageName, out var namedVariable);
+
+            if (namedVariable is not null && (!hasStored || namedVariable.Id != stored.Variable.Id))
+            {
+                // The unique storage name already exists, possibly with a legacy DataType or stale payload.
+                // Reuse that row and carry forward the policy from the semantic match when one exists.
+                var refreshedEntry = hasStored ? stored.Entry : Deserialize(namedVariable.ValueString) ?? descriptor;
+                PreservePolicyAndRefreshDescriptor(refreshedEntry, descriptor);
+                namedVariable.Name = storageName;
+                namedVariable.DataType = DataType;
+                namedVariable.ValueString = JsonSerializer.Serialize(refreshedEntry, JsonOptions);
+                namedVariable.LastUpdated = DateTime.UtcNow;
+
+                if (hasStored && stored.Variable.Id != namedVariable.Id)
+                {
+                    db.SystemVariables.Remove(stored.Variable);
+                    removedVariables.Add(stored.Variable);
+                    duplicateCount++;
+                }
+
+                foreach (var priorKey in existing
+                    .Where(item => ReferenceEquals(item.Value.Variable, namedVariable) &&
+                        !string.Equals(item.Key, semanticIdentity, StringComparison.OrdinalIgnoreCase))
+                    .Select(item => item.Key)
+                    .ToList())
+                {
+                    existing.Remove(priorKey);
+                }
+
+                existing[semanticIdentity] = (namedVariable, refreshedEntry);
+                claimedVariables.Add(namedVariable);
+                continue;
+            }
+
+            if (hasStored)
+            {
+                PreservePolicyAndRefreshDescriptor(stored.Entry, descriptor);
+                stored.Variable.Name = storageName;
+                stored.Variable.DataType = DataType;
+                stored.Variable.ValueString = JsonSerializer.Serialize(stored.Entry, JsonOptions);
+                stored.Variable.LastUpdated = DateTime.UtcNow;
+                variablesByName[storageName] = stored.Variable;
+                claimedVariables.Add(stored.Variable);
+                continue;
+            }
+
+            var variable = new SystemVariable
+            {
+                Name = storageName,
+                DataType = DataType,
+                ValueString = JsonSerializer.Serialize(descriptor, JsonOptions),
+                LastUpdated = DateTime.UtcNow
+            };
+            db.SystemVariables.Add(variable);
+            variablesByName[storageName] = variable;
+            existing[semanticIdentity] = (variable, descriptor);
+            claimedVariables.Add(variable);
+        }
+
+        foreach (var stored in existing.Values.Where(item =>
+            !claimedVariables.Contains(item.Variable) &&
+            !removedVariables.Contains(item.Variable) &&
+            !discoveredKeys.Contains(GetSemanticIdentity(item.Entry))))
+        {
+            stored.Entry.IsAvailable = false;
+            stored.Entry.UpdatedAtUtc = DateTime.UtcNow;
+            stored.Entry.UpdatedBy = "LocalGPT runtime catalog";
+            stored.Variable.DataType = DataType;
+            stored.Variable.ValueString = JsonSerializer.Serialize(stored.Entry, JsonOptions);
+            stored.Variable.LastUpdated = DateTime.UtcNow;
+        }
+
+        foreach (var invalidLegacyRow in variables.Where(variable =>
+            !claimedVariables.Contains(variable) &&
+            !removedVariables.Contains(variable) &&
+            variable.Name.StartsWith(StorageNamePrefix, StringComparison.OrdinalIgnoreCase) &&
+            Deserialize(variable.ValueString) is null))
+        {
+            db.SystemVariables.Remove(invalidLegacyRow);
+            removedVariables.Add(invalidLegacyRow);
+            duplicateCount++;
+        }
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var result = await ReadEntriesAsync(db, cancellationToken).ConfigureAwait(false);
+        logger.LogInformation(
+            "Synchronized {CatalogCount} unique DX function/public service catalog entries and removed {DuplicateCount} duplicate rows without replacing user policy.",
+            result.Count,
+            duplicateCount);
+        return result;
+    }
+
+    private bool IsSystemVariableNameConflict(DbUpdateException exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is SqliteException sqliteException &&
+                sqliteException.SqliteErrorCode == 19 &&
+                sqliteException.Message.Contains(
+                    "UNIQUE constraint failed: SystemVariables.Name",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> GetEntriesAsync(CancellationToken cancellationToken = default)
@@ -490,7 +596,7 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     private string BuildStorageName(string catalogKey)
     {
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(catalogKey))).ToLowerInvariant();
-        return $"DxFunctionCatalog.{hash[..32]}";
+        return $"{StorageNamePrefix}{hash[..32]}";
     }
 
     private string ComputeDescriptorHash(DxAiFunctionCatalogEntry entry)
