@@ -22,3 +22,5 @@ The generated PDF is named `LocalGPT-2.2.9.pdf` and follows the same complete ta
 
 <a class="btn btn-primary" href="LocalGPT-2.2.9.pdf" download>🐾 Download the complete Kawaii PDF</a>
 
+
+
