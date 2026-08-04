@@ -10,7 +10,7 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Resolves generated DocFX artifacts and compiler-generated XML comments without exposing arbitrary filesystem paths.
 /// </summary>
-[DocumentationUpdated("2.2.5")]
+[DocumentationUpdated("2.2.6")]
 public sealed class DocumentationCatalogService(
     IWebHostEnvironment environment,
     ICustomVersion version,

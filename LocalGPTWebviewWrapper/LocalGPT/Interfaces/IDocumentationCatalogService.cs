@@ -5,7 +5,7 @@ namespace LocalGPT.Interfaces;
 /// <summary>
 /// Locates versioned DocFX artifacts and exposes searchable compiler-generated XML comments for the running LocalGPT build.
 /// </summary>
-[DocumentationUpdated("2.2.5")]
+[DocumentationUpdated("2.2.6")]
 public interface IDocumentationCatalogService
 {
     /// <summary>Returns availability, version and application-relative links for generated documentation.</summary>

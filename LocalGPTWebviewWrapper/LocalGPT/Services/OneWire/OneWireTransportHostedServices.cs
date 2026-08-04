@@ -153,7 +153,7 @@ public sealed class OneWireDiscoveryHostedService(
                     PeerId = "localgpt",
                     DisplayName = "LocalGPT",
                     Application = "LocalGPT",
-                    ApplicationVersion = "2.2.5-organic-wire",
+                    ApplicationVersion = "2.2.6-organic-wire",
                     HostName = Environment.MachineName,
                     Address = options.Value.EnableLanTransport ? "0.0.0.0" : "127.0.0.1",
                     ServicePort = Program.OneWirePort,

@@ -350,6 +350,12 @@ The documentation build now stages referenced assemblies for DocFX metadata extr
 See `CHANGELOG-v2.1.22-direct-council-starters-docfx-modals-shortcuts.md`.
 
 
+## LocalGPT 2.2.6 GitHub Actions Node.js 24 maintenance patch
+
+Version 2.2.6 updates the GitHub Pages publishing workflow from `actions/checkout@v4` to the Node.js 24-based `actions/checkout@v6`. The Kawaii DocFX site, light/dark theme, animations, release-asset extraction, Pages deployment, installed WebView documentation and application features remain unchanged. The separately versioned 1-Wire protocol remains at 2.1.0.
+
+See `CHANGELOG-v2.2.6-github-actions-node24.md`.
+
 ## LocalGPT 2.2.5 GitHub Pages Kawaii deployment patch
 
 Version 2.2.5 makes the public GitHub Pages site publish the same generated `wwwroot/help-docs` payload that ships with LocalGPT. The Pages workflow now runs after releases and after publishing-helper changes, resolves the latest release automatically when no tag is supplied, rejects unthemed or stale documentation candidates, records theme hashes in the deployment manifest, and stops with a precise instruction when the repository is still configured for legacy branch publishing. The installed WebView documentation, light/dark theme, Kawaii shell, animations, mouse-paw trail, click scratch and PDF remain unchanged. The separately versioned 1-Wire protocol remains at 2.1.0.
