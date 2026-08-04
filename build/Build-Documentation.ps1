@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory)][string]$RepositoryRoot,
     [Parameter(Mandatory)][string]$AssemblyPath,
     [Parameter(Mandatory)][string]$XmlDocumentationPath,
@@ -35,6 +35,9 @@ $printBookParentRoot = Join-Path $docsRoot ".print-book"
 $printBookRoot = Join-Path $printBookParentRoot ([Guid]::NewGuid().ToString('N'))
 $printBookPath = Join-Path $printBookRoot "LocalGPT-$Version-complete.html"
 $pdfName = "LocalGPT-$Version.pdf"
+$pdfLinkStubPath = Join-Path $docsRoot $pdfName
+$pdfLinkStubCreated = $false
+$websiteThemeAssetCount = 0
 $warnings = [System.Collections.Generic.List[string]]::new()
 $documentationMode = "static-fallback"
 $pdfMode = "unavailable"
@@ -168,7 +171,7 @@ function Write-LocalGptPolishedXmlDocumentation {
         [Parameter(Mandatory)][string]$DestinationPath
     )
 
-    [xml]$document = Get-Content -LiteralPath $SourcePath -Raw
+    [xml]$document = Get-Content -LiteralPath $SourcePath -Raw -Encoding UTF8
     $polishedCount = 0
     $nodes = @($document.SelectNodes('/doc/members/member/summary | /doc/members/member/remarks | /doc/members/member/returns | /doc/members/member/value | /doc/members/member/param | /doc/members/member/typeparam | /doc/members/member/exception'))
     foreach ($node in $nodes) {
@@ -287,7 +290,7 @@ td, th { padding: .55rem; border-bottom: 1px solid var(--line); text-align: left
 "@
     Set-Content -LiteralPath (Join-Path $Destination "styles.css") -Value $styles -Encoding utf8
 
-    [xml]$xml = Get-Content -LiteralPath $XmlPath -Raw
+    [xml]$xml = Get-Content -LiteralPath $XmlPath -Raw -Encoding UTF8
     $members = @($xml.SelectNodes("/doc/members/member"))
     $types = @($members | Where-Object { $_.GetAttribute("name") -like 'T:*' } | Sort-Object { $_.GetAttribute("name") })
     $apiLinks = [System.Collections.Generic.List[string]]::new()
@@ -339,7 +342,7 @@ td, th { padding: .55rem; border-bottom: 1px solid var(--line); text-align: left
         $articleIndex++
         $name = [IO.Path]::GetFileNameWithoutExtension($article.Name)
         $target = "article-{0:D3}.html" -f $articleIndex
-        $markdown = Get-Content -LiteralPath $article.FullName -Raw
+        $markdown = Get-Content -LiteralPath $article.FullName -Raw -Encoding UTF8
         $body = Convert-LocalGptMarkdownToHtml $markdown
         Set-Content -LiteralPath (Join-Path $Destination "articles\$target") -Value (Get-LocalGptHtmlPage -Title $name -Body $body -RelativePrefix "../") -Encoding utf8
         $articleLinks.Add("<article class=`"card`"><h2><a href=`"articles/$target`">$(ConvertTo-LocalGptHtml $name)</a></h2></article>")
@@ -369,6 +372,92 @@ function Get-LocalGptRelativePath {
         return $pathFull.Substring($prefix.Length)
     }
     return $pathFull
+}
+
+
+function New-LocalGptDocfxPdfLinkStub {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $stub = @"
+%PDF-1.4
+% LocalGPT build-time DocFX link-validation placeholder
+1 0 obj
+<< /Type /Catalog >>
+endobj
+trailer
+<< /Root 1 0 R >>
+%%EOF
+"@
+    [IO.File]::WriteAllText($Path, $stub, [Text.Encoding]::ASCII)
+}
+
+function Install-LocalGptWebsiteThemeAssets {
+    param([Parameter(Mandatory)][string]$SiteRoot)
+
+    $themeSourceRoot = Join-Path $docsRoot "templates\localgpt\public"
+    $cssSource = Join-Path $themeSourceRoot "main.css"
+    $javascriptSource = Join-Path $themeSourceRoot "main.js"
+    if (-not (Test-Path -LiteralPath $cssSource -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $javascriptSource -PathType Leaf)) {
+        throw "The LocalGPT DocFX website theme source is incomplete: $themeSourceRoot"
+    }
+
+    $assetRoot = Join-Path $SiteRoot "styles"
+    New-Item -ItemType Directory -Path $assetRoot -Force | Out-Null
+    $cssTarget = Join-Path $assetRoot "localgpt-kawaii.css"
+    $javascriptTarget = Join-Path $assetRoot "localgpt-kawaii.js"
+    Copy-Item -LiteralPath $cssSource -Destination $cssTarget -Force
+    Copy-Item -LiteralPath $javascriptSource -Destination $javascriptTarget -Force
+
+    $cssHash = (Get-FileHash -LiteralPath $cssTarget -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant()
+    $javascriptHash = (Get-FileHash -LiteralPath $javascriptTarget -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant()
+    $siteRootFull = [IO.Path]::GetFullPath($SiteRoot)
+    $updatedCount = 0
+    foreach ($file in @(Get-ChildItem -LiteralPath $siteRootFull -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue)) {
+        if ($file.FullName -like "*\.print-book\*") { continue }
+        $relative = (Get-LocalGptRelativePath -Root $siteRootFull -Path $file.FullName).Replace('\', '/')
+        $depth = [Math]::Max(0, @($relative.Split('/') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count - 1)
+        $prefix = if ($depth -gt 0) { ("../" * $depth) -join "" } else { "" }
+        $cssHref = $prefix + "styles/localgpt-kawaii.css?v=$cssHash"
+        $javascriptHref = $prefix + "styles/localgpt-kawaii.js?v=$javascriptHash"
+        $html = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
+        $updated = $html
+
+        # Activate the visual shell in the generated markup itself. The website remains
+        # themed even when a WebView delays or blocks module execution, while main.js
+        # continues to provide the optional decorations and animations.
+        if ($updated -notmatch '(?i)<html\b[^>]*\blocalgpt-kawaii-docs\b') {
+            if ($updated -match '(?i)<html\b[^>]*\bclass\s*=\s*"') {
+                $updated = [regex]::Replace($updated, '(?i)(<html\b[^>]*\bclass\s*=\s*")', '${1}localgpt-kawaii-docs ', 1)
+            }
+            elseif ($updated -match "(?i)<html\b[^>]*\bclass\s*=\s*'") {
+                $updated = [regex]::Replace($updated, "(?i)(<html\b[^>]*\bclass\s*=\s*')", '${1}localgpt-kawaii-docs ', 1)
+            }
+            else {
+                $updated = [regex]::Replace($updated, '(?i)<html\b', '<html class="localgpt-kawaii-docs"', 1)
+            }
+        }
+
+        if ($updated -notmatch '(?i)data-localgpt-kawaii-style') {
+            $styleTag = '<link rel="stylesheet" href="' + $cssHref + '" data-localgpt-kawaii-style="true" />'
+            if ($updated -match '(?i)</head>') {
+                $updated = [regex]::Replace($updated, '(?i)</head>', $styleTag + "`r`n</head>", 1)
+            }
+        }
+        if ($updated -notmatch '(?i)data-localgpt-kawaii-script') {
+            $scriptTag = '<script type="module" src="' + $javascriptHref + '" data-localgpt-kawaii-script="true"></script>'
+            if ($updated -match '(?i)</body>') {
+                $updated = [regex]::Replace($updated, '(?i)</body>', $scriptTag + "`r`n</body>", 1)
+            }
+        }
+
+        if (-not [string]::Equals($updated, $html, [StringComparison]::Ordinal)) {
+            [IO.File]::WriteAllText($file.FullName, $updated, [Text.UTF8Encoding]::new($false))
+            $updatedCount++
+        }
+    }
+
+    return $updatedCount
 }
 
 function Test-LocalGptCompletePdf {
@@ -478,7 +567,7 @@ function Get-LocalGptPrintPageFiles {
         $tocPath = Join-Path $siteRootFull ($tocRelativePath.Replace('/', [IO.Path]::DirectorySeparatorChar))
         if (-not (Test-Path -LiteralPath $tocPath -PathType Leaf)) { continue }
         $tocDirectory = Split-Path -Parent $tocPath
-        $tocHtml = Get-Content -LiteralPath $tocPath -Raw
+        $tocHtml = Get-Content -LiteralPath $tocPath -Raw -Encoding UTF8
         foreach ($match in [regex]::Matches($tocHtml, '(?i)href\s*=\s*["''](?<value>[^"'']+\.html(?:[?#][^"'']*)?)["'']')) {
             $href = [Net.WebUtility]::HtmlDecode($match.Groups['value'].Value)
             $href = $href.Split('#')[0].Split('?')[0]
@@ -696,7 +785,7 @@ function Update-LocalGptApiPresentation {
     $panelCount = 0
     foreach ($file in @(Get-ChildItem -LiteralPath $apiSiteRoot -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue)) {
         if ($file.Name -in @("toc.html", "index.html", "404.html", "search.html")) { continue }
-        $html = Get-Content -LiteralPath $file.FullName -Raw
+        $html = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
         $result = Convert-LocalGptApiMemberPanels -Html $html
         $updatedHtml = Convert-LocalGptApiKawaiiDetails -Html ([string]$result.Html)
         if ([string]::Equals($updatedHtml, $html, [StringComparison]::Ordinal)) { continue }
@@ -778,7 +867,7 @@ function Update-LocalGptApiNavigation {
     $pageMap = New-Object 'System.Collections.Generic.Dictionary[string,object]' ([StringComparer]::OrdinalIgnoreCase)
     foreach ($file in @(Get-ChildItem -LiteralPath $apiSiteRoot -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue)) {
         if ($file.Name -in @("toc.html", "index.html", "404.html", "search.html")) { continue }
-        $html = Get-Content -LiteralPath $file.FullName -Raw
+        $html = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
         $title = Get-LocalGptHtmlDocumentTitle -Html $html -Fallback $file.BaseName
         $body = Get-LocalGptHtmlDocumentBody -Html $html
         $metadata = Get-LocalGptApiPageMetadata -Title $title -Html $body
@@ -792,7 +881,7 @@ function Update-LocalGptApiNavigation {
     }
     if ($pageMap.Count -eq 0) { return 0 }
 
-    $tocHtml = Get-Content -LiteralPath $tocHtmlPath -Raw
+    $tocHtml = Get-Content -LiteralPath $tocHtmlPath -Raw -Encoding UTF8
     $script:localGptNavigationGroupCounter = 0
     $evaluator = [Text.RegularExpressions.MatchEvaluator]{
         param($match)
@@ -984,7 +1073,7 @@ function New-LocalGptHtmlPrintBook {
         $relative = (Get-LocalGptRelativePath -Root $SiteRoot -Path $page.FullName).Replace('\', '/')
         $anchor = 'localgpt-document-{0:D5}' -f ($index + 1)
         $anchorMap[$relative] = $anchor
-        $html = Get-Content -LiteralPath $page.FullName -Raw
+        $html = Get-Content -LiteralPath $page.FullName -Raw -Encoding UTF8
         $title = Get-LocalGptHtmlDocumentTitle -Html $html -Fallback $relative
         $body = Get-LocalGptHtmlDocumentBody -Html $html
         $isApi = $relative.StartsWith('api/', [StringComparison]::OrdinalIgnoreCase)
@@ -1846,27 +1935,27 @@ Write-Host "Polished $xmlCommentPolishCount simple XML documentation passage(s) 
 
 $indexPath = Join-Path $docsRoot "index.md"
 if (Test-Path -LiteralPath $indexPath) {
-    $index = Get-Content -LiteralPath $indexPath -Raw
+    $index = Get-Content -LiteralPath $indexPath -Raw -Encoding UTF8
     $index = [regex]::Replace($index, '\*\*Version [^*]+\*\*', "**Version $Version**")
     $index = [regex]::Replace($index, 'LocalGPT-[0-9]+\.[0-9]+\.[0-9]+\.pdf', $pdfName)
     Set-Content -LiteralPath $indexPath -Value $index -Encoding utf8
 }
 
 if (Test-Path -LiteralPath $pdfTocPath) {
-    $pdfToc = Get-Content -LiteralPath $pdfTocPath -Raw
+    $pdfToc = Get-Content -LiteralPath $pdfTocPath -Raw -Encoding UTF8
     $pdfToc = [regex]::Replace($pdfToc, '(?m)^pdfFileName:\s*LocalGPT-[^\r\n]+\.pdf\s*$', "pdfFileName: $pdfName")
     Set-Content -LiteralPath $pdfTocPath -Value $pdfToc -Encoding utf8
 }
 
 if (Test-Path -LiteralPath $pdfCoverPath) {
-    $cover = Get-Content -LiteralPath $pdfCoverPath -Raw
+    $cover = Get-Content -LiteralPath $pdfCoverPath -Raw -Encoding UTF8
     $cover = [regex]::Replace($cover, 'LocalGPT [0-9]+\.[0-9]+\.[0-9]+ Documentation', "LocalGPT $Version Documentation")
     $cover = [regex]::Replace($cover, 'Version [0-9]+\.[0-9]+\.[0-9]+', "Version $Version")
     Set-Content -LiteralPath $pdfCoverPath -Value $cover -Encoding utf8
 }
 
 if (Test-Path -LiteralPath $configPath) {
-    $configText = Get-Content -LiteralPath $configPath -Raw
+    $configText = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8
     $configText = [regex]::Replace($configText, '"localgptVersion"\s*:\s*"[^"]+"', '"localgptVersion": "' + $Version + '"')
     $configText = [regex]::Replace($configText, '"_appFooter"\s*:\s*"LocalGPT [^"]+"', '"_appFooter": "LocalGPT ' + $Version + ' · generated documentation"')
     Set-Content -LiteralPath $configPath -Value $configText -Encoding utf8
@@ -1885,17 +1974,22 @@ if (Test-Path -LiteralPath $configPath) {
     if ([string]$metadataConfig.memberLayout -ne "samePage") {
         throw "DocFX memberLayout must be samePage so complete XML member documentation stays grouped by type and remains printable."
     }
-    $tocText = Get-Content -LiteralPath $tocPath -Raw
+    $tocText = Get-Content -LiteralPath $tocPath -Raw -Encoding UTF8
     if ($tocText -notmatch '(?m)^\s*href:\s*guide/\s*$' -or $tocText -notmatch '(?m)^\s*href:\s*api/\s*$') {
         throw "The root DocFX TOC must remain navbar-only and reference the guide and API TOCs."
     }
     if (-not (Test-Path -LiteralPath $guideTocPath -PathType Leaf)) {
         throw "The Microsoft Learn-style guide TOC is missing: $guideTocPath"
     }
-    $pdfTocText = Get-Content -LiteralPath $pdfTocPath -Raw
+    $pdfTocText = Get-Content -LiteralPath $pdfTocPath -Raw -Encoding UTF8
     if ($pdfTocText -notmatch '(?m)^\s*href:\s*\.\./guide/toc\.yml\s*$' -or $pdfTocText -notmatch '(?m)^\s*href:\s*\.\./api/toc\.yml\s*$') {
         throw "The dedicated PDF TOC must nest both guide/toc.yml and api/toc.yml."
     }
+}
+
+if (-not (Test-Path -LiteralPath $pdfLinkStubPath -PathType Leaf)) {
+    New-LocalGptDocfxPdfLinkStub -Path $pdfLinkStubPath
+    $pdfLinkStubCreated = $true
 }
 
 $docfxExecutable = $null
@@ -1993,7 +2087,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
 "@
                 Set-Content -LiteralPath (Join-Path $apiRoot "index.md") -Value $apiIndex -Encoding utf8
 
-                $apiTocText = Get-Content -LiteralPath $apiTocPath -Raw
+                $apiTocText = Get-Content -LiteralPath $apiTocPath -Raw -Encoding UTF8
                 if ($apiTocText -notmatch '(?m)^\s*-\s+name:\s+API overview\s*$') {
                     $itemsMatch = [regex]::Match($apiTocText, '(?m)^items:\s*$')
                     if (-not $itemsMatch.Success) {
@@ -2009,6 +2103,9 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                 $apiHtmlRoot = Join-Path $siteRoot "api"
                 $apiHtmlCount = @(Get-ChildItem -LiteralPath $apiHtmlRoot -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue).Count
                 $docfxBuildSucceeded = $buildResult.ExitCode -eq 0 -and (Test-Path -LiteralPath (Join-Path $siteRoot "index.html") -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $apiHtmlRoot "index.html") -PathType Leaf) -and $apiHtmlCount -gt 1
+                if ($pdfLinkStubCreated) {
+                    Remove-Item -LiteralPath (Join-Path $siteRoot $pdfName) -Force -ErrorAction SilentlyContinue
+                }
                 if ($docfxBuildSucceeded) {
                     $apiMemberPanelCount = Update-LocalGptApiPresentation -SiteRoot $siteRoot
                     if ($apiMemberPanelCount -eq 0) {
@@ -2017,6 +2114,10 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                     $apiNavigationGroupCount = Update-LocalGptApiNavigation -SiteRoot $siteRoot
                     if ($apiNavigationGroupCount -eq 0) {
                         $warnings.Add("The DocFX site rendered successfully, but no API member-section navigation groups were discovered.")
+                    }
+                    $websiteThemeAssetCount = Install-LocalGptWebsiteThemeAssets -SiteRoot $siteRoot
+                    if ($websiteThemeAssetCount -eq 0) {
+                        $warnings.Add("The DocFX site rendered successfully, but the cache-busted LocalGPT website theme was not injected into any HTML page.")
                     }
                 }
                 else {
@@ -2046,7 +2147,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
         Copy-Item -LiteralPath $polishedXmlPath -Destination (Join-Path $siteRoot "LocalGPT.xml") -Force
     }
 
-    [xml]$xmlForCount = Get-Content -LiteralPath $polishedXmlPath -Raw
+    [xml]$xmlForCount = Get-Content -LiteralPath $polishedXmlPath -Raw -Encoding UTF8
     $xmlMemberCount = @($xmlForCount.SelectNodes("/doc/members/member")).Count
     $pdfPath = Join-Path $siteRoot $pdfName
     $pdfGenerated = $false
@@ -2194,6 +2295,9 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
 }
 finally {
     Pop-Location
+    if ($pdfLinkStubCreated) {
+        Remove-Item -LiteralPath $pdfLinkStubPath -Force -ErrorAction SilentlyContinue
+    }
     Remove-LocalGptTemporaryPath -Path $inputRoot
     Remove-LocalGptTemporaryPath -Path $documentationWorkRoot -Attempts 8 -DelayMilliseconds 250
     Remove-LocalGptTemporaryPath -Path $printBookRoot -Attempts 8 -DelayMilliseconds 250
@@ -2226,6 +2330,7 @@ foreach ($publishRoot in $publishRoots) {
         apiYamlCount = $apiYamlCount
         apiHtmlCount = $apiHtmlCount
         apiNavigationGroupCount = $apiNavigationGroupCount
+        websiteThemeAssetCount = $websiteThemeAssetCount
         pdfBytes = $pdfFileSize
         pdfBytesBeforeCompression = $pdfBytesBeforeCompression
         pdfCompressionMode = $pdfCompressionMode
@@ -2248,12 +2353,24 @@ foreach ($publishRoot in $publishRoots) {
     $requiredArtifacts.Add((Join-Path $publishRoot "index.html"))
     $requiredArtifacts.Add((Join-Path $publishRoot "LocalGPT.xml"))
     $requiredArtifacts.Add($statusPath)
+    if ($documentationMode -eq "docfx") {
+        $requiredArtifacts.Add((Join-Path $publishRoot "styles\localgpt-kawaii.css"))
+        $requiredArtifacts.Add((Join-Path $publishRoot "styles\localgpt-kawaii.js"))
+    }
     if ($RequirePdf -or $pdfGenerated) {
         $requiredArtifacts.Add((Join-Path $publishRoot $pdfName))
     }
     foreach ($requiredArtifact in $requiredArtifacts) {
         if (-not (Test-Path -LiteralPath $requiredArtifact -PathType Leaf)) {
             throw "Documentation generation did not produce the required artifact: $requiredArtifact"
+        }
+    }
+    if ($documentationMode -eq "docfx") {
+        $publishedIndex = Get-Content -LiteralPath (Join-Path $publishRoot "index.html") -Raw -Encoding UTF8
+        foreach ($themeMarker in @("localgpt-kawaii-docs", "data-localgpt-kawaii-style", "data-localgpt-kawaii-script")) {
+            if ($publishedIndex -notmatch [regex]::Escape($themeMarker)) {
+                throw "The generated DocFX home page is missing the required Kawaii theme marker: $themeMarker"
+            }
         }
     }
 }

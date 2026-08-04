@@ -1288,3 +1288,471 @@ html.localgpt-kawaii-docs footer::after {
   html.localgpt-kawaii-docs article { animation: none !important; backdrop-filter: none; }
   html.localgpt-kawaii-docs article::before { content: none !important; }
 }
+
+/* LocalGPT website shell parity -------------------------------------------------
+   These selectors intentionally target the modern DocFX shell itself, not only
+   article text. They are loaded again as a cache-busted site asset by the build
+   script so installed WebView, localhost, and GitHub Pages display the same theme. */
+html.localgpt-kawaii-docs,
+html.localgpt-kawaii-docs[data-bs-theme="light"] {
+  color-scheme: light;
+  --localgpt-site-page:
+    radial-gradient(circle at 10% 4%, rgba(255,255,255,.82), transparent 25rem),
+    radial-gradient(circle at 92% 12%, rgba(255,255,255,.58), transparent 22rem),
+    linear-gradient(145deg, #ffc9e5 0%, #efc9fb 48%, #d7ddff 100%);
+  --localgpt-site-shell: rgba(255, 241, 250, .82);
+  --localgpt-site-shell-strong: rgba(255, 249, 253, .94);
+  --localgpt-site-surface: linear-gradient(160deg, rgba(255,255,255,.91), rgba(255,239,249,.92));
+  --localgpt-site-surface-soft: rgba(255, 248, 253, .76);
+  --localgpt-site-border: rgba(255,255,255,.72);
+  --localgpt-site-ink: #54275f;
+  --localgpt-site-muted: #7d557f;
+  --localgpt-site-link: #9d2a91;
+  --localgpt-site-link-hover: #c0267d;
+  --localgpt-site-shadow: rgba(106, 45, 128, .16);
+  --localgpt-site-navbar: linear-gradient(90deg, rgba(139,66,167,.94), rgba(211,76,151,.91) 50%, rgba(98,121,213,.91));
+  --bs-body-color: var(--localgpt-site-ink);
+  --bs-body-bg: transparent;
+  --bs-secondary-color: var(--localgpt-site-muted);
+  --bs-border-color: rgba(167, 104, 166, .24);
+  --bs-link-color-rgb: 157, 42, 145;
+  --bs-link-hover-color-rgb: 192, 38, 125;
+  --bs-tertiary-bg: rgba(255, 237, 248, .78);
+}
+
+html.localgpt-kawaii-docs[data-bs-theme="dark"] {
+  color-scheme: dark;
+  --localgpt-site-page:
+    radial-gradient(circle at 9% 7%, rgba(240,154,214,.16), transparent 25rem),
+    radial-gradient(circle at 91% 11%, rgba(143,151,255,.15), transparent 23rem),
+    linear-gradient(145deg, #241827 0%, #302039 48%, #20263c 100%);
+  --localgpt-site-shell: rgba(43, 27, 48, .86);
+  --localgpt-site-shell-strong: rgba(52, 32, 57, .95);
+  --localgpt-site-surface: linear-gradient(160deg, rgba(62,39,66,.94), rgba(45,31,57,.95));
+  --localgpt-site-surface-soft: rgba(55, 36, 62, .84);
+  --localgpt-site-border: rgba(255,190,232,.18);
+  --localgpt-site-ink: #fff2fb;
+  --localgpt-site-muted: #dcc3dd;
+  --localgpt-site-link: #ff9fd4;
+  --localgpt-site-link-hover: #ffd0e8;
+  --localgpt-site-shadow: rgba(0, 0, 0, .32);
+  --localgpt-site-navbar: linear-gradient(90deg, rgba(78,39,91,.98), rgba(124,46,96,.96) 52%, rgba(52,62,112,.96));
+  --bs-body-color: var(--localgpt-site-ink);
+  --bs-body-bg: transparent;
+  --bs-secondary-color: var(--localgpt-site-muted);
+  --bs-border-color: rgba(255,190,232,.18);
+  --bs-link-color-rgb: 255, 159, 212;
+  --bs-link-hover-color-rgb: 255, 208, 232;
+  --bs-tertiary-bg: rgba(72, 45, 78, .88);
+}
+
+html.localgpt-kawaii-docs,
+html.localgpt-kawaii-docs body {
+  background: var(--localgpt-site-page) fixed !important;
+  color: var(--localgpt-site-ink) !important;
+  min-height: 100%;
+}
+
+html.localgpt-kawaii-docs body::before {
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.84) 0 1.1px, transparent 1.7px),
+    radial-gradient(circle, rgba(255,255,255,.62) 0 .9px, transparent 1.5px),
+    radial-gradient(circle, rgba(255,255,255,.72) 0 1.2px, transparent 1.8px) !important;
+  background-position: 0 0, 41px 29px, 89px 13px !important;
+  background-size: 148px 148px, 173px 173px, 211px 211px !important;
+  content: "" !important;
+  display: block !important;
+  inset: 0;
+  opacity: .48;
+  pointer-events: none;
+  position: fixed;
+  z-index: 0;
+}
+
+html.localgpt-kawaii-docs body > *,
+html.localgpt-kawaii-docs header,
+html.localgpt-kawaii-docs main,
+html.localgpt-kawaii-docs footer {
+  position: relative;
+  z-index: 1;
+}
+
+/* Remove opaque modern-template layers that previously hid the pink sky. */
+html.localgpt-kawaii-docs body > .container-xxl,
+html.localgpt-kawaii-docs body > .container-fluid,
+html.localgpt-kawaii-docs main,
+html.localgpt-kawaii-docs .main,
+html.localgpt-kawaii-docs .main-container,
+html.localgpt-kawaii-docs .mainContainer,
+html.localgpt-kawaii-docs .body,
+html.localgpt-kawaii-docs .content,
+html.localgpt-kawaii-docs .article,
+html.localgpt-kawaii-docs .container-xxl,
+html.localgpt-kawaii-docs .container-fluid,
+html.localgpt-kawaii-docs .page-wrapper,
+html.localgpt-kawaii-docs .content-wrapper {
+  background-color: transparent !important;
+  background-image: none !important;
+  color: var(--localgpt-site-ink) !important;
+}
+
+html.localgpt-kawaii-docs .navbar,
+html.localgpt-kawaii-docs header .navbar {
+  background: var(--localgpt-site-navbar) !important;
+  border-bottom: 1px solid var(--localgpt-site-border) !important;
+  box-shadow: 0 .42rem 1.4rem var(--localgpt-site-shadow) !important;
+}
+
+html.localgpt-kawaii-docs .subnav,
+html.localgpt-kawaii-docs .breadcrumb,
+html.localgpt-kawaii-docs .breadcrumb-container {
+  backdrop-filter: blur(14px) saturate(1.15);
+  background: var(--localgpt-site-shell) !important;
+  border-color: var(--localgpt-site-border) !important;
+  color: var(--localgpt-site-ink) !important;
+}
+
+html.localgpt-kawaii-docs .toc-offcanvas,
+html.localgpt-kawaii-docs .offcanvas,
+html.localgpt-kawaii-docs .offcanvas-body,
+html.localgpt-kawaii-docs .sidefilter,
+html.localgpt-kawaii-docs .sidetoc,
+html.localgpt-kawaii-docs .affix,
+html.localgpt-kawaii-docs .sideaffix {
+  backdrop-filter: blur(18px) saturate(1.18);
+  background: var(--localgpt-site-shell) !important;
+  border-color: var(--localgpt-site-border) !important;
+  color: var(--localgpt-site-ink) !important;
+}
+
+html.localgpt-kawaii-docs .toc-offcanvas,
+html.localgpt-kawaii-docs .sidefilter,
+html.localgpt-kawaii-docs .sidetoc,
+html.localgpt-kawaii-docs .affix,
+html.localgpt-kawaii-docs .sideaffix {
+  border-radius: 1rem;
+  box-shadow: 0 .55rem 1.45rem var(--localgpt-site-shadow);
+}
+
+html.localgpt-kawaii-docs article,
+html.localgpt-kawaii-docs .content article,
+html.localgpt-kawaii-docs article.content,
+html.localgpt-kawaii-docs article[role="main"] {
+  background: var(--localgpt-site-surface) !important;
+  border: 1px solid var(--localgpt-site-border) !important;
+  border-radius: 1.35rem !important;
+  box-shadow: 0 .9rem 2.25rem var(--localgpt-site-shadow) !important;
+  color: var(--localgpt-site-ink) !important;
+  margin-bottom: 1.2rem;
+  padding: clamp(1rem, 2.2vw, 1.65rem) !important;
+}
+
+html.localgpt-kawaii-docs article p,
+html.localgpt-kawaii-docs article li,
+html.localgpt-kawaii-docs article td,
+html.localgpt-kawaii-docs article dd {
+  color: var(--localgpt-site-ink);
+}
+
+html.localgpt-kawaii-docs article h1 {
+  background: linear-gradient(130deg, #ec4899, #a855f7 58%, #60a5fa) !important;
+  border: 1px solid rgba(255,255,255,.38) !important;
+  color: #fff !important;
+}
+
+html.localgpt-kawaii-docs article h2,
+html.localgpt-kawaii-docs article h3,
+html.localgpt-kawaii-docs article h4 {
+  color: var(--localgpt-site-link) !important;
+}
+
+html.localgpt-kawaii-docs a {
+  color: var(--localgpt-site-link);
+}
+
+html.localgpt-kawaii-docs a:hover,
+html.localgpt-kawaii-docs a:focus-visible {
+  color: var(--localgpt-site-link-hover);
+}
+
+html.localgpt-kawaii-docs .form-control,
+html.localgpt-kawaii-docs input,
+html.localgpt-kawaii-docs select,
+html.localgpt-kawaii-docs .form-select {
+  background: var(--localgpt-site-shell-strong) !important;
+  border-color: var(--localgpt-site-border) !important;
+  color: var(--localgpt-site-ink) !important;
+}
+
+html.localgpt-kawaii-docs .btn-primary {
+  background: linear-gradient(135deg, #f472b6, #a855f7) !important;
+  border-color: rgba(255,255,255,.42) !important;
+  box-shadow: 0 .32rem .85rem rgba(168,85,247,.22);
+  color: #fff !important;
+}
+
+html.localgpt-kawaii-docs .pagination,
+html.localgpt-kawaii-docs footer {
+  background: var(--localgpt-site-shell) !important;
+  border-color: var(--localgpt-site-border) !important;
+  color: var(--localgpt-site-muted) !important;
+}
+
+/* Replace DocFX's default D mark with one compact cat badge. */
+html.localgpt-kawaii-docs .navbar-brand::before,
+html.localgpt-kawaii-docs .navbar-brand::after {
+  content: none !important;
+  display: none !important;
+}
+
+html.localgpt-kawaii-docs .navbar-brand > img,
+html.localgpt-kawaii-docs .navbar-brand > svg,
+html.localgpt-kawaii-docs .navbar-brand > .logo,
+html.localgpt-kawaii-docs .navbar-brand > [class*="logo"] {
+  display: none !important;
+}
+
+.localgpt-cat-brand {
+  align-items: center;
+  background: radial-gradient(circle at 34% 28%, #fff 0 18%, #ffd2e9 42%, #e9b9ff 100%);
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 999px;
+  box-shadow: 0 .2rem .7rem rgba(69,29,90,.24), inset 0 1px 0 rgba(255,255,255,.82);
+  display: inline-flex;
+  flex: 0 0 2rem;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  font-size: 1.15rem;
+  height: 2rem;
+  justify-content: center;
+  margin-right: .48rem;
+  transform-origin: 50% 70%;
+  width: 2rem;
+}
+
+html.localgpt-kawaii-docs .navbar-brand:hover .localgpt-cat-brand {
+  animation: localgpt-cat-wave .65s ease-in-out;
+}
+
+@keyframes localgpt-cat-wave {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  30% { transform: rotate(-8deg) scale(1.08); }
+  65% { transform: rotate(7deg) scale(1.06); }
+}
+
+@media (max-width: 991.98px) {
+  html.localgpt-kawaii-docs article,
+  html.localgpt-kawaii-docs .toc-offcanvas,
+  html.localgpt-kawaii-docs .affix {
+    border-radius: .95rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.localgpt-kawaii-docs .navbar-brand:hover .localgpt-cat-brand {
+    animation: none !important;
+  }
+}
+
+@media print {
+  html.localgpt-kawaii-docs body::before { display: none !important; }
+  .localgpt-cat-brand { box-shadow: none !important; }
+}
+
+/* Website shell hardening ------------------------------------------------------
+   The generated HTML receives localgpt-kawaii-docs at build time, so these rules
+   do not depend on JavaScript. They deliberately cover both modern DocFX layout
+   generations and preserve the built-in data-bs-theme light/dark switch. */
+html.localgpt-kawaii-docs body,
+html.localgpt-kawaii-docs .layout,
+html.localgpt-kawaii-docs .layout-container,
+html.localgpt-kawaii-docs .main,
+html.localgpt-kawaii-docs .main-panel,
+html.localgpt-kawaii-docs .main-content,
+html.localgpt-kawaii-docs .content-wrapper,
+html.localgpt-kawaii-docs .container-xxl,
+html.localgpt-kawaii-docs .container-fluid,
+html.localgpt-kawaii-docs .row {
+  background-color: transparent !important;
+}
+
+html.localgpt-kawaii-docs body {
+  background-attachment: fixed !important;
+  isolation: isolate;
+}
+
+html.localgpt-kawaii-docs main,
+html.localgpt-kawaii-docs [role="main"] {
+  min-height: calc(100vh - 4rem);
+}
+
+html.localgpt-kawaii-docs .navbar {
+  color: #fff !important;
+}
+
+html.localgpt-kawaii-docs .navbar a,
+html.localgpt-kawaii-docs .navbar .nav-link,
+html.localgpt-kawaii-docs .navbar .navbar-brand,
+html.localgpt-kawaii-docs .navbar button,
+html.localgpt-kawaii-docs .navbar svg {
+  color: #fff !important;
+  fill: currentColor;
+}
+
+html.localgpt-kawaii-docs .navbar-brand {
+  align-items: center;
+  display: inline-flex;
+  font-weight: 750;
+  letter-spacing: .01em;
+}
+
+/* A pure-CSS cat is present even before main.js runs. main.js only removes the
+   original DocFX D/logo node and marks the brand as decorated. */
+html.localgpt-kawaii-docs .navbar-brand::before {
+  align-items: center;
+  background: radial-gradient(circle at 34% 28%, #fff 0 18%, #ffd2e9 42%, #e9b9ff 100%);
+  border: 1px solid rgba(255,255,255,.76);
+  border-radius: 999px;
+  box-shadow: 0 .2rem .7rem rgba(69,29,90,.24), inset 0 1px 0 rgba(255,255,255,.84);
+  color: #5c2869;
+  content: "🐱" !important;
+  display: inline-flex !important;
+  flex: 0 0 2rem;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  font-size: 1.15rem;
+  height: 2rem;
+  justify-content: center;
+  margin-right: .48rem;
+  transform-origin: 50% 70%;
+  width: 2rem;
+}
+
+html.localgpt-kawaii-docs .navbar-brand::after {
+  content: none !important;
+  display: none !important;
+}
+
+html.localgpt-kawaii-docs .navbar-brand:hover::before {
+  animation: localgpt-cat-wave .65s ease-in-out;
+}
+
+html.localgpt-kawaii-docs .toc-offcanvas,
+html.localgpt-kawaii-docs .offcanvas,
+html.localgpt-kawaii-docs .sidefilter,
+html.localgpt-kawaii-docs .sidetoc,
+html.localgpt-kawaii-docs .affix,
+html.localgpt-kawaii-docs .sideaffix,
+html.localgpt-kawaii-docs .toc,
+html.localgpt-kawaii-docs .article-container,
+html.localgpt-kawaii-docs .content-container {
+  background: var(--localgpt-site-shell) !important;
+  border-color: var(--localgpt-site-border) !important;
+  color: var(--localgpt-site-ink) !important;
+}
+
+html.localgpt-kawaii-docs .article-container,
+html.localgpt-kawaii-docs .content-container {
+  background: transparent !important;
+}
+
+html.localgpt-kawaii-docs article,
+html.localgpt-kawaii-docs article.content,
+html.localgpt-kawaii-docs .markdown {
+  color: var(--localgpt-site-ink) !important;
+}
+
+html.localgpt-kawaii-docs .toc .nav-link,
+html.localgpt-kawaii-docs .toc a,
+html.localgpt-kawaii-docs .affix a,
+html.localgpt-kawaii-docs .sideaffix a,
+html.localgpt-kawaii-docs .breadcrumb a {
+  color: var(--localgpt-site-link) !important;
+}
+
+html.localgpt-kawaii-docs .toc .nav-link:hover,
+html.localgpt-kawaii-docs .toc a:hover,
+html.localgpt-kawaii-docs .toc .active > .nav-link,
+html.localgpt-kawaii-docs .toc .nav-link.active {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--localgpt-site-link) 20%, transparent), color-mix(in srgb, #a855f7 17%, transparent)) !important;
+  color: var(--localgpt-site-link-hover) !important;
+}
+
+html.localgpt-kawaii-docs article blockquote,
+html.localgpt-kawaii-docs .alert,
+html.localgpt-kawaii-docs .NOTE,
+html.localgpt-kawaii-docs .TIP,
+html.localgpt-kawaii-docs .WARNING,
+html.localgpt-kawaii-docs .IMPORTANT,
+html.localgpt-kawaii-docs .CAUTION {
+  background: var(--localgpt-site-surface-soft) !important;
+  border-color: color-mix(in srgb, var(--localgpt-site-link) 34%, transparent) !important;
+  color: var(--localgpt-site-ink) !important;
+}
+
+html.localgpt-kawaii-docs article table,
+html.localgpt-kawaii-docs article tbody,
+html.localgpt-kawaii-docs article td,
+html.localgpt-kawaii-docs article th {
+  background-color: var(--localgpt-site-surface-soft) !important;
+  border-color: color-mix(in srgb, var(--localgpt-site-link) 18%, transparent) !important;
+  color: var(--localgpt-site-ink) !important;
+}
+
+html.localgpt-kawaii-docs article thead,
+html.localgpt-kawaii-docs article thead th {
+  background: linear-gradient(90deg, color-mix(in srgb, #f472b6 24%, var(--localgpt-site-shell-strong)), color-mix(in srgb, #a855f7 20%, var(--localgpt-site-shell-strong))) !important;
+}
+
+html.localgpt-kawaii-docs article code:not(pre code) {
+  background: color-mix(in srgb, var(--localgpt-site-link) 10%, var(--localgpt-site-shell-strong)) !important;
+  color: var(--localgpt-site-link-hover) !important;
+}
+
+html.localgpt-kawaii-docs .pagination,
+html.localgpt-kawaii-docs .pagination-container,
+html.localgpt-kawaii-docs footer {
+  backdrop-filter: blur(14px) saturate(1.15);
+}
+
+html.localgpt-kawaii-docs[data-bs-theme="dark"] .localgpt-kawaii-sky {
+  opacity: .72;
+}
+
+html.localgpt-kawaii-docs[data-bs-theme="dark"] article h1 {
+  background: linear-gradient(130deg, #be185d, #7e22ce 58%, #3453b7) !important;
+}
+
+html.localgpt-kawaii-docs[data-bs-theme="dark"] article pre {
+  background: linear-gradient(145deg, rgba(28,19,42,.98), rgba(45,27,63,.98)) !important;
+  border-color: rgba(255,190,232,.20) !important;
+}
+
+html.localgpt-kawaii-docs[data-bs-theme="dark"] .navbar-brand::before {
+  background: radial-gradient(circle at 34% 28%, #fff 0 14%, #e7a9d0 40%, #a96ad0 100%);
+  color: #3f1d4c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.localgpt-kawaii-docs .navbar-brand:hover::before {
+    animation: none !important;
+  }
+}
+
+@media print {
+  /* The compact print book has its own Kawaii print layout and does not receive
+     localgpt-kawaii-docs. These guards keep accidental direct-page printing lean. */
+  html.localgpt-kawaii-docs,
+  html.localgpt-kawaii-docs body {
+    background: #fff !important;
+  }
+
+  html.localgpt-kawaii-docs article {
+    animation: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+
+  html.localgpt-kawaii-docs .navbar-brand::before {
+    animation: none !important;
+    box-shadow: none !important;
+  }
+}

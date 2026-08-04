@@ -42,7 +42,8 @@
         "files": [
           "media/**",
           "styles/**",
-          "pdf-cover.html"
+          "pdf-cover.html",
+          "LocalGPT-*.pdf"
         ]
       }
     ],
@@ -55,7 +56,7 @@
     "globalMetadata": {
       "_appName": "LocalGPT",
       "_appTitle": "LocalGPT Documentation",
-      "_appFooter": "LocalGPT 2.2.2 Â· generated documentation",
+      "_appFooter": "LocalGPT 2.2.2 · generated documentation",
       "_enableSearch": true,
       "_disableContribution": true,
       "_disableTocFilter": false,

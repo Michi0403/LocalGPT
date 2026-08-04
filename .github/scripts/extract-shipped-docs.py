@@ -103,10 +103,14 @@ def validate_output(output: Path, status: dict[str, object]) -> None:
     if html_count < 10:
         raise RuntimeError(f"Only {html_count} HTML files were extracted; expected a complete DocFX site")
 
-    custom_style = output / "public" / "main.css"
-    resource_style = output / "styles" / "main.css"
-    if not custom_style.is_file() and not resource_style.is_file():
-        raise RuntimeError("The Kawaii DocFX stylesheet was not included in the shipped site")
+    theme_style = output / "styles" / "localgpt-kawaii.css"
+    theme_script = output / "styles" / "localgpt-kawaii.js"
+    if not theme_style.is_file() or not theme_script.is_file():
+        raise RuntimeError("The cache-busted Kawaii DocFX website assets were not included in the shipped site")
+
+    index_html = (output / "index.html").read_text(encoding="utf-8")
+    if "data-localgpt-kawaii-style" not in index_html or "data-localgpt-kawaii-script" not in index_html:
+        raise RuntimeError("The shipped DocFX index does not activate the LocalGPT Kawaii website theme")
 
     (output / ".nojekyll").write_text("", encoding="utf-8")
     summary = {

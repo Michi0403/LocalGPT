@@ -36,12 +36,39 @@ function addKawaiiClick(event) {
   window.setTimeout(() => pop.remove(), 1000);
 }
 
+function decorateBrand() {
+  const brand = document.querySelector(".navbar-brand");
+  if (!brand) return;
+
+  for (const element of brand.querySelectorAll(":scope > img, :scope > svg, :scope > .logo, :scope > [class*='logo']")) {
+    element.setAttribute("aria-hidden", "true");
+    element.hidden = true;
+  }
+
+  for (const node of [...brand.childNodes]) {
+    if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "D") {
+      node.remove();
+    }
+  }
+
+  brand.dataset.localgptCatBrand = "true";
+}
+
 function decorateDocumentation() {
-  if (document.documentElement.dataset.localgptKawaiiStarted === "true") return;
-  document.documentElement.dataset.localgptKawaiiStarted = "true";
   document.documentElement.classList.add("localgpt-kawaii-docs");
   createKawaiiSky();
-  document.addEventListener("click", addKawaiiClick, { passive: true });
+  decorateBrand();
+
+  if (document.documentElement.dataset.localgptKawaiiStarted !== "true") {
+    document.documentElement.dataset.localgptKawaiiStarted = "true";
+    document.addEventListener("click", addKawaiiClick, { passive: true });
+  }
+}
+
+function startKawaiiDocumentation() {
+  decorateDocumentation();
+  window.requestAnimationFrame(decorateBrand);
+  window.setTimeout(decorateBrand, 250);
 }
 
 export default {
@@ -53,5 +80,13 @@ export default {
       title: "LocalGPT on GitHub"
     }
   ],
-  start: decorateDocumentation
+  start: startKawaiiDocumentation
 };
+
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", startKawaiiDocumentation, { once: true });
+}
+else {
+  startKawaiiDocumentation();
+}
