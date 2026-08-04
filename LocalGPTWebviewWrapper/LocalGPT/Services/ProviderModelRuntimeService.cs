@@ -10,6 +10,7 @@ using System.ClientModel.Primitives;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Collections.Concurrent;
+using ConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
 
 namespace LocalGPT.Services;
 
