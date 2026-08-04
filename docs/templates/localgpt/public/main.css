@@ -720,6 +720,7 @@ article .localgpt-api-member-panel > h2 .localgpt-api-member-count {
   --localgpt-kawaii-panel-strong: rgba(255, 255, 255, .94);
   --localgpt-kawaii-ink: #5c2b66;
   --localgpt-kawaii-white: #ffffff;
+  --localgpt-kawaii-display-font: "Segoe Print", "Comic Sans MS", "Trebuchet MS", "Arial Rounded MT Bold", sans-serif;
 }
 
 html, body {
@@ -776,14 +777,19 @@ article h2,
 article h3,
 article h4,
 .localgpt-api-kind-navigation-heading,
+.localgpt-api-neko-note,
 .localgpt-api-neko-note strong,
+.localgpt-api-neko-note > span:last-child,
 article .localgpt-api-member-panel > h2,
+html.localgpt-kawaii-docs .navbar-brand,
+html.localgpt-kawaii-docs .btn,
+html.localgpt-kawaii-docs .btn-primary,
 .localgpt-print-cover h1,
 .localgpt-print-toc > h1,
 .localgpt-print-toc-section > h2,
 .localgpt-print-toc-namespace h3,
 .localgpt-print-toc-kind h4 {
-  font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+  font-family: var(--localgpt-kawaii-display-font);
 }
 
 article h1,
@@ -812,11 +818,29 @@ article[role="main"],
 
 .localgpt-api-neko-note {
   background:
-    radial-gradient(circle at 12% 32%, rgba(255,255,255,.95), transparent 24%),
-    radial-gradient(circle at 88% 28%, rgba(255,255,255,.5), transparent 16%),
-    linear-gradient(120deg, rgba(244,114,182,.28), rgba(192,132,252,.25) 52%, rgba(125,211,252,.24));
-  border: 1px solid rgba(255,255,255,.55);
-  color: #6b2a74;
+    radial-gradient(circle at 14% 24%, rgba(255,255,255,.32), transparent 22%),
+    radial-gradient(circle at 84% 26%, rgba(255,255,255,.20), transparent 16%),
+    linear-gradient(132deg, rgba(236,72,153,.94), rgba(168,85,247,.90) 52%, rgba(96,165,250,.86));
+  border: 1px solid rgba(255,255,255,.42);
+  box-shadow: 0 .75rem 1.6rem rgba(109, 40, 217, .18), inset 0 1px 0 rgba(255,255,255,.18);
+  color: #fff !important;
+  text-shadow: 0 1px 0 rgba(93, 31, 108, .40), 0 0 .8rem rgba(255,255,255,.28);
+}
+
+.localgpt-api-neko-note > span:last-child {
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: .85rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
+  color: #fff !important;
+  display: block;
+  line-height: 1.5;
+  padding: .34rem .58rem;
+}
+
+.localgpt-api-neko-note strong {
+  color: #fff !important;
+  text-shadow: 0 1px 0 rgba(93, 31, 108, .42), 0 0 1rem rgba(255,255,255,.42);
 }
 
 .localgpt-api-neko-note::after {
@@ -847,6 +871,7 @@ article[role="main"],
   background: linear-gradient(135deg, color-mix(in srgb, var(--localgpt-kind-accent) 88%, #ffffff 12%), color-mix(in srgb, var(--localgpt-kind-accent) 65%, #f9a8d4 35%)) !important;
   border-radius: .9rem;
   padding: .45rem .58rem;
+  text-shadow: 0 1px 0 rgba(93, 31, 108, .46), 0 0 .85rem rgba(255,255,255,.28);
 }
 
 .localgpt-api-kind-navigation-count,
@@ -1754,5 +1779,227 @@ html.localgpt-kawaii-docs[data-bs-theme="dark"] .navbar-brand::before {
   html.localgpt-kawaii-docs .navbar-brand::before {
     animation: none !important;
     box-shadow: none !important;
+  }
+}
+
+
+/* Follow-up shell refinement --------------------------------------------------
+   Keep the working moon theme toggle, decorate it softly, and add a playful
+   paw cursor/trail used only on the documentation website. */
+html.localgpt-kawaii-docs body,
+html.localgpt-kawaii-docs a,
+html.localgpt-kawaii-docs button,
+html.localgpt-kawaii-docs .nav-link,
+html.localgpt-kawaii-docs .btn,
+html.localgpt-kawaii-docs summary {
+  cursor: none !important;
+}
+
+html.localgpt-kawaii-docs .localgpt-theme-toggle,
+html.localgpt-kawaii-docs button[aria-label*="theme" i],
+html.localgpt-kawaii-docs button[title*="theme" i],
+html.localgpt-kawaii-docs button[data-bs-theme-value],
+html.localgpt-kawaii-docs .theme-toggle,
+html.localgpt-kawaii-docs .theme-switcher,
+html.localgpt-kawaii-docs .theme-picker {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(255,255,255,.30), rgba(255,255,255,.14)) !important;
+  border: 1px solid rgba(255,255,255,.42) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 .25rem .8rem rgba(84, 39, 95, .18), inset 0 1px 0 rgba(255,255,255,.35);
+  color: #fff !important;
+  display: inline-flex;
+  font-family: var(--localgpt-kawaii-display-font, "Segoe Print", "Comic Sans MS", "Arial Rounded MT Bold", sans-serif);
+  gap: .35rem;
+  justify-content: center;
+  min-height: 2.15rem;
+  min-width: 2.15rem;
+  padding: .3rem .72rem !important;
+  text-shadow: 0 1px .35rem rgba(255,255,255,.32), 0 1px 0 rgba(89, 36, 96, .28);
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+html.localgpt-kawaii-docs .localgpt-theme-toggle:hover,
+html.localgpt-kawaii-docs button[aria-label*="theme" i]:hover,
+html.localgpt-kawaii-docs button[title*="theme" i]:hover,
+html.localgpt-kawaii-docs button[data-bs-theme-value]:hover,
+html.localgpt-kawaii-docs .theme-toggle:hover,
+html.localgpt-kawaii-docs .theme-switcher:hover,
+html.localgpt-kawaii-docs .theme-picker:hover {
+  box-shadow: 0 .35rem .95rem rgba(84, 39, 95, .24), inset 0 1px 0 rgba(255,255,255,.44);
+  transform: translateY(-1px);
+}
+
+html.localgpt-kawaii-docs .navbar .localgpt-heart-glimmer {
+  animation: localgpt-heart-glimmer 3.6s ease-in-out infinite;
+  color: #fff;
+  display: inline-flex;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  font-size: 1rem;
+  margin-left: .65rem;
+  opacity: .96;
+  pointer-events: none;
+  text-shadow: 0 0 .5rem rgba(255,255,255,.55);
+}
+
+@keyframes localgpt-heart-glimmer {
+  0%, 100% { transform: translateY(0) scale(1); opacity: .92; }
+  25% { transform: translateY(-2px) scale(1.08); opacity: 1; }
+  55% { transform: translateY(1px) scale(.97); opacity: .9; }
+  75% { transform: translateY(-1px) scale(1.05); opacity: 1; }
+}
+
+html.localgpt-kawaii-docs .localgpt-cursor-paw,
+html.localgpt-kawaii-docs .localgpt-paw-trail,
+html.localgpt-kawaii-docs .localgpt-cat-scratch {
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  pointer-events: none;
+  position: fixed;
+  user-select: none;
+  z-index: 2147483646;
+}
+
+html.localgpt-kawaii-docs .localgpt-cursor-paw {
+  filter: drop-shadow(0 .15rem .35rem rgba(102, 19, 76, .25));
+  font-size: 1.25rem;
+  left: 0;
+  top: 0;
+  transform: translate(-100px, -100px);
+  transition: transform .06s linear;
+}
+
+html.localgpt-kawaii-docs .localgpt-paw-trail {
+  animation: localgpt-paw-fade 1.18s ease-out forwards;
+  color: color-mix(in srgb, var(--localgpt-site-link) 72%, #ffffff);
+  font-size: .96rem;
+  left: 0;
+  opacity: .9;
+  top: 0;
+  transform: translate(-50%, -50%) rotate(var(--localgpt-trail-rotate, 0deg));
+}
+
+@keyframes localgpt-paw-fade {
+  0% { opacity: .9; transform: translate(-50%, -50%) scale(1) rotate(var(--localgpt-trail-rotate, 0deg)); }
+  100% { opacity: 0; transform: translate(-50%, -85%) scale(.68) rotate(calc(var(--localgpt-trail-rotate, 0deg) + 12deg)); }
+}
+
+html.localgpt-kawaii-docs .localgpt-cat-scratch {
+  animation: localgpt-cat-scratch-burst .8s ease-out forwards;
+  color: #f472b6;
+  height: 3rem;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  width: 3rem;
+}
+
+html.localgpt-kawaii-docs .localgpt-cat-scratch::before {
+  content: "🐾";
+  font-size: 1.15rem;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+html.localgpt-kawaii-docs .localgpt-cat-scratch::after {
+  content: "╱ ╱ ╱";
+  color: color-mix(in srgb, #ec4899 78%, #ffffff);
+  font-size: 1.2rem;
+  font-weight: 900;
+  left: 50%;
+  letter-spacing: .06rem;
+  position: absolute;
+  text-shadow: 0 0 .45rem rgba(255,255,255,.45);
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-16deg);
+}
+
+@keyframes localgpt-cat-scratch-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.5) rotate(-8deg); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.08) rotate(0deg); }
+  100% { opacity: 0; transform: translate(-50%, -68%) scale(1.26) rotate(8deg); }
+}
+
+html.localgpt-kawaii-docs .sidetoc,
+html.localgpt-kawaii-docs .affix,
+html.localgpt-kawaii-docs .sideaffix,
+html.localgpt-kawaii-docs .toc,
+html.localgpt-kawaii-docs .toc .nav,
+html.localgpt-kawaii-docs .toc .nav > li,
+html.localgpt-kawaii-docs .toc .level1,
+html.localgpt-kawaii-docs .toc .level2,
+html.localgpt-kawaii-docs .toc .level3,
+html.localgpt-kawaii-docs .sidenav,
+html.localgpt-kawaii-docs .sidefilter,
+html.localgpt-kawaii-docs .toc-filter,
+html.localgpt-kawaii-docs .tocpane,
+html.localgpt-kawaii-docs .toc-container,
+html.localgpt-kawaii-docs .article-header,
+html.localgpt-kawaii-docs .article-subheading,
+html.localgpt-kawaii-docs .right-rail,
+html.localgpt-kawaii-docs .contribution,
+html.localgpt-kawaii-docs .summary,
+html.localgpt-kawaii-docs .alert,
+html.localgpt-kawaii-docs .NOTE,
+html.localgpt-kawaii-docs .TIP,
+html.localgpt-kawaii-docs .IMPORTANT,
+html.localgpt-kawaii-docs .WARNING,
+html.localgpt-kawaii-docs .CAUTION {
+  background: var(--localgpt-site-shell) !important;
+  border-color: var(--localgpt-site-border) !important;
+}
+
+html.localgpt-kawaii-docs .sidetoc,
+html.localgpt-kawaii-docs .affix,
+html.localgpt-kawaii-docs .sideaffix,
+html.localgpt-kawaii-docs .tocpane,
+html.localgpt-kawaii-docs .toc-container,
+html.localgpt-kawaii-docs .right-rail,
+html.localgpt-kawaii-docs .contribution {
+  box-shadow: 0 .55rem 1.45rem var(--localgpt-site-shadow) !important;
+}
+
+html.localgpt-kawaii-docs .toc .nav-link,
+html.localgpt-kawaii-docs .toc a,
+html.localgpt-kawaii-docs .affix a,
+html.localgpt-kawaii-docs .sideaffix a {
+  border-radius: .75rem;
+  padding: .3rem .58rem;
+}
+
+html.localgpt-kawaii-docs .toc .nav-link:hover,
+html.localgpt-kawaii-docs .toc a:hover,
+html.localgpt-kawaii-docs .affix a:hover,
+html.localgpt-kawaii-docs .sideaffix a:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--localgpt-site-link) 15%, transparent);
+}
+
+html.localgpt-kawaii-docs .subnav,
+html.localgpt-kawaii-docs .breadcrumb,
+html.localgpt-kawaii-docs .breadcrumb-container,
+html.localgpt-kawaii-docs .buttons,
+html.localgpt-kawaii-docs .navbar-collapse {
+  background-color: transparent !important;
+}
+
+html.localgpt-kawaii-docs[data-bs-theme="dark"] .localgpt-heart-glimmer {
+  text-shadow: 0 0 .75rem rgba(255, 196, 226, .58);
+}
+
+@media (prefers-reduced-motion: reduce), (pointer: coarse) {
+  html.localgpt-kawaii-docs body,
+  html.localgpt-kawaii-docs a,
+  html.localgpt-kawaii-docs button,
+  html.localgpt-kawaii-docs .nav-link,
+  html.localgpt-kawaii-docs .btn,
+  html.localgpt-kawaii-docs summary {
+    cursor: auto !important;
+  }
+
+  html.localgpt-kawaii-docs .localgpt-cursor-paw,
+  html.localgpt-kawaii-docs .localgpt-paw-trail,
+  html.localgpt-kawaii-docs .localgpt-cat-scratch {
+    display: none !important;
   }
 }
