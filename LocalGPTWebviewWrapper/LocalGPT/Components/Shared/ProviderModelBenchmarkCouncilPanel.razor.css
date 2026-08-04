@@ -1,0 +1,94 @@
+.benchmark-council-panel {
+    display: grid;
+    gap: .75rem;
+    padding: .9rem;
+    border: 1px solid var(--bs-border-color, #ccd2da);
+    border-radius: .75rem;
+    background: color-mix(in srgb, var(--bs-primary, Highlight) 5%, var(--bs-body-bg, Canvas));
+}
+
+.benchmark-council-panel > header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: .75rem;
+}
+
+.benchmark-council-panel header div,
+.benchmark-council-results {
+    display: grid;
+    gap: .25rem;
+}
+
+.benchmark-count {
+    white-space: nowrap;
+    padding: .2rem .55rem;
+    border-radius: 999px;
+    background: var(--bs-secondary-bg, #eceff3);
+}
+
+.benchmark-council-config {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: .55rem;
+}
+
+.benchmark-council-config label {
+    display: grid;
+    gap: .25rem;
+    font-size: .86rem;
+    font-weight: 650;
+}
+
+.benchmark-council-config input {
+    min-height: 2.4rem;
+    width: 100%;
+    padding: .35rem .5rem;
+    color: var(--bs-body-color, CanvasText);
+    background: var(--bs-body-bg, Canvas);
+    border: 1px solid var(--bs-border-color, #ccd2da);
+    border-radius: .45rem;
+}
+
+.benchmark-council-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.benchmark-council-actions button {
+    min-height: 2.65rem;
+    padding: .45rem .8rem;
+    border: 1px solid var(--bs-primary, Highlight);
+    border-radius: .55rem;
+    color: var(--bs-body-color, CanvasText);
+    background: var(--bs-body-bg, Canvas);
+    font-weight: 700;
+}
+
+.benchmark-council-actions button:first-child {
+    color: var(--bs-white, white);
+    background: var(--bs-primary, Highlight);
+}
+
+.benchmark-council-actions button:focus-visible,
+.benchmark-council-config input:focus-visible {
+    outline: .2rem solid color-mix(in srgb, var(--bs-primary, Highlight) 45%, transparent);
+    outline-offset: .12rem;
+}
+
+.benchmark-council-status {
+    margin: 0;
+}
+
+.benchmark-council-results details {
+    padding: .55rem .65rem;
+    border: 1px solid var(--bs-border-color, #ccd2da);
+    border-radius: .5rem;
+    background: var(--bs-body-bg, Canvas);
+}
+
+.benchmark-council-results summary {
+    cursor: pointer;
+    font-weight: 700;
+}

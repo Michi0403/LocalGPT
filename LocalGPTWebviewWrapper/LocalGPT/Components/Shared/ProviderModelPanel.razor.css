@@ -1,0 +1,49 @@
+.provider-model-panel {
+    display: grid;
+    gap: .65rem;
+    padding: .8rem;
+    border: 1px solid var(--bs-border-color, #7776);
+    border-radius: .8rem;
+    background: var(--bs-body-bg, transparent);
+    min-width: 0;
+}
+
+.provider-model-panel.is-selected {
+    border-width: 2px;
+}
+
+.provider-model-heading {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .65rem;
+}
+
+.provider-model-heading > input { width: 1.2rem; height: 1.2rem; }
+.provider-model-title { display: grid; min-width: 0; }
+.provider-model-title strong, .provider-model-title small { overflow-wrap: anywhere; }
+.provider-model-badges { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: end; }
+.model-badge { padding: .1rem .4rem; border: 1px solid currentColor; border-radius: 999px; font-size: .72rem; }
+.provider-model-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.model-action { min-height: 2.1rem; padding: .3rem .7rem; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; }
+.model-action-primary { font-weight: 700; }
+.model-action:focus-visible, .provider-model-panel input:focus-visible { outline: 3px solid currentColor; outline-offset: 2px; }
+.provider-model-properties { display: grid; gap: .35rem; margin: 0; }
+.provider-model-properties > div { display: grid; grid-template-columns: minmax(8rem, .35fr) minmax(0, 1fr); gap: .6rem; }
+.provider-model-properties dt { font-weight: 700; }
+.provider-model-properties dd { margin: 0; overflow-wrap: anywhere; }
+.provider-model-benchmark { display: grid; gap: .7rem; padding-top: .6rem; border-top: 1px solid var(--bs-border-color, #7776); }
+.benchmark-config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .55rem; }
+.benchmark-config-grid label { display: grid; gap: .2rem; }
+.benchmark-config-grid input[type="number"] { width: 100%; min-height: 2.2rem; }
+.benchmark-config-grid .benchmark-check { display: flex; align-items: center; gap: .45rem; }
+.benchmark-council-summary, .benchmark-status { margin: 0; overflow-wrap: anywhere; }
+.benchmark-result { display: grid; gap: .35rem; }
+.benchmark-result details { padding: .3rem 0; }
+.benchmark-result ul { margin-bottom: 0; }
+
+@media (max-width: 560px) {
+    .provider-model-heading { grid-template-columns: auto minmax(0, 1fr); }
+    .provider-model-badges { grid-column: 1 / -1; justify-content: start; }
+    .provider-model-properties > div { grid-template-columns: 1fr; gap: .1rem; }
+}

@@ -407,7 +407,16 @@ public sealed class OneWirePermissionRule
 
 public sealed class OneWireCouncilModelRoute
 {
+    /// <summary>Provider-qualified participant key used by Council scheduling and saved presets.</summary>
     public string ModelName { get; set; } = string.Empty;
+    /// <summary>Canonical provider kind such as ollama, openai-compatible, openai or azure-openai.</summary>
+    public string ProviderKind { get; set; } = string.Empty;
+    /// <summary>Human-readable provider name retained for diagnostics and user interfaces.</summary>
+    public string ProviderName { get; set; } = string.Empty;
+    /// <summary>Exact provider endpoint used to disambiguate same-named models.</summary>
+    public string ProviderEndpoint { get; set; } = string.Empty;
+    /// <summary>Model or deployment name understood by the selected provider.</summary>
+    public string ProviderModelName { get; set; } = string.Empty;
     public OneWireHardwareKind HardwareKind { get; set; } = OneWireHardwareKind.Auto;
     public int HardwareIndex { get; set; } = -1;
     public string HardwareName { get; set; } = string.Empty;

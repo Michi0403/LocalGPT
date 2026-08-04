@@ -747,7 +747,11 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
                 var profile = model.Profiles.First(item => string.Equals(item.ProfileName, model.BestProfile, StringComparison.Ordinal));
                 routes.Add(new OneWireCouncilModelRoute
                 {
-                    ModelName = model.ModelName,
+                    ModelName = new ProviderModelIdentity().CreateSelectionKey("Ollama", report.Endpoint, model.ModelName),
+                    ProviderKind = ProviderModelKinds.Ollama,
+                    ProviderName = "Ollama",
+                    ProviderEndpoint = report.Endpoint,
+                    ProviderModelName = model.ModelName,
                     HardwareKind = lane?.Kind ?? OneWireHardwareKind.Cpu,
                     HardwareIndex = lane?.Index ?? 0,
                     HardwareName = lane?.Name ?? "CPU",
@@ -767,7 +771,7 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
             {
                 Name = presetName,
                 Description = $"User-approved adaptive Ollama benchmark {report.RunId}. New preset only; existing presets were not overwritten.",
-                ModelNamesJson = JsonSerializer.Serialize(ranked.Select(model => model.ModelName).ToList(), jsonOptions),
+                ModelNamesJson = JsonSerializer.Serialize(routes.Select(route => route.ModelName).ToList(), jsonOptions),
                 ModelRoutesJson = JsonSerializer.Serialize(routes, jsonOptions),
                 AllowParallelHardwareRoads = false,
                 MaxOutputTokens = routes.Max(route => route.MaxOutputTokens),

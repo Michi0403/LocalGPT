@@ -10,6 +10,9 @@ namespace LocalGPT.BusinessObjects
 
         public List<string> ModelNames { get; set; } = [];
 
+        /// <summary>Provider-qualified model identities for this run. Bare ModelNames remain supported for legacy presets.</summary>
+        public List<ProviderModelReference> ModelSelections { get; set; } = [];
+
         public string? BaseUri { get; set; }
 
         public int MaxRounds { get; set; } = 1;
@@ -86,9 +89,27 @@ namespace LocalGPT.BusinessObjects
         bool IsInstalled,
         bool IsConfigured,
         bool IsLoaded,
-        string? Details)
+        string? Details,
+        string ProviderKind = ProviderModelKinds.Ollama,
+        bool IsLocal = true,
+        bool SupportsBenchmark = true)
     {
         public string DisplayName => $"{ModelName} - {Provider}";
+        public string SelectionKey => new ProviderModelIdentity().CreateSelectionKey(Provider, Endpoint, ModelName);
+
+        public ProviderModelReference ToReference() => new()
+        {
+            ProviderKind = ProviderKind,
+            ProviderName = Provider,
+            Endpoint = Endpoint,
+            ModelName = ModelName,
+            IsLocal = IsLocal,
+            IsReachable = IsInstalled,
+            IsConfigured = IsConfigured,
+            IsLoaded = IsLoaded,
+            SupportsBenchmark = SupportsBenchmark,
+            Details = Details ?? string.Empty
+        };
     }
 
     public sealed class MultiModelCouncilResult
@@ -102,6 +123,8 @@ namespace LocalGPT.BusinessObjects
         public string Prompt { get; set; } = string.Empty;
 
         public List<string> ModelNames { get; set; } = [];
+
+        public List<ProviderModelReference> ModelSelections { get; set; } = [];
 
         public Guid? ContinuedFromConversationId { get; set; }
 
@@ -184,6 +207,12 @@ namespace LocalGPT.BusinessObjects
         public string Phase { get; set; } = string.Empty;
 
         public string ModelName { get; set; } = string.Empty;
+
+        public string ProviderName { get; set; } = string.Empty;
+
+        public string ProviderEndpoint { get; set; } = string.Empty;
+
+        public string ProviderModelName { get; set; } = string.Empty;
 
         public List<string> CouncilMembers { get; set; } = [];
 

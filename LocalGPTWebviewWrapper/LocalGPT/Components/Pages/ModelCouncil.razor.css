@@ -342,3 +342,10 @@
     gap: .55rem;
     margin: 1rem 0;
 }
+
+/* v2.2.8: provider-qualified model panels and all-selected Benchmark Council. */
+.provider-model-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    gap: .75rem;
+}

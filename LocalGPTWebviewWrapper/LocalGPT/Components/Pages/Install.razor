@@ -116,13 +116,16 @@
                                 <div>@(host.IsReachable ? "Reachable" : "Unavailable"): @host.Status</div>
                                 @if (host.Models.Count > 0)
                                 {
-                                    <div class="top-container">
+                                    <div class="install-provider-model-grid">
                                         @foreach (var model in host.Models)
                                         {
-                                            <DxButton Text="@CouncilText.GetDiscoveredModelButtonText(model,Logger)"
-                                                      RenderStyle="ButtonRenderStyle.Primary"
-                                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                                                      Click="@(() => ApplyDiscoveredModel(host, model))" />
+                                            <ProviderModelPanel @key="model" Model="ToProviderModel(host, model)"
+                                                                ShowSelection="false"
+                                                                ShowUseAction="true"
+                                                                UseActionText="Use in setup"
+                                                                Activated="@(_ => ApplyDiscoveredModel(host, model))"
+                                                                CouncilModels="DiscoveredProviderModels"
+                                                                BenchmarkApplied="OnInstallBenchmarkAppliedAsync" />
                                         }
                                     </div>
                                 }
@@ -438,6 +441,10 @@
     private string ConnectivityStatus = "Connectivity not checked yet. Refresh to verify Ollama or LM Studio.";
     private DateTimeOffset? LastConnectivityCheck;
     private IReadOnlyList<LocalAiHostDiscoveryResult> DiscoveredHosts = Array.Empty<LocalAiHostDiscoveryResult>();
+    private IReadOnlyList<ProviderModelReference> DiscoveredProviderModels => DiscoveredHosts
+        .Where(host => host.IsReachable)
+        .SelectMany(host => host.Models.Select(model => ToProviderModel(host, model)))
+        .ToList();
     private List<OllamaCoreOptions> AdditionalOllamaModels => Model.OllamaCores;
     private bool HasReachableAiHost => DiscoveredHosts.Any(host => host.IsReachable);
     private string ConnectivityAlertCss => HasReachableAiHost ? "alert alert-success" : "alert alert-warning";
@@ -1050,6 +1057,39 @@
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             return string.Empty;
         }
+    }
+
+    private ProviderModelReference ToProviderModel(LocalAiHostDiscoveryResult host, LocalAiModelInfo model)
+    {
+        var isOllama = host.Provider.Equals("Ollama", StringComparison.OrdinalIgnoreCase);
+        var identity = new ProviderModelIdentity();
+        var endpoint = isOllama
+            ? identity.NormalizeEndpoint(host.Endpoint)
+            : identity.NormalizeOpenAiCompatibleEndpoint(host.Endpoint);
+        return new ProviderModelReference
+        {
+            ProviderKind = isOllama ? ProviderModelKinds.Ollama : ProviderModelKinds.OpenAICompatible,
+            ProviderName = host.Provider,
+            Endpoint = endpoint,
+            ModelName = model.Name,
+            IsLocal = true,
+            IsReachable = host.IsReachable,
+            IsConfigured = isOllama
+                ? string.Equals(Model.OllamaCore?.ModelName, model.Name, StringComparison.OrdinalIgnoreCase)
+                    && identity.NormalizeEndpoint(Model.OllamaCore?.Uri).Equals(endpoint, StringComparison.OrdinalIgnoreCase)
+                : string.Equals(Model.ChatGPTLocalCore?.ModelName, model.Name, StringComparison.OrdinalIgnoreCase)
+                    && identity.NormalizeOpenAiCompatibleEndpoint(Model.ChatGPTLocalCore?.Endpoint).Equals(endpoint, StringComparison.OrdinalIgnoreCase),
+            IsLoaded = model.IsLoaded,
+            SupportsBenchmark = host.IsReachable,
+            Details = host.Status
+        };
+    }
+
+    private Task OnInstallBenchmarkAppliedAsync(ProviderModelBenchmarkAppliedEvent applied)
+    {
+        ConnectivityStatus = $"Benchmark recommendation applied for {applied.Model.SelectionKey} as preset {applied.Preset.Name}. Save provider settings separately only when you changed the active setup model.";
+        Notifier.ShowSuccess(toastName, ConnectivityStatus, "Benchmark settings applied");
+        return InvokeAsync(StateHasChanged);
     }
 
     private async Task ApplyDiscoveredModel(LocalAiHostDiscoveryResult host, LocalAiModelInfo model)

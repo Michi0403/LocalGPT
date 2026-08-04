@@ -3,7 +3,7 @@ param(
     [string]$Runtime = "all",
     [ValidateSet("Release", "Debug")]
     [string]$Configuration = "Release",
-    [string]$WireProtocolVersion = "2.1.0",
+    [string]$WireProtocolVersion = "2.1.1",
     [string]$WireProtocolPackageUrl = "",
     [switch]$UseBundledWireProtocolPackage,
     [switch]$IncludeWindowsWrapper

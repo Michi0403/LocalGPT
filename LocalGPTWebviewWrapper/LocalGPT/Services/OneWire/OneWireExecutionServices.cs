@@ -26,6 +26,26 @@ public sealed class OneWireOperationExecutor(
                 CouncilTeamKey = wireRequest.TeamKey,
                 CouncilLeaderModelName = wireRequest.LeaderModelName,
                 ModelNames = wireRequest.ModelNames,
+                ModelSelections = wireRequest.ModelRoutes
+                    .Where(route => !string.IsNullOrWhiteSpace(route.ProviderKind)
+                        && !string.IsNullOrWhiteSpace(route.ProviderEndpoint)
+                        && !string.IsNullOrWhiteSpace(route.ProviderModelName))
+                    .Select(route => new ProviderModelReference
+                    {
+                        ProviderKind = route.ProviderKind.Trim(),
+                        ProviderName = string.IsNullOrWhiteSpace(route.ProviderName) ? route.ProviderKind.Trim() : route.ProviderName.Trim(),
+                        Endpoint = route.ProviderEndpoint.Trim(),
+                        ModelName = route.ProviderModelName.Trim(),
+                        IsLocal = route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                            || route.ProviderKind.Equals(ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase),
+                        IsConfigured = true,
+                        IsReachable = false,
+                        SupportsBenchmark = true,
+                        Details = "Provider-qualified OneWire Council route."
+                    })
+                    .GroupBy(model => model.SelectionKey, StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .ToList(),
                 RequestedOrganicCapabilities = wireRequest.RequestedOrganicCapabilities,
                 ExternalProjectContextJson = wireRequest.ExternalProjectContextJson,
                 OneWireCorrelationId = item.CorrelationId.ToString("D"),
@@ -424,7 +444,7 @@ public sealed class OneWireMessageDispatcher(
         PeerId = "localgpt",
         DisplayName = "LocalGPT",
         Application = "LocalGPT",
-        ApplicationVersion = "2.2.6-organic-wire",
+        ApplicationVersion = "2.2.8-organic-wire",
         HostName = Environment.MachineName,
         Address = "127.0.0.1",
         ServicePort = Program.OneWirePort,

@@ -1876,3 +1876,29 @@
     border-color: var(--bs-primary);
     box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--bs-primary) 22%, transparent);
 }
+
+/* v2.2.8: provider-qualified reusable model and Benchmark Council panels. */
+.chat-individual-model-controls {
+    margin-block: .75rem;
+    padding: .7rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .7rem;
+    background: color-mix(in srgb, var(--bs-body-bg) 94%, var(--bs-secondary-bg));
+}
+
+.chat-individual-model-controls > summary {
+    cursor: pointer;
+    font-weight: 750;
+}
+
+.chat-model-session-grid,
+.provider-model-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    gap: .75rem;
+    margin-top: .7rem;
+}
+
+.council-member-list.provider-model-list {
+    display: grid;
+}

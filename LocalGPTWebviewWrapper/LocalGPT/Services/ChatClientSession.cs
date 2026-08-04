@@ -1,3 +1,4 @@
+using LocalGPT.BusinessObjects;
 using DevExpress.AIIntegration.Blazor.Chat;
 using Microsoft.Extensions.AI;
 
@@ -9,6 +10,7 @@ public class ChatClientSession
     public string Provider { get; }
     public string ModelName { get; }
     public string Endpoint { get; }
+    public string SelectionKey => new ProviderModelIdentity().CreateSelectionKey(Provider, Endpoint, ModelName);
     public IChatClient Client { get; }
     public List<BlazorChatMessage> Messages { get; set; }
 

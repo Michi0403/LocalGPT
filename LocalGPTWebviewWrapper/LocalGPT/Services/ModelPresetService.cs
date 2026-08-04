@@ -123,6 +123,23 @@ public sealed class ModelPresetService(
     private OneWireCouncilModelRoute NormalizeRoute(OneWireCouncilModelRoute route)
     {
         route.ModelName = route.ModelName.Trim();
+        route.ProviderKind = route.ProviderKind?.Trim() ?? string.Empty;
+        route.ProviderName = route.ProviderName?.Trim() ?? string.Empty;
+        route.ProviderEndpoint = route.ProviderEndpoint?.Trim() ?? string.Empty;
+        route.ProviderModelName = route.ProviderModelName?.Trim() ?? string.Empty;
+        var isLegacyOllamaRoute = string.IsNullOrWhiteSpace(route.ProviderKind)
+            && string.IsNullOrWhiteSpace(route.ProviderName)
+            && string.IsNullOrWhiteSpace(route.ProviderEndpoint)
+            && string.IsNullOrWhiteSpace(route.ProviderModelName)
+            && !new ProviderModelIdentity().LooksProviderQualified(route.ModelName);
+        if (isLegacyOllamaRoute)
+        {
+            route.ProviderKind = ProviderModelKinds.Ollama;
+            route.ProviderName = "Ollama";
+            route.ProviderModelName = route.ModelName;
+        }
+        if (!route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+            route.OllamaNumGpu = null;
         route.HardwareName = route.HardwareName?.Trim() ?? string.Empty;
         route.HardwareIndex = Math.Max(-1, route.HardwareIndex);
         route.MinOutputTokens = Math.Clamp(route.MinOutputTokens, 128, 262144);
@@ -137,6 +154,8 @@ public sealed class ModelPresetService(
                 : null,
             _ => route.OllamaNumGpu is < 0 ? 0 : route.OllamaNumGpu
         };
+        if (!route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+            route.OllamaNumGpu = null;
         route.SelfReportedDxFunctions = NormalizeValues(route.SelfReportedDxFunctions);
         route.SelfReportedControllerMethods = NormalizeValues(route.SelfReportedControllerMethods);
         route.SelfReportedOrganicCapabilities = NormalizeValues(route.SelfReportedOrganicCapabilities);

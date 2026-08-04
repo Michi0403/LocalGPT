@@ -9,6 +9,7 @@
 @inject LocalGptCatalogService Catalog
 @inject IChatMemoryService ChatMemory
 @inject IMultiModelCouncilService CouncilService
+@inject IProviderModelRuntimeService ProviderModels
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
 @inject IChatContentRenderer ChatContentRenderer
@@ -63,7 +64,7 @@
         <nav class="chat-session-toolbar chat-navigation-actions" data-testid="chat-session-actions" aria-label="Chat actions">
             <strong>Chat actions</strong>
             <a class="btn btn-outline-secondary" href="/install" data-enhance-nav="false"><span class="oi oi-cog" aria-hidden="true"></span> Provider setup</a>
-            <DxButton CssClass="localgpt-command-refresh-models" Text="Refresh local models"
+            <DxButton CssClass="localgpt-command-refresh-models" Text="Refresh provider models"
                       RenderStyle="ButtonRenderStyle.Secondary"
                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                       IconCssClass="oi oi-reload"
@@ -105,14 +106,33 @@
                 <span>Auto-load latest memory</span>
             </label>
         </div>
+        @if (ModelsList.Any(session => !session.Name.Equals(Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase)))
+        {
+            <details class="chat-individual-model-controls" data-testid="chat-individual-model-controls">
+                <summary>Individual model properties and benchmarking</summary>
+                <p class="memory-status">Each model stays bound to its provider and endpoint, even when another provider exposes the same model name.</p>
+                <div class="chat-model-session-grid">
+                    @foreach (var session in ModelsList.Where(session => !session.Name.Equals(Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        <ProviderModelPanel @key="session.SelectionKey" Model="ProviderModels.FromSession(session)"
+                                            ShowSelection="false"
+                                            ShowUseAction="true"
+                                            UseActionText="Use in Chat"
+                                            Activated="SelectProviderModelFromPanelAsync"
+                                            CouncilModels="SelectedCouncilProviderModels"
+                                            BenchmarkApplied="OnChatBenchmarkAppliedAsync" />
+                    }
+                </div>
+            </details>
+        }
         <details id="localgpt-council-controls" class="council-command-center" data-testid="council-command-center">
             <summary title="Open model, hardware, team and artifact settings for AI Council runs.">
                 <span>AI Council controls</span>
                 <small>@CouncilEditorModelNames.Count model@(CouncilEditorModelNames.Count == 1 ? string.Empty : "s") · @CouncilEditorResourceLoadPercent% power · @CouncilEditorMaxContextTokens.ToString("N0") context</small>
             </summary>
         <div class="model-toolbar" aria-label="DXAiChat model and council controls" data-testid="chat-model-toolbar">
-            <span title="Finds currently installed Ollama models and adds them as DXAiChat choices without writing to setup configuration.">
-                <DxButton CssClass="localgpt-rounded-action" Text="Refresh Ollama Models"
+            <span title="Finds configured and reachable provider models and adds them as provider-qualified DXAiChat choices without changing setup configuration.">
+                <DxButton CssClass="localgpt-rounded-action" Text="Refresh Provider Models"
                           RenderStyle="ButtonRenderStyle.Secondary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Enabled="@(!isModelRefreshBusy)"
@@ -154,7 +174,7 @@
                        value="@CouncilEditorMaxOutputTokens"
                        @onchange="OnCouncilMaxOutputTokensChanged" />
             </label>
-            <label class="council-token-setting" title="Maximum Ollama context window requested for council and detected model sessions. Use 262144 for full source or solution generation when supported. Values below 64000 are quick-chat only and are not a valid code-generation acceptance test.">
+            <label class="council-token-setting" title="Maximum context window requested for council and detected model sessions. Use 262144 for full source or solution generation when supported. Values below 64000 are quick-chat only and are not a valid code-generation acceptance test.">
                 <span>Council context tokens</span>
                 <input type="number"
                        min="2048"
@@ -186,22 +206,20 @@
             <div class="council-picker" aria-label="DXAiChat council model picker">
                 <div>
                     <strong>DXAiChat Council Members</strong>
-                    <span class="memory-status">Select the models used by the "AI Council" chat choice.</span>
+                    <span class="memory-status">Select models from any configured provider. Provider-qualified identities prevent same-name collisions.</span>
                 </div>
-                <div class="council-member-list">
+                <div class="council-member-list provider-model-list">
                     @foreach (var candidate in OllamaCandidates)
                     {
-                        <label title="@CouncilRuntime.BuildCandidateTitle(candidate,Logger)">
-                            <input type="checkbox"
-                                   checked="@SelectedCouncilModelNames.Contains(candidate.ModelName)"
-                                   @onchange="@((ChangeEventArgs e) => ToggleCouncilModel(candidate.ModelName, e))" />
-                            <span class="council-kernel-label">
-                                <strong>@candidate.ModelName</strong>
-                                <small><span>@candidate.Provider · @candidate.Endpoint</span>@if (candidate.IsLoaded) { <span> · loaded</span> }</small>
-                            </span>
-                        </label>
+                        <ProviderModelPanel @key="candidate.SelectionKey" Model="candidate.ToReference()"
+                                            Selected="@SelectedCouncilModelNames.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)"
+                                            SelectedChanged="@(selected => ToggleCouncilModel(candidate.SelectionKey, selected))"
+                                            CouncilModels="SelectedCouncilProviderModels"
+                                            BenchmarkApplied="OnChatBenchmarkAppliedAsync" />
                     }
                 </div>
+                <ProviderModelBenchmarkCouncilPanel Models="SelectedCouncilProviderModels"
+                                                    BenchmarkApplied="OnChatBenchmarkCouncilAppliedAsync" />
             </div>
         }
         <details class="council-road-details" data-testid="council-hardware-road-editor">
@@ -210,7 +228,7 @@
             {
                 <p class="memory-status live-council-settings-status">
                     Editing only running Council @ActiveCouncilRunShortId, revision @ActiveCouncilConfigurationRevision.
-                    Each model reads the newest revision immediately before its next Ollama request starts. Other runs and saved presets remain unchanged.
+                    Each model reads the newest revision immediately before its next provider request starts. Other runs and saved presets remain unchanged.
                 </p>
             }
             <CouncilHardwareRoadEditor ModelNames="CouncilEditorModelNames"
@@ -651,6 +669,10 @@
     List<ChatMemoryThought> RecentThoughts { get; set; } = new();
     List<MultiModelCouncilModelCandidate> OllamaCandidates { get; set; } = new();
     List<string> SelectedCouncilModelNames { get; set; } = new();
+    IReadOnlyList<ProviderModelReference> SelectedCouncilProviderModels => OllamaCandidates
+        .Where(candidate => SelectedCouncilModelNames.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase))
+        .Select(candidate => candidate.ToReference())
+        .ToList();
     List<string> DiagnosticCouncilModelNames { get; set; } = new();
     List<CouncilModelPreset> ModelPresets { get; set; } = new();
     List<OneWireCouncilModelRoute> CouncilModelRoutes { get; set; } = [];
@@ -1378,12 +1400,15 @@
             .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        SelectedCouncilModelNames = NormalizeProviderSelectionKeys(SelectedCouncilModelNames);
+        DiagnosticCouncilModelNames = NormalizeProviderSelectionKeys(DiagnosticCouncilModelNames);
+
         if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0)
         {
             var preferred = OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled && candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
                 ?? OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled);
             if (preferred is not null)
-                SelectedCouncilModelNames.Add(preferred.ModelName);
+                SelectedCouncilModelNames.Add(preferred.SelectionKey);
         }
 
         modelSelectionNotice = string.Empty;
@@ -1416,8 +1441,8 @@
             }
         }
         modelStatus = OllamaCandidates.Count == 0
-            ? "No installed Ollama models detected."
-            : $"Detected {OllamaCandidates.Count(candidate => candidate.IsInstalled)} reachable Ollama model(s) and {OllamaCandidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured offline model(s). Only reachable models were added to DXAiChat and AI Council.";
+            ? "No configured or discovered provider models detected."
+            : $"Detected {OllamaCandidates.Count(candidate => candidate.IsInstalled)} discovered/reachable model(s) and {OllamaCandidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured model(s) awaiting call-time verification across {OllamaCandidates.Select(candidate => candidate.Provider).Distinct(StringComparer.OrdinalIgnoreCase).Count()} provider(s). Provider-qualified entries are available to AI Council without same-name collisions.";
         if (!string.IsNullOrWhiteSpace(modelSelectionNotice))
             modelStatus = $"{modelStatus} {modelSelectionNotice}";
         if (DiagnosticCouncilModelNames.Count > 0)
@@ -1427,7 +1452,7 @@
             ScheduleDirectCouncilStarterDispatch();
 
         if (showToast)
-            Notifier.ShowSuccess(toastName, modelStatus, "Ollama models refreshed");
+            Notifier.ShowSuccess(toastName, modelStatus, "Provider models refreshed");
     }
 
     /// <summary>Queues a renderer-affine retry for the route-requested Council starter.</summary>
@@ -1596,23 +1621,26 @@
 
             foreach (var candidate in OllamaCandidates.Where(candidate => candidate.IsInstalled))
             {
-                if (candidate.IsConfigured && HasConfiguredSessionForModel(candidate.ModelName) && !ShouldAddRuntimeProfileSession())
+                var needsOllamaRuntimeOverride = candidate.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                    && ShouldAddRuntimeProfileSession();
+                if (HasConfiguredSessionForModel(candidate) && !needsOllamaRuntimeOverride)
                     continue;
 
+                var reference = candidate.ToReference();
+                var client = ProviderModels.CreateChatClient(
+                    reference,
+                    keepAlive: "0s",
+                    maxContextTokens: ResolveCouncilContextTokens(),
+                    timeout: TimeSpan.FromMinutes(30),
+                    ollamaNumGpu: candidate.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                        ? ResolveOllamaNumGpu()
+                        : null);
                 var session = new ChatClientSession(
-                    new OllamaThinkingChatClient(
-                        new OllamaCoreOptions { Uri = candidate.Endpoint, ModelName = candidate.ModelName },
-                        Logger,
-                        CouncilRuntime,
-                        keepAlive: "0s",
-                        contextLength: ResolveCouncilContextTokens(),
-                        timeout: TimeSpan.FromMinutes(30),
-                        numGpu: ResolveOllamaNumGpu(),
-                        formatterFactory: ChatResponseFormatterFactory,
-                        protocolResolver: ChatProtocolResolver,
-                        promptConfigService: PromptConfigService,
-                        functionRegistry: DxAiFunctionRegistry),
-                    CouncilRuntime.BuildDynamicSessionName(candidate, Logger), candidate.Provider, candidate.ModelName, candidate.Endpoint);
+                    client,
+                    CouncilRuntime.BuildDynamicSessionName(candidate, Logger),
+                    candidate.Provider,
+                    candidate.ModelName,
+                    candidate.Endpoint);
 
                 if (previousMessages.TryGetValue(session.Name, out var messages))
                     session.Messages.AddRange(messages);
@@ -1664,13 +1692,12 @@
     {
         try
         {
-            if (session is null || !session.Name.StartsWith("Ollama — ", StringComparison.OrdinalIgnoreCase))
+            if (session is null || !session.Provider.Contains("Ollama", StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            var modelName = session.Name["Ollama — ".Length..].Trim();
             return !OllamaCandidates.Any(candidate =>
                 candidate.IsInstalled &&
-                candidate.ModelName.Equals(modelName, StringComparison.OrdinalIgnoreCase));
+                candidate.SelectionKey.Equals(session.SelectionKey, StringComparison.OrdinalIgnoreCase));
         }
         catch (Exception ex)
         {
@@ -1756,8 +1783,12 @@
             var selectedModels = DiagnosticCouncilModelNames.Count > 0
             ? DiagnosticCouncilModelNames
             : SelectedCouncilModelNames;
-            var selectedEndpoint = OllamaCandidates
-                .FirstOrDefault(candidate => selectedModels.Contains(candidate.ModelName, StringComparer.OrdinalIgnoreCase))
+            var selectedProviderModels = OllamaCandidates
+                .Where(candidate => selectedModels.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                .Select(candidate => candidate.ToReference())
+                .ToList();
+            var selectedEndpoint = selectedProviderModels
+                .FirstOrDefault(model => model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
                 ?.Endpoint;
 
             var userConfirmedArtifactBuild = GenerateCouncilArtifacts;
@@ -1766,13 +1797,14 @@
             var request = new MultiModelCouncilRequest
             {
                 ModelNames = (CouncilRuntime.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
+                ModelSelections = selectedProviderModels,
                 BaseUri = selectedEndpoint,
                 MaxRounds = Math.Clamp(CouncilCritiqueRounds, 0, 3),
                 MaxOutputTokens = ResolveCouncilOutputTokens(),
                 MaxParallelModels = Math.Max(1, CouncilMaxParallelModels),
                 AllowParallelHardwareRoads = CouncilAllowParallelHardwareRoads,
                 ResourceLoadPercent = Math.Clamp((int)Math.Round(CouncilResourceLoadPercent / 5d) * 5, 0, 100),
-                ModelRoutes = CouncilModelRoutes.Select(CloneRoute).ToList(),
+                ModelRoutes = CreateProviderQualifiedCouncilRoutes(),
                 MaxContextTokens = ResolveCouncilContextTokens(),
                 ModelTimeoutSeconds = 1800,
                 OllamaKeepAlive = "0s",
@@ -2030,19 +2062,18 @@
         }
     }
 
-    private bool HasConfiguredSessionForModel(string modelName)
+    private bool HasConfiguredSessionForModel(MultiModelCouncilModelCandidate candidate)
     {
         try
         {
             return ChatClientProvider?.AvailableChatClients.Any(session =>
-                !(CouncilRuntime.IsDynamicSession(session, Logger) ?? false) &&
-                session.Name.StartsWith("Ollama — ", StringComparison.OrdinalIgnoreCase) &&
-                session.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)) == true;
+                !(CouncilRuntime.IsDynamicSession(session, Logger) ?? false)
+                && session.SelectionKey.Equals(candidate.SelectionKey, StringComparison.OrdinalIgnoreCase)) == true;
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "Checking a provider-qualified configured session failed.");
+            Notifier.ShowError(toastName, "The provider model session could not be checked. See local logs for details.", "Provider check failed");
             return false;
         }
     }
@@ -2219,10 +2250,8 @@
     {
         SelectedModelPreset = preset;
         ModelPresetName = preset.Name;
-        SelectedCouncilModelNames = (JsonSerializer.Deserialize<List<string>>(preset.ModelNamesJson) ?? [])
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        SelectedCouncilModelNames = NormalizeProviderSelectionKeys(
+            JsonSerializer.Deserialize<List<string>>(preset.ModelNamesJson) ?? []);
         CouncilModelRoutes = ParseModelRoutes(preset.ModelRoutesJson);
         var loadOverrides = CouncilModelRoutes.Where(route => route.LoadPercentOverride.HasValue).Select(route => route.LoadPercentOverride!.Value).Distinct().ToList();
         if (loadOverrides.Count == 1) CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(loadOverrides[0] / 5d) * 5, 0, 100);
@@ -2259,7 +2288,7 @@
                     Name = ModelPresetName,
                     Description = "Saved from the DXChat council model selector.",
                     ModelNamesJson = JsonSerializer.Serialize(SelectedCouncilModelNames),
-                    ModelRoutesJson = JsonSerializer.Serialize(CouncilModelRoutes.Select(CloneRoute).ToList()),
+                    ModelRoutesJson = JsonSerializer.Serialize(CreateProviderQualifiedCouncilRoutes()),
                     AllowParallelHardwareRoads = CouncilAllowParallelHardwareRoads,
                     MaxOutputTokens = CouncilMaxOutputTokens,
                     MaxContextTokens = CouncilMaxContextTokens,
@@ -2312,7 +2341,7 @@
 
         CouncilRunConfigurations.SavePreparation(new CouncilPreparationConfiguration(
             SelectedCouncilModelNames.ToList(),
-            CouncilModelRoutes.Select(CloneRoute).ToList(),
+            CreateProviderQualifiedCouncilRoutes(),
             CouncilResourceLoadPercent,
             ResolveCouncilOutputTokens(),
             ResolveCouncilContextTokens(),
@@ -2328,10 +2357,7 @@
     private void ApplyPreparationConfiguration(CouncilPreparationConfiguration configuration)
     {
         SelectedModelPreset = null;
-        SelectedCouncilModelNames = configuration.ModelNames
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        SelectedCouncilModelNames = NormalizeProviderSelectionKeys(configuration.ModelNames);
         CouncilModelRoutes = configuration.ModelRoutes.Select(CloneRoute).ToList();
         CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(configuration.ResourceLoadPercent / 5d) * 5, 0, 100);
         CouncilMaxOutputTokens = Math.Clamp(configuration.MaxOutputTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
@@ -2544,9 +2570,34 @@
         }
     }
 
+
+    private List<OneWireCouncilModelRoute> CreateProviderQualifiedCouncilRoutes()
+    {
+        var routes = CouncilModelRoutes.Select(CloneRoute).ToList();
+        foreach (var route in routes)
+        {
+            var candidate = OllamaCandidates.FirstOrDefault(item =>
+                item.SelectionKey.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase));
+            if (candidate is null)
+                continue;
+            route.ModelName = candidate.SelectionKey;
+            route.ProviderKind = candidate.ProviderKind;
+            route.ProviderName = candidate.Provider;
+            route.ProviderEndpoint = candidate.Endpoint;
+            route.ProviderModelName = candidate.ModelName;
+            if (!candidate.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                route.OllamaNumGpu = null;
+        }
+        return routes;
+    }
+
     private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
     {
         ModelName = route.ModelName,
+        ProviderKind = route.ProviderKind,
+        ProviderName = route.ProviderName,
+        ProviderEndpoint = route.ProviderEndpoint,
+        ProviderModelName = route.ProviderModelName,
         HardwareKind = route.HardwareKind,
         HardwareIndex = route.HardwareIndex,
         HardwareName = route.HardwareName,
@@ -2564,19 +2615,18 @@
         MaxConcurrentModelsOnLane = route.MaxConcurrentModelsOnLane
     };
 
-    private void ToggleCouncilModel(string modelName, ChangeEventArgs e)
+    private void ToggleCouncilModel(string selectionKey, bool isChecked)
     {
         try
         {
-            var isChecked = e.Value is bool value && value;
             if (isChecked)
             {
-                if (!SelectedCouncilModelNames.Contains(modelName, StringComparer.OrdinalIgnoreCase))
-                    SelectedCouncilModelNames.Add(modelName);
+                if (!SelectedCouncilModelNames.Contains(selectionKey, StringComparer.OrdinalIgnoreCase))
+                    SelectedCouncilModelNames.Add(selectionKey);
             }
             else
             {
-                SelectedCouncilModelNames.RemoveAll(name => name.Equals(modelName, StringComparison.OrdinalIgnoreCase));
+                SelectedCouncilModelNames.RemoveAll(name => name.Equals(selectionKey, StringComparison.OrdinalIgnoreCase));
             }
 
             SelectedModelPreset = null;
@@ -2584,10 +2634,86 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "Provider-qualified council model selection failed.");
+            Notifier.ShowError(toastName, "The council model selection could not be changed. See local logs for details.", "Selection failed");
         }
+    }
 
+    private List<string> NormalizeProviderSelectionKeys(IEnumerable<string> values)
+    {
+        var normalized = new List<string>();
+        foreach (var raw in values.Where(value => !string.IsNullOrWhiteSpace(value)))
+        {
+            var value = raw.Trim();
+            var exact = OllamaCandidates.FirstOrDefault(candidate =>
+                candidate.SelectionKey.Equals(value, StringComparison.OrdinalIgnoreCase));
+            if (exact is not null)
+            {
+                if (!normalized.Contains(exact.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                    normalized.Add(exact.SelectionKey);
+                continue;
+            }
+
+            var byModel = OllamaCandidates
+                .Where(candidate => candidate.ModelName.Equals(value, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var resolved = byModel.Count == 1 ? byModel[0].SelectionKey : value;
+            if (!normalized.Contains(resolved, StringComparer.OrdinalIgnoreCase))
+                normalized.Add(resolved);
+        }
+        return normalized;
+    }
+
+    private async Task SelectProviderModelFromPanelAsync(ProviderModelReference model)
+    {
+        if (ChatClientProvider is null)
+            return;
+        var session = ModelsList.FirstOrDefault(item =>
+            item.SelectionKey.Equals(model.SelectionKey, StringComparison.OrdinalIgnoreCase));
+        if (session is null)
+        {
+            modelStatus = $"The session for {model.SelectionKey} is no longer available. Refresh provider models.";
+            return;
+        }
+        await OnModelChanged(session).ConfigureAwait(false);
+        modelStatus = $"Using {model.SelectionKey} in Chat.";
+    }
+
+    private async Task OnChatBenchmarkAppliedAsync(ProviderModelBenchmarkAppliedEvent applied)
+    {
+        if (!SelectedCouncilModelNames.Contains(applied.Model.SelectionKey, StringComparer.OrdinalIgnoreCase))
+            SelectedCouncilModelNames.Add(applied.Model.SelectionKey);
+        CouncilModelRoutes.RemoveAll(route =>
+            route.ModelName.Equals(applied.Route.ModelName, StringComparison.OrdinalIgnoreCase));
+        CouncilModelRoutes.Add(CloneRoute(applied.Route));
+        await RefreshModelPresetsAfterBenchmarkAsync(applied.Preset).ConfigureAwait(false);
+        SavePreparationConfiguration();
+        modelStatus = $"Applied benchmark recommendation for {applied.Model.SelectionKey} as preset {applied.Preset.Name}.";
+    }
+
+    private async Task OnChatBenchmarkCouncilAppliedAsync(ProviderModelBenchmarkBatchAppliedEvent applied)
+    {
+        foreach (var model in applied.Models)
+        {
+            if (!SelectedCouncilModelNames.Contains(model.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                SelectedCouncilModelNames.Add(model.SelectionKey);
+        }
+        foreach (var route in applied.Routes)
+        {
+            CouncilModelRoutes.RemoveAll(existing =>
+                existing.ModelName.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase));
+            CouncilModelRoutes.Add(CloneRoute(route));
+        }
+        await RefreshModelPresetsAfterBenchmarkAsync(applied.Preset).ConfigureAwait(false);
+        SavePreparationConfiguration();
+        modelStatus = $"Applied {applied.Routes.Count} provider-qualified Benchmark Council recommendation(s) as preset {applied.Preset.Name}.";
+    }
+
+    private async Task RefreshModelPresetsAfterBenchmarkAsync(CouncilModelPreset appliedPreset)
+    {
+        ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(false)).ToList();
+        SelectedModelPreset = ModelPresets.FirstOrDefault(item => item.Id == appliedPreset.Id) ?? appliedPreset;
+        ModelPresetName = SelectedModelPreset.Name;
     }
 
     private void SaveMessagesForSelectedSession(IEnumerable<BlazorChatMessage> saveMessages)

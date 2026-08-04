@@ -46,27 +46,57 @@ def normalized_version(value: str) -> str:
     return value.strip().lower().removeprefix("refs/tags/").removeprefix("v")
 
 
+def normalize_member_name(name: str) -> str:
+    return PurePosixPath(name.replace("\\", "/")).as_posix()
+
+
 def is_safe_member(name: str) -> bool:
-    path = PurePosixPath(name.replace("\\", "/"))
+    path = PurePosixPath(normalize_member_name(name))
     return not path.is_absolute() and ".." not in path.parts
 
 
-def read_bytes(archive: zipfile.ZipFile, name: str, maximum_bytes: int = 8_000_000) -> bytes:
-    info = archive.getinfo(name)
+def build_member_index(archive: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
+    """Map portable slash paths to their exact stored ZIP entries.
+
+    PowerShell Compress-Archive can store Windows release members with backslashes.
+    zipfile.getinfo() requires the original stored spelling, so candidate discovery must
+    not throw that spelling away after normalizing paths for comparison.
+    """
+    members: dict[str, zipfile.ZipInfo] = {}
+    for info in archive.infolist():
+        if not is_safe_member(info.filename):
+            continue
+        normalized = normalize_member_name(info.filename)
+        existing = members.get(normalized)
+        if existing is not None:
+            raise ValueError(
+                f"archive contains duplicate or ambiguous members {existing.filename!r} and {info.filename!r} "
+                f"for normalized path {normalized!r}"
+            )
+        members[normalized] = info
+    return members
+
+
+def read_bytes(
+    archive: zipfile.ZipFile, info: zipfile.ZipInfo, maximum_bytes: int = 8_000_000
+) -> bytes:
     if info.file_size > maximum_bytes:
-        raise ValueError(f"{name} is unexpectedly large ({info.file_size} bytes)")
+        raise ValueError(f"{info.filename} is unexpectedly large ({info.file_size} bytes)")
     with archive.open(info) as stream:
-        return stream.read(maximum_bytes + 1)
+        value = stream.read(maximum_bytes + 1)
+    if len(value) > maximum_bytes:
+        raise ValueError(f"{info.filename} exceeded the bounded read size")
+    return value
 
 
-def read_text(archive: zipfile.ZipFile, name: str) -> str:
-    return read_bytes(archive, name).decode("utf-8")
+def read_text(archive: zipfile.ZipFile, info: zipfile.ZipInfo) -> str:
+    return read_bytes(archive, info).decode("utf-8")
 
 
-def read_json(archive: zipfile.ZipFile, name: str) -> dict[str, object]:
-    value = json.loads(read_text(archive, name))
+def read_json(archive: zipfile.ZipFile, info: zipfile.ZipInfo) -> dict[str, object]:
+    value = json.loads(read_text(archive, info))
     if not isinstance(value, dict):
-        raise ValueError(f"{name} did not contain a JSON object")
+        raise ValueError(f"{info.filename} did not contain a JSON object")
     return value
 
 
@@ -77,7 +107,13 @@ def contains_all(value: str, markers: tuple[str, ...]) -> bool:
 def find_candidates(archive_path: Path, expected_version: str) -> list[Candidate]:
     candidates: list[Candidate] = []
     with zipfile.ZipFile(archive_path) as archive:
-        names = {name.replace("\\", "/") for name in archive.namelist() if is_safe_member(name)}
+        try:
+            members = build_member_index(archive)
+        except ValueError as error:
+            print(f"Ignoring unsafe or ambiguous release archive {archive_path.name}: {error}", file=sys.stderr)
+            return candidates
+
+        names = set(members)
         for name in sorted(names):
             if not name.endswith("documentation-status.json"):
                 continue
@@ -88,18 +124,22 @@ def find_candidates(archive_path: Path, expected_version: str) -> list[Candidate
             style_name = (prefix / "styles" / "localgpt-kawaii.css").as_posix()
             script_name = (prefix / "styles" / "localgpt-kawaii.js").as_posix()
             required_names = (index_name, api_index_name, style_name, script_name)
-            if any(required_name not in names for required_name in required_names):
+            if any(required_name not in members for required_name in required_names):
                 continue
 
             try:
-                status = read_json(archive, name)
-                index_html = read_text(archive, index_name)
-                style_bytes = read_bytes(archive, style_name)
-                script_bytes = read_bytes(archive, script_name)
+                status = read_json(archive, members[name])
+                index_html = read_text(archive, members[index_name])
+                style_bytes = read_bytes(archive, members[style_name])
+                script_bytes = read_bytes(archive, members[script_name])
                 style_text = style_bytes.decode("utf-8")
                 script_text = script_bytes.decode("utf-8")
             except (KeyError, OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
-                print(f"Ignoring invalid documentation candidate {archive_path.name}:{name}: {error}", file=sys.stderr)
+                stored_name = members[name].filename if name in members else name
+                print(
+                    f"Ignoring invalid documentation candidate {archive_path.name}:{stored_name}: {error}",
+                    file=sys.stderr,
+                )
                 continue
 
             missing_groups: list[str] = []
@@ -155,7 +195,7 @@ def extract_candidate(candidate: Candidate, output: Path) -> None:
     prefix_text = candidate.prefix.as_posix().rstrip("/") + "/"
     with zipfile.ZipFile(candidate.archive) as archive:
         for info in archive.infolist():
-            name = info.filename.replace("\\", "/")
+            name = normalize_member_name(info.filename)
             if not is_safe_member(name) or not name.startswith(prefix_text):
                 continue
             relative_text = name[len(prefix_text) :]

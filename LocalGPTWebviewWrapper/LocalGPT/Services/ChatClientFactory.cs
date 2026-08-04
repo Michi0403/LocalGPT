@@ -62,7 +62,7 @@ namespace LocalGPT.Services
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),
-                        $"Ollama — {ollama.ModelName}", "Ollama", ollama.ModelName, ollama.Uri
+                        new ProviderModelIdentity().CreateSelectionKey("Ollama", ollama.Uri, ollama.ModelName), "Ollama", ollama.ModelName, ollama.Uri
                     ));
                 }
 
@@ -88,7 +88,7 @@ namespace LocalGPT.Services
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(azureClient, loggerFactory.CreateLogger("AI.AzureOpenAI")),
-                        $"Azure OpenAI — {az.DeploymentName}", "Azure OpenAI", az.DeploymentName, az.Endpoint
+                        new ProviderModelIdentity().CreateSelectionKey("Azure OpenAI", az.Endpoint, az.DeploymentName), "Azure OpenAI", az.DeploymentName, az.Endpoint
                     ));
                 }
 
@@ -99,7 +99,9 @@ namespace LocalGPT.Services
 
                     // Allow custom endpoint (use default if empty)
                     var configString = openai.Endpoint?.TrimEnd('/');
-                    var endpoint = string.IsNullOrWhiteSpace(configString) ? "https://api.openai.com/v1" : configString;
+                    var endpoint = string.IsNullOrWhiteSpace(configString)
+                        ? "https://api.openai.com/v1"
+                        : NormalizeOpenAiCompatibleEndpoint(configString);
 
                     var oai = new OpenAIClient(
                         new ApiKeyCredential(openai.ApiKey),
@@ -119,13 +121,14 @@ namespace LocalGPT.Services
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(modelChat, loggerFactory.CreateLogger("AI.OpenAI")),
-                        $"OpenAI — {openai.ModelName}", "OpenAI", openai.ModelName, endpoint
+                        new ProviderModelIdentity().CreateSelectionKey("OpenAI", endpoint, openai.ModelName), "OpenAI", openai.ModelName, endpoint
                     ));
                 }
 
                 // --- Local OpenAI-compatible (LM Studio / vLLM / text-gen-webui) ---
                 if (options.ChatGPTLocalCore is { Endpoint.Length: > 0 } loc)
                 {
+                    var configuredLocalEndpoint = NormalizeOpenAiCompatibleEndpoint(loc.Endpoint);
                     var configuredLocalIdentity = NormalizeProviderIdentity(loc.Endpoint);
                     if (configuredOllamaEndpoints.Contains(configuredLocalIdentity))
                     {
@@ -153,7 +156,10 @@ namespace LocalGPT.Services
                     // 2. Iterate through endpoints until a reachable provider with an active model is found
                     foreach (var endpoint in candidateEndpoints)
                     {
-                        var model = ResolveOpenAiCompatibleModel(endpoint, loc.ModelName, loc.ApiKey, logger);
+                        var discoveryApiKey = endpoint.Equals(configuredLocalEndpoint, StringComparison.OrdinalIgnoreCase)
+                            ? loc.ApiKey
+                            : null;
+                        var model = ResolveOpenAiCompatibleModel(endpoint, loc.ModelName, discoveryApiKey, logger);
                         if (!string.IsNullOrWhiteSpace(model))
                         {
                             activeEndpoint = endpoint;
@@ -166,9 +172,13 @@ namespace LocalGPT.Services
                     if (!string.IsNullOrWhiteSpace(activeEndpoint) && !string.IsNullOrWhiteSpace(resolvedModel))
                     {
                         logger.LogInformation("Found reachable local OpenAI-compatible provider at {Endpoint} for model {Model}.", activeEndpoint, resolvedModel);
+                        var runtimeApiKey = activeEndpoint.Equals(configuredLocalEndpoint, StringComparison.OrdinalIgnoreCase)
+                            && !string.IsNullOrWhiteSpace(loc.ApiKey)
+                                ? loc.ApiKey
+                                : "local-no-key";
 
                         var localClient = new OpenAIClient(
-                            new ApiKeyCredential(string.IsNullOrWhiteSpace(loc.ApiKey) ? "local-no-key" : loc.ApiKey),
+                            new ApiKeyCredential(runtimeApiKey),
                             new OpenAIClientOptions
                             {
                                 Endpoint = new Uri(activeEndpoint, UriKind.Absolute),
@@ -182,9 +192,10 @@ namespace LocalGPT.Services
                             });
 
                         var localChat = localClient.GetChatClient(resolvedModel).AsIChatClient();
+                        var localProviderName = GetLocalProviderName(activeEndpoint);
                         sessions.Add(new ChatClientSession(
                             new LoggingChatClient(localChat, loggerFactory.CreateLogger("AI.LocalOpenAI")),
-                            $"LM Studio / OpenAI-compatible — {resolvedModel}", "LM Studio / OpenAI-compatible", resolvedModel, activeEndpoint
+                            new ProviderModelIdentity().CreateSelectionKey(localProviderName, activeEndpoint, resolvedModel), localProviderName, resolvedModel, activeEndpoint
                         ));
                     }
                     else
@@ -246,6 +257,11 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+
+        private string GetLocalProviderName(string endpoint) =>
+            Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && uri.Port == 1234
+                ? "LM Studio"
+                : "Local OpenAI-compatible";
 
         private string NormalizeProviderIdentity(string value)
         {

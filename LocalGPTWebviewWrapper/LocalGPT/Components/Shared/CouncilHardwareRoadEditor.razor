@@ -55,9 +55,16 @@
                         <label>Max context
                             <input type="number" min="256" max="1048576" step="1024" value="@route.MaxContextTokens" @onchange="args => SetInt(route, nameof(route.MaxContextTokens), args)" />
                         </label>
-                        <label title="CPU always uses 0. For GPU or accelerator roads leave this blank so Ollama chooses the offload automatically, or enter a positive layer count.">Ollama num_gpu
-                            <input type="number" min="0" max="999" value="@(route.OllamaNumGpu?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)" @onchange="args => SetNullableInt(route, nameof(route.OllamaNumGpu), args)" placeholder="auto" />
-                        </label>
+                        @if (string.IsNullOrWhiteSpace(route.ProviderKind) || route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <label title="CPU always uses 0. For GPU or accelerator roads leave this blank so Ollama chooses the offload automatically, or enter a positive layer count.">Ollama num_gpu
+                                <input type="number" min="0" max="999" value="@(route.OllamaNumGpu?.ToString(CultureInfo.InvariantCulture) ?? string.Empty)" @onchange="args => SetNullableInt(route, nameof(route.OllamaNumGpu), args)" placeholder="auto" />
+                            </label>
+                        }
+                        else
+                        {
+                            <div class="provider-road-note" title="This provider does not accept Ollama-specific GPU layer settings.">Provider acceleration is managed by @route.ProviderName.</div>
+                        }
                         <label>Lane concurrency
                             <input type="number" min="1" max="16" value="@route.MaxConcurrentModelsOnLane" @onchange="args => SetInt(route, nameof(route.MaxConcurrentModelsOnLane), args)" />
                         </label>

@@ -1,0 +1,273 @@
+@* Inherits the InteractiveServer circuit from Chat, Install, and ModelCouncil so EventCallbacks stay circuit-local. *@
+@using System.Text.Json
+@implements IDisposable
+@inject IProviderModelBenchmarkService BenchmarkService
+@inject ILogger<ProviderModelPanel> Logger
+
+<article class="provider-model-panel @(Selected ? "is-selected" : string.Empty)" aria-labelledby="@HeadingId">
+    <header class="provider-model-heading">
+        @if (ShowSelection)
+        {
+            <input id="@SelectionId"
+                   type="checkbox"
+                   checked="@Selected"
+                   @onchange="OnSelectionChangedAsync"
+                   aria-label="@($"Select {Model.DisplayName} from {Model.EndpointLabel}")" />
+        }
+        <div class="provider-model-title">
+            <strong id="@HeadingId">@Model.ModelName</strong>
+            <small>@Model.ProviderName · @Model.EndpointLabel</small>
+        </div>
+        <div class="provider-model-badges" aria-label="Model status">
+            @if (Model.IsReachable)
+            {
+                <span class="model-badge">reachable</span>
+            }
+            @if (Model.IsLoaded)
+            {
+                <span class="model-badge">loaded</span>
+            }
+            @if (Model.IsConfigured)
+            {
+                <span class="model-badge">configured</span>
+            }
+        </div>
+    </header>
+
+    <div class="provider-model-actions" role="group" aria-label="@($"Actions for {Model.DisplayName}")">
+        @if (ShowUseAction)
+        {
+            <button type="button" class="model-action" @onclick="ActivateAsync">@UseActionText</button>
+        }
+        <button type="button"
+                class="model-action"
+                @onclick="ToggleProperties"
+                aria-expanded="@showProperties"
+                aria-controls="@PropertiesId">Properties</button>
+        <button type="button"
+                class="model-action model-action-primary"
+                disabled="@(!Model.SupportsBenchmark || isBusy)"
+                @onclick="ToggleBenchmark"
+                aria-expanded="@showBenchmark"
+                aria-controls="@BenchmarkId">
+            @(isBusy ? "Benchmarking…" : "Benchmark")
+        </button>
+    </div>
+
+    @if (showProperties)
+    {
+        <dl id="@PropertiesId" class="provider-model-properties">
+            <div><dt>Provider kind</dt><dd>@Model.ProviderKind</dd></div>
+            <div><dt>Endpoint</dt><dd>@Model.Endpoint</dd></div>
+            <div><dt>Provider model</dt><dd>@Model.ModelName</dd></div>
+            <div><dt>Hosting</dt><dd>@(Model.IsLocal ? "local" : "remote")</dd></div>
+            <div><dt>Benchmark</dt><dd>@(Model.SupportsBenchmark ? "available" : "unavailable")</dd></div>
+            <div><dt>Council address</dt><dd>@Model.SelectionKey</dd></div>
+            <div><dt>Stable identity</dt><dd>@Model.StableId</dd></div>
+            @if (!string.IsNullOrWhiteSpace(Model.Details))
+            {
+                <div><dt>Details</dt><dd>@Model.Details</dd></div>
+            }
+        </dl>
+    }
+
+    @if (showBenchmark)
+    {
+        <section id="@BenchmarkId"
+                 class="provider-model-benchmark"
+                 aria-label="@($"Benchmark configuration for {Model.DisplayName}")">
+            <div class="benchmark-config-grid">
+                <label>Profiles<input type="number" min="1" max="6" @bind="maxProfiles" /></label>
+                <label>Tasks<input type="number" min="1" max="4" @bind="maxTasks" /></label>
+                <label>Timeout seconds<input type="number" min="10" max="900" step="10" @bind="maxSeconds" /></label>
+                <label>Stop threshold %<input type="number" min="0" max="50" step="1" @bind="improvementThreshold" /></label>
+                <label>Maximum context<input type="number" min="2048" max="262144" step="1024" @bind="maximumContext" /></label>
+                <label>Maximum output<input type="number" min="128" max="8192" step="128" @bind="maximumOutput" /></label>
+                <label class="benchmark-check"><input type="checkbox" @bind="includeCouncilReview" /> Council review</label>
+            </div>
+            <p class="benchmark-council-summary">
+                Review council: @ReviewerSummary
+            </p>
+            <div class="provider-model-actions">
+                <button type="button" class="model-action model-action-primary" disabled="@isBusy" @onclick="RunBenchmarkAsync">Run bounded benchmark</button>
+                @if (report is not null && SuccessfulTarget is not null)
+                {
+                    <button type="button" class="model-action" disabled="@isBusy" @onclick="ApplyRecommendationAsync">Apply recommendation</button>
+                }
+                @if (isBusy)
+                {
+                    <button type="button" class="model-action" @onclick="CancelBenchmark">Cancel</button>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(statusText))
+            {
+                <p class="benchmark-status" role="status" aria-live="polite">@statusText</p>
+            }
+
+            @if (SuccessfulTarget is { } target)
+            {
+                <div class="benchmark-result">
+                    <strong>Recommended: @target.Recommendation.ProfileName</strong>
+                    <span>Empirical @target.Recommendation.EmpiricalScore.ToString("0.0") / Council @target.Recommendation.CouncilScore.ToString("0.0")</span>
+                    <span>Context @target.Recommendation.ContextTokens.ToString("N0") · Output @target.Recommendation.OutputTokens.ToString("N0")</span>
+                    <small>@target.Recommendation.Rationale</small>
+                    @foreach (var profile in target.Profiles.OrderByDescending(item => item.Score))
+                    {
+                        <details>
+                            <summary>@profile.ProfileName · score @profile.Score.ToString("0.0") · @profile.AverageTokensPerSecond.ToString("0.0") tok/s</summary>
+                            <ul>
+                                @foreach (var task in profile.Tasks)
+                                {
+                                    <li>@task.TaskName: @(task.Succeeded ? $"quality {task.QualityScore:0.00}, {task.TotalMilliseconds} ms" : task.Error)</li>
+                                }
+                            </ul>
+                        </details>
+                    }
+                </div>
+            }
+        </section>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public ProviderModelReference Model { get; set; } = new();
+    [Parameter] public bool ShowSelection { get; set; } = true;
+    [Parameter] public bool Selected { get; set; }
+    [Parameter] public EventCallback<bool> SelectedChanged { get; set; }
+    [Parameter] public bool ShowUseAction { get; set; }
+    [Parameter] public string UseActionText { get; set; } = "Use model";
+    [Parameter] public EventCallback<ProviderModelReference> Activated { get; set; }
+    [Parameter] public IReadOnlyList<ProviderModelReference> CouncilModels { get; set; } = [];
+    [Parameter] public EventCallback<ProviderModelBenchmarkAppliedEvent> BenchmarkApplied { get; set; }
+
+    readonly string instanceId = Guid.NewGuid().ToString("N");
+    bool showProperties;
+    bool showBenchmark;
+    bool isBusy;
+    bool includeCouncilReview = true;
+    int maxProfiles = 5;
+    int maxTasks = 3;
+    int maxSeconds = 180;
+    double improvementThreshold = 5d;
+    int maximumContext = 32768;
+    int maximumOutput = 1024;
+    string statusText = string.Empty;
+    ProviderModelBenchmarkReport? report;
+    CancellationTokenSource? benchmarkCts;
+
+    string HeadingId => $"provider-model-{instanceId}";
+    string SelectionId => $"provider-model-select-{instanceId}";
+    string PropertiesId => $"provider-model-properties-{instanceId}";
+    string BenchmarkId => $"provider-model-benchmark-{instanceId}";
+    ProviderModelBenchmarkTargetResult? SuccessfulTarget => report?.Targets.FirstOrDefault(target =>
+        target.Model.SelectionKey.Equals(Model.SelectionKey, StringComparison.OrdinalIgnoreCase)
+        && string.IsNullOrWhiteSpace(target.Error));
+    string ReviewerSummary
+    {
+        get
+        {
+            var reviewers = CouncilModels
+                .Where(item => !item.SelectionKey.Equals(Model.SelectionKey, StringComparison.OrdinalIgnoreCase))
+                .Take(3)
+                .Select(item => item.DisplayName)
+                .ToList();
+            return reviewers.Count == 0
+                ? "deterministic checks plus bounded self-review"
+                : string.Join(" + ", reviewers);
+        }
+    }
+
+    async Task OnSelectionChangedAsync(ChangeEventArgs args)
+    {
+        var selected = args.Value is bool value
+            ? value
+            : bool.TryParse(Convert.ToString(args.Value), out var parsed) && parsed;
+        await SelectedChanged.InvokeAsync(selected).ConfigureAwait(false);
+    }
+
+    Task ActivateAsync() => Activated.InvokeAsync(Model);
+    void ToggleProperties() => showProperties = !showProperties;
+    void ToggleBenchmark() => showBenchmark = !showBenchmark;
+
+    async Task RunBenchmarkAsync()
+    {
+        benchmarkCts?.Cancel();
+        benchmarkCts?.Dispose();
+        benchmarkCts = new CancellationTokenSource();
+        isBusy = true;
+        report = null;
+        statusText = "Running bounded tasks and council review. Provider credentials stay in configured provider settings.";
+        try
+        {
+            report = await BenchmarkService.RunAsync(new ProviderModelBenchmarkRequest
+            {
+                Targets = [Model],
+                CouncilReviewers = CouncilModels.ToList(),
+                MaxProfilesPerModel = maxProfiles,
+                MaxTasks = maxTasks,
+                MaxCouncilReviewers = 3,
+                MaxSecondsPerCall = maxSeconds,
+                ImprovementThresholdPercent = improvementThreshold,
+                MaximumContextTokens = maximumContext,
+                MaximumOutputTokens = maximumOutput,
+                IncludeCouncilReview = includeCouncilReview
+            }, benchmarkCts.Token).ConfigureAwait(false);
+            var target = SuccessfulTarget;
+            statusText = target is null
+                ? report.Warnings.FirstOrDefault() ?? report.Targets.FirstOrDefault()?.Error ?? "No benchmark profile completed successfully."
+                : $"Benchmark complete. {target.CouncilReviews.Count(review => string.IsNullOrWhiteSpace(review.Error))} council review(s) contributed.";
+        }
+        catch (OperationCanceledException)
+        {
+            statusText = "Benchmark cancelled. No settings were applied.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Provider model benchmark UI failed for identity {ModelIdentity}; prompts and responses were omitted.", Model.StableId);
+            statusText = "Benchmark failed. Review LocalGPT logs for the provider-qualified model identity.";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    async Task ApplyRecommendationAsync()
+    {
+        if (report is null || SuccessfulTarget is null)
+            return;
+        isBusy = true;
+        statusText = "Applying the council recommendation as a provider-qualified user preset…";
+        try
+        {
+            var presets = await BenchmarkService.ApplyRecommendationsAsync(
+                report,
+                $"Benchmark · {Model.ProviderName} · {Model.ModelName}",
+                makeDefault: false,
+                userConfirmed: true).ConfigureAwait(false);
+            var preset = presets.Single();
+            var routes = JsonSerializer.Deserialize<List<OneWireCouncilModelRoute>>(preset.ModelRoutesJson) ?? [];
+            var route = routes.First(item => item.ModelName.Equals(Model.SelectionKey, StringComparison.OrdinalIgnoreCase));
+            statusText = $"Applied as preset “{preset.Name}”. The route remains bound to {Model.ProviderName} at {Model.EndpointLabel}.";
+            await BenchmarkApplied.InvokeAsync(new ProviderModelBenchmarkAppliedEvent(Model, route, preset)).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Applying provider benchmark recommendation failed for identity {ModelIdentity}.", Model.StableId);
+            statusText = "The recommendation could not be applied. Existing provider and preset settings were left unchanged.";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    void CancelBenchmark() => benchmarkCts?.Cancel();
+
+    public void Dispose()
+    {
+        benchmarkCts?.Cancel();
+        benchmarkCts?.Dispose();
+    }
+}

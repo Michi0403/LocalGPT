@@ -36,63 +36,15 @@ namespace LocalGPT.Services
         IModelCapabilitySelfAssessmentService modelSelfAssessment,
         IAiFeatureReportService featureReports,
         IAmbientLocalGptContext ambientContext,
+        IProviderModelRuntimeService providerModels,
         ILogger<MultiModelCouncilService> logger,
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
         LocalGptCatalogService catalog) : IMultiModelCouncilService
     {
 
-        public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var providers = GetConfiguredOllamaProviders().ToList();
-                if (providers.Count == 0)
-                    providers.Add(new OllamaCoreOptions { Uri = catalog.DefaultOllamaUri, ModelName = "gpt-oss:20b" });
-
-                var candidates = new Dictionary<string, MultiModelCouncilModelCandidate>(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var provider in providers)
-                {
-                    var endpoint = councilText.MultiModelCouncilServiceNormalizeEndpoint(provider.Uri, logger);
-                    var configuredName = provider.ModelName.Trim();
-                    if (!string.IsNullOrWhiteSpace(configuredName))
-                    {
-                        candidates[$"{endpoint}|{configuredName}"] = new MultiModelCouncilModelCandidate(
-                            configuredName,
-                            "Configured Ollama",
-                            endpoint,
-                            IsInstalled: false,
-                            IsConfigured: true,
-                            IsLoaded: false,
-                            Details: null);
-                    }
-
-                    foreach (var installed in await ProbeOllamaModelsAsync(endpoint, cancellationToken).ConfigureAwait(false))
-                    {
-                        var key = $"{endpoint}|{installed.ModelName}";
-                        var isConfigured = candidates.TryGetValue(key, out var existing) && existing.IsConfigured;
-                        candidates[key] = installed with
-                        {
-                            Provider = isConfigured ? "Configured Ollama" : installed.Provider,
-                            IsConfigured = isConfigured
-                        };
-                    }
-                }
-
-                return candidates.Values
-                    .OrderByDescending(candidate => candidate.IsConfigured)
-                    .ThenByDescending(candidate => candidate.IsLoaded)
-                    .ThenByDescending(candidate => candidate.ModelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
-                    .ThenBy(candidate => candidate.ModelName)
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"Error in GetCandidatesAsync");
-                return new List<MultiModelCouncilModelCandidate>();
-            }
-        }
+        public Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default) =>
+            providerModels.GetCandidatesAsync(cancellationToken);
 
         public async Task<MultiModelCouncilResult> RunAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)
         {
@@ -104,7 +56,8 @@ namespace LocalGPT.Services
                     throw new InvalidOperationException("The council needs a prompt.");
 
                 var baseUri = councilText.MultiModelCouncilServiceNormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? catalog.DefaultOllamaUri, logger);
-                var selectedParticipants = SelectParticipants(request);
+                var selectedParticipants = await SelectParticipantsAsync(request, baseUri, cancellationToken).ConfigureAwait(false);
+                request.ModelRoutes = QualifyModelRoutes(request.ModelRoutes, request.ModelSelections);
                 var participantSelection = await ApplyApprovedOneRunModelExclusionsAsync(selectedParticipants, cancellationToken).ConfigureAwait(false);
                 var participants = participantSelection.Active;
                 var maxParallelModels = Math.Clamp(request.MaxParallelModels <= 0 ? catalog.DefaultMaxParallelModels : request.MaxParallelModels, 1, catalog.MaxParticipants);
@@ -128,10 +81,17 @@ namespace LocalGPT.Services
                     RunId = request.RunId,
                     Prompt = request.Prompt.Trim(),
                     ModelNames = participants,
+                    ModelSelections = request.ModelSelections
+                        .Where(model => participants.Contains(model.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                        .ToList(),
                     CouncilTeamKey = request.CouncilTeamKey,
                     OneWireCorrelationId = request.OneWireCorrelationId,
                     StartedAtUtc = DateTime.UtcNow
                 };
+                var ollamaParticipants = request.ModelSelections
+                    .Where(model => model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                        && participants.Contains(model.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
                 foreach (var excludedModel in participantSelection.Excluded)
                     result.Warnings.Add($"{excludedModel} was excluded from this Council run by a previously approved one-run model-health decision.");
                 collaborationRunId = result.RunId;
@@ -185,7 +145,7 @@ namespace LocalGPT.Services
                     }
                 }
                 if (participants.Count < 2)
-                    result.Warnings.Add("Only one council model is selected. Add another installed Ollama model on Install or type its model name manually for real cross-model negotiation.");
+                    result.Warnings.Add("Only one council model is selected. Add another provider-qualified model on Install or Chat for real cross-model negotiation.");
                 if (participants.Count > maxParallelModels)
                     result.Warnings.Add($"Load-friendly scheduling is active: {participants.Count} selected models will run in batches of {maxParallelModels} to reduce VRAM pressure.");
                 if (request.AllowParallelHardwareRoads && modelRoutes.Values.Select(route => route.LaneKey).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
@@ -194,12 +154,12 @@ namespace LocalGPT.Services
                     result.Warnings.Add("Very large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
                 if (maxContextTokens < 64000)
                     result.Warnings.Add($"Council context is capped at {maxContextTokens:n0} tokens. Values below 64K are quick-chat/diagnostic budgets, not valid source-generation acceptance tests.");
-                if (participants.Count > 1 && maxParallelModels == 1 && keepAlive == "0s")
-                    result.Warnings.Add("Ollama keep_alive=0s is active so each council model can unload before the next model is called.");
-                if (ollamaNumGpu == 0)
-                    result.Warnings.Add("Ollama num_gpu=0 is active for this council run. It should reduce GPU pressure but may be much slower.");
-                if (ollamaNumGpu is null && participants.Any(filter => MultiModelCouncilServiceIsHeavyGpuRiskModel(filter,logger)))
-                    result.Warnings.Add($"Heavy-model GPU guardrail is active: qwen/gwen/gemma-class council models run with num_gpu={catalog.DefaultHeavyModelGpuLayers} unless the request explicitly sets OllamaNumGpu. This reduces AMD driver load spikes.");
+                if (ollamaParticipants.Count > 0 && participants.Count > 1 && maxParallelModels == 1 && keepAlive == "0s")
+                    result.Warnings.Add("Ollama keep_alive=0s is active for native Ollama participants so they can unload between calls; cloud and OpenAI-compatible participants are unaffected.");
+                if (ollamaParticipants.Count > 0 && ollamaNumGpu == 0)
+                    result.Warnings.Add("Ollama num_gpu=0 is active for native Ollama participants. It should reduce GPU pressure but may be much slower.");
+                if (ollamaNumGpu is null && ollamaParticipants.Any(model => MultiModelCouncilServiceIsHeavyGpuRiskModel(model.ModelName, logger)))
+                    result.Warnings.Add($"Heavy-model GPU guardrail is active for native Ollama qwen/gwen/gemma-class participants: they run with num_gpu={catalog.DefaultHeavyModelGpuLayers} unless the request explicitly sets OllamaNumGpu. Other providers are unaffected.");
 
                 var preflight = await councilPreflight.PrepareAsync(request, participants, modelRoutes, cancellationToken).ConfigureAwait(false);
                 result.PreflightSummary = preflight.PromptContext;
@@ -2838,40 +2798,159 @@ namespace LocalGPT.Services
             return step;
         }
 
-        private List<string> SelectParticipants(MultiModelCouncilRequest request)
+        private async Task<List<string>> SelectParticipantsAsync(
+            MultiModelCouncilRequest request,
+            string normalizedLegacyBaseUri,
+            CancellationToken cancellationToken)
         {
             try
             {
-                var selected = request.ModelNames
-                .Select(model => model.Trim())
-                .Where(model => !string.IsNullOrWhiteSpace(model))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(catalog.MaxParticipants)
-                .ToList();
+                var useLegacyBaseUri = request.ModelSelections.Count == 0
+                    && !string.IsNullOrWhiteSpace(request.BaseUri);
+                var references = request.ModelSelections
+                    .Where(model => model is not null && !string.IsNullOrWhiteSpace(model.ModelName))
+                    .GroupBy(model => model.SelectionKey, StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.First())
+                    .Take(catalog.MaxParticipants)
+                    .ToList();
 
-                if (selected.Count > 0)
-                    return selected;
-
-                var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
-                if (!string.IsNullOrWhiteSpace(options.OllamaCore?.ModelName))
-                    selected.Add(options.OllamaCore.ModelName.Trim());
-
-                foreach (var configured in options.OllamaCores.Select(core => core.ModelName).Where(name => !string.IsNullOrWhiteSpace(name)))
+                foreach (var requested in request.ModelNames
+                    .Where(model => !string.IsNullOrWhiteSpace(model))
+                    .Select(model => model.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase))
                 {
-                    if (selected.Count >= catalog.MaxParticipants)
+                    if (references.Count >= catalog.MaxParticipants)
                         break;
-                    if (!selected.Contains(configured, StringComparer.OrdinalIgnoreCase))
-                        selected.Add(configured.Trim());
+                    if (references.Any(model => model.SelectionKey.Equals(requested, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+                    if (!new ProviderModelIdentity().LooksProviderQualified(requested)
+                        && references.Any(model => model.ModelName.Equals(requested, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        // Provider-qualified selections are authoritative. A parallel legacy ModelNames list may
+                        // repeat their bare provider-native names; do not resolve those names again or guess another endpoint.
+                        continue;
+                    }
+                    var resolved = useLegacyBaseUri && !new ProviderModelIdentity().LooksProviderQualified(requested)
+                        ? new ProviderModelReference
+                        {
+                            ProviderKind = ProviderModelKinds.Ollama,
+                            ProviderName = "Ollama",
+                            Endpoint = normalizedLegacyBaseUri,
+                            ModelName = requested,
+                            IsLocal = new Uri(normalizedLegacyBaseUri, UriKind.Absolute).IsLoopback,
+                            IsConfigured = false,
+                            IsReachable = false,
+                            SupportsBenchmark = true,
+                            Details = "Legacy bare model name bound to the explicitly requested Ollama BaseUri."
+                        }
+                        : await providerModels.ResolveAsync(requested, cancellationToken).ConfigureAwait(false);
+                    if (!references.Any(model => model.SelectionKey.Equals(resolved.SelectionKey, StringComparison.OrdinalIgnoreCase)))
+                        references.Add(resolved);
                 }
 
-                return selected.Count == 0 ? ["gpt-oss:20b"] : selected;
+                if (references.Count == 0)
+                {
+                    var candidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
+                    references = candidates
+                        .Where(candidate => candidate.IsInstalled || candidate.IsConfigured)
+                        .Take(catalog.MaxParticipants)
+                        .Select(candidate => candidate.ToReference())
+                        .ToList();
+                }
+
+                if (references.Count == 0)
+                    references.Add(await providerModels.ResolveAsync("gpt-oss:20b", cancellationToken).ConfigureAwait(false));
+
+                foreach (var reference in references)
+                    providerModels.Remember(reference);
+
+                request.ModelSelections = references;
+                request.ModelNames = references.Select(model => model.SelectionKey).ToList();
+                if (!string.IsNullOrWhiteSpace(request.CouncilLeaderModelName))
+                {
+                    var leader = references.FirstOrDefault(model =>
+                        model.SelectionKey.Equals(request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));
+                    if (leader is null)
+                    {
+                        var bareLeaderMatches = references
+                            .Where(model => model.ModelName.Equals(request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                        leader = bareLeaderMatches.Count == 1 ? bareLeaderMatches[0] : null;
+                        if (bareLeaderMatches.Count > 1)
+                        {
+                            logger.LogWarning(
+                                "Council leader model name {LeaderModelName} is ambiguous across selected providers. The run will use its normal deterministic leader selection instead of guessing an endpoint.",
+                                request.CouncilLeaderModelName);
+                            request.CouncilLeaderModelName = string.Empty;
+                        }
+                    }
+                    if (leader is not null)
+                        request.CouncilLeaderModelName = leader.SelectionKey;
+                }
+                return request.ModelNames;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "SelectParticipants");
-                return new();
+                logger.LogError(ex, "Provider-qualified Council participant selection failed; request content was omitted.");
+                throw;
             }
-            
+        }
+
+        private List<OneWireCouncilModelRoute> QualifyModelRoutes(
+            IEnumerable<OneWireCouncilModelRoute>? routes,
+            IReadOnlyList<ProviderModelReference> references)
+        {
+            var qualified = new List<OneWireCouncilModelRoute>();
+            foreach (var route in routes ?? [])
+            {
+                if (route is null || string.IsNullOrWhiteSpace(route.ModelName))
+                    continue;
+                var matches = references.Where(model =>
+                    model.SelectionKey.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase)
+                    || model.ModelName.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase)).ToList();
+                if (matches.Count > 1 && matches.All(model => !model.SelectionKey.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                var reference = matches.FirstOrDefault();
+                if (reference is not null)
+                {
+                    route.ModelName = reference.SelectionKey;
+                    route.ProviderKind = reference.ProviderKind;
+                    route.ProviderName = reference.ProviderName;
+                    route.ProviderEndpoint = reference.Endpoint;
+                    route.ProviderModelName = reference.ModelName;
+                    if (!reference.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                        route.OllamaNumGpu = null;
+                }
+                qualified.Add(route);
+            }
+            foreach (var reference in references)
+            {
+                if (qualified.Any(route => route.ModelName.Equals(reference.SelectionKey, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                qualified.Add(new OneWireCouncilModelRoute
+                {
+                    ModelName = reference.SelectionKey,
+                    ProviderKind = reference.ProviderKind,
+                    ProviderName = reference.ProviderName,
+                    ProviderEndpoint = reference.Endpoint,
+                    ProviderModelName = reference.ModelName,
+                    HardwareKind = OneWireHardwareKind.Auto,
+                    HardwareIndex = -1,
+                    HardwareName = reference.IsLocal ? "Automatic local provider road" : "Remote provider route",
+                    MinOutputTokens = 256,
+                    MaxOutputTokens = 4096,
+                    MinContextTokens = 2048,
+                    MaxContextTokens = 32768,
+                    OllamaNumGpu = null,
+                    IsEnabled = true,
+                    MaxConcurrentModelsOnLane = 1
+                });
+            }
+
+            return qualified
+                .GroupBy(route => route.ModelName, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
         }
 
         private async Task<MultiModelCouncilStep?> RunParticipantAsync(
@@ -2899,20 +2978,24 @@ namespace LocalGPT.Services
             {
                 var started = DateTime.UtcNow;
                 var stopwatch = Stopwatch.StartNew();
+                var providerModel = await providerModels.ResolveAsync(modelName, cancellationToken).ConfigureAwait(false);
                 var councilRunId = ambientContext.Current.CouncilRunId;
                 var roundSkipToken = councilRunId is Guid runId
                     ? runConfigurations.GetRoundCancellationToken(runId, round, phase)
                     : CancellationToken.None;
+                var providerOllamaNumGpu = providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                    ? ollamaNumGpu
+                    : null;
                 var executionPlan = fallbackPlan ?? new CouncilHardwareRoadPlan(
                     modelName,
-                    ollamaNumGpu == 0 ? OneWireHardwareKind.Cpu : OneWireHardwareKind.Auto,
-                    ollamaNumGpu == 0 ? 0 : -1,
-                    ollamaNumGpu == 0 ? "CPU" : "Automatic",
-                    ollamaNumGpu == 0 ? "cpu:0:CPU" : $"auto:{modelName}",
+                    providerOllamaNumGpu == 0 ? OneWireHardwareKind.Cpu : OneWireHardwareKind.Auto,
+                    providerOllamaNumGpu == 0 ? 0 : -1,
+                    providerOllamaNumGpu == 0 ? "CPU" : "Automatic",
+                    providerOllamaNumGpu == 0 ? "cpu:0:CPU" : $"auto:{modelName}",
                     100,
                     maxOutputTokens,
                     maxContextTokens,
-                    ollamaNumGpu,
+                    providerOllamaNumGpu,
                     1);
                 ICouncilModelRequestLease? runtimeLease = null;
                 var participantRequestStarted = false;
@@ -2933,6 +3016,9 @@ namespace LocalGPT.Services
                                 Round = round,
                                 Phase = phase,
                                 ModelName = modelName,
+                                ProviderName = providerModel.ProviderName,
+                                ProviderEndpoint = providerModel.Endpoint,
+                                ProviderModelName = providerModel.ModelName,
                                 CouncilMembers = councilMembers.ToList(),
                                 Role = role,
                                 Content = $"_{modelName} was disabled for this running Council session before its next request started._",
@@ -2949,27 +3035,23 @@ namespace LocalGPT.Services
                         maxOutputTokens = executionPlan.EffectiveMaxOutputTokens;
                         maxContextTokens = executionPlan.EffectiveMaxContextTokens;
                         ollamaNumGpu = executionPlan.OllamaNumGpu;
+                        var accelerationSummary = providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                            ? $"Ollama num_gpu={(ollamaNumGpu?.ToString() ?? "auto")}"
+                            : $"{providerModel.ProviderName} provider route";
                         progressMessage?.Invoke(
                             $"Starting {modelName}: {phase} / {role} on {executionPlan.LaneKey} at {executionPlan.EffectiveLoadPercent}% of its run-scoped road. " +
-                            $"Settings revision {runtimeLease.Revision}; Ollama num_gpu={(ollamaNumGpu?.ToString() ?? "auto")}; output={maxOutputTokens}; context={maxContextTokens}.");
+                            $"Settings revision {runtimeLease.Revision}; {accelerationSummary}; output={maxOutputTokens}; context={maxContextTokens}.");
                     }
 
                     participantRequestStarted = true;
-                    using var client = new OllamaThinkingChatClient(new OllamaCoreOptions
-                    {
-                        Uri = baseUri,
-                        ModelName = modelName
-                    },
-                    logger,
-                    councilRuntime,
-                    keepAlive,
-                    maxContextTokens,
-                    TimeSpan.FromSeconds(modelTimeoutSeconds + 15),
-                    ollamaNumGpu,
-                    formatterFactory,
-                    protocolResolver,
-                    promptConfigService,
-                    functionRegistry);
+                    using var client = providerModels.CreateChatClient(
+                        providerModel,
+                        keepAlive,
+                        maxContextTokens,
+                        TimeSpan.FromSeconds(modelTimeoutSeconds + 15),
+                        providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                            ? ollamaNumGpu
+                            : null);
 
                     using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
                     participantCts.CancelAfter(TimeSpan.FromSeconds(modelTimeoutSeconds));
@@ -3152,6 +3234,9 @@ namespace LocalGPT.Services
                         Round = round,
                         Phase = phase,
                         ModelName = modelName,
+                        ProviderName = providerModel.ProviderName,
+                        ProviderEndpoint = providerModel.Endpoint,
+                        ProviderModelName = providerModel.ModelName,
                         CouncilMembers = councilMembers.ToList(),
                         Role = role,
                         Content = content,
@@ -3201,6 +3286,9 @@ namespace LocalGPT.Services
                         Round = round,
                         Phase = phase,
                         ModelName = modelName,
+                        ProviderName = providerModel.ProviderName,
+                        ProviderEndpoint = providerModel.Endpoint,
+                        ProviderModelName = providerModel.ModelName,
                         CouncilMembers = councilMembers.ToList(),
                         Role = role,
                         Content = $"**{message}**",
@@ -3233,6 +3321,9 @@ namespace LocalGPT.Services
                         Round = round,
                         Phase = phase,
                         ModelName = modelName,
+                        ProviderName = providerModel.ProviderName,
+                        ProviderEndpoint = providerModel.Endpoint,
+                        ProviderModelName = providerModel.ModelName,
                         CouncilMembers = councilMembers.ToList(),
                         Role = role,
                         Content = $"**{modelName} failed during {phase}.**{Environment.NewLine}{ex.Message}",
@@ -3248,8 +3339,12 @@ namespace LocalGPT.Services
                 finally
                 {
                     runtimeLease?.Dispose();
-                    if (participantRequestStarted && MultiModelCouncilServiceShouldUnloadAfterParticipant(keepAlive, logger))
-                        await RequestOllamaUnloadAsync(baseUri, modelName, cancellationToken).ConfigureAwait(false);
+                    if (participantRequestStarted
+                        && providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                        && MultiModelCouncilServiceShouldUnloadAfterParticipant(keepAlive, logger))
+                    {
+                        await RequestOllamaUnloadAsync(providerModel.Endpoint, providerModel.ModelName, cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -3273,16 +3368,19 @@ namespace LocalGPT.Services
                     DurationSeconds = 0,
                     Error = ex.Message
                 };
+                // Provider resolution failed before a trustworthy transport identity existed. Do not
+                // mislabel an unknown/cloud route as an Ollama CPU road merely because the global legacy
+                // Ollama override was zero.
                 ApplyHardwarePlan(failedStep, fallbackPlan ?? new CouncilHardwareRoadPlan(
                     modelName,
-                    ollamaNumGpu == 0 ? OneWireHardwareKind.Cpu : OneWireHardwareKind.Auto,
-                    ollamaNumGpu == 0 ? 0 : -1,
-                    ollamaNumGpu == 0 ? "CPU" : "Automatic",
-                    ollamaNumGpu == 0 ? "cpu:0:CPU" : $"auto:{modelName}",
+                    OneWireHardwareKind.Auto,
+                    -1,
+                    "Automatic provider route",
+                    $"auto:{modelName}",
                     100,
                     maxOutputTokens,
                     maxContextTokens,
-                    ollamaNumGpu,
+                    null,
                     1));
                 return failedStep;
             }
@@ -3408,16 +3506,22 @@ namespace LocalGPT.Services
             {
                 var recoveryOutput = Math.Clamp(Math.Min(maxOutputTokens, 8192), catalog.MinOutputTokens, catalog.MaxOutputTokens);
                 var recoveryContext = Math.Clamp(Math.Min(maxContextTokens, 65536), catalog.MinContextTokens, catalog.MaxContextTokens);
+                var recoveryModel = await providerModels.ResolveAsync(modelName, cancellationToken).ConfigureAwait(false);
+                var usesOllamaCpuFallback = recoveryModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase);
+                var recoveryDescription = usesOllamaCpuFallback
+                    ? "safe Ollama CPU and bounded context/output settings"
+                    : $"conservative bounded {recoveryModel.ProviderName} context/output settings";
                 streamUpdate?.Invoke(
                     Environment.NewLine + Environment.NewLine +
-                    $"> {WebUtility.HtmlEncode(modelName)} failed in {WebUtility.HtmlEncode(phase)}. LocalGPT is retrying once with safe CPU and bounded context/output settings." +
+                    $"> {WebUtility.HtmlEncode(modelName)} failed in {WebUtility.HtmlEncode(phase)}. LocalGPT is retrying once with {WebUtility.HtmlEncode(recoveryDescription)}." +
                     Environment.NewLine + Environment.NewLine);
                 logger.LogInformation(
-                    "Retrying Council participant {ModelName} after failure in {Phase} with output {MaxOutputTokens}, context {MaxContextTokens}, CPU fallback.",
+                    "Retrying Council participant {ModelName} after failure in {Phase} with output {MaxOutputTokens}, context {MaxContextTokens}, provider-specific fallback {ProviderFallback}.",
                     modelName,
                     phase,
                     recoveryOutput,
-                    recoveryContext);
+                    recoveryContext,
+                    recoveryDescription);
                 var recovered = await RunParticipantAsync(
                     baseUri,
                     modelName,
@@ -3430,7 +3534,7 @@ namespace LocalGPT.Services
                     bootstrap,
                     recoveryOutput,
                     keepAlive,
-                    0,
+                    usesOllamaCpuFallback ? 0 : null,
                     recoveryContext,
                     Math.Max(60, Math.Min(modelTimeoutSeconds, 600)),
                     streamUpdate,

@@ -1,3 +1,4 @@
+using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Council.Scheduling;
@@ -69,14 +70,18 @@ public sealed class CouncilHardwareRoadConfigurationService(
             route.MaxContextTokens = Math.Clamp(Math.Max(route.MinContextTokens, route.MaxContextTokens), route.MinContextTokens, 1048576);
             route.MaxConcurrentModelsOnLane = Math.Clamp(route.MaxConcurrentModelsOnLane, 1, 16);
             route.LoadPercentOverride = route.LoadPercentOverride is null ? null : NormalizeLoadPercent(route.LoadPercentOverride.Value);
-            route.OllamaNumGpu = route.HardwareKind switch
-            {
-                OneWireHardwareKind.Cpu => 0,
-                OneWireHardwareKind.Gpu or OneWireHardwareKind.Accelerator => route.OllamaNumGpu is > 0
-                    ? route.OllamaNumGpu
-                    : null,
-                _ => route.OllamaNumGpu is < 0 ? 0 : route.OllamaNumGpu
-            };
+            var isOllamaRoute = string.IsNullOrWhiteSpace(route.ProviderKind)
+                || route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase);
+            route.OllamaNumGpu = isOllamaRoute
+                ? route.HardwareKind switch
+                {
+                    OneWireHardwareKind.Cpu => 0,
+                    OneWireHardwareKind.Gpu or OneWireHardwareKind.Accelerator => route.OllamaNumGpu is > 0
+                        ? route.OllamaNumGpu
+                        : null,
+                    _ => route.OllamaNumGpu is < 0 ? 0 : route.OllamaNumGpu
+                }
+                : null;
             logger.LogTrace("Normalized hardware road for model {ModelName}.", route.ModelName);
             return route;
         }

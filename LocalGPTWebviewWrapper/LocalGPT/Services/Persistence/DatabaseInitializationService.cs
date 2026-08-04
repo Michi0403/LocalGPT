@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
             Name = "LocalGPT Core",
             Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
             RootPath = repositoryRoot,
-            CurrentVersion = "2.2.6",
+            CurrentVersion = "2.2.8",
             Status = "Active",
             RecommendGit = true,
             CreatedAtUtc = now,
@@ -464,6 +464,12 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.2.6", repositoryRoot, "GitHub Actions Node.js 24 maintenance release that updates the Pages checkout action while preserving the shipped Kawaii DocFX deployment pipeline.");
         EnsureRevision(core, "main", "seed-v2.2.6", repositoryRoot,
             "Updates actions/checkout from v4 to the Node.js 24-based v6 release. The generated documentation payload, Kawaii theme, Pages extraction rules and application functionality remain unchanged.");
+        EnsureVersion(core, "2.2.7", repositoryRoot, "GitHub Pages ZIP path-normalization release that correctly extracts PowerShell-created Windows archive members while preserving the shipped Kawaii DocFX site.");
+        EnsureRevision(core, "main", "seed-v2.2.7", repositoryRoot,
+            "Fixes release documentation extraction by retaining the exact stored ZIP member names after portable slash normalization. Windows backslash paths now publish correctly without weakening theme, API, PDF or path-safety validation.");
+        EnsureVersion(core, "2.2.8", repositoryRoot, "Provider-qualified multi-provider Council and dynamic Benchmark Council release with reusable accessible model panels.");
+        EnsureRevision(core, "main", "seed-v2.2.8", repositoryRoot,
+            "Adds provider-and-endpoint-safe model identities, cross-provider Council execution, per-model benchmark/property controls in Chat, Install and Council, all-selected Benchmark Council runs, and user-approved provider-qualified recommendation presets.");
 
 
         EnsureRequirement(core, "Preflight database and capability audit",

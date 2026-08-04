@@ -1,0 +1,184 @@
+@* Inherits the InteractiveServer circuit from the containing page. *@
+@using System.Text.Json
+@implements IDisposable
+@inject IProviderModelBenchmarkService BenchmarkService
+@inject ILogger<ProviderModelBenchmarkCouncilPanel> Logger
+
+<section class="benchmark-council-panel" aria-labelledby="@HeadingId">
+    <header>
+        <div>
+            <strong id="@HeadingId">Benchmark Council</strong>
+            <small>All selected provider-qualified models run the bounded benchmark. Other selected models review each recommendation.</small>
+        </div>
+        <span class="benchmark-count">@Models.Count selected</span>
+    </header>
+
+    <div class="benchmark-council-config">
+        <label>Profiles per model<input type="number" min="1" max="6" @bind="maxProfiles" /></label>
+        <label>Tasks per profile<input type="number" min="1" max="4" @bind="maxTasks" /></label>
+        <label>Timeout seconds<input type="number" min="10" max="900" step="10" @bind="maxSeconds" /></label>
+        <label>Stop threshold %<input type="number" min="0" max="50" step="1" @bind="improvementThreshold" /></label>
+        <label>Maximum context<input type="number" min="2048" max="262144" step="1024" @bind="maximumContext" /></label>
+        <label>Maximum output<input type="number" min="128" max="8192" step="128" @bind="maximumOutput" /></label>
+    </div>
+
+    <div class="benchmark-council-actions">
+        <button type="button" disabled="@(isBusy || Models.Count == 0)" @onclick="RunAsync">Benchmark all selected models</button>
+        @if (CanApply)
+        {
+            <button type="button" disabled="@isBusy" @onclick="ApplyAsync">Apply all recommendations</button>
+        }
+        @if (isBusy)
+        {
+            <button type="button" @onclick="Cancel">Cancel</button>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(statusText))
+    {
+        <p role="status" aria-live="polite" class="benchmark-council-status">@statusText</p>
+    }
+
+    @if (report is not null)
+    {
+        <div class="benchmark-council-results">
+            @foreach (var target in report.Targets)
+            {
+                <details open="@string.IsNullOrWhiteSpace(target.Error)">
+                    <summary>@target.Model.DisplayName · @(string.IsNullOrWhiteSpace(target.Error) ? $"{target.Recommendation.EmpiricalScore:0.0} empirical / {target.Recommendation.CouncilScore:0.0} council" : "failed")</summary>
+                    @if (!string.IsNullOrWhiteSpace(target.Error))
+                    {
+                        <p>@target.Error</p>
+                    }
+                    else
+                    {
+                        <p>@target.Recommendation.ProfileName · context @target.Recommendation.ContextTokens.ToString("N0") · output @target.Recommendation.OutputTokens.ToString("N0")</p>
+                        <small>@target.Recommendation.Rationale</small>
+                    }
+                </details>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public IReadOnlyList<ProviderModelReference> Models { get; set; } = [];
+    [Parameter] public EventCallback<ProviderModelBenchmarkBatchAppliedEvent> BenchmarkApplied { get; set; }
+
+    readonly string HeadingId = $"benchmark-council-{Guid.NewGuid():N}";
+    int maxProfiles = 5;
+    int maxTasks = 3;
+    int maxSeconds = 180;
+    double improvementThreshold = 5d;
+    int maximumContext = 32768;
+    int maximumOutput = 1024;
+    bool isBusy;
+    string statusText = string.Empty;
+    ProviderModelBenchmarkReport? report;
+    CancellationTokenSource? benchmarkCts;
+    string modelSignature = string.Empty;
+
+    bool CanApply => report?.Targets.Any(target => string.IsNullOrWhiteSpace(target.Error)
+        && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName)) == true;
+
+    protected override void OnParametersSet()
+    {
+        var nextSignature = string.Join("\n", Models
+            .Select(model => model.SelectionKey)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
+        if (nextSignature.Equals(modelSignature, StringComparison.Ordinal))
+            return;
+
+        if (!string.IsNullOrWhiteSpace(modelSignature))
+        {
+            benchmarkCts?.Cancel();
+            report = null;
+            statusText = "Selection changed. Run Benchmark Council again before applying recommendations.";
+        }
+        modelSignature = nextSignature;
+    }
+
+    async Task RunAsync()
+    {
+        benchmarkCts?.Cancel();
+        benchmarkCts?.Dispose();
+        benchmarkCts = new CancellationTokenSource();
+        isBusy = true;
+        report = null;
+        statusText = $"Running all {Models.Count} selected provider model(s). Each target remains bound to its endpoint.";
+        try
+        {
+            report = await BenchmarkService.RunAsync(new ProviderModelBenchmarkRequest
+            {
+                Targets = Models.ToList(),
+                CouncilReviewers = Models.ToList(),
+                MaxProfilesPerModel = maxProfiles,
+                MaxTasks = maxTasks,
+                MaxCouncilReviewers = Math.Min(3, Math.Max(1, Models.Count - 1)),
+                MaxSecondsPerCall = maxSeconds,
+                ImprovementThresholdPercent = improvementThreshold,
+                MaximumContextTokens = maximumContext,
+                MaximumOutputTokens = maximumOutput,
+                IncludeCouncilReview = true
+            }, benchmarkCts.Token).ConfigureAwait(false);
+            var succeeded = report.Targets.Count(target => string.IsNullOrWhiteSpace(target.Error));
+            statusText = $"Benchmark Council completed: {succeeded}/{report.Targets.Count} model(s) produced recommendations.";
+        }
+        catch (OperationCanceledException)
+        {
+            statusText = "Benchmark Council cancelled. No settings were applied.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Provider Benchmark Council failed; prompts and model output were omitted.");
+            statusText = "Benchmark Council failed. Existing provider and preset settings were not changed.";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    async Task ApplyAsync()
+    {
+        if (report is null || !CanApply)
+            return;
+        isBusy = true;
+        statusText = "Applying all successful provider-qualified recommendations as one user-approved preset…";
+        try
+        {
+            var presets = await BenchmarkService.ApplyRecommendationsAsync(
+                report,
+                $"Benchmark Council · {DateTimeOffset.Now:yyyy-MM-dd HHmm}",
+                makeDefault: false,
+                userConfirmed: true).ConfigureAwait(false);
+            var preset = presets.Single();
+            var routes = JsonSerializer.Deserialize<List<OneWireCouncilModelRoute>>(preset.ModelRoutesJson) ?? [];
+            var appliedModels = report.Targets
+                .Where(target => string.IsNullOrWhiteSpace(target.Error)
+                    && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName))
+                .Select(target => target.Model)
+                .ToList();
+            await BenchmarkApplied.InvokeAsync(new ProviderModelBenchmarkBatchAppliedEvent(
+                appliedModels, routes, preset)).ConfigureAwait(false);
+            statusText = $"Applied {routes.Count} provider-qualified route(s) as preset “{preset.Name}”.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Applying Benchmark Council recommendations failed.");
+            statusText = "The recommendations could not be applied. Existing settings were left unchanged.";
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    void Cancel() => benchmarkCts?.Cancel();
+
+    public void Dispose()
+    {
+        benchmarkCts?.Cancel();
+        benchmarkCts?.Dispose();
+    }
+}

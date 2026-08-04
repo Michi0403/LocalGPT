@@ -350,6 +350,20 @@ The documentation build now stages referenced assemblies for DocFX metadata extr
 See `CHANGELOG-v2.1.22-direct-council-starters-docfx-modals-shortcuts.md`.
 
 
+## LocalGPT 2.2.8 provider-qualified Council and Benchmark Council
+
+Version 2.2.8 gives each model a provider-qualified Council address containing its provider, endpoint and provider-native model name. Ollama, LM Studio or another OpenAI-compatible host, OpenAI and Azure OpenAI can therefore participate in the same Chat Council even when two providers expose identical model names. Ambiguous bare names and stale qualified addresses are rejected rather than guessed.
+
+Reusable Interactive Server model panels now appear beside active Chat models, Council candidates and tested local-provider discovery results. Each panel exposes properties, bounded single-model benchmarking, optional Council review, cancellation, result details and a direct user-confirmed apply action. Benchmark Council runs all selected provider-qualified models and can save all successful recommendations as one user-approved preset without modifying provider-global settings. The separately versioned `LocalGPT.WireProtocolVersion` contract is 2.1.1 because model routes now carry provider identity.
+
+See `CHANGELOG-v2.2.8-provider-qualified-council-benchmarking.md` and [`docs/articles/provider-qualified-council-benchmarking.md`](docs/articles/provider-qualified-council-benchmarking.md).
+
+## LocalGPT 2.2.7 GitHub Pages Windows-ZIP extraction patch
+
+Version 2.2.7 fixes the Pages release extractor for ZIP files produced by Windows PowerShell. Candidate paths are still normalized to portable forward slashes for validation, but the extractor now retains and opens each member by its exact stored ZIP name. This prevents valid `wwwroot/help-docs` payloads from being rejected when the archive stores backslash-separated paths. Theme, API, PDF, path-safety and release-version validation remain intact. The separately versioned 1-Wire protocol remains at 2.1.0.
+
+See `CHANGELOG-v2.2.7-github-pages-windows-zip-extraction.md`.
+
 ## LocalGPT 2.2.6 GitHub Actions Node.js 24 maintenance patch
 
 Version 2.2.6 updates the GitHub Pages publishing workflow from `actions/checkout@v4` to the Node.js 24-based `actions/checkout@v6`. The Kawaii DocFX site, light/dark theme, animations, release-asset extraction, Pages deployment, installed WebView documentation and application features remain unchanged. The separately versioned 1-Wire protocol remains at 2.1.0.

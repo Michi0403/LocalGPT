@@ -274,3 +274,11 @@
     flex-wrap: wrap;
     gap: .5rem;
 }
+
+/* v2.2.8: reusable provider-qualified model controls on discovery results. */
+.install-provider-model-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    gap: .75rem;
+    margin-top: .65rem;
+}

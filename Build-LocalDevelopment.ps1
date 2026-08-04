@@ -17,7 +17,7 @@ $setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole\LocalGPTInstal
 $wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj"
 $documentationScript = Join-Path $root "build\Build-Documentation.ps1"
 $packageDirectory = Join-Path $root "packages"
-$wireVersion = "2.1.0"
+$wireVersion = "2.1.1"
 $wirePackage = Join-Path $packageDirectory "LocalGPT.WireProtocolVersion.$wireVersion.nupkg"
 $packageRestoreCache = Join-Path $root "artifacts\development\.nuget-packages"
 $useProject = if ($UseWireProtocolPackage) { "false" } else { "true" }
@@ -103,7 +103,7 @@ if (-not (Test-Path -LiteralPath $wirePackage)) { throw "Expected wire protocol 
 
 if ($UseWireProtocolPackage) {
     # Local packages are intentionally rebuilt with the stable public version. Use an isolated restore
-    # cache and evict only this package/version so NuGet cannot reuse an older 2.1.0 extraction.
+    # cache and evict only this package/version so NuGet cannot reuse an older 2.1.1 extraction.
     $cachedWirePackage = Join-Path $packageRestoreCache "localgpt.wireprotocolversion\$wireVersion"
     Remove-Item -LiteralPath $cachedWirePackage -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path $packageRestoreCache -Force | Out-Null
@@ -126,7 +126,7 @@ Invoke-DotNet -Arguments @("build", $setupProject, "-c", $Configuration, "--no-r
 
 # Keep the selected dependency graph for the complete development run. The protocol package is still
 # created above for package consumers, and -UseWireProtocolPackage explicitly selects that graph. A
-# second unconditional package-mode rebuild reused the mutable 2.1.0 NuGet cache and could replace an
+# second unconditional package-mode rebuild reused the mutable 2.1.1 NuGet cache and could replace an
 # already successful source-project build with hundreds of false missing-type errors.
 
 $documentationAssembly = Join-Path $appOutputRoot "LocalGPT.dll"

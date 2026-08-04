@@ -4722,7 +4722,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                return $"{catalog.DetectedOllamaSessionPrefix}{candidate.ModelName} @ {text.TrimEndpoint(candidate.Endpoint, logger)}";
+                return $"{catalog.DetectedOllamaSessionPrefix}{candidate.SelectionKey}";
             }
             catch (Exception ex)
             {

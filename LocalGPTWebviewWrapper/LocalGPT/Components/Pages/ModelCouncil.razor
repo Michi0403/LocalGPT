@@ -18,7 +18,7 @@
     <section class="council-header">
         <div>
             <h1>AI Council</h1>
-            <p>Let several local Ollama models propose, critique, verify, and memorize a shared answer.</p>
+            <p>Combine local and cloud models from different providers while keeping every participant bound to its provider endpoint.</p>
         </div>
         <DxButton Text="Refresh Models"
                   RenderStyle="ButtonRenderStyle.Secondary"
@@ -33,34 +33,32 @@
                 <div class="control-title">Council Models</div>
                 @if (Candidates.Count == 0)
                 {
-                    <p class="muted">No Ollama models detected yet. Start Ollama or add a model name manually.</p>
+                    <p class="muted">No provider models detected yet. Connect Ollama, LM Studio, OpenAI, Azure OpenAI, or another configured OpenAI-compatible provider.</p>
                 }
                 else
                 {
-                    <div class="candidate-list">
+                    <div class="candidate-list provider-model-list">
                         @foreach (var candidate in Candidates)
                         {
-                            <label class="candidate-row" title="@candidate.Details">
-                                <input type="checkbox"
-                                       checked="@SelectedModels.Contains(candidate.ModelName)"
-                                       @onchange="@((ChangeEventArgs e) => ToggleModel(candidate.ModelName, e))" />
-                                <span>
-                                    <strong>@candidate.ModelName</strong>
-                                    <small>@candidate.Provider@if (candidate.IsLoaded) { <text> - loaded</text> }</small>
-                                </span>
-                            </label>
+                            <ProviderModelPanel @key="candidate.SelectionKey" Model="candidate.ToReference()"
+                                                Selected="@SelectedModels.Contains(candidate.SelectionKey)"
+                                                SelectedChanged="@(selected => ToggleModel(candidate.SelectionKey, selected))"
+                                                CouncilModels="SelectedProviderModels"
+                                                BenchmarkApplied="OnBenchmarkAppliedAsync" />
                         }
                     </div>
                 }
                 @if (SelectedModels.Count < 2)
                 {
-                    <p class="hint">Select at least two installed models for real negotiation. If your coder model is not listed, pull it in Ollama and refresh.</p>
+                    <p class="hint">Select at least two provider-qualified models for real negotiation. The same model name may safely be selected from different providers.</p>
                 }
+                <ProviderModelBenchmarkCouncilPanel Models="SelectedProviderModels"
+                                                    BenchmarkApplied="OnBenchmarkCouncilAppliedAsync" />
             </div>
 
             <div class="control-group">
                 <label class="manual-model">
-                    Add model name
+                    Add legacy Ollama model name
                     <span>
                         <input @bind="ManualModelName" placeholder="qwen3-coder:30b" />
                         <DxButton Text="Add"
@@ -524,6 +522,10 @@
     readonly string toastName = "ModelCouncilToasts";
     readonly HashSet<string> SelectedModels = new(StringComparer.OrdinalIgnoreCase);
     List<MultiModelCouncilModelCandidate> Candidates { get; set; } = [];
+    IReadOnlyList<ProviderModelReference> SelectedProviderModels => Candidates
+        .Where(candidate => SelectedModels.Contains(candidate.SelectionKey))
+        .Select(candidate => candidate.ToReference())
+        .ToList();
     List<ChatMemoryConversationSummary> SavedCouncilConversations { get; set; } = [];
     List<LocalGptProjectSummary> ProjectSummaries { get; set; } = [];
     LocalGptProjectDetails? SelectedProjectDetails { get; set; }
@@ -597,17 +599,51 @@
         {
             await RunUiActionAsync(async () =>
        {
-           Candidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+           var previouslySelectedCandidates = Candidates
+               .Where(candidate => SelectedModels.Contains(candidate.SelectionKey))
+               .ToList();
+           var discoveredCandidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+           foreach (var preserved in previouslySelectedCandidates)
+           {
+               if (!discoveredCandidates.Any(candidate => candidate.SelectionKey.Equals(preserved.SelectionKey, StringComparison.OrdinalIgnoreCase)))
+                   discoveredCandidates.Add(preserved);
+           }
+           Candidates = discoveredCandidates
+               .OrderByDescending(candidate => candidate.IsInstalled)
+               .ThenByDescending(candidate => candidate.IsConfigured)
+               .ThenBy(candidate => candidate.Provider)
+               .ThenBy(candidate => candidate.ModelName)
+               .ToList();
+
+           var normalizedSelections = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+           foreach (var selected in SelectedModels)
+           {
+               var exact = Candidates.FirstOrDefault(candidate => candidate.SelectionKey.Equals(selected, StringComparison.OrdinalIgnoreCase));
+               if (exact is not null)
+               {
+                   normalizedSelections.Add(exact.SelectionKey);
+                   continue;
+               }
+
+               var byModel = Candidates
+                   .Where(candidate => candidate.ModelName.Equals(selected, StringComparison.OrdinalIgnoreCase))
+                   .ToList();
+               if (byModel.Count == 1)
+                   normalizedSelections.Add(byModel[0].SelectionKey);
+           }
+           SelectedModels.Clear();
+           foreach (var selection in normalizedSelections)
+               SelectedModels.Add(selection);
 
            if (SelectedModels.Count == 0)
            {
-               foreach (var candidate in Candidates.Where(candidate => candidate.IsInstalled).Take(2))
-                   SelectedModels.Add(candidate.ModelName);
+               foreach (var candidate in Candidates.Where(candidate => candidate.IsInstalled || candidate.IsConfigured).Take(2))
+                   SelectedModels.Add(candidate.SelectionKey);
            }
 
            statusText = Candidates.Count == 0
-               ? "No Ollama models found."
-               : $"Found {Candidates.Count(candidate => candidate.IsInstalled)} reachable Ollama model(s); {Candidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured model(s) are currently offline.";
+               ? "No provider models found."
+               : $"Found {Candidates.Count(candidate => candidate.IsInstalled)} discovered provider model(s) across {Candidates.Select(candidate => candidate.Provider).Distinct(StringComparer.OrdinalIgnoreCase).Count()} provider(s); {Candidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured model(s) will verify connectivity when benchmarked or called.";
        }, "LoadCandidatesAsync").ConfigureAwait(true) /* renderer-affine loading continuation */;
         }
         catch (Exception ex)
@@ -624,6 +660,7 @@
             await RunUiActionAsync(async () =>
             {
                 Request.ModelNames = SelectedModels.ToList();
+                Request.ModelSelections = SelectedProviderModels.ToList();
                 try
                 {
                     LastResult = await CouncilService.RunAsync(Request).ConfigureAwait(false);
@@ -748,19 +785,24 @@
             if (string.IsNullOrWhiteSpace(model))
                 return;
 
-            SelectedModels.Add(model);
-            if (!Candidates.Any(candidate => candidate.ModelName.Equals(model, StringComparison.OrdinalIgnoreCase)))
-            {
-                Candidates.Add(new MultiModelCouncilModelCandidate(
+            var candidate = Candidates.FirstOrDefault(item =>
+                item.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                && item.ModelName.Equals(model, StringComparison.OrdinalIgnoreCase))
+                ?? new MultiModelCouncilModelCandidate(
                     model,
-                    "Manual Ollama",
-                    "http://localhost:11434",
+                    "Ollama",
+                    "http://127.0.0.1:11434",
                     IsInstalled: false,
                     IsConfigured: false,
                     IsLoaded: false,
-                    Details: "Manual model name. Ollama will report an error if it is not installed."));
-            }
-            statusText = $"Added {model}.";
+                    Details: "Legacy manual Ollama model. The native endpoint will report an error if it is not installed.",
+                    ProviderKind: ProviderModelKinds.Ollama,
+                    IsLocal: true,
+                    SupportsBenchmark: true);
+            if (!Candidates.Any(item => item.SelectionKey.Equals(candidate.SelectionKey, StringComparison.OrdinalIgnoreCase)))
+                Candidates.Add(candidate);
+            SelectedModels.Add(candidate.SelectionKey);
+            statusText = $"Added {candidate.SelectionKey}.";
         }
         catch (Exception ex)
         {
@@ -772,25 +814,43 @@
 
     private void JoinRunningCouncil() => Navigation.NavigateTo("/Chat?joinCouncil=active", forceLoad: true);
 
-    void ToggleModel(string modelName, ChangeEventArgs args)
+    void ToggleModel(string selectionKey, bool isChecked)
     {
         try
         {
-            var isChecked = args.Value is bool value
-           ? value
-           : bool.TryParse(Convert.ToString(args.Value), out var parsed) && parsed;
-
             if (isChecked)
-                SelectedModels.Add(modelName);
+                SelectedModels.Add(selectionKey);
             else
-                SelectedModels.Remove(modelName);
+                SelectedModels.Remove(selectionKey);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "Provider-qualified model selection failed; model identity was omitted from logs.");
+            Notifier.ShowError(toastName, "The model selection could not be changed. See local logs for details.", "Selection failed");
         }
+    }
 
+    Task OnBenchmarkAppliedAsync(ProviderModelBenchmarkAppliedEvent applied)
+    {
+        SelectedModels.Add(applied.Model.SelectionKey);
+        Request.ModelRoutes.RemoveAll(route => route.ModelName.Equals(applied.Route.ModelName, StringComparison.OrdinalIgnoreCase));
+        Request.ModelRoutes.Add(applied.Route);
+        statusText = $"Applied benchmark settings for {applied.Model.SelectionKey} from preset {applied.Preset.Name}.";
+        return InvokeAsync(StateHasChanged);
+    }
+
+    Task OnBenchmarkCouncilAppliedAsync(ProviderModelBenchmarkBatchAppliedEvent applied)
+    {
+        foreach (var model in applied.Models)
+            SelectedModels.Add(model.SelectionKey);
+        foreach (var route in applied.Routes)
+        {
+            Request.ModelRoutes.RemoveAll(existing =>
+                existing.ModelName.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase));
+            Request.ModelRoutes.Add(route);
+        }
+        statusText = $"Applied {applied.Routes.Count} Benchmark Council recommendation(s) from preset {applied.Preset.Name}.";
+        return InvokeAsync(StateHasChanged);
     }
 
     void SelectCouncilConversation(ChatMemoryConversationSummary conversation)

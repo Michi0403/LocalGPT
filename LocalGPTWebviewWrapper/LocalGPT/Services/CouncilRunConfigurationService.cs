@@ -404,6 +404,10 @@ public sealed class CouncilRunConfigurationService(
     private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
     {
         ModelName = route.ModelName,
+        ProviderKind = route.ProviderKind,
+        ProviderName = route.ProviderName,
+        ProviderEndpoint = route.ProviderEndpoint,
+        ProviderModelName = route.ProviderModelName,
         HardwareKind = route.HardwareKind,
         HardwareIndex = route.HardwareIndex,
         HardwareName = route.HardwareName,

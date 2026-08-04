@@ -55,14 +55,18 @@ public sealed class CouncilHardwareRoadPlanner(
                 ? $"auto:{modelName}"
                 : $"{route.HardwareKind.ToString().ToLowerInvariant()}:{route.HardwareIndex}:{hardwareName}";
 
-            var effectiveOllamaNumGpu = route.HardwareKind switch
-            {
-                OneWireHardwareKind.Cpu => 0,
-                OneWireHardwareKind.Gpu or OneWireHardwareKind.Accelerator => route.OllamaNumGpu is > 0
-                    ? route.OllamaNumGpu
-                    : null,
-                _ => route.OllamaNumGpu ?? fallbackOllamaNumGpu
-            };
+            var isOllamaRoute = string.IsNullOrWhiteSpace(route.ProviderKind)
+                || route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase);
+            var effectiveOllamaNumGpu = isOllamaRoute
+                ? route.HardwareKind switch
+                {
+                    OneWireHardwareKind.Cpu => 0,
+                    OneWireHardwareKind.Gpu or OneWireHardwareKind.Accelerator => route.OllamaNumGpu is > 0
+                        ? route.OllamaNumGpu
+                        : null,
+                    _ => route.OllamaNumGpu ?? fallbackOllamaNumGpu
+                }
+                : null;
 
             result[modelName] = new CouncilHardwareRoadPlan(
                 modelName,
