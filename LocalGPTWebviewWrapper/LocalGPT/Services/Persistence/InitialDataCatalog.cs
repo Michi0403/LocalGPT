@@ -167,11 +167,13 @@ public sealed class InitialDataCatalog(
         [
             "AGENTS.md",
             "SECURITY.md",
-            "docs/ARCHITECTURE.md",
-            "docs/ARCHITECTURE_FOR_AI.md",
-            "docs/HUMAN_AI_COLLABORATION.md",
-            "docs/PROJECT_COLLABORATION.md",
-            "docs/DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md"
+            "docs/architecture/system-overview.md",
+            "docs/architecture/ai-host.md",
+            "docs/architecture/council-runtime.md",
+            "docs/architecture/project-data.md",
+            "docs/architecture/onewire-security.md",
+            "docs/engineering/build-validation.md",
+            "docs/reference/capability-map.md"
         ];
 
         var entries = new List<CouncilKnowledgeEntry>();

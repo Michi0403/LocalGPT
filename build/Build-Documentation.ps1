@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Mandatory)][string]$RepositoryRoot,
     [Parameter(Mandatory)][string]$AssemblyPath,
     [Parameter(Mandatory)][string]$XmlDocumentationPath,
@@ -31,6 +31,7 @@ $pdfTocPath = Join-Path $docsRoot "pdf\toc.yml"
 $pdfCoverPath = Join-Path $docsRoot "pdf-cover.html"
 $manifestPath = Join-Path $RepositoryRoot ".config\dotnet-tools.json"
 $fallbackToolRoot = Join-Path $docsRoot ".tools"
+$internalNotesRoot = Join-Path $docsRoot "internal-notes"
 $printBookParentRoot = Join-Path $docsRoot ".print-book"
 $printBookRoot = Join-Path $printBookParentRoot ([Guid]::NewGuid().ToString('N'))
 $printBookPath = Join-Path $printBookRoot "LocalGPT-$Version-complete.html"
@@ -52,7 +53,8 @@ $articleSourceCount = @(
             $_.FullName -notlike "$apiRoot\*" -and
             $_.FullName -notlike "$inputRoot\*" -and
             $_.FullName -notlike "$siteRoot\*" -and
-            $_.FullName -notlike "$fallbackToolRoot\*"
+            $_.FullName -notlike "$fallbackToolRoot\*" -and
+            $_.FullName -notlike "$internalNotesRoot\*"
         }
 ).Count
 $pdfFileSize = 0
@@ -397,9 +399,13 @@ function Install-LocalGptWebsiteThemeAssets {
     $themeSourceRoot = Join-Path $docsRoot "templates\localgpt\public"
     $cssSource = Join-Path $themeSourceRoot "main.css"
     $javascriptSource = Join-Path $themeSourceRoot "main.js"
-    if (-not (Test-Path -LiteralPath $cssSource -PathType Leaf) -or
-        -not (Test-Path -LiteralPath $javascriptSource -PathType Leaf)) {
-        throw "The LocalGPT DocFX website theme source is incomplete: $themeSourceRoot"
+    $faviconSource = Join-Path $themeSourceRoot "favicon.ico"
+    $faviconSvgSource = Join-Path $themeSourceRoot "favicon.svg"
+    $logoSource = Join-Path $themeSourceRoot "logo.svg"
+    foreach ($requiredThemeSource in @($cssSource, $javascriptSource, $faviconSource, $faviconSvgSource, $logoSource)) {
+        if (-not (Test-Path -LiteralPath $requiredThemeSource -PathType Leaf)) {
+            throw "The LocalGPT DocFX website theme source is incomplete: $requiredThemeSource"
+        }
     }
 
     $assetRoot = Join-Path $SiteRoot "styles"
@@ -408,24 +414,62 @@ function Install-LocalGptWebsiteThemeAssets {
     $javascriptTarget = Join-Path $assetRoot "localgpt-kawaii.js"
     Copy-Item -LiteralPath $cssSource -Destination $cssTarget -Force
     Copy-Item -LiteralPath $javascriptSource -Destination $javascriptTarget -Force
+    Copy-Item -LiteralPath $faviconSource -Destination (Join-Path $SiteRoot "favicon.ico") -Force
+    Copy-Item -LiteralPath $faviconSvgSource -Destination (Join-Path $SiteRoot "favicon.svg") -Force
+    Copy-Item -LiteralPath $logoSource -Destination (Join-Path $SiteRoot "logo.svg") -Force
 
     $cssHash = (Get-FileHash -LiteralPath $cssTarget -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant()
     $javascriptHash = (Get-FileHash -LiteralPath $javascriptTarget -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant()
+    $themeBootstrap = @'
+<script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+'@
+
     $siteRootFull = [IO.Path]::GetFullPath($SiteRoot)
     $updatedCount = 0
     foreach ($file in @(Get-ChildItem -LiteralPath $siteRootFull -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue)) {
         if ($file.FullName -like "*\.print-book\*") { continue }
         $relative = (Get-LocalGptRelativePath -Root $siteRootFull -Path $file.FullName).Replace('\', '/')
         $depth = [Math]::Max(0, @($relative.Split('/') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count - 1)
-        $prefix = if ($depth -gt 0) { ("../" * $depth) -join "" } else { "" }
-        $cssHref = $prefix + "styles/localgpt-kawaii.css?v=$cssHash"
-        $javascriptHref = $prefix + "styles/localgpt-kawaii.js?v=$javascriptHash"
+        $prefixPath = if ($depth -gt 0) { ("../" * $depth) -join "" } else { "" }
+        $cssHref = $prefixPath + "styles/localgpt-kawaii.css?v=$cssHash"
+        $javascriptHref = $prefixPath + "styles/localgpt-kawaii.js?v=$javascriptHash"
+        $faviconSvgHref = $prefixPath + "favicon.svg"
+        $faviconIcoHref = $prefixPath + "favicon.ico"
         $html = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
         $updated = $html
 
-        # Activate the visual shell in the generated markup itself. The website remains
-        # themed even when a WebView delays or blocks module execution, while main.js
-        # continues to provide the optional decorations and animations.
         if ($updated -notmatch '(?i)<html\b[^>]*\blocalgpt-kawaii-docs\b') {
             if ($updated -match '(?i)<html\b[^>]*\bclass\s*=\s*"') {
                 $updated = [regex]::Replace($updated, '(?i)(<html\b[^>]*\bclass\s*=\s*")', '${1}localgpt-kawaii-docs ', 1)
@@ -436,6 +480,21 @@ function Install-LocalGptWebsiteThemeAssets {
             else {
                 $updated = [regex]::Replace($updated, '(?i)<html\b', '<html class="localgpt-kawaii-docs"', 1)
             }
+        }
+
+        if ($updated -notmatch '(?i)data-localgpt-theme-bootstrap') {
+            if ($updated -match '(?i)</head>') {
+                $updated = [regex]::Replace($updated, '(?i)</head>', $themeBootstrap + "`r`n</head>", 1)
+            }
+        }
+
+        $iconTags = '<link rel="icon" type="image/svg+xml" href="' + $faviconSvgHref + '" data-localgpt-favicon="true" />' + "`r`n" +
+            '<link rel="alternate icon" href="' + $faviconIcoHref + '" />'
+        if ($updated -match '(?i)<link\s+rel=["'']icon["''][^>]*>') {
+            $updated = [regex]::Replace($updated, '(?i)<link\s+rel=["'']icon["''][^>]*>', $iconTags, 1)
+        }
+        elseif ($updated -notmatch '(?i)data-localgpt-favicon' -and $updated -match '(?i)</head>') {
+            $updated = [regex]::Replace($updated, '(?i)</head>', $iconTags + "`r`n</head>", 1)
         }
 
         if ($updated -notmatch '(?i)data-localgpt-kawaii-style') {
@@ -2356,6 +2415,9 @@ foreach ($publishRoot in $publishRoots) {
     if ($documentationMode -eq "docfx") {
         $requiredArtifacts.Add((Join-Path $publishRoot "styles\localgpt-kawaii.css"))
         $requiredArtifacts.Add((Join-Path $publishRoot "styles\localgpt-kawaii.js"))
+        $requiredArtifacts.Add((Join-Path $publishRoot "favicon.ico"))
+        $requiredArtifacts.Add((Join-Path $publishRoot "favicon.svg"))
+        $requiredArtifacts.Add((Join-Path $publishRoot "logo.svg"))
     }
     if ($RequirePdf -or $pdfGenerated) {
         $requiredArtifacts.Add((Join-Path $publishRoot $pdfName))
@@ -2367,7 +2429,7 @@ foreach ($publishRoot in $publishRoots) {
     }
     if ($documentationMode -eq "docfx") {
         $publishedIndex = Get-Content -LiteralPath (Join-Path $publishRoot "index.html") -Raw -Encoding UTF8
-        foreach ($themeMarker in @("localgpt-kawaii-docs", "data-localgpt-kawaii-style", "data-localgpt-kawaii-script")) {
+        foreach ($themeMarker in @("localgpt-kawaii-docs", "data-localgpt-theme-bootstrap", "data-localgpt-favicon", "data-localgpt-kawaii-style", "data-localgpt-kawaii-script")) {
             if ($publishedIndex -notmatch [regex]::Escape($themeMarker)) {
                 throw "The generated DocFX home page is missing the required Kawaii theme marker: $themeMarker"
             }

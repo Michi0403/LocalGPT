@@ -39,16 +39,17 @@
   </ItemGroup>
 
 	<ItemGroup>
-		
 		<Content Include="..\..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\ARCHITECTURE.md" Link="docs\ARCHITECTURE.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\ARCHITECTURE_FOR_AI.md" Link="docs\ARCHITECTURE_FOR_AI.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md" Link="docs\COMPONENT_SAFETY_AND_SHORT_TERM_MEMORY.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\PROJECT_IDENTITY.md" Link="docs\PROJECT_IDENTITY.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\HUMAN_AI_COLLABORATION.md" Link="docs\HUMAN_AI_COLLABORATION.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\PROJECT_COLLABORATION.md" Link="docs\PROJECT_COLLABORATION.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md" Link="docs\DXAI_FUNCTIONS_AND_CHANGE_REVIEWS.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\CHAT_PROTOCOLS_AND_SESSION_CONTEXT.md" Link="docs\CHAT_PROTOCOLS_AND_SESSION_CONTEXT.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\SECURITY.md" Link="SECURITY.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\index.md" Link="docs\index.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\system-overview.md" Link="docs\architecture\system-overview.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\ai-host.md" Link="docs\architecture\ai-host.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\council-runtime.md" Link="docs\architecture\council-runtime.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\project-data.md" Link="docs\architecture\project-data.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\onewire-security.md" Link="docs\architecture\onewire-security.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\frontend-and-themes.md" Link="docs\architecture\frontend-and-themes.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\engineering\build-validation.md" Link="docs\engineering\build-validation.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\reference\capability-map.md" Link="docs\reference\capability-map.md" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
 	<ItemGroup>

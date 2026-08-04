@@ -1173,8 +1173,8 @@ namespace LocalGPT.Controller
                 return await councilRuntime.ReadGuidanceDocsAsync(
       env,
       [
-          Path.Combine("docs", "BLAZOR_DEVEXPRESS_AI_GENERATION.md"),
-                    Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md")
+          Path.Combine("docs", "architecture", "frontend-and-themes.md"),
+          Path.Combine("docs", "architecture", "system-overview.md")
       ],
       """
                 Generate real .razor files for Blazor UI requests. Use @page, @rendermode InteractiveServer,
@@ -1201,8 +1201,8 @@ namespace LocalGPT.Controller
                 return await councilRuntime.ReadGuidanceDocsAsync(
             env,
             [
-                Path.Combine("docs", "FRONTEND_DESIGN_PATTERN_LIBRARY.md"),
-                    Path.Combine("docs", "BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md")
+                Path.Combine("docs", "architecture", "frontend-and-themes.md"),
+                Path.Combine("docs", "guide", "getting-started.md")
             ],
             """
                 Use LocalGPT's compiled frontend design pattern library directly.
@@ -1229,8 +1229,8 @@ namespace LocalGPT.Controller
                 return await councilRuntime.ReadGuidanceDocsAsync(
                env,
                [
-                   Path.Combine("docs", "MICROSOFT_DOTNET_SAMPLE_CURRICULUM.md"),
-                    Path.Combine("docs", "GENERATION_ARCHETYPE_CONTRACTS.md")
+                   Path.Combine("docs", "architecture", "frontend-and-themes.md"),
+                   Path.Combine("docs", "architecture", "system-overview.md")
                ],
                """
                 Use official Microsoft/dotnet samples and Microsoft Learn training as the baseline for .NET
@@ -1257,9 +1257,9 @@ namespace LocalGPT.Controller
                 return await councilRuntime.ReadGuidanceDocsAsync(
          env,
          [
-             Path.Combine("docs", "AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md"),
-                    Path.Combine("docs", "AI_HOST_CONTROL_PLANE_ARCHITECTURE.md"),
-                    Path.Combine("docs", "DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md")
+             Path.Combine("docs", "architecture", "ai-host.md"),
+             Path.Combine("docs", "architecture", "system-overview.md"),
+             Path.Combine("docs", "architecture", "frontend-and-themes.md")
          ],
          """
                 Generate a local AI host .NET/ASP.NET Core/DevExpress Blazor control-plane app with a
@@ -1289,8 +1289,8 @@ namespace LocalGPT.Controller
                 return await councilRuntime.ReadGuidanceDocsAsync(
               env,
               [
-                  Path.Combine("docs", "FRONTEND_TEST_AUTOMATION.md"),
-                    Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md")
+                  Path.Combine("docs", "engineering", "build-validation.md"),
+                  Path.Combine("docs", "architecture", "frontend-and-themes.md")
               ],
               """
                 Prefer LocalGPT Test Lab and deterministic local HTTP diagnostic routes before loading heavy
@@ -1318,8 +1318,8 @@ namespace LocalGPT.Controller
                 return await councilRuntime.ReadGuidanceDocsAsync(
                env,
                [
-                   Path.Combine("docs", "CAPABILITY_GAP_CONTRACT.md"),
-                    Path.Combine("docs", "LOCALGPT_WORKFLOW_MEMORY.md")
+                   Path.Combine("docs", "reference", "capability-map.md"),
+                   Path.Combine("docs", "reference", "design-evolution.md")
                ],
                """
                 If LocalGPT, DXAiChat, or the AI Council lacks a function, source, version map, or domain

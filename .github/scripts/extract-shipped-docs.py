@@ -17,14 +17,14 @@ from pathlib import Path, PurePosixPath
 CSS_MARKERS = (
     "localgpt-kawaii-docs",
     "localgpt-api-neko-note",
-    "localgpt-theme-toggle-hidden",
+    "localgpt-theme-control",
     "localgpt-cursor-paw",
 )
 JS_MARKERS = (
     "localgpt-cursor-paw",
     "localgpt-cat-scratch",
-    "hideThemeToggle",
-    "applyPreferredTheme",
+    "mountThemeControl",
+    "localgpt-docs-theme",
 )
 HTML_MARKERS = (
     "localgpt-kawaii-docs",

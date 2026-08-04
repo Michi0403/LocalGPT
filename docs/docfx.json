@@ -20,20 +20,25 @@
     "content": [
       {
         "files": [
-          "*.md",
+          "index.md",
           "toc.yml",
-          "articles/**/*.md",
-          "articles/**/toc.yml",
+          "guide/**/*.md",
+          "guide/**/toc.yml",
+          "architecture/**/*.md",
+          "architecture/**/toc.yml",
+          "engineering/**/*.md",
+          "engineering/**/toc.yml",
+          "reference/**/*.md",
+          "reference/**/toc.yml",
           "api/**/*.yml",
           "api/**/*.md",
-          "guide/**/*.md",
-          "guide/toc.yml",
           "pdf/toc.yml"
         ],
         "exclude": [
           "_site/**",
           "input/**",
-          ".tools/**"
+          ".tools/**",
+          "internal-notes/**"
         ]
       }
     ],
@@ -56,7 +61,7 @@
     "globalMetadata": {
       "_appName": "LocalGPT",
       "_appTitle": "LocalGPT Documentation",
-      "_appFooter": "LocalGPT 2.3.1 · generated documentation",
+      "_appFooter": "LocalGPT 2.3.1 Â· generated documentation",
       "_enableSearch": true,
       "_disableContribution": true,
       "_disableTocFilter": false,
@@ -66,10 +71,4 @@
     }
   }
 }
-
-
-
-
-
-
 

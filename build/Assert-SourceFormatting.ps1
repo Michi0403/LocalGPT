@@ -61,7 +61,7 @@ try {
         "build/Assert-CSharpSyntax.ps1",
         "build/Invoke-RepositoryValidation.ps1",
         "build/New-VerifiedSourcePackage.ps1",
-        "docs/COMPILER_VALIDATION_AND_GENERATION_RULES.md"
+        "docs/engineering/build-validation.md"
     )
 
     $violations = [System.Collections.Generic.List[string]]::new()

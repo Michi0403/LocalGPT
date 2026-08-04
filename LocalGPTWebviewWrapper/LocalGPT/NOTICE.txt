@@ -13,4 +13,4 @@ Included or referenced third-party software remains under its own terms, includi
 
 No DevExpress license, private package-feed credential, generated customer-linked runtime-license key, or proprietary DevExpress binary is granted by this repository.
 
-See the repository-root `THIRD-PARTY-NOTICES.md` and `docs/DEVEXPRESS_ASSETS.md`.
+See the repository-root `THIRD-PARTY-NOTICES.md` and `docs/architecture/frontend-and-themes.md`.

@@ -389,7 +389,7 @@ namespace LocalGPT.Services
         //                "The useful pattern is a multi-project .NET/Blazor solution with a shared/core layer, server-interactive host, optional WASM client, WinUI/WebView2 wrapper boundary, Telegram or message-event ingestion, update handlers, service/API boundaries, normalized persistence, worker/polling services, notifications/logging, custom security/admin screens, and build/deploy diagnostics. " +
         //                "A generic taco menu, order queue, and reservation app is the wrong template unless the user explicitly asks for only restaurant CRUD. " +
         //                "Generated replacements should include a Source Fidelity page/service/doc explaining which original-system workflows are represented, boundary-only, or missing.",
-        //            HelpfulSources = "- Local learn-base: C:\\learnbaseforlocalgpt\\TacosPortalOpen.\n- Local docs: docs/GENERATION_ARCHETYPE_CONTRACTS.md.\n- Local generator files: CouncilArtifactService source-fidelity artifact contract and EngineeringBenchmarkService replacement tasks.",
+        //            HelpfulSources = "- Local learn-base: C:\\learnbaseforlocalgpt\\TacosPortalOpen.\n- Local docs: docs/architecture/system-overview.md.\n- Local generator files: CouncilArtifactService source-fidelity artifact contract and EngineeringBenchmarkService replacement tasks.",
         //            Tags = "seed; tacosportalopen; source-fidelity; replacement; telegram; workers; webview2; wasm; devexpress; blazor",
         //            Confidence = 94,
         //            IsUserApproved = true,
@@ -409,7 +409,7 @@ namespace LocalGPT.Services
         //                "Use Bootstrap for responsive macro layout and DevExpress for application-grade interaction; create custom Razor components when the selected stack lacks a visual shell. " +
         //                "Apply Microsoft Windows/Fluent design foundations: color hierarchy, commanding, elevation, geometry, iconography, layout, materials, motion, navigation, typography, usability, widgets, and writing. " +
         //                "Generated frontends must include real pages, navigation, service boundaries, loading/empty/error/success states, accessible labels, and safe artifact/download routes when files are generated.",
-        //            HelpfulSources = "- Local guide: docs/FRONTEND_DESIGN_PATTERN_LIBRARY.md.\n" +
+        //            HelpfulSources = "- Local guide: docs/architecture/frontend-and-themes.md.\n" +
         //                "- Local route: GET /__diag/frontend-design-guidance.\n" +
         //                "- Microsoft Windows app design guidelines: https://learn.microsoft.com/en-us/windows/apps/design/guidelines-overview.\n" +
         //                "- DevExpress Blazor components: https://docs.devexpress.com/Blazor/400725/blazor-components.\n" +
@@ -435,7 +435,7 @@ namespace LocalGPT.Services
         //                "Use .NET DI/IoC, the options pattern, hosted/background services for queued work, typed HttpClient for provider calls, AssemblyLoadContext/AssemblyDependencyResolver only for trusted plugins, and permission-gated Python.NET/PowerShell/native process execution with safe directories, cancellation, and logs. " +
         //                "If real native inference is not configured, say so in the generated UI and produce a visible runner/plugin setup page; do not substitute an upstream provider proxy as a milestone. " +
         //                "Generated AI-host solutions must include recognizable navigation for dashboard, model catalog, API console, chat, running models, downloads, templates, hardware, runner/plugins, logs, and settings.",
-        //            HelpfulSources = "- Local guide: docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md.\n" +
+        //            HelpfulSources = "- Local guide: docs/architecture/ai-host.md.\n" +
         //                "- Local route: GET /__diag/ai-host-rebuild-guidance.\n" +
         //                "- .NET dependency injection: https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/overview.\n" +
         //                "- .NET options pattern: https://learn.microsoft.com/en-us/dotnet/core/extensions/options.\n" +
@@ -462,7 +462,7 @@ namespace LocalGPT.Services
         //                "Avoid accidental shadow properties by using consistent names, explicit FK scalar properties, [ForeignKey], [InverseProperty], and targeted ModelBuilder configuration. " +
         //                "For reverse-engineered databases such as the user-supplied Telegram schema, preserve exact relationship semantics and naming; if field/property names may differ only by first-letter casing, do not casually rename them. " +
         //                "When adding columns to populated databases, prefer nullable first migrations, semantic defaults, or backfill/multi-step migrations instead of blindly adding NOT NULL columns.",
-        //            HelpfulSources = "- Local guide: docs/EF_DEVEXPRESS_BUSINESS_OBJECTS.md.\n- DevExpress XAF Data Annotation Attributes: https://docs.devexpress.com/eXpressAppFramework/112701/business-model-design-orm/data-annotations-in-data-model.\n- DevExpress Backend Web API Service: https://docs.devexpress.com/eXpressAppFramework/403394/backend-web-api-service.\n- EF Core shadow properties: https://learn.microsoft.com/ef/core/modeling/shadow-properties.\n- EF Core relationship mapping attributes: https://learn.microsoft.com/ef/core/modeling/relationships/mapping-attributes.",
+        //            HelpfulSources = "- Local guide: docs/architecture/project-data.md.\n- DevExpress XAF Data Annotation Attributes: https://docs.devexpress.com/eXpressAppFramework/112701/business-model-design-orm/data-annotations-in-data-model.\n- DevExpress Backend Web API Service: https://docs.devexpress.com/eXpressAppFramework/403394/backend-web-api-service.\n- EF Core shadow properties: https://learn.microsoft.com/ef/core/modeling/shadow-properties.\n- EF Core relationship mapping attributes: https://learn.microsoft.com/ef/core/modeling/relationships/mapping-attributes.",
         //            Tags = "seed; efcore; devexpress-web-api; xaf; odata; business-objects; shadow-properties; migrations; reverse-engineering",
         //            Confidence = 94,
         //            IsUserApproved = true,
@@ -483,7 +483,7 @@ namespace LocalGPT.Services
         //                "Long local inference must show a non-model runtime status heartbeat in the chat transcript, separate from model-thinking blocks, so the user knows whether LocalGPT is waiting on Ollama, first token latency, or streamed model output. " +
         //                "Frontend smoke tests against large local models should use slim diagnostic prompts, explicit prompt/output caps, and optional bootstrap suppression; production chats may use the normal knowledge bootstrap after the frontend path is proven. " +
         //                "When the user asks to recode a goal application, recreate its recognizable navigation, first screen, model/catalog/settings/API/download/log workflows, and UX structure with Blazor and DevExpress components; do not output a generic dashboard with the same sample pages.",
-        //            HelpfulSources = "- Local docs: docs/BLAZOR_BOOTSTRAP_DEVEXPRESS_DESIGN.md and docs/GENERATION_ARCHETYPE_CONTRACTS.md.\n- Local frontend: Components/Pages/Chat.razor architecture poll and model/session lock.\n- User review request: DXAiChat must be tested like a human and recode targets must preserve the goal app look/workflows.",
+        //            HelpfulSources = "- Local docs: docs/architecture/frontend-and-themes.md and docs/architecture/system-overview.md.\n- Local frontend: Components/Pages/Chat.razor architecture poll and model/session lock.\n- User review request: DXAiChat must be tested like a human and recode targets must preserve the goal app look/workflows.",
         //            Tags = "seed; dxaichat; frontend-review; poll; devexpress; blazor; recode; ux; model-selection",
         //            Confidence = 95,
         //            IsUserApproved = true,
@@ -645,7 +645,7 @@ namespace LocalGPT.Services
         //            HelpfulSources = "- Local artifact evidence: LocalGPTApp220013-177648d2.zip was generated from a release-readiness prompt and compiled only as a generic LocalGPT feature shell.\n" +
         //                "- Local service: CouncilArtifactService artifact gating and archetype detection.\n" +
         //                "- Local service: MultiModelCouncilService GenerateImplementationArtifact gate.\n" +
-        //                "- Local docs: docs/GENERATION_ARCHETYPE_CONTRACTS.md and docs/FRONTEND_DESIGN_PATTERN_LIBRARY.md.",
+        //                "- Local docs: docs/architecture/system-overview.md and docs/architecture/frontend-and-themes.md.",
         //            Tags = "seed; generation; archetype; artifacts; dxaichat; council; user-approved; quality-gate",
         //            Confidence = 96,
         //            IsUserApproved = true,
@@ -663,7 +663,7 @@ namespace LocalGPT.Services
         //                "Treat Ollama as a source/provider example, not as the generated app name. Feasible target: generate a .NET 10 ASP.NET Core control plane and DevExpress Blazor UI that mimics selected provider-compatible REST routes, model catalog/status, runner health, logs, and compatibility notes. " +
         //                "The generated target must include direct local model-file resolution, native runner configuration, route compatibility, model catalog/status, runner health, logs, settings, and compatibility notes. " +
         //                "Full custom tensor kernels, GPU backends, tokenizer/model conversion, and full manifest/model storage semantics remain deeper work, but an upstream provider proxy is not an acceptable substitute for the local-file runner path.",
-        //            HelpfulSources = "- User-provided source archive: C:/Users/micha/Downloads/ollama-main.zip\n- Local note: docs/AI_HOST_DOTNET_EXPERIMENT.md\n- Useful generated route: GET /__diag/council/artifact-smoke?target=ai-host",
+        //            HelpfulSources = "- User-provided source archive: C:/Users/micha/Downloads/ollama-main.zip\n- Local note: docs/architecture/ai-host.md\n- Useful generated route: GET /__diag/council/artifact-smoke?target=ai-host",
         //            Tags = "seed; ai-host; dotnet; blazor; devexpress; feasibility; whole-solution; artifacts",
         //            Confidence = 88,
         //            IsUserApproved = true,
@@ -680,7 +680,7 @@ namespace LocalGPT.Services
         //            Content = "For the local AI host .NET/Blazor/DevExpress lab, the generated downloadable project must stay in .NET, C#, ASP.NET Core, Razor, EF/SQLite, and DevExpress Blazor. " +
         //                "Do not propose generated Go or Python projects for this lab. If inference is discussed, implement it as a direct local model-file runner contract, an approved native executable/library boundary, Python.NET bridge, ONNX/ML.NET adapter, or future approved .NET/native integration. " +
         //                "The generated solution should include selected provider-compatible routes and UI, but /api/chat and /api/generate must not forward to upstream Ollama/LM Studio/OpenAI-compatible endpoints.",
-        //            HelpfulSources = "- Local note: docs/AI_HOST_DOTNET_EXPERIMENT.md\n- Local artifact route: GET /__diag/council/artifact-smoke?target=ai-host",
+        //            HelpfulSources = "- Local note: docs/architecture/ai-host.md\n- Local artifact route: GET /__diag/council/artifact-smoke?target=ai-host",
         //            Tags = "seed; ai-host; dotnet-only; blazor; devexpress; constraints; artifacts",
         //            Confidence = 92,
         //            IsUserApproved = true,
@@ -795,7 +795,7 @@ namespace LocalGPT.Services
         //                "Use provider-compatible APIs such as /api/chat, /api/generate, /api/tags, /api/ps, /api/show, /api/pull, /api/delete, and optional /v1/chat/completions so LocalGPT can point DXAiChat at the generated host URL. " +
         //                "Native inference must start with direct local model-file runner contracts, Python.NET/process/native plugin boundaries, ONNX/ML.NET adapters, or explicit setup gaps. An external-provider proxy is not accepted for the AI-host replacement request. " +
         //                "Model downloads from Hugging Face, GitHub, or provider catalogs require user approval, visible target paths, checksums when available, and no autonomous execution.",
-        //            HelpfulSources = "- Local docs: docs/DOTNET_AI_HOST_ARCHITECTURE_PATTERNS.md and docs/AI_HOST_DOTNET_BLAZOR_REBUILD_GUIDE.md.\n- Local route: GET /__diag/ai-host-rebuild-guidance.\n- Local service: CouncilArtifactService AI-host archetype.\n- User-approved product lesson: the generated host should help LocalGPT/Council run several compatible models at the same time when hardware and policy allow it.",
+        //            HelpfulSources = "- Local docs: docs/architecture/ai-host.md and docs/architecture/ai-host.md.\n- Local route: GET /__diag/ai-host-rebuild-guidance.\n- Local service: CouncilArtifactService AI-host archetype.\n- User-approved product lesson: the generated host should help LocalGPT/Council run several compatible models at the same time when hardware and policy allow it.",
         //            Tags = "seed; ai-host; provider-neutral; multi-model; concurrency; scheduler; hardware-budget; dxaichat; user-approved",
         //            Confidence = 96,
         //            IsUserApproved = true,
@@ -891,7 +891,7 @@ namespace LocalGPT.Services
         //                "The gap must classify requested languages, frameworks, versions, domain knowledge, local knowledge sources, external official sources, missing LocalGPT functions/routes/pages/services, safe workflow, artifact plan, and next LocalGPT improvement. " +
         //                "Local sources should be tried first: DXAiFunctions, SQLite knowledge/logs/memory, local docs, learn-base imports, generated artifacts, build logs, and Test Lab/WebView2 evidence. External sources should be official docs, official GitHub repos, package/version docs, version manifests, or user-approved source imports. " +
         //                "For AI-host generation requests, the expected result is a provider-neutral .NET/ASP.NET Core/DevExpress Blazor control-plane solution with recognisable navigation, model catalog, chat/API console, settings, logs, downloads, provider-compatible routes, SQLite/appsettings state, and honest native-inference boundaries.",
-        //            HelpfulSources = "- Local doc: docs/CAPABILITY_GAP_CONTRACT.md.\n- Local route: GET /__diag/capability-gap-contract.\n- Local routes: /__diag/dxaichat-functions, /__diag/knowledge, /__diag/logs, /__diag/learn-base/import, /__diag/ai-host-rebuild-guidance, /__diag/council/artifact-smoke?target=ai-host.\n- User-tested expectations from prior DXAiChat prompts: faster downloadable .cs/.razor/.dll/solution/datapack artifacts, non-generic AI-host control-plane shape, and no refusal when a buildable milestone is possible.",
+        //            HelpfulSources = "- Local doc: docs/reference/capability-map.md.\n- Local route: GET /__diag/capability-gap-contract.\n- Local routes: /__diag/dxaichat-functions, /__diag/knowledge, /__diag/logs, /__diag/learn-base/import, /__diag/ai-host-rebuild-guidance, /__diag/council/artifact-smoke?target=ai-host.\n- User-tested expectations from prior DXAiChat prompts: faster downloadable .cs/.razor/.dll/solution/datapack artifacts, non-generic AI-host control-plane shape, and no refusal when a buildable milestone is possible.",
         //            Tags = "seed; capability-gap; source-request; ai-host; artifacts; dxaichat; council; user-approved",
         //            Confidence = 96,
         //            IsUserApproved = true,
@@ -985,7 +985,7 @@ namespace LocalGPT.Services
         //                "It shows a larger .NET solution style with separate business-object/core/service/web projects, DevExpress Web API/XAF-style object-space setup, EF contexts, security/JWT/certificate services, custom controllers, database update helpers, Telegram bot service integration, Python configuration hooks, speech-to-text/Whisper-oriented data, and a separate web target. " +
         //                "When generating similar modern systems, ask whether the user wants a monolith, modular monolith, or multi-project solution; whether DevExpress Web API/XAF/OData business objects are required; whether Telegram/Python/Whisper integrations are enabled; and whether optional external code execution is explicitly user-approved. " +
         //                "Sanitize legacy names and do not reproduce obscene folder/class names in generated guidance. Prefer .NET 8-10, explicit DI, typed options, EF migrations/schema update plans, isolated integration services, safe secrets/config handling, and backend-owned native/Python execution behind user permission gates.",
-        //            HelpfulSources = "- Local user archive listing: Jezzifa.zip showed Api.WebApi.sln, BusinessObjects/Core projects, DevExpress Web API service setup, TelegramBotService metadata, PythonOptions/find_libpython.py, SpeechToTextValue, security/certificate services, and a separate web target.\n- Local guide: docs/EF_DEVEXPRESS_BUSINESS_OBJECTS.md.",
+        //            HelpfulSources = "- Local user archive listing: Jezzifa.zip showed Api.WebApi.sln, BusinessObjects/Core projects, DevExpress Web API service setup, TelegramBotService metadata, PythonOptions/find_libpython.py, SpeechToTextValue, security/certificate services, and a separate web target.\n- Local guide: docs/architecture/project-data.md.",
         //            Tags = "seed; jezzifa; sanitized; devexpress-web-api; xaf; odata; telegram; python; whisper; modular-monolith",
         //            Confidence = 86,
         //            IsUserApproved = true,

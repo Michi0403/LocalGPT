@@ -6,7 +6,7 @@ LocalGPT project-owned source is licensed under Apache License 2.0. Third-party 
 
 - **DevExpress Blazor, RichEdit, PivotTable, PDF Viewer, AI Integration, DevExtreme assets, and related packages** — proprietary Developer Express Inc. software. A valid DevExpress license and package source may be required. This repository does not grant or redistribute a DevExpress license, private feed credential, generated customer-linked runtime-license key, or DevExpress binary.
 
-See `docs/DEVEXPRESS_ASSETS.md`.
+See `docs/architecture/frontend-and-themes.md`.
 
 ## Direct package/runtime dependencies declared by LocalGPT
 
