@@ -16,14 +16,15 @@ from pathlib import Path, PurePosixPath
 
 CSS_MARKERS = (
     "localgpt-kawaii-docs",
-    "localgpt-kawaii-display-font",
     "localgpt-api-neko-note",
-    "localgpt-theme-toggle",
+    "localgpt-theme-toggle-hidden",
+    "localgpt-cursor-paw",
 )
 JS_MARKERS = (
     "localgpt-cursor-paw",
     "localgpt-cat-scratch",
-    "decorateThemeToggle",
+    "hideThemeToggle",
+    "applyPreferredTheme",
 )
 HTML_MARKERS = (
     "localgpt-kawaii-docs",
@@ -90,7 +91,7 @@ def read_bytes(
 
 
 def read_text(archive: zipfile.ZipFile, info: zipfile.ZipInfo) -> str:
-    return read_bytes(archive, info).decode("utf-8")
+    return read_bytes(archive, info).decode("utf-8-sig")
 
 
 def read_json(archive: zipfile.ZipFile, info: zipfile.ZipInfo) -> dict[str, object]:
@@ -132,8 +133,8 @@ def find_candidates(archive_path: Path, expected_version: str) -> list[Candidate
                 index_html = read_text(archive, members[index_name])
                 style_bytes = read_bytes(archive, members[style_name])
                 script_bytes = read_bytes(archive, members[script_name])
-                style_text = style_bytes.decode("utf-8")
-                script_text = script_bytes.decode("utf-8")
+                style_text = style_bytes.decode("utf-8-sig")
+                script_text = script_bytes.decode("utf-8-sig")
             except (KeyError, OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
                 stored_name = members[name].filename if name in members else name
                 print(
@@ -239,9 +240,9 @@ def validate_output(output: Path, candidate: Candidate) -> None:
     if not theme_style.is_file() or not theme_script.is_file():
         raise RuntimeError("The cache-busted Kawaii DocFX website assets were not included in the shipped site")
 
-    style_text = theme_style.read_text(encoding="utf-8")
-    script_text = theme_script.read_text(encoding="utf-8")
-    index_html = (output / "index.html").read_text(encoding="utf-8")
+    style_text = theme_style.read_text(encoding="utf-8-sig")
+    script_text = theme_script.read_text(encoding="utf-8-sig")
+    index_html = (output / "index.html").read_text(encoding="utf-8-sig")
     if not contains_all(index_html, HTML_MARKERS):
         raise RuntimeError("The shipped DocFX index does not activate the LocalGPT Kawaii website theme")
     if not contains_all(style_text, CSS_MARKERS):
