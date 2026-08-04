@@ -445,7 +445,9 @@
         @if (showGameConsole)
         {
             <section class="chat-game-ribbon" aria-label="Optional ASCII game console">
-                <ChatGameConsole ConversationId="@ActiveConversationId" SuggestedTeamKey="@SelectedCouncilTeamKey" />
+                <ChatGameConsole ConversationId="@ActiveConversationId"
+                                 SuggestedTeamKey="@SelectedCouncilTeamKey"
+                                 CloseRequested="CloseGameConsole" />
             </section>
         }
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
@@ -805,6 +807,8 @@
 
 
     private void ToggleGameConsole() => showGameConsole = !showGameConsole;
+
+    private void CloseGameConsole() => showGameConsole = false;
 
     protected override async Task OnInitializedAsync()
     {

@@ -1,0 +1,38 @@
+LocalGPT 2.2.10 static review — source milestone LocalGpt(48)
+=================================================================
+
+Implemented scope
+-----------------
+- Added an always-rendered close action to the reusable ChatGameConsole component.
+- Wired the child close request to the /chat page's existing showGameConsole state.
+- Added a one-way JavaScript Fullscreen API exit before component removal.
+- Kept the active game session rejoinable; closing removes the UI surface rather than deleting game state.
+- Added explicit close-button layout rules for normal, responsive and fullscreen presentation.
+- Application version raised to 2.2.10; WireProtocol remains 2.1.1 because no public route contract changed.
+
+Validation limitation
+---------------------
+This environment has no .NET SDK, C# compiler, Windows PowerShell, Windows WebView runtime or DevExpress runtime. Static policy, syntax, structured-file and archive checks were run; a real Windows build remains required.
+
+Static validation performed
+---------------------------
+- Application architecture policy audit passed.
+- Explicit async-continuation audit passed for 146 source files: 2,157 await tokens, 1,831 ConfigureAwait(false), 152 renderer-affine ConfigureAwait(true), 2 preconfigured awaitables, 170 reviewed await-using disposals and 2 configured async streams.
+- Provider-qualified Council release gate passed: 85 checks.
+- Removable Chat ASCII-console gate passed: 17 checks.
+- 24 JSON files, 9 XML/MSBuild/XAML files and 5 YAML files parsed successfully.
+- JavaScript syntax passed for 26 files with Node.js 22.16.0.
+- Python syntax passed for maintained build audits.
+- English and German localization catalogs contain 1,465 matching keys.
+- Active version consistency passed: LocalGPT 2.2.10 and LocalGPT.WireProtocolVersion 2.1.1.
+- Maintained-source merge-marker and build-binary exclusion scans passed.
+- Source inventory: 385 C# files, 33 Razor files and 30 Razor @code blocks.
+
+Required Windows verification
+-----------------------------
+- Build the solution with the maintained .NET 10 SDK and all repository policy gates enabled.
+- Open /chat, show the ASCII console, and close it before starting a game.
+- Start a game and close the console in normal mode.
+- Repeat in Fit, Width and Native fullscreen modes.
+- Repeat on a narrow/mobile-width window and confirm the conversation viewport returns immediately.
+- Reopen ASCII games and confirm the active game session remains rejoinable.

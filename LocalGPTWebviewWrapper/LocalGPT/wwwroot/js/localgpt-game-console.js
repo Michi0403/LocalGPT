@@ -187,6 +187,13 @@
                 element.focus({ preventScroll:true });
                 requestScale(states.get(id));
             } catch (error) { diagnostics.report('localgpt-game-console.fullscreen', error); }
+        },
+        async exitFullscreen(id) {
+            try {
+                const element = document.getElementById(id);
+                if (!(element instanceof HTMLElement)) return;
+                if (document.fullscreenElement === element) await document.exitFullscreen();
+            } catch (error) { diagnostics.report('localgpt-game-console.exitFullscreen', error); }
         }
     };
 })();

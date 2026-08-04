@@ -29,6 +29,21 @@
 .chat-game-console-footer { color: var(--bs-secondary-color); font-size: .82rem; }
 .chat-game-console-actions { display:flex; align-items:end; flex-wrap:wrap; gap:.4rem; }
 .chat-game-console-actions label { display:flex; flex-direction:column; gap:.1rem; font-size:.72rem; }
+.chat-game-console-close {
+    position: relative;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    font-weight: 700;
+}
+
+.chat-game-console-close > span[aria-hidden="true"] {
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
 .chat-game-console-actions button,
 .chat-game-console-actions select,
 .chat-game-touch-grid button {
@@ -117,6 +132,7 @@
     grid-template-rows:auto minmax(0,1fr) auto;
     background:#020704;
 }
+.chat-game-console:fullscreen .chat-game-console-close { position: sticky; top: 0; right: 0; }
 .chat-game-console:fullscreen .chat-game-stage { min-height:0; height:100%; }
 .chat-game-console:fullscreen[data-scale-mode="native"] .chat-game-screen { font-size:.9rem !important; }
 .chat-game-console:fullscreen[data-scale-mode="fit"] .chat-game-screen,

@@ -350,6 +350,12 @@ The documentation build now stages referenced assemblies for DocFX metadata extr
 See `CHANGELOG-v2.1.22-direct-council-starters-docfx-modals-shortcuts.md`.
 
 
+## LocalGPT 2.2.10 removable Chat ASCII console
+
+Version 2.2.10 adds an always-visible close action inside the `/chat` ASCII game console. The action is available before and after a game starts, in compact layouts, and in every fullscreen scaling mode. Closing exits browser fullscreen first and then removes the console from the Chat grid, immediately returning the conversation viewport without a refresh or session rejoin. The active game session remains rejoinable when the user later opens ASCII games again.
+
+See `CHANGELOG-v2.2.10-removable-chat-ascii-console.md` and [`docs/articles/removable-chat-ascii-console.md`](docs/articles/removable-chat-ascii-console.md).
+
 ## LocalGPT 2.2.9 build-policy and Council recovery patch
 
 Version 2.2.9 keeps the provider-qualified mixed-provider Council and benchmark features from 2.2.8, while fixing the build-policy failures reported by a real .NET 10 build. Text composition now stays inside `CouncilTextService`, configured Ollama provider enumeration is materialized rather than yielded, the LocalGPT `ConfigurationRoot` type is explicit, and adaptive benchmark route identity initialization passes the maintained system-variable policy. Obsolete `MultiModelCouncilService` constructor dependencies were removed.

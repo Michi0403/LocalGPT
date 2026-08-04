@@ -57,6 +57,14 @@
                 <button type="button" @onclick="ToggleControls">@(showControls ? "Hide guide" : "Show guide")</button>
                 <button type="button" @onclick="FullscreenAsync">Fullscreen</button>
             }
+            <button type="button"
+                    class="chat-game-console-close"
+                    @onclick="CloseAsync"
+                    aria-label="Close ASCII game console"
+                    title="Close ASCII game console">
+                <span aria-hidden="true">×</span>
+                <span>Close</span>
+            </button>
         </div>
     </header>
 
@@ -124,6 +132,7 @@
 @code {
     [Parameter] public Guid? ConversationId { get; set; }
     [Parameter] public string SuggestedTeamKey { get; set; } = string.Empty;
+    [Parameter] public EventCallback CloseRequested { get; set; }
 
     private readonly string elementId = $"localgpt-game-{Guid.NewGuid():N}";
     private CouncilGameSessionSnapshot? snapshot;
@@ -219,6 +228,13 @@
 
     private async Task FullscreenAsync() =>
         await JS.InvokeVoidAsync("localGptGameConsole.fullscreen", elementId).ConfigureAwait(false);
+
+    private async Task CloseAsync()
+    {
+        await JS.InvokeVoidAsync("localGptGameConsole.exitFullscreen", elementId).ConfigureAwait(false);
+        if (CloseRequested.HasDelegate)
+            await CloseRequested.InvokeAsync().ConfigureAwait(false);
+    }
 
     [JSInvokable]
     public Task SubmitControlFromJs(string action) => SendControlAsync(action);
