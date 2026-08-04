@@ -10,7 +10,7 @@ namespace LocalGPT.Services.Localization;
 /// <summary>
 /// Reads built-in localization catalogs and persistent user-supplied culture overrides.
 /// </summary>
-[DocumentationUpdated("2.2.4")]
+[DocumentationUpdated("2.2.5")]
 public interface ILocalGptLocalizationService
 {
     /// <summary>Gets all cultures represented by built-in or user catalogs.</summary>
@@ -78,7 +78,7 @@ public interface ILocalGptLocalizationService
 /// </summary>
 /// <param name="environment">Provides the application content root containing built-in catalogs.</param>
 /// <param name="logger">Writes bounded catalog discovery and validation diagnostics.</param>
-[DocumentationUpdated("2.2.4")]
+[DocumentationUpdated("2.2.5")]
 public sealed class LocalGptLocalizationService(
     IWebHostEnvironment environment,
     ILogger<LocalGptLocalizationService> logger) : ILocalGptLocalizationService

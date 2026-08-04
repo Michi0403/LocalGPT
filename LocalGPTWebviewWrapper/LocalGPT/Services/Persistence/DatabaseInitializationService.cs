@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
             Name = "LocalGPT Core",
             Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
             RootPath = repositoryRoot,
-            CurrentVersion = "2.2.4",
+            CurrentVersion = "2.2.5",
             Status = "Active",
             RecommendGit = true,
             CreatedAtUtc = now,
@@ -458,6 +458,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.2.4", repositoryRoot, "Kawaii DocFX website-shell and release-routing patch with complete light/dark theming, validated generated links and shipped GitHub Pages output.");
         EnsureRevision(core, "main", "seed-v2.2.4", repositoryRoot,
             "Carries the post-2.2.2 documentation website corrections under a new application version. Preserves working localization and frontend behavior while applying the full Kawaii HTML shell, cat branding, light/dark mode support, generated-link validation and release-payload GitHub Pages publishing.");
+        EnsureVersion(core, "2.2.5", repositoryRoot, "GitHub Pages deployment reliability patch that publishes the exact shipped Kawaii DocFX tree, verifies theme assets and automatically refreshes Pages after workflow changes.");
+        EnsureRevision(core, "main", "seed-v2.2.5", repositoryRoot,
+            "Added automatic latest-release Pages deployment, strict Kawaii asset selection, deployment diagnostics and a clear legacy-source guard without changing application features.");
 
 
         EnsureRequirement(core, "Preflight database and capability audit",

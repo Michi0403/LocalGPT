@@ -350,6 +350,12 @@ The documentation build now stages referenced assemblies for DocFX metadata extr
 See `CHANGELOG-v2.1.22-direct-council-starters-docfx-modals-shortcuts.md`.
 
 
+## LocalGPT 2.2.5 GitHub Pages Kawaii deployment patch
+
+Version 2.2.5 makes the public GitHub Pages site publish the same generated `wwwroot/help-docs` payload that ships with LocalGPT. The Pages workflow now runs after releases and after publishing-helper changes, resolves the latest release automatically when no tag is supplied, rejects unthemed or stale documentation candidates, records theme hashes in the deployment manifest, and stops with a precise instruction when the repository is still configured for legacy branch publishing. The installed WebView documentation, light/dark theme, Kawaii shell, animations, mouse-paw trail, click scratch and PDF remain unchanged. The separately versioned 1-Wire protocol remains at 2.1.0.
+
+See `CHANGELOG-v2.2.5-github-pages-kawaii-deployment.md`.
+
 ## LocalGPT 2.2.4 Kawaii documentation gimmick and theme polish patch
 
 Version 2.2.4 carries the documentation website corrections made after 2.2.2 under a new patch number. It activates the complete Kawaii DocFX shell in both light and dark modes, replaces the stock DocFX mark with LocalGPT cat branding, keeps reduced-motion support, validates generated API/PDF links without publishing placeholders, and deploys the exact documentation payload shipped in the release to GitHub Pages. Existing localization, Council, game, persistence, installer and application functionality remains intact. The separately versioned 1-Wire protocol remains at 2.1.0.

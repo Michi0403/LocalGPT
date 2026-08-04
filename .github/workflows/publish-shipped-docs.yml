@@ -3,11 +3,18 @@ name: Publish shipped LocalGPT documentation
 on:
   release:
     types: [published]
+  push:
+    paths:
+      - '.github/workflows/publish-shipped-docs.yml'
+      - '.github/scripts/extract-shipped-docs.py'
+      - 'build/Build-Documentation.ps1'
+      - 'docs/templates/localgpt/public/**'
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag whose shipped documentation should be published
-        required: true
+        description: Optional release tag. Leave empty to publish the latest release.
+        required: false
+        default: ''
         type: string
 
 permissions:
@@ -17,10 +24,11 @@ permissions:
 
 concurrency:
   group: github-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish:
+    if: github.event_name != 'push' || github.ref_name == github.event.repository.default_branch
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -32,6 +40,7 @@ jobs:
       - name: Resolve release tag
         id: release
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
           RELEASE_EVENT_TAG: ${{ github.event.release.tag_name }}
           REQUESTED_TAG: ${{ inputs.tag }}
@@ -40,12 +49,42 @@ jobs:
           set -euo pipefail
           if [[ "$EVENT_NAME" == "release" ]]; then
             tag="$RELEASE_EVENT_TAG"
-          else
+          elif [[ -n "${REQUESTED_TAG:-}" ]]; then
             tag="$REQUESTED_TAG"
+          else
+            tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq '.tagName')"
           fi
           test -n "$tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Publishing documentation shipped in release $tag"
+
+      - name: Inspect GitHub Pages publishing mode
+        id: pages_mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(gh api "repos/$GITHUB_REPOSITORY/pages" 2>/dev/null || true)"
+          if [[ -z "$response" ]]; then
+            echo "mode=unknown" >> "$GITHUB_OUTPUT"
+            echo "::warning::GitHub Pages is not enabled yet or its settings could not be read. In Settings > Pages, choose GitHub Actions as the publishing source."
+            exit 0
+          fi
+
+          mode="$(jq -r '.build_type // "legacy"' <<<"$response")"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          if [[ "$mode" != "workflow" ]]; then
+            echo "::error::GitHub Pages is still using legacy branch publishing. That serves repository source files instead of the generated Kawaii DocFX site. In Settings > Pages, change Source to GitHub Actions, then rerun this workflow."
+            {
+              echo "## GitHub Pages publishing source needs one repository setting"
+              echo
+              echo "The repository currently reports \`build_type=$mode\`."
+              echo "Open **Settings > Pages > Build and deployment > Source** and select **GitHub Actions**."
+              echo "Then rerun **Publish shipped LocalGPT documentation**. The workflow will deploy the exact themed help-docs tree from the release."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
       - name: Download release ZIP packages
         env:
@@ -61,7 +100,7 @@ jobs:
             --dir release-assets
           find release-assets -maxdepth 1 -type f -name '*.zip' -print
 
-      - name: Extract the complete shipped help-docs tree
+      - name: Extract the complete shipped Kawaii help-docs tree
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
         shell: bash
@@ -72,11 +111,24 @@ jobs:
             --output pages-artifact \
             --version "$RELEASE_TAG"
 
+      - name: Summarize selected documentation payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat pages-artifact/github-pages-deployment.json
+          {
+            echo "## LocalGPT Kawaii documentation artifact"
+            echo
+            echo '```json'
+            cat pages-artifact/github-pages-deployment.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: Upload generated DocFX site
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: pages-artifact
 

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Extract the complete DocFX site already shipped inside a LocalGPT release ZIP."""
+"""Extract the complete themed DocFX site already shipped inside a LocalGPT release ZIP."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import shutil
 import sys
 import zipfile
@@ -12,12 +14,32 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 
+CSS_MARKERS = (
+    "localgpt-kawaii-docs",
+    "localgpt-kawaii-display-font",
+    "localgpt-api-neko-note",
+    "localgpt-theme-toggle",
+)
+JS_MARKERS = (
+    "localgpt-cursor-paw",
+    "localgpt-cat-scratch",
+    "decorateThemeToggle",
+)
+HTML_MARKERS = (
+    "localgpt-kawaii-docs",
+    "data-localgpt-kawaii-style",
+    "data-localgpt-kawaii-script",
+)
+
+
 @dataclass(frozen=True)
 class Candidate:
     archive: Path
     prefix: PurePosixPath
     status: dict[str, object]
-    score: tuple[int, int, int, int, str]
+    style_sha256: str
+    script_sha256: str
+    score: tuple[int, int, int, int, int, str]
 
 
 def normalized_version(value: str) -> str:
@@ -29,12 +51,27 @@ def is_safe_member(name: str) -> bool:
     return not path.is_absolute() and ".." not in path.parts
 
 
+def read_bytes(archive: zipfile.ZipFile, name: str, maximum_bytes: int = 8_000_000) -> bytes:
+    info = archive.getinfo(name)
+    if info.file_size > maximum_bytes:
+        raise ValueError(f"{name} is unexpectedly large ({info.file_size} bytes)")
+    with archive.open(info) as stream:
+        return stream.read(maximum_bytes + 1)
+
+
+def read_text(archive: zipfile.ZipFile, name: str) -> str:
+    return read_bytes(archive, name).decode("utf-8")
+
+
 def read_json(archive: zipfile.ZipFile, name: str) -> dict[str, object]:
-    with archive.open(name) as stream:
-        value = json.load(stream)
+    value = json.loads(read_text(archive, name))
     if not isinstance(value, dict):
         raise ValueError(f"{name} did not contain a JSON object")
     return value
+
+
+def contains_all(value: str, markers: tuple[str, ...]) -> bool:
+    return all(marker in value for marker in markers)
 
 
 def find_candidates(archive_path: Path, expected_version: str) -> list[Candidate]:
@@ -44,25 +81,70 @@ def find_candidates(archive_path: Path, expected_version: str) -> list[Candidate
         for name in sorted(names):
             if not name.endswith("documentation-status.json"):
                 continue
+
             prefix = PurePosixPath(name).parent
             index_name = (prefix / "index.html").as_posix()
             api_index_name = (prefix / "api" / "index.html").as_posix()
-            if index_name not in names or api_index_name not in names:
+            style_name = (prefix / "styles" / "localgpt-kawaii.css").as_posix()
+            script_name = (prefix / "styles" / "localgpt-kawaii.js").as_posix()
+            required_names = (index_name, api_index_name, style_name, script_name)
+            if any(required_name not in names for required_name in required_names):
                 continue
+
             try:
                 status = read_json(archive, name)
-            except (OSError, ValueError, json.JSONDecodeError) as error:
-                print(f"Ignoring invalid status file {archive_path.name}:{name}: {error}", file=sys.stderr)
+                index_html = read_text(archive, index_name)
+                style_bytes = read_bytes(archive, style_name)
+                script_bytes = read_bytes(archive, script_name)
+                style_text = style_bytes.decode("utf-8")
+                script_text = script_bytes.decode("utf-8")
+            except (KeyError, OSError, UnicodeDecodeError, ValueError, json.JSONDecodeError) as error:
+                print(f"Ignoring invalid documentation candidate {archive_path.name}:{name}: {error}", file=sys.stderr)
                 continue
+
+            missing_groups: list[str] = []
+            if not contains_all(index_html, HTML_MARKERS):
+                missing_groups.append("HTML activation markers")
+            if not contains_all(style_text, CSS_MARKERS):
+                missing_groups.append("Kawaii CSS markers")
+            if not contains_all(script_text, JS_MARKERS):
+                missing_groups.append("Kawaii JavaScript markers")
+            if missing_groups:
+                print(
+                    f"Ignoring unthemed documentation candidate {archive_path.name}:{prefix.as_posix()} "
+                    f"({', '.join(missing_groups)})",
+                    file=sys.stderr,
+                )
+                continue
+
+            # Project Pages must keep asset URLs relative so /OWNER/REPOSITORY/ works.
+            if re.search(r'''(?:href|src)=["']/+styles/localgpt-kawaii\.(?:css|js)''', index_html, re.IGNORECASE):
+                print(
+                    f"Ignoring documentation candidate with root-absolute theme assets "
+                    f"{archive_path.name}:{prefix.as_posix()}",
+                    file=sys.stderr,
+                )
+                continue
+
             version = normalized_version(str(status.get("version", "")))
             score = (
                 int(version == expected_version),
+                1,  # Reaching this point means the complete current Kawaii theme is present.
                 int(bool(status.get("completeApiReference"))),
                 int(bool(status.get("pdfAvailable"))),
                 int(status.get("apiHtmlCount", 0) or 0),
                 str(status.get("generatedAtUtc", "")),
             )
-            candidates.append(Candidate(archive_path, prefix, status, score))
+            candidates.append(
+                Candidate(
+                    archive=archive_path,
+                    prefix=prefix,
+                    status=status,
+                    style_sha256=hashlib.sha256(style_bytes).hexdigest(),
+                    script_sha256=hashlib.sha256(script_bytes).hexdigest(),
+                    score=score,
+                )
+            )
     return candidates
 
 
@@ -89,7 +171,16 @@ def extract_candidate(candidate: Candidate, output: Path) -> None:
                 shutil.copyfileobj(source, target)
 
 
-def validate_output(output: Path, status: dict[str, object]) -> None:
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def validate_output(output: Path, candidate: Candidate) -> None:
+    status = candidate.status
     required = [output / "index.html", output / "api" / "index.html", output / "documentation-status.json"]
     if bool(status.get("pdfAvailable")):
         pdf_name = str(status.get("pdfFileName", "")).strip()
@@ -108,17 +199,35 @@ def validate_output(output: Path, status: dict[str, object]) -> None:
     if not theme_style.is_file() or not theme_script.is_file():
         raise RuntimeError("The cache-busted Kawaii DocFX website assets were not included in the shipped site")
 
+    style_text = theme_style.read_text(encoding="utf-8")
+    script_text = theme_script.read_text(encoding="utf-8")
     index_html = (output / "index.html").read_text(encoding="utf-8")
-    if "data-localgpt-kawaii-style" not in index_html or "data-localgpt-kawaii-script" not in index_html:
+    if not contains_all(index_html, HTML_MARKERS):
         raise RuntimeError("The shipped DocFX index does not activate the LocalGPT Kawaii website theme")
+    if not contains_all(style_text, CSS_MARKERS):
+        raise RuntimeError("The shipped Kawaii stylesheet is stale or incomplete")
+    if not contains_all(script_text, JS_MARKERS):
+        raise RuntimeError("The shipped Kawaii JavaScript is stale or incomplete")
+
+    extracted_style_hash = file_sha256(theme_style)
+    extracted_script_hash = file_sha256(theme_script)
+    if extracted_style_hash != candidate.style_sha256 or extracted_script_hash != candidate.script_sha256:
+        raise RuntimeError("The extracted Kawaii assets do not match the selected release archive")
 
     (output / ".nojekyll").write_text("", encoding="utf-8")
     summary = {
+        "sourceArchive": candidate.archive.name,
+        "sourcePrefix": candidate.prefix.as_posix(),
         "sourceVersion": status.get("version"),
         "htmlFiles": html_count,
         "apiHtmlCount": status.get("apiHtmlCount"),
         "pdfAvailable": status.get("pdfAvailable"),
+        "pdfFileName": status.get("pdfFileName"),
         "documentationMode": status.get("documentationMode"),
+        "kawaiiStyleSha256": extracted_style_hash,
+        "kawaiiScriptSha256": extracted_script_hash,
+        "themeMarkersVerified": True,
+        "projectRelativeAssetsVerified": True,
     }
     (output / "github-pages-deployment.json").write_text(
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -140,7 +249,8 @@ def main() -> int:
     candidates = [candidate for archive in archives for candidate in find_candidates(archive, expected_version)]
     if not candidates:
         raise RuntimeError(
-            "No release ZIP contained a complete wwwroot/help-docs tree with index.html, api/index.html, and documentation-status.json"
+            "No release ZIP contained a complete themed wwwroot/help-docs tree with the current Kawaii CSS, JavaScript, "
+            "index.html, api/index.html and documentation-status.json"
         )
 
     selected = max(candidates, key=lambda item: item.score)
@@ -149,7 +259,7 @@ def main() -> int:
         f"for LocalGPT {selected.status.get('version')} (score={selected.score})"
     )
     extract_candidate(selected, arguments.output)
-    validate_output(arguments.output, selected.status)
+    validate_output(arguments.output, selected)
     return 0
 
 

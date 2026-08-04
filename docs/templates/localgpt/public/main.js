@@ -93,7 +93,7 @@ function applyPreferredTheme() {
   root.setAttribute("data-bs-theme", chosenTheme);
 }
 
-function decorateThemeToggle() {
+function hideThemeToggle() {
   const selectors = [
     "button[aria-label*='theme' i]",
     "button[title*='theme' i]",
@@ -104,19 +104,12 @@ function decorateThemeToggle() {
     ".theme-switcher"
   ];
 
-  let foundToggle = false;
   for (const selector of selectors) {
     for (const element of document.querySelectorAll(selector)) {
       if (!(element instanceof HTMLElement)) continue;
-      foundToggle = true;
-      element.classList.add("localgpt-theme-toggle");
-      if (!element.getAttribute("title") && !element.getAttribute("aria-label")) {
-        element.setAttribute("title", "Toggle light and dark mode");
-      }
-      element.removeAttribute("aria-hidden");
-      if (element.tabIndex < 0) {
-        element.tabIndex = 0;
-      }
+      element.classList.add("localgpt-theme-toggle-hidden");
+      element.setAttribute("aria-hidden", "true");
+      element.tabIndex = -1;
     }
   }
 
@@ -125,7 +118,7 @@ function decorateThemeToggle() {
     const heart = document.createElement("span");
     heart.className = "localgpt-heart-glimmer";
     heart.setAttribute("aria-hidden", "true");
-    heart.textContent = foundToggle ? "💖✨🌙" : "💖✨♡";
+    heart.textContent = "💖✨♡";
     navbar.appendChild(heart);
   }
 }
@@ -164,7 +157,7 @@ function decorateDocumentation() {
   applyPreferredTheme();
   createKawaiiSky();
   decorateBrand();
-  decorateThemeToggle();
+  hideThemeToggle();
   ensureCursorCompanion();
 
   if (document.documentElement.dataset.localgptKawaiiStarted !== "true") {
