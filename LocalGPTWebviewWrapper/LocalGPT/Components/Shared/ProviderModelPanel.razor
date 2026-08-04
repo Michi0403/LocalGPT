@@ -2,6 +2,7 @@
 @using System.Text.Json
 @implements IDisposable
 @inject IProviderModelBenchmarkService BenchmarkService
+@inject CouncilTextService CouncilText
 @inject ILogger<ProviderModelPanel> Logger
 
 <article class="provider-model-panel @(Selected ? "is-selected" : string.Empty)" aria-labelledby="@HeadingId">
@@ -163,20 +164,7 @@
     ProviderModelBenchmarkTargetResult? SuccessfulTarget => report?.Targets.FirstOrDefault(target =>
         target.Model.SelectionKey.Equals(Model.SelectionKey, StringComparison.OrdinalIgnoreCase)
         && string.IsNullOrWhiteSpace(target.Error));
-    string ReviewerSummary
-    {
-        get
-        {
-            var reviewers = CouncilModels
-                .Where(item => !item.SelectionKey.Equals(Model.SelectionKey, StringComparison.OrdinalIgnoreCase))
-                .Take(3)
-                .Select(item => item.DisplayName)
-                .ToList();
-            return reviewers.Count == 0
-                ? "deterministic checks plus bounded self-review"
-                : string.Join(" + ", reviewers);
-        }
-    }
+    string ReviewerSummary => CouncilText.ProviderModelReviewerSummary(Model, CouncilModels, Logger);
 
     async Task OnSelectionChangedAsync(ChangeEventArgs args)
     {

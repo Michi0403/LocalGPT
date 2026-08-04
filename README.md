@@ -350,6 +350,14 @@ The documentation build now stages referenced assemblies for DocFX metadata extr
 See `CHANGELOG-v2.1.22-direct-council-starters-docfx-modals-shortcuts.md`.
 
 
+## LocalGPT 2.2.9 build-policy and Council recovery patch
+
+Version 2.2.9 keeps the provider-qualified mixed-provider Council and benchmark features from 2.2.8, while fixing the build-policy failures reported by a real .NET 10 build. Text composition now stays inside `CouncilTextService`, configured Ollama provider enumeration is materialized rather than yielded, the LocalGPT `ConfigurationRoot` type is explicit, and adaptive benchmark route identity initialization passes the maintained system-variable policy. Obsolete `MultiModelCouncilService` constructor dependencies were removed.
+
+Council final-answer recovery is also accounted for honestly: a model that still emits no substantive final answer after bounded recovery is marked failed, and a failed verifier no longer appears as successful runtime evidence or as a misleading `Peer verification` section.
+
+See `CHANGELOG-v2.2.9-build-policy-council-recovery.md` and [`docs/articles/build-policy-council-recovery.md`](docs/articles/build-policy-council-recovery.md).
+
 ## LocalGPT 2.2.8 provider-qualified Council and Benchmark Council
 
 Version 2.2.8 gives each model a provider-qualified Council address containing its provider, endpoint and provider-native model name. Ollama, LM Studio or another OpenAI-compatible host, OpenAI and Azure OpenAI can therefore participate in the same Chat Council even when two providers expose identical model names. Ambiguous bare names and stale qualified addresses are rejected rather than guessed.

@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
             Name = "LocalGPT Core",
             Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
             RootPath = repositoryRoot,
-            CurrentVersion = "2.2.8",
+            CurrentVersion = "2.2.9",
             Status = "Active",
             RecommendGit = true,
             CreatedAtUtc = now,
@@ -470,6 +470,9 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.2.8", repositoryRoot, "Provider-qualified multi-provider Council and dynamic Benchmark Council release with reusable accessible model panels.");
         EnsureRevision(core, "main", "seed-v2.2.8", repositoryRoot,
             "Adds provider-and-endpoint-safe model identities, cross-provider Council execution, per-model benchmark/property controls in Chat, Install and Council, all-selected Benchmark Council runs, and user-approved provider-qualified recommendation presets.");
+        EnsureVersion(core, "2.2.9", repositoryRoot, "Build-policy compliance and Council final-answer accounting patch for provider-qualified benchmarking.");
+        EnsureRevision(core, "main", "seed-v2.2.9", repositoryRoot,
+            "Moves provider-panel text composition into the text service, materializes configured-provider enumeration, fixes configuration type ambiguity and benchmark route initialization, removes obsolete Council dependencies, and records failed final-answer recovery honestly without attaching it as peer verification.");
 
 
         EnsureRequirement(core, "Preflight database and capability audit",

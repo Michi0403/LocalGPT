@@ -742,14 +742,16 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
             var cpu = hardware.FirstOrDefault(item => item.IsOnline && item.Kind == OneWireHardwareKind.Cpu);
             var lane = gpu ?? cpu;
             var routes = new List<OneWireCouncilModelRoute>();
+            var providerIdentity = new ProviderModelIdentity();
+            var providerName = nameof(ProviderModelKinds.Ollama);
             foreach (var model in ranked)
             {
                 var profile = model.Profiles.First(item => string.Equals(item.ProfileName, model.BestProfile, StringComparison.Ordinal));
                 routes.Add(new OneWireCouncilModelRoute
                 {
-                    ModelName = new ProviderModelIdentity().CreateSelectionKey("Ollama", report.Endpoint, model.ModelName),
+                    ModelName = providerIdentity.CreateSelectionKey(providerName, report.Endpoint, model.ModelName),
                     ProviderKind = ProviderModelKinds.Ollama,
-                    ProviderName = "Ollama",
+                    ProviderName = providerName,
                     ProviderEndpoint = report.Endpoint,
                     ProviderModelName = model.ModelName,
                     HardwareKind = lane?.Kind ?? OneWireHardwareKind.Cpu,

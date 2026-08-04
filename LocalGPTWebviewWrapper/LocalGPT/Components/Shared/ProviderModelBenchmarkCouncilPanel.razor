@@ -2,6 +2,7 @@
 @using System.Text.Json
 @implements IDisposable
 @inject IProviderModelBenchmarkService BenchmarkService
+@inject CouncilTextService CouncilText
 @inject ILogger<ProviderModelBenchmarkCouncilPanel> Logger
 
 <section class="benchmark-council-panel" aria-labelledby="@HeadingId">
@@ -83,9 +84,7 @@
 
     protected override void OnParametersSet()
     {
-        var nextSignature = string.Join("\n", Models
-            .Select(model => model.SelectionKey)
-            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase));
+        var nextSignature = CouncilText.ProviderModelBenchmarkCouncilSignature(Models, Logger);
         if (nextSignature.Equals(modelSignature, StringComparison.Ordinal))
             return;
 

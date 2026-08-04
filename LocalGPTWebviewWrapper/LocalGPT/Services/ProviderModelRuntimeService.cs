@@ -1,6 +1,7 @@
 using Azure;
 using Azure.AI.OpenAI;
 using LocalGPT.BusinessObjects;
+using ConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
@@ -10,7 +11,6 @@ using System.ClientModel.Primitives;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Collections.Concurrent;
-using ConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
 
 namespace LocalGPT.Services;
 
@@ -334,16 +334,28 @@ public sealed class ProviderModelRuntimeService(
         LoggerFactory = loggerFactory
     };
 
-    private IEnumerable<OllamaCoreOptions> EnumerateOllama(AICoreOptions options)
+    private IReadOnlyList<OllamaCoreOptions> EnumerateOllama(AICoreOptions options)
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (options.OllamaCore is { Uri.Length: > 0, ModelName.Length: > 0 } primary
-            && seen.Add($"{NormalizeOllamaEndpoint(primary.Uri)}|{primary.ModelName.Trim()}"))
-            yield return primary;
-        foreach (var item in options.OllamaCores.Where(item => !string.IsNullOrWhiteSpace(item.Uri) && !string.IsNullOrWhiteSpace(item.ModelName)))
+        try
         {
-            if (seen.Add($"{NormalizeOllamaEndpoint(item.Uri)}|{item.ModelName.Trim()}"))
-                yield return item;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var providers = new List<OllamaCoreOptions>();
+            if (options.OllamaCore is { Uri.Length: > 0, ModelName.Length: > 0 } primary
+                && seen.Add($"{NormalizeOllamaEndpoint(primary.Uri)}|{primary.ModelName.Trim()}"))
+            {
+                providers.Add(primary);
+            }
+            foreach (var item in options.OllamaCores.Where(item => !string.IsNullOrWhiteSpace(item.Uri) && !string.IsNullOrWhiteSpace(item.ModelName)))
+            {
+                if (seen.Add($"{NormalizeOllamaEndpoint(item.Uri)}|{item.ModelName.Trim()}"))
+                    providers.Add(item);
+            }
+            return providers;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Enumerating configured Ollama providers failed.");
+            throw;
         }
     }
 

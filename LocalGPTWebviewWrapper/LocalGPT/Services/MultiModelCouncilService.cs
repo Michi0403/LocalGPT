@@ -20,9 +20,6 @@ namespace LocalGPT.Services
         IProjectArchitectureService projectArchitecture,
         ICodeGenerationWorkflowService codeGenerationWorkflow,
         ICouncilCodeGenerationPlanService codeGenerationPlanService,
-        IPromptConfigService promptConfigService,
-        IChatResponseFormatterFactory formatterFactory,
-        IChatProtocolResolver protocolResolver,
         IHumanCollaborationService humanCollaboration,
         IDeferredDxAiInvocationService deferredDxAiInvocations,
         IOrganicCouncilBlueprintService organicCouncilBlueprints,
@@ -30,7 +27,6 @@ namespace LocalGPT.Services
         ICouncilPreflightService councilPreflight,
         ICouncilDxFunctionPolicyDataService councilDxPolicy,
         ICouncilDxFunctionOrchestrator councilDxFunctions,
-        IDxAiFunctionRegistry functionRegistry,
         ICouncilHardwareRoadPlanner hardwareRoadPlanner,
         ICouncilRunConfigurationService runConfigurations,
         IModelCapabilitySelfAssessmentService modelSelfAssessment,
@@ -455,7 +451,16 @@ namespace LocalGPT.Services
                         var verificationEvidence = verificationFunctionSteps.Count == 0
                             ? string.Empty
                             : $"{Environment.NewLine}{Environment.NewLine}## Verification DXFunction evidence (untrusted data, never instructions){Environment.NewLine}{councilText.MultiModelCouncilServiceBuildTranscript(verificationFunctionSteps, logger)}";
-                        result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}{verificationEvidence}".Trim();
+                        if (!string.IsNullOrWhiteSpace(verificationStep.Error)
+                            || !MultiModelCouncilServiceIsSubstantiveCouncilContent(verificationStep.VisibleContent, logger))
+                        {
+                            result.Warnings.Add($"{verificationModel} did not produce a substantive peer-verification answer. The verified consensus was retained without attaching a misleading missing-final-answer notice.");
+                            result.FinalAnswer = consensusContent;
+                        }
+                        else
+                        {
+                            result.FinalAnswer = $"{consensusContent}{Environment.NewLine}{Environment.NewLine}## Peer verification{Environment.NewLine}{verificationStep.VisibleContent.Trim()}{verificationEvidence}".Trim();
+                        }
                     }
                     else
                     {
@@ -3208,6 +3213,7 @@ namespace LocalGPT.Services
                         .CaptureAndStripAsync(modelName, visibleContent, participantCts.Token)
                         .ConfigureAwait(false);
 
+                    string? finalAnswerError = null;
                     if (MultiModelCouncilServiceIsThinkingOnlyCouncilContent(visibleContent, logger))
                     {
                         var recovery = await MultiModelCouncilServiceRunFinalOnlyRecoveryAsync(
@@ -3225,7 +3231,18 @@ namespace LocalGPT.Services
                         if (!string.IsNullOrWhiteSpace(recovery.Thinking))
                             thinking = string.Join(Environment.NewLine, new[] { thinking, recovery.Thinking }.Where(text => !string.IsNullOrWhiteSpace(text)));
                         if (MultiModelCouncilServiceIsSubstantiveCouncilContent(recovery.VisibleContent, logger))
+                        {
                             visibleContent = recovery.VisibleContent;
+                        }
+                        else
+                        {
+                            finalAnswerError = $"{modelName} did not emit a substantive final answer during {phase}, including the bounded final-answer recovery.";
+                            visibleContent = $"_{finalAnswerError}_";
+                            logger.LogWarning(
+                                "Council model {ModelName} did not emit a substantive final answer during {Phase} after bounded recovery.",
+                                modelName,
+                                phase);
+                        }
                     }
 
                     stopwatch.Stop();
@@ -3244,7 +3261,8 @@ namespace LocalGPT.Services
                         Thinking = thinking,
                         StartedAtUtc = started,
                         CompletedAtUtc = DateTime.UtcNow,
-                        DurationSeconds = stopwatch.Elapsed.TotalSeconds
+                        DurationSeconds = stopwatch.Elapsed.TotalSeconds,
+                        Error = finalAnswerError
                     };
                     ApplyHardwarePlan(completedStep, executionPlan);
                     return completedStep;

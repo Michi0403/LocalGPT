@@ -35,6 +35,9 @@ def main() -> int:
     presets = text("LocalGPTWebviewWrapper/LocalGPT/Services/ModelPresetService.cs")
     planner = text("LocalGPTWebviewWrapper/LocalGPT/Services/Council/Scheduling/CouncilHardwareRoadPlanner.cs")
     program = text("LocalGPTWebviewWrapper/LocalGPT/Program.cs")
+    adaptive_benchmark = text("LocalGPTWebviewWrapper/LocalGPT/Services/AdaptiveOllamaBenchmarkWiring.cs")
+    provider_text = text("LocalGPTWebviewWrapper/LocalGPT/Services/CouncilTextService.ProviderModels.cs")
+    project = text("LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj")
 
     def contains(name: str, haystack: str, needle: str) -> None:
         checks.append((name, needle in haystack))
@@ -97,6 +100,17 @@ def main() -> int:
     contains("benchmark service registered", program, "AddScoped<IProviderModelBenchmarkService, ProviderModelBenchmarkService>")
     contains("benchmark applied event exists", benchmark_models, "ProviderModelBenchmarkAppliedEvent")
     contains("batch applied event exists", benchmark_models, "ProviderModelBenchmarkBatchAppliedEvent")
+    contains("provider runtime aliases LocalGPT configuration root", runtime, "using ConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;")
+    contains("configured Ollama enumeration is materialized", runtime, "private IReadOnlyList<OllamaCoreOptions> EnumerateOllama")
+    excludes("configured Ollama enumeration does not yield", runtime, "yield return primary")
+    contains("single-model panel text is service-owned", panel, "CouncilText.ProviderModelReviewerSummary")
+    contains("batch panel signature is service-owned", batch_panel, "CouncilText.ProviderModelBenchmarkCouncilSignature")
+    contains("provider text service owns reviewer composition", provider_text, 'string.Join(" + ", reviewers)')
+    contains("adaptive benchmark reuses provider identity", adaptive_benchmark, "providerIdentity.CreateSelectionKey(providerName")
+    excludes("Council no longer injects obsolete prompt service", council, "IPromptConfigService promptConfigService")
+    contains("failed final recovery marks the Council step", council, "Error = finalAnswerError")
+    contains("failed verifier is not presented as peer verification", council, "did not produce a substantive peer-verification answer")
+    contains("application patch version advanced", project, "<Version>2.2.9</Version>")
 
     failures = [name for name, passed in checks if not passed]
     if failures:
