@@ -34,7 +34,7 @@ def main() -> int:
         ("close action has responsive/fullscreen styling", ".chat-game-console-close" in css and ":fullscreen .chat-game-console-close" in css),
         ("accessible close label is localized in English", '"Text.Close␠ASCII␠game␠console": "Close ASCII game console"' in english),
         ("accessible close label is localized in German", '"Text.Close␠ASCII␠game␠console": "ASCII-Spielkonsole schließen"' in german),
-        ("application version advanced", "<Version>2.2.10</Version>" in project),
+        ("application version advanced", "<Version>2.3.2</Version>" in project),
     ])
 
     failed = [name for name, ok in checks if not ok]

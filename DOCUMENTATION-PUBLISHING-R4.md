@@ -13,4 +13,4 @@ extracted tree as the Pages artifact.
 The deployment job references the `github-pages` environment. If that environment
 was deleted, GitHub creates it again when the default-branch deployment runs. The
 workflow no longer deploys from release tags, so the tag protection that rejected
-`v2.3.1` is not involved.
+`v2.3.2` is not involved.

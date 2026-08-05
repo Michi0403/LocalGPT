@@ -2093,3 +2093,98 @@ html.localgpt-kawaii-docs .localgpt-doc-card > :last-child { margin-bottom: 0; }
     left: auto !important;
   }
 }
+
+/* Shared Kawaii documentation shell -------------------------------------------------
+   LocalGPT and PublisherStudio use the same three-panel geometry so moving between
+   the two documentation sites does not require a new visual model. At desktop width
+   both navigation rails have exactly the same width and exactly the same gap to the
+   article. The article consumes every remaining column pixel and all three surfaces
+   fill one viewport when their content is short. The document itself grows normally
+   when real content needs more room; no fake nested page scrollbar is introduced. */
+@media (min-width: 1141px) {
+  html.localgpt-kawaii-docs {
+    --kawaii-docs-rail-width: clamp(15rem, 16vw, 18rem);
+    --kawaii-docs-panel-gap: clamp(1.25rem, 2vw, 2.5rem);
+    --kawaii-docs-shell-min-height: max(24rem, calc(100vh - 60px - 1.6rem - 4.5rem));
+  }
+
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main.container-xxl,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main.container-xxl {
+    align-items: stretch !important;
+    box-sizing: border-box;
+    column-gap: var(--kawaii-docs-panel-gap) !important;
+    display: grid !important;
+    grid-template-columns:
+      var(--kawaii-docs-rail-width)
+      minmax(0, 1fr)
+      var(--kawaii-docs-rail-width) !important;
+    margin-inline: auto !important;
+    max-width: 112rem !important;
+    min-height: var(--kawaii-docs-shell-min-height) !important;
+    width: calc(100% - clamp(2rem, 6vw, 6rem)) !important;
+  }
+
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main > .toc-offcanvas,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main > .toc-offcanvas,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main > .affix,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main > .affix {
+    align-self: stretch !important;
+    box-sizing: border-box;
+    display: block !important;
+    flex: none !important;
+    max-height: none !important;
+    max-width: none !important;
+    min-height: var(--kawaii-docs-shell-min-height);
+    min-width: 0;
+    overflow: visible !important;
+    width: auto !important;
+  }
+
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main > .toc-offcanvas,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main > .toc-offcanvas {
+    grid-column: 1;
+  }
+
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main > .affix,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main > .affix {
+    grid-column: 3;
+  }
+
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main > .toc-offcanvas .offcanvas-md,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main > .toc-offcanvas .offcanvas-md,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main > .toc-offcanvas .offcanvas-body,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main > .toc-offcanvas .offcanvas-body {
+    height: 100%;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main > .affix > nav,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main > .affix > nav {
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main > .content,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main > .content {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    grid-column: 2;
+    margin-inline: 0 !important;
+    min-width: 0;
+    padding-bottom: 0;
+  }
+
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout=""] > main > .content > article,
+  html.localgpt-kawaii-docs body:not([data-search])[data-layout="conceptual"] > main > .content > article {
+    box-sizing: border-box;
+    flex: 1 0 auto;
+    margin-bottom: 0;
+    max-width: none !important;
+    min-height: var(--kawaii-docs-shell-min-height);
+    width: 100%;
+  }
+}
+
