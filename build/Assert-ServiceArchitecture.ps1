@@ -19,7 +19,7 @@ foreach ($file in $serviceFiles) {
         '(?m)^\s*(?:public|internal|private|protected)?\s*static\s+class\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)')
     foreach ($match in $staticClasses) {
         $name = $match.Groups['name'].Value
-        $isApprovedHelper = $relative.Contains('/Services/Helpers/', [StringComparison]::Ordinal) -and
+        $isApprovedHelper = ($relative.IndexOf('/Services/Helpers/', [StringComparison]::Ordinal) -ge 0) -and
             $name.EndsWith('Helper', [StringComparison]::Ordinal)
         if (-not $isApprovedHelper) {
             $errors.Add("Static runtime class '$name' is not an approved pure helper: $relative")
@@ -63,7 +63,7 @@ foreach ($token in @(
     'AddSingleton<ISupervisedTaskRunner, SupervisedTaskRunner>()',
     'AddSingleton<IDatabaseMigrationCompatibilityService, DatabaseMigrationCompatibilityService>()',
     'AddScoped<ThemeService>()')) {
-    if (-not $program.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($program.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Program.cs must retain DI registration '$token'.")
     }
 }
@@ -82,7 +82,7 @@ foreach ($token in @(
     'public sealed class DatabaseMigrationCompatibilityService',
     'IServiceActivityService serviceActivity',
     'signature.Requirements.Length')) {
-    if (-not $compatibility.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($compatibility.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Database migration compatibility service must retain '$token'.")
     }
 }
@@ -99,7 +99,7 @@ foreach ($token in @(
     'FrozenSet<string> BinaryExtensions',
     'FrozenSet<string> SourceExtensions',
     'FrozenSet<string> ArtifactTextExtensions')) {
-    if (-not $catalog.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($catalog.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("LocalGptCatalogService must retain immutable catalog token '$token'.")
     }
 }
@@ -118,7 +118,7 @@ foreach ($component in @(
         'CancellationTokenSource',
         'isDisposed',
         'catch (ObjectDisposedException) when (isDisposed)')) {
-        if (-not $text.Contains($token, [StringComparison]::Ordinal)) {
+        if (-not ($text.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
             $errors.Add("$component must retain supervised lifetime token '$token'.")
         }
     }
@@ -126,7 +126,7 @@ foreach ($component in @(
 
 $chatPath = Join-Path $sourceRoot 'Components/Pages/Chat.razor'
 $chat = Get-Content -LiteralPath $chatPath -Raw
-if (-not $chat.Contains('CancellationTokenSource.CreateLinkedTokenSource(componentLifetimeCts.Token)', [StringComparison]::Ordinal)) {
+if (-not ($chat.IndexOf('CancellationTokenSource.CreateLinkedTokenSource(componentLifetimeCts.Token)', [StringComparison]::Ordinal) -ge 0)) {
     $errors.Add('Chat autosave must remain linked to the owning component lifetime token.')
 }
 

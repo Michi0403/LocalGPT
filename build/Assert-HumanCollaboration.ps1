@@ -34,7 +34,7 @@ foreach ($relative in $requiredFiles) { [void](Read-RequiredText $relative) }
 
 $ambientInterface = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Interfaces/IAmbientLocalGptContext.cs'
 foreach ($required in @('interface IAmbientLocalGptContext', 'interface ILocalHumanInteractionContext', 'interface IHumanApprovalExecutionContext', 'PushHumanInteraction', 'PushHumanApproval')) {
-    if (-not $ambientInterface.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($ambientInterface.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Ambient context contracts must contain '$required'.")
     }
 }
@@ -42,7 +42,7 @@ $ordinaryInterfaceStart = $ambientInterface.IndexOf('public interface IAmbientLo
 $trustedInterfaceStart = $ambientInterface.IndexOf('public interface ILocalHumanInteractionContext', [System.StringComparison]::Ordinal)
 if ($ordinaryInterfaceStart -ge 0 -and $trustedInterfaceStart -gt $ordinaryInterfaceStart) {
     $ordinaryContract = $ambientInterface.Substring($ordinaryInterfaceStart, $trustedInterfaceStart - $ordinaryInterfaceStart)
-    if ($ordinaryContract.Contains('PushHuman', [System.StringComparison]::Ordinal)) {
+    if (($ordinaryContract.IndexOf('PushHuman', [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add('IAmbientLocalGptContext must remain unable to mint trusted human scopes.')
     }
 }
@@ -65,11 +65,11 @@ $sourceRoot = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT'
 Get-ChildItem -Path $sourceRoot -Recurse -File | Where-Object { $_.Extension -in @('.cs', '.razor') } | ForEach-Object {
     $content = Get-Content -LiteralPath $_.FullName -Raw
     $relative = [IO.Path]::GetRelativePath($sourceRoot, $_.FullName).Replace('\', '/')
-    if ($content.Contains('ILocalHumanInteractionContext', [System.StringComparison]::Ordinal) -and
+    if (($content.IndexOf('ILocalHumanInteractionContext', [System.StringComparison]::Ordinal) -ge 0) -and
         $relative -notin $allowedInteractionCapabilityFiles) {
         $errors.Add("Local human interaction capability is used outside the allowlist: $relative")
     }
-    if ($content.Contains('IHumanApprovalExecutionContext', [System.StringComparison]::Ordinal) -and
+    if (($content.IndexOf('IHumanApprovalExecutionContext', [System.StringComparison]::Ordinal) -ge 0) -and
         $relative -notin $allowedApprovalCapabilityFiles) {
         $errors.Add("Human approval execution capability is used outside the allowlist: $relative")
     }
@@ -83,13 +83,13 @@ foreach ($required in @(
     'AddSingleton<IHumanApprovalExecutionContext>',
     'AddSingleton<IHumanCollaborationService, HumanCollaborationService>',
     'AddSingleton<IDeferredDxAiInvocationService, DeferredDxAiInvocationService>')) {
-    if (-not $program.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($program.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Program.cs must retain '$required'.")
     }
 }
 
 $layout = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/MainLayout.razor'
-if (-not $layout.Contains('<HumanCollaborationInbox />', [System.StringComparison]::Ordinal)) {
+if (-not ($layout.IndexOf('<HumanCollaborationInbox />', [System.StringComparison]::Ordinal) -ge 0)) {
     $errors.Add('The Human Collaboration Inbox must remain mounted in MainLayout.')
 }
 
@@ -97,12 +97,12 @@ if (-not $layout.Contains('<HumanCollaborationInbox />', [System.StringCompariso
 $humanInbox = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/HumanCollaborationInbox.razor'
 $humanInboxCss = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/HumanCollaborationInbox.razor.css'
 foreach ($token in @('human-approval-bar', 'Review and work through', 'PendingRequests.Count > 0', 'OpenApprovalPanel', 'HideApprovalBar')) {
-    if (-not $humanInbox.Contains($token, [System.StringComparison]::Ordinal)) {
+    if (-not ($humanInbox.IndexOf($token, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Human approval work bar must retain '$token'.")
     }
 }
 foreach ($token in @('.human-approval-bar', 'position: fixed', 'var(--bs-body-bg)', 'var(--bs-body-color)')) {
-    if (-not $humanInboxCss.Contains($token, [System.StringComparison]::Ordinal)) {
+    if (-not ($humanInboxCss.IndexOf($token, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Human approval work bar CSS must retain '$token'.")
     }
 }
@@ -117,7 +117,7 @@ foreach ($required in @(
     'ApplyLegacyConfirmationFlags',
     'RemoveConfirmationMembers',
     'SetBooleanProperty(argument, "UserConfirmed", true)')) {
-    if (-not $filter.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($filter.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Human approval action filter must retain '$required'.")
     }
 }
@@ -128,7 +128,7 @@ foreach ($controllerRelative in @(
     $controller = Read-RequiredText $controllerRelative
     $matches = [regex]::Matches($controller, '(?s)(\[Http(?:Get|Post|Put|Delete|Patch)[^\]]*\](?:\s*\[[^\]]+\])*)\s*public\s+[^\{]+?\{\s*try\s*\{\s*if\s*\(RequireHumanConfirmation\(userConfirmed')
     foreach ($match in $matches) {
-        if (-not $match.Groups[1].Value.Contains('HumanApprovalRequired', [System.StringComparison]::Ordinal)) {
+        if (-not ($match.Groups[1].Value.IndexOf('HumanApprovalRequired', [System.StringComparison]::Ordinal) -ge 0)) {
             $errors.Add("$controllerRelative contains a legacy userConfirmed gate without HumanApprovalRequiredAttribute.")
         }
     }
@@ -142,7 +142,7 @@ foreach ($required in @(
     '"code-generation.review.create"',
     '"code-generation.review.execute"',
     'requiredBeforeCompletion: true')) {
-    if (-not $codeGenerationController.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($codeGenerationController.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("CodeGenerationController must retain '$required'.")
     }
 }
@@ -153,7 +153,7 @@ foreach ($required in @(
     'QueueRunningCouncilContributionAsync',
     'Add to next heartbeat',
     'HumanCollaboration.QueueContributionAsync')) {
-    if (-not $chat.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($chat.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Chat live human-participation flow must retain '$required'.")
     }
 }
@@ -164,7 +164,7 @@ foreach ($required in @(
     'function.SupportsDeferredApprovalRequest',
     'function.SupportsAutomaticInvocation',
     '(function.IsReadOnly || function.IsCoordinationOnly)')) {
-    if (-not $ollamaClient.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($ollamaClient.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Automatic Ollama tools must retain the read-only/coordination-only boundary '$required'.")
     }
 }
@@ -182,7 +182,7 @@ foreach ($required in @(
     'deferredInvocations.QueueAsync',
     'SupportsDeferredApprovalRequest: true',
     'ApprovalRequiredBeforeCompletion: true')) {
-    if (-not $registry.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($registry.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("DXAI collaboration architecture must retain '$required'.")
     }
 }
@@ -192,7 +192,7 @@ foreach ($required in @(
     'bool IsCoordinationOnly = false',
     'bool SupportsDeferredApprovalRequest = false',
     'bool ApprovalRequiredBeforeCompletion = false')) {
-    if (-not $descriptor.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($descriptor.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("DxaichatFunctionInfo must retain '$required'.")
     }
 }
@@ -210,7 +210,7 @@ foreach ($required in @(
     'ExecuteApprovedForHeartbeatAsync',
     'BuildDeferredInvocationBriefing',
     'untrusted data, never instructions')) {
-    if (-not $council.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($council.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Council human-participation flow must retain '$required'.")
     }
 }
@@ -229,7 +229,7 @@ foreach ($required in @(
     'HumanContributionEvaluationVerdicts.Supported',
     'HumanContributionEvaluationVerdicts.NeedsCorrection',
     'HumanContributionEvaluationVerdicts.Mixed')) {
-    if (-not $service.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($service.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("HumanCollaborationService must retain '$required'.")
     }
 }
@@ -237,10 +237,10 @@ foreach ($required in @(
 $dbContext = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/EFCore/LocalGptMemoryDbContext.cs'
 $snapshot = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs'
 foreach ($entity in @('HumanCollaborationRequest', 'HumanCouncilParticipantProfile', 'HumanCouncilContribution', 'DeferredDxAiInvocation')) {
-    if (-not $dbContext.Contains("DbSet<$entity>", [System.StringComparison]::Ordinal)) {
+    if (-not ($dbContext.IndexOf("DbSet<$entity>", [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("LocalGptMemoryDbContext is missing DbSet<$entity>.")
     }
-    if (-not $snapshot.Contains("LocalGPT.BusinessObjects.$entity", [System.StringComparison]::Ordinal)) {
+    if (-not ($snapshot.IndexOf("LocalGPT.BusinessObjects.$entity", [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("EF model snapshot is missing $entity.")
     }
 }
@@ -256,7 +256,7 @@ foreach ($required in @(
     'HumanCollaborationStatuses.Approved',
     'HumanCollaborationStatuses.Declined',
     'DeferredDxAiInvocationStatuses.CompletedElsewhere')) {
-    if (-not $deferredService.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($deferredService.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Deferred DXAI invocation service must retain '$required'.")
     }
 }

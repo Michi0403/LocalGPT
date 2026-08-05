@@ -61,7 +61,7 @@ if (Test-Path -LiteralPath $contractPath -PathType Leaf) {
         'InteractionValueJson',
         'public interface IOneWireCapabilityProvider',
         'public interface IOneWireTransportAdapter')) {
-        if (-not $contract.Contains($token, [StringComparison]::Ordinal)) {
+        if (-not ($contract.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
             $errors.Add("Shared WireProtocolVersion contract is missing '$token'.")
         }
     }
@@ -74,7 +74,7 @@ if (Test-Path -LiteralPath $programPath -PathType Leaf) {
         'public const int DefaultPort = 5000;',
         'public static System.Int32 Port => System.Threading.Volatile.Read',
         'public static string BaseUrl')) {
-        if (-not $program.Contains($token, [StringComparison]::Ordinal)) {
+        if (-not ($program.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
             $errors.Add("Protected installer/bootstrap port contract is missing '$token'.")
         }
     }

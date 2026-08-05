@@ -34,7 +34,7 @@ foreach ($token in @(
     'IServiceActivityService serviceActivity',
     'IDatabaseLoggerReadiness databaseLoggerReadiness',
     'databaseLoggerReadiness.MarkReady()')) {
-    if (-not $initialization.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($initialization.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Database initialization must retain '$token'.")
     }
 }
@@ -49,12 +49,12 @@ foreach ($token in @(
     'SignatureState.Partial',
     'signature.Requirements.Length',
     'did not guess at destructive repairs')) {
-    if (-not $compatibility.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($compatibility.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Database migration compatibility service must retain '$token'.")
     }
 }
 
-if ($compatibility.Contains('signature.Requirements.Count`n', [StringComparison]::Ordinal) -or
+if (($compatibility.IndexOf('signature.Requirements.Count`n', [StringComparison]::Ordinal) -ge 0) -or
     $compatibility -match 'signature\.Requirements\.Count\s*(\r?\n|\?|:)') {
     $errors.Add('Migration signature cardinality must use the array Length property, not the Enumerable.Count method group.')
 }
@@ -65,7 +65,7 @@ foreach ($token in @(
     'await databaseLoggerReadiness.WaitUntilReadyAsync(stop.Token).ConfigureAwait(false)',
     'if (!databaseLoggerReadiness.IsReady)',
     'await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false)')) {
-    if (-not $databaseLogger.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($databaseLogger.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Database logger startup isolation must retain '$token'.")
     }
 }
@@ -75,7 +75,7 @@ foreach ($token in @(
     'TaskCreationOptions.RunContinuationsAsynchronously',
     'return ready.Task.WaitAsync(cancellationToken)',
     'ready.TrySetResult(true)')) {
-    if (-not $databaseLoggerReadiness.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($databaseLoggerReadiness.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Database logger readiness gate must retain '$token'.")
     }
 }
@@ -108,7 +108,7 @@ foreach ($token in @(
     'CREATE INDEX IF NOT EXISTS "IX_ApplicationLogs_LogLevelValue"',
     'CREATE INDEX IF NOT EXISTS "IX_ApplicationLogs_LogLevelValue_TimestampUtc"',
     'CREATE INDEX IF NOT EXISTS "IX_ApplicationLogs_TimestampUtc"')) {
-    if (-not $initial.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($initial.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("The initial migration must retain '$token'.")
     }
 }
@@ -122,7 +122,7 @@ foreach ($token in @(
     'SQLite online backup',
     'Refuse partially applied ambiguous schemas',
     'Clear only a parseable lock older than ten minutes')) {
-    if (-not $architecture.Contains($token, [StringComparison]::OrdinalIgnoreCase)) {
+    if (-not ($architecture.IndexOf($token, [StringComparison]::OrdinalIgnoreCase) -ge 0)) {
         $errors.Add("Database migration architecture documentation must retain '$token'.")
     }
 }
@@ -135,7 +135,7 @@ foreach ($token in @(
     'AddColumnIfMissingAsync',
     'ArchiveMalformedIdentityTableAsync',
     'sourceConnection.BackupDatabase(destinationConnection)')) {
-    if (-not $compatibility.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($compatibility.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Database compatibility must retain lossless organic/council repair token '$token'.")
     }
 }
@@ -146,11 +146,11 @@ foreach ($token in @(
     '.ExecuteDeleteAsync(cancellationToken)',
     'ConversationId = conversation.Id',
     'transaction.CommitAsync')) {
-    if (-not $chatMemory.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($chatMemory.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Chat memory snapshot replacement must retain '$token'.")
     }
 }
-if ($chatMemory.Contains('conversation.Messages.Clear()', [StringComparison]::Ordinal)) {
+if (($chatMemory.IndexOf('conversation.Messages.Clear()', [StringComparison]::Ordinal) -ge 0)) {
     $errors.Add('Chat memory autosave must not clear a tracked required Messages collection; that causes conceptual-null failures with the required foreign key.')
 }
 
@@ -159,7 +159,7 @@ $migrationFiles = Get-ChildItem -LiteralPath $migrationDirectory -File -Filter '
     Where-Object { $_.Name -notlike '*.Designer.cs' -and $_.Name -ne 'LocalGptMemoryDbContextModelSnapshot.cs' }
 foreach ($migrationFile in $migrationFiles) {
     $migrationId = [IO.Path]::GetFileNameWithoutExtension($migrationFile.Name)
-    if (-not $compatibility.Contains('"' + $migrationId + '"', [StringComparison]::Ordinal)) {
+    if (-not ($compatibility.IndexOf('"' + $migrationId + '"', [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Database migration compatibility is missing a verified signature for migration '$migrationId'.")
     }
 }

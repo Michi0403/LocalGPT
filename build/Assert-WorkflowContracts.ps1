@@ -17,7 +17,7 @@ function Read-RepositoryText([string]$relativePath) {
 $components = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Components'
 Get-ChildItem -Path $components -Recurse -Filter '*.razor' -File | ForEach-Object {
     $content = Get-Content -LiteralPath $_.FullName -Raw
-    if ($content.Contains('Name = NavigationUrls.ToggleSidebarName', [System.StringComparison]::Ordinal)) {
+    if (($content.IndexOf('Name = NavigationUrls.ToggleSidebarName', [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("$($_.FullName): static navigation query constants must be qualified with NavigationUrlService, not the injected NavigationUrls instance.")
     }
 }
@@ -27,14 +27,14 @@ foreach ($relative in @(
     'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/MainLayout.razor',
     'LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Index.razor')) {
     $content = Read-RepositoryText $relative
-    if (-not $content.Contains('Name = NavigationUrlService.ToggleSidebarName', [System.StringComparison]::Ordinal)) {
+    if (-not ($content.IndexOf('Name = NavigationUrlService.ToggleSidebarName', [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("$relative must retain the type-qualified sidebar query constant.")
     }
 }
 
 $sharedDescriptor = 'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/DxaichatFunctionInfo.cs'
 $descriptorContent = Read-RepositoryText $sharedDescriptor
-if (-not $descriptorContent.Contains('namespace LocalGPT.BusinessObjects;', [System.StringComparison]::Ordinal)) {
+if (-not ($descriptorContent.IndexOf('namespace LocalGPT.BusinessObjects;', [System.StringComparison]::Ordinal) -ge 0)) {
     $errors.Add("$sharedDescriptor must remain in the shared LocalGPT.BusinessObjects contract namespace.")
 }
 $obsoleteDescriptor = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/DxaichatFunctionCatalog.cs'
@@ -43,8 +43,8 @@ if (Test-Path -LiteralPath $obsoleteDescriptor) {
 }
 
 $interfaceContent = Read-RepositoryText 'LocalGPTWebviewWrapper/LocalGPT/Interfaces/IDxAiFunctionServiceClient.cs'
-if (-not $interfaceContent.Contains('using LocalGPT.BusinessObjects;', [System.StringComparison]::Ordinal) -or
-    -not $interfaceContent.Contains('IReadOnlyList<DxaichatFunctionInfo> GetFunctions();', [System.StringComparison]::Ordinal)) {
+if (-not ($interfaceContent.IndexOf('using LocalGPT.BusinessObjects;', [System.StringComparison]::Ordinal) -ge 0) -or
+    -not ($interfaceContent.IndexOf('IReadOnlyList<DxaichatFunctionInfo> GetFunctions();', [System.StringComparison]::Ordinal) -ge 0)) {
     $errors.Add('IDxAiFunctionServiceClient must use the shared DxaichatFunctionInfo contract.')
 }
 
@@ -62,7 +62,7 @@ $forbiddenSignatures = [ordered]@{
 foreach ($entry in $forbiddenSignatures.GetEnumerator()) {
     $content = Read-RepositoryText $entry.Key
     foreach ($signature in $entry.Value) {
-        if ($content.Contains($signature, [System.StringComparison]::Ordinal)) {
+        if (($content.IndexOf($signature, [System.StringComparison]::Ordinal) -ge 0)) {
             $errors.Add("$($entry.Key): implementation nullability must match the non-null workflow contract; forbidden signature '$signature'.")
         }
     }
@@ -74,11 +74,11 @@ foreach ($required in @(
     'return await workspaceTask.ConfigureAwait(false);',
     'private LocalGptCatalogService.WorkspaceLayout CreateWorkspaceLayout',
     'private WorkspaceLayout CreateDatapackLayout')) {
-    if (-not $minecraftService.Contains($required, [System.StringComparison]::Ordinal)) {
+    if (-not ($minecraftService.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Minecraft workspace workflow must retain '$required'.")
     }
 }
-if ($minecraftService.Contains('return string.Empty;', [System.StringComparison]::Ordinal)) {
+if (($minecraftService.IndexOf('return string.Empty;', [System.StringComparison]::Ordinal) -ge 0)) {
     $errors.Add('Minecraft workspace path allocation must not convert failures into an empty path.')
 }
 
@@ -92,7 +92,7 @@ foreach ($operation in @('CreateWorkspaceCoreAsync', 'RunCommandCoreAsync')) {
     $nextOperation = $minecraftComponent.IndexOf('async Task ', $operationIndex + 12, [System.StringComparison]::Ordinal)
     $length = if ($nextOperation -gt $operationIndex) { $nextOperation - $operationIndex } else { $minecraftComponent.Length - $operationIndex }
     $operationBody = $minecraftComponent.Substring($operationIndex, $length)
-    if (-not $operationBody.Contains('throw;', [System.StringComparison]::Ordinal)) {
+    if (-not ($operationBody.IndexOf('throw;', [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("MinecraftModBuilder.$operation must propagate logged core failures to the shared UI safety wrapper.")
     }
 }

@@ -9,3 +9,10 @@
 - Generated DocFX HTML, in-app help, PDF metadata, and the pinned Pages snapshot remain synchronized.
 - The layout contract is intentionally shared with PublisherStudio to keep both product documentation sites visually predictable.
 - Mobile and tablet DocFX behavior remains unchanged.
+
+## Windows PowerShell maintenance compatibility
+
+- Comparison-aware substring checks in repository validation scripts now use `String.IndexOf`, preserving ordinal and ordinal-ignore-case behavior while remaining executable under Windows PowerShell 5.1.
+- Release, repository-validation, and verified-source-package lanes now run a shared compatibility guard before expensive work.
+- The guard rejects the PowerShell 7-only `String.Contains(value, StringComparison)` overload without weakening any architecture, safety, migration, workflow, or source-formatting rule.
+

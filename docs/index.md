@@ -79,4 +79,3 @@ The packaged PDF is a curated handbook: it contains the maintained guide, archit
 <a class="btn btn-primary" href="LocalGPT-2.3.2.pdf" download>🐾 Download the Kawaii handbook</a>
 
 
-

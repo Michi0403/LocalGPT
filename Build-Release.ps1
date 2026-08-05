@@ -28,6 +28,8 @@ $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplication
 $documentationCacheRoot = Join-Path $artifacts ".documentation-cache"
 $documentationPrepared = $false
 
+& (Join-Path $root 'build\Assert-PowerShellCompatibility.ps1')
+
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
     & dotnet @Arguments

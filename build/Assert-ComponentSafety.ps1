@@ -23,7 +23,7 @@ Get-ChildItem -Path $componentRoot -Recurse -Filter '*.razor' -File |
         for ($index = 0; $index -lt $lines.Count; $index++) {
             $trimmed = $lines[$index].Trim()
             if ($inRazorComment) {
-                if ($trimmed.Contains('*@', [System.StringComparison]::Ordinal)) {
+                if (($trimmed.IndexOf('*@', [System.StringComparison]::Ordinal) -ge 0)) {
                     $inRazorComment = $false
                 }
                 continue
@@ -32,7 +32,7 @@ Get-ChildItem -Path $componentRoot -Recurse -Filter '*.razor' -File |
                 continue
             }
             if ($trimmed.StartsWith('@*', [System.StringComparison]::Ordinal)) {
-                if (-not $trimmed.Contains('*@', [System.StringComparison]::Ordinal)) {
+                if (-not ($trimmed.IndexOf('*@', [System.StringComparison]::Ordinal) -ge 0)) {
                     $inRazorComment = $true
                 }
                 continue
@@ -75,14 +75,14 @@ if ($errors.Count -gt 0) {
 
 $routes = Join-Path $componentRoot 'Routes.razor'
 $routesContent = Get-Content -LiteralPath $routes -Raw
-if (-not $routesContent.Contains('<SafeErrorBoundary', [System.StringComparison]::Ordinal)) {
+if (-not ($routesContent.IndexOf('<SafeErrorBoundary', [System.StringComparison]::Ordinal) -ge 0)) {
     Write-Error 'Routes.razor must retain the global SafeErrorBoundary.'
     exit 1
 }
 
 $app = Join-Path $componentRoot 'App.razor'
 $appContent = Get-Content -LiteralPath $app -Raw
-if (-not $appContent.Contains('<ToastWrapper Name="ComponentSafetyToasts"', [System.StringComparison]::Ordinal)) {
+if (-not ($appContent.IndexOf('<ToastWrapper Name="ComponentSafetyToasts"', [System.StringComparison]::Ordinal) -ge 0)) {
     Write-Error 'App.razor must retain the shared ComponentSafetyToasts provider.'
     exit 1
 }
@@ -96,7 +96,7 @@ if (-not $programContent.Contains('AddSingleton<IComponentActivityService, Compo
 
 $bootstrap = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs'
 $bootstrapContent = Get-Content -LiteralPath $bootstrap -Raw
-if (-not $bootstrapContent.Contains('componentActivity.BuildBriefing', [System.StringComparison]::Ordinal)) {
+if (-not ($bootstrapContent.IndexOf('componentActivity.BuildBriefing', [System.StringComparison]::Ordinal) -ge 0)) {
     Write-Error 'AiContextBootstrapService must retain bounded UI activity awareness.'
     exit 1
 }
@@ -108,7 +108,7 @@ foreach ($requiredFragment in @(
     'IComponentActivityService componentActivity',
     'componentActivity.GetRecent(',
     'componentActivity.BuildBriefing(')) {
-    if (-not $diagnosticContent.Contains($requiredFragment, [System.StringComparison]::Ordinal)) {
+    if (-not ($diagnosticContent.IndexOf($requiredFragment, [System.StringComparison]::Ordinal) -ge 0)) {
         Write-Error "LocalGPT component-activity diagnostics must retain '$requiredFragment'."
         exit 1
     }
@@ -121,7 +121,7 @@ foreach ($requiredFragment in @(
     'IComponentActivityService componentActivity',
     'componentActivity.RecordInformation(',
     'componentActivity.RecordFailure(')) {
-    if (-not $notificationContent.Contains($requiredFragment, [System.StringComparison]::Ordinal)) {
+    if (-not ($notificationContent.IndexOf($requiredFragment, [System.StringComparison]::Ordinal) -ge 0)) {
         Write-Error "NotificationService must retain bounded activity integration: $requiredFragment"
         exit 1
     }
@@ -131,16 +131,16 @@ Get-ChildItem -Path $componentRoot -Recurse -Filter '*.razor' -File |
     Where-Object Name -ne '_Imports.razor' |
     ForEach-Object {
         $content = Get-Content -LiteralPath $_.FullName -Raw
-        if ($content.Contains('RunUiActionAsync(', [System.StringComparison]::Ordinal)) {
-            if (-not $content.Contains('ComponentActivity.Record', [System.StringComparison]::Ordinal)) {
+        if (($content.IndexOf('RunUiActionAsync(', [System.StringComparison]::Ordinal) -ge 0)) {
+            if (-not ($content.IndexOf('ComponentActivity.Record', [System.StringComparison]::Ordinal) -ge 0)) {
                 Write-Error "$($_.FullName): reusable UI-operation wrappers must report bounded component activity."
                 exit 1
             }
-            if (-not $content.Contains('Notifier.Show', [System.StringComparison]::Ordinal)) {
+            if (-not ($content.IndexOf('Notifier.Show', [System.StringComparison]::Ordinal) -ge 0)) {
                 Write-Error "$($_.FullName): reusable UI-operation wrappers must retain human notification."
                 exit 1
             }
-            if (-not $content.Contains('Logger.Log', [System.StringComparison]::Ordinal)) {
+            if (-not ($content.IndexOf('Logger.Log', [System.StringComparison]::Ordinal) -ge 0)) {
                 Write-Error "$($_.FullName): reusable UI-operation wrappers must retain technical logging."
                 exit 1
             }

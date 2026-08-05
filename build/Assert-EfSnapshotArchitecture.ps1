@@ -55,7 +55,7 @@ foreach ($navigation in @('Artifacts', 'Requirements', 'Revisions', 'Topics', 'V
     if ($count -ne 1) {
         $errors.Add("LocalGptProject navigation '$navigation' must occur exactly once in the snapshot; found $count.")
     }
-    if (-not $projectModel.Contains("ICollection<", [StringComparison]::Ordinal) -or -not $projectModel.Contains(" $navigation { get; set; }", [StringComparison]::Ordinal)) {
+    if (-not ($projectModel.IndexOf("ICollection<", [StringComparison]::Ordinal) -ge 0) -or -not ($projectModel.IndexOf(" $navigation { get; set; }", [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("LocalGptProject CLR model must retain collection navigation '$navigation'.")
     }
 }
@@ -74,7 +74,7 @@ foreach ($token in @(
     '.WithMany(project => project.Revisions)',
     '.WithMany(project => project.Topics)',
     '.WithMany(project => project.Versions)')) {
-    if (-not $context.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($context.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("DbContext must retain '$token'.")
     }
 }
@@ -91,7 +91,7 @@ foreach ($token in @(
     'b.ToTable("CouncilTeamConfigurations", (string)null)',
     '.WithMany("ProjectLinks")',
     '.WithMany("MemberLinks")')) {
-    if (-not $snapshot.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($snapshot.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("EF snapshot must retain organic/council architecture token '$token'.")
     }
 }
@@ -102,7 +102,7 @@ foreach ($token in @(
     'DbSet<CouncilMemberOrganicSkillLink> CouncilMemberOrganicSkillLinks',
     'DbSet<CouncilTeamConfiguration> CouncilTeamConfigurations',
     'entity.Property(item => item.ModelRoutesJson).IsRequired()')) {
-    if (-not $context.Contains($token, [StringComparison]::Ordinal)) {
+    if (-not ($context.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("DbContext must retain organic/council architecture token '$token'.")
     }
 }

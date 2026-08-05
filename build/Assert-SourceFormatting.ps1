@@ -92,7 +92,7 @@ try {
         }
 
         $contractContent = Get-Content -LiteralPath $contractPath -Raw
-        if (-not $contractContent.Contains($contract.Pattern, [StringComparison]::Ordinal)) {
+        if (-not ($contractContent.IndexOf($contract.Pattern, [StringComparison]::Ordinal) -ge 0)) {
             $violations.Add("$($contract.Path) no longer contains $($contract.Description).")
         }
     }
