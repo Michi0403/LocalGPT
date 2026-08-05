@@ -189,7 +189,7 @@ namespace LocalGPT.Services
             }
 
             if ([string]::IsNullOrWhiteSpace($javaHome) -or -not (Test-Path (Join-Path $javaHome "bin\java.exe"))) {
-                throw "JDK 21 was not found. Install Microsoft.OpenJDK.21 or run LocalGPTWebviewWrapper\build\Setup-MinecraftModToolchain.ps1 -Install."
+                throw "JDK 21 was not found. Install Microsoft.OpenJDK.21 or run src\build\Setup-MinecraftModToolchain.ps1 -Install."
             }
 
             $env:JAVA_HOME = $javaHome
@@ -207,7 +207,7 @@ namespace LocalGPT.Services
                 exit $LASTEXITCODE
             }
 
-            throw "Gradle {{gradleVersion}} was not found. Run LocalGPTWebviewWrapper\build\Setup-MinecraftModToolchain.ps1 -InstallGradle."
+            throw "Gradle {{gradleVersion}} was not found. Run LocalGPT\build\Setup-MinecraftModToolchain.ps1 -InstallGradle."
             """;
             }
             catch (Exception ex)
@@ -1917,12 +1917,12 @@ namespace LocalGPT.Services
                 if (root is null)
                     yield break;
 
-                yield return ("LocalGPT bin", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "bin"));
-                yield return ("LocalGPT obj", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "obj"));
-                yield return ("WebView2 wrapper bin", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPTWebviewWrapper", "bin"));
-                yield return ("WebView2 wrapper obj", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPTWebviewWrapper", "obj"));
-                yield return ("MSIX package bin", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPTWebviewWrapper (Package)", "bin"));
-                yield return ("MSIX package obj", Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPTWebviewWrapper (Package)", "obj"));
+                yield return ("LocalGPT bin", Path.Combine(root, "src", "LocalGPT", "bin"));
+                yield return ("LocalGPT obj", Path.Combine(root, "src", "LocalGPT", "obj"));
+                yield return ("WebView2 wrapper bin", Path.Combine(root, "src", "LocalGPTWebviewWrapper", "bin"));
+                yield return ("WebView2 wrapper obj", Path.Combine(root, "src", "LocalGPTWebviewWrapper", "obj"));
+                yield return ("MSIX package bin", Path.Combine(root, "src", "LocalGPTWebviewWrapper (Package)", "bin"));
+                yield return ("MSIX package obj", Path.Combine(root, "src", "LocalGPTWebviewWrapper (Package)", "obj"));
             }
             finally
             {
@@ -3338,7 +3338,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var importsPath = Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "Components", "_Imports.razor");
+                var importsPath = Path.Combine(root, "src", "LocalGPT", "Components", "_Imports.razor");
                 if (!File.Exists(importsPath))
                     return;
 
@@ -3374,7 +3374,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var programPath = Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "Program.cs");
+                var programPath = Path.Combine(root, "src", "LocalGPT", "Program.cs");
                 if (!File.Exists(programPath))
                     return;
 

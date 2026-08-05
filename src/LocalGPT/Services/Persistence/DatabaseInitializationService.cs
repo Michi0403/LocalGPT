@@ -845,7 +845,7 @@ public sealed class DatabaseInitializationService(
         while (current is not null)
         {
             if (current.EnumerateFiles("*.csproj", SearchOption.TopDirectoryOnly).Any() ||
-                current.EnumerateDirectories("LocalGPTWebviewWrapper", SearchOption.TopDirectoryOnly).Any())
+                current.EnumerateDirectories("src", SearchOption.TopDirectoryOnly).Any())
                 return current.FullName;
             current = current.Parent;
         }
