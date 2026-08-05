@@ -1,4 +1,4 @@
-﻿# LocalGPT documentation
+# LocalGPT documentation
 
 **Version 2.3.1**
 
@@ -77,5 +77,3 @@ The conceptual pages are built together with compiler-generated XML documentatio
 The packaged PDF is a curated handbook: it contains the maintained guide, architecture, engineering, and reference chapters plus a linked inventory of every generated API page. A normal owner-side documentation build can additionally render the complete API body into the PDF.
 
 <a class="btn btn-primary" href="LocalGPT-2.3.1.pdf" download>🐾 Download the Kawaii handbook</a>
-
-

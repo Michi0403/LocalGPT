@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Validate and package the exact Kawaii DocFX tree shipped by the LocalGPT app.
+"""Validate and package the pinned LocalGPT Kawaii documentation snapshot.
 
-GitHub Pages intentionally publishes the checked-in app documentation rather than
-re-downloading an older release archive. This keeps the embedded help and the public
-site identical after a documentation commit.
+The generated DocFX trees under docs/_site and wwwroot/help-docs are intentionally
+ignored by Git. GitHub Actions therefore publishes a single tracked ZIP snapshot
+instead of assuming ignored build output exists after checkout.
 """
 
 from __future__ import annotations
@@ -11,10 +11,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import shutil
+import stat
 import sys
-from pathlib import Path
+import tempfile
+from pathlib import Path, PurePosixPath
+from zipfile import BadZipFile, ZipFile
 
 
 REQUIRED_FILES = (
@@ -48,6 +50,9 @@ JS_MARKERS = (
     "persistTheme",
     "localgpt-cursor-paw",
 )
+
+MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
+MAX_FILE_COUNT = 20_000
 
 
 def read_text(path: Path) -> str:
@@ -122,6 +127,46 @@ def validate_source(source: Path) -> dict[str, object]:
     }
 
 
+def safe_extract_zip(archive: Path, destination: Path) -> Path:
+    if not archive.is_file():
+        fail(f"Pinned Pages archive does not exist: {archive}")
+
+    try:
+        with ZipFile(archive) as bundle:
+            entries = bundle.infolist()
+            if not entries:
+                fail(f"Pinned Pages archive is empty: {archive}")
+            if len(entries) > MAX_FILE_COUNT:
+                fail(f"Pinned Pages archive contains too many entries: {len(entries)}")
+
+            total_size = sum(entry.file_size for entry in entries)
+            if total_size > MAX_UNCOMPRESSED_BYTES:
+                fail(f"Pinned Pages archive is too large after extraction: {total_size} bytes")
+
+            for entry in entries:
+                raw_name = entry.filename.replace("\\", "/")
+                path = PurePosixPath(raw_name)
+                if path.is_absolute() or ".." in path.parts:
+                    fail(f"Unsafe path in pinned Pages archive: {entry.filename}")
+
+                unix_mode = entry.external_attr >> 16
+                if stat.S_ISLNK(unix_mode):
+                    fail(f"Symbolic links are not allowed in pinned Pages archive: {entry.filename}")
+
+            bundle.extractall(destination)
+    except BadZipFile as error:
+        fail(f"Pinned Pages archive is not a valid ZIP: {error}")
+
+    if (destination / "index.html").is_file():
+        return destination
+
+    candidates = [path for path in destination.iterdir() if path.is_dir() and (path / "index.html").is_file()]
+    if len(candidates) == 1:
+        return candidates[0]
+
+    fail("Pinned Pages archive must contain index.html at its root or in one top-level directory")
+
+
 def copy_tree(source: Path, output: Path) -> None:
     if output.exists():
         shutil.rmtree(output)
@@ -131,17 +176,31 @@ def copy_tree(source: Path, output: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", type=Path, required=True)
+    source_group = parser.add_mutually_exclusive_group(required=True)
+    source_group.add_argument("--archive", type=Path)
+    source_group.add_argument("--source", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
     try:
-        source = args.source.resolve(strict=True)
         output = args.output.resolve(strict=False)
-        metadata = validate_source(source)
-        copy_tree(source, output)
+
+        if args.archive is not None:
+            archive = args.archive.resolve(strict=True)
+            with tempfile.TemporaryDirectory(prefix="localgpt-pages-") as temp_dir:
+                extracted_source = safe_extract_zip(archive, Path(temp_dir))
+                metadata = validate_source(extracted_source)
+                copy_tree(extracted_source, output)
+            metadata["deploymentSource"] = "tracked Kawaii documentation snapshot"
+            metadata["sourceArchive"] = archive.as_posix()
+            metadata["sourceArchiveSha256"] = sha256(archive)
+        else:
+            source = args.source.resolve(strict=True)
+            metadata = validate_source(source)
+            copy_tree(source, output)
+            metadata["deploymentSource"] = "explicit documentation directory"
+
         metadata["artifact"] = output.as_posix()
-        metadata["deploymentSource"] = "checked-in app help-docs"
         (output / "github-pages-deployment.json").write_text(
             json.dumps(metadata, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
