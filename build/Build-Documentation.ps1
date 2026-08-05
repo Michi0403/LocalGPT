@@ -420,6 +420,8 @@ function Install-LocalGptWebsiteThemeAssets {
 
     $cssHash = (Get-FileHash -LiteralPath $cssTarget -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant()
     $javascriptHash = (Get-FileHash -LiteralPath $javascriptTarget -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant()
+    $faviconSvgHash = (Get-FileHash -LiteralPath (Join-Path $SiteRoot "favicon.svg") -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant()
+    $faviconIcoHash = (Get-FileHash -LiteralPath (Join-Path $SiteRoot "favicon.ico") -Algorithm SHA256).Hash.Substring(0, 12).ToLowerInvariant()
     $themeBootstrap = @'
 <script data-localgpt-theme-bootstrap="true">
 (function () {
@@ -465,8 +467,9 @@ function Install-LocalGptWebsiteThemeAssets {
         $prefixPath = if ($depth -gt 0) { ("../" * $depth) -join "" } else { "" }
         $cssHref = $prefixPath + "styles/localgpt-kawaii.css?v=$cssHash"
         $javascriptHref = $prefixPath + "styles/localgpt-kawaii.js?v=$javascriptHash"
-        $faviconSvgHref = $prefixPath + "favicon.svg"
-        $faviconIcoHref = $prefixPath + "favicon.ico"
+        # Version favicon URLs because browsers cache site icons more aggressively than normal assets.
+        $faviconSvgHref = $prefixPath + "favicon.svg?v=$faviconSvgHash"
+        $faviconIcoHref = $prefixPath + "favicon.ico?v=$faviconIcoHash"
         $html = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
         $updated = $html
 
