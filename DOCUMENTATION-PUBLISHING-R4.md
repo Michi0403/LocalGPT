@@ -1,7 +1,7 @@
 # GitHub Pages publishing correction R4
 
 The previous workflow tried to publish
-`LocalGPTWebviewWrapper/LocalGPT/wwwroot/help-docs` directly. That directory is
+`src/LocalGPT/wwwroot/help-docs` directly. That directory is
 listed in `.gitignore`, so it exists after a local documentation build but does not
 exist in a clean GitHub Actions checkout.
 

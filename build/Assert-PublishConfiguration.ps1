@@ -77,8 +77,8 @@ $profiles = @(
 )
 
 foreach ($profile in $profiles) {
-    Assert-Profile "LocalGPTWebviewWrapper\LocalGPT\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.App 'AnyCPU' 'net10.0' 'false'
-    Assert-Profile "LocalGPTWebviewWrapper\LocalGPTInstallerConsole\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Setup $profile.SetupPlatform 'net10.0' 'true'
+    Assert-Profile "src\LocalGPT\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.App 'AnyCPU' 'net10.0' 'false'
+    Assert-Profile "src\LocalGPTInstallerConsole\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Setup $profile.SetupPlatform 'net10.0' 'true'
 }
 
 $wrapperProfiles = @(
@@ -87,7 +87,7 @@ $wrapperProfiles = @(
     @{ File = 'winarm64.pubxml'; Runtime = 'win-arm64'; Platform = 'ARM64'; Folder = 'wrapper-winarm64' }
 )
 foreach ($profile in $wrapperProfiles) {
-    Assert-Profile "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Folder $profile.Platform 'net10.0-windows10.0.26100.0' 'false'
+    Assert-Profile "src\src\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Folder $profile.Platform 'net10.0-windows10.0.26100.0' 'false'
 }
 
 $userProfiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'LocalGPTWebviewWrapper') -Recurse -File -Filter '*.pubxml.user' -ErrorAction SilentlyContinue)

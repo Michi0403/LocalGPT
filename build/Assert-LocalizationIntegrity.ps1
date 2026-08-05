@@ -45,7 +45,7 @@ function Read-Catalog([string]$Path) {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
-$localization = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Localization'
+$localization = Join-Path $root 'src\LocalGPT\Localization'
 $englishPath = Join-Path $localization 'en-US.json'
 $germanPath = Join-Path $localization 'de-DE.json'
 if (-not (Test-Path -LiteralPath $englishPath -PathType Leaf)) { Fail "Missing $englishPath" }

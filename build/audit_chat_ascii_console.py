@@ -16,13 +16,13 @@ def main() -> int:
         checks.append((f"file exists: {relative}", path.is_file()))
         return path.read_text(encoding="utf-8") if path.is_file() else ""
 
-    chat = read("LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor")
-    console = read("LocalGPTWebviewWrapper/LocalGPT/Components/Shared/ChatGameConsole.razor")
-    css = read("LocalGPTWebviewWrapper/LocalGPT/Components/Shared/ChatGameConsole.razor.css")
-    js = read("LocalGPTWebviewWrapper/LocalGPT/wwwroot/js/localgpt-game-console.js")
-    project = read("LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj")
-    english = read("LocalGPTWebviewWrapper/LocalGPT/Localization/en-US.json")
-    german = read("LocalGPTWebviewWrapper/LocalGPT/Localization/de-DE.json")
+    chat = read("src/LocalGPT/Components/Pages/Chat.razor")
+    console = read("src/LocalGPT/Components/Shared/ChatGameConsole.razor")
+    css = read("src/LocalGPT/Components/Shared/ChatGameConsole.razor.css")
+    js = read("src/LocalGPT/wwwroot/js/localgpt-game-console.js")
+    project = read("src/LocalGPT/LocalGPT.csproj")
+    english = read("src/LocalGPT/Localization/en-US.json")
+    german = read("src/LocalGPT/Localization/de-DE.json")
 
     checks.extend([
         ("Chat supplies the close callback", 'CloseRequested="CloseGameConsole"' in chat),

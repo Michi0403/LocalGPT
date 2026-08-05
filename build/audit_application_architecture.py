@@ -276,7 +276,7 @@ def structure_audit(app_root: Path):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--root',required=True); ap.add_argument('--product',choices=['localgpt','publisherstudio'],required=True); ap.add_argument('--mode',choices=['static','methods','runtime','structure','all'],default='all'); ap.add_argument('--json',action='store_true'); args=ap.parse_args()
     root=Path(args.root).resolve()
-    app=root/('LocalGPTWebviewWrapper/LocalGPT' if args.product=='localgpt' else 'src/PublisherStudio.Web')
+    app=root/('src/LocalGPT' if args.product=='localgpt' else 'src/PublisherStudio.Web')
     checks={}
     if args.mode in {'static','all'}: checks['static']=static_audit(app,args.product)
     if args.mode in {'methods','all'}: checks['methods']=method_audit(app,args.product)

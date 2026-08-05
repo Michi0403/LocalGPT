@@ -1,5 +1,5 @@
 param(
-    [string]$Solution = 'LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln',
+    [string]$Solution = 'src/LocalGPTWebviewWrapper.sln',
     [ValidateSet('Debug', 'Release', 'Both')]
     [string]$Configuration = 'Both',
     [switch]$NoRestore

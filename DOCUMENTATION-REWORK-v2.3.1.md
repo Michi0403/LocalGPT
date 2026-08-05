@@ -50,7 +50,7 @@ No .NET/DevExpress build or owner-database startup was claimed. Headless Chromiu
 
 ## R3 publishing correction
 
-GitHub Pages no longer downloads documentation from an existing release ZIP. That behavior could redeploy an older site even after the checked-in in-app documentation had been rebuilt. The workflow now validates and publishes `LocalGPTWebviewWrapper/LocalGPT/wwwroot/help-docs` directly, so the public site and the embedded help use the same committed files.
+GitHub Pages no longer downloads documentation from an existing release ZIP. That behavior could redeploy an older site even after the checked-in in-app documentation had been rebuilt. The workflow now validates and publishes `src/LocalGPT/wwwroot/help-docs` directly, so the public site and the embedded help use the same committed files.
 
 The deployment is split into build and deploy jobs. Only the deploy job references the standard `github-pages` environment. If that environment was deleted, GitHub recreates it when the workflow runs. Release-tag triggers were removed, so a tag can no longer be rejected by a branch/tag protection rule or publish an outdated release payload.
 

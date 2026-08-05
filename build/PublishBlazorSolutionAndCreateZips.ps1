@@ -324,8 +324,8 @@ New-DevMicroserviceCertificate `
 # self-contained/single-file policy and output folders.
 # -----------------------------
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$appProjectPath = Join-Path $repositoryRoot "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj"
-$setupProjectPath = Join-Path $repositoryRoot "LocalGPTWebviewWrapper/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj"
+$appProjectPath = Join-Path $repositoryRoot "src/LocalGPT/LocalGPT.csproj"
+$setupProjectPath = Join-Path $repositoryRoot "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj"
 $appProfileRoot = Join-Path (Split-Path -Parent $appProjectPath) "Properties/PublishProfiles"
 $setupProfileRoot = Join-Path (Split-Path -Parent $setupProjectPath) "Properties/PublishProfiles"
 $releaseRoot = Join-Path $repositoryRoot "artifacts/release"

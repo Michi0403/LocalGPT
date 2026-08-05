@@ -109,10 +109,10 @@ normal public download set.
 Every Windows WebView2 release zip must contain an `.msix` that includes:
 
 ```text
-LocalGPTWebviewWrapper/wwwroot/_framework/blazor.web.js
-LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor/dx-blazor.svg
-LocalGPTWebviewWrapper/wwwroot/_content/DevExpress.Blazor.Themes/office-white.bs5.min.css
-LocalGPTWebviewWrapper/wwwroot/LocalGPT.styles.css
+src/wwwroot/_framework/blazor.web.js
+src/wwwroot/_content/DevExpress.Blazor/dx-blazor.svg
+src/wwwroot/_content/DevExpress.Blazor.Themes/office-white.bs5.min.css
+src/wwwroot/LocalGPT.styles.css
 ```
 
 If any of these are missing, fix packaging before publishing.

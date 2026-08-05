@@ -104,7 +104,7 @@ localgpt-setup --install-localgpt --force
 localgpt-setup --import-recommended --force
 ```
 
-See [`LocalGPTWebviewWrapper/LocalGPTInstallerConsole/README.md`](LocalGPTWebviewWrapper/LocalGPTInstallerConsole/README.md) for installer details.
+See [`src/LocalGPTInstallerConsole/README.md`](src/LocalGPTInstallerConsole/README.md) for installer details.
 
 ### Build from source
 
@@ -127,21 +127,18 @@ See [`docs/engineering/release-and-docs.md`](docs/engineering/release-and-docs.m
 
 ```text
 Blazor UI / controllers / endpoints
-                â”‚
-         explicit interfaces
-                â”‚
-application, council, provider, formatting,
+                â”?         explicit interfaces
+                â”?application, council, provider, formatting,
 persistence, collaboration and safety services
-                â”‚
-EF Core / SQLite / HTTP / bounded filesystem access
+                â”?EF Core / SQLite / HTTP / bounded filesystem access
 ```
 
 LocalGPT is a modular monolith with explicit ownership boundaries:
 
-- **LocalGPT** â€” ASP.NET Core loopback host and Interactive Blazor Server application.
-- **LocalGPTInstallerConsole** â€” installation and bootstrap helper.
-- **LocalGPTWebviewWrapper** â€” optional Windows desktop shell.
-- **DevExpress integration** â€” frontend and integration boundary, not the owner of domain state.
+- **LocalGPT** â€?ASP.NET Core loopback host and Interactive Blazor Server application.
+- **LocalGPTInstallerConsole** â€?installation and bootstrap helper.
+- **LocalGPTWebviewWrapper** â€?optional Windows desktop shell.
+- **DevExpress integration** â€?frontend and integration boundary, not the owner of domain state.
 
 Start with [`docs/architecture/system-overview.md`](docs/architecture/system-overview.md) and continue with the [`AI Host control plane`](docs/architecture/ai-host.md).
 

@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 function Fail([string]$Message) { throw $Message }
 
 $root = Split-Path -Parent $PSScriptRoot
-$sourceRoot = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT'
+$sourceRoot = Join-Path $root 'src\LocalGPT'
 $baselinePath = Join-Path $PSScriptRoot 'system-variable-initialization-baseline.json'
 if (-not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) { Fail 'System-variable initialization baseline is missing.' }
 $parsedBaseline = [System.IO.File]::ReadAllText($baselinePath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json

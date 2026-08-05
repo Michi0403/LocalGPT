@@ -6,7 +6,7 @@ The previous workflow always downloaded ZIP assets from the selected GitHub rele
 
 ## What this package changes
 
-- Publishes the exact checked-in app help tree from `LocalGPTWebviewWrapper/LocalGPT/wwwroot/help-docs`.
+- Publishes the exact checked-in app help tree from `src/LocalGPT/wwwroot/help-docs`.
 - Triggers on changes to that help tree, the workflow, or its validator.
 - Removes release/tag deployment triggers and the optional release-tag input.
 - Separates artifact creation from deployment.

@@ -43,7 +43,7 @@ if (-not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) { Fail 'Iterator
 $parsedBaseline = [System.IO.File]::ReadAllText($baselinePath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 $known = @{}; foreach ($item in $parsedBaseline) { $known[[string]$item] = $true }
 $failures = New-Object System.Collections.Generic.List[string]
-$files = @(Get-ChildItem -LiteralPath (Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT') -Recurse -File | Where-Object { $_.Extension -in @('.cs','.razor') -and $_.FullName -notmatch '[\\/](?:bin|obj|Migrations)[\\/]' -and $_.Name -notlike '*.Designer.cs' })
+$files = @(Get-ChildItem -LiteralPath (Join-Path $root 'src\LocalGPT') -Recurse -File | Where-Object { $_.Extension -in @('.cs','.razor') -and $_.FullName -notmatch '[\\/](?:bin|obj|Migrations)[\\/]' -and $_.Name -notlike '*.Designer.cs' })
 foreach ($file in $files) {
     $relative = $file.FullName.Substring($root.Length).TrimStart([char[]]@([char]'\', [char]'/')).Replace([char]'\', [char]'/')
     $text = [System.IO.File]::ReadAllText($file.FullName, [System.Text.Encoding]::UTF8)

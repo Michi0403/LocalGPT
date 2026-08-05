@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 function Fail([string]$Message) { throw "InteractiveServer render-mode validation failed: $Message" }
 
 $root = Split-Path -Parent $PSScriptRoot
-$appRoot = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT'
+$appRoot = Join-Path $root 'src\LocalGPT'
 $expected = [ordered]@{
     'Components/InteractiveStartupMarker.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Layout/CouncilSpoolerPanel.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'

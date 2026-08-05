@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'docs/templates/localgpt/public/main.css'
 SITE = ROOT / 'docs/_site/styles/localgpt-kawaii.css'
-APP = ROOT / 'LocalGPTWebviewWrapper/LocalGPT/wwwroot/help-docs/styles/localgpt-kawaii.css'
+APP = ROOT / 'src/LocalGPT/wwwroot/help-docs/styles/localgpt-kawaii.css'
 SNAPSHOT = ROOT / '.github/pages/localgpt-kawaii-docs.zip'
 
 
@@ -51,7 +51,7 @@ def main() -> int:
         fail('left and right rails are not driven by the same width variable')
 
     css_hash = hashlib.sha256(source).hexdigest()[:12]
-    for root in (ROOT / 'docs/_site', ROOT / 'LocalGPTWebviewWrapper/LocalGPT/wwwroot/help-docs'):
+    for root in (ROOT / 'docs/_site', ROOT / 'src/LocalGPT/wwwroot/help-docs'):
         for html in root.rglob('*.html'):
             value = html.read_text(encoding='utf-8')
             if 'localgpt-kawaii.css?v=' in value and f'localgpt-kawaii.css?v={css_hash}' not in value:

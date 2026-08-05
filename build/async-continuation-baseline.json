@@ -1,6 +1,6 @@
 {
   "schemaVersion": 5,
-  "sourceRoot": "LocalGPTWebviewWrapper/LocalGPT",
+  "sourceRoot": "src/LocalGPT",
   "policy": "Every ordinary await expression is explicitly configured. ConfigureAwait(false) is the mandatory default for services, controllers, persistence, diagnostics, networking, background workflows and component work that does not require renderer affinity. ConfigureAwait(true) is limited to Blazor lifecycle methods and the exact renderer-affine loading helpers listed below.",
   "requiredDefault": "ConfigureAwait(false)",
   "rendererAffineLifecycleMethods": [

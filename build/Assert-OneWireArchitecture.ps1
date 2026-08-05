@@ -16,14 +16,14 @@ function Read-OptionalText([string]$RelativePath) {
     return [IO.File]::ReadAllText($path)
 }
 
-$protocolProject = Read-OptionalText 'LocalGPTWebviewWrapper\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj'
-$appProject = Read-OptionalText 'LocalGPTWebviewWrapper\LocalGPT\LocalGPT.csproj'
-$globalUsing = Read-OptionalText 'LocalGPTWebviewWrapper\LocalGPT\GlobalUsings.OneWire.cs'
-$interfaces = Read-OptionalText 'LocalGPTWebviewWrapper\LocalGPT\Interfaces\IOneWireServices.cs'
-$dispatcher = Read-OptionalText 'LocalGPTWebviewWrapper\LocalGPT\Services\OneWire\OneWireExecutionServices.cs'
-$state = Read-OptionalText 'LocalGPTWebviewWrapper\LocalGPT\Services\OneWire\OneWireStateServices.cs'
-$transport = Read-OptionalText 'LocalGPTWebviewWrapper\LocalGPT\Services\OneWire\OneWireTransportHostedServices.cs'
-$settingsPath = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\appsettings.json'
+$protocolProject = Read-OptionalText 'src\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj'
+$appProject = Read-OptionalText 'src\LocalGPT\LocalGPT.csproj'
+$globalUsing = Read-OptionalText 'src\LocalGPT\GlobalUsings.OneWire.cs'
+$interfaces = Read-OptionalText 'src\LocalGPT\Interfaces\IOneWireServices.cs'
+$dispatcher = Read-OptionalText 'src\LocalGPT\Services\OneWire\OneWireExecutionServices.cs'
+$state = Read-OptionalText 'src\LocalGPT\Services\OneWire\OneWireStateServices.cs'
+$transport = Read-OptionalText 'src\LocalGPT\Services\OneWire\OneWireTransportHostedServices.cs'
+$settingsPath = Join-Path $root 'src\LocalGPT\appsettings.json'
 
 if ($protocolProject -and $protocolProject -notmatch '<Platforms>AnyCPU</Platforms>') { Add-Finding 'The protocol package project is not explicitly AnyCPU.' }
 if ($protocolProject -match '<RuntimeIdentifiers?>') { Add-Finding 'The protocol package project declares a runtime identifier and is no longer RID-neutral.' }

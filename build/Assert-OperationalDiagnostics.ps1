@@ -33,7 +33,7 @@ function Require-Text {
 }
 
 # Every Razor component inherits these circuit-scoped diagnostics dependencies from _Imports.
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\_Imports.razor' @(
+Require-Text 'src\LocalGPT\Components\_Imports.razor' @(
     '@inject\s+ILoggerFactory\s+OperationalLoggerFactory',
     '@inject\s+INotificationService\s+OperationalNotifier',
     '@inject\s+IComponentActivityService\s+OperationalActivity'
@@ -41,7 +41,7 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\_Imports.razor' @(
 
 # The reviewed architecture uses page/island InteractiveServer boundaries. The app shell
 # owns the shared toast host and startup marker; MainLayout owns only the routed body boundary.
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\App.razor' @(
+Require-Text 'src\LocalGPT\Components\App.razor' @(
     '<ToastWrapper\s+Name="ComponentSafetyToasts"\s*/>',
     '<Routes>\s*</Routes>',
     '<InteractiveStartupMarker\s*/>',
@@ -49,12 +49,12 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\App.razor' @(
     'disableDomPreservation:\s*true',
     '<body\s+data-enhance-nav="false">'
 ) 'Application shell diagnostics hosts'
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Layout\MainLayout.razor' @(
+Require-Text 'src\LocalGPT\Components\Layout\MainLayout.razor' @(
     '<SafeErrorBoundary\s+@key="NavigationManager\.Uri"',
     'ILogger<MainLayout>',
     'INotificationService'
 ) 'Layout diagnostics boundary'
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Routes.razor' @(
+Require-Text 'src\LocalGPT\Components\Routes.razor' @(
     '<SafeErrorBoundary\s+@key="NavigationManager\.Uri"',
     'RecordNavigation\(',
     'LocationChanged\s*\+=\s*HandleLocationChanged'
@@ -63,7 +63,7 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Routes.razor' @(
 # Chat is the highest-risk interactive page. It retains its reviewed InteractiveServer
 # boundary and operational diagnostics. Async continuation policy is validated separately.
 # Dispose methods are exempt.
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\Chat.razor' @(
+Require-Text 'src\LocalGPT\Components\Pages\Chat.razor' @(
     '@rendermode\s+InteractiveServer',
     'ILogger<Chat>',
     'INotificationService',
@@ -74,8 +74,8 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\Chat.razor' @(
     'Logger\.Log',
     'Notifier\.Show'
 ) 'Chat operational diagnostics'
-$appPath = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Components\App.razor'
-$layoutPath = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Components\Layout\MainLayout.razor'
+$appPath = Join-Path $root 'src\LocalGPT\Components\App.razor'
+$layoutPath = Join-Path $root 'src\LocalGPT\Components\Layout\MainLayout.razor'
 if (Test-Path -LiteralPath $appPath) {
     $app = Get-Content -LiteralPath $appPath -Raw
     if ($app -match '<(?:Routes|HeadOutlet)\s+@rendermode') {
@@ -89,7 +89,7 @@ if (Test-Path -LiteralPath $layoutPath) {
     }
 }
 
-$chatPath = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\Chat.razor'
+$chatPath = Join-Path $root 'src\LocalGPT\Components\Pages\Chat.razor'
 if (Test-Path -LiteralPath $chatPath) {
     $chat = Get-Content -LiteralPath $chatPath -Raw
     if ($chat -match 'JS\.InvokeVoidAsync\("localGptReady\.markInteractive"') {
@@ -98,7 +98,7 @@ if (Test-Path -LiteralPath $chatPath) {
 }
 
 # Complex renderer-affine pages use their reviewed InteractiveServer boundaries and bounded initialization.
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\OneWireSecurity.razor' @(
+Require-Text 'src\LocalGPT\Components\Pages\OneWireSecurity.razor' @(
     '@rendermode\s+InteractiveServer',
     'CancelAfter\(TimeSpan\.FromSeconds\(8\)\)',
     'InitialSecurityRefresh',
@@ -107,7 +107,7 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Components\Pages\OneWireSecurity.r
     'OperationCanceledException',
     'JSDisconnectedException'
 ) '1-Wire renderer and timeout diagnostics'
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Diagnostics\LocalGptCircuitDiagnosticsHandler.cs' @(
+Require-Text 'src\LocalGPT\Diagnostics\LocalGptCircuitDiagnosticsHandler.cs' @(
     'CircuitHandler',
     'OnCircuitOpenedAsync',
     'OnConnectionDownAsync',
@@ -117,14 +117,14 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Diagnostics\LocalGptCircuitDiagnos
 # Controllers are covered centrally, while maintained service/controller files remain
 # kept separate from circuit UI services. This avoids injecting circuit UI services into
 # singleton/boot services, which would break startup.
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Program.cs' @(
+Require-Text 'src\LocalGPT\Program.cs' @(
     'AddScoped<ControllerRequestLoggingFilter>',
     'Filters\.AddService<ControllerRequestLoggingFilter>',
     'AddScoped<INotificationService',
     'AddHostedService<DatabaseInitializationHostedService>',
     'AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>'
 ) 'Controller, notifier, and startup diagnostics registration'
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Diagnostics\ControllerRequestLoggingFilter.cs' @(
+Require-Text 'src\LocalGPT\Diagnostics\ControllerRequestLoggingFilter.cs' @(
     'IAsyncActionFilter',
     'ILogger<ControllerRequestLoggingFilter>',
     'IComponentActivityService',
@@ -132,7 +132,7 @@ Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Diagnostics\ControllerRequestLoggi
     'LogError',
     'RecordFailure'
 ) 'Global controller action diagnostics'
-Require-Text 'LocalGPTWebviewWrapper\LocalGPT\Services\Persistence\DatabaseInitializationService.cs' @(
+Require-Text 'src\LocalGPT\Services\Persistence\DatabaseInitializationService.cs' @(
     'MigrateAsync\(cancellationToken\)',
     'ILogger<DatabaseInitializationService>',
     'catch\s*\(Exception'

@@ -11,9 +11,9 @@ function Fail([string]$Message) { throw "Architecture policy validation failed: 
 function Normalize-Signature([string]$Value) { return ([regex]::Replace($Value, '\s+', ' ')).Trim() }
 
 $root = Split-Path -Parent $PSScriptRoot
-$isLocalGpt = Test-Path -LiteralPath (Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT') -PathType Container
+$isLocalGpt = Test-Path -LiteralPath (Join-Path $root 'src\LocalGPT') -PathType Container
 $product = if ($isLocalGpt) { 'localgpt' } else { 'publisherstudio' }
-$sourceRoot = if ($isLocalGpt) { Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT' } else { Join-Path $root 'src\PublisherStudio.Web' }
+$sourceRoot = if ($isLocalGpt) { Join-Path $root 'src\LocalGPT' } else { Join-Path $root 'src\PublisherStudio.Web' }
 $pythonScript = Join-Path $PSScriptRoot 'audit_application_architecture.py'
 
 function Invoke-PythonAudit {
