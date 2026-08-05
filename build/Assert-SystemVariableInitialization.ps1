@@ -11,10 +11,10 @@ $known = @{}
 foreach ($item in $parsedBaseline) { $known[[string]$item] = $true }
 $failures = @()
 $allowed = @(
-    'LocalGPTWebviewWrapper/LocalGPT/Program.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/InitialDataCatalog.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/SystemVariableDefinitionService.cs'
+    'src/LocalGPT/Program.cs',
+    'src/LocalGPT/Services/Persistence/InitialDataCatalog.cs',
+    'src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs',
+    'src/LocalGPT/Services/Persistence/SystemVariableDefinitionService.cs'
 )
 $constructorPattern = '(?m)^(?<line>[^\r\n]*(?:=\s*new\s+|Add\w*\s*\(\s*new\s+)[A-Za-z_][\w<>,.?\[\]]*\s*\([^\r\n;]*"(?:[^"\\\r\n]|\\.)*"[^\r\n;]*)$'
 $directVariablePattern = '(?m)(?:VariableStore|variableStoreService|_variableStoreService)\s*\.\s*(?:GetAsync<[^>]+>|SetAsync)\s*\(\s*"'

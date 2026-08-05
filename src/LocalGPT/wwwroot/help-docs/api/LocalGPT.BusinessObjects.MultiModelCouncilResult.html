@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Class MultiModelCouncilResult | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class MultiModelCouncilResult | LocalGPT Documentation ">
+      
+      
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult">
+
+
+
+  <h1 id="LocalGPT_BusinessObjects_MultiModelCouncilResult" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult" class="text-break">
+Class MultiModelCouncilResult  
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.BusinessObjects.html">BusinessObjects</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"></div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed class MultiModelCouncilResult</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">MultiModelCouncilResult</span></div>
+    </dd>
+  </dl>
+
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+  </dd></dl>
+
+  <dl class="typelist extensionMethods">
+    <dt>Extension Methods</dt>
+    <dd>
+  <div>
+      <a class="xref" href="LocalGPT.Extensions.StringExtensions.html#LocalGPT_Extensions_StringExtensions_ToJsonString_System_Object_System_Text_Json_JsonSerializerOptions_">StringExtensions.ToJsonString(object, JsonSerializerOptions?)</a>
+  </div>
+  </dd></dl>
+
+
+
+
+
+  <section class="localgpt-api-member-panel localgpt-api-member-panel--constructors" data-member-kind="Constructors" style="--localgpt-api-accent:#a855f7;" role="region" aria-labelledby="constructors"><h2 class="section" id="constructors"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2728;</span>Constructors
+<span class="localgpt-api-member-count" aria-label="1 item">1</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult__ctor_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.#ctor*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult__ctor" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.#ctor">
+  MultiModelCouncilResult()
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public MultiModelCouncilResult()</code></pre>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--properties" data-member-kind="Properties" style="--localgpt-api-accent:#06b6d4;" role="region" aria-labelledby="properties"><h2 class="section" id="properties"><span class="localgpt-api-member-icon" aria-hidden="true">&#x1F43E;</span>Properties
+<span class="localgpt-api-member-count" aria-label="23 items">23</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_Artifacts_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.Artifacts*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_Artifacts" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.Artifacts">
+  Artifacts
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;CouncilArtifact&gt; Artifacts { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilArtifact.html">CouncilArtifact</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ChangeReview_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ChangeReview*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ChangeReview" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ChangeReview">
+  ChangeReview
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CodeGenerationReviewSnapshot? ChangeReview { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.BusinessObjects.CodeGenerationReviewSnapshot.html">CodeGenerationReviewSnapshot</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_CompletedAtUtc_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.CompletedAtUtc*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_CompletedAtUtc" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.CompletedAtUtc">
+  CompletedAtUtc
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public DateTime? CompletedAtUtc { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ContinuedFromConversationId_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ContinuedFromConversationId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ContinuedFromConversationId" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ContinuedFromConversationId">
+  ContinuedFromConversationId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid? ContinuedFromConversationId { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ContinuedFromTitle_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ContinuedFromTitle*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ContinuedFromTitle" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ContinuedFromTitle">
+  ContinuedFromTitle
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string? ContinuedFromTitle { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_CouncilTeamKey_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.CouncilTeamKey*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_CouncilTeamKey" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.CouncilTeamKey">
+  CouncilTeamKey
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string CouncilTeamKey { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_FinalAnswer_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.FinalAnswer*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_FinalAnswer" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.FinalAnswer">
+  FinalAnswer
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string FinalAnswer { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_KnowledgeEntryId_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.KnowledgeEntryId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_KnowledgeEntryId" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.KnowledgeEntryId">
+  KnowledgeEntryId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid? KnowledgeEntryId { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_LogPath_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.LogPath*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_LogPath" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.LogPath">
+  LogPath
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string? LogPath { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_MemoryConversationId_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.MemoryConversationId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_MemoryConversationId" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.MemoryConversationId">
+  MemoryConversationId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid? MemoryConversationId { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ModelNames_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ModelNames*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ModelNames" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ModelNames">
+  ModelNames
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;string&gt; ModelNames { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ModelSelections_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ModelSelections*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ModelSelections" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ModelSelections">
+  ModelSelections
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;ProviderModelReference&gt; ModelSelections { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.ProviderModelReference.html">ProviderModelReference</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_OneWireCorrelationId_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.OneWireCorrelationId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_OneWireCorrelationId" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.OneWireCorrelationId">
+  OneWireCorrelationId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string OneWireCorrelationId { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_PreflightSummary_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.PreflightSummary*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_PreflightSummary" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.PreflightSummary">
+  PreflightSummary
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string PreflightSummary { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ProjectId_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ProjectId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ProjectId" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ProjectId">
+  ProjectId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid? ProjectId { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ProjectRevisionId_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ProjectRevisionId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ProjectRevisionId" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ProjectRevisionId">
+  ProjectRevisionId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid? ProjectRevisionId { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ProjectTopicId_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ProjectTopicId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_ProjectTopicId" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.ProjectTopicId">
+  ProjectTopicId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid? ProjectTopicId { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_Prompt_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.Prompt*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_Prompt" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.Prompt">
+  Prompt
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string Prompt { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_RunId_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.RunId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_RunId" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.RunId">
+  RunId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid RunId { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_StartedAtUtc_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.StartedAtUtc*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_StartedAtUtc" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.StartedAtUtc">
+  StartedAtUtc
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public DateTime StartedAtUtc { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_Steps_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.Steps*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_Steps" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.Steps">
+  Steps
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;MultiModelCouncilStep&gt; Steps { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilStep.html">MultiModelCouncilStep</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_UserPoll_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.UserPoll*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_UserPoll" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.UserPoll">
+  UserPoll
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CouncilUserPoll? UserPoll { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.BusinessObjects.CouncilUserPoll.html">CouncilUserPoll</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilResult_Warnings_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.Warnings*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilResult_Warnings" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilResult.Warnings">
+  Warnings
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;string&gt; Warnings { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+</div></section>
+</div></section></article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

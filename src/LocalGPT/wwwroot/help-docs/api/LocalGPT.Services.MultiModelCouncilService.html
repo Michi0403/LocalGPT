@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Class MultiModelCouncilService | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class MultiModelCouncilService | LocalGPT Documentation ">
+      
+      
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="LocalGPT.Services.MultiModelCouncilService">
+
+
+
+  <h1 id="LocalGPT_Services_MultiModelCouncilService" data-uid="LocalGPT.Services.MultiModelCouncilService" class="text-break">
+Class MultiModelCouncilService  
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Services.html">Services</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"></div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed class MultiModelCouncilService : IMultiModelCouncilService</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">MultiModelCouncilService</span></div>
+    </dd>
+  </dl>
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><a class="xref" href="LocalGPT.Interfaces.IMultiModelCouncilService.html">IMultiModelCouncilService</a></div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+  </dd></dl>
+
+  <dl class="typelist extensionMethods">
+    <dt>Extension Methods</dt>
+    <dd>
+  <div>
+      <a class="xref" href="LocalGPT.Extensions.StringExtensions.html#LocalGPT_Extensions_StringExtensions_ToJsonString_System_Object_System_Text_Json_JsonSerializerOptions_">StringExtensions.ToJsonString(object, JsonSerializerOptions?)</a>
+  </div>
+  </dd></dl>
+
+
+
+
+
+  <section class="localgpt-api-member-panel localgpt-api-member-panel--constructors" data-member-kind="Constructors" style="--localgpt-api-accent:#a855f7;" role="region" aria-labelledby="constructors"><h2 class="section" id="constructors"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2728;</span>Constructors
+<span class="localgpt-api-member-count" aria-label="1 item">1</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService__ctor_" data-uid="LocalGPT.Services.MultiModelCouncilService.#ctor*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService__ctor_LocalGPT_Interfaces_ILocalGptVocabularyService_Microsoft_Extensions_Options_IOptionsMonitor_LocalGPT_BusinessObjects_ConfigurationRoot__LocalGPT_Interfaces_IAiContextBootstrapService_LocalGPT_Interfaces_IChatMemoryService_LocalGPT_Interfaces_ICouncilArtifactService_LocalGPT_Interfaces_ICouncilKnowledgeService_LocalGPT_Interfaces_ILocalGptProjectService_LocalGPT_Interfaces_IProjectArchitectureService_LocalGPT_Interfaces_ICodeGenerationWorkflowService_LocalGPT_Interfaces_ICouncilCodeGenerationPlanService_LocalGPT_Interfaces_IHumanCollaborationService_LocalGPT_Interfaces_IDeferredDxAiInvocationService_LocalGPT_Interfaces_IOrganicCouncilBlueprintService_LocalGPT_Interfaces_ICouncilSpoolerService_LocalGPT_Interfaces_ICouncilPreflightService_LocalGPT_Interfaces_ICouncilDxFunctionPolicyDataService_LocalGPT_Interfaces_ICouncilDxFunctionOrchestrator_LocalGPT_Interfaces_ICouncilHardwareRoadPlanner_LocalGPT_Interfaces_ICouncilRunConfigurationService_LocalGPT_Interfaces_IModelCapabilitySelfAssessmentService_LocalGPT_Interfaces_IAiFeatureReportService_LocalGPT_Interfaces_IAmbientLocalGptContext_LocalGPT_Interfaces_IProviderModelRuntimeService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_MultiModelCouncilService__LocalGPT_Services_CouncilRuntimeService_LocalGPT_Services_CouncilTextService_LocalGPT_Services_LocalGptCatalogService_" data-uid="LocalGPT.Services.MultiModelCouncilService.#ctor(LocalGPT.Interfaces.ILocalGptVocabularyService,Microsoft.Extensions.Options.IOptionsMonitor{LocalGPT.BusinessObjects.ConfigurationRoot},LocalGPT.Interfaces.IAiContextBootstrapService,LocalGPT.Interfaces.IChatMemoryService,LocalGPT.Interfaces.ICouncilArtifactService,LocalGPT.Interfaces.ICouncilKnowledgeService,LocalGPT.Interfaces.ILocalGptProjectService,LocalGPT.Interfaces.IProjectArchitectureService,LocalGPT.Interfaces.ICodeGenerationWorkflowService,LocalGPT.Interfaces.ICouncilCodeGenerationPlanService,LocalGPT.Interfaces.IHumanCollaborationService,LocalGPT.Interfaces.IDeferredDxAiInvocationService,LocalGPT.Interfaces.IOrganicCouncilBlueprintService,LocalGPT.Interfaces.ICouncilSpoolerService,LocalGPT.Interfaces.ICouncilPreflightService,LocalGPT.Interfaces.ICouncilDxFunctionPolicyDataService,LocalGPT.Interfaces.ICouncilDxFunctionOrchestrator,LocalGPT.Interfaces.ICouncilHardwareRoadPlanner,LocalGPT.Interfaces.ICouncilRunConfigurationService,LocalGPT.Interfaces.IModelCapabilitySelfAssessmentService,LocalGPT.Interfaces.IAiFeatureReportService,LocalGPT.Interfaces.IAmbientLocalGptContext,LocalGPT.Interfaces.IProviderModelRuntimeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.MultiModelCouncilService},LocalGPT.Services.CouncilRuntimeService,LocalGPT.Services.CouncilTextService,LocalGPT.Services.LocalGptCatalogService)">
+  MultiModelCouncilService(ILocalGptVocabularyService, IOptionsMonitor&lt;ConfigurationRoot&gt;, IAiContextBootstrapService, IChatMemoryService, ICouncilArtifactService, ICouncilKnowledgeService, ILocalGptProjectService, IProjectArchitectureService, ICodeGenerationWorkflowService, ICouncilCodeGenerationPlanService, IHumanCollaborationService, IDeferredDxAiInvocationService, IOrganicCouncilBlueprintService, ICouncilSpoolerService, ICouncilPreflightService, ICouncilDxFunctionPolicyDataService, ICouncilDxFunctionOrchestrator, ICouncilHardwareRoadPlanner, ICouncilRunConfigurationService, IModelCapabilitySelfAssessmentService, IAiFeatureReportService, IAmbientLocalGptContext, IProviderModelRuntimeService, ILogger&lt;MultiModelCouncilService&gt;, CouncilRuntimeService, CouncilTextService, LocalGptCatalogService)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public MultiModelCouncilService(ILocalGptVocabularyService vocabulary, IOptionsMonitor&lt;ConfigurationRoot&gt; optionsRoot, IAiContextBootstrapService bootstrapService, IChatMemoryService chatMemory, ICouncilArtifactService artifactService, ICouncilKnowledgeService knowledgeService, ILocalGptProjectService projectService, IProjectArchitectureService projectArchitecture, ICodeGenerationWorkflowService codeGenerationWorkflow, ICouncilCodeGenerationPlanService codeGenerationPlanService, IHumanCollaborationService humanCollaboration, IDeferredDxAiInvocationService deferredDxAiInvocations, IOrganicCouncilBlueprintService organicCouncilBlueprints, ICouncilSpoolerService councilSpooler, ICouncilPreflightService councilPreflight, ICouncilDxFunctionPolicyDataService councilDxPolicy, ICouncilDxFunctionOrchestrator councilDxFunctions, ICouncilHardwareRoadPlanner hardwareRoadPlanner, ICouncilRunConfigurationService runConfigurations, IModelCapabilitySelfAssessmentService modelSelfAssessment, IAiFeatureReportService featureReports, IAmbientLocalGptContext ambientContext, IProviderModelRuntimeService providerModels, ILogger&lt;MultiModelCouncilService&gt; logger, CouncilRuntimeService councilRuntime, CouncilTextService councilText, LocalGptCatalogService catalog)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>vocabulary</code> <a class="xref" href="LocalGPT.Interfaces.ILocalGptVocabularyService.html">ILocalGptVocabularyService</a></dt>
+    <dd></dd>
+    <dt><code>optionsRoot</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.options.ioptionsmonitor-1">IOptionsMonitor</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.ConfigurationRoot.html">ConfigurationRoot</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>bootstrapService</code> <a class="xref" href="LocalGPT.Interfaces.IAiContextBootstrapService.html">IAiContextBootstrapService</a></dt>
+    <dd></dd>
+    <dt><code>chatMemory</code> <a class="xref" href="LocalGPT.Interfaces.IChatMemoryService.html">IChatMemoryService</a></dt>
+    <dd></dd>
+    <dt><code>artifactService</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilArtifactService.html">ICouncilArtifactService</a></dt>
+    <dd></dd>
+    <dt><code>knowledgeService</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilKnowledgeService.html">ICouncilKnowledgeService</a></dt>
+    <dd></dd>
+    <dt><code>projectService</code> <a class="xref" href="LocalGPT.Interfaces.ILocalGptProjectService.html">ILocalGptProjectService</a></dt>
+    <dd></dd>
+    <dt><code>projectArchitecture</code> <a class="xref" href="LocalGPT.Interfaces.IProjectArchitectureService.html">IProjectArchitectureService</a></dt>
+    <dd></dd>
+    <dt><code>codeGenerationWorkflow</code> <a class="xref" href="LocalGPT.Interfaces.ICodeGenerationWorkflowService.html">ICodeGenerationWorkflowService</a></dt>
+    <dd></dd>
+    <dt><code>codeGenerationPlanService</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilCodeGenerationPlanService.html">ICouncilCodeGenerationPlanService</a></dt>
+    <dd></dd>
+    <dt><code>humanCollaboration</code> <a class="xref" href="LocalGPT.Interfaces.IHumanCollaborationService.html">IHumanCollaborationService</a></dt>
+    <dd></dd>
+    <dt><code>deferredDxAiInvocations</code> <a class="xref" href="LocalGPT.Interfaces.IDeferredDxAiInvocationService.html">IDeferredDxAiInvocationService</a></dt>
+    <dd></dd>
+    <dt><code>organicCouncilBlueprints</code> <a class="xref" href="LocalGPT.Interfaces.IOrganicCouncilBlueprintService.html">IOrganicCouncilBlueprintService</a></dt>
+    <dd></dd>
+    <dt><code>councilSpooler</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilSpoolerService.html">ICouncilSpoolerService</a></dt>
+    <dd></dd>
+    <dt><code>councilPreflight</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilPreflightService.html">ICouncilPreflightService</a></dt>
+    <dd></dd>
+    <dt><code>councilDxPolicy</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilDxFunctionPolicyDataService.html">ICouncilDxFunctionPolicyDataService</a></dt>
+    <dd></dd>
+    <dt><code>councilDxFunctions</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilDxFunctionOrchestrator.html">ICouncilDxFunctionOrchestrator</a></dt>
+    <dd></dd>
+    <dt><code>hardwareRoadPlanner</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilHardwareRoadPlanner.html">ICouncilHardwareRoadPlanner</a></dt>
+    <dd></dd>
+    <dt><code>runConfigurations</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilRunConfigurationService.html">ICouncilRunConfigurationService</a></dt>
+    <dd></dd>
+    <dt><code>modelSelfAssessment</code> <a class="xref" href="LocalGPT.Interfaces.IModelCapabilitySelfAssessmentService.html">IModelCapabilitySelfAssessmentService</a></dt>
+    <dd></dd>
+    <dt><code>featureReports</code> <a class="xref" href="LocalGPT.Interfaces.IAiFeatureReportService.html">IAiFeatureReportService</a></dt>
+    <dd></dd>
+    <dt><code>ambientContext</code> <a class="xref" href="LocalGPT.Interfaces.IAmbientLocalGptContext.html">IAmbientLocalGptContext</a></dt>
+    <dd></dd>
+    <dt><code>providerModels</code> <a class="xref" href="LocalGPT.Interfaces.IProviderModelRuntimeService.html">IProviderModelRuntimeService</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger-1">ILogger</a>&lt;<a class="xref" href="LocalGPT.Services.MultiModelCouncilService.html">MultiModelCouncilService</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>councilRuntime</code> <a class="xref" href="LocalGPT.Services.CouncilRuntimeService.html">CouncilRuntimeService</a></dt>
+    <dd></dd>
+    <dt><code>councilText</code> <a class="xref" href="LocalGPT.Services.CouncilTextService.html">CouncilTextService</a></dt>
+    <dd></dd>
+    <dt><code>catalog</code> <a class="xref" href="LocalGPT.Services.LocalGptCatalogService.html">LocalGptCatalogService</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--methods" data-member-kind="Methods" style="--localgpt-api-accent:#3b82f6;" role="region" aria-labelledby="methods"><h2 class="section" id="methods"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2699;&#xFE0F;</span>Methods
+<span class="localgpt-api-member-count" aria-label="19 items">19</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_GetCandidatesAsync_" data-uid="LocalGPT.Services.MultiModelCouncilService.GetCandidatesAsync*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_GetCandidatesAsync_System_Threading_CancellationToken_" data-uid="LocalGPT.Services.MultiModelCouncilService.GetCandidatesAsync(System.Threading.CancellationToken)">
+  GetCandidatesAsync(CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task&lt;IReadOnlyList&lt;MultiModelCouncilModelCandidate&gt;&gt; GetCandidatesAsync(CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilModelCandidate.html">MultiModelCouncilModelCandidate</a>&gt;&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_LoadContinuationConversationAsync_" data-uid="LocalGPT.Services.MultiModelCouncilService.LoadContinuationConversationAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_LoadContinuationConversationAsync_System_Nullable_System_Guid__System_Threading_CancellationToken_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.LoadContinuationConversationAsync(System.Nullable{System.Guid},System.Threading.CancellationToken,Microsoft.Extensions.Logging.ILogger)">
+  LoadContinuationConversationAsync(Guid?, CancellationToken, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task&lt;ChatMemoryConversationSnapshot?&gt; LoadContinuationConversationAsync(Guid? conversationId, CancellationToken cancellationToken, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>conversationId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.ChatMemoryConversationSnapshot.html">ChatMemoryConversationSnapshot</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceAddOrderedStep_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceAddOrderedStep*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceAddOrderedStep_LocalGPT_BusinessObjects_MultiModelCouncilResult_LocalGPT_BusinessObjects_MultiModelCouncilStep_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceAddOrderedStep(LocalGPT.BusinessObjects.MultiModelCouncilResult,LocalGPT.BusinessObjects.MultiModelCouncilStep,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceAddOrderedStep(MultiModelCouncilResult, MultiModelCouncilStep, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void MultiModelCouncilServiceAddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>result</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilResult.html">MultiModelCouncilResult</a></dt>
+    <dd></dd>
+    <dt><code>step</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilStep.html">MultiModelCouncilStep</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceAppendPromptSection_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceAppendPromptSection*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceAppendPromptSection_System_String_System_String_System_String_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceAppendPromptSection(System.String,System.String,System.String,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceAppendPromptSection(string, string, string, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string MultiModelCouncilServiceAppendPromptSection(string existing, string title, string content, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>existing</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>title</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>content</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceBuildContinuationContext_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceBuildContinuationContext*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceBuildContinuationContext_LocalGPT_BusinessObjects_ChatMemoryConversationSnapshot_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceBuildContinuationContext(LocalGPT.BusinessObjects.ChatMemoryConversationSnapshot,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceBuildContinuationContext(ChatMemoryConversationSnapshot?, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string MultiModelCouncilServiceBuildContinuationContext(ChatMemoryConversationSnapshot? conversation, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>conversation</code> <a class="xref" href="LocalGPT.BusinessObjects.ChatMemoryConversationSnapshot.html">ChatMemoryConversationSnapshot</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceBuildCouncilRequestMemoryMessage_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceBuildCouncilRequestMemoryMessage*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceBuildCouncilRequestMemoryMessage_LocalGPT_BusinessObjects_MultiModelCouncilRequest_LocalGPT_BusinessObjects_MultiModelCouncilResult_System_Boolean_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceBuildCouncilRequestMemoryMessage(LocalGPT.BusinessObjects.MultiModelCouncilRequest,LocalGPT.BusinessObjects.MultiModelCouncilResult,System.Boolean,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceBuildCouncilRequestMemoryMessage(MultiModelCouncilRequest, MultiModelCouncilResult, bool, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string MultiModelCouncilServiceBuildCouncilRequestMemoryMessage(MultiModelCouncilRequest request, MultiModelCouncilResult result, bool isContinuation, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilRequest.html">MultiModelCouncilRequest</a></dt>
+    <dd></dd>
+    <dt><code>result</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilResult.html">MultiModelCouncilResult</a></dt>
+    <dd></dd>
+    <dt><code>isContinuation</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceBuildMemoryMessage_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceBuildMemoryMessage*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceBuildMemoryMessage_LocalGPT_BusinessObjects_MultiModelCouncilStep_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceBuildMemoryMessage(LocalGPT.BusinessObjects.MultiModelCouncilStep,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceBuildMemoryMessage(MultiModelCouncilStep, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string MultiModelCouncilServiceBuildMemoryMessage(MultiModelCouncilStep step, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>step</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilStep.html">MultiModelCouncilStep</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceGetCouncilKeepAlive_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceGetCouncilKeepAlive*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceGetCouncilKeepAlive_LocalGPT_BusinessObjects_MultiModelCouncilRequest_System_Int32_System_Int32_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceGetCouncilKeepAlive(LocalGPT.BusinessObjects.MultiModelCouncilRequest,System.Int32,System.Int32,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceGetCouncilKeepAlive(MultiModelCouncilRequest, int, int, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string MultiModelCouncilServiceGetCouncilKeepAlive(MultiModelCouncilRequest request, int participantCount, int maxParallelModels, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilRequest.html">MultiModelCouncilRequest</a></dt>
+    <dd></dd>
+    <dt><code>participantCount</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>maxParallelModels</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceIsHeavyGpuRiskModel_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceIsHeavyGpuRiskModel*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceIsHeavyGpuRiskModel_System_String_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceIsHeavyGpuRiskModel(System.String,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceIsHeavyGpuRiskModel(string, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool MultiModelCouncilServiceIsHeavyGpuRiskModel(string modelName, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>modelName</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceIsSubstantiveCouncilContent_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceIsSubstantiveCouncilContent*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceIsSubstantiveCouncilContent_System_String_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceIsSubstantiveCouncilContent(System.String,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceIsSubstantiveCouncilContent(string, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool MultiModelCouncilServiceIsSubstantiveCouncilContent(string content, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>content</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceIsThinkingOnlyCouncilContent_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceIsThinkingOnlyCouncilContent*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceIsThinkingOnlyCouncilContent_System_String_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceIsThinkingOnlyCouncilContent(System.String,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceIsThinkingOnlyCouncilContent(string, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool MultiModelCouncilServiceIsThinkingOnlyCouncilContent(string content, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>content</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceProbeRunningModelNamesAsync_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceProbeRunningModelNamesAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceProbeRunningModelNamesAsync_System_Net_Http_HttpClient_System_Threading_CancellationToken_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceProbeRunningModelNamesAsync(System.Net.Http.HttpClient,System.Threading.CancellationToken,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceProbeRunningModelNamesAsync(HttpClient, CancellationToken, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task&lt;HashSet&lt;string&gt;&gt; MultiModelCouncilServiceProbeRunningModelNamesAsync(HttpClient http, CancellationToken cancellationToken, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>http</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.net.http.httpclient">HttpClient</a></dt>
+    <dd></dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.hashset-1">HashSet</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceResolveParticipantOllamaNumGpu_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceResolveParticipantOllamaNumGpu*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceResolveParticipantOllamaNumGpu_System_String_System_Nullable_System_Int32__Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceResolveParticipantOllamaNumGpu(System.String,System.Nullable{System.Int32},Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceResolveParticipantOllamaNumGpu(string, int?, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int? MultiModelCouncilServiceResolveParticipantOllamaNumGpu(string modelName, int? requestedNumGpu, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>modelName</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>requestedNumGpu</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>?</dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceRunFinalOnlyRecoveryAsync_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceRunFinalOnlyRecoveryAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceRunFinalOnlyRecoveryAsync_Microsoft_Extensions_AI_IChatClient_System_String_System_String_System_Collections_Generic_IReadOnlyList_Microsoft_Extensions_AI_ChatMessage__System_Int32_System_Action_System_String__System_Threading_CancellationToken_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceRunFinalOnlyRecoveryAsync(Microsoft.Extensions.AI.IChatClient,System.String,System.String,System.Collections.Generic.IReadOnlyList{Microsoft.Extensions.AI.ChatMessage},System.Int32,System.Action{System.String},System.Threading.CancellationToken,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceRunFinalOnlyRecoveryAsync(IChatClient, string, string, IReadOnlyList&lt;ChatMessage&gt;, int, Action&lt;string&gt;?, CancellationToken, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task&lt;(string Content, string VisibleContent, string? Thinking)&gt; MultiModelCouncilServiceRunFinalOnlyRecoveryAsync(IChatClient client, string modelName, string phase, IReadOnlyList&lt;ChatMessage&gt; originalMessages, int maxOutputTokens, Action&lt;string&gt;? streamUpdate, CancellationToken cancellationToken, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>client</code> <span class="xref">IChatClient</span></dt>
+    <dd></dd>
+    <dt><code>modelName</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>phase</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>originalMessages</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<span class="xref">ChatMessage</span>&gt;</dt>
+    <dd></dd>
+    <dt><code>maxOutputTokens</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>streamUpdate</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;(<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.valuetuple-system.string,system.string,system.string-.content">Content</a>, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.valuetuple-system.string,system.string,system.string-.visiblecontent">VisibleContent</a>, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.valuetuple-system.string,system.string,system.string-.thinking">Thinking</a>)&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceSelectConsensusContent_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceSelectConsensusContent*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceSelectConsensusContent_LocalGPT_BusinessObjects_MultiModelCouncilResult_LocalGPT_BusinessObjects_MultiModelCouncilStep_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceSelectConsensusContent(LocalGPT.BusinessObjects.MultiModelCouncilResult,LocalGPT.BusinessObjects.MultiModelCouncilStep,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceSelectConsensusContent(MultiModelCouncilResult, MultiModelCouncilStep, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string MultiModelCouncilServiceSelectConsensusContent(MultiModelCouncilResult result, MultiModelCouncilStep consensusStep, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>result</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilResult.html">MultiModelCouncilResult</a></dt>
+    <dd></dd>
+    <dt><code>consensusStep</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilStep.html">MultiModelCouncilStep</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceShouldUnloadAfterParticipant_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceShouldUnloadAfterParticipant*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_MultiModelCouncilServiceShouldUnloadAfterParticipant_System_String_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.MultiModelCouncilServiceShouldUnloadAfterParticipant(System.String,Microsoft.Extensions.Logging.ILogger)">
+  MultiModelCouncilServiceShouldUnloadAfterParticipant(string, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool MultiModelCouncilServiceShouldUnloadAfterParticipant(string keepAlive, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>keepAlive</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_RunAsync_" data-uid="LocalGPT.Services.MultiModelCouncilService.RunAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_RunAsync_LocalGPT_BusinessObjects_MultiModelCouncilRequest_System_Threading_CancellationToken_" data-uid="LocalGPT.Services.MultiModelCouncilService.RunAsync(LocalGPT.BusinessObjects.MultiModelCouncilRequest,System.Threading.CancellationToken)">
+  RunAsync(MultiModelCouncilRequest, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task&lt;MultiModelCouncilResult&gt; RunAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilRequest.html">MultiModelCouncilRequest</a></dt>
+    <dd></dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilResult.html">MultiModelCouncilResult</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_SaveToMemoryAsync_" data-uid="LocalGPT.Services.MultiModelCouncilService.SaveToMemoryAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_SaveToMemoryAsync_LocalGPT_BusinessObjects_MultiModelCouncilRequest_LocalGPT_BusinessObjects_MultiModelCouncilResult_LocalGPT_BusinessObjects_ChatMemoryConversationSnapshot_System_Threading_CancellationToken_" data-uid="LocalGPT.Services.MultiModelCouncilService.SaveToMemoryAsync(LocalGPT.BusinessObjects.MultiModelCouncilRequest,LocalGPT.BusinessObjects.MultiModelCouncilResult,LocalGPT.BusinessObjects.ChatMemoryConversationSnapshot,System.Threading.CancellationToken)">
+  SaveToMemoryAsync(MultiModelCouncilRequest, MultiModelCouncilResult, ChatMemoryConversationSnapshot?, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task&lt;Guid?&gt; SaveToMemoryAsync(MultiModelCouncilRequest request, MultiModelCouncilResult result, ChatMemoryConversationSnapshot? continuedConversation, CancellationToken cancellationToken)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilRequest.html">MultiModelCouncilRequest</a></dt>
+    <dd></dd>
+    <dt><code>result</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilResult.html">MultiModelCouncilResult</a></dt>
+    <dd></dd>
+    <dt><code>continuedConversation</code> <a class="xref" href="LocalGPT.BusinessObjects.ChatMemoryConversationSnapshot.html">ChatMemoryConversationSnapshot</a></dt>
+    <dd></dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_MultiModelCouncilService_WriteLogAsync_" data-uid="LocalGPT.Services.MultiModelCouncilService.WriteLogAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_MultiModelCouncilService_WriteLogAsync_LocalGPT_BusinessObjects_MultiModelCouncilResult_System_Threading_CancellationToken_Microsoft_Extensions_Logging_ILogger_" data-uid="LocalGPT.Services.MultiModelCouncilService.WriteLogAsync(LocalGPT.BusinessObjects.MultiModelCouncilResult,System.Threading.CancellationToken,Microsoft.Extensions.Logging.ILogger)">
+  WriteLogAsync(MultiModelCouncilResult, CancellationToken, ILogger)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task&lt;string&gt; WriteLogAsync(MultiModelCouncilResult result, CancellationToken cancellationToken, ILogger logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>result</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilResult.html">MultiModelCouncilResult</a></dt>
+    <dd></dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger">ILogger</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+</div></section>
+</div></section></article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

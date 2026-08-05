@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">LocalGPT cat paw</title>
+  <desc id="desc">A pink and purple cat paw on a soft circular background.</desc>
+  <defs>
+    <linearGradient id="bg" x1="16" y1="12" x2="112" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff7fc"/>
+      <stop offset=".48" stop-color="#ffd2e9"/>
+      <stop offset="1" stop-color="#d8c7ff"/>
+    </linearGradient>
+    <linearGradient id="paw" x1="32" y1="26" x2="94" y2="106" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f43f9e"/>
+      <stop offset=".58" stop-color="#b548d8"/>
+      <stop offset="1" stop-color="#6677ed"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#742a78" flood-opacity=".25"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="60" fill="url(#bg)" stroke="#fff" stroke-width="5"/>
+  <g fill="url(#paw)" filter="url(#shadow)">
+    <ellipse cx="64" cy="78" rx="31" ry="26"/>
+    <ellipse cx="31" cy="54" rx="12" ry="17" transform="rotate(-24 31 54)"/>
+    <ellipse cx="50" cy="37" rx="12" ry="17" transform="rotate(-8 50 37)"/>
+    <ellipse cx="78" cy="37" rx="12" ry="17" transform="rotate(8 78 37)"/>
+    <ellipse cx="97" cy="54" rx="12" ry="17" transform="rotate(24 97 54)"/>
+  </g>
+  <path d="M43 79c6-10 14-15 21-15s15 5 21 15c-5-4-10-6-14-6-3 0-5 1-7 3-2-2-4-3-7-3-4 0-9 2-14 6Z" fill="#fff" opacity=".35"/>
+  <path d="M31 24 42 11l6 17M80 28l6-17 11 13" fill="none" stroke="#b548d8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity=".75"/>
+</svg>

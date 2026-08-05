@@ -1,9 +1,9 @@
 param([string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot))
 
 $ErrorActionPreference = 'Stop'
-$snapshotPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs'
-$contextPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/EFCore/LocalGptMemoryDbContext.cs'
-$projectModelPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/LocalGptProjectModels.cs'
+$snapshotPath = Join-Path $RepositoryRoot 'src/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs'
+$contextPath = Join-Path $RepositoryRoot 'src/LocalGPT/BusinessObjects/EFCore/LocalGptMemoryDbContext.cs'
+$projectModelPath = Join-Path $RepositoryRoot 'src/LocalGPT/BusinessObjects/LocalGptProjectModels.cs'
 
 foreach ($path in @($snapshotPath, $contextPath, $projectModelPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {

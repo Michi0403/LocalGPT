@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Class CouncilGameSessionState | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class CouncilGameSessionState | LocalGPT Documentation ">
+      
+      <meta name="description" content="Internal authoritative state for one in-chat Council game session. It is deliberately data-only so the session service owns orchestration, rendering and synchronization policy.">
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState">
+
+
+
+  <h1 id="LocalGPT_BusinessObjects_CouncilGameSessionState" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState" class="text-break">
+Class CouncilGameSessionState  
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.BusinessObjects.html">BusinessObjects</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Internal authoritative state for one in-chat Council game session. It is deliberately data-only so the session service owns orchestration, rendering and synchronization policy.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed class CouncilGameSessionState</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">CouncilGameSessionState</span></div>
+    </dd>
+  </dl>
+
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+  </dd></dl>
+
+  <dl class="typelist extensionMethods">
+    <dt>Extension Methods</dt>
+    <dd>
+  <div>
+      <a class="xref" href="LocalGPT.Extensions.StringExtensions.html#LocalGPT_Extensions_StringExtensions_ToJsonString_System_Object_System_Text_Json_JsonSerializerOptions_">StringExtensions.ToJsonString(object, JsonSerializerOptions?)</a>
+  </div>
+  </dd></dl>
+
+
+
+
+
+  <section class="localgpt-api-member-panel localgpt-api-member-panel--constructors" data-member-kind="Constructors" style="--localgpt-api-accent:#a855f7;" role="region" aria-labelledby="constructors"><h2 class="section" id="constructors"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2728;</span>Constructors
+<span class="localgpt-api-member-count" aria-label="1 item">1</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState__ctor_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.#ctor*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState__ctor" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.#ctor">
+  CouncilGameSessionState()
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CouncilGameSessionState()</code></pre>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--properties" data-member-kind="Properties" style="--localgpt-api-accent:#06b6d4;" role="region" aria-labelledby="properties"><h2 class="section" id="properties"><span class="localgpt-api-member-icon" aria-hidden="true">&#x1F43E;</span>Properties
+<span class="localgpt-api-member-count" aria-label="42 items">42</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_Ammo_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.Ammo*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_Ammo" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.Ammo">
+  Ammo
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int Ammo { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_AutoplayDelayMilliseconds_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.AutoplayDelayMilliseconds*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_AutoplayDelayMilliseconds" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.AutoplayDelayMilliseconds">
+  AutoplayDelayMilliseconds
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int AutoplayDelayMilliseconds { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_AutoplayEnabled_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.AutoplayEnabled*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_AutoplayEnabled" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.AutoplayEnabled">
+  AutoplayEnabled
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool AutoplayEnabled { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_ControlMode_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.ControlMode*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_ControlMode" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.ControlMode">
+  ControlMode
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CouncilGameControlMode ControlMode { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.BusinessObjects.CouncilGameControlMode.html">CouncilGameControlMode</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_ConversationId_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.ConversationId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_ConversationId" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.ConversationId">
+  ConversationId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid? ConversationId { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_CreatedAtUtc_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.CreatedAtUtc*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_CreatedAtUtc" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.CreatedAtUtc">
+  CreatedAtUtc
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public DateTime CreatedAtUtc { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_CreatureDirectorCount_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.CreatureDirectorCount*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_CreatureDirectorCount" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.CreatureDirectorCount">
+  CreatureDirectorCount
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int CreatureDirectorCount { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_CurrentTurnOwner_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.CurrentTurnOwner*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_CurrentTurnOwner" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.CurrentTurnOwner">
+  CurrentTurnOwner
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string CurrentTurnOwner { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_DirectorMode_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.DirectorMode*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_DirectorMode" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.DirectorMode">
+  DirectorMode
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CouncilGameDirectorMode DirectorMode { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.BusinessObjects.CouncilGameDirectorMode.html">CouncilGameDirectorMode</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_DisplayName_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.DisplayName*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_DisplayName" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.DisplayName">
+  DisplayName
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string DisplayName { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_FacingRadians_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FacingRadians*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_FacingRadians" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FacingRadians">
+  FacingRadians
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public double FacingRadians { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.double">double</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameCaption_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameCaption*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameCaption" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameCaption">
+  FrameCaption
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string FrameCaption { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameHeight_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameHeight*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameHeight" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameHeight">
+  FrameHeight
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int FrameHeight { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameOwner_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameOwner*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameOwner" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameOwner">
+  FrameOwner
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string FrameOwner { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameOwnerTurn_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameOwnerTurn*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameOwnerTurn" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameOwnerTurn">
+  FrameOwnerTurn
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public long FrameOwnerTurn { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int64">long</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameRenderer_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameRenderer*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameRenderer" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameRenderer">
+  FrameRenderer
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string FrameRenderer { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameText_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameText*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameText" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameText">
+  FrameText
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string FrameText { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameWidth_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameWidth*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_FrameWidth" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.FrameWidth">
+  FrameWidth
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int FrameWidth { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_GameDirectorModelName_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.GameDirectorModelName*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_GameDirectorModelName" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.GameDirectorModelName">
+  GameDirectorModelName
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GameDirectorModelName { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_GameDirectorName_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.GameDirectorName*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_GameDirectorName" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.GameDirectorName">
+  GameDirectorName
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GameDirectorName { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_GameKey_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.GameKey*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_GameKey" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.GameKey">
+  GameKey
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GameKey { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_Health_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.Health*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_Health" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.Health">
+  Health
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int Health { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_HumanInputRequired_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.HumanInputRequired*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_HumanInputRequired" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.HumanInputRequired">
+  HumanInputRequired
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool HumanInputRequired { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_Id_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.Id*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_Id" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.Id">
+  Id
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid Id { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_InputBindings_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.InputBindings*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_InputBindings" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.InputBindings">
+  InputBindings
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;RuntimeInputBindingDefinition&gt; InputBindings { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.RuntimeInputBindingDefinition.html">RuntimeInputBindingDefinition</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_InputReason_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.InputReason*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_InputReason" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.InputReason">
+  InputReason
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string InputReason { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_IsDucking_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.IsDucking*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_IsDucking" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.IsDucking">
+  IsDucking
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool IsDucking { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_LastAction_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.LastAction*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_LastAction" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.LastAction">
+  LastAction
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string LastAction { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_LastActionBy_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.LastActionBy*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_LastActionBy" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.LastActionBy">
+  LastActionBy
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string LastActionBy { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_LastDirectorDecision_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.LastDirectorDecision*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_LastDirectorDecision" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.LastDirectorDecision">
+  LastDirectorDecision
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string LastDirectorDecision { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_LastDirectorPredictions_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.LastDirectorPredictions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_LastDirectorPredictions" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.LastDirectorPredictions">
+  LastDirectorPredictions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;CouncilGameSubdirectorPrediction&gt; LastDirectorPredictions { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilGameSubdirectorPrediction.html">CouncilGameSubdirectorPrediction</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_LegalActions_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.LegalActions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_LegalActions" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.LegalActions">
+  LegalActions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;string&gt; LegalActions { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_MuzzleFlash_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.MuzzleFlash*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_MuzzleFlash" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.MuzzleFlash">
+  MuzzleFlash
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MuzzleFlash { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_PlayerX_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.PlayerX*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_PlayerX" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.PlayerX">
+  PlayerX
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int PlayerX { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_PlayerY_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.PlayerY*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_PlayerY" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.PlayerY">
+  PlayerY
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int PlayerY { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_Status_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.Status*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_Status" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.Status">
+  Status
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string Status { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_StoryLine_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.StoryLine*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_StoryLine" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.StoryLine">
+  StoryLine
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string StoryLine { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_SyncRoot_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.SyncRoot*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_SyncRoot" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.SyncRoot">
+  SyncRoot
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public object SyncRoot { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_TeamKey_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.TeamKey*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_TeamKey" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.TeamKey">
+  TeamKey
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string TeamKey { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_Turn_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.Turn*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_Turn" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.Turn">
+  Turn
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public long Turn { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int64">long</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_UpdatedAtUtc_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.UpdatedAtUtc*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_UpdatedAtUtc" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.UpdatedAtUtc">
+  UpdatedAtUtc
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public DateTime UpdatedAtUtc { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilGameSessionState_UsePulse_" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.UsePulse*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilGameSessionState_UsePulse" data-uid="LocalGPT.BusinessObjects.CouncilGameSessionState.UsePulse">
+  UsePulse
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int UsePulse { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+</div></section>
+</div></section></article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

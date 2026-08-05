@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Namespace LocalGPT.Interfaces | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Namespace LocalGPT.Interfaces | LocalGPT Documentation ">
+      
+      
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="LocalGPT.Interfaces">
+
+  <h1 id="LocalGPT_Interfaces" data-uid="LocalGPT.Interfaces" class="text-break">Namespace LocalGPT.Interfaces</h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy namespace shelf</strong> Â· Types are grouped by kind, so every interface, class, and helper lands in a cozy little home, nya~ woof!</span></aside>
+  <div class="markdown level0 summary"></div>
+  <div class="markdown level0 conceptual"></div>
+  <div class="markdown level0 remarks"></div>
+
+    <h3 id="classes">
+Classes
+</h3>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.InitialVariable.html">InitialVariable</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.SafeTextDocument.html">SafeTextDocument</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition&lt;T&gt;</a></dt>
+      <dd><p>Describes one strongly typed database-backed system-variable key and its seed default.</p>
+</dd>
+    </dl>
+    <h3 id="interfaces">
+Interfaces
+</h3>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IAiConnectivityProbe.html">IAiConnectivityProbe</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IAiContextBootstrapService.html">IAiContextBootstrapService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IAiFeatureReportService.html">IAiFeatureReportService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IAmbientLocalGptContext.html">IAmbientLocalGptContext</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IApplicationLogReaderService.html">IApplicationLogReaderService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IArtifactBuildExecutor.html">IArtifactBuildExecutor</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IBuildDebugInventoryService.html">IBuildDebugInventoryService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatClientFactory.html">IChatClientFactory</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatContentRenderer.html">IChatContentRenderer</a></dt>
+      <dd><p>Converts the progressively accumulated chat response into safe, renderable HTML for the Blazor message template. The renderer is stateless; response buffering remains owned by the per-response formatter.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatMemoryMessageMapper.html">IChatMemoryMessageMapper</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatMemoryService.html">IChatMemoryService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatProtocolProfile.html">IChatProtocolProfile</a></dt>
+      <dd><p>A model-family-specific protocol boundary. Profiles are stateless and selected once per response stream; they must never modify another protocol's content.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatProtocolProfileCatalog.html">IChatProtocolProfileCatalog</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatProtocolResolver.html">IChatProtocolResolver</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatProtocolTextService.html">IChatProtocolTextService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatResponseFormatter.html">IChatResponseFormatter</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatResponseFormatterFactory.html">IChatResponseFormatterFactory</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatSessionContext.html">IChatSessionContext</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IChatUploadWorkspaceService.html">IChatUploadWorkspaceService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICodeGenerationWorkflowService.html">ICodeGenerationWorkflowService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IComponentActivityService.html">IComponentActivityService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IConfigurationWriter.html">IConfigurationWriter</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilArtifactService.html">ICouncilArtifactService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilCodeGenerationPlanService.html">ICouncilCodeGenerationPlanService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilDxFunctionOrchestrator.html">ICouncilDxFunctionOrchestrator</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilDxFunctionPolicyDataService.html">ICouncilDxFunctionPolicyDataService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilGameActorRuntimeFactory.html">ICouncilGameActorRuntimeFactory</a></dt>
+      <dd><p>Creates bounded runtime actor instances and maps them to Council role slots.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilGameDirectorService.html">ICouncilGameDirectorService</a></dt>
+      <dd><p>Acts as the authoritative game engine boundary. Controllers and Council actors may propose actions, but only an approved director decision may advance a session.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilGameSessionService.html">ICouncilGameSessionService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilGameSubdirector.html">ICouncilGameSubdirector</a></dt>
+      <dd><p>Predicts consequences for one family of runtime actors without owning the authoritative state.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilHardwareRoadConfigurationService.html">ICouncilHardwareRoadConfigurationService</a></dt>
+      <dd><p>Normalizes editable per-model CPU/GPU road settings without coupling the UI to the council scheduler. The returned routes remain transport-compatible 1-Wire business objects.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilHardwareRoadPlanner.html">ICouncilHardwareRoadPlanner</a></dt>
+      <dd><p>Resolves a stable, bounded hardware road for every council member. The planner is deliberately separate from the council orchestration so hardware growth does not turn the heartbeat service into another monolith.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilKnowledgeService.html">ICouncilKnowledgeService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilLiveSessionService.html">ICouncilLiveSessionService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilModelRequestLease.html">ICouncilModelRequestLease</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilPreflightService.html">ICouncilPreflightService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilRunConfigurationService.html">ICouncilRunConfigurationService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilRuntimeClassService.html">ICouncilRuntimeClassService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilSpoolerService.html">ICouncilSpoolerService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilTeamConfigurationService.html">ICouncilTeamConfigurationService</a></dt>
+      <dd><p>Reads, resolves and user-confirmedly persists database-owned Council team and workflow definitions.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICouncilTextPatternDataService.html">ICouncilTextPatternDataService</a></dt>
+      <dd><p>Supplies Council text patterns from the database-backed regex catalog. Runtime text services consume this contract instead of owning regex literals, options, timeouts, or process-wide pattern fields.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ICustomVersion.html">ICustomVersion</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDatabaseFileHealthService.html">IDatabaseFileHealthService</a></dt>
+      <dd><p>Owns SQLite file validation and conservative recovery before EF Core opens the store.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDatabaseInitializationService.html">IDatabaseInitializationService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDatabaseLoggerReadiness.html">IDatabaseLoggerReadiness</a></dt>
+      <dd><p>Keeps database-backed diagnostics dormant until migration and deterministic seeding have completed.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDatabaseMigrationCompatibilityService.html">IDatabaseMigrationCompatibilityService</a></dt>
+      <dd><p>Reconciles verified legacy SQLite schema state with EF migration history before normal migration. It preserves data, creates compatibility backups, and refuses ambiguous partial schemas.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDebugArtifactInspectionService.html">IDebugArtifactInspectionService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDeferredDxAiInvocationService.html">IDeferredDxAiInvocationService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDocumentationCatalogService.html">IDocumentationCatalogService</a></dt>
+      <dd><p>Locates versioned DocFX artifacts and exposes searchable compiler-generated XML comments for the running LocalGPT build.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDocumentationTranslationAdapter.html">IDocumentationTranslationAdapter</a></dt>
+      <dd><p>Adapts maintained XML comment text to the active localization catalog while preserving the original text as fallback.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionCatalogService.html">IDxAiFunctionCatalogService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionHandler.html">IDxAiFunctionHandler</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionJsonService.html">IDxAiFunctionJsonService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionRegistry.html">IDxAiFunctionRegistry</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionServiceClient.html">IDxAiFunctionServiceClient</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IEmbeddedFirmwarePlanningService.html">IEmbeddedFirmwarePlanningService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IEmbeddedHardwareCatalogService.html">IEmbeddedHardwareCatalogService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IEmbeddedTelemetryBridgeService.html">IEmbeddedTelemetryBridgeService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IEmbeddedTelemetryIngressService.html">IEmbeddedTelemetryIngressService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IEmbeddedWiringService.html">IEmbeddedWiringService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IEngineeringBenchmarkService.html">IEngineeringBenchmarkService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IFeaturePersistenceService.html">IFeaturePersistenceService</a></dt>
+      <dd><p>Provides approval-gated CRUD access to persistent records introduced by LocalGPT feature modules.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IFirstRunOnboardingService.html">IFirstRunOnboardingService</a></dt>
+      <dd><p>Provides the persisted first-run guide, local model discovery summary, installer profiles and council quick starts.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IHardwareInventoryService.html">IHardwareInventoryService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IHumanApprovalExecutionContext.html">IHumanApprovalExecutionContext</a></dt>
+      <dd><p>Capability-bearing boundary for execution of one exact persisted approval. It must never be injected into ordinary UI, model tools, or general services.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IHumanCollaborationService.html">IHumanCollaborationService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IInitialDataCatalog.html">IInitialDataCatalog</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IKnowledgeRatingService.html">IKnowledgeRatingService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService.html">ILearnBaseKnowledgeImporterService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ILearningRoundService.html">ILearningRoundService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ILocalGptProjectService.html">ILocalGptProjectService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ILocalGptRequestFactoryService.html">ILocalGptRequestFactoryService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService.html">ILocalGptRuntimePolicyDataService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ILocalGptRuntimePolicySeedDataService.html">ILocalGptRuntimePolicySeedDataService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ILocalGptRuntimePolicyStoreService.html">ILocalGptRuntimePolicyStoreService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ILocalGptVocabularyService.html">ILocalGptVocabularyService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ILocalHumanInteractionContext.html">ILocalHumanInteractionContext</a></dt>
+      <dd><p>Capability-bearing boundary for trusted local-human UI interaction only. It can create peer participation context, never operation approval.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ILocalVisionOcrService.html">ILocalVisionOcrService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IMinecraftModWorkspaceService.html">IMinecraftModWorkspaceService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IModelCapabilitySelfAssessmentService.html">IModelCapabilitySelfAssessmentService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IModelPresetService.html">IModelPresetService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IMultiModelCouncilService.html">IMultiModelCouncilService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.INativeCommandRunner.html">INativeCommandRunner</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.INotificationService.html">INotificationService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOllamaProcessService.html">IOllamaProcessService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireCapabilityCatalog.html">IOneWireCapabilityCatalog</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireConnectionRegistry.html">IOneWireConnectionRegistry</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireDispatchContextFactory.html">IOneWireDispatchContextFactory</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireEnvelopeCodec.html">IOneWireEnvelopeCodec</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireListenAddressResolver.html">IOneWireListenAddressResolver</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireMessageDispatcher.html">IOneWireMessageDispatcher</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireOperationExecutor.html">IOneWireOperationExecutor</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWirePeerRegistry.html">IOneWirePeerRegistry</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWirePendingCouncilStore.html">IOneWirePendingCouncilStore</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireReplayGuard.html">IOneWireReplayGuard</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireReplayPolicyDataService.html">IOneWireReplayPolicyDataService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireRuntimeSecurityService.html">IOneWireRuntimeSecurityService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireTargetApprovalPolicy.html">IOneWireTargetApprovalPolicy</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireTransportSecurityPolicy.html">IOneWireTransportSecurityPolicy</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOneWireWorkSpooler.html">IOneWireWorkSpooler</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOrganicAddonManifestService.html">IOrganicAddonManifestService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOrganicCouncilBlueprintSeedDataService.html">IOrganicCouncilBlueprintSeedDataService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOrganicCouncilBlueprintService.html">IOrganicCouncilBlueprintService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOrganicDxFunctionSupport.html">IOrganicDxFunctionSupport</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IOrganicSkillRegistryService.html">IOrganicSkillRegistryService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IProjectArchitectureService.html">IProjectArchitectureService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IProjectLibraryInventoryService.html">IProjectLibraryInventoryService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IProjectMaintenanceService.html">IProjectMaintenanceService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IProjectOrganicContextService.html">IProjectOrganicContextService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IPromptConfigService.html">IPromptConfigService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IProviderModelBenchmarkService.html">IProviderModelBenchmarkService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IProviderModelRuntimeService.html">IProviderModelRuntimeService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IPublicServiceMethodInvoker.html">IPublicServiceMethodInvoker</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IPublisherInteractionDxSupport.html">IPublisherInteractionDxSupport</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IRemoteKnowledgeImportService.html">IRemoteKnowledgeImportService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IRuntimeCapabilityDirectoryService.html">IRuntimeCapabilityDirectoryService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ISafeTextDocumentService.html">ISafeTextDocumentService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IServiceActivityService.html">IServiceActivityService</a></dt>
+      <dd><p>Records bounded, sanitized service-operation state for LocalGPT short-term context. The executor never swallows failures: cancellation and exceptions are recorded and rethrown.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ISqliteEditorPreferenceService.html">ISqliteEditorPreferenceService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ISqliteTableEditorService.html">ISqliteTableEditorService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IStructuredTextTranslationService.html">IStructuredTextTranslationService</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ISupervisedTaskRunner.html">ISupervisedTaskRunner</a></dt>
+      <dd><p>Starts intentionally non-blocking work while observing completion, cancellation, and failure. Use this instead of discarding a Task returned by an asynchronous method.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.ISystemVariableDefinitionService.html">ISystemVariableDefinitionService</a></dt>
+      <dd><p>Owns maintained LocalGPT system-variable keys so services never depend on ad-hoc string literals.</p>
+</dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IThemeChangeRequestDispatcher.html">IThemeChangeRequestDispatcher</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IThemeLoadNotifier.html">IThemeLoadNotifier</a></dt>
+      <dd></dd>
+    </dl>
+    <dl class="jumplist">
+      <dt><a class="xref" href="LocalGPT.Interfaces.IVariableStoreService.html">IVariableStoreService</a></dt>
+      <dd></dd>
+    </dl>
+
+
+</article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

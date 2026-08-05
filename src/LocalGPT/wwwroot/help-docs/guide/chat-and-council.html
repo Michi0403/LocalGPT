@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Chat and AI Council | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Chat and AI Council | LocalGPT Documentation ">
+      
+      
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/Michi0403/LocalGPT/blob/main/docs/guide/chat-and-council.md/#L1">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="chat-and-ai-council">Chat and AI Council</h1>
+
+<h2 id="direct-chat">Direct chat</h2>
+<p>The Chat page is the primary conversation surface. One provider-qualified model answers ordinary requests while configuration remains collapsible so the transcript keeps the available viewport.</p>
+<p>A chat session owns its selected provider route, protocol profile, formatter, bounded context, and feedback state. Protocol-specific control tokens are normalized by the matching profile instead of being scattered through the UI.</p>
+<p>Supported protocol families include Harmony-style channels, DeepSeek/R1 thinking markers, Gemma turn markers, Apple/OpenELM-style roles, and generic think-tag formats. The formatter boundary keeps these families isolated.</p>
+<h2 id="council-teams">Council teams</h2>
+<p>A Council team turns one request into an explicit workflow. Each member has a role, provider-qualified model route, optional runtime class, and bounded task. The team configuration is durable; the active run state is not replaced by whichever model speaks last.</p>
+<p>Typical roles include:</p>
+<ul>
+<li>coordinator or leader;</li>
+<li>implementation specialist;</li>
+<li>architecture or safety reviewer;</li>
+<li>verifier;</li>
+<li>domain specialist;</li>
+<li>world actor for GameDirector sessions;</li>
+<li>human participant when invited.</li>
+</ul>
+<p>The Council spooler and preflight services prepare work, validate routes, and track steps. A model can propose a result, but deterministic application rules still decide whether a step is complete, failed, recoverable, or waiting for a human.</p>
+<h2 id="provider-qualified-routing">Provider-qualified routing</h2>
+<p>The visible address follows this shape:</p>
+<pre><code class="lang-text">Provider — model @ endpoint
+</code></pre>
+<p>A bare model name is accepted only when it resolves to one provider route. Ambiguous or stale selections fail clearly instead of falling back to an arbitrary endpoint.</p>
+<p>Mixed-provider Councils can combine Ollama, LM Studio or another OpenAI-compatible endpoint, OpenAI, and Azure OpenAI. The correct client is created immediately before each call. Provider-specific settings—such as Ollama GPU options—stay with the provider that understands them.</p>
+<h2 id="benchmark-council">Benchmark Council</h2>
+<p>A bounded benchmark measures one or more selected routes using deterministic tasks and explicit limits for context, output, count, and timeout. Other selected models can review the recommendation; when no independent reviewer is available, a bounded self-review may be used.</p>
+<p>Recommendations are never applied automatically. The user chooses whether to save or apply a preset. Applying a preset changes future LocalGPT routing; it does not rewrite provider-global server configuration.</p>
+<h2 id="result-integrity">Result integrity</h2>
+<p>A step that produces thinking but no substantive final answer receives at most one bounded final-only recovery request. If the result is still empty, the step is failed rather than counted as success.</p>
+<p>Peer verification is advisory. A failed verifier can be recorded as a warning while a valid result remains available, but the UI must not relabel unrelated notices as successful verification.</p>
+<h2 id="human-participation">Human participation</h2>
+<p>A human can join a running Council, answer a question, approve a proposed boundary, or provide a correction. Human participation does not turn every human message into unrestricted authority; the application still binds decisions to the current request, action, target, and approval scope.</p>
+<h2 id="dx-functions-and-change-reviews">DX functions and change reviews</h2>
+<p>DX functions expose bounded application capabilities through typed parameters and explicit handlers. Generated changes can be stored as review records with proposed files, findings, execution status, and human decisions. The function catalog describes what can be requested; it does not bypass the service that owns the real operation.</p>
+<div class="NOTE">
+<h5>Note</h5>
+<p>Council output is a structured proposal pipeline, not a magic quorum. The boring deterministic parts are what keep the fun parts usable.</p>
+</div>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

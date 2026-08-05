@@ -15,24 +15,24 @@ function Read-RequiredText([string]$relativePath) {
 }
 
 $requiredFiles = @(
-    'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/AmbientLocalGptContextModels.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/HumanCollaborationModels.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Interfaces/IAmbientLocalGptContext.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Interfaces/IHumanCollaborationService.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Interfaces/IDeferredDxAiInvocationService.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Services/AmbientLocalGptContext.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Services/HumanCollaborationService.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Services/DeferredDxAiInvocationService.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Security/HumanApprovalRequiredAttribute.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Security/HumanApprovalActionFilter.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/HumanCollaborationInbox.razor',
-    'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/HumanCollaborationInbox.razor.css',
-    'LocalGPTWebviewWrapper/LocalGPT/Migrations/20260726000000_AddHumanCollaboration.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Migrations/20260726001000_AddDeferredDxAiInvocations.cs'
+    'src/LocalGPT/BusinessObjects/AmbientLocalGptContextModels.cs',
+    'src/LocalGPT/BusinessObjects/HumanCollaborationModels.cs',
+    'src/LocalGPT/Interfaces/IAmbientLocalGptContext.cs',
+    'src/LocalGPT/Interfaces/IHumanCollaborationService.cs',
+    'src/LocalGPT/Interfaces/IDeferredDxAiInvocationService.cs',
+    'src/LocalGPT/Services/AmbientLocalGptContext.cs',
+    'src/LocalGPT/Services/HumanCollaborationService.cs',
+    'src/LocalGPT/Services/DeferredDxAiInvocationService.cs',
+    'src/LocalGPT/Security/HumanApprovalRequiredAttribute.cs',
+    'src/LocalGPT/Security/HumanApprovalActionFilter.cs',
+    'src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor',
+    'src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor.css',
+    'src/LocalGPT/Migrations/20260726000000_AddHumanCollaboration.cs',
+    'src/LocalGPT/Migrations/20260726001000_AddDeferredDxAiInvocations.cs'
 )
 foreach ($relative in $requiredFiles) { [void](Read-RequiredText $relative) }
 
-$ambientInterface = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Interfaces/IAmbientLocalGptContext.cs'
+$ambientInterface = Read-RequiredText 'src/LocalGPT/Interfaces/IAmbientLocalGptContext.cs'
 foreach ($required in @('interface IAmbientLocalGptContext', 'interface ILocalHumanInteractionContext', 'interface IHumanApprovalExecutionContext', 'PushHumanInteraction', 'PushHumanApproval')) {
     if (-not ($ambientInterface.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Ambient context contracts must contain '$required'.")
@@ -61,7 +61,7 @@ $allowedApprovalCapabilityFiles = @(
     'Security/HumanApprovalActionFilter.cs',
     'Program.cs'
 )
-$sourceRoot = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT'
+$sourceRoot = Join-Path $RepositoryRoot 'src/LocalGPT'
 Get-ChildItem -Path $sourceRoot -Recurse -File | Where-Object { $_.Extension -in @('.cs', '.razor') } | ForEach-Object {
     $content = Get-Content -LiteralPath $_.FullName -Raw
     $relative = [IO.Path]::GetRelativePath($sourceRoot, $_.FullName).Replace('\', '/')
@@ -75,7 +75,7 @@ Get-ChildItem -Path $sourceRoot -Recurse -File | Where-Object { $_.Extension -in
     }
 }
 
-$program = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Program.cs'
+$program = Read-RequiredText 'src/LocalGPT/Program.cs'
 foreach ($required in @(
     'AddSingleton<AmbientLocalGptContext>()',
     'AddSingleton<IAmbientLocalGptContext>',
@@ -88,14 +88,14 @@ foreach ($required in @(
     }
 }
 
-$layout = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/MainLayout.razor'
+$layout = Read-RequiredText 'src/LocalGPT/Components/Layout/MainLayout.razor'
 if (-not ($layout.IndexOf('<HumanCollaborationInbox />', [System.StringComparison]::Ordinal) -ge 0)) {
     $errors.Add('The Human Collaboration Inbox must remain mounted in MainLayout.')
 }
 
 
-$humanInbox = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/HumanCollaborationInbox.razor'
-$humanInboxCss = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/HumanCollaborationInbox.razor.css'
+$humanInbox = Read-RequiredText 'src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor'
+$humanInboxCss = Read-RequiredText 'src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor.css'
 foreach ($token in @('human-approval-bar', 'Review and work through', 'PendingRequests.Count > 0', 'OpenApprovalPanel', 'HideApprovalBar')) {
     if (-not ($humanInbox.IndexOf($token, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Human approval work bar must retain '$token'.")
@@ -107,7 +107,7 @@ foreach ($token in @('.human-approval-bar', 'position: fixed', 'var(--bs-body-bg
     }
 }
 
-$filter = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Security/HumanApprovalActionFilter.cs'
+$filter = Read-RequiredText 'src/LocalGPT/Security/HumanApprovalActionFilter.cs'
 foreach ($required in @(
     'StatusCodes.Status202Accepted',
     'StatusCodes.Status403Forbidden',
@@ -123,8 +123,8 @@ foreach ($required in @(
 }
 
 foreach ($controllerRelative in @(
-    'LocalGPTWebviewWrapper/LocalGPT/Controller/LocalGptDiagnosticController.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Controller/MinecraftDiagnosticController.cs')) {
+    'src/LocalGPT/Controller/LocalGptDiagnosticController.cs',
+    'src/LocalGPT/Controller/MinecraftDiagnosticController.cs')) {
     $controller = Read-RequiredText $controllerRelative
     $matches = [regex]::Matches($controller, '(?s)(\[Http(?:Get|Post|Put|Delete|Patch)[^\]]*\](?:\s*\[[^\]]+\])*)\s*public\s+[^\{]+?\{\s*try\s*\{\s*if\s*\(RequireHumanConfirmation\(userConfirmed')
     foreach ($match in $matches) {
@@ -136,7 +136,7 @@ foreach ($controllerRelative in @(
 
 
 
-$codeGenerationController = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Controller/CodeGenerationController.cs'
+$codeGenerationController = Read-RequiredText 'src/LocalGPT/Controller/CodeGenerationController.cs'
 foreach ($required in @(
     'HumanApprovalRequired(',
     '"code-generation.review.create"',
@@ -147,7 +147,7 @@ foreach ($required in @(
     }
 }
 
-$chat = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor'
+$chat = Read-RequiredText 'src/LocalGPT/Components/Pages/Chat.razor'
 foreach ($required in @(
     'ILocalHumanInteractionContext HumanAmbientContext',
     'QueueRunningCouncilContributionAsync',
@@ -158,7 +158,7 @@ foreach ($required in @(
     }
 }
 
-$ollamaClient = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Services/OllamaThinkingChatClient.cs'
+$ollamaClient = Read-RequiredText 'src/LocalGPT/Services/OllamaThinkingChatClient.cs'
 foreach ($required in @(
     'function.RequiresHumanConfirmation',
     'function.SupportsDeferredApprovalRequest',
@@ -169,7 +169,7 @@ foreach ($required in @(
     }
 }
 
-$registry = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Services/DxAiFunctionRegistry.cs'
+$registry = Read-RequiredText 'src/LocalGPT/Services/DxAiFunctionRegistry.cs'
 foreach ($required in @(
     'HumanApprovalPending',
     'HumanApprovalDeclined',
@@ -187,7 +187,7 @@ foreach ($required in @(
     }
 }
 
-$descriptor = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/DxaichatFunctionInfo.cs'
+$descriptor = Read-RequiredText 'src/LocalGPT/BusinessObjects/DxaichatFunctionInfo.cs'
 foreach ($required in @(
     'bool IsCoordinationOnly = false',
     'bool SupportsDeferredApprovalRequest = false',
@@ -197,7 +197,7 @@ foreach ($required in @(
     }
 }
 
-$council = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Services/MultiModelCouncilService.cs'
+$council = Read-RequiredText 'src/LocalGPT/Services/MultiModelCouncilService.cs'
 foreach ($required in @(
     'humanCollaboration.BeginCouncilRun',
     'PrepareHumanHeartbeatAsync',
@@ -215,7 +215,7 @@ foreach ($required in @(
     }
 }
 
-$service = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Services/HumanCollaborationService.cs'
+$service = Read-RequiredText 'src/LocalGPT/Services/HumanCollaborationService.cs'
 foreach ($required in @(
     'ambient.IsTrustedHumanInteraction',
     'existing.Status = HumanCollaborationStatuses.Consumed',
@@ -234,8 +234,8 @@ foreach ($required in @(
     }
 }
 
-$dbContext = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/EFCore/LocalGptMemoryDbContext.cs'
-$snapshot = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs'
+$dbContext = Read-RequiredText 'src/LocalGPT/BusinessObjects/EFCore/LocalGptMemoryDbContext.cs'
+$snapshot = Read-RequiredText 'src/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs'
 foreach ($entity in @('HumanCollaborationRequest', 'HumanCouncilParticipantProfile', 'HumanCouncilContribution', 'DeferredDxAiInvocation')) {
     if (-not ($dbContext.IndexOf("DbSet<$entity>", [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("LocalGptMemoryDbContext is missing DbSet<$entity>.")
@@ -246,7 +246,7 @@ foreach ($entity in @('HumanCollaborationRequest', 'HumanCouncilParticipantProfi
 }
 
 
-$deferredService = Read-RequiredText 'LocalGPTWebviewWrapper/LocalGPT/Services/DeferredDxAiInvocationService.cs'
+$deferredService = Read-RequiredText 'src/LocalGPT/Services/DeferredDxAiInvocationService.cs'
 foreach ($required in @(
     'ExecuteApprovedForHeartbeatAsync',
     'ApprovalRequestId',

@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Interface IFeaturePersistenceService | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Interface IFeaturePersistenceService | LocalGPT Documentation ">
+      
+      <meta name="description" content="Provides approval-gated CRUD access to persistent records introduced by LocalGPT feature modules.">
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="LocalGPT.Interfaces.IFeaturePersistenceService">
+
+
+
+  <h1 id="LocalGPT_Interfaces_IFeaturePersistenceService" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService" class="text-break">
+Interface IFeaturePersistenceService  
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Interfaces.html">Interfaces</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Provides approval-gated CRUD access to persistent records introduced by LocalGPT feature modules.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[DocumentationUpdated(&quot;2.1.23&quot;)]
+public interface IFeaturePersistenceService</code></pre>
+  </div>
+
+
+
+
+
+
+
+
+  <dl class="typelist extensionMethods">
+    <dt>Extension Methods</dt>
+    <dd>
+  <div>
+      <a class="xref" href="LocalGPT.Extensions.StringExtensions.html#LocalGPT_Extensions_StringExtensions_ToJsonString_System_Object_System_Text_Json_JsonSerializerOptions_">StringExtensions.ToJsonString(object, JsonSerializerOptions?)</a>
+  </div>
+  </dd></dl>
+
+
+
+
+
+  <section class="localgpt-api-member-panel localgpt-api-member-panel--methods" data-member-kind="Methods" style="--localgpt-api-accent:#3b82f6;" role="region" aria-labelledby="methods"><h2 class="section" id="methods"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2699;&#xFE0F;</span>Methods
+<span class="localgpt-api-member-count" aria-label="20 items">20</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_DeleteCouncilGameSessionAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.DeleteCouncilGameSessionAsync*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_DeleteCouncilGameSessionAsync_System_Guid_System_Boolean_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.DeleteCouncilGameSessionAsync(System.Guid,System.Boolean,System.Threading.CancellationToken)">
+  DeleteCouncilGameSessionAsync(Guid, bool, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Deletes one GameDirector session record.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;bool&gt; DeleteCouncilGameSessionAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd><p>Database identifier.</p>
+</dd>
+    <dt><code>userConfirmed</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd><p>Whether the user explicitly approved deletion.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>&gt;</dt>
+    <dd><p>A task that returns true when a row was deleted.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_DeleteCouncilPromptStarterAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.DeleteCouncilPromptStarterAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_DeleteCouncilPromptStarterAsync_System_Guid_System_Boolean_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.DeleteCouncilPromptStarterAsync(System.Guid,System.Boolean,System.Threading.CancellationToken)">
+  DeleteCouncilPromptStarterAsync(Guid, bool, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Deletes one Council prompt starter.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;bool&gt; DeleteCouncilPromptStarterAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd><p>Database identifier.</p>
+</dd>
+    <dt><code>userConfirmed</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd><p>Whether the user explicitly approved deletion.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>&gt;</dt>
+    <dd><p>A task that returns true when a row was deleted.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_DeleteDocumentationBuildAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.DeleteDocumentationBuildAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_DeleteDocumentationBuildAsync_System_Guid_System_Boolean_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.DeleteDocumentationBuildAsync(System.Guid,System.Boolean,System.Threading.CancellationToken)">
+  DeleteDocumentationBuildAsync(Guid, bool, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Deletes one documentation build record.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;bool&gt; DeleteDocumentationBuildAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd><p>Database identifier.</p>
+</dd>
+    <dt><code>userConfirmed</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd><p>Whether the user explicitly approved deletion.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>&gt;</dt>
+    <dd><p>A task that returns true when a row was deleted.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_DeleteEmbeddedFirmwarePlanAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.DeleteEmbeddedFirmwarePlanAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_DeleteEmbeddedFirmwarePlanAsync_System_Guid_System_Boolean_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.DeleteEmbeddedFirmwarePlanAsync(System.Guid,System.Boolean,System.Threading.CancellationToken)">
+  DeleteEmbeddedFirmwarePlanAsync(Guid, bool, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Deletes one embedded firmware plan record.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;bool&gt; DeleteEmbeddedFirmwarePlanAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd><p>Database identifier.</p>
+</dd>
+    <dt><code>userConfirmed</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd><p>Whether the user explicitly approved deletion.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>&gt;</dt>
+    <dd><p>A task that returns true when a row was deleted.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_DeleteLocalizationCatalogAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.DeleteLocalizationCatalogAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_DeleteLocalizationCatalogAsync_System_Guid_System_Boolean_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.DeleteLocalizationCatalogAsync(System.Guid,System.Boolean,System.Threading.CancellationToken)">
+  DeleteLocalizationCatalogAsync(Guid, bool, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Deletes one localization catalog registration.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;bool&gt; DeleteLocalizationCatalogAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd><p>Database identifier.</p>
+</dd>
+    <dt><code>userConfirmed</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd><p>Whether the user explicitly approved deletion.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>&gt;</dt>
+    <dd><p>A task that returns true when a row was deleted.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_GetCouncilGameSessionAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetCouncilGameSessionAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_GetCouncilGameSessionAsync_System_Guid_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetCouncilGameSessionAsync(System.Guid,System.Threading.CancellationToken)">
+  GetCouncilGameSessionAsync(Guid, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets one GameDirector session record.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;CouncilGameSessionRecord?&gt; GetCouncilGameSessionAsync(Guid id, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd><p>Database identifier.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilGameSessionRecord.html">CouncilGameSessionRecord</a>&gt;</dt>
+    <dd><p>A task that returns the record or null.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_GetCouncilGameSessionsAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetCouncilGameSessionsAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_GetCouncilGameSessionsAsync_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetCouncilGameSessionsAsync(System.Threading.CancellationToken)">
+  GetCouncilGameSessionsAsync(CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Lists GameDirector session records.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;IReadOnlyList&lt;CouncilGameSessionRecord&gt;&gt; GetCouncilGameSessionsAsync(CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilGameSessionRecord.html">CouncilGameSessionRecord</a>&gt;&gt;</dt>
+    <dd><p>A task that returns GameDirector session records.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_GetCouncilPromptStarterAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetCouncilPromptStarterAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_GetCouncilPromptStarterAsync_System_Guid_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetCouncilPromptStarterAsync(System.Guid,System.Threading.CancellationToken)">
+  GetCouncilPromptStarterAsync(Guid, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets one Council prompt starter.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;CouncilPromptStarterConfiguration?&gt; GetCouncilPromptStarterAsync(Guid id, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd><p>Database identifier.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilPromptStarterConfiguration.html">CouncilPromptStarterConfiguration</a>&gt;</dt>
+    <dd><p>A task that returns the record or null.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_GetCouncilPromptStartersAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetCouncilPromptStartersAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_GetCouncilPromptStartersAsync_System_Boolean_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetCouncilPromptStartersAsync(System.Boolean,System.Threading.CancellationToken)">
+  GetCouncilPromptStartersAsync(bool, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Lists Council prompt starters.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;IReadOnlyList&lt;CouncilPromptStarterConfiguration&gt;&gt; GetCouncilPromptStartersAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>includeDisabled</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd><p>Whether disabled records are returned.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilPromptStarterConfiguration.html">CouncilPromptStarterConfiguration</a>&gt;&gt;</dt>
+    <dd><p>A task that returns the matching starter records.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_GetDocumentationBuildAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetDocumentationBuildAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_GetDocumentationBuildAsync_System_Guid_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetDocumentationBuildAsync(System.Guid,System.Threading.CancellationToken)">
+  GetDocumentationBuildAsync(Guid, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets one documentation build record.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;DocumentationBuildRecord?&gt; GetDocumentationBuildAsync(Guid id, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd><p>Database identifier.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.DocumentationBuildRecord.html">DocumentationBuildRecord</a>&gt;</dt>
+    <dd><p>A task that returns the record or null.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_GetDocumentationBuildsAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetDocumentationBuildsAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_GetDocumentationBuildsAsync_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetDocumentationBuildsAsync(System.Threading.CancellationToken)">
+  GetDocumentationBuildsAsync(CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Lists documentation build records in newest-first order.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;IReadOnlyList&lt;DocumentationBuildRecord&gt;&gt; GetDocumentationBuildsAsync(CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.DocumentationBuildRecord.html">DocumentationBuildRecord</a>&gt;&gt;</dt>
+    <dd><p>A task that returns documentation evidence records.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_GetEmbeddedFirmwarePlanAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetEmbeddedFirmwarePlanAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_GetEmbeddedFirmwarePlanAsync_System_Guid_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetEmbeddedFirmwarePlanAsync(System.Guid,System.Threading.CancellationToken)">
+  GetEmbeddedFirmwarePlanAsync(Guid, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets one embedded firmware plan record.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;EmbeddedFirmwarePlanRecord?&gt; GetEmbeddedFirmwarePlanAsync(Guid id, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd><p>Database identifier.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.EmbeddedFirmwarePlanRecord.html">EmbeddedFirmwarePlanRecord</a>&gt;</dt>
+    <dd><p>A task that returns the record or null.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_GetEmbeddedFirmwarePlansAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetEmbeddedFirmwarePlansAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_GetEmbeddedFirmwarePlansAsync_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetEmbeddedFirmwarePlansAsync(System.Threading.CancellationToken)">
+  GetEmbeddedFirmwarePlansAsync(CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Lists embedded firmware plan records.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;IReadOnlyList&lt;EmbeddedFirmwarePlanRecord&gt;&gt; GetEmbeddedFirmwarePlansAsync(CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.EmbeddedFirmwarePlanRecord.html">EmbeddedFirmwarePlanRecord</a>&gt;&gt;</dt>
+    <dd><p>A task that returns firmware plan records.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_GetLocalizationCatalogAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetLocalizationCatalogAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_GetLocalizationCatalogAsync_System_Guid_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetLocalizationCatalogAsync(System.Guid,System.Threading.CancellationToken)">
+  GetLocalizationCatalogAsync(Guid, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets one localization catalog registration.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;LocalizationCatalogRegistration?&gt; GetLocalizationCatalogAsync(Guid id, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>id</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd><p>Database identifier.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.LocalizationCatalogRegistration.html">LocalizationCatalogRegistration</a>&gt;</dt>
+    <dd><p>A task that returns the record or null.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_GetLocalizationCatalogsAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetLocalizationCatalogsAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_GetLocalizationCatalogsAsync_System_Boolean_System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.GetLocalizationCatalogsAsync(System.Boolean,System.Threading.CancellationToken)">
+  GetLocalizationCatalogsAsync(bool, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Lists localization catalog registrations.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;IReadOnlyList&lt;LocalizationCatalogRegistration&gt;&gt; GetLocalizationCatalogsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>includeDisabled</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd><p>Whether disabled records are returned.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.LocalizationCatalogRegistration.html">LocalizationCatalogRegistration</a>&gt;&gt;</dt>
+    <dd><p>A task that returns the matching catalog records.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_SaveCouncilGameSessionAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.SaveCouncilGameSessionAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_SaveCouncilGameSessionAsync_LocalGPT_BusinessObjects_SaveFeatureRecordRequest_LocalGPT_BusinessObjects_CouncilGameSessionRecord__System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.SaveCouncilGameSessionAsync(LocalGPT.BusinessObjects.SaveFeatureRecordRequest{LocalGPT.BusinessObjects.CouncilGameSessionRecord},System.Threading.CancellationToken)">
+  SaveCouncilGameSessionAsync(SaveFeatureRecordRequest&lt;CouncilGameSessionRecord&gt;, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Creates or updates one GameDirector session record.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;CouncilGameSessionRecord&gt; SaveCouncilGameSessionAsync(SaveFeatureRecordRequest&lt;CouncilGameSessionRecord&gt; request, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.SaveFeatureRecordRequest-1.html">SaveFeatureRecordRequest</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilGameSessionRecord.html">CouncilGameSessionRecord</a>&gt;</dt>
+    <dd><p>Approval-gated write request.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilGameSessionRecord.html">CouncilGameSessionRecord</a>&gt;</dt>
+    <dd><p>A task that returns the stored record.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_SaveCouncilPromptStarterAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.SaveCouncilPromptStarterAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_SaveCouncilPromptStarterAsync_LocalGPT_BusinessObjects_SaveFeatureRecordRequest_LocalGPT_BusinessObjects_CouncilPromptStarterConfiguration__System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.SaveCouncilPromptStarterAsync(LocalGPT.BusinessObjects.SaveFeatureRecordRequest{LocalGPT.BusinessObjects.CouncilPromptStarterConfiguration},System.Threading.CancellationToken)">
+  SaveCouncilPromptStarterAsync(SaveFeatureRecordRequest&lt;CouncilPromptStarterConfiguration&gt;, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Creates or updates one Council prompt starter.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;CouncilPromptStarterConfiguration&gt; SaveCouncilPromptStarterAsync(SaveFeatureRecordRequest&lt;CouncilPromptStarterConfiguration&gt; request, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.SaveFeatureRecordRequest-1.html">SaveFeatureRecordRequest</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilPromptStarterConfiguration.html">CouncilPromptStarterConfiguration</a>&gt;</dt>
+    <dd><p>Approval-gated write request.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilPromptStarterConfiguration.html">CouncilPromptStarterConfiguration</a>&gt;</dt>
+    <dd><p>A task that returns the stored record.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_SaveDocumentationBuildAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.SaveDocumentationBuildAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_SaveDocumentationBuildAsync_LocalGPT_BusinessObjects_SaveFeatureRecordRequest_LocalGPT_BusinessObjects_DocumentationBuildRecord__System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.SaveDocumentationBuildAsync(LocalGPT.BusinessObjects.SaveFeatureRecordRequest{LocalGPT.BusinessObjects.DocumentationBuildRecord},System.Threading.CancellationToken)">
+  SaveDocumentationBuildAsync(SaveFeatureRecordRequest&lt;DocumentationBuildRecord&gt;, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Creates or updates one documentation build record.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;DocumentationBuildRecord&gt; SaveDocumentationBuildAsync(SaveFeatureRecordRequest&lt;DocumentationBuildRecord&gt; request, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.SaveFeatureRecordRequest-1.html">SaveFeatureRecordRequest</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.DocumentationBuildRecord.html">DocumentationBuildRecord</a>&gt;</dt>
+    <dd><p>Approval-gated write request.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.DocumentationBuildRecord.html">DocumentationBuildRecord</a>&gt;</dt>
+    <dd><p>A task that returns the stored record.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_SaveEmbeddedFirmwarePlanAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.SaveEmbeddedFirmwarePlanAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_SaveEmbeddedFirmwarePlanAsync_LocalGPT_BusinessObjects_SaveFeatureRecordRequest_LocalGPT_BusinessObjects_EmbeddedFirmwarePlanRecord__System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.SaveEmbeddedFirmwarePlanAsync(LocalGPT.BusinessObjects.SaveFeatureRecordRequest{LocalGPT.BusinessObjects.EmbeddedFirmwarePlanRecord},System.Threading.CancellationToken)">
+  SaveEmbeddedFirmwarePlanAsync(SaveFeatureRecordRequest&lt;EmbeddedFirmwarePlanRecord&gt;, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Creates or updates one embedded firmware plan record.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;EmbeddedFirmwarePlanRecord&gt; SaveEmbeddedFirmwarePlanAsync(SaveFeatureRecordRequest&lt;EmbeddedFirmwarePlanRecord&gt; request, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.SaveFeatureRecordRequest-1.html">SaveFeatureRecordRequest</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.EmbeddedFirmwarePlanRecord.html">EmbeddedFirmwarePlanRecord</a>&gt;</dt>
+    <dd><p>Approval-gated write request.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.EmbeddedFirmwarePlanRecord.html">EmbeddedFirmwarePlanRecord</a>&gt;</dt>
+    <dd><p>A task that returns the stored record.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_IFeaturePersistenceService_SaveLocalizationCatalogAsync_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.SaveLocalizationCatalogAsync*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_IFeaturePersistenceService_SaveLocalizationCatalogAsync_LocalGPT_BusinessObjects_SaveFeatureRecordRequest_LocalGPT_BusinessObjects_LocalizationCatalogRegistration__System_Threading_CancellationToken_" data-uid="LocalGPT.Interfaces.IFeaturePersistenceService.SaveLocalizationCatalogAsync(LocalGPT.BusinessObjects.SaveFeatureRecordRequest{LocalGPT.BusinessObjects.LocalizationCatalogRegistration},System.Threading.CancellationToken)">
+  SaveLocalizationCatalogAsync(SaveFeatureRecordRequest&lt;LocalizationCatalogRegistration&gt;, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Creates or updates one localization catalog registration.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;LocalizationCatalogRegistration&gt; SaveLocalizationCatalogAsync(SaveFeatureRecordRequest&lt;LocalizationCatalogRegistration&gt; request, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.SaveFeatureRecordRequest-1.html">SaveFeatureRecordRequest</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.LocalizationCatalogRegistration.html">LocalizationCatalogRegistration</a>&gt;</dt>
+    <dd><p>Approval-gated write request.</p>
+</dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd><p>Cancels the database operation.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.LocalizationCatalogRegistration.html">LocalizationCatalogRegistration</a>&gt;</dt>
+    <dd><p>A task that returns the stored record.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+</div></section>
+</div></section></article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

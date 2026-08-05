@@ -1,7 +1,7 @@
 param([string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot))
 
 $ErrorActionPreference = 'Stop'
-$sourceRoot = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT'
+$sourceRoot = Join-Path $RepositoryRoot 'src/LocalGPT'
 $servicesRoot = Join-Path $sourceRoot 'Services'
 $errors = [System.Collections.Generic.List[string]]::new()
 

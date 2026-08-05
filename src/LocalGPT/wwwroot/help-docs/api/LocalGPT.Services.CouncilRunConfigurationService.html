@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Class CouncilRunConfigurationService | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class CouncilRunConfigurationService | LocalGPT Documentation ">
+      
+      
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="LocalGPT.Services.CouncilRunConfigurationService">
+
+
+
+  <h1 id="LocalGPT_Services_CouncilRunConfigurationService" data-uid="LocalGPT.Services.CouncilRunConfigurationService" class="text-break">
+Class CouncilRunConfigurationService  
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Services.html">Services</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"></div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed class CouncilRunConfigurationService : ICouncilRunConfigurationService</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">CouncilRunConfigurationService</span></div>
+    </dd>
+  </dl>
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><a class="xref" href="LocalGPT.Interfaces.ICouncilRunConfigurationService.html">ICouncilRunConfigurationService</a></div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+  </dd></dl>
+
+  <dl class="typelist extensionMethods">
+    <dt>Extension Methods</dt>
+    <dd>
+  <div>
+      <a class="xref" href="LocalGPT.Extensions.StringExtensions.html#LocalGPT_Extensions_StringExtensions_ToJsonString_System_Object_System_Text_Json_JsonSerializerOptions_">StringExtensions.ToJsonString(object, JsonSerializerOptions?)</a>
+  </div>
+  </dd></dl>
+
+
+
+
+
+  <section class="localgpt-api-member-panel localgpt-api-member-panel--constructors" data-member-kind="Constructors" style="--localgpt-api-accent:#a855f7;" role="region" aria-labelledby="constructors"><h2 class="section" id="constructors"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2728;</span>Constructors
+<span class="localgpt-api-member-count" aria-label="1 item">1</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService__ctor_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.#ctor*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService__ctor_LocalGPT_Interfaces_ICouncilHardwareRoadPlanner_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_CouncilRunConfigurationService__" data-uid="LocalGPT.Services.CouncilRunConfigurationService.#ctor(LocalGPT.Interfaces.ICouncilHardwareRoadPlanner,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.CouncilRunConfigurationService})">
+  CouncilRunConfigurationService(ICouncilHardwareRoadPlanner, ILogger&lt;CouncilRunConfigurationService&gt;)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CouncilRunConfigurationService(ICouncilHardwareRoadPlanner hardwareRoadPlanner, ILogger&lt;CouncilRunConfigurationService&gt; logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>hardwareRoadPlanner</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilHardwareRoadPlanner.html">ICouncilHardwareRoadPlanner</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger-1">ILogger</a>&lt;<a class="xref" href="LocalGPT.Services.CouncilRunConfigurationService.html">CouncilRunConfigurationService</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--methods" data-member-kind="Methods" style="--localgpt-api-accent:#3b82f6;" role="region" aria-labelledby="methods"><h2 class="section" id="methods"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2699;&#xFE0F;</span>Methods
+<span class="localgpt-api-member-count" aria-label="11 items">11</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_AcquireModelRequestAsync_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.AcquireModelRequestAsync*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_AcquireModelRequestAsync_System_Guid_System_String_LocalGPT_BusinessObjects_CouncilHardwareRoadPlan_System_Threading_CancellationToken_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.AcquireModelRequestAsync(System.Guid,System.String,LocalGPT.BusinessObjects.CouncilHardwareRoadPlan,System.Threading.CancellationToken)">
+  AcquireModelRequestAsync(Guid, string, CouncilHardwareRoadPlan, CancellationToken)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public ValueTask&lt;ICouncilModelRequestLease&gt; AcquireModelRequestAsync(Guid runId, string modelName, CouncilHardwareRoadPlan fallbackPlan, CancellationToken cancellationToken = default)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>modelName</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>fallbackPlan</code> <a class="xref" href="LocalGPT.BusinessObjects.CouncilHardwareRoadPlan.html">CouncilHardwareRoadPlan</a></dt>
+    <dd></dd>
+    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.valuetask-1">ValueTask</a>&lt;<a class="xref" href="LocalGPT.Interfaces.ICouncilModelRequestLease.html">ICouncilModelRequestLease</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_BeginRound_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.BeginRound*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_BeginRound_System_Guid_System_Int32_System_String_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.BeginRound(System.Guid,System.Int32,System.String)">
+  BeginRound(Guid, int, string)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void BeginRound(Guid runId, int round, string phase)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>round</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>phase</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_Complete_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.Complete*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_Complete_System_Guid_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.Complete(System.Guid)">
+  Complete(Guid)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void Complete(Guid runId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_Ensure_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.Ensure*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_Ensure_LocalGPT_BusinessObjects_MultiModelCouncilRequest_System_Collections_Generic_IReadOnlyCollection_System_String__" data-uid="LocalGPT.Services.CouncilRunConfigurationService.Ensure(LocalGPT.BusinessObjects.MultiModelCouncilRequest,System.Collections.Generic.IReadOnlyCollection{System.String})">
+  Ensure(MultiModelCouncilRequest, IReadOnlyCollection&lt;string&gt;)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CouncilRunConfigurationSnapshot Ensure(MultiModelCouncilRequest request, IReadOnlyCollection&lt;string&gt; participants)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.MultiModelCouncilRequest.html">MultiModelCouncilRequest</a></dt>
+    <dd></dd>
+    <dt><code>participants</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlycollection-1">IReadOnlyCollection</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.html">CouncilRunConfigurationSnapshot</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_Get_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.Get*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_Get_System_Guid_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.Get(System.Guid)">
+  Get(Guid)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CouncilRunConfigurationSnapshot? Get(Guid runId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.html">CouncilRunConfigurationSnapshot</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_GetPreparation_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.GetPreparation*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_GetPreparation" data-uid="LocalGPT.Services.CouncilRunConfigurationService.GetPreparation">
+  GetPreparation()
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CouncilPreparationConfiguration? GetPreparation()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.BusinessObjects.CouncilPreparationConfiguration.html">CouncilPreparationConfiguration</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_GetRoundCancellationToken_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.GetRoundCancellationToken*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_GetRoundCancellationToken_System_Guid_System_Int32_System_String_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.GetRoundCancellationToken(System.Guid,System.Int32,System.String)">
+  GetRoundCancellationToken(Guid, int, string)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CancellationToken GetRoundCancellationToken(Guid runId, int round, string phase)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>round</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>phase</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_IsRoundSkipRequested_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.IsRoundSkipRequested*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_IsRoundSkipRequested_System_Guid_System_Int32_System_String_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.IsRoundSkipRequested(System.Guid,System.Int32,System.String)">
+  IsRoundSkipRequested(Guid, int, string)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool IsRoundSkipRequested(Guid runId, int round, string phase)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>round</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>phase</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_RequestSkipCurrentRound_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.RequestSkipCurrentRound*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_RequestSkipCurrentRound_System_Guid_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.RequestSkipCurrentRound(System.Guid)">
+  RequestSkipCurrentRound(Guid)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool RequestSkipCurrentRound(Guid runId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_SavePreparation_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.SavePreparation*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_SavePreparation_LocalGPT_BusinessObjects_CouncilPreparationConfiguration_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.SavePreparation(LocalGPT.BusinessObjects.CouncilPreparationConfiguration)">
+  SavePreparation(CouncilPreparationConfiguration)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CouncilPreparationConfiguration SavePreparation(CouncilPreparationConfiguration configuration)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>configuration</code> <a class="xref" href="LocalGPT.BusinessObjects.CouncilPreparationConfiguration.html">CouncilPreparationConfiguration</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.BusinessObjects.CouncilPreparationConfiguration.html">CouncilPreparationConfiguration</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_CouncilRunConfigurationService_Update_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.Update*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_Update_System_Guid_System_Collections_Generic_IReadOnlyCollection_LocalGPT_WireProtocol_OneWireCouncilModelRoute__System_Int32_System_Int32_System_Int32_System_Nullable_System_Int32__System_Boolean_" data-uid="LocalGPT.Services.CouncilRunConfigurationService.Update(System.Guid,System.Collections.Generic.IReadOnlyCollection{LocalGPT.WireProtocol.OneWireCouncilModelRoute},System.Int32,System.Int32,System.Int32,System.Nullable{System.Int32},System.Boolean)">
+  Update(Guid, IReadOnlyCollection&lt;OneWireCouncilModelRoute&gt;, int, int, int, int?, bool)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool Update(Guid runId, IReadOnlyCollection&lt;OneWireCouncilModelRoute&gt; routes, int resourceLoadPercent, int requestedMaxOutputTokens, int requestedMaxContextTokens, int? fallbackOllamaNumGpu, bool allowParallelHardwareRoads)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>routes</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlycollection-1">IReadOnlyCollection</a>&lt;<span class="xref">OneWireCouncilModelRoute</span>&gt;</dt>
+    <dd></dd>
+    <dt><code>resourceLoadPercent</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>requestedMaxOutputTokens</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>requestedMaxContextTokens</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>fallbackOllamaNumGpu</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>?</dt>
+    <dd></dd>
+    <dt><code>allowParallelHardwareRoads</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--events" data-member-kind="Events" style="--localgpt-api-accent:#ec4899;" role="region" aria-labelledby="events"><h2 class="section" id="events"><span class="localgpt-api-member-icon" aria-hidden="true">&#x26A1;</span>Events
+<span class="localgpt-api-member-count" aria-label="1 item">1</span></h2><div class="localgpt-api-member-panel-body">
+
+
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CouncilRunConfigurationService_Changed" data-uid="LocalGPT.Services.CouncilRunConfigurationService.Changed">
+  Changed
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public event Action&lt;Guid&gt;? Changed</code></pre>
+  </div>
+
+
+
+
+
+
+  <h4 class="section">Event Type</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">Action</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+</div></section>
+</div></section></article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!doctype html>
+<html class="localgpt-kawaii-docs" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LocalGPT 2.3.2 Documentation</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { display: grid; place-items: center; font-family: "Segoe UI", system-ui, sans-serif; background: #f5f5f5; color: #171717; }
+    main { width: min(900px, 82vw); border-top: 12px solid #0078d4; padding-top: 48px; }
+    h1 { margin: 0; font-size: 64px; font-weight: 600; letter-spacing: -0.04em; }
+    p { font-size: 24px; line-height: 1.5; color: #505050; }
+    .version { margin-top: 72px; font-size: 18px; color: #606060; }
+  </style>
+<script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="favicon.ico?v=c1e7eb37cc8b" />
+<link rel="stylesheet" href="styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+<body>
+  <main>
+    <h1>LocalGPT Documentation</h1>
+    <p>Complete product, architecture, engineering, and XML-generated API reference.</p>
+    <p class="version">Version 2.3.2</p>
+  </main>
+<script type="module" src="styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

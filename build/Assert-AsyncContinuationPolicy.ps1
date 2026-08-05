@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 function Fail([string]$Message) { throw "Async continuation validation failed: $Message" }
 
 $root = Split-Path -Parent $PSScriptRoot
-$sourceRoot = Join-Path $root 'LocalGPTWebviewWrapper\LocalGPT'
+$sourceRoot = Join-Path $root 'src\LocalGPT'
 $pythonScript = Join-Path $PSScriptRoot 'audit_async_continuations.py'
 
 function Invoke-PythonAudit {

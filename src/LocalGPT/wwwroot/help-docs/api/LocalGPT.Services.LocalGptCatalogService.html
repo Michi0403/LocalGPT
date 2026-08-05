@@ -1,0 +1,4414 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Class LocalGptCatalogService | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class LocalGptCatalogService | LocalGPT Documentation ">
+      
+      
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="LocalGPT.Services.LocalGptCatalogService">
+
+
+
+  <h1 id="LocalGPT_Services_LocalGptCatalogService" data-uid="LocalGPT.Services.LocalGptCatalogService" class="text-break">
+Class LocalGptCatalogService  
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Services.html">Services</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"></div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed class LocalGptCatalogService</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">LocalGptCatalogService</span></div>
+    </dd>
+  </dl>
+
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+  </dd></dl>
+
+  <dl class="typelist extensionMethods">
+    <dt>Extension Methods</dt>
+    <dd>
+  <div>
+      <a class="xref" href="LocalGPT.Extensions.StringExtensions.html#LocalGPT_Extensions_StringExtensions_ToJsonString_System_Object_System_Text_Json_JsonSerializerOptions_">StringExtensions.ToJsonString(object, JsonSerializerOptions?)</a>
+  </div>
+  </dd></dl>
+
+
+
+
+
+  <section class="localgpt-api-member-panel localgpt-api-member-panel--constructors" data-member-kind="Constructors" style="--localgpt-api-accent:#a855f7;" role="region" aria-labelledby="constructors"><h2 class="section" id="constructors"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2728;</span>Constructors
+<span class="localgpt-api-member-count" aria-label="1 item">1</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService__ctor_" data-uid="LocalGPT.Services.LocalGptCatalogService.#ctor*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService__ctor_LocalGPT_Interfaces_ILocalGptRuntimePolicyDataService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_LocalGptCatalogService__" data-uid="LocalGPT.Services.LocalGptCatalogService.#ctor(LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LocalGptCatalogService})">
+  LocalGptCatalogService(ILocalGptRuntimePolicyDataService, ILogger&lt;LocalGptCatalogService&gt;)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public LocalGptCatalogService(ILocalGptRuntimePolicyDataService runtimePolicy, ILogger&lt;LocalGptCatalogService&gt; logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runtimePolicy</code> <a class="xref" href="LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService.html">ILocalGptRuntimePolicyDataService</a></dt>
+    <dd></dd>
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger-1">ILogger</a>&lt;<a class="xref" href="LocalGPT.Services.LocalGptCatalogService.html">LocalGptCatalogService</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--properties" data-member-kind="Properties" style="--localgpt-api-accent:#06b6d4;" role="region" aria-labelledby="properties"><h2 class="section" id="properties"><span class="localgpt-api-member-icon" aria-hidden="true">&#x1F43E;</span>Properties
+<span class="localgpt-api-member-count" aria-label="133 items">133</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_AdviceOnlyPromptPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.AdviceOnlyPromptPattern*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_AdviceOnlyPromptPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.AdviceOnlyPromptPattern">
+  AdviceOnlyPromptPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex AdviceOnlyPromptPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_AiHostExperimentPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.AiHostExperimentPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_AiHostExperimentPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.AiHostExperimentPattern">
+  AiHostExperimentPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex AiHostExperimentPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_AiHostSetupPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.AiHostSetupPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_AiHostSetupPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.AiHostSetupPattern">
+  AiHostSetupPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex AiHostSetupPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_AllowedUploadExtensions_" data-uid="LocalGPT.Services.LocalGptCatalogService.AllowedUploadExtensions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_AllowedUploadExtensions" data-uid="LocalGPT.Services.LocalGptCatalogService.AllowedUploadExtensions">
+  AllowedUploadExtensions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;string&gt; AllowedUploadExtensions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_AllowedUploadMimeTypes_" data-uid="LocalGPT.Services.LocalGptCatalogService.AllowedUploadMimeTypes*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_AllowedUploadMimeTypes" data-uid="LocalGPT.Services.LocalGptCatalogService.AllowedUploadMimeTypes">
+  AllowedUploadMimeTypes
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;string&gt; AllowedUploadMimeTypes { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ArchitectureReferenceLookOptions_" data-uid="LocalGPT.Services.LocalGptCatalogService.ArchitectureReferenceLookOptions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ArchitectureReferenceLookOptions" data-uid="LocalGPT.Services.LocalGptCatalogService.ArchitectureReferenceLookOptions">
+  ArchitectureReferenceLookOptions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string[] ArchitectureReferenceLookOptions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>[]</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ArchitectureRenderModeOptions_" data-uid="LocalGPT.Services.LocalGptCatalogService.ArchitectureRenderModeOptions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ArchitectureRenderModeOptions" data-uid="LocalGPT.Services.LocalGptCatalogService.ArchitectureRenderModeOptions">
+  ArchitectureRenderModeOptions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string[] ArchitectureRenderModeOptions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>[]</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ArchitectureSolutionShapeOptions_" data-uid="LocalGPT.Services.LocalGptCatalogService.ArchitectureSolutionShapeOptions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ArchitectureSolutionShapeOptions" data-uid="LocalGPT.Services.LocalGptCatalogService.ArchitectureSolutionShapeOptions">
+  ArchitectureSolutionShapeOptions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string[] ArchitectureSolutionShapeOptions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>[]</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ArchitectureUiStackOptions_" data-uid="LocalGPT.Services.LocalGptCatalogService.ArchitectureUiStackOptions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ArchitectureUiStackOptions" data-uid="LocalGPT.Services.LocalGptCatalogService.ArchitectureUiStackOptions">
+  ArchitectureUiStackOptions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string[] ArchitectureUiStackOptions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>[]</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ArtifactTextExtensions_" data-uid="LocalGPT.Services.LocalGptCatalogService.ArtifactTextExtensions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ArtifactTextExtensions" data-uid="LocalGPT.Services.LocalGptCatalogService.ArtifactTextExtensions">
+  ArtifactTextExtensions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public FrozenSet&lt;string&gt; ArtifactTextExtensions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.frozen.frozenset-1">FrozenSet</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_BinaryDiagnosticExtensions_" data-uid="LocalGPT.Services.LocalGptCatalogService.BinaryDiagnosticExtensions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_BinaryDiagnosticExtensions" data-uid="LocalGPT.Services.LocalGptCatalogService.BinaryDiagnosticExtensions">
+  BinaryDiagnosticExtensions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public FrozenSet&lt;string&gt; BinaryDiagnosticExtensions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.frozen.frozenset-1">FrozenSet</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_BinaryExtensions_" data-uid="LocalGPT.Services.LocalGptCatalogService.BinaryExtensions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_BinaryExtensions" data-uid="LocalGPT.Services.LocalGptCatalogService.BinaryExtensions">
+  BinaryExtensions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public FrozenSet&lt;string&gt; BinaryExtensions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.frozen.frozenset-1">FrozenSet</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_BlazorFrontendPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.BlazorFrontendPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_BlazorFrontendPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.BlazorFrontendPattern">
+  BlazorFrontendPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex BlazorFrontendPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_BlockingArtifactDecisionPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.BlockingArtifactDecisionPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_BlockingArtifactDecisionPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.BlockingArtifactDecisionPattern">
+  BlockingArtifactDecisionPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex BlockingArtifactDecisionPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_BotBackendPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.BotBackendPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_BotBackendPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.BotBackendPattern">
+  BotBackendPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex BotBackendPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_CapabilityGapBlockPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.CapabilityGapBlockPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_CapabilityGapBlockPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.CapabilityGapBlockPattern">
+  CapabilityGapBlockPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex CapabilityGapBlockPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ConcreteDotNetArtifactPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.ConcreteDotNetArtifactPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ConcreteDotNetArtifactPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.ConcreteDotNetArtifactPattern">
+  ConcreteDotNetArtifactPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex ConcreteDotNetArtifactPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ConcreteMinecraftArtifactPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.ConcreteMinecraftArtifactPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ConcreteMinecraftArtifactPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.ConcreteMinecraftArtifactPattern">
+  ConcreteMinecraftArtifactPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex ConcreteMinecraftArtifactPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_CouncilKnowledgeEntryNew_" data-uid="LocalGPT.Services.LocalGptCatalogService.CouncilKnowledgeEntryNew*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_CouncilKnowledgeEntryNew" data-uid="LocalGPT.Services.LocalGptCatalogService.CouncilKnowledgeEntryNew">
+  CouncilKnowledgeEntryNew
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public CouncilKnowledgeEntry CouncilKnowledgeEntryNew { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.BusinessObjects.CouncilKnowledgeEntry.html">CouncilKnowledgeEntry</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_CouncilPromptFencePattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.CouncilPromptFencePattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_CouncilPromptFencePattern" data-uid="LocalGPT.Services.LocalGptCatalogService.CouncilPromptFencePattern">
+  CouncilPromptFencePattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex CouncilPromptFencePattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_CouncilRequestBlockPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.CouncilRequestBlockPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_CouncilRequestBlockPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.CouncilRequestBlockPattern">
+  CouncilRequestBlockPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex CouncilRequestBlockPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_CouncilSessionName_" data-uid="LocalGPT.Services.LocalGptCatalogService.CouncilSessionName*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_CouncilSessionName" data-uid="LocalGPT.Services.LocalGptCatalogService.CouncilSessionName">
+  CouncilSessionName
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string CouncilSessionName { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DatapackPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.DatapackPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DatapackPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.DatapackPattern">
+  DatapackPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex DatapackPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DebugExtensions_" data-uid="LocalGPT.Services.LocalGptCatalogService.DebugExtensions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DebugExtensions" data-uid="LocalGPT.Services.LocalGptCatalogService.DebugExtensions">
+  DebugExtensions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public FrozenSet&lt;string&gt; DebugExtensions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.frozen.frozenset-1">FrozenSet</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultContextTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultContextTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultContextTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultContextTokens">
+  DefaultContextTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int DefaultContextTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultCouncilContextTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultCouncilContextTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultCouncilContextTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultCouncilContextTokens">
+  DefaultCouncilContextTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int DefaultCouncilContextTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultCouncilOutputTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultCouncilOutputTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultCouncilOutputTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultCouncilOutputTokens">
+  DefaultCouncilOutputTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int DefaultCouncilOutputTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultGradleVersion_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultGradleVersion*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultGradleVersion" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultGradleVersion">
+  DefaultGradleVersion
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string DefaultGradleVersion { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultHeavyModelGpuLayers_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultHeavyModelGpuLayers*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultHeavyModelGpuLayers" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultHeavyModelGpuLayers">
+  DefaultHeavyModelGpuLayers
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int DefaultHeavyModelGpuLayers { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultJavaVersion_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultJavaVersion*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultJavaVersion" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultJavaVersion">
+  DefaultJavaVersion
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string DefaultJavaVersion { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultMaxParallelModels_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultMaxParallelModels*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultMaxParallelModels" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultMaxParallelModels">
+  DefaultMaxParallelModels
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int DefaultMaxParallelModels { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultMaxPromptCharacters_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultMaxPromptCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultMaxPromptCharacters" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultMaxPromptCharacters">
+  DefaultMaxPromptCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int DefaultMaxPromptCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultMinecraftVersion_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultMinecraftVersion*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultMinecraftVersion" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultMinecraftVersion">
+  DefaultMinecraftVersion
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string DefaultMinecraftVersion { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultOllamaEndpoint_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultOllamaEndpoint*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultOllamaEndpoint" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultOllamaEndpoint">
+  DefaultOllamaEndpoint
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string DefaultOllamaEndpoint { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DefaultOllamaUri_" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultOllamaUri*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DefaultOllamaUri" data-uid="LocalGPT.Services.LocalGptCatalogService.DefaultOllamaUri">
+  DefaultOllamaUri
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string DefaultOllamaUri { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DetectedOllamaSessionPrefix_" data-uid="LocalGPT.Services.LocalGptCatalogService.DetectedOllamaSessionPrefix*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DetectedOllamaSessionPrefix" data-uid="LocalGPT.Services.LocalGptCatalogService.DetectedOllamaSessionPrefix">
+  DetectedOllamaSessionPrefix
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string DetectedOllamaSessionPrefix { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DevExpressDocumentPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.DevExpressDocumentPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DevExpressDocumentPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.DevExpressDocumentPattern">
+  DevExpressDocumentPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex DevExpressDocumentPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DevExpressImportPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.DevExpressImportPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DevExpressImportPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.DevExpressImportPattern">
+  DevExpressImportPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex DevExpressImportPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DevExpressRegistrationPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.DevExpressRegistrationPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DevExpressRegistrationPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.DevExpressRegistrationPattern">
+  DevExpressRegistrationPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex DevExpressRegistrationPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DeveloperExecutionIntentPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.DeveloperExecutionIntentPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DeveloperExecutionIntentPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.DeveloperExecutionIntentPattern">
+  DeveloperExecutionIntentPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex DeveloperExecutionIntentPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DevelopmentRequestPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.DevelopmentRequestPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DevelopmentRequestPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.DevelopmentRequestPattern">
+  DevelopmentRequestPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex DevelopmentRequestPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DotNetPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.DotNetPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DotNetPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.DotNetPattern">
+  DotNetPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex DotNetPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_DownloadUrlPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.DownloadUrlPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_DownloadUrlPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.DownloadUrlPattern">
+  DownloadUrlPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex DownloadUrlPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ExcludedDirectoryNames_" data-uid="LocalGPT.Services.LocalGptCatalogService.ExcludedDirectoryNames*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ExcludedDirectoryNames" data-uid="LocalGPT.Services.LocalGptCatalogService.ExcludedDirectoryNames">
+  ExcludedDirectoryNames
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public FrozenSet&lt;string&gt; ExcludedDirectoryNames { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.frozen.frozenset-1">FrozenSet</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ExplicitArtifactCreationCommandPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.ExplicitArtifactCreationCommandPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ExplicitArtifactCreationCommandPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.ExplicitArtifactCreationCommandPattern">
+  ExplicitArtifactCreationCommandPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex ExplicitArtifactCreationCommandPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ExplicitArtifactIntentPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.ExplicitArtifactIntentPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ExplicitArtifactIntentPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.ExplicitArtifactIntentPattern">
+  ExplicitArtifactIntentPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex ExplicitArtifactIntentPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ExplicitDoNotGenerateUntilUserDecisionPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.ExplicitDoNotGenerateUntilUserDecisionPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ExplicitDoNotGenerateUntilUserDecisionPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.ExplicitDoNotGenerateUntilUserDecisionPattern">
+  ExplicitDoNotGenerateUntilUserDecisionPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex ExplicitDoNotGenerateUntilUserDecisionPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ExportFormatPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.ExportFormatPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ExportFormatPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.ExportFormatPattern">
+  ExportFormatPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex ExportFormatPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_FabricLoaderVersion_" data-uid="LocalGPT.Services.LocalGptCatalogService.FabricLoaderVersion*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_FabricLoaderVersion" data-uid="LocalGPT.Services.LocalGptCatalogService.FabricLoaderVersion">
+  FabricLoaderVersion
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string FabricLoaderVersion { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_FrontendPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.FrontendPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_FrontendPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.FrontendPattern">
+  FrontendPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex FrontendPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostChatRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostChatRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostChatRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostChatRazor">
+  GenerateAiHostChatRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateAiHostChatRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostHardwareRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostHardwareRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostHardwareRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostHardwareRazor">
+  GenerateAiHostHardwareRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateAiHostHardwareRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostLogsRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostLogsRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostLogsRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostLogsRazor">
+  GenerateAiHostLogsRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateAiHostLogsRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostModelDownloadsRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostModelDownloadsRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostModelDownloadsRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostModelDownloadsRazor">
+  GenerateAiHostModelDownloadsRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateAiHostModelDownloadsRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostRunnerPluginsRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostRunnerPluginsRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostRunnerPluginsRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostRunnerPluginsRazor">
+  GenerateAiHostRunnerPluginsRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateAiHostRunnerPluginsRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostRunningModelsRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostRunningModelsRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostRunningModelsRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostRunningModelsRazor">
+  GenerateAiHostRunningModelsRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateAiHostRunningModelsRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostSettingsRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostSettingsRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostSettingsRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostSettingsRazor">
+  GenerateAiHostSettingsRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateAiHostSettingsRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostTemplatesRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostTemplatesRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateAiHostTemplatesRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateAiHostTemplatesRazor">
+  GenerateAiHostTemplatesRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateAiHostTemplatesRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateSolutionAppRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateSolutionAppRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateSolutionAppRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateSolutionAppRazor">
+  GenerateSolutionAppRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateSolutionAppRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateSolutionCss_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateSolutionCss*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateSolutionCss" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateSolutionCss">
+  GenerateSolutionCss
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateSolutionCss { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateSolutionProjectFile_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateSolutionProjectFile*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateSolutionProjectFile" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateSolutionProjectFile">
+  GenerateSolutionProjectFile
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateSolutionProjectFile { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateSolutionRoutesRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateSolutionRoutesRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateSolutionRoutesRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateSolutionRoutesRazor">
+  GenerateSolutionRoutesRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateSolutionRoutesRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GenerateSourceFidelityRazor_" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateSourceFidelityRazor*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GenerateSourceFidelityRazor" data-uid="LocalGPT.Services.LocalGptCatalogService.GenerateSourceFidelityRazor">
+  GenerateSourceFidelityRazor
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string GenerateSourceFidelityRazor { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_HelpfulSourceLinePattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.HelpfulSourceLinePattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_HelpfulSourceLinePattern" data-uid="LocalGPT.Services.LocalGptCatalogService.HelpfulSourceLinePattern">
+  HelpfulSourceLinePattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex HelpfulSourceLinePattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ImplementationChoicePattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.ImplementationChoicePattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ImplementationChoicePattern" data-uid="LocalGPT.Services.LocalGptCatalogService.ImplementationChoicePattern">
+  ImplementationChoicePattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex ImplementationChoicePattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ImplementationDecisionPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.ImplementationDecisionPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ImplementationDecisionPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.ImplementationDecisionPattern">
+  ImplementationDecisionPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex ImplementationDecisionPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_JsonOptions_" data-uid="LocalGPT.Services.LocalGptCatalogService.JsonOptions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_JsonOptions" data-uid="LocalGPT.Services.LocalGptCatalogService.JsonOptions">
+  JsonOptions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public JsonSerializerOptions JsonOptions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.json.jsonserializeroptions">JsonSerializerOptions</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_KnowledgeFiles_" data-uid="LocalGPT.Services.LocalGptCatalogService.KnowledgeFiles*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_KnowledgeFiles" data-uid="LocalGPT.Services.LocalGptCatalogService.KnowledgeFiles">
+  KnowledgeFiles
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string[] KnowledgeFiles { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>[]</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_LeadingSlashCommandPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.LeadingSlashCommandPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_LeadingSlashCommandPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.LeadingSlashCommandPattern">
+  LeadingSlashCommandPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex LeadingSlashCommandPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_LearnBaseDuplicatePolicySummary_" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBaseDuplicatePolicySummary*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_LearnBaseDuplicatePolicySummary" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBaseDuplicatePolicySummary">
+  LearnBaseDuplicatePolicySummary
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string LearnBaseDuplicatePolicySummary { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_LearnBaseFilePolicySummary_" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBaseFilePolicySummary*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_LearnBaseFilePolicySummary" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBaseFilePolicySummary">
+  LearnBaseFilePolicySummary
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string LearnBaseFilePolicySummary { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_LearnBaseKnownExtensions_" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBaseKnownExtensions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_LearnBaseKnownExtensions" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBaseKnownExtensions">
+  LearnBaseKnownExtensions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public FrozenSet&lt;string&gt; LearnBaseKnownExtensions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.frozen.frozenset-1">FrozenSet</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_LearnBasePresetList_" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBasePresetList*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_LearnBasePresetList" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBasePresetList">
+  LearnBasePresetList
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string LearnBasePresetList { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_LearnBasePresets_" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBasePresets*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_LearnBasePresets" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBasePresets">
+  LearnBasePresets
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IReadOnlyList&lt;LearnBasePreset&gt; LearnBasePresets { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.LearnBasePreset.html">LearnBasePreset</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_LearnBaseScanProfiles_" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBaseScanProfiles*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_LearnBaseScanProfiles" data-uid="LocalGPT.Services.LocalGptCatalogService.LearnBaseScanProfiles">
+  LearnBaseScanProfiles
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IReadOnlyList&lt;LearnBaseScanProfile&gt; LearnBaseScanProfiles { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.LearnBaseScanProfile.html">LearnBaseScanProfile</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_LivingCitiesPrompt_" data-uid="LocalGPT.Services.LocalGptCatalogService.LivingCitiesPrompt*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_LivingCitiesPrompt" data-uid="LocalGPT.Services.LocalGptCatalogService.LivingCitiesPrompt">
+  LivingCitiesPrompt
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string LivingCitiesPrompt { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_LocalGptReplacementPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.LocalGptReplacementPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_LocalGptReplacementPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.LocalGptReplacementPattern">
+  LocalGptReplacementPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex LocalGptReplacementPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_LoggingPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.LoggingPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_LoggingPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.LoggingPattern">
+  LoggingPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex LoggingPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MalformedStorageTargetPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.MalformedStorageTargetPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MalformedStorageTargetPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.MalformedStorageTargetPattern">
+  MalformedStorageTargetPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex MalformedStorageTargetPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxArtifactTextFileBytes_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxArtifactTextFileBytes*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxArtifactTextFileBytes" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxArtifactTextFileBytes">
+  MaxArtifactTextFileBytes
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public long MaxArtifactTextFileBytes { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int64">long</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxBinaryStringCharacters_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxBinaryStringCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxBinaryStringCharacters" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxBinaryStringCharacters">
+  MaxBinaryStringCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxBinaryStringCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxBootstrapCharacters_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxBootstrapCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxBootstrapCharacters" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxBootstrapCharacters">
+  MaxBootstrapCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxBootstrapCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxContextCharacters_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxContextCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxContextCharacters" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxContextCharacters">
+  MaxContextCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxContextCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxContextTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxContextTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxContextTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxContextTokens">
+  MaxContextTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxContextTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxCouncilContextTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxCouncilContextTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxCouncilContextTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxCouncilContextTokens">
+  MaxCouncilContextTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxCouncilContextTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxCouncilOutputTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxCouncilOutputTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxCouncilOutputTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxCouncilOutputTokens">
+  MaxCouncilOutputTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxCouncilOutputTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxDxAiChatPromptCharacters_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxDxAiChatPromptCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxDxAiChatPromptCharacters" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxDxAiChatPromptCharacters">
+  MaxDxAiChatPromptCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxDxAiChatPromptCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxExcerptCharactersPerFile_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxExcerptCharactersPerFile*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxExcerptCharactersPerFile" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxExcerptCharactersPerFile">
+  MaxExcerptCharactersPerFile
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxExcerptCharactersPerFile { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxExtractedBytes_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxExtractedBytes*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxExtractedBytes" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxExtractedBytes">
+  MaxExtractedBytes
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public long MaxExtractedBytes { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int64">long</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxFiles_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxFiles*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxFiles" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxFiles">
+  MaxFiles
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxFiles { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxOutputTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxOutputTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxOutputTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxOutputTokens">
+  MaxOutputTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxOutputTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxParticipants_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxParticipants*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxParticipants" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxParticipants">
+  MaxParticipants
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxParticipants { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxPromptCharacters_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxPromptCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxPromptCharacters" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxPromptCharacters">
+  MaxPromptCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxPromptCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxSingleConversationMessageCharacters_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxSingleConversationMessageCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxSingleConversationMessageCharacters" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxSingleConversationMessageCharacters">
+  MaxSingleConversationMessageCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxSingleConversationMessageCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxSingleFileBytes_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxSingleFileBytes*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxSingleFileBytes" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxSingleFileBytes">
+  MaxSingleFileBytes
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public long MaxSingleFileBytes { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int64">long</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxTotalFileBytes_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxTotalFileBytes*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxTotalFileBytes" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxTotalFileBytes">
+  MaxTotalFileBytes
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public long MaxTotalFileBytes { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int64">long</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxUploadBytes_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxUploadBytes*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxUploadBytes" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxUploadBytes">
+  MaxUploadBytes
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxUploadBytes { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxUploadFiles_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxUploadFiles*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxUploadFiles" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxUploadFiles">
+  MaxUploadFiles
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxUploadFiles { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxVisiblePromptCharacters_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxVisiblePromptCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxVisiblePromptCharacters" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxVisiblePromptCharacters">
+  MaxVisiblePromptCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxVisiblePromptCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxZipEntries_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxZipEntries*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxZipEntries" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxZipEntries">
+  MaxZipEntries
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxZipEntries { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MaxZipEntryBytes_" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxZipEntryBytes*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MaxZipEntryBytes" data-uid="LocalGPT.Services.LocalGptCatalogService.MaxZipEntryBytes">
+  MaxZipEntryBytes
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public long MaxZipEntryBytes { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int64">long</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MinContextTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.MinContextTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MinContextTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.MinContextTokens">
+  MinContextTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MinContextTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MinCouncilContextTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.MinCouncilContextTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MinCouncilContextTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.MinCouncilContextTokens">
+  MinCouncilContextTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MinCouncilContextTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MinCouncilOutputTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.MinCouncilOutputTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MinCouncilOutputTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.MinCouncilOutputTokens">
+  MinCouncilOutputTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MinCouncilOutputTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MinOutputTokens_" data-uid="LocalGPT.Services.LocalGptCatalogService.MinOutputTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MinOutputTokens" data-uid="LocalGPT.Services.LocalGptCatalogService.MinOutputTokens">
+  MinOutputTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MinOutputTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MinecraftPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.MinecraftPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MinecraftPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.MinecraftPattern">
+  MinecraftPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex MinecraftPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MinecraftSkeletonMatrixPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.MinecraftSkeletonMatrixPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MinecraftSkeletonMatrixPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.MinecraftSkeletonMatrixPattern">
+  MinecraftSkeletonMatrixPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex MinecraftSkeletonMatrixPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MinecraftVersionPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.MinecraftVersionPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MinecraftVersionPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.MinecraftVersionPattern">
+  MinecraftVersionPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex MinecraftVersionPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_MissingFeaturePattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.MissingFeaturePattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_MissingFeaturePattern" data-uid="LocalGPT.Services.LocalGptCatalogService.MissingFeaturePattern">
+  MissingFeaturePattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex MissingFeaturePattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ModIdCleaner_" data-uid="LocalGPT.Services.LocalGptCatalogService.ModIdCleaner*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ModIdCleaner" data-uid="LocalGPT.Services.LocalGptCatalogService.ModIdCleaner">
+  ModIdCleaner
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex ModIdCleaner { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_NameCleaner_" data-uid="LocalGPT.Services.LocalGptCatalogService.NameCleaner*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_NameCleaner" data-uid="LocalGPT.Services.LocalGptCatalogService.NameCleaner">
+  NameCleaner
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex NameCleaner { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_OllamaModeAutoGpu_" data-uid="LocalGPT.Services.LocalGptCatalogService.OllamaModeAutoGpu*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_OllamaModeAutoGpu" data-uid="LocalGPT.Services.LocalGptCatalogService.OllamaModeAutoGpu">
+  OllamaModeAutoGpu
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string OllamaModeAutoGpu { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_OllamaModeLimitedGpu_" data-uid="LocalGPT.Services.LocalGptCatalogService.OllamaModeLimitedGpu*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_OllamaModeLimitedGpu" data-uid="LocalGPT.Services.LocalGptCatalogService.OllamaModeLimitedGpu">
+  OllamaModeLimitedGpu
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string OllamaModeLimitedGpu { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_OllamaModeSafeCpu_" data-uid="LocalGPT.Services.LocalGptCatalogService.OllamaModeSafeCpu*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_OllamaModeSafeCpu" data-uid="LocalGPT.Services.LocalGptCatalogService.OllamaModeSafeCpu">
+  OllamaModeSafeCpu
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string OllamaModeSafeCpu { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_PackagePartCleaner_" data-uid="LocalGPT.Services.LocalGptCatalogService.PackagePartCleaner*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_PackagePartCleaner" data-uid="LocalGPT.Services.LocalGptCatalogService.PackagePartCleaner">
+  PackagePartCleaner
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex PackagePartCleaner { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_PackageReferencePattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.PackageReferencePattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_PackageReferencePattern" data-uid="LocalGPT.Services.LocalGptCatalogService.PackageReferencePattern">
+  PackageReferencePattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex PackageReferencePattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_RootStorageRemovePattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.RootStorageRemovePattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_RootStorageRemovePattern" data-uid="LocalGPT.Services.LocalGptCatalogService.RootStorageRemovePattern">
+  RootStorageRemovePattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex RootStorageRemovePattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_Routes_" data-uid="LocalGPT.Services.LocalGptCatalogService.Routes*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_Routes" data-uid="LocalGPT.Services.LocalGptCatalogService.Routes">
+  Routes
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;TestLabRoute&gt; Routes { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.TestLabRoute.html">TestLabRoute</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_SafeSandboxConsentPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.SafeSandboxConsentPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_SafeSandboxConsentPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.SafeSandboxConsentPattern">
+  SafeSandboxConsentPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex SafeSandboxConsentPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_SensitiveNamePattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.SensitiveNamePattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_SensitiveNamePattern" data-uid="LocalGPT.Services.LocalGptCatalogService.SensitiveNamePattern">
+  SensitiveNamePattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex SensitiveNamePattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_SourceExtensions_" data-uid="LocalGPT.Services.LocalGptCatalogService.SourceExtensions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_SourceExtensions" data-uid="LocalGPT.Services.LocalGptCatalogService.SourceExtensions">
+  SourceExtensions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public FrozenSet&lt;string&gt; SourceExtensions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.frozen.frozenset-1">FrozenSet</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_StreamStatusPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.StreamStatusPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_StreamStatusPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.StreamStatusPattern">
+  StreamStatusPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex StreamStatusPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_TacosPortalPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.TacosPortalPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_TacosPortalPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.TacosPortalPattern">
+  TacosPortalPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex TacosPortalPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_TargetFrameworkPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.TargetFrameworkPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_TargetFrameworkPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.TargetFrameworkPattern">
+  TargetFrameworkPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex TargetFrameworkPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_TextExtensions_" data-uid="LocalGPT.Services.LocalGptCatalogService.TextExtensions*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_TextExtensions" data-uid="LocalGPT.Services.LocalGptCatalogService.TextExtensions">
+  TextExtensions
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public FrozenSet&lt;string&gt; TextExtensions { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.frozen.frozenset-1">FrozenSet</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_ThinkingBlockPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.ThinkingBlockPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_ThinkingBlockPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.ThinkingBlockPattern">
+  ThinkingBlockPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex ThinkingBlockPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_TruncatedTailPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.TruncatedTailPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_TruncatedTailPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.TruncatedTailPattern">
+  TruncatedTailPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex TruncatedTailPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_Utf8NoBom_" data-uid="LocalGPT.Services.LocalGptCatalogService.Utf8NoBom*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_Utf8NoBom" data-uid="LocalGPT.Services.LocalGptCatalogService.Utf8NoBom">
+  Utf8NoBom
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Encoding Utf8NoBom { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.encoding">Encoding</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_WhitespacePattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.WhitespacePattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_WhitespacePattern" data-uid="LocalGPT.Services.LocalGptCatalogService.WhitespacePattern">
+  WhitespacePattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex WhitespacePattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_WholeSolutionPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.WholeSolutionPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_WholeSolutionPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.WholeSolutionPattern">
+  WholeSolutionPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex WholeSolutionPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_WordPattern_" data-uid="LocalGPT.Services.LocalGptCatalogService.WordPattern*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_WordPattern" data-uid="LocalGPT.Services.LocalGptCatalogService.WordPattern">
+  WordPattern
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Regex WordPattern { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.text.regularexpressions.regex">Regex</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_omission_" data-uid="LocalGPT.Services.LocalGptCatalogService.omission*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_omission" data-uid="LocalGPT.Services.LocalGptCatalogService.omission">
+  omission
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string omission { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_shortOmission_" data-uid="LocalGPT.Services.LocalGptCatalogService.shortOmission*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_shortOmission" data-uid="LocalGPT.Services.LocalGptCatalogService.shortOmission">
+  shortOmission
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string shortOmission { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--methods" data-member-kind="Methods" style="--localgpt-api-accent:#3b82f6;" role="region" aria-labelledby="methods"><h2 class="section" id="methods"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2699;&#xFE0F;</span>Methods
+<span class="localgpt-api-member-count" aria-label="1 item">1</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_Services_LocalGptCatalogService_GetSuggestion_" data-uid="LocalGPT.Services.LocalGptCatalogService.GetSuggestion*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_LocalGptCatalogService_GetSuggestion" data-uid="LocalGPT.Services.LocalGptCatalogService.GetSuggestion">
+  GetSuggestion()
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Creates the maintained generic and Council-team prompt suggestion catalog.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;PromptSuggestion&gt; GetSuggestion()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.PromptSuggestion.html">PromptSuggestion</a>&gt;</dt>
+    <dd><p>Prompt suggestions with stable keys and optional direct-Council ownership.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+</div></section>
+</div></section></article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

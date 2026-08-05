@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Projects and workspaces | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Projects and workspaces | LocalGPT Documentation ">
+      
+      
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/Michi0403/LocalGPT/blob/main/docs/guide/projects-and-workspaces.md/#L1">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="projects-and-workspaces">Projects and workspaces</h1>
+
+<h2 id="durable-project-model">Durable project model</h2>
+<p>A LocalGPT project is language-neutral. It can describe a .NET solution, firmware workspace, game content, documentation set, or another technical/creative structure.</p>
+<p>The durable model separates:</p>
+<ul>
+<li>project identity and purpose;</li>
+<li>versions and revisions;</li>
+<li>requirements and requirement links;</li>
+<li>named artifacts;</li>
+<li>topics and reviewed knowledge;</li>
+<li>tracked files and file-pattern rules;</li>
+<li>workspace roots and environment profiles;</li>
+<li>compiler installations and build evidence.</li>
+</ul>
+<p>A filesystem path helps locate a checkout; it is not the identity of the project. Stable database identifiers survive moves and alternate workspaces.</p>
+<h2 id="revisions-and-tracked-files">Revisions and tracked files</h2>
+<p>A revision records ancestry, status, structure metadata, and build evidence. A tracked file uses a normalized relative path and stable identity. Hashes provide evidence that the file being reviewed is the file that was assessed; they do not grant permission to overwrite it.</p>
+<p>The typical flow is:</p>
+<ol>
+<li>register or select a project;</li>
+<li>resolve an allowed workspace root;</li>
+<li>scan expected files using maintained patterns;</li>
+<li>create or select a revision;</li>
+<li>inspect and propose changes;</li>
+<li>save a review record;</li>
+<li>approve the exact revision for testing;</li>
+<li>run bounded verification through the configured toolchain.</li>
+</ol>
+<h2 id="workspace-permission-assessment">Workspace permission assessment</h2>
+<p>A workspace contains rules for allowed paths, expected structure, compiler profiles, and environment variables. Findings are grouped as:</p>
+<ul>
+<li><strong>Approved</strong> — the required operation is inside the allowed boundary;</li>
+<li><strong>Warning</strong> — the operation may proceed only after visible review;</li>
+<li><strong>Danger</strong> — the operation is blocked until the boundary is corrected.</li>
+</ul>
+<p>Compiler execution requires a fresh assessment with proven access and no unresolved danger finding. A prior successful build does not automatically approve a later command against changed files or another path.</p>
+<h2 id="toolchains">Toolchains</h2>
+<p>Compiler installations are records, not guessed commands. A toolchain can describe executable path, version, environment, supported project types, and validation state. Native execution goes through the command runner and approval policy rather than direct <code>cmd.exe</code> composition.</p>
+<h2 id="collaboration-and-knowledge">Collaboration and knowledge</h2>
+<p>Projects can link reviewed Council knowledge to topics and versions. Knowledge entries keep provenance, review state, archival state, and optional expiration. Automatic context should use only entries that remain current and explicitly eligible.</p>
+<h2 id="artifacts">Artifacts</h2>
+<p>Generated source, documents, firmware, reports, and other outputs belong to reviewable artifact workspaces. Saving an artifact is separate from compiling, flashing, publishing, or replacing a project file.</p>
+<p>Continue with <a href="../architecture/project-data.html">Project and data architecture</a> for the service and persistence boundaries.</p>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

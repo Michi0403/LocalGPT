@@ -34,15 +34,15 @@ foreach ($project in $projectFiles) {
 }
 
 $requiredFiles = @(
-    'LocalGPTWebviewWrapper/LocalGPT/Program.cs',
-    'LocalGPTWebviewWrapper/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj',
-    'LocalGPTWebviewWrapper/LocalGPT.WireProtocolVersion/OneWireProtocolContracts.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/OrganicSkillPersistenceModels.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/OrganicCouncilModels.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Services/OneWire/OrganicPluginDxAiFunctions.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Migrations/20260726133000_AddOrganicSkillsAndHardwareRoutes.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Migrations/20260726150000_AddCouncilTeamScripting.cs',
-    'LocalGPTWebviewWrapper/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs'
+    'src/LocalGPT/Program.cs',
+    'src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj',
+    'src/LocalGPT.WireProtocolVersion/OneWireProtocolContracts.cs',
+    'src/LocalGPT/BusinessObjects/OrganicSkillPersistenceModels.cs',
+    'src/LocalGPT/BusinessObjects/OrganicCouncilModels.cs',
+    'src/LocalGPT/Services/OneWire/OrganicPluginDxAiFunctions.cs',
+    'src/LocalGPT/Migrations/20260726133000_AddOrganicSkillsAndHardwareRoutes.cs',
+    'src/LocalGPT/Migrations/20260726150000_AddCouncilTeamScripting.cs',
+    'src/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs'
 )
 foreach ($relative in $requiredFiles) {
     $path = Join-Path $root $relative
@@ -51,7 +51,7 @@ foreach ($relative in $requiredFiles) {
     }
 }
 
-$contractPath = Join-Path $root 'LocalGPTWebviewWrapper/LocalGPT.WireProtocolVersion/OneWireProtocolContracts.cs'
+$contractPath = Join-Path $root 'src/LocalGPT.WireProtocolVersion/OneWireProtocolContracts.cs'
 if (Test-Path -LiteralPath $contractPath -PathType Leaf) {
     $contract = Get-Content -LiteralPath $contractPath -Raw
     foreach ($token in @(
@@ -67,7 +67,7 @@ if (Test-Path -LiteralPath $contractPath -PathType Leaf) {
     }
 }
 
-$programPath = Join-Path $root 'LocalGPTWebviewWrapper/LocalGPT/Program.cs'
+$programPath = Join-Path $root 'src/LocalGPT/Program.cs'
 if (Test-Path -LiteralPath $programPath -PathType Leaf) {
     $program = Get-Content -LiteralPath $programPath -Raw
     foreach ($token in @(

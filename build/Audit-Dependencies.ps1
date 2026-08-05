@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$Solution = 'LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.sln',
+    [string]$Solution = 'src/LocalGPTWebviewWrapper.sln',
     [string]$OutputDirectory = 'artifacts/security'
 )
 

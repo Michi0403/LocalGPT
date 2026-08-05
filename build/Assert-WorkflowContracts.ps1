@@ -14,7 +14,7 @@ function Read-RepositoryText([string]$relativePath) {
     return Get-Content -LiteralPath $path -Raw
 }
 
-$components = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Components'
+$components = Join-Path $RepositoryRoot 'src/LocalGPT/Components'
 Get-ChildItem -Path $components -Recurse -Filter '*.razor' -File | ForEach-Object {
     $content = Get-Content -LiteralPath $_.FullName -Raw
     if (($content.IndexOf('Name = NavigationUrls.ToggleSidebarName', [System.StringComparison]::Ordinal) -ge 0)) {
@@ -23,41 +23,41 @@ Get-ChildItem -Path $components -Recurse -Filter '*.razor' -File | ForEach-Objec
 }
 
 foreach ($relative in @(
-    'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/Drawer.razor',
-    'LocalGPTWebviewWrapper/LocalGPT/Components/Layout/MainLayout.razor',
-    'LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Index.razor')) {
+    'src/LocalGPT/Components/Layout/Drawer.razor',
+    'src/LocalGPT/Components/Layout/MainLayout.razor',
+    'src/LocalGPT/Components/Pages/Index.razor')) {
     $content = Read-RepositoryText $relative
     if (-not ($content.IndexOf('Name = NavigationUrlService.ToggleSidebarName', [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("$relative must retain the type-qualified sidebar query constant.")
     }
 }
 
-$sharedDescriptor = 'LocalGPTWebviewWrapper/LocalGPT/BusinessObjects/DxaichatFunctionInfo.cs'
+$sharedDescriptor = 'src/LocalGPT/BusinessObjects/DxaichatFunctionInfo.cs'
 $descriptorContent = Read-RepositoryText $sharedDescriptor
 if (-not ($descriptorContent.IndexOf('namespace LocalGPT.BusinessObjects;', [System.StringComparison]::Ordinal) -ge 0)) {
     $errors.Add("$sharedDescriptor must remain in the shared LocalGPT.BusinessObjects contract namespace.")
 }
-$obsoleteDescriptor = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/DxaichatFunctionCatalog.cs'
+$obsoleteDescriptor = Join-Path $RepositoryRoot 'src/LocalGPT/Services/DxaichatFunctionCatalog.cs'
 if (Test-Path -LiteralPath $obsoleteDescriptor) {
     $errors.Add('DxaichatFunctionInfo must not be reintroduced as a service-layer contract copy.')
 }
 
-$interfaceContent = Read-RepositoryText 'LocalGPTWebviewWrapper/LocalGPT/Interfaces/IDxAiFunctionServiceClient.cs'
+$interfaceContent = Read-RepositoryText 'src/LocalGPT/Interfaces/IDxAiFunctionServiceClient.cs'
 if (-not ($interfaceContent.IndexOf('using LocalGPT.BusinessObjects;', [System.StringComparison]::Ordinal) -ge 0) -or
     -not ($interfaceContent.IndexOf('IReadOnlyList<DxaichatFunctionInfo> GetFunctions();', [System.StringComparison]::Ordinal) -ge 0)) {
     $errors.Add('IDxAiFunctionServiceClient must use the shared DxaichatFunctionInfo contract.')
 }
 
 $forbiddenSignatures = [ordered]@{
-    'LocalGPTWebviewWrapper/LocalGPT/Services/BuildDebugInventoryService.cs' = @('Task<BuildDebugInventory?> CaptureAsync')
-    'LocalGPTWebviewWrapper/LocalGPT/Services/ChatUploadWorkspaceService.cs' = @('Task<ChatUploadWorkspaceResult?> CreateWorkspaceAsync')
-    'LocalGPTWebviewWrapper/LocalGPT/Services/CompositeChatClient.cs' = @('IAsyncEnumerable<ChatResponseUpdate>? GetStreamingResponseAsync')
-    'LocalGPTWebviewWrapper/LocalGPT/Services/CouncilArtifactService.cs' = @('Task<CouncilArtifact?> CreateSolutionZipArtifactAsync')
-    'LocalGPTWebviewWrapper/LocalGPT/Services/CouncilChatClient.cs' = @('Task<ChatResponse?> GetResponseAsync')
-    'LocalGPTWebviewWrapper/LocalGPT/Services/LearnBaseKnowledgeImporterService.cs' = @('Task<LearnBaseImportResult?> ImportAsync')
-    'LocalGPTWebviewWrapper/LocalGPT/Services/MinecraftModWorkspaceService.cs' = @('Task<MinecraftModWorkspace?> CreateWorkspaceAsync', 'Task<MinecraftModWorkspace?> CreateFabricWorkspaceAsync')
-    'LocalGPTWebviewWrapper/LocalGPT/Services/OllamaThinkingChatClient.cs' = @('Task<ChatResponse?> GetResponseAsync', 'IAsyncEnumerable<ChatResponseUpdate>? GetStreamingResponseAsync')
-    'LocalGPTWebviewWrapper/LocalGPT/Services/SqliteTableEditorService.cs' = @('Task<SqliteTableSnapshot?> GetTableAsync')
+    'src/LocalGPT/Services/BuildDebugInventoryService.cs' = @('Task<BuildDebugInventory?> CaptureAsync')
+    'src/LocalGPT/Services/ChatUploadWorkspaceService.cs' = @('Task<ChatUploadWorkspaceResult?> CreateWorkspaceAsync')
+    'src/LocalGPT/Services/CompositeChatClient.cs' = @('IAsyncEnumerable<ChatResponseUpdate>? GetStreamingResponseAsync')
+    'src/LocalGPT/Services/CouncilArtifactService.cs' = @('Task<CouncilArtifact?> CreateSolutionZipArtifactAsync')
+    'src/LocalGPT/Services/CouncilChatClient.cs' = @('Task<ChatResponse?> GetResponseAsync')
+    'src/LocalGPT/Services/LearnBaseKnowledgeImporterService.cs' = @('Task<LearnBaseImportResult?> ImportAsync')
+    'src/LocalGPT/Services/MinecraftModWorkspaceService.cs' = @('Task<MinecraftModWorkspace?> CreateWorkspaceAsync', 'Task<MinecraftModWorkspace?> CreateFabricWorkspaceAsync')
+    'src/LocalGPT/Services/OllamaThinkingChatClient.cs' = @('Task<ChatResponse?> GetResponseAsync', 'IAsyncEnumerable<ChatResponseUpdate>? GetStreamingResponseAsync')
+    'src/LocalGPT/Services/SqliteTableEditorService.cs' = @('Task<SqliteTableSnapshot?> GetTableAsync')
 }
 foreach ($entry in $forbiddenSignatures.GetEnumerator()) {
     $content = Read-RepositoryText $entry.Key
@@ -68,7 +68,7 @@ foreach ($entry in $forbiddenSignatures.GetEnumerator()) {
     }
 }
 
-$minecraftService = Read-RepositoryText 'LocalGPTWebviewWrapper/LocalGPT/Services/MinecraftModWorkspaceService.cs'
+$minecraftService = Read-RepositoryText 'src/LocalGPT/Services/MinecraftModWorkspaceService.cs'
 foreach ($required in @(
     'public async Task<MinecraftModWorkspace> CreateWorkspaceAsync',
     'return await workspaceTask.ConfigureAwait(false);',
@@ -82,7 +82,7 @@ if (($minecraftService.IndexOf('return string.Empty;', [System.StringComparison]
     $errors.Add('Minecraft workspace path allocation must not convert failures into an empty path.')
 }
 
-$minecraftComponent = Read-RepositoryText 'LocalGPTWebviewWrapper/LocalGPT/Components/Pages/MinecraftModBuilder.razor'
+$minecraftComponent = Read-RepositoryText 'src/LocalGPT/Components/Pages/MinecraftModBuilder.razor'
 foreach ($operation in @('CreateWorkspaceCoreAsync', 'RunCommandCoreAsync')) {
     $operationIndex = $minecraftComponent.IndexOf("async Task $operation", [System.StringComparison]::Ordinal)
     if ($operationIndex -lt 0) {

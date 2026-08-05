@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Class SystemVariableDefinitionService | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class SystemVariableDefinitionService | LocalGPT Documentation ">
+      
+      <meta name="description" content="Creates the maintained strongly typed system-variable definitions and their deterministic seed values.">
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService">
+
+
+
+  <h1 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService" class="text-break">
+Class SystemVariableDefinitionService  
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Services.html">Services</a>.<a class="xref" href="LocalGPT.Services.Persistence.html">Persistence</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Creates the maintained strongly typed system-variable definitions and their deterministic seed values.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[DocumentationUpdated(&quot;2.1.20&quot;)]
+public sealed class SystemVariableDefinitionService : ISystemVariableDefinitionService</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">SystemVariableDefinitionService</span></div>
+    </dd>
+  </dl>
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><a class="xref" href="LocalGPT.Interfaces.ISystemVariableDefinitionService.html">ISystemVariableDefinitionService</a></div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+  </dd></dl>
+
+  <dl class="typelist extensionMethods">
+    <dt>Extension Methods</dt>
+    <dd>
+  <div>
+      <a class="xref" href="LocalGPT.Extensions.StringExtensions.html#LocalGPT_Extensions_StringExtensions_ToJsonString_System_Object_System_Text_Json_JsonSerializerOptions_">StringExtensions.ToJsonString(object, JsonSerializerOptions?)</a>
+  </div>
+  </dd></dl>
+
+
+
+
+
+  <section class="localgpt-api-member-panel localgpt-api-member-panel--constructors" data-member-kind="Constructors" style="--localgpt-api-accent:#a855f7;" role="region" aria-labelledby="constructors"><h2 class="section" id="constructors"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2728;</span>Constructors
+<span class="localgpt-api-member-count" aria-label="1 item">1</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService__ctor_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.#ctor*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService__ctor_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_Persistence_SystemVariableDefinitionService__" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.#ctor(Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.Persistence.SystemVariableDefinitionService})">
+  SystemVariableDefinitionService(ILogger&lt;SystemVariableDefinitionService&gt;)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Initializes every maintained system-variable definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinitionService(ILogger&lt;SystemVariableDefinitionService&gt; logger)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger-1">ILogger</a>&lt;<a class="xref" href="LocalGPT.Services.Persistence.SystemVariableDefinitionService.html">SystemVariableDefinitionService</a>&gt;</dt>
+    <dd><p>Writes bounded initialization diagnostics.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--properties" data-member-kind="Properties" style="--localgpt-api-accent:#06b6d4;" role="region" aria-labelledby="properties"><h2 class="section" id="properties"><span class="localgpt-api-member-icon" aria-hidden="true">&#x1F43E;</span>Properties
+<span class="localgpt-api-member-count" aria-label="23 items">23</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_CouncilDefaultsVersion_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.CouncilDefaultsVersion*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_CouncilDefaultsVersion" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.CouncilDefaultsVersion">
+  CouncilDefaultsVersion
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the Council defaults migration-version definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; CouncilDefaultsVersion { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_CouncilDxMaximumCallsPerStep_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.CouncilDxMaximumCallsPerStep*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_CouncilDxMaximumCallsPerStep" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.CouncilDxMaximumCallsPerStep">
+  CouncilDxMaximumCallsPerStep
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the maximum DXFunction calls per Council step definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; CouncilDxMaximumCallsPerStep { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_CouncilDxMaximumParameterCharacters_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.CouncilDxMaximumParameterCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_CouncilDxMaximumParameterCharacters" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.CouncilDxMaximumParameterCharacters">
+  CouncilDxMaximumParameterCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the maximum DXFunction parameter-character definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; CouncilDxMaximumParameterCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_CouncilDxMaximumResultCharacters_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.CouncilDxMaximumResultCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_CouncilDxMaximumResultCharacters" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.CouncilDxMaximumResultCharacters">
+  CouncilDxMaximumResultCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the maximum DXFunction result-character definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; CouncilDxMaximumResultCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultContextTokens_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultContextTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultContextTokens" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultContextTokens">
+  DefaultContextTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the default context-token definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; DefaultContextTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultCouncilCritiqueRounds_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultCouncilCritiqueRounds*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultCouncilCritiqueRounds" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultCouncilCritiqueRounds">
+  DefaultCouncilCritiqueRounds
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the default Council critique-round definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; DefaultCouncilCritiqueRounds { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultCouncilResourceLoadPercent_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultCouncilResourceLoadPercent*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultCouncilResourceLoadPercent" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultCouncilResourceLoadPercent">
+  DefaultCouncilResourceLoadPercent
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the default Council resource-load percentage definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; DefaultCouncilResourceLoadPercent { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultHeavyModelGpuLayers_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultHeavyModelGpuLayers*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultHeavyModelGpuLayers" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultHeavyModelGpuLayers">
+  DefaultHeavyModelGpuLayers
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the legacy heavy-model GPU-layer default.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; DefaultHeavyModelGpuLayers { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultMaxOutputTokens_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultMaxOutputTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultMaxOutputTokens" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultMaxOutputTokens">
+  DefaultMaxOutputTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the default maximum output-token definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; DefaultMaxOutputTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultMaxParallelModels_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultMaxParallelModels*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultMaxParallelModels" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultMaxParallelModels">
+  DefaultMaxParallelModels
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the default maximum parallel-model definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; DefaultMaxParallelModels { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultMaxPromptCharacters_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultMaxPromptCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultMaxPromptCharacters" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultMaxPromptCharacters">
+  DefaultMaxPromptCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the default maximum prompt-character definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; DefaultMaxPromptCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultOllamaEndpoint_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultOllamaEndpoint*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_DefaultOllamaEndpoint" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.DefaultOllamaEndpoint">
+  DefaultOllamaEndpoint
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the default loopback Ollama endpoint definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;string&gt; DefaultOllamaEndpoint { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_FirstRunOnboardingCompleted_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.FirstRunOnboardingCompleted*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_FirstRunOnboardingCompleted" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.FirstRunOnboardingCompleted">
+  FirstRunOnboardingCompleted
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the persisted first-run onboarding completion flag definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;bool&gt; FirstRunOnboardingCompleted { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_InitialValues_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.InitialValues*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_InitialValues" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.InitialValues">
+  InitialValues
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the deterministic initial variable list.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IReadOnlyList&lt;InitialVariable&gt; InitialValues { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.Interfaces.InitialVariable.html">InitialVariable</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_LegacyCouncilResourceLoadPercent_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.LegacyCouncilResourceLoadPercent*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_LegacyCouncilResourceLoadPercent" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.LegacyCouncilResourceLoadPercent">
+  LegacyCouncilResourceLoadPercent
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the former hard-coded Council resource-load percentage.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int LegacyCouncilResourceLoadPercent { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_MaxBootstrapCharacters_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.MaxBootstrapCharacters*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_MaxBootstrapCharacters" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.MaxBootstrapCharacters">
+  MaxBootstrapCharacters
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the maximum bootstrap-character definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; MaxBootstrapCharacters { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_MaxContextTokens_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.MaxContextTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_MaxContextTokens" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.MaxContextTokens">
+  MaxContextTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the maximum context-token definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; MaxContextTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_MaxOutputTokens_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.MaxOutputTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_MaxOutputTokens" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.MaxOutputTokens">
+  MaxOutputTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the maximum output-token definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; MaxOutputTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_MinContextTokens_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.MinContextTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_MinContextTokens" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.MinContextTokens">
+  MinContextTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the minimum context-token definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; MinContextTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_MinOutputTokens_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.MinOutputTokens*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_MinOutputTokens" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.MinOutputTokens">
+  MinOutputTokens
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the minimum output-token definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; MinOutputTokens { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_ProviderSelectionPolicy_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.ProviderSelectionPolicy*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_ProviderSelectionPolicy" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.ProviderSelectionPolicy">
+  ProviderSelectionPolicy
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the provider-selection policy definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;string&gt; ProviderSelectionPolicy { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_RegexMatchTimeoutMilliseconds_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.RegexMatchTimeoutMilliseconds*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_RegexMatchTimeoutMilliseconds" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.RegexMatchTimeoutMilliseconds">
+  RegexMatchTimeoutMilliseconds
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the regular-expression timeout definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; RegexMatchTimeoutMilliseconds { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_RepositoryKnowledgeSeedVersion_" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.RepositoryKnowledgeSeedVersion*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_Persistence_SystemVariableDefinitionService_RepositoryKnowledgeSeedVersion" data-uid="LocalGPT.Services.Persistence.SystemVariableDefinitionService.RepositoryKnowledgeSeedVersion">
+  RepositoryKnowledgeSeedVersion
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Gets the repository knowledge seed-version definition.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public SystemVariableDefinition&lt;int&gt; RepositoryKnowledgeSeedVersion { get; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="LocalGPT.Interfaces.SystemVariableDefinition-1.html">SystemVariableDefinition</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+</div></section>
+</div></section></article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

@@ -13,7 +13,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$solutionRoot = Join-Path $root "LocalGPTWebviewWrapper"
+$solutionRoot = Join-Path $root "src"
 $artifacts = Join-Path $root "artifacts\release"
 $packageDirectory = Join-Path $root "packages"
 $appProject = Join-Path $solutionRoot "LocalGPT\LocalGPT.csproj"

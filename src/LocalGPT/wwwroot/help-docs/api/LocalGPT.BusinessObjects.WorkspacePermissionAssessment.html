@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>Class WorkspacePermissionAssessment | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class WorkspacePermissionAssessment | LocalGPT Documentation ">
+      
+      
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment">
+
+
+
+  <h1 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment" class="text-break">
+Class WorkspacePermissionAssessment  
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.BusinessObjects.html">BusinessObjects</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"></div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public sealed record WorkspacePermissionAssessment : IEquatable&lt;WorkspacePermissionAssessment&gt;</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">WorkspacePermissionAssessment</span></div>
+    </dd>
+  </dl>
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.html">WorkspacePermissionAssessment</a>&gt;</div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+  </dd></dl>
+
+  <dl class="typelist extensionMethods">
+    <dt>Extension Methods</dt>
+    <dd>
+  <div>
+      <a class="xref" href="LocalGPT.Extensions.StringExtensions.html#LocalGPT_Extensions_StringExtensions_ToJsonString_System_Object_System_Text_Json_JsonSerializerOptions_">StringExtensions.ToJsonString(object, JsonSerializerOptions?)</a>
+  </div>
+  </dd></dl>
+
+
+
+
+
+  <section class="localgpt-api-member-panel localgpt-api-member-panel--constructors" data-member-kind="Constructors" style="--localgpt-api-accent:#a855f7;" role="region" aria-labelledby="constructors"><h2 class="section" id="constructors"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2728;</span>Constructors
+<span class="localgpt-api-member-count" aria-label="1 item">1</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment__ctor_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.#ctor*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment__ctor_System_Guid_System_String_System_DateTime_System_Boolean_System_Boolean_System_Boolean_System_String_System_Nullable_System_Guid__System_Collections_Generic_IReadOnlyList_System_String__System_Collections_Generic_IReadOnlyList_LocalGPT_BusinessObjects_WorkspacePermissionFinding__" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.#ctor(System.Guid,System.String,System.DateTime,System.Boolean,System.Boolean,System.Boolean,System.String,System.Nullable{System.Guid},System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{LocalGPT.BusinessObjects.WorkspacePermissionFinding})">
+  WorkspacePermissionAssessment(Guid, string, DateTime, bool, bool, bool, string, Guid?, IReadOnlyList&lt;string&gt;, IReadOnlyList&lt;WorkspacePermissionFinding&gt;)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public WorkspacePermissionAssessment(Guid WorkspaceRootId, string Status, DateTime CheckedAtUtc, bool RootExists, bool ReadAccess, bool WriteAccess, string EnvironmentRootPath, Guid? PreferredCompilerInstallationId, IReadOnlyList&lt;string&gt; ExpectedSubdirectories, IReadOnlyList&lt;WorkspacePermissionFinding&gt; Findings)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>WorkspaceRootId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>Status</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>CheckedAtUtc</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></dt>
+    <dd></dd>
+    <dt><code>RootExists</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>ReadAccess</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>WriteAccess</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>EnvironmentRootPath</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>PreferredCompilerInstallationId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+    <dt><code>ExpectedSubdirectories</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>Findings</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.WorkspacePermissionFinding.html">WorkspacePermissionFinding</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--properties" data-member-kind="Properties" style="--localgpt-api-accent:#06b6d4;" role="region" aria-labelledby="properties"><h2 class="section" id="properties"><span class="localgpt-api-member-icon" aria-hidden="true">&#x1F43E;</span>Properties
+<span class="localgpt-api-member-count" aria-label="10 items">10</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_CheckedAtUtc_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.CheckedAtUtc*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_CheckedAtUtc" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.CheckedAtUtc">
+  CheckedAtUtc
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public DateTime CheckedAtUtc { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_EnvironmentRootPath_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.EnvironmentRootPath*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_EnvironmentRootPath" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.EnvironmentRootPath">
+  EnvironmentRootPath
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string EnvironmentRootPath { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_ExpectedSubdirectories_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.ExpectedSubdirectories*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_ExpectedSubdirectories" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.ExpectedSubdirectories">
+  ExpectedSubdirectories
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IReadOnlyList&lt;string&gt; ExpectedSubdirectories { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_Findings_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.Findings*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_Findings" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.Findings">
+  Findings
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IReadOnlyList&lt;WorkspacePermissionFinding&gt; Findings { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.WorkspacePermissionFinding.html">WorkspacePermissionFinding</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_PreferredCompilerInstallationId_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.PreferredCompilerInstallationId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_PreferredCompilerInstallationId" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.PreferredCompilerInstallationId">
+  PreferredCompilerInstallationId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid? PreferredCompilerInstallationId { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_ReadAccess_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.ReadAccess*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_ReadAccess" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.ReadAccess">
+  ReadAccess
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool ReadAccess { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_RootExists_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.RootExists*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_RootExists" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.RootExists">
+  RootExists
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool RootExists { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_Status_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.Status*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_Status" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.Status">
+  Status
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string Status { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_WorkspaceRootId_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.WorkspaceRootId*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_WorkspaceRootId" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.WorkspaceRootId">
+  WorkspaceRootId
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Guid WorkspaceRootId { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_WriteAccess_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.WriteAccess*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_WriteAccess" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.WriteAccess">
+  WriteAccess
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool WriteAccess { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--methods" data-member-kind="Methods" style="--localgpt-api-accent:#3b82f6;" role="region" aria-labelledby="methods"><h2 class="section" id="methods"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2699;&#xFE0F;</span>Methods
+<span class="localgpt-api-member-count" aria-label="5 items">5</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_Deconstruct_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.Deconstruct*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_Deconstruct_System_Guid__System_String__System_DateTime__System_Boolean__System_Boolean__System_Boolean__System_String__System_Nullable_System_Guid___System_Collections_Generic_IReadOnlyList_System_String___System_Collections_Generic_IReadOnlyList_LocalGPT_BusinessObjects_WorkspacePermissionFinding___" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.Deconstruct(System.Guid@,System.String@,System.DateTime@,System.Boolean@,System.Boolean@,System.Boolean@,System.String@,System.Nullable{System.Guid}@,System.Collections.Generic.IReadOnlyList{System.String}@,System.Collections.Generic.IReadOnlyList{LocalGPT.BusinessObjects.WorkspacePermissionFinding}@)">
+  Deconstruct(out Guid, out string, out DateTime, out bool, out bool, out bool, out string, out Guid?, out IReadOnlyList&lt;string&gt;, out IReadOnlyList&lt;WorkspacePermissionFinding&gt;)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public void Deconstruct(out Guid WorkspaceRootId, out string Status, out DateTime CheckedAtUtc, out bool RootExists, out bool ReadAccess, out bool WriteAccess, out string EnvironmentRootPath, out Guid? PreferredCompilerInstallationId, out IReadOnlyList&lt;string&gt; ExpectedSubdirectories, out IReadOnlyList&lt;WorkspacePermissionFinding&gt; Findings)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>WorkspaceRootId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>Status</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>CheckedAtUtc</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></dt>
+    <dd></dd>
+    <dt><code>RootExists</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>ReadAccess</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>WriteAccess</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>EnvironmentRootPath</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>PreferredCompilerInstallationId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a>?</dt>
+    <dd></dd>
+    <dt><code>ExpectedSubdirectories</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+    <dt><code>Findings</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.WorkspacePermissionFinding.html">WorkspacePermissionFinding</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_Equals_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.Equals*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_Equals_LocalGPT_BusinessObjects_WorkspacePermissionAssessment_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.Equals(LocalGPT.BusinessObjects.WorkspacePermissionAssessment)">
+  Equals(WorkspacePermissionAssessment?)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public bool Equals(WorkspacePermissionAssessment? other)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>other</code> <a class="xref" href="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.html">WorkspacePermissionAssessment</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_Equals_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.Equals*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_Equals_System_Object_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.Equals(System.Object)">
+  Equals(object?)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public override bool Equals(object? obj)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>obj</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_GetHashCode_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.GetHashCode*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_GetHashCode" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.GetHashCode">
+  GetHashCode()
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public override int GetHashCode()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_ToString_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.ToString*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_ToString" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.ToString">
+  ToString()
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public override string ToString()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--operators" data-member-kind="Operators" style="--localgpt-api-accent:#f97316;" role="region" aria-labelledby="operators"><h2 class="section" id="operators"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2797;</span>Operators
+<span class="localgpt-api-member-count" aria-label="2 items">2</span></h2><div class="localgpt-api-member-panel-body">
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_op_Equality_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.op_Equality*"></a>
+
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_op_Equality_LocalGPT_BusinessObjects_WorkspacePermissionAssessment_LocalGPT_BusinessObjects_WorkspacePermissionAssessment_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.op_Equality(LocalGPT.BusinessObjects.WorkspacePermissionAssessment,LocalGPT.BusinessObjects.WorkspacePermissionAssessment)">
+  operator ==(WorkspacePermissionAssessment?, WorkspacePermissionAssessment?)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static bool operator ==(WorkspacePermissionAssessment? left, WorkspacePermissionAssessment? right)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>left</code> <a class="xref" href="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.html">WorkspacePermissionAssessment</a></dt>
+    <dd></dd>
+    <dt><code>right</code> <a class="xref" href="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.html">WorkspacePermissionAssessment</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_op_Inequality_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.op_Inequality*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_WorkspacePermissionAssessment_op_Inequality_LocalGPT_BusinessObjects_WorkspacePermissionAssessment_LocalGPT_BusinessObjects_WorkspacePermissionAssessment_" data-uid="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.op_Inequality(LocalGPT.BusinessObjects.WorkspacePermissionAssessment,LocalGPT.BusinessObjects.WorkspacePermissionAssessment)">
+  operator !=(WorkspacePermissionAssessment?, WorkspacePermissionAssessment?)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public static bool operator !=(WorkspacePermissionAssessment? left, WorkspacePermissionAssessment? right)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>left</code> <a class="xref" href="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.html">WorkspacePermissionAssessment</a></dt>
+    <dd></dd>
+    <dt><code>right</code> <a class="xref" href="LocalGPT.BusinessObjects.WorkspacePermissionAssessment.html">WorkspacePermissionAssessment</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+</div></section>
+</div></section></article>
+
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

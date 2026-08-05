@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html class="localgpt-kawaii-docs" lang="en">
+  <head>
+    <meta charset="utf-8">
+      <title>AI Host control plane | LocalGPT Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="AI Host control plane | LocalGPT Documentation ">
+      
+      
+      <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
+<link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/Michi0403/LocalGPT/blob/main/docs/architecture/ai-host.md/#L1">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  <script data-localgpt-theme-bootstrap="true">
+(function () {
+  var cookieName = "localgpt-docs-theme";
+  var valid = { light: true, dark: true, auto: true };
+  var preference = null;
+  var prefix = encodeURIComponent(cookieName) + "=";
+  try {
+    document.cookie.split(";").some(function (part) {
+      part = part.trim();
+      if (part.indexOf(prefix) === 0) {
+        try { preference = decodeURIComponent(part.substring(prefix.length)); }
+        catch (_) { preference = null; }
+        return true;
+      }
+      return false;
+    });
+    if (!valid[preference]) preference = localStorage.getItem(cookieName);
+    if (!valid[preference]) preference = localStorage.getItem("theme");
+  } catch (_) { }
+  if (!valid[preference]) preference = "auto";
+  var resolved = preference === "auto"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : preference;
+  document.documentElement.dataset.localgptThemePreference = preference;
+  document.documentElement.setAttribute("data-bs-theme", resolved);
+  try {
+    localStorage.setItem(cookieName, preference);
+    localStorage.setItem("theme", preference);
+  } catch (_) { }
+  var secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = prefix + encodeURIComponent(preference) + "; Max-Age=31536000; Path=/; SameSite=Lax" + secure;
+})();
+</script>
+<link rel="stylesheet" href="../styles/localgpt-kawaii.css?v=b080589a71b0" data-localgpt-kawaii-style="true" />
+</head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../logo.svg" alt="LocalGPT">
+            LocalGPT
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="ai-host-control-plane">AI Host control plane</h1>
+
+<p>The AI Host control plane is a first-class part of LocalGPT's architecture. It defines how providers, model catalogs, runners, downloads, settings, logs, chat, and API-compatible routes fit behind explicit .NET service boundaries.</p>
+<h2 id="purpose">Purpose</h2>
+<p>The AI Host boundary gives LocalGPT a provider-neutral way to discover, configure, run, and observe compatible model runtimes while keeping native inference engines replaceable.</p>
+<p>It separates four concerns:</p>
+<ol>
+<li><strong>Control plane</strong> — model catalog, running-model state, settings, downloads, health, logs, and request validation.</li>
+<li><strong>Provider adapter</strong> — Ollama, OpenAI-compatible, OpenAI, Azure OpenAI, or another bounded route.</li>
+<li><strong>Native/model runtime</strong> — the process or library that owns inference, model loading, and hardware use.</li>
+<li><strong>LocalGPT orchestration</strong> — Chat/Council selection, benchmarks, presets, policy, and UI.</li>
+</ol>
+<p>LocalGPT should not pretend that rebuilding a high-performance inference engine in managed code is a small UI task. A .NET host can provide a strong control plane, provider-compatible API, native runner boundary, and plugin model while delegating optimized inference to a suitable runtime.</p>
+<h2 id="provider-qualified-identity">Provider-qualified identity</h2>
+<p>A model route contains:</p>
+<ul>
+<li>provider kind;</li>
+<li>configured provider name;</li>
+<li>endpoint;</li>
+<li>provider-native model name;</li>
+<li>optional credentials held by the configured provider;</li>
+<li>capabilities and provider-specific options.</li>
+</ul>
+<p>The route is the identity. Model-name strings alone are insufficient.</p>
+<h2 id="core-services">Core services</h2>
+<p>A practical .NET architecture uses contracts similar to:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IProviderModelRuntimeService</code></td>
+<td>Discover and invoke provider-qualified routes</td>
+</tr>
+<tr>
+<td><code>IChatClientFactory</code></td>
+<td>Create the correct client for a route immediately before use</td>
+</tr>
+<tr>
+<td><code>IOllamaProcessService</code></td>
+<td>Inspect or control a bounded local Ollama process when explicitly configured</td>
+</tr>
+<tr>
+<td><code>IAiConnectivityProbe</code></td>
+<td>Test provider health without starting unrelated processes</td>
+</tr>
+<tr>
+<td><code>IModelPresetService</code></td>
+<td>Store LocalGPT routing presets</td>
+</tr>
+<tr>
+<td><code>IProviderModelBenchmarkService</code></td>
+<td>Run bounded benchmark tasks and recommendations</td>
+</tr>
+<tr>
+<td><code>INativeCommandRunner</code></td>
+<td>Execute approved native commands without shell-string composition</td>
+</tr>
+</tbody>
+</table>
+<p>A host-specific adapter owns route translation, streaming payloads, error normalization, and capability discovery. The Council layer consumes the common route model rather than branching on provider details in Razor components.</p>
+<h2 id="api-families">API families</h2>
+<p>A compatible control plane commonly needs route families for:</p>
+<ul>
+<li>health and version;</li>
+<li>model catalog and model details;</li>
+<li>installed/running models;</li>
+<li>chat/generate/embedding requests;</li>
+<li>streaming responses and cancellation;</li>
+<li>pull/download progress;</li>
+<li>load/unload/keep-alive;</li>
+<li>runtime settings and resource limits;</li>
+<li>logs and diagnostics.</li>
+</ul>
+<p>Compatibility must be explicit. A route should not be advertised until its request, response, streaming, cancellation, and error behavior are implemented and tested.</p>
+<h2 id="native-runner-boundary">Native runner boundary</h2>
+<p>The managed application owns configuration and policy; a native runner owns the executable process. The boundary should provide:</p>
+<ul>
+<li>executable and argument arrays rather than shell command strings;</li>
+<li>working-directory and environment allowlists;</li>
+<li>cancellation and timeout;</li>
+<li>bounded stdout/stderr capture;</li>
+<li>process identity and exit code;</li>
+<li>no automatic elevation;</li>
+<li>no execution of uploaded binaries.</li>
+</ul>
+<p>Plugins or runners should be registered from reviewed application configuration, not discovered and executed from arbitrary archives.</p>
+<h2 id="model-lifecycle">Model lifecycle</h2>
+<p>Model acquisition is a separate workflow from model use. A safe lifecycle includes:</p>
+<ol>
+<li>user selects a provider and model source;</li>
+<li>LocalGPT shows size, destination, compatibility, and checksum/signature information when available;</li>
+<li>the user approves the download;</li>
+<li>progress is recorded without leaking credentials;</li>
+<li>the adapter verifies the result;</li>
+<li>the model enters the catalog;</li>
+<li>load/unload remains explicit and observable.</li>
+</ol>
+<p>A benchmark may recommend context/output bounds or an Ollama GPU profile. It does not pull a model or rewrite provider-global settings automatically.</p>
+<h2 id="blazor-and-devexpress-surfaces">Blazor and DevExpress surfaces</h2>
+<p>A useful host UI can include:</p>
+<ul>
+<li>provider dashboard and health cards;</li>
+<li>model catalog and installed-model grid;</li>
+<li>active model/process view;</li>
+<li>chat playground;</li>
+<li>benchmark panel;</li>
+<li>download queue;</li>
+<li>settings and diagnostics;</li>
+<li>API compatibility status.</li>
+</ul>
+<p>DevExpress grids, forms, dialogs, tabs, and charts should be used where they add concrete behavior. Bootstrap owns the responsive shell. Pages call application services; they do not become provider adapters.</p>
+<h2 id="multi-model-operation">Multi-model operation</h2>
+<p>LocalGPT may run several compatible routes at once when hardware, provider behavior, and policy allow it. Resource planning should remain visible: model size, estimated memory, context, output bounds, concurrency, and provider limits are inputs to the plan.</p>
+<p>The architecture must degrade honestly. If a requested model cannot be loaded beside another one, the host reports the constraint and offers a reviewable unload/retry plan instead of silently replacing the active model.</p>
+<h2 id="acceptance-target">Acceptance target</h2>
+<p>A LocalGPT AI Host milestone is complete only when:</p>
+<ul>
+<li>provider-qualified routes remain distinct;</li>
+<li>health/discovery and invocation use the same configured endpoint;</li>
+<li>streaming and cancellation work;</li>
+<li>native execution is bounded;</li>
+<li>credentials stay scoped;</li>
+<li>model lifecycle actions are explicit;</li>
+<li>the UI shows real state;</li>
+<li>benchmark recommendations require user application;</li>
+<li>compatibility claims are backed by tests.</li>
+</ul>
+
+</article>
+
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          LocalGPT 2.3.2 Â· generated documentation
+        </div>
+      </div>
+    </footer>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+</body>
+</html>

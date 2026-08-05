@@ -3,7 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$componentRoot = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Components'
+$componentRoot = Join-Path $RepositoryRoot 'src/LocalGPT/Components'
 $errors = [System.Collections.Generic.List[string]]::new()
 $topDirectivePattern = '^\s*@(page|using|inject|inherits|implements|namespace|attribute|typeparam|layout|rendermode|preservewhitespace)(\s|\(|$)'
 
@@ -87,21 +87,21 @@ if (-not ($appContent.IndexOf('<ToastWrapper Name="ComponentSafetyToasts"', [Sys
     exit 1
 }
 
-$program = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Program.cs'
+$program = Join-Path $RepositoryRoot 'src/LocalGPT/Program.cs'
 $programContent = Get-Content -LiteralPath $program -Raw
 if (-not $programContent.Contains('AddSingleton<IComponentActivityService, ComponentActivityService>()', [System.StringComparison]::Ordinal)) {
     Write-Error 'Program.cs must retain the bounded component activity service registration.'
     exit 1
 }
 
-$bootstrap = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs'
+$bootstrap = Join-Path $RepositoryRoot 'src/LocalGPT/Services/AiContextBootstrapService.cs'
 $bootstrapContent = Get-Content -LiteralPath $bootstrap -Raw
 if (-not ($bootstrapContent.IndexOf('componentActivity.BuildBriefing', [System.StringComparison]::Ordinal) -ge 0)) {
     Write-Error 'AiContextBootstrapService must retain bounded UI activity awareness.'
     exit 1
 }
 
-$diagnosticController = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Controller/LocalGptDiagnosticController.cs'
+$diagnosticController = Join-Path $RepositoryRoot 'src/LocalGPT/Controller/LocalGptDiagnosticController.cs'
 $diagnosticContent = Get-Content -LiteralPath $diagnosticController -Raw
 foreach ($requiredFragment in @(
     '[HttpGet("/__diag/component-activity")]',
@@ -115,7 +115,7 @@ foreach ($requiredFragment in @(
 }
 
 
-$notificationService = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/NotificationService.cs'
+$notificationService = Join-Path $RepositoryRoot 'src/LocalGPT/Services/NotificationService.cs'
 $notificationContent = Get-Content -LiteralPath $notificationService -Raw
 foreach ($requiredFragment in @(
     'IComponentActivityService componentActivity',

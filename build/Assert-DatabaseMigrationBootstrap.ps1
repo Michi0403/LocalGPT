@@ -1,14 +1,14 @@
 param([string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot))
 
 $ErrorActionPreference = 'Stop'
-$initializationPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/DatabaseInitializationService.cs'
-$compatibilityPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/DatabaseMigrationCompatibilityService.cs'
-$initialMigrationPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Migrations/20260616222639_Initial.cs'
+$initializationPath = Join-Path $RepositoryRoot 'src/LocalGPT/Services/Persistence/DatabaseInitializationService.cs'
+$compatibilityPath = Join-Path $RepositoryRoot 'src/LocalGPT/Services/Persistence/DatabaseMigrationCompatibilityService.cs'
+$initialMigrationPath = Join-Path $RepositoryRoot 'src/LocalGPT/Migrations/20260616222639_Initial.cs'
 $architecturePath = Join-Path $RepositoryRoot 'docs/architecture/project-data.md'
-$chatMemoryPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/EfChatMemoryService.cs'
-$databaseLoggerPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Logging/DatabaseLoggerProvider.cs'
-$databaseLoggerReadinessPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Services/Persistence/DatabaseLoggerReadiness.cs'
-$programPath = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Program.cs'
+$chatMemoryPath = Join-Path $RepositoryRoot 'src/LocalGPT/Services/EfChatMemoryService.cs'
+$databaseLoggerPath = Join-Path $RepositoryRoot 'src/LocalGPT/Logging/DatabaseLoggerProvider.cs'
+$databaseLoggerReadinessPath = Join-Path $RepositoryRoot 'src/LocalGPT/Services/Persistence/DatabaseLoggerReadiness.cs'
+$programPath = Join-Path $RepositoryRoot 'src/LocalGPT/Program.cs'
 
 foreach ($path in @($initializationPath, $compatibilityPath, $initialMigrationPath, $architecturePath, $chatMemoryPath, $databaseLoggerPath, $databaseLoggerReadinessPath, $programPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -154,7 +154,7 @@ if (($chatMemory.IndexOf('conversation.Messages.Clear()', [StringComparison]::Or
     $errors.Add('Chat memory autosave must not clear a tracked required Messages collection; that causes conceptual-null failures with the required foreign key.')
 }
 
-$migrationDirectory = Join-Path $RepositoryRoot 'LocalGPTWebviewWrapper/LocalGPT/Migrations'
+$migrationDirectory = Join-Path $RepositoryRoot 'src/LocalGPT/Migrations'
 $migrationFiles = Get-ChildItem -LiteralPath $migrationDirectory -File -Filter '*.cs' |
     Where-Object { $_.Name -notlike '*.Designer.cs' -and $_.Name -ne 'LocalGptMemoryDbContextModelSnapshot.cs' }
 foreach ($migrationFile in $migrationFiles) {
