@@ -10,7 +10,7 @@ namespace LocalGPT.Controller;
 /// </summary>
 [ApiController]
 [Route("api/documentation")]
-[DocumentationUpdated("2.3.5")]
+[DocumentationUpdated("2.3.6")]
 public sealed class DocumentationController(
     IDocumentationCatalogService documentation,
     ILogger<DocumentationController> logger) : ControllerBase

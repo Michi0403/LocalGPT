@@ -1904,7 +1904,7 @@
 }
 
 
-/* v2.3.5 responsive Chat contract --------------------------------------------------
+/* v2.3.6 responsive Chat contract --------------------------------------------------
    Configuration controls use the active Bootstrap/DevExpress theme, compact commands
    stay contextual, and no control may overlap its neighbour at TV scaling or high zoom. */
 .chat-configuration-content,
@@ -2194,7 +2194,7 @@
     .component-actions-menu-items { position: fixed; inset-inline: .5rem; inset-block: auto .5rem; }
 }
 
-/* v2.3.5 live-session controls: keep routine actions in a compact menu and
+/* v2.3.6 live-session controls: keep routine actions in a compact menu and
    reserve visible buttons for actions that are currently usable. */
 .human-live-contribution .live-session-selector,
 .human-live-contribution .live-contribution-editor {

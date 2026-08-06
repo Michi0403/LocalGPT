@@ -124,7 +124,7 @@ def main() -> int:
     excludes("Council no longer injects obsolete prompt service", council, "IPromptConfigService promptConfigService")
     contains("failed final recovery marks the Council step", council, "Error = finalAnswerError")
     contains("failed verifier is not presented as peer verification", council, "did not produce a substantive peer-verification answer")
-    contains("application patch version advanced", project, "<Version>2.3.5</Version>")
+    contains("application patch version advanced", project, "<Version>2.3.6</Version>")
 
     failures = [name for name, passed in checks if not passed]
     if failures:

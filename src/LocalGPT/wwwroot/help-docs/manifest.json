@@ -1,5 +1,5 @@
 {
-  "source_base_path": "C:/Users/micha/AppData/Local/LocalGPT/src/LocalGPT/docs",
+  "source_base_path": "C:/Users/micha/AppData/Local/LocalGPT/src/docs",
   "xrefmap": "xrefmap.yml",
   "files": [
     {
@@ -46,6 +46,16 @@
       "output": {
         "resource": {
           "relative_path": "LocalGPT-2.3.5.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.3.6.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.3.6.pdf"
         }
       },
       "version": ""

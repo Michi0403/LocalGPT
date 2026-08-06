@@ -88,7 +88,7 @@ public sealed class LocalGptDocumentationComment
 }
 
 /// <summary>Describes one safe same-origin documentation view requested by the LocalGPT frontend.</summary>
-[DocumentationUpdated("2.3.5")]
+[DocumentationUpdated("2.3.6")]
 public sealed class LocalGptDocumentationViewerRequest
 {
     /// <summary>Gets or sets the application-relative documentation URL.</summary>
@@ -99,7 +99,7 @@ public sealed class LocalGptDocumentationViewerRequest
 }
 
 /// <summary>Represents the scoped in-application documentation viewer state for one Blazor circuit.</summary>
-[DocumentationUpdated("2.3.5")]
+[DocumentationUpdated("2.3.6")]
 public sealed class LocalGptDocumentationViewerState
 {
     /// <summary>Gets or sets whether the native modal dialog is open.</summary>
@@ -116,7 +116,7 @@ public sealed class LocalGptDocumentationViewerState
 }
 
 /// <summary>Describes the documentation routes and availability exposed to local controllers and 1-Wire peers.</summary>
-[DocumentationUpdated("2.3.5")]
+[DocumentationUpdated("2.3.6")]
 public sealed class LocalGptDocumentationProfile
 {
     /// <summary>Gets or sets the current generated-documentation status.</summary>

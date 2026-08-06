@@ -36,7 +36,7 @@ public interface IDocumentationTranslationAdapter
 
 
 /// <summary>Coordinates accessible in-application documentation viewing for one LocalGPT circuit.</summary>
-[DocumentationUpdated("2.3.5")]
+[DocumentationUpdated("2.3.6")]
 public interface IDocumentationViewerService
 {
     /// <summary>Raised when the viewer state changes.</summary>

@@ -80,7 +80,7 @@ public sealed class LocalVisionOcrResult
 }
 
 /// <summary>Describes the active LocalGPT 1-Wire surface and safe runtime settings for local and linked frontends.</summary>
-[DocumentationUpdated("2.3.5")]
+[DocumentationUpdated("2.3.6")]
 public sealed class OneWireProtocolProfile
 {
     public string ProtocolVersion { get; set; } = OneWireProtocol.Version;
@@ -97,7 +97,7 @@ public sealed class OneWireProtocolProfile
 }
 
 /// <summary>Safe LocalGPT 1-Wire settings shown to users and linked clients.</summary>
-[DocumentationUpdated("2.3.5")]
+[DocumentationUpdated("2.3.6")]
 public sealed class OneWirePublicSettings
 {
     public bool Enabled { get; set; }

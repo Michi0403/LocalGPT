@@ -27,14 +27,15 @@ require('src/LocalGPT/Components/Pages/Help.razor','IDocumentationViewerService'
 require('src/LocalGPT/Services/OneWire/OneWireCapabilityCatalog.cs','localgpt.documentation.profile','localgpt.vision.ocr','/api/documentation/profile')
 require('src/LocalGPT/Services/OneWire/OneWireExecutionServices.cs','localgpt.documentation.profile','IDocumentationCatalogService','LocalVisionOcrRequest')
 require('src/LocalGPT/Components/Pages/OneWireSecurity.razor','Active 1-Wire protocol surface','Method and route','Configuration','Runtime','MaximumMessageBytes','BroadcastIntervalSeconds','PeerExpirySeconds','localgpt.vision.ocr','publisher.documentation.profile','publisherstudio.picture.ocr','/api/onewire/http-json/profile')
-require('build/Build-Documentation.ps1','@page { size: A4 portrait','Complete API page inventory','html-browser-compact-handbook','https://michi0403.github.io/LocalGPT/')
+require('build/Build-Documentation.ps1','New-LocalGptHtmlPrintBook','Convert-LocalGptApiKawaiiDetails','html-browser-print','localgpt-kawaii-docs','Copy-Item -Path (Join-Path $siteRoot "*") -Destination $publishRoot -Recurse -Force')
+forbid('build/Build-Documentation.ps1','html-browser-compact-handbook')
 require('build/Update-GitHubPagesSnapshot.ps1','localgpt-kawaii-docs.zip','--expected-version')
 forbid('build/Update-GitHubPagesSnapshot.ps1','BranchPagesRoot','docs mirror','branch-publishing mirror')
 forbid('build/Build-Documentation.ps1','LocalGPTWebViewWrapper')
 validator=ROOT/'.github/scripts/prepare-pages-artifact.py'
 archive=ROOT/'.github/pages/localgpt-kawaii-docs.zip'
 with tempfile.TemporaryDirectory(prefix='localgpt-contract-audit-') as tmp:
- result=subprocess.run([sys.executable,str(validator),'--archive',str(archive),'--output',tmp,'--expected-version','2.3.5'],capture_output=True,text=True)
+ result=subprocess.run([sys.executable,str(validator),'--archive',str(archive),'--output',tmp,'--expected-version','2.3.6'],capture_output=True,text=True)
  if result.returncode: failures.append(result.stderr.strip() or result.stdout.strip())
 if failures:
  print('LocalGPT documentation/1-Wire contract audit failed:')

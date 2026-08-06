@@ -4,7 +4,7 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Coordinates one focus-managed same-origin documentation modal per Blazor circuit.</summary>
-[DocumentationUpdated("2.3.5")]
+[DocumentationUpdated("2.3.6")]
 public sealed class DocumentationViewerService(ILogger<DocumentationViewerService> logger) : IDocumentationViewerService
 {
     private long revision;
