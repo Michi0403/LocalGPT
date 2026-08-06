@@ -2,6 +2,10 @@
 @page "/onewire-security"
 @using System.Text.Json
 @inject IOneWireRuntimeSecurityService Security
+@inject IOneWireCapabilityCatalog CapabilityCatalog
+@inject IOneWirePeerRegistry PeerRegistry
+@inject IOneWireConnectionRegistry ConnectionRegistry
+@inject IOptions<OneWireOptions> OneWireOptions
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 @inject ILogger<OneWireSecurity> Logger
@@ -39,6 +43,60 @@
         {
             <p class="onewire-security-error">@_status.Warning</p>
         }
+    </section>
+
+    <section class="onewire-security-card">
+        <h2>Active 1-Wire protocol surface</h2>
+        <p>LocalGPT and every connected organic peer publish the exact method, route and configuration key currently available. This is the same catalog used for Council and PublisherStudio capability negotiation.</p>
+        <div class="onewire-security-facts">
+            <span><strong>Protocol</strong>@OneWireProtocol.Version (minimum @OneWireProtocol.MinimumCompatibleVersion)</span>
+            <span><strong>Runtime</strong>@(OneWireOptions.Value.Enabled ? "enabled" : "disabled") · discovery @(OneWireOptions.Value.EnableDiscovery ? "enabled" : "disabled") · LAN @(OneWireOptions.Value.EnableLanTransport ? "enabled" : "disabled")</span>
+            <span><strong>Transport</strong>@OneWireOptions.Value.ListenAddress:@OneWireOptions.Value.ServicePort · discovery UDP @OneWireOptions.Value.DiscoveryPort</span>
+            <span><strong>Limits</strong>@OneWireOptions.Value.MaximumMessageBytes bytes · broadcast @OneWireOptions.Value.BroadcastIntervalSeconds seconds · peer expiry @OneWireOptions.Value.PeerExpirySeconds seconds</span>
+            <span><strong>HTTP/JSON profile</strong><code>/api/onewire/http-json/profile</code></span>
+        </div>
+        <details open>
+            <summary>LocalGPT methods (@_localCapabilities.Count)</summary>
+            <div class="onewire-protocol-table-wrap" role="region" aria-label="Active LocalGPT 1-Wire methods" tabindex="0">
+                <table class="onewire-protocol-table">
+                    <thead><tr><th>Capability</th><th>Method and route</th><th>Configuration</th><th>Approval</th></tr></thead>
+                    <tbody>
+                        @foreach (var capability in _localCapabilities.OrderBy(item => item.Key))
+                        {
+                            <tr @key="capability.Key">
+                                <td><strong>@capability.DisplayName</strong><small>@capability.Key</small></td>
+                                <td><code>@capability.Method @capability.Route</code></td>
+                                <td><code>@capability.ConfigurationKey</code></td>
+                                <td>@(capability.RequiresFrontendUserConfirmation ? "Receiving frontend" : capability.RequiresHumanConfirmation ? "Required" : "Read-only / policy")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+        @foreach (var peer in _advertisedPeers.OrderBy(item => item.DisplayName))
+        {
+            <details class="onewire-peer-surface" @key="peer.PeerId">
+                <summary>@peer.DisplayName · @(ConnectionRegistry.IsConnected(peer.PeerId) ? "connected" : "discovered") · @peer.Capabilities.Count method(s)</summary>
+                <div class="onewire-protocol-table-wrap" role="region" aria-label="@peer.DisplayName active 1-Wire methods" tabindex="0">
+                    <table class="onewire-protocol-table">
+                        <thead><tr><th>Capability</th><th>Method and route</th><th>Configuration</th><th>Source</th></tr></thead>
+                        <tbody>
+                            @foreach (var capability in peer.Capabilities.Where(item => item.IsEnabled && item.IsOnline).OrderBy(item => item.Key))
+                            {
+                                <tr @key="capability.Key">
+                                    <td><strong>@capability.DisplayName</strong><small>@capability.Key</small></td>
+                                    <td><code>@capability.Method @capability.Route</code></td>
+                                    <td><code>@capability.ConfigurationKey</code></td>
+                                    <td>@capability.Source</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        }
+        <p><strong>OCR check:</strong> @OcrCapabilityStatus</p>
     </section>
 
     @if (!string.IsNullOrWhiteSpace(_pairingTicketJson) || !string.IsNullOrWhiteSpace(_otpUri))
@@ -101,6 +159,8 @@
     private readonly CancellationTokenSource lifetimeCts = new();
     private OneWireRuntimeSecurityStatus _status = new();
     private IReadOnlyList<OneWireTrustedPeerDescriptor> _trustedPeers = [];
+    private IReadOnlyList<OneWireCapabilityDescriptor> _localCapabilities = [];
+    private IReadOnlyList<OneWirePeerAdvertisement> _advertisedPeers = [];
     private string _otpUri = string.Empty;
     private string _pairingTicketJson = string.Empty;
     private string _remoteTicketJson = string.Empty;
@@ -174,6 +234,8 @@
             {
                 _status = state.Status;
                 _trustedPeers = state.TrustedPeers;
+                _localCapabilities = state.LocalCapabilities;
+                _advertisedPeers = state.AdvertisedPeers;
                 Logger.LogInformation("1-Wire Security page initialized with {TrustedPeerCount} trusted peer(s).", _trustedPeers.Count);
                 ComponentActivity.RecordInformation(nameof(OneWireSecurity), nameof(InitializeAfterRenderAsync), "The 1-Wire Security runtime state finished loading after the interactive shell rendered.");
                 StateHasChanged();
@@ -215,13 +277,15 @@
         }
     }
 
-    private async Task<(OneWireRuntimeSecurityStatus Status, IReadOnlyList<OneWireTrustedPeerDescriptor> TrustedPeers)> LoadSecurityStateAsync(CancellationToken cancellationToken)
+    private async Task<(OneWireRuntimeSecurityStatus Status, IReadOnlyList<OneWireTrustedPeerDescriptor> TrustedPeers, IReadOnlyList<OneWireCapabilityDescriptor> LocalCapabilities, IReadOnlyList<OneWirePeerAdvertisement> AdvertisedPeers)> LoadSecurityStateAsync(CancellationToken cancellationToken)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(8));
         var status = await Security.GetStatusAsync(timeoutCts.Token).ConfigureAwait(false);
-        var peers = await Security.GetTrustedPeersAsync(timeoutCts.Token).ConfigureAwait(false);
-        return (status, peers);
+        var trustedPeers = await Security.GetTrustedPeersAsync(timeoutCts.Token).ConfigureAwait(false);
+        var localCapabilities = await CapabilityCatalog.GetLocalCapabilitiesAsync(timeoutCts.Token).ConfigureAwait(false);
+        var advertisedPeers = PeerRegistry.GetPeers();
+        return (status, trustedPeers, localCapabilities, advertisedPeers);
     }
 
     private async Task RefreshAsync(CancellationToken cancellationToken = default)
@@ -231,6 +295,8 @@
         {
             _status = state.Status;
             _trustedPeers = state.TrustedPeers;
+            _localCapabilities = state.LocalCapabilities;
+            _advertisedPeers = state.AdvertisedPeers;
             StateHasChanged();
         }).ConfigureAwait(false);
     }
@@ -320,6 +386,21 @@
             ComponentActivity.RecordFailure(nameof(OneWireSecurity), operation, ex);
             Logger.LogError(ex, "{Message}", message);
             Notifier.ShowError("OneWireSecurityToasts", $"{message} {ex.Message}", "1-Wire Security");
+        }
+    }
+
+    private string OcrCapabilityStatus
+    {
+        get
+        {
+            var local = _localCapabilities.FirstOrDefault(item => string.Equals(item.Key, "localgpt.vision.ocr", StringComparison.OrdinalIgnoreCase));
+            if (local is null) return "Local OCR is not advertised.";
+            var publisher = _advertisedPeers.SelectMany(item => item.Capabilities)
+                .FirstOrDefault(item => string.Equals(item.Key, "publisher.documentation.profile", StringComparison.OrdinalIgnoreCase) ||
+                                        item.UiActivationKeys.Contains("publisherstudio.picture.ocr", StringComparer.OrdinalIgnoreCase));
+            return publisher is null
+                ? $"Local DeepSeek-compatible OCR is active at {local.Method} {local.Route}; no PublisherStudio OCR consumer is currently advertised."
+                : $"Local DeepSeek-compatible OCR is active at {local.Method} {local.Route}, and PublisherStudio advertises the matching picture/documentation surface.";
         }
     }
 

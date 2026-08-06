@@ -2,6 +2,8 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.Models;
 using System.Text.RegularExpressions;
 
+namespace LocalGPT.Interfaces;
+
 public interface IRegexPatternService
 {
     Task AddOrUpdateAsync(RegexPatternDto dto);

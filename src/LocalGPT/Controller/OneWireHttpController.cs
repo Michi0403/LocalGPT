@@ -1,6 +1,8 @@
+using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using LocalGPT.Services.OneWire;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -20,23 +22,37 @@ public sealed class OneWireHttpController(
     IOneWireTransportSecurityPolicy transportSecurityPolicy,
     IOneWireDispatchContextFactory dispatchContextFactory,
     IOneWireWorkSpooler spooler,
+    IOneWireCapabilityCatalog capabilities,
+    IOptions<OneWireOptions> configuredOptions,
     ILogger<OneWireHttpController> logger) : ControllerBase
 {
     [HttpGet("profile")]
-    public async Task<ActionResult<object>> Profile(CancellationToken cancellationToken)
+    public async Task<ActionResult<OneWireProtocolProfile>> Profile(CancellationToken cancellationToken)
     {
         try
         {
-            return Ok(new
+            var options = configuredOptions.Value;
+            var peer = dispatcher.GetLocalAdvertisement();
+            return Ok(new OneWireProtocolProfile
             {
-                ProtocolVersion = OneWireProtocol.Version,
-                OneWireProtocol.MinimumCompatibleVersion,
-                Transport = "http-json",
-                PostEnvelope = "/api/onewire/http-json",
-                PollWork = "/api/onewire/http-json/work/{correlationId}",
-                MaximumMessageBytes = OneWireProtocol.MaximumMessageBytes,
                 Security = await security.GetPublicDescriptorAsync(cancellationToken).ConfigureAwait(false),
-                Peer = dispatcher.GetLocalAdvertisement()
+                Peer = peer,
+                Capabilities = (await capabilities.GetLocalCapabilitiesAsync(cancellationToken).ConfigureAwait(false)).ToList(),
+                Skills = (await capabilities.GetLocalSkillsAsync(cancellationToken).ConfigureAwait(false)).ToList(),
+                UiFeatures = (await capabilities.GetLocalUiFeaturesAsync(cancellationToken).ConfigureAwait(false)).ToList(),
+                Hardware = (await capabilities.GetLocalHardwareAsync(cancellationToken).ConfigureAwait(false)).ToList(),
+                Settings = new OneWirePublicSettings
+                {
+                    Enabled = options.Enabled,
+                    DiscoveryEnabled = options.EnableDiscovery,
+                    LanTransportEnabled = options.EnableLanTransport,
+                    ListenAddress = options.ListenAddress,
+                    ServicePort = options.ServicePort,
+                    DiscoveryPort = options.DiscoveryPort,
+                    BroadcastIntervalSeconds = options.BroadcastIntervalSeconds,
+                    PeerExpirySeconds = options.PeerExpirySeconds,
+                    MaximumMessageBytes = options.MaximumMessageBytes
+                }
             });
         }
         catch (Exception ex)

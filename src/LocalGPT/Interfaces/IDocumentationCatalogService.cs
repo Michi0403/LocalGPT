@@ -33,3 +33,21 @@ public interface IDocumentationTranslationAdapter
     /// <summary>Returns a localized copy of one documentation comment for the requested culture.</summary>
     LocalGptDocumentationComment Adapt(LocalGptDocumentationComment comment, string? culture = null);
 }
+
+
+/// <summary>Coordinates accessible in-application documentation viewing for one LocalGPT circuit.</summary>
+[DocumentationUpdated("2.3.5")]
+public interface IDocumentationViewerService
+{
+    /// <summary>Raised when the viewer state changes.</summary>
+    event Action? StateChanged;
+
+    /// <summary>Gets the current scoped viewer state.</summary>
+    LocalGptDocumentationViewerState State { get; }
+
+    /// <summary>Opens one safe same-origin documentation route.</summary>
+    void Open(LocalGptDocumentationViewerRequest request);
+
+    /// <summary>Closes the current viewer.</summary>
+    void Close();
+}

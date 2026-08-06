@@ -126,6 +126,22 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 
         functions.Add(new OneWireCapabilityDescriptor
         {
+            Key = "localgpt.documentation.profile", DisplayName = "LocalGPT documentation profile",
+            Description = "Returns same-origin HTML, PDF and API documentation routes plus availability metadata without exposing filesystem paths.",
+            Controller = "Documentation", Method = "GET", Route = "/api/documentation/profile", Organs = ["eyes"],
+            Skills = ["documentation", "api-discovery"], RequiredSkillKeys = ["documentation"],
+            UiActivationKeys = ["localgpt.help"], IsReadOnly = true, RequiresHumanConfirmation = false,
+            RequiresFrontendUserConfirmation = false, IsExposedToPeer = true, AllowPeerInvocation = true,
+            InteractionEditor = OneWireInteractionEditor.None, ConfigurationKey = "builtin:localgpt.documentation.profile", Source = "LocalGPT",
+            InputContract = "No parameters. Only public same-origin routes and availability metadata are returned.",
+            OutputContract = "JSON containing documentation version, availability and HTML/API/PDF routes.",
+            SecurityContract = "Read-only. Physical paths, private files and browser state are never returned.",
+            OrganicUseCase = "Documentation discovery for PublisherStudio and other linked organic clients.",
+            SuggestedCouncilRoles = ["documentation navigator", "API discovery specialist"]
+        });
+
+        functions.Add(new OneWireCapabilityDescriptor
+        {
             Key = "organic.skills.manage", DisplayName = "Maintain organic skills",
             Description = "Maintains user-approved organic skills and links them to projects and Council members.",
             Controller = "OneWire", Method = "POST", Route = "/api/onewire/skills", Organs = ["brain"],

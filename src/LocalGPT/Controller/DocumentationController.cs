@@ -10,7 +10,7 @@ namespace LocalGPT.Controller;
 /// </summary>
 [ApiController]
 [Route("api/documentation")]
-[DocumentationUpdated("2.2.8")]
+[DocumentationUpdated("2.3.5")]
 public sealed class DocumentationController(
     IDocumentationCatalogService documentation,
     ILogger<DocumentationController> logger) : ControllerBase
@@ -27,6 +27,27 @@ public sealed class DocumentationController(
         {
             logger.LogError(exception, "Reading LocalGPT documentation status failed.");
             return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Documentation status failed");
+        }
+    }
+
+    /// <summary>Returns the documentation routes and accessible viewer features exposed by the running application.</summary>
+    [HttpGet("profile")]
+    public ActionResult<LocalGptDocumentationProfile> Profile()
+    {
+        try
+        {
+            var status = documentation.GetStatus();
+            return Ok(new LocalGptDocumentationProfile
+            {
+                Status = status,
+                HtmlRoute = status.HtmlUrl,
+                PdfRoute = status.PdfUrl
+            });
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading the LocalGPT documentation profile failed.");
+            return Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Documentation profile failed");
         }
     }
 

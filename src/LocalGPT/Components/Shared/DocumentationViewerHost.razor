@@ -1,0 +1,82 @@
+@implements IAsyncDisposable
+@inject IDocumentationViewerService Viewer
+@inject IJSRuntime JS
+@inject ILogger<DocumentationViewerHost> Logger
+
+<dialog @ref="dialog" class="localgpt-documentation-native-dialog" role="dialog" aria-modal="true" aria-labelledby="localgpt-documentation-viewer-title">
+    <section class="localgpt-documentation-dialog">
+        <header>
+            <h2 id="localgpt-documentation-viewer-title">@Viewer.State.Title</h2>
+            <div>
+                @if (Viewer.State.IsOpen)
+                {
+                    <a href="@Viewer.State.Url" target="_blank" rel="noopener noreferrer" data-enhance-nav="false">Open in browser tab</a>
+                }
+                <button data-documentation-viewer-close type="button" aria-label="Close documentation viewer" @onclick="Close">Close</button>
+            </div>
+        </header>
+        @if (Viewer.State.IsOpen)
+        {
+            <iframe src="@Viewer.State.Url" title="@Viewer.State.Title" loading="eager"></iframe>
+        }
+    </section>
+</dialog>
+
+@code {
+    private ElementReference dialog;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<DocumentationViewerHost>? self;
+    private bool synchronizeDialog = true;
+
+    protected override void OnInitialized() => Viewer.StateChanged += OnViewerStateChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender)
+            {
+                module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/documentationViewer.js").ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+                self = DotNetObjectReference.Create(this);
+                await module.InvokeVoidAsync("connect", dialog, self).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            }
+            if (module is null || !synchronizeDialog) return;
+            synchronizeDialog = false;
+            await module.InvokeVoidAsync(Viewer.State.IsOpen ? "show" : "close", dialog).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+        }
+        catch (JSDisconnectedException)
+        {
+            Logger.LogDebug("The LocalGPT documentation viewer disconnected with the Blazor circuit.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Synchronizing the LocalGPT documentation viewer failed.");
+        }
+    }
+
+    private void OnViewerStateChanged()
+    {
+        synchronizeDialog = true;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void Close() => Viewer.Close();
+
+    [JSInvokable]
+    public void CloseFromBrowser() => Viewer.Close();
+
+    public async ValueTask DisposeAsync()
+    {
+        Viewer.StateChanged -= OnViewerStateChanged;
+        try
+        {
+            if (module is not null)
+            {
+                await module.InvokeVoidAsync("disconnect", dialog).ConfigureAwait(false);
+                await module.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        catch (JSDisconnectedException) { }
+        self?.Dispose();
+    }
+}

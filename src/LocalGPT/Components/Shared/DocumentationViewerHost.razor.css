@@ -1,0 +1,22 @@
+.localgpt-documentation-native-dialog {
+    width: min(96vw, 120rem);
+    height: min(94dvh, 80rem);
+    max-width: none;
+    max-height: none;
+    margin: auto;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: .9rem;
+    background: transparent;
+    color: inherit;
+}
+.localgpt-documentation-native-dialog::backdrop { background: color-mix(in srgb, #000 72%, transparent); backdrop-filter: blur(8px); }
+.localgpt-documentation-dialog { width: 100%; height: 100%; min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; border: 1px solid var(--localgpt-border-color); border-radius: .9rem; background: var(--bs-body-bg, #fff); box-shadow: 0 1.5rem 5rem rgba(0,0,0,.42); }
+.localgpt-documentation-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 1rem; border-bottom: 1px solid var(--localgpt-border-color); background: var(--localgpt-surface-bg); }
+.localgpt-documentation-dialog h2 { min-width: 0; margin: 0; overflow: hidden; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
+.localgpt-documentation-dialog header > div { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; }
+.localgpt-documentation-dialog header a, .localgpt-documentation-dialog header button { min-height: 2.35rem; display: inline-flex; align-items: center; justify-content: center; padding: .45rem .8rem; border: 1px solid var(--localgpt-border-color); border-radius: .6rem; background: var(--bs-body-bg, #fff); color: inherit; text-decoration: none; font: inherit; font-weight: 750; cursor: pointer; }
+.localgpt-documentation-dialog header button { border-color: var(--bs-primary); background: var(--bs-primary); color: #fff; }
+.localgpt-documentation-dialog iframe { width: 100%; height: 100%; min-width: 0; min-height: 0; border: 0; background: #fff; }
+@media (max-width: 640px) { .localgpt-documentation-native-dialog { width: 100vw; height: 100dvh; border-radius: 0; } .localgpt-documentation-dialog { border: 0; border-radius: 0; } .localgpt-documentation-dialog > header { align-items: flex-start; } .localgpt-documentation-dialog h2 { white-space: normal; } }

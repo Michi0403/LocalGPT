@@ -86,3 +86,55 @@ public sealed class LocalGptDocumentationComment
     /// <summary>Gets or sets whether the comment review version matches the running application version.</summary>
     public bool IsCurrent { get; set; }
 }
+
+/// <summary>Describes one safe same-origin documentation view requested by the LocalGPT frontend.</summary>
+[DocumentationUpdated("2.3.5")]
+public sealed class LocalGptDocumentationViewerRequest
+{
+    /// <summary>Gets or sets the application-relative documentation URL.</summary>
+    public string Url { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the accessible dialog and iframe title.</summary>
+    public string Title { get; set; } = "LocalGPT documentation";
+}
+
+/// <summary>Represents the scoped in-application documentation viewer state for one Blazor circuit.</summary>
+[DocumentationUpdated("2.3.5")]
+public sealed class LocalGptDocumentationViewerState
+{
+    /// <summary>Gets or sets whether the native modal dialog is open.</summary>
+    public bool IsOpen { get; set; }
+
+    /// <summary>Gets or sets the application-relative documentation URL.</summary>
+    public string Url { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the accessible dialog and iframe title.</summary>
+    public string Title { get; set; } = "LocalGPT documentation";
+
+    /// <summary>Gets or sets a monotonic change token used by the viewer host.</summary>
+    public long Revision { get; set; }
+}
+
+/// <summary>Describes the documentation routes and availability exposed to local controllers and 1-Wire peers.</summary>
+[DocumentationUpdated("2.3.5")]
+public sealed class LocalGptDocumentationProfile
+{
+    /// <summary>Gets or sets the current generated-documentation status.</summary>
+    public LocalGptDocumentationStatus Status { get; set; } = new();
+
+    /// <summary>Gets or sets the in-application help route.</summary>
+    public string HelpRoute { get; set; } = "/help";
+
+    /// <summary>Gets or sets the HTML documentation route.</summary>
+    public string HtmlRoute { get; set; } = "/help-docs/index.html";
+
+    /// <summary>Gets or sets the API reference route.</summary>
+    public string ApiRoute { get; set; } = "/help-docs/api/index.html";
+
+    /// <summary>Gets or sets the inline PDF controller route.</summary>
+    public string PdfRoute { get; set; } = "/api/documentation/pdf";
+
+    /// <summary>Gets or sets whether the frontend uses a focus-managed native modal viewer.</summary>
+    public bool SupportsAccessibleModalViewer { get; set; } = true;
+}
+

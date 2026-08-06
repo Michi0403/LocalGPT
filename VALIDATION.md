@@ -1,6 +1,6 @@
-# LocalGPT 2.3.4 validation
+# LocalGPT 2.3.5 validation
 
-LocalGPT 2.3.4 is a source-validated Kawaii documentation-layout milestone. The owner-side Windows build, application runtime, publish, installer, browser, and GitHub Actions runs remain authoritative.
+LocalGPT 2.3.5 is a source-validated Kawaii documentation-layout milestone. The owner-side Windows build, application runtime, publish, installer, browser, and GitHub Actions runs remain authoritative.
 
 ## Completed checks
 
@@ -14,7 +14,7 @@ LocalGPT 2.3.4 is a source-validated Kawaii documentation-layout milestone. The 
 - The center article consumes the remaining width, while short pages fill one viewport and longer pages use normal document scrolling.
 - The tracked Pages artifact preparation validator passed for **885 HTML pages** and **856 API pages**.
 - Kawaii Auto, Light, and Dark persistence, paw branding, cache-busted assets, relative links, and snapshot hashes remain validated.
-- Application, installer, desktop wrapper, documentation metadata, and PDF naming are aligned to **2.3.4**.
+- Application, installer, desktop wrapper, documentation metadata, and PDF naming are aligned to **2.3.5**.
 - Wire protocol versioning remains independent.
 
 ## Required owner-side checks

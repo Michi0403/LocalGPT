@@ -117,6 +117,19 @@ Analyze only the supplied evidence. Report meaningful changes, uncertainties, an
         var parameters = item.Request.Properties is not null && item.Request.Properties.TryGetValue("Parameters", out var parameterElement)
             ? parameterElement.Clone()
             : JsonSerializer.SerializeToElement(new { }, codec.JsonOptions);
+        if (string.Equals(item.CapabilityKey, "localgpt.documentation.profile", StringComparison.OrdinalIgnoreCase))
+        {
+            var documentation = scope.ServiceProvider.GetRequiredService<IDocumentationCatalogService>();
+            return JsonSerializer.Serialize(new
+            {
+                Status = documentation.GetStatus(),
+                HtmlRoute = "/help-docs/index.html",
+                ApiRoute = "/help-docs/api/index.html",
+                PdfRoute = "/api/documentation/pdf",
+                ProfileRoute = "/api/documentation/profile"
+            }, codec.JsonOptions);
+        }
+
         if (string.Equals(item.CapabilityKey, "localgpt.vision.ocr", StringComparison.OrdinalIgnoreCase))
         {
             var ocr = scope.ServiceProvider.GetRequiredService<ILocalVisionOcrService>();
@@ -444,7 +457,7 @@ public sealed class OneWireMessageDispatcher(
         PeerId = "localgpt",
         DisplayName = "LocalGPT",
         Application = "LocalGPT",
-        ApplicationVersion = "2.3.4-organic-wire",
+        ApplicationVersion = "2.3.5-organic-wire",
         HostName = Environment.MachineName,
         Address = "127.0.0.1",
         ServicePort = Program.OneWirePort,

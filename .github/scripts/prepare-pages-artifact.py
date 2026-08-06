@@ -1,217 +1,223 @@
 #!/usr/bin/env python3
-"""Validate and package the pinned LocalGPT Kawaii documentation snapshot.
-
-The generated DocFX trees under docs/_site and wwwroot/help-docs are intentionally
-ignored by Git. GitHub Actions therefore publishes a single tracked ZIP snapshot
-instead of assuming ignored build output exists after checkout.
-"""
-
+"""Validate and prepare the single tracked LocalGPT GitHub Pages artifact."""
 from __future__ import annotations
-
-import argparse
-import hashlib
-import json
-import shutil
-import stat
-import sys
-import tempfile
+import argparse, hashlib, json, shutil, stat, sys, tempfile
+from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlsplit
 from zipfile import BadZipFile, ZipFile
 
-
-REQUIRED_FILES = (
-    "index.html",
-    "api/index.html",
-    "documentation-status.json",
-    "styles/localgpt-kawaii.css",
-    "styles/localgpt-kawaii.js",
-    "favicon.svg",
-    "favicon.ico",
-    "logo.svg",
-)
-
-INDEX_MARKERS = (
-    "localgpt-kawaii-docs",
-    "data-localgpt-theme-bootstrap",
-    "data-localgpt-favicon",
-    "data-localgpt-kawaii-style",
-    "data-localgpt-kawaii-script",
-)
-
-CSS_MARKERS = (
-    "localgpt-theme-control",
-    "localgpt-kawaii-sky",
-    "localgpt-cursor-paw",
-)
-
-JS_MARKERS = (
-    "mountThemeControl",
-    "ensureRootDocumentationRail",
-    "localgpt-docs-theme",
-    "persistTheme",
-    "localgpt-cursor-paw",
-)
-
+PRODUCT = 'LocalGPT'
+STYLE_FILE = 'styles/localgpt-kawaii.css'
+SCRIPT_FILE = 'styles/localgpt-kawaii.js'
+FAVICON_LABEL = 'LocalGPT cat paw'
+INDEX_MARKERS = ('localgpt-kawaii-docs', 'data-localgpt-theme-bootstrap', 'data-localgpt-favicon', 'data-localgpt-kawaii-style', 'data-localgpt-kawaii-script')
+CSS_MARKERS = ('localgpt-theme-control', 'localgpt-kawaii-sky', 'localgpt-cursor-paw', 'localgpt-root-toc')
+JS_MARKERS = ('mountThemeControl', 'ensureRootDocumentationRail', 'localgpt-docs-theme', 'persistTheme', 'localgpt-cursor-paw')
 MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
 MAX_FILE_COUNT = 20_000
+MIN_PDF_BYTES = 65_536
 
+REQUIRED_FILES = (
+    "index.html", "api/index.html", "documentation-status.json",
+    STYLE_FILE, SCRIPT_FILE, "favicon.svg", "favicon.ico", "logo.svg",
+)
+
+class PageParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.links: list[tuple[str, str]] = []
+        self.lang = ""
+        self.has_viewport = False
+        self.has_title = False
+        self.landmarks = 0
+        self.images_without_alt = 0
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = {k.lower(): (v or "") for k, v in attrs}
+        lower = tag.lower()
+        if lower == "html": self.lang = values.get("lang", "").strip()
+        elif lower == "meta" and values.get("name", "").lower() == "viewport": self.has_viewport = bool(values.get("content", "").strip())
+        elif lower == "title": self.has_title = True
+        elif lower in {"main", "article"}: self.landmarks += 1
+        elif lower == "img" and "alt" not in values: self.images_without_alt += 1
+        for attr in ("href", "src"):
+            value = values.get(attr)
+            if value: self.links.append((attr, value.strip()))
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8-sig")
 
-
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""): digest.update(chunk)
     return digest.hexdigest()
-
 
 def fail(message: str) -> None:
     raise RuntimeError(message)
 
+def resolve_local_link(source: Path, root: Path, raw: str) -> Path | None:
+    if not raw or raw.startswith(("#", "mailto:", "tel:", "javascript:", "data:")): return None
+    parts = urlsplit(raw)
+    if parts.scheme or parts.netloc: return None
+    path_text = unquote(parts.path).replace("\\", "/")
+    if not path_text: return None
+    if path_text.startswith("/"):
+        candidate = root / path_text.lstrip("/")
+    else:
+        candidate = source.parent / path_text
+    candidate = candidate.resolve(strict=False)
+    root_resolved = root.resolve(strict=True)
+    try: candidate.relative_to(root_resolved)
+    except ValueError: fail(f"Documentation link escapes the artifact: {source.relative_to(root)} -> {raw}")
+    if candidate.is_dir(): candidate = candidate / "index.html"
+    return candidate
 
-def validate_source(source: Path) -> dict[str, object]:
-    if not source.is_dir():
-        fail(f"Documentation source does not exist: {source}")
+def validate_html(source: Path) -> tuple[int, int]:
+    html_files = sorted(source.rglob("*.html"))
+    broken: list[str] = []
+    accessibility: list[str] = []
+    for html in html_files:
+        text = read_text(html)
+        parser = PageParser()
+        try: parser.feed(text)
+        except Exception as error: fail(f"Invalid HTML parser input {html.relative_to(source)}: {error}")
+        rel = html.relative_to(source).as_posix()
+        is_toc_fragment = html.name.lower() == "toc.html"
+        if not is_toc_fragment:
+            if not parser.lang: accessibility.append(f"{rel}: missing html lang")
+            if not parser.has_viewport: accessibility.append(f"{rel}: missing viewport")
+            if not parser.has_title: accessibility.append(f"{rel}: missing title")
+            if parser.landmarks == 0: accessibility.append(f"{rel}: missing main/article landmark")
+            if parser.images_without_alt: accessibility.append(f"{rel}: {parser.images_without_alt} image(s) missing alt")
+        for _, raw in parser.links:
+            target = resolve_local_link(html, source, raw)
+            if target is not None and not target.is_file():
+                broken.append(f"{rel} -> missing target '{target.relative_to(source).as_posix()}'")
+    if accessibility:
+        fail("Documentation accessibility validation failed: " + "; ".join(accessibility[:30]))
+    if broken:
+        fail("Documentation contains invalid local links: " + "; ".join(broken[:40]))
+    api_count = sum(1 for path in html_files if "api" in path.relative_to(source).parts)
+    return len(html_files), api_count
 
+def validate_pdf(source: Path, status: dict[str, object]) -> tuple[str, int, bool]:
+    name = str(status.get("pdfFileName") or status.get("PdfFileName") or "").strip()
+    if not name: fail("documentation-status.json does not declare pdfFileName")
+    pdf = source / name
+    if not pdf.is_file(): fail(f"Declared documentation PDF is missing: {name}")
+    size = pdf.stat().st_size
+    if size < MIN_PDF_BYTES: fail(f"Documentation PDF is too small: {size} bytes")
+    declared_size = status.get("pdfBytes") or status.get("PdfBytes")
+    if declared_size is not None and int(declared_size) != size:
+        fail(f"documentation-status.json declares {declared_size} PDF bytes but {name} contains {size}")
+    data = pdf.read_bytes()
+    if not data.startswith(b"%PDF-"): fail(f"{name} does not have a PDF header")
+    if b"ReportLab" in data or b"Deterministic fallback documentation index" in data:
+        fail(f"{name} is an obsolete source/fallback PDF rather than the maintained HTML-backed handbook")
+    tagged = b"/StructTreeRoot" in data
+    if not tagged:
+        fail(f"{name} is not a tagged accessible PDF (/StructTreeRoot missing)")
+    return name, size, tagged
+
+def validate_source(source: Path, expected_version: str | None = None) -> dict[str, object]:
+    if not source.is_dir(): fail(f"Documentation source does not exist: {source}")
     for path in source.rglob("*"):
-        if path.is_symlink():
-            fail(f"Documentation tree must not contain symbolic links: {path}")
-
+        if path.is_symlink(): fail(f"Documentation tree must not contain symbolic links: {path}")
     missing = [name for name in REQUIRED_FILES if not (source / name).is_file()]
-    if missing:
-        fail("Documentation tree is incomplete; missing: " + ", ".join(missing))
-
+    if missing: fail("Documentation tree is incomplete; missing: " + ", ".join(missing))
     index_text = read_text(source / "index.html")
-    missing_index_markers = [marker for marker in INDEX_MARKERS if marker not in index_text]
-    if missing_index_markers:
-        fail("index.html is not the themed LocalGPT build; missing: " + ", ".join(missing_index_markers))
-
-    css_text = read_text(source / "styles/localgpt-kawaii.css")
-    missing_css_markers = [marker for marker in CSS_MARKERS if marker not in css_text]
-    if missing_css_markers:
-        fail("Kawaii CSS is incomplete; missing: " + ", ".join(missing_css_markers))
-
-    js_text = read_text(source / "styles/localgpt-kawaii.js")
-    missing_js_markers = [marker for marker in JS_MARKERS if marker not in js_text]
-    if missing_js_markers:
-        fail("Kawaii JavaScript is incomplete; missing: " + ", ".join(missing_js_markers))
-
-    favicon_text = read_text(source / "favicon.svg")
-    if "LocalGPT cat paw" not in favicon_text or "<svg" not in favicon_text:
-        fail("favicon.svg is not the LocalGPT cat-paw icon")
-
-    try:
-        status = json.loads(read_text(source / "documentation-status.json"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        fail(f"documentation-status.json is invalid: {error}")
-    if not isinstance(status, dict):
-        fail("documentation-status.json must contain an object")
-
-    html_files = list(source.rglob("*.html"))
-    api_html_files = list((source / "api").rglob("*.html"))
-    if len(html_files) < 20 or len(api_html_files) < 1:
-        fail(f"Documentation output looks incomplete ({len(html_files)} HTML, {len(api_html_files)} API HTML)")
-
+    missing_markers = [m for m in INDEX_MARKERS if m not in index_text]
+    if missing_markers: fail("index.html is not the themed build; missing: " + ", ".join(missing_markers))
+    css_text = read_text(source / STYLE_FILE)
+    missing_markers = [m for m in CSS_MARKERS if m not in css_text]
+    if missing_markers: fail("Documentation CSS is incomplete; missing: " + ", ".join(missing_markers))
+    js_text = read_text(source / SCRIPT_FILE)
+    missing_markers = [m for m in JS_MARKERS if m not in js_text]
+    if missing_markers: fail("Documentation JavaScript is incomplete; missing: " + ", ".join(missing_markers))
+    favicon = read_text(source / "favicon.svg")
+    if FAVICON_LABEL not in favicon or "<svg" not in favicon: fail("favicon.svg is not the maintained cat-paw icon")
+    try: status = json.loads(read_text(source / "documentation-status.json"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error: fail(f"documentation-status.json is invalid: {error}")
+    if not isinstance(status, dict): fail("documentation-status.json must contain an object")
+    version = str(status.get("version") or status.get("Version") or "").strip()
+    if not version: fail("documentation-status.json does not contain a version")
+    if expected_version and version != expected_version: fail(f"Documentation version {version} does not match expected version {expected_version}")
+    html_count, api_count = validate_html(source)
+    if html_count < 20 or api_count < 1: fail(f"Documentation output looks incomplete ({html_count} HTML, {api_count} API HTML)")
+    declared_api = status.get("apiHtmlCount") or status.get("ApiHtmlCount")
+    if declared_api is not None and int(declared_api) not in {api_count, max(0, api_count - 1), max(0, api_count - 2)}:
+        fail(f"documentation-status.json declares {declared_api} API HTML pages but the artifact contains {api_count}")
+    complete = bool(status.get("completeApiReference") or status.get("CompleteApiReference"))
+    mode = str(status.get("documentationMode") or status.get("DocumentationMode") or "")
+    if complete and api_count < 100: fail(f"completeApiReference=true requires a substantial generated API reference; only {api_count} API pages exist")
+    if not complete and "source" not in mode.lower(): fail("An incomplete API preview must be declared as a source documentation mode")
+    pdf_name, pdf_bytes, tagged = validate_pdf(source, status)
     return {
-        "source": source.as_posix(),
-        "version": status.get("version") or status.get("Version") or "unknown",
-        "htmlFiles": len(html_files),
-        "apiHtmlFiles": len(api_html_files),
-        "themePersistence": True,
-        "catPawFavicon": True,
-        "kawaiiStyleSha256": sha256(source / "styles/localgpt-kawaii.css"),
-        "kawaiiScriptSha256": sha256(source / "styles/localgpt-kawaii.js"),
+        "source": source.as_posix(), "version": version, "htmlFiles": html_count,
+        "apiHtmlFiles": api_count, "completeApiReference": complete,
+        "pdfFile": pdf_name, "pdfBytes": pdf_bytes, "taggedPdf": tagged,
+        "localLinksValid": True, "htmlAccessibilityValid": True,
+        "themePersistence": True, "catPawFavicon": True,
+        "kawaiiStyleSha256": sha256(source / STYLE_FILE),
+        "kawaiiScriptSha256": sha256(source / SCRIPT_FILE),
         "faviconSvgSha256": sha256(source / "favicon.svg"),
     }
 
-
 def safe_extract_zip(archive: Path, destination: Path) -> Path:
-    if not archive.is_file():
-        fail(f"Pinned Pages archive does not exist: {archive}")
-
+    if not archive.is_file(): fail(f"Pinned Pages archive does not exist: {archive}")
     try:
         with ZipFile(archive) as bundle:
             entries = bundle.infolist()
-            if not entries:
-                fail(f"Pinned Pages archive is empty: {archive}")
-            if len(entries) > MAX_FILE_COUNT:
-                fail(f"Pinned Pages archive contains too many entries: {len(entries)}")
-
+            if not entries: fail(f"Pinned Pages archive is empty: {archive}")
+            if len(entries) > MAX_FILE_COUNT: fail(f"Pinned Pages archive contains too many entries: {len(entries)}")
+            names = [entry.filename.replace("\\", "/") for entry in entries]
+            if len(names) != len(set(names)): fail("Pinned Pages archive contains duplicate entries")
             total_size = sum(entry.file_size for entry in entries)
-            if total_size > MAX_UNCOMPRESSED_BYTES:
-                fail(f"Pinned Pages archive is too large after extraction: {total_size} bytes")
-
-            for entry in entries:
-                raw_name = entry.filename.replace("\\", "/")
+            if total_size > MAX_UNCOMPRESSED_BYTES: fail(f"Pinned Pages archive is too large after extraction: {total_size} bytes")
+            for entry, raw_name in zip(entries, names):
                 path = PurePosixPath(raw_name)
-                if path.is_absolute() or ".." in path.parts:
-                    fail(f"Unsafe path in pinned Pages archive: {entry.filename}")
-
-                unix_mode = entry.external_attr >> 16
-                if stat.S_ISLNK(unix_mode):
-                    fail(f"Symbolic links are not allowed in pinned Pages archive: {entry.filename}")
-
+                if path.is_absolute() or ".." in path.parts: fail(f"Unsafe path in pinned Pages archive: {entry.filename}")
+                if stat.S_ISLNK(entry.external_attr >> 16): fail(f"Symbolic links are not allowed: {entry.filename}")
             bundle.extractall(destination)
-    except BadZipFile as error:
-        fail(f"Pinned Pages archive is not a valid ZIP: {error}")
-
-    if (destination / "index.html").is_file():
-        return destination
-
-    candidates = [path for path in destination.iterdir() if path.is_dir() and (path / "index.html").is_file()]
-    if len(candidates) == 1:
-        return candidates[0]
-
+    except BadZipFile as error: fail(f"Pinned Pages archive is not a valid ZIP: {error}")
+    if (destination / "index.html").is_file(): return destination
+    candidates = [p for p in destination.iterdir() if p.is_dir() and (p / "index.html").is_file()]
+    if len(candidates) == 1: return candidates[0]
     fail("Pinned Pages archive must contain index.html at its root or in one top-level directory")
 
-
 def copy_tree(source: Path, output: Path) -> None:
-    if output.exists():
-        shutil.rmtree(output)
+    if output.exists(): shutil.rmtree(output)
     shutil.copytree(source, output, symlinks=False)
     (output / ".nojekyll").write_text("", encoding="utf-8")
 
-
 def main() -> int:
     parser = argparse.ArgumentParser()
-    source_group = parser.add_mutually_exclusive_group(required=True)
-    source_group.add_argument("--archive", type=Path)
-    source_group.add_argument("--source", type=Path)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--archive", type=Path)
+    group.add_argument("--source", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--expected-version")
     args = parser.parse_args()
-
     try:
         output = args.output.resolve(strict=False)
-
         if args.archive is not None:
             archive = args.archive.resolve(strict=True)
-            with tempfile.TemporaryDirectory(prefix="localgpt-pages-") as temp_dir:
-                extracted_source = safe_extract_zip(archive, Path(temp_dir))
-                metadata = validate_source(extracted_source)
-                copy_tree(extracted_source, output)
-            metadata["deploymentSource"] = "tracked Kawaii documentation snapshot"
-            metadata["sourceArchive"] = archive.as_posix()
-            metadata["sourceArchiveSha256"] = sha256(archive)
+            with tempfile.TemporaryDirectory(prefix='localgpt-pages-') as temp_dir:
+                source = safe_extract_zip(archive, Path(temp_dir))
+                metadata = validate_source(source, args.expected_version)
+                copy_tree(source, output)
+            metadata.update({"deploymentSource": "tracked Kawaii documentation snapshot", "sourceArchive": archive.as_posix(), "sourceArchiveSha256": sha256(archive)})
         else:
             source = args.source.resolve(strict=True)
-            metadata = validate_source(source)
+            metadata = validate_source(source, args.expected_version)
             copy_tree(source, output)
             metadata["deploymentSource"] = "explicit documentation directory"
-
         metadata["artifact"] = output.as_posix()
-        (output / "github-pages-deployment.json").write_text(
-            json.dumps(metadata, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
+        (output / "github-pages-deployment.json").write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         print(json.dumps(metadata, indent=2, ensure_ascii=False))
         return 0
-    except (OSError, RuntimeError) as error:
+    except (OSError, RuntimeError, ValueError) as error:
         print(f"Pages artifact preparation failed: {error}", file=sys.stderr)
         return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__ == "__main__": raise SystemExit(main())

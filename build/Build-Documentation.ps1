@@ -528,6 +528,13 @@ function Install-LocalGptWebsiteThemeAssets {
             }
         }
 
+        # DocFX 2.78 may retain short links for interfaces that previously lived in the global
+        # namespace and may link a one-level namespace to a page it does not materialize. Repair
+        # those links to the real maintained namespace/type pages; never hide unrelated failures.
+        $updated = $updated.Replace('href="IRegexPatternService.html"', 'href="LocalGPT.Interfaces.IRegexPatternService.html"')
+        $updated = $updated.Replace('href="IRegexFunctionParameterService.html"', 'href="LocalGPT.Interfaces.IRegexFunctionParameterService.html"')
+        $updated = $updated.Replace('href="TacosPortal.html"', 'href="TacosPortal.Services.html"')
+
         if (-not [string]::Equals($updated, $html, [StringComparison]::Ordinal)) {
             [IO.File]::WriteAllText($file.FullName, $updated, [Text.UTF8Encoding]::new($false))
             $updatedCount++
@@ -553,7 +560,8 @@ function Test-LocalGptCompletePdf {
         if ($read -le 0) { return $false }
         $prefix = [Text.Encoding]::ASCII.GetString($buffer, 0, $read)
         return $prefix.StartsWith("%PDF-", [StringComparison]::Ordinal) -and
-            $prefix -notmatch 'Deterministic fallback documentation index'
+            $prefix -notmatch 'Deterministic fallback documentation index' -and
+            $prefix -notmatch 'ReportLab'
     }
     finally {
         $stream.Dispose()
@@ -1194,28 +1202,32 @@ function New-LocalGptHtmlPrintBook {
     }
     $printStyles = @'
 <style>
-@page { size: A4 landscape; margin: 9mm 10mm 11mm; }
-html, body { background: linear-gradient(180deg, #fff6fb, #fff0f8) !important; color: #4b2159 !important; font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif !important; font-size: 9.35pt; line-height: 1.38; }
+@page { size: A4 portrait; margin: 12mm 13mm 14mm; }
+html, body { background: linear-gradient(180deg, #fff6fb, #fff0f8) !important; color: #4b2159 !important; font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif !important; font-size: 10pt; line-height: 1.45; }
 body { margin: 0 !important; max-width: none !important; }
-.localgpt-print-cover { min-height: 178mm; display: flex; flex-direction: column; justify-content: center; break-after: page; }
+.localgpt-print-cover { min-height: 250mm; display: flex; flex-direction: column; justify-content: center; break-after: page; }
 .localgpt-print-cover::before { content: "🐾 🐱 🐶 LOCALGPT · KAWAII DOCS 2026"; color: #d946ef; font-family: "Segoe UI Emoji", "Segoe UI", sans-serif; font-size: 9pt; font-weight: 800; letter-spacing: .12em; margin-bottom: 12pt; }
-.localgpt-print-cover h1 { color: #ffffff; text-shadow: 0 1pt 0 rgba(155, 81, 224, .55), 0 0 8pt rgba(236, 72, 153, .18); font-size: 31pt; font-weight: 700; line-height: 1.06; margin: 0 0 12pt; }
-.localgpt-print-cover p { color: #6b3b79; font-size: 11.5pt; margin: 3pt 0; max-width: 64rem; }
+.localgpt-print-cover h1 { color: #ffffff; text-shadow: 0 1pt 0 rgba(155, 81, 224, .55), 0 0 8pt rgba(236, 72, 153, .18); font-size: 29pt; font-weight: 700; line-height: 1.06; margin: 0 0 12pt; }
+.localgpt-print-cover p { color: #6b3b79; font-size: 11pt; margin: 3pt 0; max-width: 64rem; }
 .localgpt-print-toc { break-after: page; }
 .localgpt-print-toc > h1 { border-bottom: 2px solid #d8b4fe; color: #171717; font-size: 24pt; margin: 0 0 13pt; padding-bottom: 6pt; }
 .localgpt-print-toc-section { margin: 0 0 14pt; }
 .localgpt-print-toc-section > h2 { color: #323130; font-size: 14pt; margin: 10pt 0 5pt; }
-.localgpt-print-toc-conceptual { columns: 3; column-gap: 1.35rem; padding-left: 1.2rem; }
-.localgpt-print-toc-conceptual li { break-inside: avoid; font-size: 8.5pt; line-height: 1.25; margin: 1.2pt 0; }
+.localgpt-print-toc-conceptual { columns: 2; column-gap: 1.35rem; padding-left: 1.2rem; }
+.localgpt-print-toc-conceptual li { break-inside: avoid; font-size: 9pt; line-height: 1.25; margin: 1.2pt 0; }
 .localgpt-print-api-overview-link { font-size: 9pt; font-weight: 600; margin: 3pt 0 8pt; }
 .localgpt-print-toc-namespace { background: linear-gradient(135deg, #fdf4ff, #f0f9ff 72%); border: 1px solid #eadcf8; border-radius: 8pt; break-inside: auto; margin-top: 8pt; padding: 6pt 7pt 7pt; }
 .localgpt-print-toc-namespace h3 { align-items: center; break-after: avoid; color: #7c3aed; display: flex; font-size: 11pt; gap: 4pt; margin: 0 0 5pt; }
-.localgpt-print-toc-kind-list { columns: 3; column-gap: 1.25rem; list-style: none; margin: 0; padding: 0; }
-.localgpt-print-toc-kind-list > li { break-inside: avoid; font-size: 7.8pt; line-height: 1.22; margin: 1.4pt 0; }
+.localgpt-print-toc-kind-list { columns: 2; column-gap: 1.25rem; list-style: none; margin: 0; padding: 0; }
+.localgpt-print-toc-kind-list > li { break-inside: avoid; font-size: 7.4pt; line-height: 1.22; margin: 1.4pt 0; }
 .localgpt-print-toc-kind { --localgpt-api-kind-accent: #8b5cf6; margin-top: 5pt; }
 .localgpt-print-toc-kind h4 { align-items: center; break-after: avoid; color: var(--localgpt-api-kind-accent); display: flex; font-size: 8.5pt; gap: 3pt; margin: 0 0 2pt; }
 .localgpt-print-toc-kind-icon { font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif; }
 .localgpt-print-toc-kind-count { background: #fff; border: 1px solid color-mix(in srgb, var(--localgpt-api-kind-accent) 22%, #e5e7eb); border-radius: 999px; color: #555; font-size: 6pt; margin-left: 2pt; padding: .5pt 3pt; }
+.localgpt-print-toc-api { break-before: page; page-break-before: always; }
+.localgpt-print-toc-api::before { content: "Complete API page inventory"; display: block; color: #ffffff; background: linear-gradient(90deg, #ec4899, #8b5cf6 56%, #60a5fa); border-radius: 7pt; font-size: 20pt; font-weight: 700; margin: 0 0 11pt; padding: 8pt 10pt; }
+.localgpt-print-toc-api > h2 { margin-top: 0; }
+.localgpt-print-api-inventory-note { color: #6b3b79; font-size: 8.5pt; margin: 0 0 8pt; }
 .localgpt-print-member-links { display: block; margin-left: 8pt; }
 .localgpt-print-member-links a { color: #5c5c5c !important; display: inline-block; font-size: 6.8pt; margin-right: 5pt; }
 .localgpt-print-document { break-before: page; page-break-before: always; }
@@ -1409,8 +1421,9 @@ html, body { background: #fff0f8 !important; color: #51285d !important; }
     [void]$builder.AppendLine($printStyles)
     [void]$builder.AppendLine('</head><body class="localgpt-print-book">')
     [void]$builder.AppendLine('<section class="localgpt-print-cover">')
-    [void]$builder.AppendLine("<h1>LocalGPT $Version</h1>")
-    [void]$builder.AppendLine('<p>A cozy, complete guide to LocalGPT product behavior, architecture, operations, and XML-generated API details.</p>')
+    [void]$builder.AppendLine("<h1>LocalGPT documentation</h1>")
+    [void]$builder.AppendLine("<p><strong>Version $Version</strong></p>")
+    [void]$builder.AppendLine('<p>A readable portrait handbook containing every maintained conceptual chapter plus a complete linked inventory of generated API pages.</p>')
     [void]$builder.AppendLine("<p>&#x1F43E; $($pageModels.Count) HTML reference pages · carefully arranged in 2026 · generated $([DateTime]::UtcNow.ToString('u'))</p>")
     [void]$builder.AppendLine('</section>')
     [void]$builder.AppendLine('<section class="localgpt-print-toc"><h1>Contents</h1>')
@@ -1420,6 +1433,7 @@ html, body { background: #fff0f8 !important; color: #51285d !important; }
     }
     [void]$builder.AppendLine('</ol></div>')
     [void]$builder.AppendLine('<div class="localgpt-print-toc-section localgpt-print-toc-api"><h2>&#x1F431; API reference</h2>')
+    [void]$builder.AppendLine('<p class="localgpt-print-api-inventory-note">The HTML site contains the complete namespace, type, and member reference. This compact handbook keeps the full page inventory readable and links each type to the published HTML reference.</p>')
     $apiPages = @($pageModels | Where-Object { $_.IsApi })
     $apiOverview = @($apiPages | Where-Object { $_.Relative -eq 'api/index.html' } | Select-Object -First 1)
     if ($apiOverview.Count -gt 0) {
@@ -1445,7 +1459,7 @@ html, body { background: #fff0f8 !important; color: #51285d !important; }
              ([string]::IsNullOrWhiteSpace($_.ApiNamespace) -and $_.ApiDisplayName -eq $namespaceName))
         } | Select-Object -First 1)
         $namespaceHeading = if ($namespacePage.Count -gt 0) {
-            '<a href="#' + $namespacePage[0].Anchor + '">&#x1F431; ' + (ConvertTo-LocalGptHtml $namespaceName) + '</a>'
+            '<a href="https://michi0403.github.io/LocalGPT/' + $namespacePage[0].Relative + '">&#x1F431; ' + (ConvertTo-LocalGptHtml $namespaceName) + '</a>'
         }
         else { '&#x1F431; ' + (ConvertTo-LocalGptHtml $namespaceName) }
         [void]$builder.AppendLine('<section class="localgpt-print-toc-namespace"><h3>' + $namespaceHeading + '</h3>')
@@ -1466,14 +1480,7 @@ html, body { background: #fff0f8 !important; color: #51285d !important; }
             $presentation = $kindModel.Presentation
             [void]$builder.AppendLine('<section class="localgpt-print-toc-kind localgpt-print-toc-kind--' + (ConvertTo-LocalGptHtml ([string]$presentation.Key)) + '" style="--localgpt-api-kind-accent:' + [string]$presentation.Accent + ';"><h4><span class="localgpt-print-toc-kind-icon" aria-hidden="true">' + [string]$presentation.IconHtml + '</span><span>' + (ConvertTo-LocalGptHtml ([string]$presentation.Label)) + '</span><span class="localgpt-print-toc-kind-count">' + [string]$kindPages.Count + '</span></h4><ul class="localgpt-print-toc-kind-list">')
             foreach ($page in $kindPages) {
-                [void]$builder.Append('<li><a href="#' + $page.Anchor + '">' + (ConvertTo-LocalGptHtml $page.ApiDisplayName) + '</a>')
-                if (@($page.MemberSections).Count -gt 0) {
-                    [void]$builder.Append('<span class="localgpt-print-member-links">')
-                    foreach ($section in @($page.MemberSections)) {
-                        [void]$builder.Append('<a class="localgpt-print-member-link localgpt-print-member-link--' + (ConvertTo-LocalGptHtml ([string]$section.Key)) + '" href="#' + $page.Anchor + '-' + (ConvertTo-LocalGptHtml ([string]$section.Id)) + '"><span class="localgpt-print-member-icon" aria-hidden="true">' + [string]$section.IconHtml + '</span>' + (ConvertTo-LocalGptHtml ([string]$section.Name)) + ' <span class="localgpt-print-member-count">' + [string]$section.Count + '</span></a>')
-                    }
-                    [void]$builder.Append('</span>')
-                }
+                [void]$builder.Append('<li><a href="https://michi0403.github.io/LocalGPT/' + $page.Relative + '">' + (ConvertTo-LocalGptHtml $page.ApiDisplayName) + '</a>')
                 [void]$builder.AppendLine('</li>')
             }
             [void]$builder.AppendLine('</ul></section>')
@@ -1483,14 +1490,14 @@ html, body { background: #fff0f8 !important; color: #51285d !important; }
     [void]$builder.AppendLine('</div></section>')
 
     foreach ($page in $pageModels) {
+        if ($page.IsApi -and $page.Relative -ne 'api/index.html') { continue }
         $body = [string]$page.Body
         $body = [regex]::Replace($body, '(?i)\s+hidden(?:\s*=\s*(?:"hidden"|''hidden''|hidden))?', '')
         $body = [regex]::Replace($body, '(?i)<details\b(?![^>]*\bopen\b)', '<details open')
         $body = Convert-LocalGptPrintDocumentAnchors -Html $body -PageAnchor $page.Anchor
         $body = Convert-LocalGptPrintDocumentLinks -Html $body -PagePath $page.Path -SiteRoot $SiteRoot -AnchorMap $anchorMap
         if ($page.IsApi) {
-            $kindClass = ([string]$page.ApiKind).ToLowerInvariant()
-            $documentClass = 'localgpt-print-document localgpt-print-api-document localgpt-print-api-' + $kindClass
+            $documentClass = 'localgpt-print-document localgpt-print-workspace localgpt-print-api-overview'
         }
         else {
             $documentClass = 'localgpt-print-document localgpt-print-workspace'
@@ -1556,6 +1563,7 @@ function Invoke-LocalGptBrowserPdf {
                 "--disable-features=BackForwardCache,CalculateNativeWinOcclusion,MediaRouter,OptimizationHints,Translate,msEdgeStartupBoost,msEdgeBackgroundMode",
                 "--print-to-pdf-no-header",
                 "--no-pdf-header-footer",
+                "--generate-tagged-pdf",
                 "--user-data-dir=$profileRoot",
                 "--print-to-pdf=$PdfPath",
                 $inputUri
@@ -2250,7 +2258,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                         if ($pdfGenerated) {
                             $resolvedPdf = Get-Item -LiteralPath $pdfPath
                             $pdfFileSize = $resolvedPdf.Length
-                            $pdfMode = "html-browser-print"
+                            $pdfMode = "html-browser-compact-handbook"
                             $pdfRenderer = [string]$browser.Name
                             $pdfGeneratedSourcePath = Get-LocalGptRelativePath -Root $docsRoot -Path $printBookPath
                         }

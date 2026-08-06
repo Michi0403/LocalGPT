@@ -6,6 +6,7 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
+@inject IDocumentationViewerService Viewer
 
 <PageTitle>Documentation</PageTitle>
 
@@ -72,26 +73,8 @@
     </section>
 </main>
 
-@if (documentationUrl is not null)
-{
-    <div class="documentation-backdrop" role="presentation" @onclick="CloseDocumentation">
-        <section class="documentation-dialog" role="dialog" aria-modal="true" aria-labelledby="localgpt-documentation-title" @onclick:stopPropagation>
-            <header>
-                <h2 id="localgpt-documentation-title">@documentationTitle</h2>
-                <div>
-                    <a href="@documentationUrl" target="_blank" rel="noopener noreferrer" data-enhance-nav="false">Open in browser tab</a>
-                    <button type="button" @onclick="CloseDocumentation" aria-label="Close documentation">Close</button>
-                </div>
-            </header>
-            <iframe src="@documentationUrl" title="@documentationTitle" loading="eager"></iframe>
-        </section>
-    </div>
-}
-
 @code {
     private LocalGptDocumentationStatus documentationStatus = new();
-    private string? documentationUrl;
-    private string documentationTitle = "LocalGPT documentation";
 
     protected override void OnInitialized()
     {
@@ -138,8 +121,7 @@
                 return;
             }
 
-            documentationUrl = url;
-            documentationTitle = title;
+            Viewer.Open(new LocalGptDocumentationViewerRequest { Url = url, Title = title });
             ComponentActivity.RecordInformation(nameof(Help), nameof(OpenDocumentation), $"Opened {title}.", url);
             Logger.LogInformation("Opened LocalGPT documentation view {DocumentationTitle} at {DocumentationUrl}.", title, url);
         }
@@ -151,9 +133,4 @@
         }
     }
 
-    private void CloseDocumentation()
-    {
-        documentationUrl = null;
-        documentationTitle = "LocalGPT documentation";
-    }
 }

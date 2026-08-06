@@ -78,3 +78,36 @@ public sealed class LocalVisionOcrResult
     public string MediaType { get; set; } = string.Empty;
     public bool NeedsHumanReview { get; set; } = true;
 }
+
+/// <summary>Describes the active LocalGPT 1-Wire surface and safe runtime settings for local and linked frontends.</summary>
+[DocumentationUpdated("2.3.5")]
+public sealed class OneWireProtocolProfile
+{
+    public string ProtocolVersion { get; set; } = OneWireProtocol.Version;
+    public string MinimumCompatibleVersion { get; set; } = OneWireProtocol.MinimumCompatibleVersion;
+    public string PostEnvelopeRoute { get; set; } = "/api/onewire/http-json";
+    public string PollWorkRoute { get; set; } = "/api/onewire/http-json/work/{correlationId}";
+    public OneWirePublicSettings Settings { get; set; } = new();
+    public OneWireSecurityDescriptor Security { get; set; } = new();
+    public OneWirePeerAdvertisement Peer { get; set; } = new();
+    public List<OneWireCapabilityDescriptor> Capabilities { get; set; } = [];
+    public List<OneWireSkillDescriptor> Skills { get; set; } = [];
+    public List<OneWireUiFeatureDescriptor> UiFeatures { get; set; } = [];
+    public List<OneWireHardwareDescriptor> Hardware { get; set; } = [];
+}
+
+/// <summary>Safe LocalGPT 1-Wire settings shown to users and linked clients.</summary>
+[DocumentationUpdated("2.3.5")]
+public sealed class OneWirePublicSettings
+{
+    public bool Enabled { get; set; }
+    public bool DiscoveryEnabled { get; set; }
+    public bool LanTransportEnabled { get; set; }
+    public string ListenAddress { get; set; } = string.Empty;
+    public int ServicePort { get; set; }
+    public int DiscoveryPort { get; set; }
+    public int BroadcastIntervalSeconds { get; set; }
+    public int PeerExpirySeconds { get; set; }
+    public int MaximumMessageBytes { get; set; }
+    public List<string> SupportedTransports { get; set; } = ["tcp", "http-json"];
+}

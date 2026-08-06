@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Controller;
+using LocalGPT.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller

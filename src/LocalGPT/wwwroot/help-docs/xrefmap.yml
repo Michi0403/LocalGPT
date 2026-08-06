@@ -28315,6 +28315,102 @@ references:
   commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationComment.Summary
   fullName: LocalGPT.BusinessObjects.LocalGptDocumentationComment.Summary
   nameWithType: LocalGptDocumentationComment.Summary
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile
+  name: LocalGptDocumentationProfile
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html
+  commentId: T:LocalGPT.BusinessObjects.LocalGptDocumentationProfile
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile
+  nameWithType: LocalGptDocumentationProfile
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.#ctor
+  name: LocalGptDocumentationProfile()
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile__ctor
+  commentId: M:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.#ctor
+  name.vb: New()
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.LocalGptDocumentationProfile()
+  fullName.vb: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.New()
+  nameWithType: LocalGptDocumentationProfile.LocalGptDocumentationProfile()
+  nameWithType.vb: LocalGptDocumentationProfile.New()
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.#ctor*
+  name: LocalGptDocumentationProfile
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile__ctor_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.#ctor
+  name.vb: New
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.LocalGptDocumentationProfile
+  fullName.vb: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.New
+  nameWithType: LocalGptDocumentationProfile.LocalGptDocumentationProfile
+  nameWithType.vb: LocalGptDocumentationProfile.New
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.ApiRoute
+  name: ApiRoute
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_ApiRoute
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.ApiRoute
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.ApiRoute
+  nameWithType: LocalGptDocumentationProfile.ApiRoute
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.ApiRoute*
+  name: ApiRoute
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_ApiRoute_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.ApiRoute
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.ApiRoute
+  nameWithType: LocalGptDocumentationProfile.ApiRoute
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HelpRoute
+  name: HelpRoute
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_HelpRoute
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HelpRoute
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HelpRoute
+  nameWithType: LocalGptDocumentationProfile.HelpRoute
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HelpRoute*
+  name: HelpRoute
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_HelpRoute_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HelpRoute
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HelpRoute
+  nameWithType: LocalGptDocumentationProfile.HelpRoute
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HtmlRoute
+  name: HtmlRoute
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_HtmlRoute
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HtmlRoute
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HtmlRoute
+  nameWithType: LocalGptDocumentationProfile.HtmlRoute
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HtmlRoute*
+  name: HtmlRoute
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_HtmlRoute_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HtmlRoute
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HtmlRoute
+  nameWithType: LocalGptDocumentationProfile.HtmlRoute
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.PdfRoute
+  name: PdfRoute
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_PdfRoute
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.PdfRoute
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.PdfRoute
+  nameWithType: LocalGptDocumentationProfile.PdfRoute
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.PdfRoute*
+  name: PdfRoute
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_PdfRoute_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.PdfRoute
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.PdfRoute
+  nameWithType: LocalGptDocumentationProfile.PdfRoute
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.Status
+  name: Status
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_Status
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.Status
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.Status
+  nameWithType: LocalGptDocumentationProfile.Status
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.Status*
+  name: Status
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_Status_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.Status
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.Status
+  nameWithType: LocalGptDocumentationProfile.Status
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.SupportsAccessibleModalViewer
+  name: SupportsAccessibleModalViewer
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_SupportsAccessibleModalViewer
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.SupportsAccessibleModalViewer
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.SupportsAccessibleModalViewer
+  nameWithType: LocalGptDocumentationProfile.SupportsAccessibleModalViewer
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.SupportsAccessibleModalViewer*
+  name: SupportsAccessibleModalViewer
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html#LocalGPT_BusinessObjects_LocalGptDocumentationProfile_SupportsAccessibleModalViewer_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.SupportsAccessibleModalViewer
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationProfile.SupportsAccessibleModalViewer
+  nameWithType: LocalGptDocumentationProfile.SupportsAccessibleModalViewer
 - uid: LocalGPT.BusinessObjects.LocalGptDocumentationStatus
   name: LocalGptDocumentationStatus
   href: api/LocalGPT.BusinessObjects.LocalGptDocumentationStatus.html
@@ -28471,6 +28567,126 @@ references:
   commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationStatus.XmlCommentsAvailable
   fullName: LocalGPT.BusinessObjects.LocalGptDocumentationStatus.XmlCommentsAvailable
   nameWithType: LocalGptDocumentationStatus.XmlCommentsAvailable
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest
+  name: LocalGptDocumentationViewerRequest
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.html
+  commentId: T:LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest
+  nameWithType: LocalGptDocumentationViewerRequest
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.#ctor
+  name: LocalGptDocumentationViewerRequest()
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerRequest__ctor
+  commentId: M:LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.#ctor
+  name.vb: New()
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.LocalGptDocumentationViewerRequest()
+  fullName.vb: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.New()
+  nameWithType: LocalGptDocumentationViewerRequest.LocalGptDocumentationViewerRequest()
+  nameWithType.vb: LocalGptDocumentationViewerRequest.New()
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.#ctor*
+  name: LocalGptDocumentationViewerRequest
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerRequest__ctor_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.#ctor
+  name.vb: New
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.LocalGptDocumentationViewerRequest
+  fullName.vb: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.New
+  nameWithType: LocalGptDocumentationViewerRequest.LocalGptDocumentationViewerRequest
+  nameWithType.vb: LocalGptDocumentationViewerRequest.New
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Title
+  name: Title
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerRequest_Title
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Title
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Title
+  nameWithType: LocalGptDocumentationViewerRequest.Title
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Title*
+  name: Title
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerRequest_Title_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Title
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Title
+  nameWithType: LocalGptDocumentationViewerRequest.Title
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Url
+  name: Url
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerRequest_Url
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Url
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Url
+  nameWithType: LocalGptDocumentationViewerRequest.Url
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Url*
+  name: Url
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerRequest_Url_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Url
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Url
+  nameWithType: LocalGptDocumentationViewerRequest.Url
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState
+  name: LocalGptDocumentationViewerState
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html
+  commentId: T:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState
+  nameWithType: LocalGptDocumentationViewerState
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.#ctor
+  name: LocalGptDocumentationViewerState()
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerState__ctor
+  commentId: M:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.#ctor
+  name.vb: New()
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.LocalGptDocumentationViewerState()
+  fullName.vb: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.New()
+  nameWithType: LocalGptDocumentationViewerState.LocalGptDocumentationViewerState()
+  nameWithType.vb: LocalGptDocumentationViewerState.New()
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.#ctor*
+  name: LocalGptDocumentationViewerState
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerState__ctor_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.#ctor
+  name.vb: New
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.LocalGptDocumentationViewerState
+  fullName.vb: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.New
+  nameWithType: LocalGptDocumentationViewerState.LocalGptDocumentationViewerState
+  nameWithType.vb: LocalGptDocumentationViewerState.New
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.IsOpen
+  name: IsOpen
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerState_IsOpen
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.IsOpen
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.IsOpen
+  nameWithType: LocalGptDocumentationViewerState.IsOpen
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.IsOpen*
+  name: IsOpen
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerState_IsOpen_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.IsOpen
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.IsOpen
+  nameWithType: LocalGptDocumentationViewerState.IsOpen
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Revision
+  name: Revision
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerState_Revision
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Revision
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Revision
+  nameWithType: LocalGptDocumentationViewerState.Revision
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Revision*
+  name: Revision
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerState_Revision_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Revision
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Revision
+  nameWithType: LocalGptDocumentationViewerState.Revision
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Title
+  name: Title
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerState_Title
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Title
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Title
+  nameWithType: LocalGptDocumentationViewerState.Title
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Title*
+  name: Title
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerState_Title_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Title
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Title
+  nameWithType: LocalGptDocumentationViewerState.Title
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Url
+  name: Url
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerState_Url
+  commentId: P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Url
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Url
+  nameWithType: LocalGptDocumentationViewerState.Url
+- uid: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Url*
+  name: Url
+  href: api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html#LocalGPT_BusinessObjects_LocalGptDocumentationViewerState_Url_
+  commentId: Overload:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Url
+  fullName: LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Url
+  nameWithType: LocalGptDocumentationViewerState.Url
 - uid: LocalGPT.BusinessObjects.LocalGptProject
   name: LocalGptProject
   href: api/LocalGPT.BusinessObjects.LocalGptProject.html
@@ -39682,6 +39898,306 @@ references:
   commentId: Overload:LocalGPT.BusinessObjects.OneWirePendingCouncilRequest.QueuedUtc
   fullName: LocalGPT.BusinessObjects.OneWirePendingCouncilRequest.QueuedUtc
   nameWithType: OneWirePendingCouncilRequest.QueuedUtc
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile
+  name: OneWireProtocolProfile
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html
+  commentId: T:LocalGPT.BusinessObjects.OneWireProtocolProfile
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile
+  nameWithType: OneWireProtocolProfile
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.#ctor
+  name: OneWireProtocolProfile()
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile__ctor
+  commentId: M:LocalGPT.BusinessObjects.OneWireProtocolProfile.#ctor
+  name.vb: New()
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.OneWireProtocolProfile()
+  fullName.vb: LocalGPT.BusinessObjects.OneWireProtocolProfile.New()
+  nameWithType: OneWireProtocolProfile.OneWireProtocolProfile()
+  nameWithType.vb: OneWireProtocolProfile.New()
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.#ctor*
+  name: OneWireProtocolProfile
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile__ctor_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.#ctor
+  name.vb: New
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.OneWireProtocolProfile
+  fullName.vb: LocalGPT.BusinessObjects.OneWireProtocolProfile.New
+  nameWithType: OneWireProtocolProfile.OneWireProtocolProfile
+  nameWithType.vb: OneWireProtocolProfile.New
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Capabilities
+  name: Capabilities
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Capabilities
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.Capabilities
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Capabilities
+  nameWithType: OneWireProtocolProfile.Capabilities
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Capabilities*
+  name: Capabilities
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Capabilities_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.Capabilities
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Capabilities
+  nameWithType: OneWireProtocolProfile.Capabilities
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Hardware
+  name: Hardware
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Hardware
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.Hardware
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Hardware
+  nameWithType: OneWireProtocolProfile.Hardware
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Hardware*
+  name: Hardware
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Hardware_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.Hardware
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Hardware
+  nameWithType: OneWireProtocolProfile.Hardware
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.MinimumCompatibleVersion
+  name: MinimumCompatibleVersion
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_MinimumCompatibleVersion
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.MinimumCompatibleVersion
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.MinimumCompatibleVersion
+  nameWithType: OneWireProtocolProfile.MinimumCompatibleVersion
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.MinimumCompatibleVersion*
+  name: MinimumCompatibleVersion
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_MinimumCompatibleVersion_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.MinimumCompatibleVersion
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.MinimumCompatibleVersion
+  nameWithType: OneWireProtocolProfile.MinimumCompatibleVersion
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Peer
+  name: Peer
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Peer
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.Peer
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Peer
+  nameWithType: OneWireProtocolProfile.Peer
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Peer*
+  name: Peer
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Peer_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.Peer
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Peer
+  nameWithType: OneWireProtocolProfile.Peer
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.PollWorkRoute
+  name: PollWorkRoute
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_PollWorkRoute
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.PollWorkRoute
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.PollWorkRoute
+  nameWithType: OneWireProtocolProfile.PollWorkRoute
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.PollWorkRoute*
+  name: PollWorkRoute
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_PollWorkRoute_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.PollWorkRoute
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.PollWorkRoute
+  nameWithType: OneWireProtocolProfile.PollWorkRoute
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.PostEnvelopeRoute
+  name: PostEnvelopeRoute
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_PostEnvelopeRoute
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.PostEnvelopeRoute
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.PostEnvelopeRoute
+  nameWithType: OneWireProtocolProfile.PostEnvelopeRoute
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.PostEnvelopeRoute*
+  name: PostEnvelopeRoute
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_PostEnvelopeRoute_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.PostEnvelopeRoute
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.PostEnvelopeRoute
+  nameWithType: OneWireProtocolProfile.PostEnvelopeRoute
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.ProtocolVersion
+  name: ProtocolVersion
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_ProtocolVersion
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.ProtocolVersion
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.ProtocolVersion
+  nameWithType: OneWireProtocolProfile.ProtocolVersion
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.ProtocolVersion*
+  name: ProtocolVersion
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_ProtocolVersion_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.ProtocolVersion
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.ProtocolVersion
+  nameWithType: OneWireProtocolProfile.ProtocolVersion
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Security
+  name: Security
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Security
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.Security
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Security
+  nameWithType: OneWireProtocolProfile.Security
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Security*
+  name: Security
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Security_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.Security
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Security
+  nameWithType: OneWireProtocolProfile.Security
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Settings
+  name: Settings
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Settings
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.Settings
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Settings
+  nameWithType: OneWireProtocolProfile.Settings
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Settings*
+  name: Settings
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Settings_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.Settings
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Settings
+  nameWithType: OneWireProtocolProfile.Settings
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Skills
+  name: Skills
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Skills
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.Skills
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Skills
+  nameWithType: OneWireProtocolProfile.Skills
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.Skills*
+  name: Skills
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_Skills_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.Skills
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.Skills
+  nameWithType: OneWireProtocolProfile.Skills
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.UiFeatures
+  name: UiFeatures
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_UiFeatures
+  commentId: P:LocalGPT.BusinessObjects.OneWireProtocolProfile.UiFeatures
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.UiFeatures
+  nameWithType: OneWireProtocolProfile.UiFeatures
+- uid: LocalGPT.BusinessObjects.OneWireProtocolProfile.UiFeatures*
+  name: UiFeatures
+  href: api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html#LocalGPT_BusinessObjects_OneWireProtocolProfile_UiFeatures_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWireProtocolProfile.UiFeatures
+  fullName: LocalGPT.BusinessObjects.OneWireProtocolProfile.UiFeatures
+  nameWithType: OneWireProtocolProfile.UiFeatures
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings
+  name: OneWirePublicSettings
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html
+  commentId: T:LocalGPT.BusinessObjects.OneWirePublicSettings
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings
+  nameWithType: OneWirePublicSettings
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.#ctor
+  name: OneWirePublicSettings()
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings__ctor
+  commentId: M:LocalGPT.BusinessObjects.OneWirePublicSettings.#ctor
+  name.vb: New()
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.OneWirePublicSettings()
+  fullName.vb: LocalGPT.BusinessObjects.OneWirePublicSettings.New()
+  nameWithType: OneWirePublicSettings.OneWirePublicSettings()
+  nameWithType.vb: OneWirePublicSettings.New()
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.#ctor*
+  name: OneWirePublicSettings
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings__ctor_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.#ctor
+  name.vb: New
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.OneWirePublicSettings
+  fullName.vb: LocalGPT.BusinessObjects.OneWirePublicSettings.New
+  nameWithType: OneWirePublicSettings.OneWirePublicSettings
+  nameWithType.vb: OneWirePublicSettings.New
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.BroadcastIntervalSeconds
+  name: BroadcastIntervalSeconds
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_BroadcastIntervalSeconds
+  commentId: P:LocalGPT.BusinessObjects.OneWirePublicSettings.BroadcastIntervalSeconds
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.BroadcastIntervalSeconds
+  nameWithType: OneWirePublicSettings.BroadcastIntervalSeconds
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.BroadcastIntervalSeconds*
+  name: BroadcastIntervalSeconds
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_BroadcastIntervalSeconds_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.BroadcastIntervalSeconds
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.BroadcastIntervalSeconds
+  nameWithType: OneWirePublicSettings.BroadcastIntervalSeconds
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryEnabled
+  name: DiscoveryEnabled
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_DiscoveryEnabled
+  commentId: P:LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryEnabled
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryEnabled
+  nameWithType: OneWirePublicSettings.DiscoveryEnabled
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryEnabled*
+  name: DiscoveryEnabled
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_DiscoveryEnabled_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryEnabled
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryEnabled
+  nameWithType: OneWirePublicSettings.DiscoveryEnabled
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryPort
+  name: DiscoveryPort
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_DiscoveryPort
+  commentId: P:LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryPort
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryPort
+  nameWithType: OneWirePublicSettings.DiscoveryPort
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryPort*
+  name: DiscoveryPort
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_DiscoveryPort_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryPort
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.DiscoveryPort
+  nameWithType: OneWirePublicSettings.DiscoveryPort
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.Enabled
+  name: Enabled
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_Enabled
+  commentId: P:LocalGPT.BusinessObjects.OneWirePublicSettings.Enabled
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.Enabled
+  nameWithType: OneWirePublicSettings.Enabled
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.Enabled*
+  name: Enabled
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_Enabled_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.Enabled
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.Enabled
+  nameWithType: OneWirePublicSettings.Enabled
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.LanTransportEnabled
+  name: LanTransportEnabled
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_LanTransportEnabled
+  commentId: P:LocalGPT.BusinessObjects.OneWirePublicSettings.LanTransportEnabled
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.LanTransportEnabled
+  nameWithType: OneWirePublicSettings.LanTransportEnabled
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.LanTransportEnabled*
+  name: LanTransportEnabled
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_LanTransportEnabled_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.LanTransportEnabled
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.LanTransportEnabled
+  nameWithType: OneWirePublicSettings.LanTransportEnabled
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.ListenAddress
+  name: ListenAddress
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_ListenAddress
+  commentId: P:LocalGPT.BusinessObjects.OneWirePublicSettings.ListenAddress
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.ListenAddress
+  nameWithType: OneWirePublicSettings.ListenAddress
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.ListenAddress*
+  name: ListenAddress
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_ListenAddress_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.ListenAddress
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.ListenAddress
+  nameWithType: OneWirePublicSettings.ListenAddress
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.MaximumMessageBytes
+  name: MaximumMessageBytes
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_MaximumMessageBytes
+  commentId: P:LocalGPT.BusinessObjects.OneWirePublicSettings.MaximumMessageBytes
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.MaximumMessageBytes
+  nameWithType: OneWirePublicSettings.MaximumMessageBytes
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.MaximumMessageBytes*
+  name: MaximumMessageBytes
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_MaximumMessageBytes_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.MaximumMessageBytes
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.MaximumMessageBytes
+  nameWithType: OneWirePublicSettings.MaximumMessageBytes
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.PeerExpirySeconds
+  name: PeerExpirySeconds
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_PeerExpirySeconds
+  commentId: P:LocalGPT.BusinessObjects.OneWirePublicSettings.PeerExpirySeconds
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.PeerExpirySeconds
+  nameWithType: OneWirePublicSettings.PeerExpirySeconds
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.PeerExpirySeconds*
+  name: PeerExpirySeconds
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_PeerExpirySeconds_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.PeerExpirySeconds
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.PeerExpirySeconds
+  nameWithType: OneWirePublicSettings.PeerExpirySeconds
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.ServicePort
+  name: ServicePort
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_ServicePort
+  commentId: P:LocalGPT.BusinessObjects.OneWirePublicSettings.ServicePort
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.ServicePort
+  nameWithType: OneWirePublicSettings.ServicePort
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.ServicePort*
+  name: ServicePort
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_ServicePort_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.ServicePort
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.ServicePort
+  nameWithType: OneWirePublicSettings.ServicePort
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.SupportedTransports
+  name: SupportedTransports
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_SupportedTransports
+  commentId: P:LocalGPT.BusinessObjects.OneWirePublicSettings.SupportedTransports
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.SupportedTransports
+  nameWithType: OneWirePublicSettings.SupportedTransports
+- uid: LocalGPT.BusinessObjects.OneWirePublicSettings.SupportedTransports*
+  name: SupportedTransports
+  href: api/LocalGPT.BusinessObjects.OneWirePublicSettings.html#LocalGPT_BusinessObjects_OneWirePublicSettings_SupportedTransports_
+  commentId: Overload:LocalGPT.BusinessObjects.OneWirePublicSettings.SupportedTransports
+  fullName: LocalGPT.BusinessObjects.OneWirePublicSettings.SupportedTransports
+  nameWithType: OneWirePublicSettings.SupportedTransports
 - uid: LocalGPT.BusinessObjects.OneWireReplayPolicySnapshot
   name: OneWireReplayPolicySnapshot
   href: api/LocalGPT.BusinessObjects.OneWireReplayPolicySnapshot.html
@@ -54138,6 +54654,93 @@ references:
   commentId: Overload:LocalGPT.Components.Shared.CouncilHardwareRoadEditor.Routes
   fullName: LocalGPT.Components.Shared.CouncilHardwareRoadEditor.Routes
   nameWithType: CouncilHardwareRoadEditor.Routes
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost
+  name: DocumentationViewerHost
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html
+  commentId: T:LocalGPT.Components.Shared.DocumentationViewerHost
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost
+  nameWithType: DocumentationViewerHost
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.#ctor
+  name: DocumentationViewerHost()
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost__ctor
+  commentId: M:LocalGPT.Components.Shared.DocumentationViewerHost.#ctor
+  name.vb: New()
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.DocumentationViewerHost()
+  fullName.vb: LocalGPT.Components.Shared.DocumentationViewerHost.New()
+  nameWithType: DocumentationViewerHost.DocumentationViewerHost()
+  nameWithType.vb: DocumentationViewerHost.New()
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.#ctor*
+  name: DocumentationViewerHost
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost__ctor_
+  commentId: Overload:LocalGPT.Components.Shared.DocumentationViewerHost.#ctor
+  name.vb: New
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.DocumentationViewerHost
+  fullName.vb: LocalGPT.Components.Shared.DocumentationViewerHost.New
+  nameWithType: DocumentationViewerHost.DocumentationViewerHost
+  nameWithType.vb: DocumentationViewerHost.New
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  name: BuildRenderTree(RenderTreeBuilder)
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_BuildRenderTree_Microsoft_AspNetCore_Components_Rendering_RenderTreeBuilder_
+  commentId: M:LocalGPT.Components.Shared.DocumentationViewerHost.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  nameWithType: DocumentationViewerHost.BuildRenderTree(RenderTreeBuilder)
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.BuildRenderTree*
+  name: BuildRenderTree
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_BuildRenderTree_
+  commentId: Overload:LocalGPT.Components.Shared.DocumentationViewerHost.BuildRenderTree
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.BuildRenderTree
+  nameWithType: DocumentationViewerHost.BuildRenderTree
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.CloseFromBrowser
+  name: CloseFromBrowser()
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_CloseFromBrowser
+  commentId: M:LocalGPT.Components.Shared.DocumentationViewerHost.CloseFromBrowser
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.CloseFromBrowser()
+  nameWithType: DocumentationViewerHost.CloseFromBrowser()
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.CloseFromBrowser*
+  name: CloseFromBrowser
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_CloseFromBrowser_
+  commentId: Overload:LocalGPT.Components.Shared.DocumentationViewerHost.CloseFromBrowser
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.CloseFromBrowser
+  nameWithType: DocumentationViewerHost.CloseFromBrowser
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync
+  name: DisposeAsync()
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_DisposeAsync
+  commentId: M:LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync()
+  nameWithType: DocumentationViewerHost.DisposeAsync()
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync*
+  name: DisposeAsync
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_DisposeAsync_
+  commentId: Overload:LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync
+  nameWithType: DocumentationViewerHost.DisposeAsync
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync(System.Boolean)
+  name: OnAfterRenderAsync(bool)
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_OnAfterRenderAsync_System_Boolean_
+  commentId: M:LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync(System.Boolean)
+  name.vb: OnAfterRenderAsync(Boolean)
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync(bool)
+  fullName.vb: LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync(Boolean)
+  nameWithType: DocumentationViewerHost.OnAfterRenderAsync(bool)
+  nameWithType.vb: DocumentationViewerHost.OnAfterRenderAsync(Boolean)
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync*
+  name: OnAfterRenderAsync
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_OnAfterRenderAsync_
+  commentId: Overload:LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync
+  nameWithType: DocumentationViewerHost.OnAfterRenderAsync
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.OnInitialized
+  name: OnInitialized()
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_OnInitialized
+  commentId: M:LocalGPT.Components.Shared.DocumentationViewerHost.OnInitialized
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.OnInitialized()
+  nameWithType: DocumentationViewerHost.OnInitialized()
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.OnInitialized*
+  name: OnInitialized
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_OnInitialized_
+  commentId: Overload:LocalGPT.Components.Shared.DocumentationViewerHost.OnInitialized
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.OnInitialized
+  nameWithType: DocumentationViewerHost.OnInitialized
 - uid: LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel
   name: ProviderModelBenchmarkCouncilPanel
   href: api/LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.html
@@ -54450,13 +55053,13 @@ references:
   commentId: T:LocalGPT.Controller.ChatController
   fullName: LocalGPT.Controller.ChatController
   nameWithType: ChatController
-- uid: LocalGPT.Controller.ChatController.#ctor(IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.ChatController})
+- uid: LocalGPT.Controller.ChatController.#ctor(LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.ChatController})
   name: ChatController(IRegexPatternService, ILogger<ChatController>)
-  href: api/LocalGPT.Controller.ChatController.html#LocalGPT_Controller_ChatController__ctor_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Controller_ChatController__
-  commentId: M:LocalGPT.Controller.ChatController.#ctor(IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.ChatController})
+  href: api/LocalGPT.Controller.ChatController.html#LocalGPT_Controller_ChatController__ctor_LocalGPT_Interfaces_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Controller_ChatController__
+  commentId: M:LocalGPT.Controller.ChatController.#ctor(LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.ChatController})
   name.vb: New(IRegexPatternService, ILogger(Of ChatController))
-  fullName: LocalGPT.Controller.ChatController.ChatController(IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Controller.ChatController>)
-  fullName.vb: LocalGPT.Controller.ChatController.New(IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Controller.ChatController))
+  fullName: LocalGPT.Controller.ChatController.ChatController(LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Controller.ChatController>)
+  fullName.vb: LocalGPT.Controller.ChatController.New(LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Controller.ChatController))
   nameWithType: ChatController.ChatController(IRegexPatternService, ILogger<ChatController>)
   nameWithType.vb: ChatController.New(IRegexPatternService, ILogger(Of ChatController))
 - uid: LocalGPT.Controller.ChatController.#ctor*
@@ -54981,6 +55584,18 @@ references:
   commentId: Overload:LocalGPT.Controller.DocumentationController.Pdf
   fullName: LocalGPT.Controller.DocumentationController.Pdf
   nameWithType: DocumentationController.Pdf
+- uid: LocalGPT.Controller.DocumentationController.Profile
+  name: Profile()
+  href: api/LocalGPT.Controller.DocumentationController.html#LocalGPT_Controller_DocumentationController_Profile
+  commentId: M:LocalGPT.Controller.DocumentationController.Profile
+  fullName: LocalGPT.Controller.DocumentationController.Profile()
+  nameWithType: DocumentationController.Profile()
+- uid: LocalGPT.Controller.DocumentationController.Profile*
+  name: Profile
+  href: api/LocalGPT.Controller.DocumentationController.html#LocalGPT_Controller_DocumentationController_Profile_
+  commentId: Overload:LocalGPT.Controller.DocumentationController.Profile
+  fullName: LocalGPT.Controller.DocumentationController.Profile
+  nameWithType: DocumentationController.Profile
 - uid: LocalGPT.Controller.DocumentationController.Status
   name: Status()
   href: api/LocalGPT.Controller.DocumentationController.html#LocalGPT_Controller_DocumentationController_Status
@@ -56676,15 +57291,15 @@ references:
   commentId: T:LocalGPT.Controller.OneWireHttpController
   fullName: LocalGPT.Controller.OneWireHttpController
   nameWithType: OneWireHttpController
-- uid: LocalGPT.Controller.OneWireHttpController.#ctor(LocalGPT.Interfaces.IOneWireEnvelopeCodec,LocalGPT.Interfaces.IOneWireRuntimeSecurityService,LocalGPT.Interfaces.IOneWireMessageDispatcher,LocalGPT.Interfaces.IOneWireTransportSecurityPolicy,LocalGPT.Interfaces.IOneWireDispatchContextFactory,LocalGPT.Interfaces.IOneWireWorkSpooler,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.OneWireHttpController})
-  name: OneWireHttpController(IOneWireEnvelopeCodec, IOneWireRuntimeSecurityService, IOneWireMessageDispatcher, IOneWireTransportSecurityPolicy, IOneWireDispatchContextFactory, IOneWireWorkSpooler, ILogger<OneWireHttpController>)
-  href: api/LocalGPT.Controller.OneWireHttpController.html#LocalGPT_Controller_OneWireHttpController__ctor_LocalGPT_Interfaces_IOneWireEnvelopeCodec_LocalGPT_Interfaces_IOneWireRuntimeSecurityService_LocalGPT_Interfaces_IOneWireMessageDispatcher_LocalGPT_Interfaces_IOneWireTransportSecurityPolicy_LocalGPT_Interfaces_IOneWireDispatchContextFactory_LocalGPT_Interfaces_IOneWireWorkSpooler_Microsoft_Extensions_Logging_ILogger_LocalGPT_Controller_OneWireHttpController__
-  commentId: M:LocalGPT.Controller.OneWireHttpController.#ctor(LocalGPT.Interfaces.IOneWireEnvelopeCodec,LocalGPT.Interfaces.IOneWireRuntimeSecurityService,LocalGPT.Interfaces.IOneWireMessageDispatcher,LocalGPT.Interfaces.IOneWireTransportSecurityPolicy,LocalGPT.Interfaces.IOneWireDispatchContextFactory,LocalGPT.Interfaces.IOneWireWorkSpooler,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.OneWireHttpController})
-  name.vb: New(IOneWireEnvelopeCodec, IOneWireRuntimeSecurityService, IOneWireMessageDispatcher, IOneWireTransportSecurityPolicy, IOneWireDispatchContextFactory, IOneWireWorkSpooler, ILogger(Of OneWireHttpController))
-  fullName: LocalGPT.Controller.OneWireHttpController.OneWireHttpController(LocalGPT.Interfaces.IOneWireEnvelopeCodec, LocalGPT.Interfaces.IOneWireRuntimeSecurityService, LocalGPT.Interfaces.IOneWireMessageDispatcher, LocalGPT.Interfaces.IOneWireTransportSecurityPolicy, LocalGPT.Interfaces.IOneWireDispatchContextFactory, LocalGPT.Interfaces.IOneWireWorkSpooler, Microsoft.Extensions.Logging.ILogger<LocalGPT.Controller.OneWireHttpController>)
-  fullName.vb: LocalGPT.Controller.OneWireHttpController.New(LocalGPT.Interfaces.IOneWireEnvelopeCodec, LocalGPT.Interfaces.IOneWireRuntimeSecurityService, LocalGPT.Interfaces.IOneWireMessageDispatcher, LocalGPT.Interfaces.IOneWireTransportSecurityPolicy, LocalGPT.Interfaces.IOneWireDispatchContextFactory, LocalGPT.Interfaces.IOneWireWorkSpooler, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Controller.OneWireHttpController))
-  nameWithType: OneWireHttpController.OneWireHttpController(IOneWireEnvelopeCodec, IOneWireRuntimeSecurityService, IOneWireMessageDispatcher, IOneWireTransportSecurityPolicy, IOneWireDispatchContextFactory, IOneWireWorkSpooler, ILogger<OneWireHttpController>)
-  nameWithType.vb: OneWireHttpController.New(IOneWireEnvelopeCodec, IOneWireRuntimeSecurityService, IOneWireMessageDispatcher, IOneWireTransportSecurityPolicy, IOneWireDispatchContextFactory, IOneWireWorkSpooler, ILogger(Of OneWireHttpController))
+- uid: LocalGPT.Controller.OneWireHttpController.#ctor(LocalGPT.Interfaces.IOneWireEnvelopeCodec,LocalGPT.Interfaces.IOneWireRuntimeSecurityService,LocalGPT.Interfaces.IOneWireMessageDispatcher,LocalGPT.Interfaces.IOneWireTransportSecurityPolicy,LocalGPT.Interfaces.IOneWireDispatchContextFactory,LocalGPT.Interfaces.IOneWireWorkSpooler,LocalGPT.Interfaces.IOneWireCapabilityCatalog,Microsoft.Extensions.Options.IOptions{LocalGPT.BusinessObjects.OneWireOptions},Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.OneWireHttpController})
+  name: OneWireHttpController(IOneWireEnvelopeCodec, IOneWireRuntimeSecurityService, IOneWireMessageDispatcher, IOneWireTransportSecurityPolicy, IOneWireDispatchContextFactory, IOneWireWorkSpooler, IOneWireCapabilityCatalog, IOptions<OneWireOptions>, ILogger<OneWireHttpController>)
+  href: api/LocalGPT.Controller.OneWireHttpController.html#LocalGPT_Controller_OneWireHttpController__ctor_LocalGPT_Interfaces_IOneWireEnvelopeCodec_LocalGPT_Interfaces_IOneWireRuntimeSecurityService_LocalGPT_Interfaces_IOneWireMessageDispatcher_LocalGPT_Interfaces_IOneWireTransportSecurityPolicy_LocalGPT_Interfaces_IOneWireDispatchContextFactory_LocalGPT_Interfaces_IOneWireWorkSpooler_LocalGPT_Interfaces_IOneWireCapabilityCatalog_Microsoft_Extensions_Options_IOptions_LocalGPT_BusinessObjects_OneWireOptions__Microsoft_Extensions_Logging_ILogger_LocalGPT_Controller_OneWireHttpController__
+  commentId: M:LocalGPT.Controller.OneWireHttpController.#ctor(LocalGPT.Interfaces.IOneWireEnvelopeCodec,LocalGPT.Interfaces.IOneWireRuntimeSecurityService,LocalGPT.Interfaces.IOneWireMessageDispatcher,LocalGPT.Interfaces.IOneWireTransportSecurityPolicy,LocalGPT.Interfaces.IOneWireDispatchContextFactory,LocalGPT.Interfaces.IOneWireWorkSpooler,LocalGPT.Interfaces.IOneWireCapabilityCatalog,Microsoft.Extensions.Options.IOptions{LocalGPT.BusinessObjects.OneWireOptions},Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.OneWireHttpController})
+  name.vb: New(IOneWireEnvelopeCodec, IOneWireRuntimeSecurityService, IOneWireMessageDispatcher, IOneWireTransportSecurityPolicy, IOneWireDispatchContextFactory, IOneWireWorkSpooler, IOneWireCapabilityCatalog, IOptions(Of OneWireOptions), ILogger(Of OneWireHttpController))
+  fullName: LocalGPT.Controller.OneWireHttpController.OneWireHttpController(LocalGPT.Interfaces.IOneWireEnvelopeCodec, LocalGPT.Interfaces.IOneWireRuntimeSecurityService, LocalGPT.Interfaces.IOneWireMessageDispatcher, LocalGPT.Interfaces.IOneWireTransportSecurityPolicy, LocalGPT.Interfaces.IOneWireDispatchContextFactory, LocalGPT.Interfaces.IOneWireWorkSpooler, LocalGPT.Interfaces.IOneWireCapabilityCatalog, Microsoft.Extensions.Options.IOptions<LocalGPT.BusinessObjects.OneWireOptions>, Microsoft.Extensions.Logging.ILogger<LocalGPT.Controller.OneWireHttpController>)
+  fullName.vb: LocalGPT.Controller.OneWireHttpController.New(LocalGPT.Interfaces.IOneWireEnvelopeCodec, LocalGPT.Interfaces.IOneWireRuntimeSecurityService, LocalGPT.Interfaces.IOneWireMessageDispatcher, LocalGPT.Interfaces.IOneWireTransportSecurityPolicy, LocalGPT.Interfaces.IOneWireDispatchContextFactory, LocalGPT.Interfaces.IOneWireWorkSpooler, LocalGPT.Interfaces.IOneWireCapabilityCatalog, Microsoft.Extensions.Options.IOptions(Of LocalGPT.BusinessObjects.OneWireOptions), Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Controller.OneWireHttpController))
+  nameWithType: OneWireHttpController.OneWireHttpController(IOneWireEnvelopeCodec, IOneWireRuntimeSecurityService, IOneWireMessageDispatcher, IOneWireTransportSecurityPolicy, IOneWireDispatchContextFactory, IOneWireWorkSpooler, IOneWireCapabilityCatalog, IOptions<OneWireOptions>, ILogger<OneWireHttpController>)
+  nameWithType.vb: OneWireHttpController.New(IOneWireEnvelopeCodec, IOneWireRuntimeSecurityService, IOneWireMessageDispatcher, IOneWireTransportSecurityPolicy, IOneWireDispatchContextFactory, IOneWireWorkSpooler, IOneWireCapabilityCatalog, IOptions(Of OneWireOptions), ILogger(Of OneWireHttpController))
 - uid: LocalGPT.Controller.OneWireHttpController.#ctor*
   name: OneWireHttpController
   href: api/LocalGPT.Controller.OneWireHttpController.html#LocalGPT_Controller_OneWireHttpController__ctor_
@@ -57129,13 +57744,13 @@ references:
   commentId: T:LocalGPT.Controller.StructuredTextController
   fullName: LocalGPT.Controller.StructuredTextController
   nameWithType: StructuredTextController
-- uid: LocalGPT.Controller.StructuredTextController.#ctor(LocalGPT.Interfaces.IStructuredTextTranslationService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.StructuredTextController})
+- uid: LocalGPT.Controller.StructuredTextController.#ctor(LocalGPT.Interfaces.IStructuredTextTranslationService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.StructuredTextController})
   name: StructuredTextController(IStructuredTextTranslationService, IRegexPatternService, ILogger<StructuredTextController>)
-  href: api/LocalGPT.Controller.StructuredTextController.html#LocalGPT_Controller_StructuredTextController__ctor_LocalGPT_Interfaces_IStructuredTextTranslationService_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Controller_StructuredTextController__
-  commentId: M:LocalGPT.Controller.StructuredTextController.#ctor(LocalGPT.Interfaces.IStructuredTextTranslationService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.StructuredTextController})
+  href: api/LocalGPT.Controller.StructuredTextController.html#LocalGPT_Controller_StructuredTextController__ctor_LocalGPT_Interfaces_IStructuredTextTranslationService_LocalGPT_Interfaces_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Controller_StructuredTextController__
+  commentId: M:LocalGPT.Controller.StructuredTextController.#ctor(LocalGPT.Interfaces.IStructuredTextTranslationService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.StructuredTextController})
   name.vb: New(IStructuredTextTranslationService, IRegexPatternService, ILogger(Of StructuredTextController))
-  fullName: LocalGPT.Controller.StructuredTextController.StructuredTextController(LocalGPT.Interfaces.IStructuredTextTranslationService, IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Controller.StructuredTextController>)
-  fullName.vb: LocalGPT.Controller.StructuredTextController.New(LocalGPT.Interfaces.IStructuredTextTranslationService, IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Controller.StructuredTextController))
+  fullName: LocalGPT.Controller.StructuredTextController.StructuredTextController(LocalGPT.Interfaces.IStructuredTextTranslationService, LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Controller.StructuredTextController>)
+  fullName.vb: LocalGPT.Controller.StructuredTextController.New(LocalGPT.Interfaces.IStructuredTextTranslationService, LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Controller.StructuredTextController))
   nameWithType: StructuredTextController.StructuredTextController(IStructuredTextTranslationService, IRegexPatternService, ILogger<StructuredTextController>)
   nameWithType.vb: StructuredTextController.New(IStructuredTextTranslationService, IRegexPatternService, ILogger(Of StructuredTextController))
 - uid: LocalGPT.Controller.StructuredTextController.#ctor*
@@ -60756,6 +61371,54 @@ references:
   commentId: Overload:LocalGPT.Interfaces.IDocumentationTranslationAdapter.Adapt
   fullName: LocalGPT.Interfaces.IDocumentationTranslationAdapter.Adapt
   nameWithType: IDocumentationTranslationAdapter.Adapt
+- uid: LocalGPT.Interfaces.IDocumentationViewerService
+  name: IDocumentationViewerService
+  href: api/LocalGPT.Interfaces.IDocumentationViewerService.html
+  commentId: T:LocalGPT.Interfaces.IDocumentationViewerService
+  fullName: LocalGPT.Interfaces.IDocumentationViewerService
+  nameWithType: IDocumentationViewerService
+- uid: LocalGPT.Interfaces.IDocumentationViewerService.Close
+  name: Close()
+  href: api/LocalGPT.Interfaces.IDocumentationViewerService.html#LocalGPT_Interfaces_IDocumentationViewerService_Close
+  commentId: M:LocalGPT.Interfaces.IDocumentationViewerService.Close
+  fullName: LocalGPT.Interfaces.IDocumentationViewerService.Close()
+  nameWithType: IDocumentationViewerService.Close()
+- uid: LocalGPT.Interfaces.IDocumentationViewerService.Close*
+  name: Close
+  href: api/LocalGPT.Interfaces.IDocumentationViewerService.html#LocalGPT_Interfaces_IDocumentationViewerService_Close_
+  commentId: Overload:LocalGPT.Interfaces.IDocumentationViewerService.Close
+  fullName: LocalGPT.Interfaces.IDocumentationViewerService.Close
+  nameWithType: IDocumentationViewerService.Close
+- uid: LocalGPT.Interfaces.IDocumentationViewerService.Open(LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest)
+  name: Open(LocalGptDocumentationViewerRequest)
+  href: api/LocalGPT.Interfaces.IDocumentationViewerService.html#LocalGPT_Interfaces_IDocumentationViewerService_Open_LocalGPT_BusinessObjects_LocalGptDocumentationViewerRequest_
+  commentId: M:LocalGPT.Interfaces.IDocumentationViewerService.Open(LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest)
+  fullName: LocalGPT.Interfaces.IDocumentationViewerService.Open(LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest)
+  nameWithType: IDocumentationViewerService.Open(LocalGptDocumentationViewerRequest)
+- uid: LocalGPT.Interfaces.IDocumentationViewerService.Open*
+  name: Open
+  href: api/LocalGPT.Interfaces.IDocumentationViewerService.html#LocalGPT_Interfaces_IDocumentationViewerService_Open_
+  commentId: Overload:LocalGPT.Interfaces.IDocumentationViewerService.Open
+  fullName: LocalGPT.Interfaces.IDocumentationViewerService.Open
+  nameWithType: IDocumentationViewerService.Open
+- uid: LocalGPT.Interfaces.IDocumentationViewerService.State
+  name: State
+  href: api/LocalGPT.Interfaces.IDocumentationViewerService.html#LocalGPT_Interfaces_IDocumentationViewerService_State
+  commentId: P:LocalGPT.Interfaces.IDocumentationViewerService.State
+  fullName: LocalGPT.Interfaces.IDocumentationViewerService.State
+  nameWithType: IDocumentationViewerService.State
+- uid: LocalGPT.Interfaces.IDocumentationViewerService.State*
+  name: State
+  href: api/LocalGPT.Interfaces.IDocumentationViewerService.html#LocalGPT_Interfaces_IDocumentationViewerService_State_
+  commentId: Overload:LocalGPT.Interfaces.IDocumentationViewerService.State
+  fullName: LocalGPT.Interfaces.IDocumentationViewerService.State
+  nameWithType: IDocumentationViewerService.State
+- uid: LocalGPT.Interfaces.IDocumentationViewerService.StateChanged
+  name: StateChanged
+  href: api/LocalGPT.Interfaces.IDocumentationViewerService.html#LocalGPT_Interfaces_IDocumentationViewerService_StateChanged
+  commentId: E:LocalGPT.Interfaces.IDocumentationViewerService.StateChanged
+  fullName: LocalGPT.Interfaces.IDocumentationViewerService.StateChanged
+  nameWithType: IDocumentationViewerService.StateChanged
 - uid: LocalGPT.Interfaces.IDxAiFunctionCatalogService
   name: IDxAiFunctionCatalogService
   href: api/LocalGPT.Interfaces.IDxAiFunctionCatalogService.html
@@ -64599,6 +65262,120 @@ references:
   fullName.vb: LocalGPT.Interfaces.IPublisherInteractionDxSupport.QueueAsync(Of TLogger)(LocalGPT.BusinessObjects.DxAiFunctionInvocationRequest, String, LocalGPT.Interfaces.IOneWireConnectionRegistry, LocalGPT.Interfaces.IOneWirePeerRegistry, LocalGPT.Interfaces.IOneWireWorkSpooler, Microsoft.Extensions.Logging.ILogger(Of TLogger), System.Func(Of System.Text.Json.JsonElement, System.Text.Json.JsonElement), System.Threading.CancellationToken)
   nameWithType: IPublisherInteractionDxSupport.QueueAsync<TLogger>(DxAiFunctionInvocationRequest, string, IOneWireConnectionRegistry, IOneWirePeerRegistry, IOneWireWorkSpooler, ILogger<TLogger>, Func<JsonElement, JsonElement>, CancellationToken)
   nameWithType.vb: IPublisherInteractionDxSupport.QueueAsync(Of TLogger)(DxAiFunctionInvocationRequest, String, IOneWireConnectionRegistry, IOneWirePeerRegistry, IOneWireWorkSpooler, ILogger(Of TLogger), Func(Of JsonElement, JsonElement), CancellationToken)
+- uid: LocalGPT.Interfaces.IRegexFunctionParameterService
+  name: IRegexFunctionParameterService
+  href: api/LocalGPT.Interfaces.IRegexFunctionParameterService.html
+  commentId: T:LocalGPT.Interfaces.IRegexFunctionParameterService
+  fullName: LocalGPT.Interfaces.IRegexFunctionParameterService
+  nameWithType: IRegexFunctionParameterService
+- uid: LocalGPT.Interfaces.IRegexFunctionParameterService.GetRequiredString(System.Text.Json.JsonElement,System.String)
+  name: GetRequiredString(JsonElement, string)
+  href: api/LocalGPT.Interfaces.IRegexFunctionParameterService.html#LocalGPT_Interfaces_IRegexFunctionParameterService_GetRequiredString_System_Text_Json_JsonElement_System_String_
+  commentId: M:LocalGPT.Interfaces.IRegexFunctionParameterService.GetRequiredString(System.Text.Json.JsonElement,System.String)
+  name.vb: GetRequiredString(JsonElement, String)
+  fullName: LocalGPT.Interfaces.IRegexFunctionParameterService.GetRequiredString(System.Text.Json.JsonElement, string)
+  fullName.vb: LocalGPT.Interfaces.IRegexFunctionParameterService.GetRequiredString(System.Text.Json.JsonElement, String)
+  nameWithType: IRegexFunctionParameterService.GetRequiredString(JsonElement, string)
+  nameWithType.vb: IRegexFunctionParameterService.GetRequiredString(JsonElement, String)
+- uid: LocalGPT.Interfaces.IRegexFunctionParameterService.GetRequiredString*
+  name: GetRequiredString
+  href: api/LocalGPT.Interfaces.IRegexFunctionParameterService.html#LocalGPT_Interfaces_IRegexFunctionParameterService_GetRequiredString_
+  commentId: Overload:LocalGPT.Interfaces.IRegexFunctionParameterService.GetRequiredString
+  fullName: LocalGPT.Interfaces.IRegexFunctionParameterService.GetRequiredString
+  nameWithType: IRegexFunctionParameterService.GetRequiredString
+- uid: LocalGPT.Interfaces.IRegexPatternService
+  name: IRegexPatternService
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html
+  commentId: T:LocalGPT.Interfaces.IRegexPatternService
+  fullName: LocalGPT.Interfaces.IRegexPatternService
+  nameWithType: IRegexPatternService
+- uid: LocalGPT.Interfaces.IRegexPatternService.AddOrUpdateAsync(LocalGPT.BusinessObjects.Models.RegexPatternDto)
+  name: AddOrUpdateAsync(RegexPatternDto)
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_AddOrUpdateAsync_LocalGPT_BusinessObjects_Models_RegexPatternDto_
+  commentId: M:LocalGPT.Interfaces.IRegexPatternService.AddOrUpdateAsync(LocalGPT.BusinessObjects.Models.RegexPatternDto)
+  fullName: LocalGPT.Interfaces.IRegexPatternService.AddOrUpdateAsync(LocalGPT.BusinessObjects.Models.RegexPatternDto)
+  nameWithType: IRegexPatternService.AddOrUpdateAsync(RegexPatternDto)
+- uid: LocalGPT.Interfaces.IRegexPatternService.AddOrUpdateAsync*
+  name: AddOrUpdateAsync
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_AddOrUpdateAsync_
+  commentId: Overload:LocalGPT.Interfaces.IRegexPatternService.AddOrUpdateAsync
+  fullName: LocalGPT.Interfaces.IRegexPatternService.AddOrUpdateAsync
+  nameWithType: IRegexPatternService.AddOrUpdateAsync
+- uid: LocalGPT.Interfaces.IRegexPatternService.Compile(System.String,System.String)
+  name: Compile(string, string?)
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_Compile_System_String_System_String_
+  commentId: M:LocalGPT.Interfaces.IRegexPatternService.Compile(System.String,System.String)
+  name.vb: Compile(String, String)
+  fullName: LocalGPT.Interfaces.IRegexPatternService.Compile(string, string?)
+  fullName.vb: LocalGPT.Interfaces.IRegexPatternService.Compile(String, String)
+  nameWithType: IRegexPatternService.Compile(string, string?)
+  nameWithType.vb: IRegexPatternService.Compile(String, String)
+- uid: LocalGPT.Interfaces.IRegexPatternService.Compile(System.String,System.String,System.TimeSpan)
+  name: Compile(string, string?, TimeSpan)
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_Compile_System_String_System_String_System_TimeSpan_
+  commentId: M:LocalGPT.Interfaces.IRegexPatternService.Compile(System.String,System.String,System.TimeSpan)
+  name.vb: Compile(String, String, TimeSpan)
+  fullName: LocalGPT.Interfaces.IRegexPatternService.Compile(string, string?, System.TimeSpan)
+  fullName.vb: LocalGPT.Interfaces.IRegexPatternService.Compile(String, String, System.TimeSpan)
+  nameWithType: IRegexPatternService.Compile(string, string?, TimeSpan)
+  nameWithType.vb: IRegexPatternService.Compile(String, String, TimeSpan)
+- uid: LocalGPT.Interfaces.IRegexPatternService.Compile*
+  name: Compile
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_Compile_
+  commentId: Overload:LocalGPT.Interfaces.IRegexPatternService.Compile
+  fullName: LocalGPT.Interfaces.IRegexPatternService.Compile
+  nameWithType: IRegexPatternService.Compile
+- uid: LocalGPT.Interfaces.IRegexPatternService.DeleteAsync(System.String)
+  name: DeleteAsync(string)
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_DeleteAsync_System_String_
+  commentId: M:LocalGPT.Interfaces.IRegexPatternService.DeleteAsync(System.String)
+  name.vb: DeleteAsync(String)
+  fullName: LocalGPT.Interfaces.IRegexPatternService.DeleteAsync(string)
+  fullName.vb: LocalGPT.Interfaces.IRegexPatternService.DeleteAsync(String)
+  nameWithType: IRegexPatternService.DeleteAsync(string)
+  nameWithType.vb: IRegexPatternService.DeleteAsync(String)
+- uid: LocalGPT.Interfaces.IRegexPatternService.DeleteAsync*
+  name: DeleteAsync
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_DeleteAsync_
+  commentId: Overload:LocalGPT.Interfaces.IRegexPatternService.DeleteAsync
+  fullName: LocalGPT.Interfaces.IRegexPatternService.DeleteAsync
+  nameWithType: IRegexPatternService.DeleteAsync
+- uid: LocalGPT.Interfaces.IRegexPatternService.GetRegexAsync(System.String)
+  name: GetRegexAsync(string)
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_GetRegexAsync_System_String_
+  commentId: M:LocalGPT.Interfaces.IRegexPatternService.GetRegexAsync(System.String)
+  name.vb: GetRegexAsync(String)
+  fullName: LocalGPT.Interfaces.IRegexPatternService.GetRegexAsync(string)
+  fullName.vb: LocalGPT.Interfaces.IRegexPatternService.GetRegexAsync(String)
+  nameWithType: IRegexPatternService.GetRegexAsync(string)
+  nameWithType.vb: IRegexPatternService.GetRegexAsync(String)
+- uid: LocalGPT.Interfaces.IRegexPatternService.GetRegexAsync*
+  name: GetRegexAsync
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_GetRegexAsync_
+  commentId: Overload:LocalGPT.Interfaces.IRegexPatternService.GetRegexAsync
+  fullName: LocalGPT.Interfaces.IRegexPatternService.GetRegexAsync
+  nameWithType: IRegexPatternService.GetRegexAsync
+- uid: LocalGPT.Interfaces.IRegexPatternService.ListAllAsync
+  name: ListAllAsync()
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_ListAllAsync
+  commentId: M:LocalGPT.Interfaces.IRegexPatternService.ListAllAsync
+  fullName: LocalGPT.Interfaces.IRegexPatternService.ListAllAsync()
+  nameWithType: IRegexPatternService.ListAllAsync()
+- uid: LocalGPT.Interfaces.IRegexPatternService.ListAllAsync(System.Nullable{System.Int32})
+  name: ListAllAsync(int?)
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_ListAllAsync_System_Nullable_System_Int32__
+  commentId: M:LocalGPT.Interfaces.IRegexPatternService.ListAllAsync(System.Nullable{System.Int32})
+  name.vb: ListAllAsync(Integer?)
+  fullName: LocalGPT.Interfaces.IRegexPatternService.ListAllAsync(int?)
+  fullName.vb: LocalGPT.Interfaces.IRegexPatternService.ListAllAsync(Integer?)
+  nameWithType: IRegexPatternService.ListAllAsync(int?)
+  nameWithType.vb: IRegexPatternService.ListAllAsync(Integer?)
+- uid: LocalGPT.Interfaces.IRegexPatternService.ListAllAsync*
+  name: ListAllAsync
+  href: api/LocalGPT.Interfaces.IRegexPatternService.html#LocalGPT_Interfaces_IRegexPatternService_ListAllAsync_
+  commentId: Overload:LocalGPT.Interfaces.IRegexPatternService.ListAllAsync
+  fullName: LocalGPT.Interfaces.IRegexPatternService.ListAllAsync
+  nameWithType: IRegexPatternService.ListAllAsync
 - uid: LocalGPT.Interfaces.IRemoteKnowledgeImportService
   name: IRemoteKnowledgeImportService
   href: api/LocalGPT.Interfaces.IRemoteKnowledgeImportService.html
@@ -75929,6 +76706,72 @@ references:
   commentId: Overload:LocalGPT.Services.DocumentationTranslationAdapter.Adapt
   fullName: LocalGPT.Services.DocumentationTranslationAdapter.Adapt
   nameWithType: DocumentationTranslationAdapter.Adapt
+- uid: LocalGPT.Services.DocumentationViewerService
+  name: DocumentationViewerService
+  href: api/LocalGPT.Services.DocumentationViewerService.html
+  commentId: T:LocalGPT.Services.DocumentationViewerService
+  fullName: LocalGPT.Services.DocumentationViewerService
+  nameWithType: DocumentationViewerService
+- uid: LocalGPT.Services.DocumentationViewerService.#ctor(Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.DocumentationViewerService})
+  name: DocumentationViewerService(ILogger<DocumentationViewerService>)
+  href: api/LocalGPT.Services.DocumentationViewerService.html#LocalGPT_Services_DocumentationViewerService__ctor_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_DocumentationViewerService__
+  commentId: M:LocalGPT.Services.DocumentationViewerService.#ctor(Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.DocumentationViewerService})
+  name.vb: New(ILogger(Of DocumentationViewerService))
+  fullName: LocalGPT.Services.DocumentationViewerService.DocumentationViewerService(Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.DocumentationViewerService>)
+  fullName.vb: LocalGPT.Services.DocumentationViewerService.New(Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.DocumentationViewerService))
+  nameWithType: DocumentationViewerService.DocumentationViewerService(ILogger<DocumentationViewerService>)
+  nameWithType.vb: DocumentationViewerService.New(ILogger(Of DocumentationViewerService))
+- uid: LocalGPT.Services.DocumentationViewerService.#ctor*
+  name: DocumentationViewerService
+  href: api/LocalGPT.Services.DocumentationViewerService.html#LocalGPT_Services_DocumentationViewerService__ctor_
+  commentId: Overload:LocalGPT.Services.DocumentationViewerService.#ctor
+  name.vb: New
+  fullName: LocalGPT.Services.DocumentationViewerService.DocumentationViewerService
+  fullName.vb: LocalGPT.Services.DocumentationViewerService.New
+  nameWithType: DocumentationViewerService.DocumentationViewerService
+  nameWithType.vb: DocumentationViewerService.New
+- uid: LocalGPT.Services.DocumentationViewerService.Close
+  name: Close()
+  href: api/LocalGPT.Services.DocumentationViewerService.html#LocalGPT_Services_DocumentationViewerService_Close
+  commentId: M:LocalGPT.Services.DocumentationViewerService.Close
+  fullName: LocalGPT.Services.DocumentationViewerService.Close()
+  nameWithType: DocumentationViewerService.Close()
+- uid: LocalGPT.Services.DocumentationViewerService.Close*
+  name: Close
+  href: api/LocalGPT.Services.DocumentationViewerService.html#LocalGPT_Services_DocumentationViewerService_Close_
+  commentId: Overload:LocalGPT.Services.DocumentationViewerService.Close
+  fullName: LocalGPT.Services.DocumentationViewerService.Close
+  nameWithType: DocumentationViewerService.Close
+- uid: LocalGPT.Services.DocumentationViewerService.Open(LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest)
+  name: Open(LocalGptDocumentationViewerRequest)
+  href: api/LocalGPT.Services.DocumentationViewerService.html#LocalGPT_Services_DocumentationViewerService_Open_LocalGPT_BusinessObjects_LocalGptDocumentationViewerRequest_
+  commentId: M:LocalGPT.Services.DocumentationViewerService.Open(LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest)
+  fullName: LocalGPT.Services.DocumentationViewerService.Open(LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest)
+  nameWithType: DocumentationViewerService.Open(LocalGptDocumentationViewerRequest)
+- uid: LocalGPT.Services.DocumentationViewerService.Open*
+  name: Open
+  href: api/LocalGPT.Services.DocumentationViewerService.html#LocalGPT_Services_DocumentationViewerService_Open_
+  commentId: Overload:LocalGPT.Services.DocumentationViewerService.Open
+  fullName: LocalGPT.Services.DocumentationViewerService.Open
+  nameWithType: DocumentationViewerService.Open
+- uid: LocalGPT.Services.DocumentationViewerService.State
+  name: State
+  href: api/LocalGPT.Services.DocumentationViewerService.html#LocalGPT_Services_DocumentationViewerService_State
+  commentId: P:LocalGPT.Services.DocumentationViewerService.State
+  fullName: LocalGPT.Services.DocumentationViewerService.State
+  nameWithType: DocumentationViewerService.State
+- uid: LocalGPT.Services.DocumentationViewerService.State*
+  name: State
+  href: api/LocalGPT.Services.DocumentationViewerService.html#LocalGPT_Services_DocumentationViewerService_State_
+  commentId: Overload:LocalGPT.Services.DocumentationViewerService.State
+  fullName: LocalGPT.Services.DocumentationViewerService.State
+  nameWithType: DocumentationViewerService.State
+- uid: LocalGPT.Services.DocumentationViewerService.StateChanged
+  name: StateChanged
+  href: api/LocalGPT.Services.DocumentationViewerService.html#LocalGPT_Services_DocumentationViewerService_StateChanged
+  commentId: E:LocalGPT.Services.DocumentationViewerService.StateChanged
+  fullName: LocalGPT.Services.DocumentationViewerService.StateChanged
+  nameWithType: DocumentationViewerService.StateChanged
 - uid: LocalGPT.Services.DxAiFunctionCatalogHostedService
   name: DxAiFunctionCatalogHostedService
   href: api/LocalGPT.Services.DxAiFunctionCatalogHostedService.html
@@ -77912,13 +78755,13 @@ references:
   commentId: T:LocalGPT.Services.Formatting.StructuredTextTranslationService
   fullName: LocalGPT.Services.Formatting.StructuredTextTranslationService
   nameWithType: StructuredTextTranslationService
-- uid: LocalGPT.Services.Formatting.StructuredTextTranslationService.#ctor(LocalGPT.Interfaces.IInitialDataCatalog,LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.Formatting.StructuredTextTranslationService})
+- uid: LocalGPT.Services.Formatting.StructuredTextTranslationService.#ctor(LocalGPT.Interfaces.IInitialDataCatalog,LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.Formatting.StructuredTextTranslationService})
   name: StructuredTextTranslationService(IInitialDataCatalog, ILocalGptRuntimePolicyDataService, IRegexPatternService, ILogger<StructuredTextTranslationService>)
-  href: api/LocalGPT.Services.Formatting.StructuredTextTranslationService.html#LocalGPT_Services_Formatting_StructuredTextTranslationService__ctor_LocalGPT_Interfaces_IInitialDataCatalog_LocalGPT_Interfaces_ILocalGptRuntimePolicyDataService_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_Formatting_StructuredTextTranslationService__
-  commentId: M:LocalGPT.Services.Formatting.StructuredTextTranslationService.#ctor(LocalGPT.Interfaces.IInitialDataCatalog,LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.Formatting.StructuredTextTranslationService})
+  href: api/LocalGPT.Services.Formatting.StructuredTextTranslationService.html#LocalGPT_Services_Formatting_StructuredTextTranslationService__ctor_LocalGPT_Interfaces_IInitialDataCatalog_LocalGPT_Interfaces_ILocalGptRuntimePolicyDataService_LocalGPT_Interfaces_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_Formatting_StructuredTextTranslationService__
+  commentId: M:LocalGPT.Services.Formatting.StructuredTextTranslationService.#ctor(LocalGPT.Interfaces.IInitialDataCatalog,LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.Formatting.StructuredTextTranslationService})
   name.vb: New(IInitialDataCatalog, ILocalGptRuntimePolicyDataService, IRegexPatternService, ILogger(Of StructuredTextTranslationService))
-  fullName: LocalGPT.Services.Formatting.StructuredTextTranslationService.StructuredTextTranslationService(LocalGPT.Interfaces.IInitialDataCatalog, LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService, IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.Formatting.StructuredTextTranslationService>)
-  fullName.vb: LocalGPT.Services.Formatting.StructuredTextTranslationService.New(LocalGPT.Interfaces.IInitialDataCatalog, LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService, IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.Formatting.StructuredTextTranslationService))
+  fullName: LocalGPT.Services.Formatting.StructuredTextTranslationService.StructuredTextTranslationService(LocalGPT.Interfaces.IInitialDataCatalog, LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService, LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.Formatting.StructuredTextTranslationService>)
+  fullName.vb: LocalGPT.Services.Formatting.StructuredTextTranslationService.New(LocalGPT.Interfaces.IInitialDataCatalog, LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService, LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.Formatting.StructuredTextTranslationService))
   nameWithType: StructuredTextTranslationService.StructuredTextTranslationService(IInitialDataCatalog, ILocalGptRuntimePolicyDataService, IRegexPatternService, ILogger<StructuredTextTranslationService>)
   nameWithType.vb: StructuredTextTranslationService.New(IInitialDataCatalog, ILocalGptRuntimePolicyDataService, IRegexPatternService, ILogger(Of StructuredTextTranslationService))
 - uid: LocalGPT.Services.Formatting.StructuredTextTranslationService.#ctor*
@@ -78566,13 +79409,13 @@ references:
   commentId: T:LocalGPT.Services.GetRegexPatternFunction
   fullName: LocalGPT.Services.GetRegexPatternFunction
   nameWithType: GetRegexPatternFunction
-- uid: LocalGPT.Services.GetRegexPatternFunction.#ctor(IRegexPatternService,IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.GetRegexPatternFunction})
+- uid: LocalGPT.Services.GetRegexPatternFunction.#ctor(LocalGPT.Interfaces.IRegexPatternService,LocalGPT.Interfaces.IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.GetRegexPatternFunction})
   name: GetRegexPatternFunction(IRegexPatternService, IRegexFunctionParameterService, ILogger<GetRegexPatternFunction>)
-  href: api/LocalGPT.Services.GetRegexPatternFunction.html#LocalGPT_Services_GetRegexPatternFunction__ctor_IRegexPatternService_IRegexFunctionParameterService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_GetRegexPatternFunction__
-  commentId: M:LocalGPT.Services.GetRegexPatternFunction.#ctor(IRegexPatternService,IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.GetRegexPatternFunction})
+  href: api/LocalGPT.Services.GetRegexPatternFunction.html#LocalGPT_Services_GetRegexPatternFunction__ctor_LocalGPT_Interfaces_IRegexPatternService_LocalGPT_Interfaces_IRegexFunctionParameterService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_GetRegexPatternFunction__
+  commentId: M:LocalGPT.Services.GetRegexPatternFunction.#ctor(LocalGPT.Interfaces.IRegexPatternService,LocalGPT.Interfaces.IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.GetRegexPatternFunction})
   name.vb: New(IRegexPatternService, IRegexFunctionParameterService, ILogger(Of GetRegexPatternFunction))
-  fullName: LocalGPT.Services.GetRegexPatternFunction.GetRegexPatternFunction(IRegexPatternService, IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.GetRegexPatternFunction>)
-  fullName.vb: LocalGPT.Services.GetRegexPatternFunction.New(IRegexPatternService, IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.GetRegexPatternFunction))
+  fullName: LocalGPT.Services.GetRegexPatternFunction.GetRegexPatternFunction(LocalGPT.Interfaces.IRegexPatternService, LocalGPT.Interfaces.IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.GetRegexPatternFunction>)
+  fullName.vb: LocalGPT.Services.GetRegexPatternFunction.New(LocalGPT.Interfaces.IRegexPatternService, LocalGPT.Interfaces.IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.GetRegexPatternFunction))
   nameWithType: GetRegexPatternFunction.GetRegexPatternFunction(IRegexPatternService, IRegexFunctionParameterService, ILogger<GetRegexPatternFunction>)
   nameWithType.vb: GetRegexPatternFunction.New(IRegexPatternService, IRegexFunctionParameterService, ILogger(Of GetRegexPatternFunction))
 - uid: LocalGPT.Services.GetRegexPatternFunction.#ctor*
@@ -79298,13 +80141,13 @@ references:
   commentId: T:LocalGPT.Services.LearnBaseKnowledgeImporterService
   fullName: LocalGPT.Services.LearnBaseKnowledgeImporterService
   nameWithType: LearnBaseKnowledgeImporterService
-- uid: LocalGPT.Services.LearnBaseKnowledgeImporterService.#ctor(LocalGPT.Interfaces.ICouncilKnowledgeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LearnBaseKnowledgeImporterService},LocalGPT.Services.CouncilRuntimeService,LocalGPT.Services.CouncilTextService,LocalGPT.Services.LocalGptCatalogService,LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService,IRegexPatternService)
+- uid: LocalGPT.Services.LearnBaseKnowledgeImporterService.#ctor(LocalGPT.Interfaces.ICouncilKnowledgeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LearnBaseKnowledgeImporterService},LocalGPT.Services.CouncilRuntimeService,LocalGPT.Services.CouncilTextService,LocalGPT.Services.LocalGptCatalogService,LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService,LocalGPT.Interfaces.IRegexPatternService)
   name: LearnBaseKnowledgeImporterService(ICouncilKnowledgeService, ILogger<LearnBaseKnowledgeImporterService>, CouncilRuntimeService, CouncilTextService, LocalGptCatalogService, ILocalGptRuntimePolicyDataService, IRegexPatternService)
-  href: api/LocalGPT.Services.LearnBaseKnowledgeImporterService.html#LocalGPT_Services_LearnBaseKnowledgeImporterService__ctor_LocalGPT_Interfaces_ICouncilKnowledgeService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_LearnBaseKnowledgeImporterService__LocalGPT_Services_CouncilRuntimeService_LocalGPT_Services_CouncilTextService_LocalGPT_Services_LocalGptCatalogService_LocalGPT_Interfaces_ILocalGptRuntimePolicyDataService_IRegexPatternService_
-  commentId: M:LocalGPT.Services.LearnBaseKnowledgeImporterService.#ctor(LocalGPT.Interfaces.ICouncilKnowledgeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LearnBaseKnowledgeImporterService},LocalGPT.Services.CouncilRuntimeService,LocalGPT.Services.CouncilTextService,LocalGPT.Services.LocalGptCatalogService,LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService,IRegexPatternService)
+  href: api/LocalGPT.Services.LearnBaseKnowledgeImporterService.html#LocalGPT_Services_LearnBaseKnowledgeImporterService__ctor_LocalGPT_Interfaces_ICouncilKnowledgeService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_LearnBaseKnowledgeImporterService__LocalGPT_Services_CouncilRuntimeService_LocalGPT_Services_CouncilTextService_LocalGPT_Services_LocalGptCatalogService_LocalGPT_Interfaces_ILocalGptRuntimePolicyDataService_LocalGPT_Interfaces_IRegexPatternService_
+  commentId: M:LocalGPT.Services.LearnBaseKnowledgeImporterService.#ctor(LocalGPT.Interfaces.ICouncilKnowledgeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LearnBaseKnowledgeImporterService},LocalGPT.Services.CouncilRuntimeService,LocalGPT.Services.CouncilTextService,LocalGPT.Services.LocalGptCatalogService,LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService,LocalGPT.Interfaces.IRegexPatternService)
   name.vb: New(ICouncilKnowledgeService, ILogger(Of LearnBaseKnowledgeImporterService), CouncilRuntimeService, CouncilTextService, LocalGptCatalogService, ILocalGptRuntimePolicyDataService, IRegexPatternService)
-  fullName: LocalGPT.Services.LearnBaseKnowledgeImporterService.LearnBaseKnowledgeImporterService(LocalGPT.Interfaces.ICouncilKnowledgeService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.LearnBaseKnowledgeImporterService>, LocalGPT.Services.CouncilRuntimeService, LocalGPT.Services.CouncilTextService, LocalGPT.Services.LocalGptCatalogService, LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService, IRegexPatternService)
-  fullName.vb: LocalGPT.Services.LearnBaseKnowledgeImporterService.New(LocalGPT.Interfaces.ICouncilKnowledgeService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.LearnBaseKnowledgeImporterService), LocalGPT.Services.CouncilRuntimeService, LocalGPT.Services.CouncilTextService, LocalGPT.Services.LocalGptCatalogService, LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService, IRegexPatternService)
+  fullName: LocalGPT.Services.LearnBaseKnowledgeImporterService.LearnBaseKnowledgeImporterService(LocalGPT.Interfaces.ICouncilKnowledgeService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.LearnBaseKnowledgeImporterService>, LocalGPT.Services.CouncilRuntimeService, LocalGPT.Services.CouncilTextService, LocalGPT.Services.LocalGptCatalogService, LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService, LocalGPT.Interfaces.IRegexPatternService)
+  fullName.vb: LocalGPT.Services.LearnBaseKnowledgeImporterService.New(LocalGPT.Interfaces.ICouncilKnowledgeService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.LearnBaseKnowledgeImporterService), LocalGPT.Services.CouncilRuntimeService, LocalGPT.Services.CouncilTextService, LocalGPT.Services.LocalGptCatalogService, LocalGPT.Interfaces.ILocalGptRuntimePolicyDataService, LocalGPT.Interfaces.IRegexPatternService)
   nameWithType: LearnBaseKnowledgeImporterService.LearnBaseKnowledgeImporterService(ICouncilKnowledgeService, ILogger<LearnBaseKnowledgeImporterService>, CouncilRuntimeService, CouncilTextService, LocalGptCatalogService, ILocalGptRuntimePolicyDataService, IRegexPatternService)
   nameWithType.vb: LearnBaseKnowledgeImporterService.New(ICouncilKnowledgeService, ILogger(Of LearnBaseKnowledgeImporterService), CouncilRuntimeService, CouncilTextService, LocalGptCatalogService, ILocalGptRuntimePolicyDataService, IRegexPatternService)
 - uid: LocalGPT.Services.LearnBaseKnowledgeImporterService.#ctor*
@@ -79334,13 +80177,13 @@ references:
   commentId: T:LocalGPT.Services.LearningRoundService
   fullName: LocalGPT.Services.LearningRoundService
   nameWithType: LearningRoundService
-- uid: LocalGPT.Services.LearningRoundService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext},LocalGPT.Interfaces.IDatabaseInitializationService,LocalGPT.Interfaces.ICouncilKnowledgeService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LearningRoundService})
+- uid: LocalGPT.Services.LearningRoundService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext},LocalGPT.Interfaces.IDatabaseInitializationService,LocalGPT.Interfaces.ICouncilKnowledgeService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LearningRoundService})
   name: LearningRoundService(IDbContextFactory<LocalGptMemoryDbContext>, IDatabaseInitializationService, ICouncilKnowledgeService, IRegexPatternService, ILogger<LearningRoundService>)
-  href: api/LocalGPT.Services.LearningRoundService.html#LocalGPT_Services_LearningRoundService__ctor_Microsoft_EntityFrameworkCore_IDbContextFactory_LocalGPT_BusinessObjects_EFCore_LocalGptMemoryDbContext__LocalGPT_Interfaces_IDatabaseInitializationService_LocalGPT_Interfaces_ICouncilKnowledgeService_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_LearningRoundService__
-  commentId: M:LocalGPT.Services.LearningRoundService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext},LocalGPT.Interfaces.IDatabaseInitializationService,LocalGPT.Interfaces.ICouncilKnowledgeService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LearningRoundService})
+  href: api/LocalGPT.Services.LearningRoundService.html#LocalGPT_Services_LearningRoundService__ctor_Microsoft_EntityFrameworkCore_IDbContextFactory_LocalGPT_BusinessObjects_EFCore_LocalGptMemoryDbContext__LocalGPT_Interfaces_IDatabaseInitializationService_LocalGPT_Interfaces_ICouncilKnowledgeService_LocalGPT_Interfaces_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_LearningRoundService__
+  commentId: M:LocalGPT.Services.LearningRoundService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext},LocalGPT.Interfaces.IDatabaseInitializationService,LocalGPT.Interfaces.ICouncilKnowledgeService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LearningRoundService})
   name.vb: New(IDbContextFactory(Of LocalGptMemoryDbContext), IDatabaseInitializationService, ICouncilKnowledgeService, IRegexPatternService, ILogger(Of LearningRoundService))
-  fullName: LocalGPT.Services.LearningRoundService.LearningRoundService(Microsoft.EntityFrameworkCore.IDbContextFactory<LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext>, LocalGPT.Interfaces.IDatabaseInitializationService, LocalGPT.Interfaces.ICouncilKnowledgeService, IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.LearningRoundService>)
-  fullName.vb: LocalGPT.Services.LearningRoundService.New(Microsoft.EntityFrameworkCore.IDbContextFactory(Of LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext), LocalGPT.Interfaces.IDatabaseInitializationService, LocalGPT.Interfaces.ICouncilKnowledgeService, IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.LearningRoundService))
+  fullName: LocalGPT.Services.LearningRoundService.LearningRoundService(Microsoft.EntityFrameworkCore.IDbContextFactory<LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext>, LocalGPT.Interfaces.IDatabaseInitializationService, LocalGPT.Interfaces.ICouncilKnowledgeService, LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.LearningRoundService>)
+  fullName.vb: LocalGPT.Services.LearningRoundService.New(Microsoft.EntityFrameworkCore.IDbContextFactory(Of LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext), LocalGPT.Interfaces.IDatabaseInitializationService, LocalGPT.Interfaces.ICouncilKnowledgeService, LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.LearningRoundService))
   nameWithType: LearningRoundService.LearningRoundService(IDbContextFactory<LocalGptMemoryDbContext>, IDatabaseInitializationService, ICouncilKnowledgeService, IRegexPatternService, ILogger<LearningRoundService>)
   nameWithType.vb: LearningRoundService.New(IDbContextFactory(Of LocalGptMemoryDbContext), IDatabaseInitializationService, ICouncilKnowledgeService, IRegexPatternService, ILogger(Of LearningRoundService))
 - uid: LocalGPT.Services.LearningRoundService.#ctor*
@@ -79673,13 +80516,13 @@ references:
   commentId: T:LocalGPT.Services.ListRegexPatternsFunction
   fullName: LocalGPT.Services.ListRegexPatternsFunction
   nameWithType: ListRegexPatternsFunction
-- uid: LocalGPT.Services.ListRegexPatternsFunction.#ctor(IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ListRegexPatternsFunction})
+- uid: LocalGPT.Services.ListRegexPatternsFunction.#ctor(LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ListRegexPatternsFunction})
   name: ListRegexPatternsFunction(IRegexPatternService, ILogger<ListRegexPatternsFunction>)
-  href: api/LocalGPT.Services.ListRegexPatternsFunction.html#LocalGPT_Services_ListRegexPatternsFunction__ctor_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_ListRegexPatternsFunction__
-  commentId: M:LocalGPT.Services.ListRegexPatternsFunction.#ctor(IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ListRegexPatternsFunction})
+  href: api/LocalGPT.Services.ListRegexPatternsFunction.html#LocalGPT_Services_ListRegexPatternsFunction__ctor_LocalGPT_Interfaces_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_ListRegexPatternsFunction__
+  commentId: M:LocalGPT.Services.ListRegexPatternsFunction.#ctor(LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ListRegexPatternsFunction})
   name.vb: New(IRegexPatternService, ILogger(Of ListRegexPatternsFunction))
-  fullName: LocalGPT.Services.ListRegexPatternsFunction.ListRegexPatternsFunction(IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.ListRegexPatternsFunction>)
-  fullName.vb: LocalGPT.Services.ListRegexPatternsFunction.New(IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.ListRegexPatternsFunction))
+  fullName: LocalGPT.Services.ListRegexPatternsFunction.ListRegexPatternsFunction(LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.ListRegexPatternsFunction>)
+  fullName.vb: LocalGPT.Services.ListRegexPatternsFunction.New(LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.ListRegexPatternsFunction))
   nameWithType: ListRegexPatternsFunction.ListRegexPatternsFunction(IRegexPatternService, ILogger<ListRegexPatternsFunction>)
   nameWithType.vb: ListRegexPatternsFunction.New(IRegexPatternService, ILogger(Of ListRegexPatternsFunction))
 - uid: LocalGPT.Services.ListRegexPatternsFunction.#ctor*
@@ -87992,13 +88835,13 @@ references:
   commentId: T:LocalGPT.Services.RemoteKnowledgeImportService
   fullName: LocalGPT.Services.RemoteKnowledgeImportService
   nameWithType: RemoteKnowledgeImportService
-- uid: LocalGPT.Services.RemoteKnowledgeImportService.#ctor(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService,LocalGPT.Interfaces.ICouncilKnowledgeService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.RemoteKnowledgeImportService})
+- uid: LocalGPT.Services.RemoteKnowledgeImportService.#ctor(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService,LocalGPT.Interfaces.ICouncilKnowledgeService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.RemoteKnowledgeImportService})
   name: RemoteKnowledgeImportService(ILearnBaseKnowledgeImporterService, ICouncilKnowledgeService, IRegexPatternService, ILogger<RemoteKnowledgeImportService>)
-  href: api/LocalGPT.Services.RemoteKnowledgeImportService.html#LocalGPT_Services_RemoteKnowledgeImportService__ctor_LocalGPT_Interfaces_ILearnBaseKnowledgeImporterService_LocalGPT_Interfaces_ICouncilKnowledgeService_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_RemoteKnowledgeImportService__
-  commentId: M:LocalGPT.Services.RemoteKnowledgeImportService.#ctor(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService,LocalGPT.Interfaces.ICouncilKnowledgeService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.RemoteKnowledgeImportService})
+  href: api/LocalGPT.Services.RemoteKnowledgeImportService.html#LocalGPT_Services_RemoteKnowledgeImportService__ctor_LocalGPT_Interfaces_ILearnBaseKnowledgeImporterService_LocalGPT_Interfaces_ICouncilKnowledgeService_LocalGPT_Interfaces_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_RemoteKnowledgeImportService__
+  commentId: M:LocalGPT.Services.RemoteKnowledgeImportService.#ctor(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService,LocalGPT.Interfaces.ICouncilKnowledgeService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.RemoteKnowledgeImportService})
   name.vb: New(ILearnBaseKnowledgeImporterService, ICouncilKnowledgeService, IRegexPatternService, ILogger(Of RemoteKnowledgeImportService))
-  fullName: LocalGPT.Services.RemoteKnowledgeImportService.RemoteKnowledgeImportService(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService, LocalGPT.Interfaces.ICouncilKnowledgeService, IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.RemoteKnowledgeImportService>)
-  fullName.vb: LocalGPT.Services.RemoteKnowledgeImportService.New(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService, LocalGPT.Interfaces.ICouncilKnowledgeService, IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.RemoteKnowledgeImportService))
+  fullName: LocalGPT.Services.RemoteKnowledgeImportService.RemoteKnowledgeImportService(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService, LocalGPT.Interfaces.ICouncilKnowledgeService, LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.RemoteKnowledgeImportService>)
+  fullName.vb: LocalGPT.Services.RemoteKnowledgeImportService.New(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService, LocalGPT.Interfaces.ICouncilKnowledgeService, LocalGPT.Interfaces.IRegexPatternService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.RemoteKnowledgeImportService))
   nameWithType: RemoteKnowledgeImportService.RemoteKnowledgeImportService(ILearnBaseKnowledgeImporterService, ICouncilKnowledgeService, IRegexPatternService, ILogger<RemoteKnowledgeImportService>)
   nameWithType.vb: RemoteKnowledgeImportService.New(ILearnBaseKnowledgeImporterService, ICouncilKnowledgeService, IRegexPatternService, ILogger(Of RemoteKnowledgeImportService))
 - uid: LocalGPT.Services.RemoteKnowledgeImportService.#ctor*
@@ -89459,13 +90302,13 @@ references:
   commentId: T:LocalGPT.Services.TestRegexPatternFunction
   fullName: LocalGPT.Services.TestRegexPatternFunction
   nameWithType: TestRegexPatternFunction
-- uid: LocalGPT.Services.TestRegexPatternFunction.#ctor(IRegexPatternService,IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.TestRegexPatternFunction})
+- uid: LocalGPT.Services.TestRegexPatternFunction.#ctor(LocalGPT.Interfaces.IRegexPatternService,LocalGPT.Interfaces.IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.TestRegexPatternFunction})
   name: TestRegexPatternFunction(IRegexPatternService, IRegexFunctionParameterService, ILogger<TestRegexPatternFunction>)
-  href: api/LocalGPT.Services.TestRegexPatternFunction.html#LocalGPT_Services_TestRegexPatternFunction__ctor_IRegexPatternService_IRegexFunctionParameterService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_TestRegexPatternFunction__
-  commentId: M:LocalGPT.Services.TestRegexPatternFunction.#ctor(IRegexPatternService,IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.TestRegexPatternFunction})
+  href: api/LocalGPT.Services.TestRegexPatternFunction.html#LocalGPT_Services_TestRegexPatternFunction__ctor_LocalGPT_Interfaces_IRegexPatternService_LocalGPT_Interfaces_IRegexFunctionParameterService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_TestRegexPatternFunction__
+  commentId: M:LocalGPT.Services.TestRegexPatternFunction.#ctor(LocalGPT.Interfaces.IRegexPatternService,LocalGPT.Interfaces.IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.TestRegexPatternFunction})
   name.vb: New(IRegexPatternService, IRegexFunctionParameterService, ILogger(Of TestRegexPatternFunction))
-  fullName: LocalGPT.Services.TestRegexPatternFunction.TestRegexPatternFunction(IRegexPatternService, IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.TestRegexPatternFunction>)
-  fullName.vb: LocalGPT.Services.TestRegexPatternFunction.New(IRegexPatternService, IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.TestRegexPatternFunction))
+  fullName: LocalGPT.Services.TestRegexPatternFunction.TestRegexPatternFunction(LocalGPT.Interfaces.IRegexPatternService, LocalGPT.Interfaces.IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.TestRegexPatternFunction>)
+  fullName.vb: LocalGPT.Services.TestRegexPatternFunction.New(LocalGPT.Interfaces.IRegexPatternService, LocalGPT.Interfaces.IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.TestRegexPatternFunction))
   nameWithType: TestRegexPatternFunction.TestRegexPatternFunction(IRegexPatternService, IRegexFunctionParameterService, ILogger<TestRegexPatternFunction>)
   nameWithType.vb: TestRegexPatternFunction.New(IRegexPatternService, IRegexFunctionParameterService, ILogger(Of TestRegexPatternFunction))
 - uid: LocalGPT.Services.TestRegexPatternFunction.#ctor*
@@ -89972,13 +90815,13 @@ references:
   commentId: T:LocalGPT.Services.UpsertRegexPatternFunction
   fullName: LocalGPT.Services.UpsertRegexPatternFunction
   nameWithType: UpsertRegexPatternFunction
-- uid: LocalGPT.Services.UpsertRegexPatternFunction.#ctor(IRegexPatternService,IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.UpsertRegexPatternFunction})
+- uid: LocalGPT.Services.UpsertRegexPatternFunction.#ctor(LocalGPT.Interfaces.IRegexPatternService,LocalGPT.Interfaces.IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.UpsertRegexPatternFunction})
   name: UpsertRegexPatternFunction(IRegexPatternService, IRegexFunctionParameterService, ILogger<UpsertRegexPatternFunction>)
-  href: api/LocalGPT.Services.UpsertRegexPatternFunction.html#LocalGPT_Services_UpsertRegexPatternFunction__ctor_IRegexPatternService_IRegexFunctionParameterService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_UpsertRegexPatternFunction__
-  commentId: M:LocalGPT.Services.UpsertRegexPatternFunction.#ctor(IRegexPatternService,IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.UpsertRegexPatternFunction})
+  href: api/LocalGPT.Services.UpsertRegexPatternFunction.html#LocalGPT_Services_UpsertRegexPatternFunction__ctor_LocalGPT_Interfaces_IRegexPatternService_LocalGPT_Interfaces_IRegexFunctionParameterService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_UpsertRegexPatternFunction__
+  commentId: M:LocalGPT.Services.UpsertRegexPatternFunction.#ctor(LocalGPT.Interfaces.IRegexPatternService,LocalGPT.Interfaces.IRegexFunctionParameterService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.UpsertRegexPatternFunction})
   name.vb: New(IRegexPatternService, IRegexFunctionParameterService, ILogger(Of UpsertRegexPatternFunction))
-  fullName: LocalGPT.Services.UpsertRegexPatternFunction.UpsertRegexPatternFunction(IRegexPatternService, IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.UpsertRegexPatternFunction>)
-  fullName.vb: LocalGPT.Services.UpsertRegexPatternFunction.New(IRegexPatternService, IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.UpsertRegexPatternFunction))
+  fullName: LocalGPT.Services.UpsertRegexPatternFunction.UpsertRegexPatternFunction(LocalGPT.Interfaces.IRegexPatternService, LocalGPT.Interfaces.IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.UpsertRegexPatternFunction>)
+  fullName.vb: LocalGPT.Services.UpsertRegexPatternFunction.New(LocalGPT.Interfaces.IRegexPatternService, LocalGPT.Interfaces.IRegexFunctionParameterService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.UpsertRegexPatternFunction))
   nameWithType: UpsertRegexPatternFunction.UpsertRegexPatternFunction(IRegexPatternService, IRegexFunctionParameterService, ILogger<UpsertRegexPatternFunction>)
   nameWithType.vb: UpsertRegexPatternFunction.New(IRegexPatternService, IRegexFunctionParameterService, ILogger(Of UpsertRegexPatternFunction))
 - uid: LocalGPT.Services.UpsertRegexPatternFunction.#ctor*
