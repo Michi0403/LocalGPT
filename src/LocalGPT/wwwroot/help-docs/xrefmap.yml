@@ -44509,6 +44509,18 @@ references:
   commentId: Overload:LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.MaximumOutputTokens
   fullName: LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.MaximumOutputTokens
   nameWithType: ProviderModelBenchmarkRequest.MaximumOutputTokens
+- uid: LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.RunId
+  name: RunId
+  href: api/LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.html#LocalGPT_BusinessObjects_ProviderModelBenchmarkRequest_RunId
+  commentId: P:LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.RunId
+  fullName: LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.RunId
+  nameWithType: ProviderModelBenchmarkRequest.RunId
+- uid: LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.RunId*
+  name: RunId
+  href: api/LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.html#LocalGPT_BusinessObjects_ProviderModelBenchmarkRequest_RunId_
+  commentId: Overload:LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.RunId
+  fullName: LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.RunId
+  nameWithType: ProviderModelBenchmarkRequest.RunId
 - uid: LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.Targets
   name: Targets
   href: api/LocalGPT.BusinessObjects.ProviderModelBenchmarkRequest.html#LocalGPT_BusinessObjects_ProviderModelBenchmarkRequest_Targets
@@ -53748,6 +53760,150 @@ references:
   commentId: N:LocalGPT.Components.Shared
   fullName: LocalGPT.Components.Shared
   nameWithType: LocalGPT.Components.Shared
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor
+  name: BoundedNumberEditor
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html
+  commentId: T:LocalGPT.Components.Shared.BoundedNumberEditor
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor
+  nameWithType: BoundedNumberEditor
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.#ctor
+  name: BoundedNumberEditor()
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor__ctor
+  commentId: M:LocalGPT.Components.Shared.BoundedNumberEditor.#ctor
+  name.vb: New()
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.BoundedNumberEditor()
+  fullName.vb: LocalGPT.Components.Shared.BoundedNumberEditor.New()
+  nameWithType: BoundedNumberEditor.BoundedNumberEditor()
+  nameWithType.vb: BoundedNumberEditor.New()
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.#ctor*
+  name: BoundedNumberEditor
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor__ctor_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.#ctor
+  name.vb: New
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.BoundedNumberEditor
+  fullName.vb: LocalGPT.Components.Shared.BoundedNumberEditor.New
+  nameWithType: BoundedNumberEditor.BoundedNumberEditor
+  nameWithType.vb: BoundedNumberEditor.New
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  name: BuildRenderTree(RenderTreeBuilder)
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_BuildRenderTree_Microsoft_AspNetCore_Components_Rendering_RenderTreeBuilder_
+  commentId: M:LocalGPT.Components.Shared.BoundedNumberEditor.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  nameWithType: BoundedNumberEditor.BuildRenderTree(RenderTreeBuilder)
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.BuildRenderTree*
+  name: BuildRenderTree
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_BuildRenderTree_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.BuildRenderTree
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.BuildRenderTree
+  nameWithType: BoundedNumberEditor.BuildRenderTree
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.CssClass
+  name: CssClass
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_CssClass
+  commentId: P:LocalGPT.Components.Shared.BoundedNumberEditor.CssClass
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.CssClass
+  nameWithType: BoundedNumberEditor.CssClass
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.CssClass*
+  name: CssClass
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_CssClass_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.CssClass
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.CssClass
+  nameWithType: BoundedNumberEditor.CssClass
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.HelpText
+  name: HelpText
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_HelpText
+  commentId: P:LocalGPT.Components.Shared.BoundedNumberEditor.HelpText
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.HelpText
+  nameWithType: BoundedNumberEditor.HelpText
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.HelpText*
+  name: HelpText
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_HelpText_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.HelpText
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.HelpText
+  nameWithType: BoundedNumberEditor.HelpText
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Label
+  name: Label
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Label
+  commentId: P:LocalGPT.Components.Shared.BoundedNumberEditor.Label
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Label
+  nameWithType: BoundedNumberEditor.Label
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Label*
+  name: Label
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Label_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.Label
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Label
+  nameWithType: BoundedNumberEditor.Label
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Max
+  name: Max
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Max
+  commentId: P:LocalGPT.Components.Shared.BoundedNumberEditor.Max
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Max
+  nameWithType: BoundedNumberEditor.Max
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Max*
+  name: Max
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Max_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.Max
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Max
+  nameWithType: BoundedNumberEditor.Max
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Min
+  name: Min
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Min
+  commentId: P:LocalGPT.Components.Shared.BoundedNumberEditor.Min
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Min
+  nameWithType: BoundedNumberEditor.Min
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Min*
+  name: Min
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Min_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.Min
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Min
+  nameWithType: BoundedNumberEditor.Min
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Step
+  name: Step
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Step
+  commentId: P:LocalGPT.Components.Shared.BoundedNumberEditor.Step
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Step
+  nameWithType: BoundedNumberEditor.Step
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Step*
+  name: Step
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Step_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.Step
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Step
+  nameWithType: BoundedNumberEditor.Step
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Suffix
+  name: Suffix
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Suffix
+  commentId: P:LocalGPT.Components.Shared.BoundedNumberEditor.Suffix
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Suffix
+  nameWithType: BoundedNumberEditor.Suffix
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Suffix*
+  name: Suffix
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Suffix_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.Suffix
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Suffix
+  nameWithType: BoundedNumberEditor.Suffix
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Value
+  name: Value
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Value
+  commentId: P:LocalGPT.Components.Shared.BoundedNumberEditor.Value
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Value
+  nameWithType: BoundedNumberEditor.Value
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.Value*
+  name: Value
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_Value_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.Value
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.Value
+  nameWithType: BoundedNumberEditor.Value
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.ValueChanged
+  name: ValueChanged
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_ValueChanged
+  commentId: P:LocalGPT.Components.Shared.BoundedNumberEditor.ValueChanged
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.ValueChanged
+  nameWithType: BoundedNumberEditor.ValueChanged
+- uid: LocalGPT.Components.Shared.BoundedNumberEditor.ValueChanged*
+  name: ValueChanged
+  href: api/LocalGPT.Components.Shared.BoundedNumberEditor.html#LocalGPT_Components_Shared_BoundedNumberEditor_ValueChanged_
+  commentId: Overload:LocalGPT.Components.Shared.BoundedNumberEditor.ValueChanged
+  fullName: LocalGPT.Components.Shared.BoundedNumberEditor.ValueChanged
+  nameWithType: BoundedNumberEditor.ValueChanged
 - uid: LocalGPT.Components.Shared.ChatGameConsole
   name: ChatGameConsole
   href: api/LocalGPT.Components.Shared.ChatGameConsole.html
@@ -54018,6 +54174,18 @@ references:
   commentId: Overload:LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.BenchmarkApplied
   fullName: LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.BenchmarkApplied
   nameWithType: ProviderModelBenchmarkCouncilPanel.BenchmarkApplied
+- uid: LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.BenchmarkStarted
+  name: BenchmarkStarted
+  href: api/LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.html#LocalGPT_Components_Shared_ProviderModelBenchmarkCouncilPanel_BenchmarkStarted
+  commentId: P:LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.BenchmarkStarted
+  fullName: LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.BenchmarkStarted
+  nameWithType: ProviderModelBenchmarkCouncilPanel.BenchmarkStarted
+- uid: LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.BenchmarkStarted*
+  name: BenchmarkStarted
+  href: api/LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.html#LocalGPT_Components_Shared_ProviderModelBenchmarkCouncilPanel_BenchmarkStarted_
+  commentId: Overload:LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.BenchmarkStarted
+  fullName: LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.BenchmarkStarted
+  nameWithType: ProviderModelBenchmarkCouncilPanel.BenchmarkStarted
 - uid: LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
   name: BuildRenderTree(RenderTreeBuilder)
   href: api/LocalGPT.Components.Shared.ProviderModelBenchmarkCouncilPanel.html#LocalGPT_Components_Shared_ProviderModelBenchmarkCouncilPanel_BuildRenderTree_Microsoft_AspNetCore_Components_Rendering_RenderTreeBuilder_
@@ -54114,6 +54282,18 @@ references:
   commentId: Overload:LocalGPT.Components.Shared.ProviderModelPanel.BenchmarkApplied
   fullName: LocalGPT.Components.Shared.ProviderModelPanel.BenchmarkApplied
   nameWithType: ProviderModelPanel.BenchmarkApplied
+- uid: LocalGPT.Components.Shared.ProviderModelPanel.BenchmarkStarted
+  name: BenchmarkStarted
+  href: api/LocalGPT.Components.Shared.ProviderModelPanel.html#LocalGPT_Components_Shared_ProviderModelPanel_BenchmarkStarted
+  commentId: P:LocalGPT.Components.Shared.ProviderModelPanel.BenchmarkStarted
+  fullName: LocalGPT.Components.Shared.ProviderModelPanel.BenchmarkStarted
+  nameWithType: ProviderModelPanel.BenchmarkStarted
+- uid: LocalGPT.Components.Shared.ProviderModelPanel.BenchmarkStarted*
+  name: BenchmarkStarted
+  href: api/LocalGPT.Components.Shared.ProviderModelPanel.html#LocalGPT_Components_Shared_ProviderModelPanel_BenchmarkStarted_
+  commentId: Overload:LocalGPT.Components.Shared.ProviderModelPanel.BenchmarkStarted
+  fullName: LocalGPT.Components.Shared.ProviderModelPanel.BenchmarkStarted
+  nameWithType: ProviderModelPanel.BenchmarkStarted
 - uid: LocalGPT.Components.Shared.ProviderModelPanel.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
   name: BuildRenderTree(RenderTreeBuilder)
   href: api/LocalGPT.Components.Shared.ProviderModelPanel.html#LocalGPT_Components_Shared_ProviderModelPanel_BuildRenderTree_Microsoft_AspNetCore_Components_Rendering_RenderTreeBuilder_
@@ -64302,15 +64482,15 @@ references:
   commentId: T:LocalGPT.Interfaces.IProviderModelRuntimeService
   fullName: LocalGPT.Interfaces.IProviderModelRuntimeService
   nameWithType: IProviderModelRuntimeService
-- uid: LocalGPT.Interfaces.IProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference,System.String,System.Int32,System.TimeSpan,System.Nullable{System.Int32})
-  name: CreateChatClient(ProviderModelReference, string, int, TimeSpan, int?)
-  href: api/LocalGPT.Interfaces.IProviderModelRuntimeService.html#LocalGPT_Interfaces_IProviderModelRuntimeService_CreateChatClient_LocalGPT_BusinessObjects_ProviderModelReference_System_String_System_Int32_System_TimeSpan_System_Nullable_System_Int32__
-  commentId: M:LocalGPT.Interfaces.IProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference,System.String,System.Int32,System.TimeSpan,System.Nullable{System.Int32})
-  name.vb: CreateChatClient(ProviderModelReference, String, Integer, TimeSpan, Integer?)
-  fullName: LocalGPT.Interfaces.IProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference, string, int, System.TimeSpan, int?)
-  fullName.vb: LocalGPT.Interfaces.IProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference, String, Integer, System.TimeSpan, Integer?)
-  nameWithType: IProviderModelRuntimeService.CreateChatClient(ProviderModelReference, string, int, TimeSpan, int?)
-  nameWithType.vb: IProviderModelRuntimeService.CreateChatClient(ProviderModelReference, String, Integer, TimeSpan, Integer?)
+- uid: LocalGPT.Interfaces.IProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference,System.String,System.Int32,System.TimeSpan,System.Nullable{System.Int32},System.Boolean,System.Boolean)
+  name: CreateChatClient(ProviderModelReference, string, int, TimeSpan, int?, bool, bool)
+  href: api/LocalGPT.Interfaces.IProviderModelRuntimeService.html#LocalGPT_Interfaces_IProviderModelRuntimeService_CreateChatClient_LocalGPT_BusinessObjects_ProviderModelReference_System_String_System_Int32_System_TimeSpan_System_Nullable_System_Int32__System_Boolean_System_Boolean_
+  commentId: M:LocalGPT.Interfaces.IProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference,System.String,System.Int32,System.TimeSpan,System.Nullable{System.Int32},System.Boolean,System.Boolean)
+  name.vb: CreateChatClient(ProviderModelReference, String, Integer, TimeSpan, Integer?, Boolean, Boolean)
+  fullName: LocalGPT.Interfaces.IProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference, string, int, System.TimeSpan, int?, bool, bool)
+  fullName.vb: LocalGPT.Interfaces.IProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference, String, Integer, System.TimeSpan, Integer?, Boolean, Boolean)
+  nameWithType: IProviderModelRuntimeService.CreateChatClient(ProviderModelReference, string, int, TimeSpan, int?, bool, bool)
+  nameWithType.vb: IProviderModelRuntimeService.CreateChatClient(ProviderModelReference, String, Integer, TimeSpan, Integer?, Boolean, Boolean)
 - uid: LocalGPT.Interfaces.IProviderModelRuntimeService.CreateChatClient*
   name: CreateChatClient
   href: api/LocalGPT.Interfaces.IProviderModelRuntimeService.html#LocalGPT_Interfaces_IProviderModelRuntimeService_CreateChatClient_
@@ -82559,15 +82739,15 @@ references:
   commentId: T:LocalGPT.Services.OllamaThinkingChatClient
   fullName: LocalGPT.Services.OllamaThinkingChatClient
   nameWithType: OllamaThinkingChatClient
-- uid: LocalGPT.Services.OllamaThinkingChatClient.#ctor(LocalGPT.BusinessObjects.OllamaCoreOptions,Microsoft.Extensions.Logging.ILogger,LocalGPT.Services.CouncilRuntimeService,System.String,System.Nullable{System.Int32},System.Nullable{System.TimeSpan},System.Nullable{System.Int32},LocalGPT.Interfaces.IChatResponseFormatterFactory,LocalGPT.Interfaces.IChatProtocolResolver,LocalGPT.Interfaces.IPromptConfigService,LocalGPT.Interfaces.IDxAiFunctionRegistry)
-  name: OllamaThinkingChatClient(OllamaCoreOptions, ILogger, CouncilRuntimeService, string?, int?, TimeSpan?, int?, IChatResponseFormatterFactory?, IChatProtocolResolver?, IPromptConfigService?, IDxAiFunctionRegistry?)
-  href: api/LocalGPT.Services.OllamaThinkingChatClient.html#LocalGPT_Services_OllamaThinkingChatClient__ctor_LocalGPT_BusinessObjects_OllamaCoreOptions_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_CouncilRuntimeService_System_String_System_Nullable_System_Int32__System_Nullable_System_TimeSpan__System_Nullable_System_Int32__LocalGPT_Interfaces_IChatResponseFormatterFactory_LocalGPT_Interfaces_IChatProtocolResolver_LocalGPT_Interfaces_IPromptConfigService_LocalGPT_Interfaces_IDxAiFunctionRegistry_
-  commentId: M:LocalGPT.Services.OllamaThinkingChatClient.#ctor(LocalGPT.BusinessObjects.OllamaCoreOptions,Microsoft.Extensions.Logging.ILogger,LocalGPT.Services.CouncilRuntimeService,System.String,System.Nullable{System.Int32},System.Nullable{System.TimeSpan},System.Nullable{System.Int32},LocalGPT.Interfaces.IChatResponseFormatterFactory,LocalGPT.Interfaces.IChatProtocolResolver,LocalGPT.Interfaces.IPromptConfigService,LocalGPT.Interfaces.IDxAiFunctionRegistry)
-  name.vb: New(OllamaCoreOptions, ILogger, CouncilRuntimeService, String, Integer?, TimeSpan?, Integer?, IChatResponseFormatterFactory, IChatProtocolResolver, IPromptConfigService, IDxAiFunctionRegistry)
-  fullName: LocalGPT.Services.OllamaThinkingChatClient.OllamaThinkingChatClient(LocalGPT.BusinessObjects.OllamaCoreOptions, Microsoft.Extensions.Logging.ILogger, LocalGPT.Services.CouncilRuntimeService, string?, int?, System.TimeSpan?, int?, LocalGPT.Interfaces.IChatResponseFormatterFactory?, LocalGPT.Interfaces.IChatProtocolResolver?, LocalGPT.Interfaces.IPromptConfigService?, LocalGPT.Interfaces.IDxAiFunctionRegistry?)
-  fullName.vb: LocalGPT.Services.OllamaThinkingChatClient.New(LocalGPT.BusinessObjects.OllamaCoreOptions, Microsoft.Extensions.Logging.ILogger, LocalGPT.Services.CouncilRuntimeService, String, Integer?, System.TimeSpan?, Integer?, LocalGPT.Interfaces.IChatResponseFormatterFactory, LocalGPT.Interfaces.IChatProtocolResolver, LocalGPT.Interfaces.IPromptConfigService, LocalGPT.Interfaces.IDxAiFunctionRegistry)
-  nameWithType: OllamaThinkingChatClient.OllamaThinkingChatClient(OllamaCoreOptions, ILogger, CouncilRuntimeService, string?, int?, TimeSpan?, int?, IChatResponseFormatterFactory?, IChatProtocolResolver?, IPromptConfigService?, IDxAiFunctionRegistry?)
-  nameWithType.vb: OllamaThinkingChatClient.New(OllamaCoreOptions, ILogger, CouncilRuntimeService, String, Integer?, TimeSpan?, Integer?, IChatResponseFormatterFactory, IChatProtocolResolver, IPromptConfigService, IDxAiFunctionRegistry)
+- uid: LocalGPT.Services.OllamaThinkingChatClient.#ctor(LocalGPT.BusinessObjects.OllamaCoreOptions,Microsoft.Extensions.Logging.ILogger,LocalGPT.Services.CouncilRuntimeService,System.String,System.Nullable{System.Int32},System.Nullable{System.TimeSpan},System.Nullable{System.Int32},LocalGPT.Interfaces.IChatResponseFormatterFactory,LocalGPT.Interfaces.IChatProtocolResolver,LocalGPT.Interfaces.IPromptConfigService,LocalGPT.Interfaces.IDxAiFunctionRegistry,System.Boolean,System.Boolean)
+  name: OllamaThinkingChatClient(OllamaCoreOptions, ILogger, CouncilRuntimeService, string?, int?, TimeSpan?, int?, IChatResponseFormatterFactory?, IChatProtocolResolver?, IPromptConfigService?, IDxAiFunctionRegistry?, bool, bool)
+  href: api/LocalGPT.Services.OllamaThinkingChatClient.html#LocalGPT_Services_OllamaThinkingChatClient__ctor_LocalGPT_BusinessObjects_OllamaCoreOptions_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_CouncilRuntimeService_System_String_System_Nullable_System_Int32__System_Nullable_System_TimeSpan__System_Nullable_System_Int32__LocalGPT_Interfaces_IChatResponseFormatterFactory_LocalGPT_Interfaces_IChatProtocolResolver_LocalGPT_Interfaces_IPromptConfigService_LocalGPT_Interfaces_IDxAiFunctionRegistry_System_Boolean_System_Boolean_
+  commentId: M:LocalGPT.Services.OllamaThinkingChatClient.#ctor(LocalGPT.BusinessObjects.OllamaCoreOptions,Microsoft.Extensions.Logging.ILogger,LocalGPT.Services.CouncilRuntimeService,System.String,System.Nullable{System.Int32},System.Nullable{System.TimeSpan},System.Nullable{System.Int32},LocalGPT.Interfaces.IChatResponseFormatterFactory,LocalGPT.Interfaces.IChatProtocolResolver,LocalGPT.Interfaces.IPromptConfigService,LocalGPT.Interfaces.IDxAiFunctionRegistry,System.Boolean,System.Boolean)
+  name.vb: New(OllamaCoreOptions, ILogger, CouncilRuntimeService, String, Integer?, TimeSpan?, Integer?, IChatResponseFormatterFactory, IChatProtocolResolver, IPromptConfigService, IDxAiFunctionRegistry, Boolean, Boolean)
+  fullName: LocalGPT.Services.OllamaThinkingChatClient.OllamaThinkingChatClient(LocalGPT.BusinessObjects.OllamaCoreOptions, Microsoft.Extensions.Logging.ILogger, LocalGPT.Services.CouncilRuntimeService, string?, int?, System.TimeSpan?, int?, LocalGPT.Interfaces.IChatResponseFormatterFactory?, LocalGPT.Interfaces.IChatProtocolResolver?, LocalGPT.Interfaces.IPromptConfigService?, LocalGPT.Interfaces.IDxAiFunctionRegistry?, bool, bool)
+  fullName.vb: LocalGPT.Services.OllamaThinkingChatClient.New(LocalGPT.BusinessObjects.OllamaCoreOptions, Microsoft.Extensions.Logging.ILogger, LocalGPT.Services.CouncilRuntimeService, String, Integer?, System.TimeSpan?, Integer?, LocalGPT.Interfaces.IChatResponseFormatterFactory, LocalGPT.Interfaces.IChatProtocolResolver, LocalGPT.Interfaces.IPromptConfigService, LocalGPT.Interfaces.IDxAiFunctionRegistry, Boolean, Boolean)
+  nameWithType: OllamaThinkingChatClient.OllamaThinkingChatClient(OllamaCoreOptions, ILogger, CouncilRuntimeService, string?, int?, TimeSpan?, int?, IChatResponseFormatterFactory?, IChatProtocolResolver?, IPromptConfigService?, IDxAiFunctionRegistry?, bool, bool)
+  nameWithType.vb: OllamaThinkingChatClient.New(OllamaCoreOptions, ILogger, CouncilRuntimeService, String, Integer?, TimeSpan?, Integer?, IChatResponseFormatterFactory, IChatProtocolResolver, IPromptConfigService, IDxAiFunctionRegistry, Boolean, Boolean)
 - uid: LocalGPT.Services.OllamaThinkingChatClient.#ctor*
   name: OllamaThinkingChatClient
   href: api/LocalGPT.Services.OllamaThinkingChatClient.html#LocalGPT_Services_OllamaThinkingChatClient__ctor_
@@ -87185,15 +87365,15 @@ references:
   commentId: T:LocalGPT.Services.ProviderModelBenchmarkService
   fullName: LocalGPT.Services.ProviderModelBenchmarkService
   nameWithType: ProviderModelBenchmarkService
-- uid: LocalGPT.Services.ProviderModelBenchmarkService.#ctor(LocalGPT.Interfaces.IProviderModelRuntimeService,LocalGPT.Interfaces.IModelPresetService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelBenchmarkService})
-  name: ProviderModelBenchmarkService(IProviderModelRuntimeService, IModelPresetService, ILogger<ProviderModelBenchmarkService>)
-  href: api/LocalGPT.Services.ProviderModelBenchmarkService.html#LocalGPT_Services_ProviderModelBenchmarkService__ctor_LocalGPT_Interfaces_IProviderModelRuntimeService_LocalGPT_Interfaces_IModelPresetService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_ProviderModelBenchmarkService__
-  commentId: M:LocalGPT.Services.ProviderModelBenchmarkService.#ctor(LocalGPT.Interfaces.IProviderModelRuntimeService,LocalGPT.Interfaces.IModelPresetService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelBenchmarkService})
-  name.vb: New(IProviderModelRuntimeService, IModelPresetService, ILogger(Of ProviderModelBenchmarkService))
-  fullName: LocalGPT.Services.ProviderModelBenchmarkService.ProviderModelBenchmarkService(LocalGPT.Interfaces.IProviderModelRuntimeService, LocalGPT.Interfaces.IModelPresetService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.ProviderModelBenchmarkService>)
-  fullName.vb: LocalGPT.Services.ProviderModelBenchmarkService.New(LocalGPT.Interfaces.IProviderModelRuntimeService, LocalGPT.Interfaces.IModelPresetService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.ProviderModelBenchmarkService))
-  nameWithType: ProviderModelBenchmarkService.ProviderModelBenchmarkService(IProviderModelRuntimeService, IModelPresetService, ILogger<ProviderModelBenchmarkService>)
-  nameWithType.vb: ProviderModelBenchmarkService.New(IProviderModelRuntimeService, IModelPresetService, ILogger(Of ProviderModelBenchmarkService))
+- uid: LocalGPT.Services.ProviderModelBenchmarkService.#ctor(LocalGPT.Interfaces.IProviderModelRuntimeService,LocalGPT.Interfaces.IModelPresetService,LocalGPT.Interfaces.ICouncilLiveSessionService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelBenchmarkService})
+  name: ProviderModelBenchmarkService(IProviderModelRuntimeService, IModelPresetService, ICouncilLiveSessionService, ILogger<ProviderModelBenchmarkService>)
+  href: api/LocalGPT.Services.ProviderModelBenchmarkService.html#LocalGPT_Services_ProviderModelBenchmarkService__ctor_LocalGPT_Interfaces_IProviderModelRuntimeService_LocalGPT_Interfaces_IModelPresetService_LocalGPT_Interfaces_ICouncilLiveSessionService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_ProviderModelBenchmarkService__
+  commentId: M:LocalGPT.Services.ProviderModelBenchmarkService.#ctor(LocalGPT.Interfaces.IProviderModelRuntimeService,LocalGPT.Interfaces.IModelPresetService,LocalGPT.Interfaces.ICouncilLiveSessionService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelBenchmarkService})
+  name.vb: New(IProviderModelRuntimeService, IModelPresetService, ICouncilLiveSessionService, ILogger(Of ProviderModelBenchmarkService))
+  fullName: LocalGPT.Services.ProviderModelBenchmarkService.ProviderModelBenchmarkService(LocalGPT.Interfaces.IProviderModelRuntimeService, LocalGPT.Interfaces.IModelPresetService, LocalGPT.Interfaces.ICouncilLiveSessionService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.ProviderModelBenchmarkService>)
+  fullName.vb: LocalGPT.Services.ProviderModelBenchmarkService.New(LocalGPT.Interfaces.IProviderModelRuntimeService, LocalGPT.Interfaces.IModelPresetService, LocalGPT.Interfaces.ICouncilLiveSessionService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.ProviderModelBenchmarkService))
+  nameWithType: ProviderModelBenchmarkService.ProviderModelBenchmarkService(IProviderModelRuntimeService, IModelPresetService, ICouncilLiveSessionService, ILogger<ProviderModelBenchmarkService>)
+  nameWithType.vb: ProviderModelBenchmarkService.New(IProviderModelRuntimeService, IModelPresetService, ICouncilLiveSessionService, ILogger(Of ProviderModelBenchmarkService))
 - uid: LocalGPT.Services.ProviderModelBenchmarkService.#ctor*
   name: ProviderModelBenchmarkService
   href: api/LocalGPT.Services.ProviderModelBenchmarkService.html#LocalGPT_Services_ProviderModelBenchmarkService__ctor_
@@ -87254,15 +87434,15 @@ references:
   fullName.vb: LocalGPT.Services.ProviderModelRuntimeService.New
   nameWithType: ProviderModelRuntimeService.ProviderModelRuntimeService
   nameWithType.vb: ProviderModelRuntimeService.New
-- uid: LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference,System.String,System.Int32,System.TimeSpan,System.Nullable{System.Int32})
-  name: CreateChatClient(ProviderModelReference, string, int, TimeSpan, int?)
-  href: api/LocalGPT.Services.ProviderModelRuntimeService.html#LocalGPT_Services_ProviderModelRuntimeService_CreateChatClient_LocalGPT_BusinessObjects_ProviderModelReference_System_String_System_Int32_System_TimeSpan_System_Nullable_System_Int32__
-  commentId: M:LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference,System.String,System.Int32,System.TimeSpan,System.Nullable{System.Int32})
-  name.vb: CreateChatClient(ProviderModelReference, String, Integer, TimeSpan, Integer?)
-  fullName: LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference, string, int, System.TimeSpan, int?)
-  fullName.vb: LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference, String, Integer, System.TimeSpan, Integer?)
-  nameWithType: ProviderModelRuntimeService.CreateChatClient(ProviderModelReference, string, int, TimeSpan, int?)
-  nameWithType.vb: ProviderModelRuntimeService.CreateChatClient(ProviderModelReference, String, Integer, TimeSpan, Integer?)
+- uid: LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference,System.String,System.Int32,System.TimeSpan,System.Nullable{System.Int32},System.Boolean,System.Boolean)
+  name: CreateChatClient(ProviderModelReference, string, int, TimeSpan, int?, bool, bool)
+  href: api/LocalGPT.Services.ProviderModelRuntimeService.html#LocalGPT_Services_ProviderModelRuntimeService_CreateChatClient_LocalGPT_BusinessObjects_ProviderModelReference_System_String_System_Int32_System_TimeSpan_System_Nullable_System_Int32__System_Boolean_System_Boolean_
+  commentId: M:LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference,System.String,System.Int32,System.TimeSpan,System.Nullable{System.Int32},System.Boolean,System.Boolean)
+  name.vb: CreateChatClient(ProviderModelReference, String, Integer, TimeSpan, Integer?, Boolean, Boolean)
+  fullName: LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference, string, int, System.TimeSpan, int?, bool, bool)
+  fullName.vb: LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference, String, Integer, System.TimeSpan, Integer?, Boolean, Boolean)
+  nameWithType: ProviderModelRuntimeService.CreateChatClient(ProviderModelReference, string, int, TimeSpan, int?, bool, bool)
+  nameWithType.vb: ProviderModelRuntimeService.CreateChatClient(ProviderModelReference, String, Integer, TimeSpan, Integer?, Boolean, Boolean)
 - uid: LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient*
   name: CreateChatClient
   href: api/LocalGPT.Services.ProviderModelRuntimeService.html#LocalGPT_Services_ProviderModelRuntimeService_CreateChatClient_

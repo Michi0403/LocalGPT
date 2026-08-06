@@ -89,7 +89,7 @@ if (-not ($appContent.IndexOf('<ToastWrapper Name="ComponentSafetyToasts"', [Sys
 
 $program = Join-Path $RepositoryRoot 'src/LocalGPT/Program.cs'
 $programContent = Get-Content -LiteralPath $program -Raw
-if (-not $programContent.Contains('AddSingleton<IComponentActivityService, ComponentActivityService>()', [System.StringComparison]::Ordinal)) {
+if ($programContent.IndexOf('AddSingleton<IComponentActivityService, ComponentActivityService>()', [System.StringComparison]::Ordinal) -lt 0) {
     Write-Error 'Program.cs must retain the bounded component activity service registration.'
     exit 1
 }

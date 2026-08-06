@@ -1902,3 +1902,342 @@
 .council-member-list.provider-model-list {
     display: grid;
 }
+
+
+/* v2.3.4 responsive Chat contract --------------------------------------------------
+   Configuration controls use the active Bootstrap/DevExpress theme, compact commands
+   stay contextual, and no control may overlap its neighbour at TV scaling or high zoom. */
+.chat-configuration-content,
+.chat-session-tools-content {
+    container-type: inline-size;
+}
+
+.chat-navigation-actions {
+    position: relative;
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: .55rem;
+    padding: .55rem .65rem;
+}
+
+.chat-navigation-actions > strong {
+    padding: 0;
+    margin-inline-end: .2rem;
+}
+
+.chat-actions-menu {
+    position: relative;
+}
+
+.chat-actions-menu > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    min-height: 2.55rem;
+    cursor: pointer;
+    list-style: none;
+    font-weight: 700;
+}
+
+.chat-actions-menu > summary::-webkit-details-marker { display: none; }
+.chat-actions-menu > summary::after { content: "▾"; font-size: .75rem; }
+.chat-actions-menu[open] > summary::after { content: "▴"; }
+
+.chat-actions-menu-items {
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: calc(100% + .35rem);
+    z-index: 1240;
+    display: grid;
+    min-width: min(20rem, calc(100vw - 2rem));
+    padding: .4rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .65rem;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    box-shadow: 0 .85rem 2.2rem rgba(0, 0, 0, .22);
+}
+
+.chat-actions-menu-items > a,
+.chat-actions-menu-items > button {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    width: 100%;
+    min-height: 2.55rem;
+    padding: .5rem .65rem;
+    border: 0;
+    border-radius: .45rem;
+    color: inherit;
+    background: transparent;
+    text-align: start;
+    text-decoration: none;
+    font: inherit;
+}
+
+.chat-actions-menu-items > a:hover,
+.chat-actions-menu-items > button:hover,
+.chat-actions-menu-items > a:focus-visible,
+.chat-actions-menu-items > button:focus-visible {
+    background: var(--bs-tertiary-bg);
+}
+
+.chat-provider-row,
+.model-toolbar,
+.memory-toolbar,
+.council-preset-toolbar,
+.council-team-toolbar {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    align-items: end;
+    gap: .75rem;
+    min-width: 0;
+}
+
+.chat-provider-row > *,
+.model-toolbar > *,
+.memory-toolbar > *,
+.council-preset-toolbar > *,
+.council-team-toolbar > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.chat-provider-row label,
+.model-toolbar label,
+.memory-toolbar label,
+.council-preset-toolbar label,
+.council-team-toolbar label {
+    display: grid;
+    gap: .3rem;
+    min-width: 0;
+    color: var(--bs-body-color);
+    overflow-wrap: anywhere;
+}
+
+.chat-provider-row input:not([type="checkbox"]):not([type="radio"]),
+.chat-provider-row select,
+.model-toolbar input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.model-toolbar select,
+.memory-toolbar input:not([type="checkbox"]):not([type="radio"]),
+.memory-toolbar select,
+.memory-toolbar textarea,
+.council-preset-toolbar input:not([type="checkbox"]):not([type="radio"]),
+.council-preset-toolbar select,
+.council-team-toolbar input:not([type="checkbox"]):not([type="radio"]),
+.council-team-toolbar select {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.55rem;
+    padding: .45rem .65rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius, .45rem);
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+}
+
+.inline-dx-check,
+.benchmark-check {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    align-self: center;
+    gap: .55rem !important;
+    min-width: 0;
+    white-space: normal !important;
+}
+
+.inline-dx-check > span,
+.benchmark-check > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.main-container ::deep .localgpt-rounded-action {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 2.55rem !important;
+    height: auto !important;
+    padding: .48rem .78rem !important;
+    border-radius: .6rem !important;
+    font-size: .92rem !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+}
+
+.chat-session-tools-ribbon[open] .human-live-contribution {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)) !important;
+    align-items: end !important;
+}
+
+.chat-session-tools-ribbon[open] ::deep .localgpt-rounded-action {
+    width: auto !important;
+    justify-self: start;
+}
+
+.chat-live-session-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .65rem;
+    min-width: 0;
+    padding: .55rem .7rem;
+    border: 1px solid color-mix(in srgb, var(--bs-primary) 38%, var(--bs-border-color));
+    border-radius: .65rem;
+    color: var(--bs-body-color);
+    background: color-mix(in srgb, var(--bs-primary) 8%, var(--bs-body-bg));
+}
+
+.chat-live-session-banner span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.chat-configuration-ribbon[open],
+.chat-session-tools-ribbon[open] {
+    inset-block: clamp(.45rem, 1.5dvh, 1.25rem) !important;
+    inset-inline: max(.45rem, calc((100vw - 100rem) / 2)) !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-content,
+.chat-session-tools-ribbon[open] .chat-session-tools-content {
+    padding: clamp(.7rem, 1.2vw, 1.15rem) !important;
+}
+
+.council-command-center[open],
+.chat-memory-project-center[open],
+.chat-individual-model-controls[open] {
+    overflow: visible;
+}
+
+@container (max-width: 760px) {
+    .chat-provider-row,
+    .model-toolbar,
+    .memory-toolbar,
+    .council-preset-toolbar,
+    .council-team-toolbar,
+    .chat-session-tools-ribbon[open] .human-live-contribution {
+        grid-template-columns: 1fr !important;
+    }
+
+    .main-container ::deep .localgpt-rounded-action,
+    .chat-session-tools-ribbon[open] ::deep .localgpt-rounded-action {
+        width: 100% !important;
+        justify-self: stretch;
+    }
+}
+
+@media (max-width: 680px) {
+    .chat-actions-menu { width: 100%; }
+    .chat-actions-menu > summary { width: 100%; justify-content: center; }
+    .chat-actions-menu-items { position: fixed; inset-inline: .5rem; inset-block: auto .5rem; }
+    .chat-live-session-banner { align-items: stretch; flex-direction: column; }
+}
+
+
+.component-actions-menu {
+    position: relative;
+    align-self: end;
+}
+
+.component-actions-menu > summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.55rem;
+    cursor: pointer;
+    list-style: none;
+    font-weight: 700;
+}
+
+.component-actions-menu > summary::-webkit-details-marker { display: none; }
+.component-actions-menu > summary::after { content: "▾"; margin-inline-start: .45rem; font-size: .75rem; }
+.component-actions-menu[open] > summary::after { content: "▴"; }
+
+.component-actions-menu-items {
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: calc(100% + .35rem);
+    z-index: 1240;
+    display: grid;
+    min-width: 13rem;
+    padding: .4rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .65rem;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    box-shadow: 0 .85rem 2.2rem rgba(0, 0, 0, .22);
+}
+
+.component-actions-menu-items button {
+    width: 100%;
+    min-height: 2.45rem;
+    padding: .48rem .62rem;
+    border: 0;
+    border-radius: .42rem;
+    color: inherit;
+    background: transparent;
+    text-align: start;
+}
+
+.component-actions-menu-items button:hover,
+.component-actions-menu-items button:focus-visible { background: var(--bs-tertiary-bg); }
+.component-actions-menu-items button:disabled { opacity: .52; }
+
+@media (max-width: 680px) {
+    .component-actions-menu,
+    .component-actions-menu > summary { width: 100%; }
+    .component-actions-menu-items { position: fixed; inset-inline: .5rem; inset-block: auto .5rem; }
+}
+
+/* v2.3.4 live-session controls: keep routine actions in a compact menu and
+   reserve visible buttons for actions that are currently usable. */
+.human-live-contribution .live-session-selector,
+.human-live-contribution .live-contribution-editor {
+    grid-column: span 2;
+}
+
+.human-live-contribution > .badge {
+    align-self: center;
+    justify-self: start;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.human-live-contribution > .memory-status {
+    grid-column: 1 / -1;
+}
+
+.live-session-actions-menu {
+    align-self: end;
+}
+
+.live-session-actions-menu .component-actions-menu-items {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+}
+
+.inline-dx-check ::deep .dxbl-checkbox {
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+@container (max-width: 980px) {
+    .human-live-contribution .live-session-selector,
+    .human-live-contribution .live-contribution-editor {
+        grid-column: 1 / -1;
+    }
+}
+
+@container (max-width: 620px) {
+    .human-live-contribution .live-session-selector,
+    .human-live-contribution .live-contribution-editor,
+    .human-live-contribution > .memory-status {
+        grid-column: auto;
+    }
+}

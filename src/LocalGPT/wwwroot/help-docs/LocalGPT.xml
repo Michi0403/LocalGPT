@@ -1094,7 +1094,7 @@
       <summary>Returns one localized XML documentation member by its compiler member id.</summary>
     </member>
     <member name="M:LocalGPT.Controller.DocumentationController.Html(System.String)">
-      <summary>Serves generated DocFX HTML and supporting assets from the recursively resolved installed documentation root.</summary>
+      <summary>Serves generated DocFX HTML and supporting assets from the canonical installed documentation root.</summary>
     </member>
     <member name="M:LocalGPT.Controller.DocumentationController.Pdf">
       <summary>Downloads the versioned LocalGPT PDF generated for the running build.</summary>
@@ -4071,7 +4071,7 @@
             Bounded benchmark and council review for provider-qualified models. The service does not download models or alter provider-global settings. Applying a recommendation creates or updates a user-approved LocalGPT model preset whose routes retain provider, endpoint and provider model name.
             </summary>
     </member>
-    <member name="M:LocalGPT.Services.ProviderModelBenchmarkService.#ctor(LocalGPT.Interfaces.IProviderModelRuntimeService,LocalGPT.Interfaces.IModelPresetService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelBenchmarkService})">
+    <member name="M:LocalGPT.Services.ProviderModelBenchmarkService.#ctor(LocalGPT.Interfaces.IProviderModelRuntimeService,LocalGPT.Interfaces.IModelPresetService,LocalGPT.Interfaces.ICouncilLiveSessionService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelBenchmarkService})">
       <summary>
             Bounded benchmark and council review for provider-qualified models. The service does not download models or alter provider-global settings. Applying a recommendation creates or updates a user-approved LocalGPT model preset whose routes retain provider, endpoint and provider model name.
             </summary>

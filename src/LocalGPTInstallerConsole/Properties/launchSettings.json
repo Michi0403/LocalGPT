@@ -2,7 +2,7 @@
   "profiles": {
     "LocalGPTInstallerConsole": {
       "commandName": "Project",
-      "commandLineArgs": "--install-ollama --install-localgpt --force-delete --start-localgpt --shortcuts",
+      "commandLineArgs": "--install-ollama --install-localgpt --force-delete --start-localgpt --shortcuts"
     }
   }
 }

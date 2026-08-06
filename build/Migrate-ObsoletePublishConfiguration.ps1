@@ -8,7 +8,7 @@ $removed = [Collections.Generic.List[string]]::new()
 
 # Developer publish profiles are supported release-lane entry points and are never removed.
 # Only per-machine Visual Studio overlays are cleaned from distributable source trees.
-foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $root 'LocalGPTWebviewWrapper') -Recurse -File -Filter '*.pubxml.user' -ErrorAction SilentlyContinue)) {
+foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Recurse -File -Filter '*.pubxml.user' -ErrorAction SilentlyContinue)) {
     Remove-Item -LiteralPath $file.FullName -Force
     $removed.Add($file.FullName.Substring($root.Length).TrimStart([char[]]@([char]'\', [char]'/')))
 }

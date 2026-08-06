@@ -21,24 +21,24 @@ MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.Shared.stat
 MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/
 
 # LocalGPT build outputs
-LocalGPTWebviewWrapper/**/bin/
-LocalGPTWebviewWrapper/**/obj/
-LocalGPTWebviewWrapper/.vs/
-LocalGPTWebviewWrapper/.cr/
-LocalGPTWebviewWrapper/**/*.user
+src/LocalGPTWebviewWrapper/**/bin/
+src/LocalGPTWebviewWrapper/**/obj/
+src/LocalGPTWebviewWrapper/.vs/
+src/LocalGPTWebviewWrapper/.cr/
+src/LocalGPTWebviewWrapper/**/*.user
 
 # MSIX packaging outputs
-LocalGPTWebviewWrapper/**/AppPackages/
-LocalGPTWebviewWrapper/**/BundleArtifacts/
-LocalGPTWebviewWrapper/**/*.msix
-LocalGPTWebviewWrapper/**/*.msixbundle
-LocalGPTWebviewWrapper/**/*.appx
-LocalGPTWebviewWrapper/**/*.appxbundle
-LocalGPTWebviewWrapper/**/*.appxsym
-LocalGPTWebviewWrapper/**/*.cer
-LocalGPTWebviewWrapper/**/*.pfx
-LocalGPTWebviewWrapper/**/*.assets.cache
-LocalGPTWebviewWrapper/**/*.local.props
+src/LocalGPTWebviewWrapper/**/AppPackages/
+src/LocalGPTWebviewWrapper/**/BundleArtifacts/
+src/LocalGPTWebviewWrapper/**/*.msix
+src/LocalGPTWebviewWrapper/**/*.msixbundle
+src/LocalGPTWebviewWrapper/**/*.appx
+src/LocalGPTWebviewWrapper/**/*.appxbundle
+src/LocalGPTWebviewWrapper/**/*.appxsym
+src/LocalGPTWebviewWrapper/**/*.cer
+src/LocalGPTWebviewWrapper/**/*.pfx
+src/LocalGPTWebviewWrapper/**/*.assets.cache
+src/LocalGPTWebviewWrapper/**/*.local.props
 
 # Local release packages and smoke artifacts
 artifacts/
@@ -49,7 +49,7 @@ build/publish-output/
 images/
 build/Michi0403_LocalGPT
 build/TelegramBots_Telegram.Bot
-LocalGPTWebviewWrapper/LocalGPT/LocalGPT.log
+src/LocalGPTWebviewWrapper/LocalGPT/LocalGPT.log
 
 # Local runtime state and generated diagnostics
 *.db
@@ -59,9 +59,9 @@ LocalGPTWebviewWrapper/LocalGPT/LocalGPT.log
 *.tmp
 *.bak
 CorruptDatabaseBackups/
-LocalGPTWebviewWrapper/**/LocalGPT.log
-LocalGPTWebviewWrapper/**/FirstVersionlocalgpt-memory.db
-LocalGPTWebviewWrapper/**/localgpt-memory-example-database.db
+src/LocalGPTWebviewWrapper/**/LocalGPT.log
+src/LocalGPTWebviewWrapper/**/FirstVersionlocalgpt-memory.db
+src/LocalGPTWebviewWrapper/**/localgpt-memory-example-database.db
 
 # AI/tool scratch clones and generated repository snapshots
 build/[A-Za-z0-9]????????/
@@ -77,7 +77,7 @@ build/*_repo_snapshot*/
 **/.vs/
 
 # Generated DevExpress/DevExtreme licensed build material
-LocalGPTWebviewWrapper/LocalGPT/wwwroot/js/devextreme-license.js
+src/LocalGPTWebviewWrapper/LocalGPT/wwwroot/js/devextreme-license.js
 **/DevExpress_License*
 **/*devexpress*license*.key
 
@@ -95,12 +95,12 @@ packages/*.snupkg
 !build/*.sha256
 !tests/
 !tests/*.py
-!LocalGPTWebviewWrapper/LocalGPT/Localization/
-!LocalGPTWebviewWrapper/LocalGPT/Localization/*.json
+!src/LocalGPTWebviewWrapper/LocalGPT/Localization/
+!src/LocalGPTWebviewWrapper/LocalGPT/Localization/*.json
 tests/__pycache__/
 
 # Generated DocFX inputs and outputs
 docs/input/
 docs/api/
 docs/_site/
-LocalGPTWebviewWrapper/LocalGPT/wwwroot/help-docs/
+src/LocalGPT/wwwroot/help-docs/

@@ -44,7 +44,7 @@
     gap: .65rem;
 }
 
-.help-actions > a {
+.help-actions > button {
     min-height: 3rem;
     display: inline-flex;
     align-items: center;
@@ -79,8 +79,21 @@
     line-height: 1.55;
 }
 
-.help-panel a {
+.help-panel button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--bs-link-color);
+    font: inherit;
     font-weight: 750;
+    text-align: left;
+    cursor: pointer;
+}
+
+.help-panel button:hover,
+.help-panel button:focus-visible {
+    color: var(--bs-link-hover-color);
+    text-decoration: underline;
 }
 
 .help-api-panel {
@@ -113,4 +126,99 @@
 
 .help-status .badge {
     font-size: .78rem;
+}
+
+
+.documentation-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: grid;
+    place-items: center;
+    padding: clamp(.5rem, 1.5vw, 1.5rem);
+    background: color-mix(in srgb, #000 72%, transparent);
+    backdrop-filter: blur(8px);
+}
+
+.documentation-dialog {
+    width: min(96vw, 120rem);
+    height: min(94vh, 80rem);
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid var(--localgpt-border-color);
+    border-radius: .9rem;
+    background: var(--bs-body-bg);
+    box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, .42);
+}
+
+.documentation-dialog > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .75rem 1rem;
+    border-bottom: 1px solid var(--localgpt-border-color);
+    background: var(--localgpt-surface-bg);
+}
+
+.documentation-dialog h2 {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 1rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.documentation-dialog header > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    justify-content: flex-end;
+}
+
+.documentation-dialog header a,
+.documentation-dialog header button {
+    min-height: 2.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: .45rem .8rem;
+    border: 1px solid var(--localgpt-border-color);
+    border-radius: .6rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    text-decoration: none;
+    font: inherit;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.documentation-dialog header button {
+    border-color: var(--bs-primary);
+    background: var(--bs-primary);
+    color: var(--bs-white);
+}
+
+.documentation-dialog iframe {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    border: 0;
+    background: #fff;
+}
+
+@media (max-width: 640px) {
+    .documentation-backdrop { padding: 0; }
+    .documentation-dialog {
+        width: 100vw;
+        height: 100dvh;
+        border: 0;
+        border-radius: 0;
+    }
+    .documentation-dialog > header { align-items: flex-start; }
+    .documentation-dialog h2 { white-space: normal; }
 }

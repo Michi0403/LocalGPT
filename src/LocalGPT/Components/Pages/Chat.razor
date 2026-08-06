@@ -63,17 +63,21 @@
             <div class="chat-configuration-content">
         <nav class="chat-session-toolbar chat-navigation-actions" data-testid="chat-session-actions" aria-label="Chat actions">
             <strong>Chat actions</strong>
-            <a class="btn btn-outline-secondary" href="/install" data-enhance-nav="false"><span class="oi oi-cog" aria-hidden="true"></span> Provider setup</a>
-            <DxButton CssClass="localgpt-command-refresh-models" Text="Refresh provider models"
-                      RenderStyle="ButtonRenderStyle.Secondary"
-                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                      IconCssClass="oi oi-reload"
-                      Enabled="@(!isModelRefreshBusy)"
-                      Click="RefreshOllamaModelsAsync" />
-            <a class="btn btn-outline-secondary" href="/onewire-security" data-enhance-nav="false"><span class="oi oi-lock-locked" aria-hidden="true"></span> 1-Wire Security</a>
-            <a class="btn btn-outline-secondary" href="/council-teams" data-enhance-nav="false"><span class="oi oi-people" aria-hidden="true"></span> Council Teams</a>
-            <a class="btn btn-outline-secondary" href="/test-lab#remote-knowledge" data-enhance-nav="false"><span class="oi oi-cloud-download" aria-hidden="true"></span> Import knowledge</a>
-            <a class="btn btn-outline-secondary" href="/database" data-enhance-nav="false"><span class="oi oi-spreadsheet" aria-hidden="true"></span> Clean up data</a>
+            <details class="chat-actions-menu">
+                <summary class="btn btn-outline-secondary"><span class="oi oi-menu" aria-hidden="true"></span> Open actions</summary>
+                <div class="chat-actions-menu-items" role="menu">
+                    <a role="menuitem" href="/install" data-enhance-nav="false"><span class="oi oi-cog" aria-hidden="true"></span> Provider setup</a>
+                    <button role="menuitem" type="button" disabled="@isModelRefreshBusy" @onclick="RefreshOllamaModelsAsync"><span class="oi oi-reload" aria-hidden="true"></span> Refresh provider models</button>
+                    <a role="menuitem" href="/onewire-security" data-enhance-nav="false"><span class="oi oi-lock-locked" aria-hidden="true"></span> 1-Wire Security</a>
+                    <a role="menuitem" href="/council-teams" data-enhance-nav="false"><span class="oi oi-people" aria-hidden="true"></span> Council Teams</a>
+                    <a role="menuitem" href="/test-lab#remote-knowledge" data-enhance-nav="false"><span class="oi oi-cloud-download" aria-hidden="true"></span> Import knowledge</a>
+                    <a role="menuitem" href="/database" data-enhance-nav="false"><span class="oi oi-spreadsheet" aria-hidden="true"></span> Clean up data</a>
+                </div>
+            </details>
+            @if (isModelRefreshBusy)
+            {
+                <span class="memory-status">Refreshing provider models…</span>
+            }
         </nav>
 
         <div class="chat-provider-row" data-testid="chat-top-controls">
@@ -120,7 +124,8 @@
                                             UseActionText="Use in Chat"
                                             Activated="SelectProviderModelFromPanelAsync"
                                             CouncilModels="SelectedCouncilProviderModels"
-                                            BenchmarkApplied="OnChatBenchmarkAppliedAsync" />
+                                            BenchmarkApplied="OnChatBenchmarkAppliedAsync"
+                                            BenchmarkStarted="OnBenchmarkStartedAsync" />
                     }
                 </div>
             </details>
@@ -131,16 +136,9 @@
                 <small>@CouncilEditorModelNames.Count model@(CouncilEditorModelNames.Count == 1 ? string.Empty : "s") · @CouncilEditorResourceLoadPercent% power · @CouncilEditorMaxContextTokens.ToString("N0") context</small>
             </summary>
         <div class="model-toolbar" aria-label="DXAiChat model and council controls" data-testid="chat-model-toolbar">
-            <span title="Finds configured and reachable provider models and adds them as provider-qualified DXAiChat choices without changing setup configuration.">
-                <DxButton CssClass="localgpt-rounded-action" Text="Refresh Provider Models"
-                          RenderStyle="ButtonRenderStyle.Secondary"
-                          RenderStyleMode="ButtonRenderStyleMode.Contained"
-                          Enabled="@(!isModelRefreshBusy)"
-                          Click="RefreshOllamaModelsAsync" />
-            </span>
             <label class="ollama-mode-setting" title="Controls Ollama's num_gpu option for DXAiChat and AI Council. Auto GPU lets Ollama use your GPU; Safe CPU forces num_gpu=0; Limited GPU uses a partial GPU-layer cap.">
                 <span>Ollama acceleration</span>
-                <select value="@OllamaAccelerationMode" @onchange="OnOllamaAccelerationModeChanged">
+                <select class="form-select" value="@OllamaAccelerationMode" @onchange="OnOllamaAccelerationModeChanged">
                     <option value="@Catalog.OllamaModeAutoGpu">Auto GPU</option>
                     <option value="@Catalog.OllamaModeSafeCpu">Safe CPU</option>
                     <option value="@Catalog.OllamaModeLimitedGpu">Limited GPU</option>
@@ -148,14 +146,11 @@
             </label>
             @if (OllamaAccelerationMode == Catalog.OllamaModeLimitedGpu)
             {
-                <label class="council-token-setting" title="Ollama num_gpu layer cap used by Limited GPU mode. Lower this if the driver becomes unstable; raise it if generation is too slow and VRAM is available.">
-                    <span>GPU layers</span>
-                    <input type="number"
-                           min="1"
-                           max="99"
-                           step="1"
-                           @bind="LimitedGpuLayers" />
-                </label>
+                <BoundedNumberEditor Label="GPU layers"
+                                     HelpText="Ollama num_gpu layer cap used by Limited GPU mode."
+                                     Min="1" Max="99"
+                                     Value="@LimitedGpuLayers"
+                                     ValueChanged="OnLimitedGpuLayersChanged" />
             }
             <label class="inline-dx-check" title="When the AI Council session is selected, it can generate downloadable code, DLL, solution, or datapack artifacts for implementation requests.">
                 <DxCheckBox @bind-Checked="GenerateCouncilArtifacts" />
@@ -165,35 +160,24 @@
                 <DxCheckBox @bind-Checked="IncludeCouncilMemory" />
                 <span>Council uses memory</span>
             </label>
-            <label class="council-token-setting" title="Maximum answer tokens for the DXAiChat AI Council session. Use 262144 for full source or solution generation when the model/runtime supports it. Values below 64000 are quick-chat only and are not a valid code-generation acceptance test.">
-                <span>Council answer tokens</span>
-                <input type="number"
-                       min="256"
-                       max="262144"
-                       step="1024"
-                       value="@CouncilEditorMaxOutputTokens"
-                       @onchange="OnCouncilMaxOutputTokensChanged" />
-            </label>
-            <label class="council-token-setting" title="Maximum context window requested for council and detected model sessions. Use 262144 for full source or solution generation when supported. Values below 64000 are quick-chat only and are not a valid code-generation acceptance test.">
-                <span>Council context tokens</span>
-                <input type="number"
-                       min="2048"
-                       max="262144"
-                       step="2048"
-                       value="@CouncilEditorMaxContextTokens"
-                       @onchange="OnCouncilMaxContextTokensChanged" />
-            </label>
-            <label class="council-token-setting" title="Number of peer critique/refinement rounds after the initial proposal. One is the balanced default; three is the most thorough and slowest mode.">
-                <span>Peer review rounds</span>
-                <input type="number"
-                       min="0"
-                       max="3"
-                       step="1"
-                       @bind="CouncilCritiqueRounds" />
-            </label>
+            <BoundedNumberEditor Label="Council answer tokens"
+                                 HelpText="Maximum answer tokens for the DXAiChat AI Council session."
+                                 Min="256" Max="262144" Step="1024"
+                                 Value="@CouncilEditorMaxOutputTokens"
+                                 ValueChanged="OnCouncilMaxOutputTokensChangedAsync" />
+            <BoundedNumberEditor Label="Council context tokens"
+                                 HelpText="Maximum context window requested for Council and detected model sessions."
+                                 Min="2048" Max="262144" Step="2048"
+                                 Value="@CouncilEditorMaxContextTokens"
+                                 ValueChanged="OnCouncilMaxContextTokensChangedAsync" />
+            <BoundedNumberEditor Label="Peer review rounds"
+                                 HelpText="Number of peer critique/refinement rounds after the initial proposal."
+                                 Min="0" Max="3"
+                                 Value="@CouncilCritiqueRounds"
+                                 ValueChanged="OnCouncilCritiqueRoundsChanged" />
             <label class="council-load-setting" title="Sets the session position between every selected model's own minimum and maximum CPU/GPU road values. 30% means min + 30% of that model's configured range.">
                 <span>Hardware load</span>
-                <input type="range" min="0" max="100" step="5" value="@CouncilEditorResourceLoadPercent" @oninput="OnCouncilResourceLoadChanged" />
+                <input class="form-range" type="range" min="0" max="100" step="5" value="@CouncilEditorResourceLoadPercent" @oninput="OnCouncilResourceLoadChanged" />
                 <output>@CouncilEditorResourceLoadPercent%</output>
             </label>
             @if (!string.IsNullOrWhiteSpace(modelStatus))
@@ -215,11 +199,13 @@
                                             Selected="@SelectedCouncilModelNames.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)"
                                             SelectedChanged="@(selected => ToggleCouncilModel(candidate.SelectionKey, selected))"
                                             CouncilModels="SelectedCouncilProviderModels"
-                                            BenchmarkApplied="OnChatBenchmarkAppliedAsync" />
+                                            BenchmarkApplied="OnChatBenchmarkAppliedAsync"
+                                            BenchmarkStarted="OnBenchmarkStartedAsync" />
                     }
                 </div>
                 <ProviderModelBenchmarkCouncilPanel Models="SelectedCouncilProviderModels"
-                                                    BenchmarkApplied="OnChatBenchmarkCouncilAppliedAsync" />
+                                                    BenchmarkApplied="OnChatBenchmarkCouncilAppliedAsync"
+                                                    BenchmarkStarted="OnBenchmarkStartedAsync" />
             </div>
         }
         <details class="council-road-details" data-testid="council-hardware-road-editor">
@@ -239,7 +225,7 @@
         <div class="model-toolbar council-preset-toolbar" aria-label="AI Council model presets" data-testid="council-model-presets">
             <label title="Load a database-backed preset for council model selection and runtime limits.">
                 <span>Model preset</span>
-                <select value="@SelectedModelPresetValue" @onchange="OnModelPresetChangedAsync">
+                <select class="form-select" value="@SelectedModelPresetValue" @onchange="OnModelPresetChangedAsync">
                     <option value="">Custom selection</option>
                     @foreach (var preset in ModelPresets)
                     {
@@ -249,27 +235,28 @@
             </label>
             <label title="Saving updates an existing preset with the same name instead of creating duplicates.">
                 <span>Preset name</span>
-                <input @bind="ModelPresetName" maxlength="160" placeholder="My council team" />
+                <input class="form-control" @bind="ModelPresetName" maxlength="160" placeholder="My council team" />
             </label>
             <label class="inline-dx-check" title="Creates a database-first project/revision for each explicit AI Council run when no project is selected.">
                 <DxCheckBox @bind-Checked="CreateProjectPerCouncilRun" />
                 <span>New project per council run</span>
             </label>
-            <DxButton CssClass="localgpt-rounded-action" Text="Save Preset"
-                      RenderStyle="ButtonRenderStyle.Secondary"
-                      RenderStyleMode="ButtonRenderStyleMode.Contained"
-                      Enabled="@(!isModelPresetBusy && SelectedCouncilModelNames.Count > 0 && !string.IsNullOrWhiteSpace(ModelPresetName))"
-                      Click="SaveModelPresetAsync" />
-            <DxButton CssClass="localgpt-rounded-action" Text="Archive Preset"
-                      RenderStyle="ButtonRenderStyle.Danger"
-                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                      Enabled="@(!isModelPresetBusy && SelectedModelPreset is not null)"
-                      Click="ArchiveModelPresetAsync" />
+            <details class="component-actions-menu">
+                <summary class="btn btn-outline-secondary">Preset actions</summary>
+                <div class="component-actions-menu-items" role="menu">
+                    <button role="menuitem" type="button"
+                            disabled="@(isModelPresetBusy || SelectedCouncilModelNames.Count == 0 || string.IsNullOrWhiteSpace(ModelPresetName))"
+                            @onclick="SaveModelPresetAsync">Save preset</button>
+                    <button role="menuitem" type="button"
+                            disabled="@(isModelPresetBusy || SelectedModelPreset is null)"
+                            @onclick="ArchiveModelPresetAsync">Archive preset</button>
+                </div>
+            </details>
         </div>
         <div class="memory-toolbar council-team-toolbar" aria-label="AI Council team and heartbeat configuration" data-testid="council-team-picker">
             <label title="Selects the database-backed roles, prompts and heartbeat workflow for the next AI Council run.">
                 <span>Council team</span>
-                <select value="@SelectedCouncilTeamKey" @onchange="OnCouncilTeamChanged">
+                <select class="form-select" value="@SelectedCouncilTeamKey" @onchange="OnCouncilTeamChanged">
                     @foreach (var team in CouncilTeams)
                     {
                         <option value="@team.Key">@team.DisplayName</option>
@@ -304,20 +291,13 @@
                 <small>@(SelectedChatProjectDetails?.Project.Name ?? "No project selected")</small>
             </summary>
         <div class="memory-toolbar" aria-label="Chat memory controls">
-            <span title="Writes the current DXAiChat messages into the local SQLite memory database.">
-                <DxButton CssClass="localgpt-rounded-action" Text="Save Memory"
-                          RenderStyle="ButtonRenderStyle.Secondary"
-                          RenderStyleMode="ButtonRenderStyleMode.Contained"
-                          Enabled="@(!isMemoryBusy)"
-                          Click="SaveCurrentConversationAsync" />
-            </span>
-            <span title="Loads the most recently saved conversation and its former model thoughts.">
-                <DxButton CssClass="localgpt-rounded-action" Text="Recall Latest"
-                          RenderStyle="ButtonRenderStyle.Secondary"
-                          RenderStyleMode="ButtonRenderStyleMode.Outline"
-                          Enabled="@(!isMemoryBusy && SavedConversations.Count > 0)"
-                          Click="LoadLatestConversationAsync" />
-            </span>
+            <details class="component-actions-menu">
+                <summary class="btn btn-outline-secondary">Memory actions</summary>
+                <div class="component-actions-menu-items" role="menu">
+                    <button role="menuitem" type="button" disabled="@isMemoryBusy" @onclick="SaveCurrentConversationAsync">Save memory</button>
+                    <button role="menuitem" type="button" disabled="@(isMemoryBusy || SavedConversations.Count == 0)" @onclick="LoadLatestConversationAsync">Recall latest</button>
+                </div>
+            </details>
             <span title="Pick an older saved chat from the SQLite memory database.">
                 <DxComboBox Data="@SavedConversations"
                             Value="@SelectedConversation"
@@ -450,6 +430,17 @@
                                  CloseRequested="CloseGameConsole" />
             </section>
         }
+        @if (RunningLiveCouncilSessions.Count > 0 && ActiveLiveCouncilSession is null)
+        {
+            var newestLiveSession = RunningLiveCouncilSessions[0];
+            <div class="chat-live-session-banner" role="status" aria-live="polite">
+                <span><strong>Live Council @ShortCouncilRunId(newestLiveSession.RunId)</strong> is running and can be joined without stopping it.</span>
+                <DxButton CssClass="localgpt-rounded-action" Text="Join live transcript"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Click="@(() => JoinCouncilSessionAsync(newestLiveSession.RunId))" />
+            </div>
+        }
         <div id="localgpt-chat-host" data-testid="dxaichat-host">
             <DxAIChat Initialized="ChatInitialized"
                       MaxTokens="int.MaxValue"
@@ -503,9 +494,9 @@
             </summary>
             <div class="chat-session-tools-content">
         <div class="memory-toolbar human-live-contribution" aria-label="Join and add information to a running AI Council" data-testid="live-council-participation">
-            <label title="Join any council heartbeat that is still running in this LocalGPT process.">
+            <label class="live-session-selector" title="Join any council heartbeat that is still running in this LocalGPT process.">
                 <span>Running Council session</span>
-                <select value="@SelectedCouncilRunValue"
+                <select class="form-select" value="@SelectedCouncilRunValue"
                         @onchange="OnActiveCouncilRunChanged"
                         disabled="@(RunningLiveCouncilSessions.Count == 0)">
                     @if (RunningLiveCouncilSessions.Count == 0)
@@ -523,59 +514,63 @@
                     }
                 </select>
             </label>
-            <DxButton CssClass="localgpt-rounded-action" Text="Rejoin selected Council"
-                      RenderStyle="ButtonRenderStyle.Primary"
-                      RenderStyleMode="ButtonRenderStyleMode.Contained"
-                      Enabled="@CanRejoinSelectedCouncilRun"
-                      Click="RejoinSelectedCouncilSessionAsync" />
-            <DxButton CssClass="localgpt-rounded-action" Text="Stop active Council"
-                      RenderStyle="ButtonRenderStyle.Danger"
-                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                      Enabled="@IsLiveCouncilInteractionAvailable"
-                      Click="StopSelectedCouncilSessionAsync" />
-            <DxButton CssClass="localgpt-rounded-action" Text="Refresh running sessions"
-                      RenderStyle="ButtonRenderStyle.Secondary"
-                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                      Click="RefreshHumanCollaborationAsync" />
-            <DxButton CssClass="localgpt-rounded-action" Text="Skip current round"
-                      RenderStyle="ButtonRenderStyle.Danger"
-                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                      Enabled="@(ActiveCouncilRun is not null)"
-                      Click="SkipCurrentCouncilRoundAsync" />
-            @if (!collaborationSnapshot.Profile.IsEnabled)
+            <details class="component-actions-menu live-session-actions-menu">
+                <summary class="btn btn-outline-secondary">Session actions</summary>
+                <div class="component-actions-menu-items" role="menu">
+                    <button role="menuitem" type="button" @onclick="RefreshHumanCollaborationAsync">Refresh running sessions</button>
+                    @if (ActiveCouncilRun is not null)
+                    {
+                        <button role="menuitem" type="button" @onclick="SkipCurrentCouncilRoundAsync">Skip current round</button>
+                    }
+                    @if (!collaborationSnapshot.Profile.IsEnabled)
+                    {
+                        <button role="menuitem" type="button" @onclick="EnableHumanParticipationAsync">Enable human participation</button>
+                    }
+                </div>
+            </details>
+            @if (CanJoinSelectedCouncilRun)
             {
-                <DxButton CssClass="localgpt-rounded-action" Text="Enable human participation"
-                          RenderStyle="ButtonRenderStyle.Success"
+                <DxButton CssClass="localgpt-rounded-action" Text="Join selected transcript"
+                          RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
-                          Click="EnableHumanParticipationAsync" />
+                          Click="RejoinSelectedCouncilSessionAsync" />
             }
-            else
+            @if (IsLiveCouncilInteractionAvailable)
+            {
+                <DxButton CssClass="localgpt-rounded-action" Text="Stop active Council"
+                          RenderStyle="ButtonRenderStyle.Danger"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Click="StopSelectedCouncilSessionAsync" />
+            }
+            @if (collaborationSnapshot.Profile.IsEnabled)
             {
                 <span class="badge text-bg-success">Human Council member enabled</span>
             }
-            <label title="This does not cancel the current model. It enters at the next council heartbeat as a human peer contribution.">
+            <label class="live-contribution-editor" title="This does not cancel the current model. It enters at the next council heartbeat as a human peer contribution.">
                 <span>Ask AI Assistant / Council correction</span>
-                <input type="text"
+                <input class="form-control" type="text"
                        @bind="RunningCouncilContribution"
                        disabled="@(!IsLiveCouncilInteractionAvailable)"
                        placeholder="Add a correction or new information. Without a member/topic target it is shared with all Council members at the next heartbeat." />
             </label>
-            <DxButton CssClass="localgpt-rounded-action" Text="Share without stopping generation"
-                      RenderStyle="ButtonRenderStyle.Primary"
-                      RenderStyleMode="ButtonRenderStyleMode.Contained"
-                      Enabled="@(collaborationSnapshot.Profile.IsEnabled && IsLiveCouncilInteractionAvailable && !string.IsNullOrWhiteSpace(RunningCouncilContribution))"
-                      Click="QueueRunningCouncilContributionAsync" />
+            @if (collaborationSnapshot.Profile.IsEnabled && IsLiveCouncilInteractionAvailable && !string.IsNullOrWhiteSpace(RunningCouncilContribution))
+            {
+                <DxButton CssClass="localgpt-rounded-action" Text="Share without stopping generation"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Click="QueueRunningCouncilContributionAsync" />
+            }
             @if (ActiveCouncilRun is not null)
             {
                 <span class="memory-status">Joined run @ActiveCouncilRunShortId · round @ActiveCouncilRun.CurrentRound · @ActiveCouncilRun.Phase</span>
             }
             else if (ActiveLiveCouncilSession is not null)
             {
-                <span class="memory-status">Rejoined live run @ActiveCouncilRunShortId. Stop and direct-message controls remain connected to the running Council.</span>
+                <span class="memory-status">Joined live run @ActiveCouncilRunShortId. Stop and direct-message controls remain connected to the running Council.</span>
             }
             else
             {
-                <span class="memory-status">Start a Council round or refresh to join one without interrupting it.</span>
+                <span class="memory-status">Select a running Council and join its transcript without interrupting it.</span>
             }
         </div>
         @if (FeedbackTargets.Count > 0)
@@ -755,6 +750,7 @@
     Guid? RejoinCouncilRunId { get; set; }
     Guid? AttachedLiveCouncilRunId { get; set; }
     int liveCouncilRefreshScheduled;
+    int liveCouncilListRefreshScheduled;
     bool ownsLiveCouncilStream;
     DateTime lastAttachedLiveCouncilUpdatedAtUtc;
     const string LiveCouncilMessageMarkerPrefix = "<!-- localgpt-live-council:";
@@ -777,6 +773,11 @@
     bool IsLiveCouncilInteractionAvailable => ActiveLiveCouncilSession?.IsRunning == true;
     bool CanRejoinSelectedCouncilRun =>
         SelectedCouncilRunId is Guid runId && CouncilLiveSessions.GetSummary(runId)?.IsRunning == true;
+    bool IsSelectedCouncilSessionAttached =>
+        SelectedCouncilRunId is Guid runId
+        && (AttachedLiveCouncilRunId == runId || RejoinCouncilRunId == runId)
+        && CouncilLiveSessions.GetSummary(runId)?.IsRunning == true;
+    bool CanJoinSelectedCouncilRun => CanRejoinSelectedCouncilRun && !IsSelectedCouncilSessionAttached;
     Guid? ActiveCouncilInteractionRunId => ActiveCouncilRun?.RunId ?? ActiveLiveCouncilSession?.RunId;
     string ActiveCouncilRunShortId => ActiveCouncilInteractionRunId is Guid runId ? ShortCouncilRunId(runId) : string.Empty;
     string RunningCouncilContribution { get; set; } = string.Empty;
@@ -2402,11 +2403,8 @@
             ActiveCouncilFallbackOllamaNumGpu,
             ActiveCouncilAllowParallelHardwareRoads);
 
-    private Task OnCouncilMaxOutputTokensChanged(ChangeEventArgs args)
+    private Task OnCouncilMaxOutputTokensChangedAsync(int value)
     {
-        if (!int.TryParse(args.Value?.ToString(), out var value))
-            return Task.CompletedTask;
-
         value = Math.Clamp(value, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {
@@ -2426,11 +2424,8 @@
         return Task.CompletedTask;
     }
 
-    private Task OnCouncilMaxContextTokensChanged(ChangeEventArgs args)
+    private Task OnCouncilMaxContextTokensChangedAsync(int value)
     {
-        if (!int.TryParse(args.Value?.ToString(), out var value))
-            return Task.CompletedTask;
-
         value = Math.Clamp(value, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
         {
@@ -2448,6 +2443,22 @@
         }
 
         return Task.CompletedTask;
+    }
+
+    private void OnLimitedGpuLayersChanged(int value)
+    {
+        LimitedGpuLayers = Math.Clamp(value, 1, 99);
+        SelectedModelPreset = null;
+        SavePreparationConfiguration();
+        modelStatus = $"Limited GPU mode will use {LimitedGpuLayers} Ollama GPU layer(s).";
+    }
+
+    private void OnCouncilCritiqueRoundsChanged(int value)
+    {
+        CouncilCritiqueRounds = Math.Clamp(value, 0, 3);
+        SelectedModelPreset = null;
+        SavePreparationConfiguration();
+        modelStatus = $"Future Council runs will use {CouncilCritiqueRounds} peer review round(s).";
     }
 
     private Task OnHardwareRoadsChanged()
@@ -3286,9 +3297,12 @@
         try
         {
             collaborationSnapshot = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 100).ConfigureAwait(true) /* renderer-affine loading continuation */;
-            var activeLiveRunIds = CouncilLiveSessions.GetActiveSummaries()
+            var activeLiveSessions = CouncilLiveSessions.GetActiveSummaries();
+            var activeLiveRunIds = activeLiveSessions
                 .Select(session => session.RunId)
                 .ToHashSet();
+            if (SelectedCouncilRunId is null && activeLiveSessions.FirstOrDefault() is { } newestLiveSession)
+                SelectedCouncilRunId = newestLiveSession.RunId;
             if (SelectedCouncilRunId is Guid selectedRunId
                 && collaborationSnapshot.ActiveRuns.All(run => run.RunId != selectedRunId)
                 && !activeLiveRunIds.Contains(selectedRunId))
@@ -3311,6 +3325,28 @@
         LoadCouncilRunConfiguration(SelectedCouncilRunId);
     }
 
+    private async Task OnBenchmarkStartedAsync(Guid runId)
+    {
+        SelectedCouncilRunId = runId;
+        RejoinCouncilRunId = runId;
+        AttachedLiveCouncilRunId = null;
+        lastAttachedLiveCouncilUpdatedAtUtc = default;
+        await RefreshHumanCollaborationAsync().ConfigureAwait(false);
+        await AttachToLiveCouncilSessionAsync(runId).ConfigureAwait(false);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").AsTask()).ConfigureAwait(false);
+        var isRunning = CouncilLiveSessions.GetSummary(runId)?.IsRunning == true;
+        await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", isRunning).AsTask()).ConfigureAwait(false);
+        await InvokeAsync(() => Notifier.ShowSuccess(toastName, $"Benchmark Council {ShortCouncilRunId(runId)} is now visible in Chat.", "Benchmark joined")).ConfigureAwait(false);
+    }
+
+    private async Task JoinCouncilSessionAsync(Guid runId)
+    {
+        SelectedCouncilRunId = runId;
+        await RejoinSelectedCouncilSessionAsync().ConfigureAwait(false);
+        await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").AsTask()).ConfigureAwait(false);
+    }
+
     private async Task RejoinSelectedCouncilSessionAsync()
     {
         var runId = SelectedCouncilRunId;
@@ -3324,8 +3360,8 @@
         AttachedLiveCouncilRunId = null;
         lastAttachedLiveCouncilUpdatedAtUtc = default;
         await AttachToLiveCouncilSessionAsync(selectedRunId).ConfigureAwait(false);
-        await JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", true).ConfigureAwait(false);
-        Notifier.ShowSuccess(toastName, $"Rejoined Council {ShortCouncilRunId(selectedRunId)} with live stop, message and transcript controls.", "Council rejoined");
+        await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", true).AsTask()).ConfigureAwait(false);
+        await InvokeAsync(() => Notifier.ShowSuccess(toastName, $"Rejoined Council {ShortCouncilRunId(selectedRunId)} with live stop, message and transcript controls.", "Council rejoined")).ConfigureAwait(false);
     }
 
     private async Task EnableHumanParticipationAsync()
@@ -3477,10 +3513,16 @@
 
     private void OnCouncilLiveSessionChanged(Guid runId)
     {
-        if (isDisposed || (AttachedLiveCouncilRunId != runId && RejoinCouncilRunId != runId))
+        if (isDisposed)
             return;
-        if (ownsLiveCouncilStream && AttachedLiveCouncilRunId == runId)
+
+        var attachedToChangedRun = AttachedLiveCouncilRunId == runId || RejoinCouncilRunId == runId;
+        if (!attachedToChangedRun || (ownsLiveCouncilStream && AttachedLiveCouncilRunId == runId))
+        {
+            ScheduleLiveCouncilListRefresh();
             return;
+        }
+
         if (Interlocked.Exchange(ref liveCouncilRefreshScheduled, 1) != 0)
             return;
 
@@ -3501,6 +3543,7 @@
                     finally
                     {
                         Interlocked.Exchange(ref liveCouncilRefreshScheduled, 0);
+                        ScheduleLiveCouncilListRefresh();
                         if (!isDisposed
                             && CouncilLiveSessions.GetSummary(runId) is { } latest
                             && latest.UpdatedAtUtc > lastAttachedLiveCouncilUpdatedAtUtc)
@@ -3514,6 +3557,44 @@
         catch (ObjectDisposedException) when (isDisposed)
         {
             Interlocked.Exchange(ref liveCouncilRefreshScheduled, 0);
+        }
+    }
+
+    private void ScheduleLiveCouncilListRefresh()
+    {
+        if (isDisposed || Interlocked.Exchange(ref liveCouncilListRefreshScheduled, 1) != 0)
+            return;
+
+        try
+        {
+            TaskRunner.Run(
+                nameof(Chat),
+                "RefreshLiveCouncilSessionList",
+                async cancellationToken =>
+                {
+                    try
+                    {
+                        await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+                        if (!cancellationToken.IsCancellationRequested && !isDisposed)
+                        {
+                            await InvokeAsync(() =>
+                            {
+                                if (SelectedCouncilRunId is null && CouncilLiveSessions.GetActiveSummaries().FirstOrDefault() is { } newestLiveSession)
+                                    SelectedCouncilRunId = newestLiveSession.RunId;
+                                StateHasChanged();
+                            }).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref liveCouncilListRefreshScheduled, 0);
+                    }
+                },
+                componentLifetimeCts.Token);
+        }
+        catch (ObjectDisposedException) when (isDisposed)
+        {
+            Interlocked.Exchange(ref liveCouncilListRefreshScheduled, 0);
         }
     }
 

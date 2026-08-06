@@ -279,9 +279,8 @@ public sealed class DocumentationCatalogService(
             if (!string.Equals(previous, documentationRootCache, StringComparison.OrdinalIgnoreCase))
             {
                 logger.LogInformation(
-                    "Resolved LocalGPT documentation root to {DocumentationRoot}; recursive application search inspected generated versions below {ApplicationRoot}.",
-                    documentationRootCache ?? "not found",
-                    applicationRoot);
+                    "Resolved LocalGPT documentation root to canonical shipped path {DocumentationRoot}.",
+                    documentationRootCache ?? "not found");
             }
             return documentationRootCache;
         }
@@ -293,50 +292,6 @@ public sealed class DocumentationCatalogService(
         AddDocumentationRoot(results, Path.Combine(environment.WebRootPath ?? string.Empty, "help-docs"));
         AddDocumentationRoot(results, Path.Combine(applicationRoot, "wwwroot", "help-docs"));
         AddDocumentationRoot(results, Path.Combine(environment.ContentRootPath, "wwwroot", "help-docs"));
-
-        foreach (var searchRoot in new[] { applicationRoot, environment.ContentRootPath }.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            if (!Directory.Exists(searchRoot)) continue;
-            var pending = new Queue<(string Path, int Depth)>();
-            pending.Enqueue((searchRoot, 0));
-            var inspected = 0;
-            while (pending.Count > 0 && inspected < 4096)
-            {
-                var current = pending.Dequeue();
-                inspected++;
-                if (current.Depth >= 8) continue;
-
-                string[] children;
-                try { children = Directory.GetDirectories(current.Path); }
-                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogDebug(exception, "Skipping an inaccessible documentation search directory.");
-                    continue;
-                }
-
-                foreach (var child in children)
-                {
-                    try
-                    {
-                        var attributes = File.GetAttributes(child);
-                        if ((attributes & FileAttributes.ReparsePoint) != 0) continue;
-                    }
-                    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-                    {
-                        logger.LogDebug(exception, "Skipping an inaccessible documentation search candidate.");
-                        continue;
-                    }
-
-                    if (string.Equals(Path.GetFileName(child), "help-docs", StringComparison.OrdinalIgnoreCase))
-                    {
-                        AddDocumentationRoot(results, child);
-                        continue;
-                    }
-                    pending.Enqueue((child, current.Depth + 1));
-                }
-            }
-        }
-
         return results;
     }
 
@@ -438,12 +393,6 @@ public sealed class DocumentationCatalogService(
                 AddPdfFiles(files, documentationRoot);
             foreach (var root in EnumerateDocumentationRoots())
                 AddPdfFiles(files, root);
-
-            // Installed desktop layouts may place the runtime in a version/RID directory while the
-            // generated help payload is below a sibling directory. Search both trusted application
-            // roots as a final bounded fallback instead of tying PDF availability to one HTML root.
-            AddPdfFiles(files, applicationRoot);
-            AddPdfFiles(files, environment.ContentRootPath);
 
             foreach (var requestedVersion in new[] { version.Version, manifestVersion }
                 .Where(value => !string.IsNullOrWhiteSpace(value))

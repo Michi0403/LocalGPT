@@ -370,7 +370,7 @@ public sealed class DatabaseInitializationService(
             Name = "LocalGPT Core",
             Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
             RootPath = repositoryRoot,
-            CurrentVersion = "2.3.2",
+            CurrentVersion = "2.3.4",
             Status = "Active",
             RecommendGit = true,
             CreatedAtUtc = now,
@@ -476,6 +476,12 @@ public sealed class DatabaseInitializationService(
         EnsureVersion(core, "2.3.2", repositoryRoot, "Chat ASCII-console close-action release with fullscreen-safe removal in every display scale mode.");
         EnsureRevision(core, "main", "seed-v2.3.2", repositoryRoot,
             "Adds an always-visible in-console close action, exits browser fullscreen before unmounting the interactive panel, and restores the Chat conversation without requiring a page refresh or session rejoin.");
+        EnsureVersion(core, "2.3.3", repositoryRoot, "Documentation viewer and normalized source-layout maintenance release.");
+        EnsureRevision(core, "main", "seed-v2.3.3", repositoryRoot,
+            "Opens generated documentation in a contained in-app viewer, corrects the canonical src/LocalGPT documentation output path, and aligns active maintenance scripts with the normalized repository layout.");
+        EnsureVersion(core, "2.3.4", repositoryRoot, "Responsive Chat and joinable live benchmark-session release.");
+        EnsureRevision(core, "main", "seed-v2.3.4", repositoryRoot,
+            "Keeps benchmark work inside the maintained live Council-session path, restores reliable join and transcript visibility in Chat, and makes configuration controls responsive at high display scaling without changing provider-qualified execution boundaries.");
 
 
         EnsureRequirement(core, "Preflight database and capability audit",

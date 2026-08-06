@@ -35,7 +35,7 @@ namespace LocalGPT.Services
 
         private async Task<bool> AppendProjectPackageReferencesAsync(StringBuilder builder, string root, CancellationToken cancellationToken, ILogger logger)
         {
-            var projectPath = Path.Combine(root, "LocalGPTWebviewWrapper", "LocalGPT", "LocalGPT.csproj");
+            var projectPath = Path.Combine(root, "src", "LocalGPT", "LocalGPT.csproj");
             if (!File.Exists(projectPath))
                 return false;
 

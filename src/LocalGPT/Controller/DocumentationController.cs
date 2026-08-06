@@ -67,7 +67,7 @@ public sealed class DocumentationController(
     }
 
 
-    /// <summary>Serves generated DocFX HTML and supporting assets from the recursively resolved installed documentation root.</summary>
+    /// <summary>Serves generated DocFX HTML and supporting assets from the canonical installed documentation root.</summary>
     [HttpGet("/help-docs")]
     [HttpGet("/help-docs/{**relativePath}")]
     public IActionResult Html([FromRoute] string? relativePath = null)
@@ -76,7 +76,7 @@ public sealed class DocumentationController(
         {
             var path = documentation.GetHtmlFilePath(relativePath);
             if (path is null)
-                return NotFound(new { error = "Generated documentation was not found below the application directory." });
+                return NotFound(new { error = "Generated documentation was not found in the canonical installed help-docs directory." });
 
             var contentTypes = new FileExtensionContentTypeProvider();
             if (!contentTypes.TryGetContentType(path, out var contentType))

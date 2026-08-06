@@ -10,6 +10,21 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+function Set-Utf8TextFileIdempotent {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Content
+    )
+
+    $normalized = $Content.TrimEnd("`r", "`n") + [Environment]::NewLine
+    if (Test-Path -LiteralPath $Path) {
+        $existing = [IO.File]::ReadAllText($Path)
+        if ($existing -ceq $normalized) { return }
+    }
+
+    [IO.File]::WriteAllText($Path, $normalized, [Text.UTF8Encoding]::new($false))
+}
+
 $RepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot)
 $AssemblyPath = [IO.Path]::GetFullPath($AssemblyPath)
 $XmlDocumentationPath = [IO.Path]::GetFullPath($XmlDocumentationPath)
@@ -23,7 +38,7 @@ $docsRoot = Join-Path $RepositoryRoot "docs"
 $inputRoot = Join-Path $docsRoot "input"
 $siteRoot = Join-Path $docsRoot "_site"
 $apiRoot = Join-Path $docsRoot "api"
-$sourceWebRoot = Join-Path $RepositoryRoot "LocalGPTWebviewWrapper\LocalGPT\wwwroot\help-docs"
+$sourceWebRoot = Join-Path $RepositoryRoot "src\LocalGPT\wwwroot\help-docs"
 $configPath = Join-Path $docsRoot "docfx.json"
 $tocPath = Join-Path $docsRoot "toc.yml"
 $guideTocPath = Join-Path $docsRoot "guide\toc.yml"
@@ -2000,27 +2015,27 @@ if (Test-Path -LiteralPath $indexPath) {
     $index = Get-Content -LiteralPath $indexPath -Raw -Encoding UTF8
     $index = [regex]::Replace($index, '\*\*Version [^*]+\*\*', "**Version $Version**")
     $index = [regex]::Replace($index, 'LocalGPT-[0-9]+\.[0-9]+\.[0-9]+\.pdf', $pdfName)
-    Set-Content -LiteralPath $indexPath -Value $index -Encoding utf8
+    Set-Utf8TextFileIdempotent -Path $indexPath -Content $index
 }
 
 if (Test-Path -LiteralPath $pdfTocPath) {
     $pdfToc = Get-Content -LiteralPath $pdfTocPath -Raw -Encoding UTF8
     $pdfToc = [regex]::Replace($pdfToc, '(?m)^pdfFileName:\s*LocalGPT-[^\r\n]+\.pdf\s*$', "pdfFileName: $pdfName")
-    Set-Content -LiteralPath $pdfTocPath -Value $pdfToc -Encoding utf8
+    Set-Utf8TextFileIdempotent -Path $pdfTocPath -Content $pdfToc
 }
 
 if (Test-Path -LiteralPath $pdfCoverPath) {
     $cover = Get-Content -LiteralPath $pdfCoverPath -Raw -Encoding UTF8
     $cover = [regex]::Replace($cover, 'LocalGPT [0-9]+\.[0-9]+\.[0-9]+ Documentation', "LocalGPT $Version Documentation")
     $cover = [regex]::Replace($cover, 'Version [0-9]+\.[0-9]+\.[0-9]+', "Version $Version")
-    Set-Content -LiteralPath $pdfCoverPath -Value $cover -Encoding utf8
+    Set-Utf8TextFileIdempotent -Path $pdfCoverPath -Content $cover
 }
 
 if (Test-Path -LiteralPath $configPath) {
     $configText = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8
     $configText = [regex]::Replace($configText, '"localgptVersion"\s*:\s*"[^"]+"', '"localgptVersion": "' + $Version + '"')
     $configText = [regex]::Replace($configText, '"_appFooter"\s*:\s*"LocalGPT [^"]+"', '"_appFooter": "LocalGPT ' + $Version + ' · generated documentation"')
-    Set-Content -LiteralPath $configPath -Value $configText -Encoding utf8
+    Set-Utf8TextFileIdempotent -Path $configPath -Content $configText
 
     $docfxConfig = $configText | ConvertFrom-Json
     if (-not ($docfxConfig.metadata -is [System.Array])) {

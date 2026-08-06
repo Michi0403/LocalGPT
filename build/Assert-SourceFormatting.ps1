@@ -35,12 +35,12 @@ try {
         ".cr/",
         ".idea/",
         "node_modules/",
-        "LocalGPTWebviewWrapper/LocalGPT/bin/",
-        "LocalGPTWebviewWrapper/LocalGPT/obj/",
-        "LocalGPTWebviewWrapper/LocalGPTWebviewWrapper/bin/",
-        "LocalGPTWebviewWrapper/LocalGPTWebviewWrapper/obj/",
-        "LocalGPTWebviewWrapper/LocalGPTWebviewWrapper (Package)/bin/",
-        "LocalGPTWebviewWrapper/LocalGPTWebviewWrapper (Package)/obj/"
+        "src/LocalGPT/bin/",
+        "src/LocalGPT/obj/",
+        "src/LocalGPTWebviewWrapper/bin/",
+        "src/LocalGPTWebviewWrapper/obj/",
+        "src/LocalGPTWebviewWrapper (Package)/bin/",
+        "src/LocalGPTWebviewWrapper (Package)/obj/"
     )
 
     $requiredFiles = @(
@@ -50,13 +50,13 @@ try {
         "llms.txt",
         ".github/workflows/source-hygiene.yml",
         "Directory.Build.props",
-        "LocalGPTWebviewWrapper/LocalGPT/Program.cs",
-        "LocalGPTWebviewWrapper/LocalGPT/Services/NativeCommandRunner.cs",
-        "LocalGPTWebviewWrapper/LocalGPT/Services/AiContextBootstrapService.cs",
-        "LocalGPTWebviewWrapper/LocalGPT/Services/Formatting/ChatContentRenderer.cs",
-        "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor",
-        "LocalGPTWebviewWrapper/LocalGPT/wwwroot/js/chat-details-state.js",
-        "LocalGPTWebviewWrapper/LocalGPT/LocalGPT.csproj",
+        "src/LocalGPT/Program.cs",
+        "src/LocalGPT/Services/NativeCommandRunner.cs",
+        "src/LocalGPT/Services/AiContextBootstrapService.cs",
+        "src/LocalGPT/Services/Formatting/ChatContentRenderer.cs",
+        "src/LocalGPT/Components/Pages/Chat.razor",
+        "src/LocalGPT/wwwroot/js/chat-details-state.js",
+        "src/LocalGPT/LocalGPT.csproj",
         "build/RepositoryValidation.Common.ps1",
         "build/Assert-CSharpSyntax.ps1",
         "build/Invoke-RepositoryValidation.ps1",
@@ -79,9 +79,9 @@ try {
     }
 
     $streamingStateContracts = @(
-        @{ Path = "LocalGPTWebviewWrapper/LocalGPT/Services/Formatting/ChatContentRenderer.cs"; Pattern = "data-localgpt-panel-key"; Description = "stable streamed panel keys" },
-        @{ Path = "LocalGPTWebviewWrapper/LocalGPT/Components/Pages/Chat.razor"; Pattern = "data-localgpt-details-host"; Description = "per-message streamed panel state host" },
-        @{ Path = "LocalGPTWebviewWrapper/LocalGPT/Components/App.razor"; Pattern = "js/chat-details-state.js"; Description = "streamed panel state browser helper registration" }
+        @{ Path = "src/LocalGPT/Services/Formatting/ChatContentRenderer.cs"; Pattern = "data-localgpt-panel-key"; Description = "stable streamed panel keys" },
+        @{ Path = "src/LocalGPT/Components/Pages/Chat.razor"; Pattern = "data-localgpt-details-host"; Description = "per-message streamed panel state host" },
+        @{ Path = "src/LocalGPT/Components/App.razor"; Pattern = "js/chat-details-state.js"; Description = "streamed panel state browser helper registration" }
     )
 
     foreach ($contract in $streamingStateContracts) {

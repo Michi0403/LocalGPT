@@ -15,23 +15,32 @@
     </header>
 
     <div class="benchmark-council-config">
-        <label>Profiles per model<input type="number" min="1" max="6" @bind="maxProfiles" /></label>
-        <label>Tasks per profile<input type="number" min="1" max="4" @bind="maxTasks" /></label>
-        <label>Timeout seconds<input type="number" min="10" max="900" step="10" @bind="maxSeconds" /></label>
-        <label>Stop threshold %<input type="number" min="0" max="50" step="1" @bind="improvementThreshold" /></label>
-        <label>Maximum context<input type="number" min="2048" max="262144" step="1024" @bind="maximumContext" /></label>
-        <label>Maximum output<input type="number" min="128" max="8192" step="128" @bind="maximumOutput" /></label>
+        <BoundedNumberEditor Label="Profiles per model" Min="1" Max="6" Value="@maxProfiles" ValueChanged="@(value => maxProfiles = value)" />
+        <BoundedNumberEditor Label="Tasks per profile" Min="1" Max="4" Value="@maxTasks" ValueChanged="@(value => maxTasks = value)" />
+        <BoundedNumberEditor Label="Timeout seconds" Min="10" Max="900" Step="10" Suffix=" s" Value="@maxSeconds" ValueChanged="@(value => maxSeconds = value)" />
+        <BoundedNumberEditor Label="Stop threshold" Min="0" Max="50" Suffix="%" Value="@improvementThreshold" ValueChanged="@(value => improvementThreshold = value)" />
+        <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="@(value => maximumContext = value)" />
+        <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="@(value => maximumOutput = value)" />
     </div>
 
     <div class="benchmark-council-actions">
-        <button type="button" disabled="@(isBusy || Models.Count == 0)" @onclick="RunAsync">Benchmark all selected models</button>
+        <button type="button" class="btn btn-primary" disabled="@(isBusy || Models.Count == 0)" @onclick="RunAsync">Benchmark all selected models</button>
         @if (CanApply)
         {
-            <button type="button" disabled="@isBusy" @onclick="ApplyAsync">Apply all recommendations</button>
+            <button type="button" class="btn btn-outline-primary" disabled="@isBusy" @onclick="ApplyAsync">Apply all recommendations</button>
         }
         @if (isBusy)
         {
-            <button type="button" @onclick="Cancel">Cancel</button>
+            <button type="button" class="btn btn-outline-danger" @onclick="Cancel">Cancel</button>
+        }
+        @if (activeRunId is Guid)
+        {
+            <a class="benchmark-live-session-link"
+               href="@BenchmarkChatUrl"
+               target="_blank"
+               rel="noopener">
+                Open benchmark transcript in Chat
+            </a>
         }
     </div>
 
@@ -65,19 +74,25 @@
 @code {
     [Parameter] public IReadOnlyList<ProviderModelReference> Models { get; set; } = [];
     [Parameter] public EventCallback<ProviderModelBenchmarkBatchAppliedEvent> BenchmarkApplied { get; set; }
+    [Parameter] public EventCallback<Guid> BenchmarkStarted { get; set; }
 
     readonly string HeadingId = $"benchmark-council-{Guid.NewGuid():N}";
     int maxProfiles = 5;
     int maxTasks = 3;
     int maxSeconds = 180;
-    double improvementThreshold = 5d;
+    int improvementThreshold = 5;
     int maximumContext = 32768;
     int maximumOutput = 1024;
     bool isBusy;
     string statusText = string.Empty;
     ProviderModelBenchmarkReport? report;
     CancellationTokenSource? benchmarkCts;
+    Guid? activeRunId;
     string modelSignature = string.Empty;
+
+    string BenchmarkChatUrl => activeRunId is Guid runId
+        ? $"/Chat?rejoinCouncilRunId={runId:D}"
+        : "/Chat";
 
     bool CanApply => report?.Targets.Any(target => string.IsNullOrWhiteSpace(target.Error)
         && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName)) == true;
@@ -92,6 +107,7 @@
         {
             benchmarkCts?.Cancel();
             report = null;
+            activeRunId = null;
             statusText = "Selection changed. Run Benchmark Council again before applying recommendations.";
         }
         modelSignature = nextSignature;
@@ -104,11 +120,13 @@
         benchmarkCts = new CancellationTokenSource();
         isBusy = true;
         report = null;
-        statusText = $"Running all {Models.Count} selected provider model(s). Each target remains bound to its endpoint.";
+        activeRunId = Guid.NewGuid();
+        statusText = $"Benchmark Council {activeRunId.Value.ToString("N")[..8]} is running. Open its Chat transcript to watch or stop the live session.";
         try
         {
-            report = await BenchmarkService.RunAsync(new ProviderModelBenchmarkRequest
+            var benchmarkTask = BenchmarkService.RunAsync(new ProviderModelBenchmarkRequest
             {
+                RunId = activeRunId.Value,
                 Targets = Models.ToList(),
                 CouncilReviewers = Models.ToList(),
                 MaxProfilesPerModel = maxProfiles,
@@ -119,22 +137,28 @@
                 MaximumContextTokens = maximumContext,
                 MaximumOutputTokens = maximumOutput,
                 IncludeCouncilReview = true
-            }, benchmarkCts.Token).ConfigureAwait(false);
-            var succeeded = report.Targets.Count(target => string.IsNullOrWhiteSpace(target.Error));
-            statusText = $"Benchmark Council completed: {succeeded}/{report.Targets.Count} model(s) produced recommendations.";
+            }, benchmarkCts.Token);
+            await InvokeAsync(() => BenchmarkStarted.InvokeAsync(activeRunId.Value)).ConfigureAwait(false);
+            var completedReport = await benchmarkTask.ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                report = completedReport;
+                var succeeded = report.Targets.Count(target => string.IsNullOrWhiteSpace(target.Error));
+                statusText = $"Benchmark Council completed: {succeeded}/{report.Targets.Count} model(s) produced recommendations. The full transcript remains available in Chat for this LocalGPT process.";
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            statusText = "Benchmark Council cancelled. No settings were applied.";
+            await InvokeAsync(() => statusText = "Benchmark Council cancelled. No settings were applied.").ConfigureAwait(false);
         }
         catch (Exception exception)
         {
             Logger.LogError(exception, "Provider Benchmark Council failed; prompts and model output were omitted.");
-            statusText = "Benchmark Council failed. Existing provider and preset settings were not changed.";
+            await InvokeAsync(() => statusText = "Benchmark Council failed. Existing provider and preset settings were not changed.").ConfigureAwait(false);
         }
         finally
         {
-            isBusy = false;
+            await InvokeAsync(() => isBusy = false).ConfigureAwait(false);
         }
     }
 

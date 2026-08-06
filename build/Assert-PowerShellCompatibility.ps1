@@ -4,7 +4,7 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$unsupportedContainsPattern = '\.Contains\([^\r\n,]+,\s*\[(?:System\.)?StringComparison\]::'
+$unsupportedContainsPattern = '\.Contains\([^\r\n]*,\s*\[(?:System\.)?StringComparison\]::'
 $failures = [System.Collections.Generic.List[string]]::new()
 
 function Get-RepositoryRelativePath {

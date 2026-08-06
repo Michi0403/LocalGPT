@@ -46,6 +46,7 @@ CSS_MARKERS = (
 
 JS_MARKERS = (
     "mountThemeControl",
+    "ensureRootDocumentationRail",
     "localgpt-docs-theme",
     "persistTheme",
     "localgpt-cursor-paw",

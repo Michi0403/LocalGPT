@@ -1,4 +1,5 @@
 @page "/help"
+@rendermode InteractiveServer
 @inject ICustomVersion Version
 @inject IDocumentationCatalogService Documentation
 @inject ILogger<Help> Logger
@@ -13,7 +14,7 @@
         <div>
             <p class="help-kicker">LocalGPT @Version.Version</p>
             <h1>Documentation</h1>
-            <p>The former handwritten help cards have been replaced by build-generated DocFX documentation and API reference pages sourced from maintained articles and C# XML comments.</p>
+            <p>The maintained DocFX documentation and XML-backed API reference open inside LocalGPT, without navigating the application shell away from the current session.</p>
             <div class="help-status" aria-label="Documentation status">
                 <span class="badge text-bg-@(documentationStatus.HtmlAvailable ? "success" : "warning")">HTML @(documentationStatus.HtmlAvailable ? "ready" : "not built")</span>
                 <span class="badge text-bg-@(documentationStatus.PdfAvailable ? "success" : "warning")">PDF @(documentationStatus.PdfAvailable ? "ready" : "not included")</span>
@@ -25,10 +26,10 @@
             </div>
         </div>
         <div class="help-actions" aria-label="Documentation actions">
-            <a class="btn btn-primary" href="/help-docs/index.html" target="_blank" rel="noopener">Open HTML documentation</a>
-            <a class="btn btn-outline-secondary" href="@documentationStatus.PdfUrl" data-enhance-nav="false">@Localization.GetText("Open PDF documentation")</a>
-            <a class="btn btn-outline-secondary" href="/api/documentation/status" target="_blank" rel="noopener">Build status JSON</a>
-            <a class="btn btn-outline-secondary" href="/api/documentation/comments?limit=100" target="_blank" rel="noopener">Browse XML comments</a>
+            <button class="btn btn-primary" type="button" @onclick="OpenHtmlDocumentation">Open HTML documentation</button>
+            <button class="btn btn-outline-secondary" type="button" @onclick="OpenPdfDocumentation">@Localization.GetText("Open PDF documentation")</button>
+            <button class="btn btn-outline-secondary" type="button" @onclick="OpenBuildStatus">Build status JSON</button>
+            <button class="btn btn-outline-secondary" type="button" @onclick="OpenXmlComments">Browse XML comments</button>
         </div>
     </section>
 
@@ -36,32 +37,32 @@
         <article class="help-panel">
             <h2>Chat and AI Council</h2>
             <p>Provider selection, Council teams, model routes, human participation, memory and responsive configuration surfaces.</p>
-            <a href="/help-docs/articles/chat-and-council.html" target="_blank" rel="noopener">Read chapter</a>
+            <button type="button" @onclick="OpenChatAndCouncil">Read chapter</button>
         </article>
         <article class="help-panel">
             <h2>Embedded firmware</h2>
             <p>ESP32/Arduino pin planning, transport-neutral wiring, firmware artifacts and approval-gated compiler boundaries.</p>
-            <a href="/help-docs/articles/embedded-firmware.html" target="_blank" rel="noopener">Read chapter</a>
+            <button type="button" @onclick="OpenEmbeddedFirmware">Read chapter</button>
         </article>
         <article class="help-panel">
             <h2>Workspaces</h2>
             <p>Local environments, compiler profiles, expected structures, regex policies and Approved/Warning/Danger findings.</p>
-            <a href="/help-docs/articles/workspaces.html" target="_blank" rel="noopener">Read chapter</a>
+            <button type="button" @onclick="OpenWorkspaces">Read chapter</button>
         </article>
         <article class="help-panel">
             <h2>GameDirector runtime</h2>
             <p>Authoritative move validation, controller proposals, creature/object subdirectors and runtime-class factories.</p>
-            <a href="/help-docs/articles/game-director.html" target="_blank" rel="noopener">Read chapter</a>
+            <button type="button" @onclick="OpenGameDirector">Read chapter</button>
         </article>
         <article class="help-panel">
             <h2>Security</h2>
             <p>Local-first execution, untrusted inputs, bounded writes, protected transports and explicit approval boundaries.</p>
-            <a href="/help-docs/articles/security.html" target="_blank" rel="noopener">Read chapter</a>
+            <button type="button" @onclick="OpenSecurity">Read chapter</button>
         </article>
         <article class="help-panel help-api-panel">
             <h2>API reference</h2>
             <p>Public services, controllers, business contracts and runtime capabilities generated from XML documentation.</p>
-            <a href="/help-docs/api/index.html" target="_blank" rel="noopener">Open API reference</a>
+            <button type="button" @onclick="OpenApiReference">Open API reference</button>
         </article>
     </section>
 
@@ -71,8 +72,26 @@
     </section>
 </main>
 
+@if (documentationUrl is not null)
+{
+    <div class="documentation-backdrop" role="presentation" @onclick="CloseDocumentation">
+        <section class="documentation-dialog" role="dialog" aria-modal="true" aria-labelledby="localgpt-documentation-title" @onclick:stopPropagation>
+            <header>
+                <h2 id="localgpt-documentation-title">@documentationTitle</h2>
+                <div>
+                    <a href="@documentationUrl" target="_blank" rel="noopener noreferrer" data-enhance-nav="false">Open in browser tab</a>
+                    <button type="button" @onclick="CloseDocumentation" aria-label="Close documentation">Close</button>
+                </div>
+            </header>
+            <iframe src="@documentationUrl" title="@documentationTitle" loading="eager"></iframe>
+        </section>
+    </div>
+}
+
 @code {
     private LocalGptDocumentationStatus documentationStatus = new();
+    private string? documentationUrl;
+    private string documentationTitle = "LocalGPT documentation";
 
     protected override void OnInitialized()
     {
@@ -87,5 +106,54 @@
             ComponentActivity.RecordFailure(nameof(Help), nameof(OnInitialized), exception, "/help");
             Notifier.ShowWarning(nameof(Help), "Documentation status is unavailable; build-generated files may not exist yet.", "Documentation");
         }
+    }
+
+    private void OpenHtmlDocumentation() => OpenDocumentation(documentationStatus.HtmlUrl, "LocalGPT HTML documentation", documentationStatus.HtmlAvailable);
+
+    private void OpenPdfDocumentation() => OpenDocumentation(documentationStatus.PdfUrl, "LocalGPT PDF documentation", documentationStatus.PdfAvailable);
+
+    private void OpenBuildStatus() => OpenDocumentation("/api/documentation/status", "LocalGPT documentation build status");
+
+    private void OpenXmlComments() => OpenDocumentation("/api/documentation/comments?limit=100", "LocalGPT XML documentation comments");
+
+    private void OpenChatAndCouncil() => OpenDocumentation("/help-docs/guide/chat-and-council.html", "Chat and AI Council");
+
+    private void OpenEmbeddedFirmware() => OpenDocumentation("/help-docs/guide/embedded-and-games.html", "Embedded firmware");
+
+    private void OpenWorkspaces() => OpenDocumentation("/help-docs/guide/projects-and-workspaces.html", "Workspaces");
+
+    private void OpenGameDirector() => OpenDocumentation("/help-docs/guide/embedded-and-games.html", "GameDirector runtime");
+
+    private void OpenSecurity() => OpenDocumentation("/help-docs/architecture/onewire-security.html", "Security");
+
+    private void OpenApiReference() => OpenDocumentation("/help-docs/api/index.html", "LocalGPT API reference");
+
+    private void OpenDocumentation(string url, string title, bool available = true)
+    {
+        try
+        {
+            if (!available)
+            {
+                Notifier.ShowWarning(nameof(Help), "The requested documentation artifact is not available in this build.", "Documentation");
+                return;
+            }
+
+            documentationUrl = url;
+            documentationTitle = title;
+            ComponentActivity.RecordInformation(nameof(Help), nameof(OpenDocumentation), $"Opened {title}.", url);
+            Logger.LogInformation("Opened LocalGPT documentation view {DocumentationTitle} at {DocumentationUrl}.", title, url);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Opening LocalGPT documentation failed for {DocumentationUrl}.", url);
+            ComponentActivity.RecordFailure(nameof(Help), nameof(OpenDocumentation), exception, url);
+            Notifier.ShowWarning(nameof(Help), "The documentation viewer could not be opened.", "Documentation viewer");
+        }
+    }
+
+    private void CloseDocumentation()
+    {
+        documentationUrl = null;
+        documentationTitle = "LocalGPT documentation";
     }
 }

@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'docs/templates/localgpt/public/main.css'
+SCRIPT = ROOT / 'docs/templates/localgpt/public/main.js'
 SITE = ROOT / 'docs/_site/styles/localgpt-kawaii.css'
 APP = ROOT / 'src/LocalGPT/wwwroot/help-docs/styles/localgpt-kawaii.css'
 SNAPSHOT = ROOT / '.github/pages/localgpt-kawaii-docs.zip'
@@ -21,21 +22,31 @@ def fail(message: str) -> None:
 
 def main() -> int:
     source = SOURCE.read_bytes()
-    for path in (SITE, APP):
+    script = SCRIPT.read_bytes()
+    script_text = script.decode('utf-8')
+    for marker in ('ensureRootDocumentationRail', 'data-localgpt-root-toc', 'docfx:tocrel', 'docfx:navrel'):
+        if marker not in script_text:
+            fail(f'missing landing-page navigation marker {marker!r}')
+    maintained_copies = [APP]
+    if SITE.exists():
+        maintained_copies.append(SITE)
+    for path in maintained_copies:
         if path.read_bytes() != source:
             fail(f'{path.relative_to(ROOT)} differs from the maintained theme source')
 
     text = source.decode('utf-8')
     required = (
-        '--kawaii-docs-rail-width: clamp(15rem, 16vw, 18rem)',
-        '--kawaii-docs-panel-gap: clamp(1.25rem, 2vw, 2.5rem)',
+        '--kawaii-docs-rail-width: clamp(15rem, 13vw, 20rem)',
+        '--kawaii-docs-panel-gap: clamp(1rem, 1.35vw, 2.4rem)',
         '--kawaii-docs-shell-min-height:',
         'column-gap: var(--kawaii-docs-panel-gap)',
         'grid-template-columns:',
         'minmax(0, 1fr)',
         'margin-inline: auto !important',
-        'max-width: 112rem !important',
-        'width: calc(100% - clamp(2rem, 6vw, 6rem)) !important',
+        '--kawaii-docs-shell-max-width: 220rem',
+        'max-width: var(--kawaii-docs-shell-max-width) !important',
+        '--kawaii-docs-shell-width: calc(100% - clamp(1.5rem, 3vw, 6rem))',
+        'width: var(--kawaii-docs-shell-width) !important',
         'min-height: var(--kawaii-docs-shell-min-height) !important',
         'position: static !important',
         'grid-column: 1',
@@ -52,6 +63,8 @@ def main() -> int:
 
     css_hash = hashlib.sha256(source).hexdigest()[:12]
     for root in (ROOT / 'docs/_site', ROOT / 'src/LocalGPT/wwwroot/help-docs'):
+        if not root.exists():
+            continue
         for html in root.rglob('*.html'):
             value = html.read_text(encoding='utf-8')
             if 'localgpt-kawaii.css?v=' in value and f'localgpt-kawaii.css?v={css_hash}' not in value:
@@ -59,13 +72,16 @@ def main() -> int:
 
     with zipfile.ZipFile(SNAPSHOT) as archive:
         snapshot_css = archive.read('styles/localgpt-kawaii.css')
+        snapshot_script = archive.read('styles/localgpt-kawaii.js')
         if snapshot_css != source:
             fail('tracked GitHub Pages snapshot CSS differs from the maintained theme source')
+        if snapshot_script != script:
+            fail('tracked GitHub Pages snapshot JavaScript differs from the maintained theme source')
         status = json.loads(archive.read('documentation-status.json'))
-        if status.get('version') != '2.3.2':
-            fail('tracked GitHub Pages snapshot is not version 2.3.2')
-        if 'LocalGPT-2.3.2.pdf' not in archive.namelist():
-            fail('tracked GitHub Pages snapshot is missing LocalGPT-2.3.2.pdf')
+        if status.get('version') != '2.3.4':
+            fail('tracked GitHub Pages snapshot is not version 2.3.4')
+        if 'LocalGPT-2.3.4.pdf' not in archive.namelist():
+            fail('tracked GitHub Pages snapshot is missing LocalGPT-2.3.4.pdf')
 
     print('Kawaii documentation layout audit passed: equal rails, symmetric gaps, full-width articles, and synchronized site assets.')
     return 0

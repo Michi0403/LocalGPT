@@ -1,0 +1,94 @@
+@using System.Globalization
+
+<div class="bounded-number-editor @CssClass">
+    <label for="@InputId">@Label</label>
+    <div class="bounded-number-control">
+        <input id="@InputId"
+               class="form-control bounded-number-input"
+               type="number"
+               min="@Min"
+               max="@Max"
+               step="@Step"
+               value="@Value.ToString(CultureInfo.InvariantCulture)"
+               title="@HelpText"
+               @onfocus="OpenSlider"
+               @onclick="OpenSlider"
+               @onchange="OnNumberChangedAsync" />
+        <button type="button"
+                class="btn btn-outline-secondary bounded-number-toggle"
+                title="Adjust @Label with a slider"
+                aria-label="Adjust @Label with a slider"
+                aria-expanded="@sliderOpen"
+                @onclick="ToggleSlider">
+            <span aria-hidden="true">↔</span>
+        </button>
+        @if (sliderOpen)
+        {
+            <div class="bounded-number-popover" role="dialog" aria-label="@($"Adjust {Label}")">
+                <div class="bounded-number-scale">
+                    <span>@Min.ToString("N0")</span>
+                    <strong>@Value.ToString("N0")@Suffix</strong>
+                    <span>@Max.ToString("N0")</span>
+                </div>
+                <input class="form-range"
+                       type="range"
+                       min="@Min"
+                       max="@Max"
+                       step="@Step"
+                       value="@Value.ToString(CultureInfo.InvariantCulture)"
+                       aria-label="@Label"
+                       @oninput="OnSliderChangedAsync" />
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CloseSlider">Done</button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter] public string HelpText { get; set; } = string.Empty;
+    [Parameter] public string Suffix { get; set; } = string.Empty;
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+    [Parameter] public int Min { get; set; }
+    [Parameter] public int Max { get; set; } = 100;
+    [Parameter] public int Step { get; set; } = 1;
+    [Parameter] public int Value { get; set; }
+    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+
+    readonly string InputId = $"bounded-number-{Guid.NewGuid():N}";
+    bool sliderOpen;
+
+    void OpenSlider() => sliderOpen = true;
+    void ToggleSlider() => sliderOpen = !sliderOpen;
+    void CloseSlider() => sliderOpen = false;
+
+    async Task OnNumberChangedAsync(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            || int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.CurrentCulture, out value))
+        {
+            await SetValueAsync(value).ConfigureAwait(false);
+        }
+    }
+
+    async Task OnSliderChangedAsync(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            await SetValueAsync(value).ConfigureAwait(false);
+    }
+
+    async Task SetValueAsync(int value)
+    {
+        var normalizedStep = Math.Max(1, Step);
+        var normalized = Math.Clamp(value, Min, Max);
+        if (normalizedStep > 1)
+        {
+            var offset = normalized - Min;
+            normalized = Min + (int)Math.Round(offset / (double)normalizedStep) * normalizedStep;
+            normalized = Math.Clamp(normalized, Min, Max);
+        }
+
+        Value = normalized;
+        await InvokeAsync(() => ValueChanged.InvokeAsync(normalized)).ConfigureAwait(false);
+    }
+}

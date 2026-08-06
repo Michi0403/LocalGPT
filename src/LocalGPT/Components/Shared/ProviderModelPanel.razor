@@ -35,24 +35,52 @@
         </div>
     </header>
 
-    <div class="provider-model-actions" role="group" aria-label="@($"Actions for {Model.DisplayName}")">
+    <div class="provider-model-commandbar" role="group" aria-label="@($"Actions for {Model.DisplayName}")">
         @if (ShowUseAction)
         {
-            <button type="button" class="model-action" @onclick="ActivateAsync">@UseActionText</button>
+            <button type="button" class="model-action model-action-primary" @onclick="ActivateAsync">@UseActionText</button>
         }
-        <button type="button"
-                class="model-action"
-                @onclick="ToggleProperties"
-                aria-expanded="@showProperties"
-                aria-controls="@PropertiesId">Properties</button>
-        <button type="button"
-                class="model-action model-action-primary"
-                disabled="@(!Model.SupportsBenchmark || isBusy)"
-                @onclick="ToggleBenchmark"
-                aria-expanded="@showBenchmark"
-                aria-controls="@BenchmarkId">
-            @(isBusy ? "Benchmarking…" : "Benchmark")
-        </button>
+        <details class="provider-model-menu">
+            <summary class="model-action" aria-label="Open model actions">Actions</summary>
+            <div class="provider-model-menu-items" role="menu">
+                @if (showProperties)
+                {
+                    <button type="button"
+                            role="menuitem"
+                            class="btn btn-sm btn-outline-secondary"
+                            @onclick="ToggleProperties"
+                            aria-expanded="true"
+                            aria-controls="@PropertiesId">Hide properties</button>
+                }
+                else
+                {
+                    <button type="button"
+                            role="menuitem"
+                            class="btn btn-sm btn-outline-secondary"
+                            @onclick="ToggleProperties"
+                            aria-expanded="false"
+                            aria-controls="@PropertiesId">Properties</button>
+                }
+                <button type="button"
+                        role="menuitem"
+                        class="btn btn-sm btn-outline-secondary"
+                        disabled="@(!Model.SupportsBenchmark || isBusy)"
+                        @onclick="ToggleBenchmark"
+                        aria-expanded="@showBenchmark"
+                        aria-controls="@BenchmarkId">@(showBenchmark ? "Hide benchmark" : "Benchmark")</button>
+            </div>
+        </details>
+        @if (isBusy)
+        {
+            <button type="button" class="model-action" @onclick="CancelBenchmark">Cancel</button>
+        }
+        @if (activeRunId is Guid)
+        {
+            <a class="model-action benchmark-live-session-link"
+               href="@BenchmarkChatUrl"
+               target="_blank"
+               rel="noopener">Open live transcript</a>
+        }
     </div>
 
     @if (showProperties)
@@ -78,13 +106,13 @@
                  class="provider-model-benchmark"
                  aria-label="@($"Benchmark configuration for {Model.DisplayName}")">
             <div class="benchmark-config-grid">
-                <label>Profiles<input type="number" min="1" max="6" @bind="maxProfiles" /></label>
-                <label>Tasks<input type="number" min="1" max="4" @bind="maxTasks" /></label>
-                <label>Timeout seconds<input type="number" min="10" max="900" step="10" @bind="maxSeconds" /></label>
-                <label>Stop threshold %<input type="number" min="0" max="50" step="1" @bind="improvementThreshold" /></label>
-                <label>Maximum context<input type="number" min="2048" max="262144" step="1024" @bind="maximumContext" /></label>
-                <label>Maximum output<input type="number" min="128" max="8192" step="128" @bind="maximumOutput" /></label>
-                <label class="benchmark-check"><input type="checkbox" @bind="includeCouncilReview" /> Council review</label>
+                <BoundedNumberEditor Label="Profiles" Min="1" Max="6" Value="@maxProfiles" ValueChanged="@(value => maxProfiles = value)" />
+                <BoundedNumberEditor Label="Tasks" Min="1" Max="4" Value="@maxTasks" ValueChanged="@(value => maxTasks = value)" />
+                <BoundedNumberEditor Label="Timeout seconds" Min="10" Max="900" Step="10" Suffix=" s" Value="@maxSeconds" ValueChanged="@(value => maxSeconds = value)" />
+                <BoundedNumberEditor Label="Stop threshold" Min="0" Max="50" Suffix="%" Value="@improvementThreshold" ValueChanged="@(value => improvementThreshold = value)" />
+                <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="@(value => maximumContext = value)" />
+                <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="@(value => maximumOutput = value)" />
+                <label class="benchmark-check form-check"><input class="form-check-input" type="checkbox" @bind="includeCouncilReview" /> <span>Council review</span></label>
             </div>
             <p class="benchmark-council-summary">
                 Review council: @ReviewerSummary
@@ -94,10 +122,6 @@
                 @if (report is not null && SuccessfulTarget is not null)
                 {
                     <button type="button" class="model-action" disabled="@isBusy" @onclick="ApplyRecommendationAsync">Apply recommendation</button>
-                }
-                @if (isBusy)
-                {
-                    <button type="button" class="model-action" @onclick="CancelBenchmark">Cancel</button>
                 }
             </div>
 
@@ -141,6 +165,7 @@
     [Parameter] public EventCallback<ProviderModelReference> Activated { get; set; }
     [Parameter] public IReadOnlyList<ProviderModelReference> CouncilModels { get; set; } = [];
     [Parameter] public EventCallback<ProviderModelBenchmarkAppliedEvent> BenchmarkApplied { get; set; }
+    [Parameter] public EventCallback<Guid> BenchmarkStarted { get; set; }
 
     readonly string instanceId = Guid.NewGuid().ToString("N");
     bool showProperties;
@@ -150,13 +175,17 @@
     int maxProfiles = 5;
     int maxTasks = 3;
     int maxSeconds = 180;
-    double improvementThreshold = 5d;
+    int improvementThreshold = 5;
     int maximumContext = 32768;
     int maximumOutput = 1024;
     string statusText = string.Empty;
     ProviderModelBenchmarkReport? report;
     CancellationTokenSource? benchmarkCts;
+    Guid? activeRunId;
 
+    string BenchmarkChatUrl => activeRunId is Guid runId
+        ? $"/Chat?rejoinCouncilRunId={runId:D}"
+        : "/Chat";
     string HeadingId => $"provider-model-{instanceId}";
     string SelectionId => $"provider-model-select-{instanceId}";
     string PropertiesId => $"provider-model-properties-{instanceId}";
@@ -185,11 +214,13 @@
         benchmarkCts = new CancellationTokenSource();
         isBusy = true;
         report = null;
-        statusText = "Running bounded tasks and council review. Provider credentials stay in configured provider settings.";
+        activeRunId = Guid.NewGuid();
+        statusText = $"Benchmark {activeRunId.Value.ToString("N")[..8]} is running. Open its Chat transcript to watch or stop the live session.";
         try
         {
-            report = await BenchmarkService.RunAsync(new ProviderModelBenchmarkRequest
+            var benchmarkTask = BenchmarkService.RunAsync(new ProviderModelBenchmarkRequest
             {
+                RunId = activeRunId.Value,
                 Targets = [Model],
                 CouncilReviewers = CouncilModels.ToList(),
                 MaxProfilesPerModel = maxProfiles,
@@ -200,24 +231,30 @@
                 MaximumContextTokens = maximumContext,
                 MaximumOutputTokens = maximumOutput,
                 IncludeCouncilReview = includeCouncilReview
-            }, benchmarkCts.Token).ConfigureAwait(false);
-            var target = SuccessfulTarget;
-            statusText = target is null
-                ? report.Warnings.FirstOrDefault() ?? report.Targets.FirstOrDefault()?.Error ?? "No benchmark profile completed successfully."
-                : $"Benchmark complete. {target.CouncilReviews.Count(review => string.IsNullOrWhiteSpace(review.Error))} council review(s) contributed.";
+            }, benchmarkCts.Token);
+            await InvokeAsync(() => BenchmarkStarted.InvokeAsync(activeRunId.Value)).ConfigureAwait(false);
+            var completedReport = await benchmarkTask.ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                report = completedReport;
+                var target = SuccessfulTarget;
+                statusText = target is null
+                    ? report.Warnings.FirstOrDefault() ?? report.Targets.FirstOrDefault()?.Error ?? "No benchmark profile completed successfully."
+                    : $"Benchmark complete. {target.CouncilReviews.Count(review => string.IsNullOrWhiteSpace(review.Error))} council review(s) contributed. The transcript remains available in Chat for this LocalGPT process.";
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            statusText = "Benchmark cancelled. No settings were applied.";
+            await InvokeAsync(() => statusText = "Benchmark cancelled. No settings were applied.").ConfigureAwait(false);
         }
         catch (Exception exception)
         {
             Logger.LogError(exception, "Provider model benchmark UI failed for identity {ModelIdentity}; prompts and responses were omitted.", Model.StableId);
-            statusText = "Benchmark failed. Review LocalGPT logs for the provider-qualified model identity.";
+            await InvokeAsync(() => statusText = "Benchmark failed. Review LocalGPT logs for the provider-qualified model identity.").ConfigureAwait(false);
         }
         finally
         {
-            isBusy = false;
+            await InvokeAsync(() => isBusy = false).ConfigureAwait(false);
         }
     }
 

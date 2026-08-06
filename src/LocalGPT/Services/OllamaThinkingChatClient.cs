@@ -32,6 +32,8 @@ public sealed class OllamaThinkingChatClient : IChatClient
     private readonly IChatProtocolResolver protocolResolver;
     private readonly IPromptConfigService? promptConfigService;
     private readonly IDxAiFunctionRegistry? functionRegistry;
+    private readonly bool automaticToolsEnabled;
+    private readonly bool throwOnFailure;
     private readonly CouncilRuntimeService councilRuntime;
 
     public OllamaThinkingChatClient(
@@ -45,7 +47,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
         IChatResponseFormatterFactory? formatterFactory = null,
         IChatProtocolResolver? protocolResolver = null,
         IPromptConfigService? promptConfigService = null,
-        IDxAiFunctionRegistry? functionRegistry = null)
+        IDxAiFunctionRegistry? functionRegistry = null,
+        bool enableAutomaticTools = true,
+        bool throwOnFailure = false)
     {
         ArgumentNullException.ThrowIfNull(options);
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -58,6 +62,8 @@ public sealed class OllamaThinkingChatClient : IChatClient
         this.promptConfigService = promptConfigService
             ?? throw new ArgumentNullException(nameof(promptConfigService));
         this.functionRegistry = functionRegistry;
+        automaticToolsEnabled = enableAutomaticTools;
+        this.throwOnFailure = throwOnFailure;
 
         model = string.IsNullOrWhiteSpace(options.ModelName)
             ? throw new ArgumentException("An Ollama model name is required.", nameof(options))
@@ -94,7 +100,11 @@ public sealed class OllamaThinkingChatClient : IChatClient
             {
                 response = await SendAsync(conversation, options, stream: false, cancellationToken).ConfigureAwait(false);
                 if (response is null)
+                {
+                    if (throwOnFailure)
+                        throw new InvalidOperationException($"Ollama model '{model}' returned no response.");
                     return CreateFailureResponse("Ollama returned no response. Verify that the selected model is available and the local runtime is healthy.");
+                }
 
                 var toolCalls = response.Message?.ToolCalls;
                 if (toolCalls is not { Count: > 0 })
@@ -111,7 +121,11 @@ public sealed class OllamaThinkingChatClient : IChatClient
             }
 
             if (response is null)
+            {
+                if (throwOnFailure)
+                    throw new InvalidOperationException($"Ollama model '{model}' returned no response.");
                 return CreateFailureResponse("Ollama returned no response. Verify that the selected model is available and the local runtime is healthy.");
+            }
 
             return new ChatResponse(new ChatMessage(
                 ChatRole.Assistant,
@@ -124,6 +138,8 @@ public sealed class OllamaThinkingChatClient : IChatClient
         catch (Exception ex)
         {
             logger.LogError(ex, "Ollama non-streaming response failed for model {Model}.", model);
+            if (throwOnFailure)
+                throw;
             return CreateFailureResponse($"Ollama model '{model}' could not complete the response. Review LocalGPT application logs and verify the local runtime.");
         }
     }
@@ -384,6 +400,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
 
     private List<OllamaToolDefinition>? BuildAutomaticTools()
     {
+        if (!automaticToolsEnabled)
+            return null;
+
         if (functionRegistry is null)
         {
             logger.LogWarning("Ollama model {Model} has no DXFunction registry, so native tool metadata cannot be attached.", model);

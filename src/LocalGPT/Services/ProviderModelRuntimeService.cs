@@ -224,7 +224,9 @@ public sealed class ProviderModelRuntimeService(
         string keepAlive,
         int maxContextTokens,
         TimeSpan timeout,
-        int? ollamaNumGpu)
+        int? ollamaNumGpu,
+        bool enableAutomaticTools = true,
+        bool throwOnFailure = false)
     {
         ArgumentNullException.ThrowIfNull(model);
         var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
@@ -243,7 +245,9 @@ public sealed class ProviderModelRuntimeService(
                     formatterFactory,
                     protocolResolver,
                     promptConfigService,
-                    functionRegistry),
+                    functionRegistry,
+                    enableAutomaticTools,
+                    throwOnFailure),
                 loggerFactory.CreateLogger($"AI.Ollama.{model.StableId}"));
         }
 

@@ -15,6 +15,8 @@ public interface IProviderModelRuntimeService
         string keepAlive,
         int maxContextTokens,
         TimeSpan timeout,
-        int? ollamaNumGpu);
+        int? ollamaNumGpu,
+        bool enableAutomaticTools = true,
+        bool throwOnFailure = false);
     Task<ChatClientSession> CreateSessionAsync(ProviderModelReference model, CancellationToken cancellationToken = default);
 }

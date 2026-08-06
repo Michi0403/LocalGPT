@@ -86,7 +86,7 @@ Model acquisition is a separate workflow from model use. A safe lifecycle includ
 6. the model enters the catalog;
 7. load/unload remains explicit and observable.
 
-A benchmark may recommend context/output bounds or an Ollama GPU profile. It does not pull a model or rewrite provider-global settings automatically.
+A benchmark may recommend context/output bounds or an Ollama GPU profile. It does not pull a model or rewrite provider-global settings automatically. The benchmark service owns a live-session transcript and cancellation token, so the run remains observable and stoppable from Chat even when its initiating panel is no longer in view.
 
 ## Blazor and DevExpress surfaces
 

@@ -1,0 +1,74 @@
+.bounded-number-editor {
+    display: grid;
+    min-width: 0;
+    gap: .3rem;
+    color: var(--bs-body-color);
+    font-size: .875rem;
+    font-weight: 650;
+}
+
+.bounded-number-control {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-width: 0;
+}
+
+.bounded-number-input {
+    min-width: 0;
+    min-height: 2.55rem;
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+}
+
+.bounded-number-toggle {
+    min-width: 2.75rem;
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+}
+
+.bounded-number-popover {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: calc(100% + .35rem);
+    z-index: 1240;
+    display: grid;
+    gap: .6rem;
+    min-width: min(22rem, calc(100vw - 2rem));
+    padding: .75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .65rem;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    box-shadow: 0 .8rem 2rem rgba(0, 0, 0, .22);
+}
+
+.bounded-number-scale {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .55rem;
+    color: var(--bs-secondary-color);
+    font-size: .78rem;
+}
+
+.bounded-number-scale strong {
+    overflow-wrap: anywhere;
+    color: var(--bs-body-color);
+    text-align: center;
+    font-size: .95rem;
+}
+
+.bounded-number-popover .btn {
+    justify-self: end;
+}
+
+@media (max-width: 560px) {
+    .bounded-number-popover {
+        position: fixed;
+        inset-inline: .6rem;
+        inset-block: auto .6rem;
+        width: auto;
+        min-width: 0;
+    }
+}

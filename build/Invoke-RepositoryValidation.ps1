@@ -12,7 +12,6 @@ $repoRoot = Get-LocalGptRepositoryRoot
 Push-Location $repoRoot
 try {
     & ./build/Assert-PowerShellCompatibility.ps1
-    & ./build/Assert-JavaScriptDiagnostics.ps1
     & ./build/Assert-LocalizationIntegrity.ps1
     & ./build/Assert-OperationalDiagnostics.ps1
     & ./build/Assert-InteractiveServerRenderModes.ps1

@@ -2,6 +2,7 @@ namespace LocalGPT.BusinessObjects;
 
 public sealed class ProviderModelBenchmarkRequest
 {
+    public Guid RunId { get; set; } = Guid.NewGuid();
     public List<ProviderModelReference> Targets { get; set; } = [];
     public List<ProviderModelReference> CouncilReviewers { get; set; } = [];
     public int MaxProfilesPerModel { get; set; } = 5;

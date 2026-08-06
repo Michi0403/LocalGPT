@@ -80,7 +80,7 @@ foreach ($token in @(
     }
 }
 
-if (-not $program.Contains('AddSingleton<IDatabaseLoggerReadiness, DatabaseLoggerReadiness>()', [StringComparison]::Ordinal)) {
+if ($program.IndexOf('AddSingleton<IDatabaseLoggerReadiness, DatabaseLoggerReadiness>()', [StringComparison]::Ordinal) -lt 0) {
     $errors.Add('Program.cs must retain the singleton database logger readiness registration.')
 }
 

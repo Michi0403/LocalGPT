@@ -87,10 +87,10 @@ $wrapperProfiles = @(
     @{ File = 'winarm64.pubxml'; Runtime = 'win-arm64'; Platform = 'ARM64'; Folder = 'wrapper-winarm64' }
 )
 foreach ($profile in $wrapperProfiles) {
-    Assert-Profile "src\src\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Folder $profile.Platform 'net10.0-windows10.0.26100.0' 'false'
+    Assert-Profile "src\LocalGPTWebviewWrapper\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Folder $profile.Platform 'net10.0-windows10.0.26100.0' 'false'
 }
 
-$userProfiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'LocalGPTWebviewWrapper') -Recurse -File -Filter '*.pubxml.user' -ErrorAction SilentlyContinue)
+$userProfiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Recurse -File -Filter '*.pubxml.user' -ErrorAction SilentlyContinue)
 if ($userProfiles.Count -gt 0) { Fail 'Machine-specific .pubxml.user files must not be shipped in the source package.' }
 
 $release = [IO.File]::ReadAllText((Join-Path $root 'Build-Release.ps1'))

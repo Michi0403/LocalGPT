@@ -1,5 +1,5 @@
 param(
-    [string]$SourceRoot = 'LocalGPTWebviewWrapper'
+    [string]$SourceRoot = 'src'
 )
 
 $ErrorActionPreference = 'Stop'

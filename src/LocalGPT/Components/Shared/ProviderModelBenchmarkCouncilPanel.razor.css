@@ -56,7 +56,8 @@
     gap: .5rem;
 }
 
-.benchmark-council-actions button {
+.benchmark-council-actions button,
+.benchmark-live-session-link {
     min-height: 2.65rem;
     padding: .45rem .8rem;
     border: 1px solid var(--bs-primary, Highlight);
@@ -66,12 +67,19 @@
     font-weight: 700;
 }
 
+.benchmark-live-session-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+}
+
 .benchmark-council-actions button:first-child {
     color: var(--bs-white, white);
     background: var(--bs-primary, Highlight);
 }
 
 .benchmark-council-actions button:focus-visible,
+.benchmark-live-session-link:focus-visible,
 .benchmark-council-config input:focus-visible {
     outline: .2rem solid color-mix(in srgb, var(--bs-primary, Highlight) 45%, transparent);
     outline-offset: .12rem;
@@ -91,4 +99,17 @@
 .benchmark-council-results summary {
     cursor: pointer;
     font-weight: 700;
+}
+
+
+.benchmark-council-actions > * {
+    flex: 0 1 auto;
+    max-width: 100%;
+    white-space: normal;
+}
+
+@media (max-width: 620px) {
+    .benchmark-council-panel > header { align-items: stretch; flex-direction: column; }
+    .benchmark-count { align-self: start; }
+    .benchmark-council-actions > * { flex: 1 1 12rem; }
 }

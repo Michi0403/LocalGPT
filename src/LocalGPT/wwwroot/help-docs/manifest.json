@@ -21,6 +21,26 @@
       "version": ""
     },
     {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.3.3.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.3.3.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.3.4.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.3.4.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
       "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.BusinessObjects.AICoreOptions.yml",
       "output": {
@@ -5744,6 +5764,20 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.Components.Routes",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.BoundedNumberEditor.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.BoundedNumberEditor.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.BoundedNumberEditor",
       "Summary": null
     },
     {
