@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate and prepare the single tracked LocalGPT GitHub Pages artifact."""
 from __future__ import annotations
-import argparse, hashlib, json, shutil, stat, sys, tempfile
+import argparse, hashlib, json, re, shutil, stat, sys, tempfile, zlib
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
@@ -12,11 +12,11 @@ STYLE_FILE = 'styles/localgpt-kawaii.css'
 SCRIPT_FILE = 'styles/localgpt-kawaii.js'
 FAVICON_LABEL = 'LocalGPT cat paw'
 INDEX_MARKERS = ('localgpt-kawaii-docs', 'data-localgpt-theme-bootstrap', 'data-localgpt-favicon', 'data-localgpt-kawaii-style', 'data-localgpt-kawaii-script')
-CSS_MARKERS = ('localgpt-theme-control', 'localgpt-kawaii-sky', 'localgpt-cursor-paw', 'localgpt-root-toc')
-JS_MARKERS = ('mountThemeControl', 'ensureRootDocumentationRail', 'localgpt-docs-theme', 'persistTheme', 'localgpt-cursor-paw')
+CSS_MARKERS = ('localgpt-theme-control', 'localgpt-kawaii-sky', 'localgpt-cursor-paw', '--kawaii-docs-rail-width')
+JS_MARKERS = ('mountThemeControl', 'localgpt-docs-theme', 'persistTheme', 'localgpt-cursor-paw')
 MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
 MAX_FILE_COUNT = 20_000
-MIN_PDF_BYTES = 65_536
+MIN_PDF_BYTES = 524_288
 
 REQUIRED_FILES = (
     "index.html", "api/index.html", "documentation-status.json",
@@ -101,6 +101,32 @@ def validate_html(source: Path) -> tuple[int, int]:
     api_count = sum(1 for path in html_files if "api" in path.relative_to(source).parts)
     return len(html_files), api_count
 
+def pdf_contains_token(data: bytes, token: bytes) -> bool:
+    """Find a PDF name token in raw bytes or Flate-compressed object streams.
+
+    Modern tagged PDFs commonly store the catalog in a compressed object stream, so a
+    raw byte search alone incorrectly rejects valid /StructTreeRoot metadata. This small
+    stdlib-only probe keeps the Pages validator dependency-free while handling that case.
+    """
+    if token in data:
+        return True
+    for match in re.finditer(rb"stream\r?\n", data):
+        # Only attempt zlib decompression when the nearby object dictionary declares Flate.
+        prefix = data[max(0, match.start() - 1024):match.start()]
+        if b"/FlateDecode" not in prefix:
+            continue
+        end = data.find(b"endstream", match.end())
+        if end < 0:
+            continue
+        payload = data[match.end():end].rstrip(b"\r\n")
+        try:
+            decoded = zlib.decompress(payload)
+        except zlib.error:
+            continue
+        if token in decoded:
+            return True
+    return False
+
 def validate_pdf(source: Path, status: dict[str, object]) -> tuple[str, int, bool]:
     name = str(status.get("pdfFileName") or status.get("PdfFileName") or "").strip()
     if not name: fail("documentation-status.json does not declare pdfFileName")
@@ -115,7 +141,7 @@ def validate_pdf(source: Path, status: dict[str, object]) -> tuple[str, int, boo
     if not data.startswith(b"%PDF-"): fail(f"{name} does not have a PDF header")
     if b"ReportLab" in data or b"Deterministic fallback documentation index" in data:
         fail(f"{name} is an obsolete source/fallback PDF rather than the maintained HTML-backed handbook")
-    tagged = b"/StructTreeRoot" in data
+    tagged = pdf_contains_token(data, b"/StructTreeRoot")
     if not tagged:
         fail(f"{name} is not a tagged accessible PDF (/StructTreeRoot missing)")
     return name, size, tagged

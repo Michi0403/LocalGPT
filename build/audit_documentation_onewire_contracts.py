@@ -35,7 +35,7 @@ forbid('build/Build-Documentation.ps1','LocalGPTWebViewWrapper')
 validator=ROOT/'.github/scripts/prepare-pages-artifact.py'
 archive=ROOT/'.github/pages/localgpt-kawaii-docs.zip'
 with tempfile.TemporaryDirectory(prefix='localgpt-contract-audit-') as tmp:
- result=subprocess.run([sys.executable,str(validator),'--archive',str(archive),'--output',tmp,'--expected-version','2.3.6'],capture_output=True,text=True)
+ result=subprocess.run([sys.executable,str(validator),'--archive',str(archive),'--output',tmp,'--expected-version','2.3.7'],capture_output=True,text=True)
  if result.returncode: failures.append(result.stderr.strip() or result.stdout.strip())
 if failures:
  print('LocalGPT documentation/1-Wire contract audit failed:')

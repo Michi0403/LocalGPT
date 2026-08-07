@@ -6,6 +6,7 @@ on:
       - '.github/workflows/publish-shipped-docs.yml'
       - '.github/scripts/prepare-pages-artifact.py'
       - '.github/pages/localgpt-kawaii-docs.zip'
+      - 'src/LocalGPT/LocalGPT.csproj'
   workflow_dispatch:
 
 permissions:
@@ -32,9 +33,19 @@ jobs:
         run: |
           set -euo pipefail
           test -f .github/pages/localgpt-kawaii-docs.zip
+          EXPECTED_VERSION="$(python3 - <<'PY_VERSION'
+          import re
+          from pathlib import Path
+          text = Path('src/LocalGPT/LocalGPT.csproj').read_text(encoding='utf-8-sig')
+          match = re.search(r'<Version>\s*([^<]+?)\s*</Version>', text)
+          if not match: raise SystemExit('LocalGPT project version not found')
+          print(match.group(1).strip())
+          PY_VERSION
+          )"
           python3 .github/scripts/prepare-pages-artifact.py \
             --archive .github/pages/localgpt-kawaii-docs.zip \
-            --output pages-artifact
+            --output pages-artifact \
+            --expected-version "$EXPECTED_VERSION"
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -51,7 +62,7 @@ jobs:
           {
             echo '## LocalGPT Kawaii documentation'
             echo
-            echo 'The workflow publishes the tracked, validated documentation snapshot.'
+            echo 'The workflow publishes the tracked, version-matched, validated documentation snapshot.'
             echo
             echo '```json'
             cat pages-artifact/github-pages-deployment.json

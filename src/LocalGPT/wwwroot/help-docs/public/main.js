@@ -288,82 +288,8 @@ function ensureCursorCompanion() {
   }, { passive: true });
 }
 
-
-async function ensureRootDocumentationRail() {
-  const main = document.querySelector('body:not([data-search]) > main.container-xxl');
-  if (!main || main.querySelector(':scope > .toc-offcanvas')) return;
-
-  const content = main.querySelector(':scope > .content');
-  const tocRelative = document.querySelector('meta[name="docfx:tocrel"]')?.getAttribute('content')?.trim();
-  const navRelative = document.querySelector('meta[name="docfx:navrel"]')?.getAttribute('content')?.trim();
-  if (!content || !tocRelative || !navRelative) return;
-
-  let tocUrl;
-  let navUrl;
-  try {
-    tocUrl = new URL(tocRelative, document.baseURI);
-    navUrl = new URL(navRelative, document.baseURI);
-  }
-  catch {
-    return;
-  }
-
-  // DocFX omits the left rail on a landing page when the page TOC and the
-  // navigation TOC are the same file. The desktop shell still reserves that
-  // column, so reuse the authoritative TOC instead of leaving dead space.
-  if (tocUrl.href !== navUrl.href) return;
-
-  const shell = document.createElement('div');
-  shell.className = 'toc-offcanvas localgpt-root-toc';
-  shell.setAttribute('data-localgpt-root-toc', 'true');
-  shell.innerHTML = `
-    <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
-      <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
-      </div>
-      <div class="offcanvas-body">
-        <nav class="toc" id="toc" aria-label="Documentation"></nav>
-      </div>
-    </div>`;
-  main.insertBefore(shell, content);
-
-  const target = shell.querySelector('nav.toc');
-  try {
-    const response = await fetch(tocUrl, { credentials: 'same-origin' });
-    if (!response.ok) throw new Error(`TOC request failed with ${response.status}`);
-    const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
-    const list = parsed.querySelector('#sidetoggle .sidetoc .toc > ul, .sidetoc .toc > ul, #toc > ul');
-    if (!target || !list) throw new Error('TOC markup was not found');
-
-    target.replaceChildren(list.cloneNode(true));
-    const currentUrl = new URL(window.location.href);
-    currentUrl.hash = '';
-    for (const link of target.querySelectorAll('a[href]')) {
-      try {
-        const linkUrl = new URL(link.getAttribute('href'), tocUrl);
-        linkUrl.hash = '';
-        link.href = linkUrl.href;
-        const active = linkUrl.href === currentUrl.href;
-        link.classList.toggle('active', active);
-        link.parentElement?.classList.toggle('active', active);
-        if (active) link.setAttribute('aria-current', 'page');
-        else link.removeAttribute('aria-current');
-      }
-      catch {
-        // One malformed optional link must not take down the documentation shell.
-      }
-    }
-  }
-  catch (error) {
-    shell.remove();
-    console.warn('LocalGPT documentation navigation could not be loaded.', error);
-  }
-}
-
 function startKawaiiDocumentation() {
   document.documentElement.classList.add("localgpt-kawaii-docs");
-  void ensureRootDocumentationRail();
   installThemePersistence();
   createKawaiiSky();
   decorateBrand();

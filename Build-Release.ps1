@@ -71,9 +71,10 @@ function Assert-LocalGptDocumentationPayload {
     if ([string]$status.documentationMode -ne "docfx") { throw "Published LocalGPT documentation did not use the DocFX modern site." }
     if ([string]$status.pdfMode -notin @("html-browser-print", "docfx-pdf-plugin")) { throw "Published LocalGPT documentation does not contain the complete HTML-backed documentation PDF." }
     if ([string]$status.pdfMode -eq "html-browser-print" -and [int]$status.pdfSourcePageCount -lt 10) { throw "The LocalGPT documentation PDF did not include the expected HTML page set." }
+    if ([string]$status.pdfMode -eq "html-browser-print" -and [int]$status.apiHtmlCount -gt 0 -and [int]$status.pdfSourcePageCount -lt [int]$status.apiHtmlCount) { throw "The LocalGPT documentation PDF omitted generated API pages." }
     if (-not ([bool]$status.completeApiReference)) { throw "Published LocalGPT documentation is missing the complete XML-generated API reference." }
     if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "Published LocalGPT documentation contains an incomplete API graph." }
-    if ([long]$status.pdfBytes -lt 65536) { throw "Published LocalGPT documentation contains an unexpectedly small PDF." }
+    if ([long]$status.pdfBytes -lt 1048576) { throw "Published LocalGPT documentation contains an unexpectedly small PDF." }
     if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "Published LocalGPT documentation did not record a real documentation PDF source." }
 
     Write-Host "Verified complete LocalGPT $Version DocFX modern HTML and HTML-backed PDF documentation in $DocumentationRoot" -ForegroundColor Green

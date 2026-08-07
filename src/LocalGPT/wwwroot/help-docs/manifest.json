@@ -61,6 +61,16 @@
       "version": ""
     },
     {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.3.7.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.3.7.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
       "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.BusinessObjects.AICoreOptions.yml",
       "output": {
