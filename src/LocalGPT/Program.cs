@@ -93,10 +93,10 @@ namespace LocalGPT
             logger.LogInformation("Configured options and services.");
             ConfigureSignalR(builder.Services, logger);
             logger.LogInformation("Configured SignalR.");
-            System.Threading.Volatile.Write(ref runtimePort, ConfigureKestrel(builder, Port, logger));
+            System.Threading.Volatile.Write(ref runtimePort, ConfigureKestrel(builder, Port, args, logger));
             ValidatePortContracts(logger);
             var port = Port;
-            logger.LogInformation("Configured Kestrel on loopback port {Port}.", port);
+            logger.LogInformation("Configured authoritative LocalGPT loopback endpoint on http://127.0.0.1:{Port}.", port);
             ConfigureResponseCompression(builder.Services, logger);
             logger.LogInformation("Configured response compression.");
             ConfigureBlazorAndMvc(builder, logger);
@@ -256,10 +256,12 @@ namespace LocalGPT
                     builder.Configuration.GetSection(NativeCommandOptions.SectionName));
                 builder.Services.Configure<ArtifactBuildOptions>(
                     builder.Configuration.GetSection(ArtifactBuildOptions.SectionName));
+                builder.Services.Configure<RemoteWebEndpointOptions>(
+                    builder.Configuration.GetSection(RemoteWebEndpointOptions.SectionName));
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
-                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.4.2"));
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.4.5"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<ILocalGptRequestFactoryService, LocalGptRequestFactoryService>();
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
@@ -501,27 +503,154 @@ namespace LocalGPT
                 });
         }
 
-        private static int ConfigureKestrel(WebApplicationBuilder builder, int requestedPort, ILogger logger)
+        private static int ConfigureKestrel(WebApplicationBuilder builder, int requestedPort, string[]? args, ILogger logger)
         {
             try
             {
                 var port = requestedPort > 0 ? requestedPort : GetFreePort(logger);
+                var remote = ResolveRemoteWebEndpoint(args, builder.Configuration, builder.Environment.ContentRootPath, builder.Environment.ApplicationName, logger);
+
                 builder.WebHost.ConfigureKestrel(options =>
                 {
-                    // Local-only/offline host: avoid artificial request size limits for user-selected files,
-                    // videos, audio, archives and model-compatible media. The listener remains loopback-only.
+                    // Keep the historical desktop/installer endpoint exactly loopback-only.
                     options.Limits.MaxRequestBodySize = null;
                     options.Limits.MaxRequestBufferSize = null;
+                    options.Listen(IPAddress.Loopback, port);
+
+                    if (remote is null)
+                        return;
+
+                    void ConfigureRemote(Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions listen)
+                    {
+                        if (!string.IsNullOrWhiteSpace(remote.CertificatePath))
+                        {
+                            listen.UseHttps(remote.CertificatePath, remote.CertificatePassword);
+                        }
+                    }
+
+                    if (remote.Address.Equals("0.0.0.0", StringComparison.OrdinalIgnoreCase) ||
+                        remote.Address.Equals("*", StringComparison.OrdinalIgnoreCase))
+                    {
+                        options.ListenAnyIP(remote.Port, ConfigureRemote);
+                    }
+                    else if (remote.Address.Equals("::", StringComparison.OrdinalIgnoreCase))
+                    {
+                        options.Listen(IPAddress.IPv6Any, remote.Port, ConfigureRemote);
+                    }
+                    else if (IPAddress.TryParse(remote.Address, out var bindAddress))
+                    {
+                        options.Listen(bindAddress, remote.Port, ConfigureRemote);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Configured LocalGPT remote bind address '{remote.Address}' is not an IP address. Use 0.0.0.0, ::, or a concrete interface address.");
+                    }
                 });
-                builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
+
+                if (remote is not null)
+                {
+                    var scheme = string.IsNullOrWhiteSpace(remote.CertificatePath) ? "http" : "https";
+                    logger.LogWarning(
+                        "Optional LocalGPT network endpoint enabled at {Scheme}://{Address}:{Port}. Access control remains the responsibility of the host firewall/VPN; HTTP does not encrypt browser traffic.",
+                        scheme, remote.Address, remote.Port);
+                }
+
                 return port;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Kestrel loopback configuration failed.");
+                logger.LogError(ex, "Kestrel endpoint configuration failed.");
                 throw;
             }
         }
+
+        private static RemoteWebEndpointOptions? ResolveRemoteWebEndpoint(
+            string[]? args,
+            IConfiguration configuration,
+            string contentRootPath,
+            string applicationName,
+            ILogger logger)
+        {
+            try
+            {
+                var configured = configuration.GetSection(RemoteWebEndpointOptions.SectionName).Get<RemoteWebEndpointOptions>()
+                    ?? new RemoteWebEndpointOptions();
+
+                var address = FirstNonEmpty(
+                    GetCommandLineValue(args ?? Array.Empty<string>(), "--network-address"),
+                    Environment.GetEnvironmentVariable("LOCALGPT_NETWORK_ADDRESS"),
+                    configured.Address) ?? "0.0.0.0";
+
+                var portText = FirstNonEmpty(
+                    GetCommandLineValue(args ?? Array.Empty<string>(), "--network-port"),
+                    Environment.GetEnvironmentVariable("LOCALGPT_NETWORK_PORT"));
+                var port = configured.Port;
+                if (!string.IsNullOrWhiteSpace(portText) && !int.TryParse(portText, out port))
+                    throw new InvalidOperationException("LOCALGPT network port must be numeric.");
+
+                var enabledText = FirstNonEmpty(
+                    GetCommandLineValue(args ?? Array.Empty<string>(), "--network-enabled"),
+                    Environment.GetEnvironmentVariable("LOCALGPT_NETWORK_ENABLED"));
+                var enabled = configured.Enabled || port > 0;
+                if (!string.IsNullOrWhiteSpace(enabledText) && bool.TryParse(enabledText, out var parsedEnabled))
+                    enabled = parsedEnabled;
+
+                if (!enabled)
+                    return null;
+                if (port is <= 0 or > 65535)
+                    throw new InvalidOperationException("The optional LocalGPT network endpoint requires a port between 1 and 65535.");
+                if (port == Port)
+                    throw new InvalidOperationException("The optional LocalGPT network endpoint must use a different port than the authoritative loopback endpoint.");
+
+                var certificatePath = FirstNonEmpty(
+                    GetCommandLineValue(args ?? Array.Empty<string>(), "--network-certificate"),
+                    Environment.GetEnvironmentVariable("LOCALGPT_NETWORK_CERTIFICATE"),
+                    configured.CertificatePath) ?? string.Empty;
+                var certificatePassword = FirstNonEmpty(
+                    GetCommandLineValue(args ?? Array.Empty<string>(), "--network-certificate-password"),
+                    Environment.GetEnvironmentVariable("LOCALGPT_NETWORK_CERTIFICATE_PASSWORD"),
+                    configured.CertificatePassword) ?? string.Empty;
+
+                if (!string.IsNullOrWhiteSpace(certificatePath))
+                {
+                    certificatePath = Environment.ExpandEnvironmentVariables(certificatePath.Trim());
+                    if (!Path.IsPathRooted(certificatePath))
+                        certificatePath = Path.GetFullPath(Path.Combine(contentRootPath, certificatePath));
+                    if (!File.Exists(certificatePath))
+                        throw new FileNotFoundException("Configured LocalGPT network TLS certificate was not found.", certificatePath);
+                }
+
+                return new RemoteWebEndpointOptions
+                {
+                    Enabled = true,
+                    Address = address.Trim(),
+                    Port = port,
+                    CertificatePath = certificatePath,
+                    CertificatePassword = certificatePassword
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not resolve the optional LocalGPT network endpoint for {ApplicationName}.", applicationName);
+                throw;
+            }
+        }
+
+        private static string? GetCommandLineValue(string[] args, string switchName)
+        {
+            for (var index = 0; index < args.Length; index++)
+            {
+                var current = args[index];
+                if (current.StartsWith(switchName + "=", StringComparison.OrdinalIgnoreCase))
+                    return current[(switchName.Length + 1)..];
+                if (current.Equals(switchName, StringComparison.OrdinalIgnoreCase) && index + 1 < args.Length)
+                    return args[index + 1];
+            }
+            return null;
+        }
+
+        private static string? FirstNonEmpty(params string?[] values) =>
+            values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
         private static int ResolveRequestedPort(string[]? args, IConfiguration configuration, ILogger logger)
         {

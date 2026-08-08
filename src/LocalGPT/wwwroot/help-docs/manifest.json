@@ -62,10 +62,10 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "LocalGPT-2.4.2.pdf",
+      "source_relative_path": "LocalGPT-2.4.5.pdf",
       "output": {
         "resource": {
-          "relative_path": "LocalGPT-2.4.2.pdf"
+          "relative_path": "LocalGPT-2.4.5.pdf"
         }
       },
       "version": ""
@@ -4773,6 +4773,20 @@
       "IsMRef": true,
       "Title": "LocalGPT.BusinessObjects.RemoteKnowledgeImportResult",
       "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.RemoteWebEndpointOptions",
+      "Summary": "<p sourcefile=\"api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.yml\" sourcestartlinenumber=\"1\">Optional second Kestrel endpoint for LAN/VPN/browser access. The historical loopback endpoint remains authoritative.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -10614,6 +10628,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ListProjectWorkspaceFilesFunction",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.yml\" sourcestartlinenumber=\"1\">Lists readable source/text files inside the project currently linked to /chat.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Services.ListRecentApplicationLogsFunction.yml",
       "output": {
         ".html": {
@@ -11720,6 +11748,34 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ProjectWorkspaceListParameters.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ProjectWorkspaceListParameters.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ProjectWorkspaceListParameters",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ProjectWorkspaceReadParameters.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ProjectWorkspaceReadParameters.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ProjectWorkspaceReadParameters",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Services.PromptConfigService.yml",
       "output": {
         ".html": {
@@ -11815,6 +11871,20 @@
       "IsMRef": true,
       "Title": "LocalGPT.Services.ReadExactSqliteTableFunction",
       "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ReadProjectWorkspaceFileFunction",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.yml\" sourcestartlinenumber=\"1\">Reads one harmless source/text file from the project linked to /chat.</p>\n"
     },
     {
       "type": "ManagedReference",

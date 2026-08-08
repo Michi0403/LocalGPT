@@ -171,6 +171,31 @@
                         <DxButton Text="Start Local Server" Click="StartLocal" />
                         <DxButton Text="Test Connection" Click="TestLocal" />
                     </div>
+
+                    <DxFormLayoutItem Caption="Additional OpenAI-compatible hosts">
+                        <DxButton Text="Add Host"
+                                  RenderStyle="ButtonRenderStyle.Secondary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Click="AddOpenAiCompatibleHost" />
+                    </DxFormLayoutItem>
+                    @foreach (var host in AdditionalOpenAiCompatibleHosts)
+                    {
+                        <DxFormLayoutItem Caption="Endpoint">
+                            <DxTextBox @bind-Text="host.Endpoint" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="API Key">
+                            <DxTextBox @bind-Text="host.ApiKey" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Preferred model">
+                            <DxTextBox @bind-Text="host.ModelName" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem>
+                            <DxButton Text="Remove"
+                                      RenderStyle="ButtonRenderStyle.Danger"
+                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                      Click="@(() => RemoveOpenAiCompatibleHost(host))" />
+                        </DxFormLayoutItem>
+                    }
                 </DxFormLayoutTabPage>
 
                 <DxFormLayoutTabPage Caption="Ollama">
@@ -446,6 +471,7 @@
         .SelectMany(host => host.Models.Select(model => ToProviderModel(host, model)))
         .ToList();
     private List<OllamaCoreOptions> AdditionalOllamaModels => Model.OllamaCores;
+    private List<ChatGPTLocalCoreOptions> AdditionalOpenAiCompatibleHosts => Model.ChatGPTLocalCores;
     private bool HasReachableAiHost => DiscoveredHosts.Any(host => host.IsReachable);
     private string ConnectivityAlertCss => HasReachableAiHost ? "alert alert-success" : "alert alert-warning";
     /// <summary>Resolves one installer UI string with a maintained fallback.</summary>
@@ -458,6 +484,7 @@
             var current = Opts.CurrentValue.AICore ?? new AICoreOptions();
             // ensure non-null sub-sections
             Model.ChatGPTLocalCore = current.ChatGPTLocalCore ?? new ChatGPTLocalCoreOptions();
+            Model.ChatGPTLocalCores = current.ChatGPTLocalCores ?? new List<ChatGPTLocalCoreOptions>();
             Model.OllamaCore      = current.OllamaCore      ?? new OllamaCoreOptions();
             Model.OllamaCores = current.OllamaCores ?? new List<OllamaCoreOptions>();
             Model.OpenAICore      = current.OpenAICore      ?? new OpenAICompatOptions();
@@ -1180,6 +1207,23 @@
         }
     }
 
+    private void AddOpenAiCompatibleHost()
+    {
+        Model.ChatGPTLocalCores ??= new List<ChatGPTLocalCoreOptions>();
+        Model.ChatGPTLocalCores.Add(new ChatGPTLocalCoreOptions
+        {
+            Endpoint = "http://127.0.0.1:1234/v1",
+            ApiKey = "local-no-key",
+            ModelName = string.Empty,
+            AutoStartServer = false
+        });
+    }
+
+    private void RemoveOpenAiCompatibleHost(ChatGPTLocalCoreOptions host)
+    {
+        Model.ChatGPTLocalCores?.Remove(host);
+    }
+
     private void AddOllamaModel()
     {
         try
@@ -1285,6 +1329,9 @@
     {
         root.AICore ??= new AICoreOptions();
         root.AICore.ChatGPTLocalCore = Model.ChatGPTLocalCore;
+        root.AICore.ChatGPTLocalCores = Model.ChatGPTLocalCores
+            .Where(option => !string.IsNullOrWhiteSpace(option.Endpoint) || !string.IsNullOrWhiteSpace(option.ModelName))
+            .ToList();
         root.AICore.OllamaCore = Model.OllamaCore;
         root.AICore.OllamaCores = Model.OllamaCores
             .Where(option => !string.IsNullOrWhiteSpace(option.Uri) || !string.IsNullOrWhiteSpace(option.ModelName))

@@ -53,14 +53,16 @@ def main() -> int:
     contains("stale qualified identities rejected", runtime, "is no longer available")
     contains("explicit run identities remembered", runtime, "public void Remember(ProviderModelReference model)")
     contains("cloud credentials endpoint-bound", runtime, "EnsureCredentialEndpointMatch")
-    contains("local credentials not forwarded to fallback", runtime, "Never forward a configured local-provider credential")
-    contains("runtime discovery credentials endpoint-bound", runtime, "var discoveryApiKey = endpoint.Equals(configuredEndpoint")
-    contains("chat discovery credentials endpoint-bound", chat_factory, "var discoveryApiKey = endpoint.Equals(configuredLocalEndpoint")
-    contains("chat runtime credentials endpoint-bound", chat_factory, "var runtimeApiKey = activeEndpoint.Equals(configuredLocalEndpoint")
+    contains("OpenAI-compatible credentials remain endpoint-owned", runtime, "Credentials are endpoint-owned; never forward one configured host's key to another host")
+    contains("runtime discovery credentials endpoint-bound", runtime, "local.ApiKey,")
+    contains("chat discovery credentials endpoint-bound", chat_factory, "ResolveOpenAiCompatibleModel(configuredEndpoint, loc.ModelName, loc.ApiKey")
+    contains("chat runtime credentials endpoint-bound", chat_factory, 'var runtimeApiKey = !string.IsNullOrWhiteSpace(loc.ApiKey) ? loc.ApiKey : "local-no-key";')
     contains("Ollama native client supported", runtime, "OllamaThinkingChatClient")
     contains("OpenAI compatible client supported", runtime, "global::OpenAI.OpenAIClient")
     contains("Azure OpenAI client supported", runtime, "AzureOpenAIClient")
     contains("multiple Ollama cores discovered", runtime, "options.OllamaCores")
+    contains("multiple OpenAI-compatible cores discovered", runtime, "options.ChatGPTLocalCores")
+    contains("configured remote OpenAI-compatible endpoints accepted", runtime, "neither configured nor a loopback provider")
     contains("LM Studio fallback discovered", runtime, "127.0.0.1:1234/v1")
     contains("benchmark target count bounded", benchmark, ".Take(24)")
     contains("benchmark profiles bounded", benchmark, "Math.Clamp(request.MaxProfilesPerModel, 1, 6)")
@@ -125,8 +127,10 @@ def main() -> int:
     excludes("Council no longer injects obsolete prompt service", council, "IPromptConfigService promptConfigService")
     contains("failed final recovery marks the Council step", council, "Error = finalAnswerError")
     contains("failed verifier is not presented as peer verification", council, "did not produce a substantive peer-verification answer")
-    version_match = re.search(r"<Version>2\.3\.(\d+)</Version>", project)
-    checks.append(("application patch version advanced", bool(version_match and int(version_match.group(1)) >= 8)))
+    version_match = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", project)
+    checks.append((
+        "application patch version advanced",
+        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 4, 5))))
 
     failures = [name for name, passed in checks if not passed]
     if failures:

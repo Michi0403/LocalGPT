@@ -57,50 +57,34 @@ public sealed class ProviderModelRuntimeService(
                     AddCandidate(candidates, discovered);
             }
 
-            if (options.ChatGPTLocalCore is { Endpoint.Length: > 0 } local)
+            foreach (var local in EnumerateOpenAiCompatible(options))
             {
                 var configuredEndpoint = NormalizeOpenAiEndpoint(local.Endpoint);
-                var localEndpoints = new[]
-                {
+                if (ollamaAuthorities.Contains(GetAuthority(configuredEndpoint)))
+                    continue;
+
+                var providerName = GetLocalProviderName(configuredEndpoint);
+                var discovered = await ProbeOpenAiCompatibleAsync(
+                    providerName,
                     configuredEndpoint,
-                    NormalizeOpenAiEndpoint("http://127.0.0.1:1234/v1")
-                }
-                .Distinct(StringComparer.OrdinalIgnoreCase);
+                    local.ApiKey,
+                    ProviderModelKinds.OpenAICompatible,
+                    isLocal: IsLocalEndpoint(configuredEndpoint),
+                    cancellationToken).ConfigureAwait(false);
+                foreach (var candidate in discovered)
+                    AddCandidate(candidates, candidate);
 
-                foreach (var endpoint in localEndpoints)
+                if (!string.IsNullOrWhiteSpace(local.ModelName))
                 {
-                    // Ollama exposes an OpenAI-compatible facade at /v1. Do not present the same host twice:
-                    // its native Ollama address is the authoritative identity because it also supports load/unload controls.
-                    if (ollamaAuthorities.Contains(GetAuthority(endpoint)))
-                        continue;
-
-                    var providerName = GetLocalProviderName(endpoint);
-                    var discoveryApiKey = endpoint.Equals(configuredEndpoint, StringComparison.OrdinalIgnoreCase)
-                        ? local.ApiKey
-                        : null;
-                    var discovered = await ProbeOpenAiCompatibleAsync(
-                        providerName,
-                        endpoint,
-                        discoveryApiKey,
-                        ProviderModelKinds.OpenAICompatible,
-                        isLocal: true,
-                        cancellationToken).ConfigureAwait(false);
-                    foreach (var candidate in discovered)
-                        AddCandidate(candidates, candidate);
-
-                    if (endpoint.Equals(configuredEndpoint, StringComparison.OrdinalIgnoreCase)
-                        && !string.IsNullOrWhiteSpace(local.ModelName))
-                    {
-                        AddCandidate(candidates, new MultiModelCouncilModelCandidate(
-                            local.ModelName.Trim(), providerName, endpoint,
-                            IsInstalled: discovered.Any(item => item.ModelName.Equals(local.ModelName, StringComparison.OrdinalIgnoreCase)),
-                            IsConfigured: true,
-                            IsLoaded: false,
-                            Details: "Configured local OpenAI-compatible model.",
-                            ProviderKind: ProviderModelKinds.OpenAICompatible,
-                            IsLocal: true,
-                            SupportsBenchmark: true));
-                    }
+                    AddCandidate(candidates, new MultiModelCouncilModelCandidate(
+                        local.ModelName.Trim(), providerName, configuredEndpoint,
+                        IsInstalled: discovered.Any(item => item.ModelName.Equals(local.ModelName, StringComparison.OrdinalIgnoreCase)),
+                        IsConfigured: true,
+                        IsLoaded: false,
+                        Details: "Configured OpenAI-compatible model.",
+                        ProviderKind: ProviderModelKinds.OpenAICompatible,
+                        IsLocal: IsLocalEndpoint(configuredEndpoint),
+                        SupportsBenchmark: true));
                 }
             }
 
@@ -342,19 +326,16 @@ public sealed class ProviderModelRuntimeService(
             }
             else
             {
-                var configuredLocal = options.ChatGPTLocalCore;
-                var configuredEndpoint = configuredLocal is { Endpoint.Length: > 0 }
-                    ? NormalizeOpenAiEndpoint(configuredLocal.Endpoint)
-                    : string.Empty;
-                var isConfiguredEndpoint = endpoint.Equals(configuredEndpoint, StringComparison.OrdinalIgnoreCase);
+                var configuredLocal = EnumerateOpenAiCompatible(options)
+                    .FirstOrDefault(item => NormalizeOpenAiEndpoint(item.Endpoint).Equals(endpoint, StringComparison.OrdinalIgnoreCase));
                 var isLoopbackFallback = Uri.TryCreate(endpoint, UriKind.Absolute, out var localUri) && localUri.IsLoopback;
-                if (!isConfiguredEndpoint && !isLoopbackFallback)
+                if (configuredLocal is null && !isLoopbackFallback)
                 {
                     throw new InvalidOperationException(
-                        "The local OpenAI-compatible endpoint is neither the configured endpoint nor a loopback provider discovered on this machine.");
+                        "The OpenAI-compatible endpoint is neither configured nor a loopback provider discovered on this machine.");
                 }
-                // Never forward a configured local-provider credential to an unrelated fallback endpoint.
-                apiKey = isConfiguredEndpoint && !string.IsNullOrWhiteSpace(configuredLocal?.ApiKey)
+                // Credentials are endpoint-owned; never forward one configured host's key to another host.
+                apiKey = configuredLocal is not null && !string.IsNullOrWhiteSpace(configuredLocal.ApiKey)
                     ? configuredLocal.ApiKey
                     : "local-no-key";
             }
@@ -424,6 +405,42 @@ public sealed class ProviderModelRuntimeService(
         throw;
     }
 }
+
+    private IReadOnlyList<ChatGPTLocalCoreOptions> EnumerateOpenAiCompatible(AICoreOptions options)
+    {
+        try
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var providers = new List<ChatGPTLocalCoreOptions>();
+
+            void Add(ChatGPTLocalCoreOptions? item)
+            {
+                if (item is null || string.IsNullOrWhiteSpace(item.Endpoint))
+                    return;
+                var normalized = NormalizeOpenAiEndpoint(item.Endpoint);
+                if (seen.Add(normalized))
+                    providers.Add(item);
+            }
+
+            Add(options.ChatGPTLocalCore);
+            foreach (var item in options.ChatGPTLocalCores ?? [])
+                Add(item);
+            // Preserve historical local LM Studio discovery while allowing configured remote hosts in parallel.
+            Add(new ChatGPTLocalCoreOptions
+            {
+                Endpoint = "http://127.0.0.1:1234/v1",
+                ApiKey = "local-no-key",
+                ModelName = string.Empty,
+                AutoStartServer = false
+            });
+            return providers;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Enumerating configured OpenAI-compatible providers failed.");
+            throw;
+        }
+    }
 
     private IReadOnlyList<OllamaCoreOptions> EnumerateOllama(AICoreOptions options)
     {

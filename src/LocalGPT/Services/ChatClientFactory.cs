@@ -127,84 +127,49 @@ namespace LocalGPT.Services
                     ));
                 }
 
-                // --- Local OpenAI-compatible (LM Studio / vLLM / text-gen-webui) ---
-                if (options.ChatGPTLocalCore is { Endpoint.Length: > 0 } loc)
+                // --- OpenAI-compatible hosts (LM Studio / vLLM / text-gen-webui; local or remote) ---
+                foreach (var loc in EnumerateOpenAiCompatibleProviders(options))
                 {
-                    var configuredLocalEndpoint = NormalizeOpenAiCompatibleEndpoint(loc.Endpoint);
-                    var configuredLocalIdentity = NormalizeProviderIdentity(loc.Endpoint);
-                    if (configuredOllamaEndpoints.Contains(configuredLocalIdentity))
+                    var configuredEndpoint = NormalizeOpenAiCompatibleEndpoint(loc.Endpoint);
+                    var configuredIdentity = NormalizeProviderIdentity(loc.Endpoint);
+                    if (configuredOllamaEndpoints.Contains(configuredIdentity))
                     {
                         logger.LogInformation(
-                            "Skipping duplicate OpenAI-compatible registration for {Endpoint}; the same Ollama provider is already available through the native client.",
+                            "Skipping duplicate OpenAI-compatible registration for {Endpoint}; the same provider authority is already registered through native Ollama.",
                             loc.Endpoint);
-                    }
-                    else
-                    {
-                        // Prefer the explicitly configured local endpoint, then LM Studio fallbacks.
-                        // Native Ollama endpoints are already registered above and are intentionally not probed twice.
-                        var candidateEndpoints = new[]
-                        {
-                            loc.Endpoint,
-                            "http://127.0.0.1:1234/v1",
-                            "http://localhost:1234/v1"
-                        }
-                        .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint))
-                        .Select(NormalizeOpenAiCompatibleEndpoint)
-                        .Distinct(StringComparer.OrdinalIgnoreCase);
-
-                    string? activeEndpoint = null;
-                    string? resolvedModel = null;
-
-                    // 2. Iterate through endpoints until a reachable provider with an active model is found
-                    foreach (var endpoint in candidateEndpoints)
-                    {
-                        var discoveryApiKey = endpoint.Equals(configuredLocalEndpoint, StringComparison.OrdinalIgnoreCase)
-                            ? loc.ApiKey
-                            : null;
-                        var model = ResolveOpenAiCompatibleModel(endpoint, loc.ModelName, discoveryApiKey, logger);
-                        if (!string.IsNullOrWhiteSpace(model))
-                        {
-                            activeEndpoint = endpoint;
-                            resolvedModel = model;
-                            break; // Stop at the first working endpoint
-                        }
+                        continue;
                     }
 
-                    // 3. Register the client session if any candidate succeeded, or log the fallback failure
-                    if (!string.IsNullOrWhiteSpace(activeEndpoint) && !string.IsNullOrWhiteSpace(resolvedModel))
+                    var resolvedModel = ResolveOpenAiCompatibleModel(configuredEndpoint, loc.ModelName, loc.ApiKey, logger);
+                    if (string.IsNullOrWhiteSpace(resolvedModel))
                     {
-                        logger.LogInformation("Found reachable local OpenAI-compatible provider at {Endpoint} for model {Model}.", activeEndpoint, resolvedModel);
-                        var runtimeApiKey = activeEndpoint.Equals(configuredLocalEndpoint, StringComparison.OrdinalIgnoreCase)
-                            && !string.IsNullOrWhiteSpace(loc.ApiKey)
-                                ? loc.ApiKey
-                                : "local-no-key";
+                        logger.LogInformation(
+                            "Configured OpenAI-compatible endpoint {Endpoint} is offline or exposes no models; it was not added to the active chat selector.",
+                            loc.Endpoint);
+                        continue;
+                    }
 
-                        var localClient = new OpenAIClient(
-                            new ApiKeyCredential(runtimeApiKey),
-                            new OpenAIClientOptions
+                    var runtimeApiKey = !string.IsNullOrWhiteSpace(loc.ApiKey) ? loc.ApiKey : "local-no-key";
+                    var localClient = new OpenAIClient(
+                        new ApiKeyCredential(runtimeApiKey),
+                        new OpenAIClientOptions
+                        {
+                            Endpoint = new Uri(configuredEndpoint, UriKind.Absolute),
+                            ClientLoggingOptions = new ClientLoggingOptions
                             {
-                                Endpoint = new Uri(activeEndpoint, UriKind.Absolute),
-                                ClientLoggingOptions = new ClientLoggingOptions
-                                {
-                                    EnableLogging = true,
-                                    EnableMessageLogging = false,
-                                    EnableMessageContentLogging = false,
-                                    LoggerFactory = loggerFactory
-                                }
-                            });
+                                EnableLogging = true,
+                                EnableMessageLogging = false,
+                                EnableMessageContentLogging = false,
+                                LoggerFactory = loggerFactory
+                            }
+                        });
 
-                        var localChat = localClient.GetChatClient(resolvedModel).AsIChatClient();
-                        var localProviderName = GetLocalProviderName(activeEndpoint);
-                        sessions.Add(new ChatClientSession(
-                            new LoggingChatClient(localChat, loggerFactory.CreateLogger("AI.LocalOpenAI")),
-                            new ProviderModelIdentity().CreateSelectionKey(localProviderName, activeEndpoint, resolvedModel), localProviderName, resolvedModel, activeEndpoint
-                        ));
-                    }
-                    else
-                    {
-                        logger.LogInformation("The configured local endpoint ({Endpoint}) and LM Studio fallback (1234) are offline or expose no models; none were added to the active chat selector.", loc.Endpoint);
-                    }
-                    }
+                    var localChat = localClient.GetChatClient(resolvedModel).AsIChatClient();
+                    var providerName = GetLocalProviderName(configuredEndpoint);
+                    sessions.Add(new ChatClientSession(
+                        new LoggingChatClient(localChat, loggerFactory.CreateLogger("AI.LocalOpenAI")),
+                        new ProviderModelIdentity().CreateSelectionKey(providerName, configuredEndpoint, resolvedModel),
+                        providerName, resolvedModel, configuredEndpoint));
                 }
 
                 if (sessions.Count == 0)
@@ -226,6 +191,43 @@ namespace LocalGPT.Services
             catch (Exception ex)
             {
                 logger.LogError(ex, "💥 ChatClientFactory.Build failed: {Message}", ex.Message);
+                throw;
+            }
+        }
+
+        private IReadOnlyList<ChatGPTLocalCoreOptions> EnumerateOpenAiCompatibleProviders(AICoreOptions options)
+        {
+            try
+            {
+                var results = new List<ChatGPTLocalCoreOptions>();
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                void Add(ChatGPTLocalCoreOptions? item)
+                {
+                    if (item is null || string.IsNullOrWhiteSpace(item.Endpoint))
+                        return;
+                    var normalized = NormalizeOpenAiCompatibleEndpoint(item.Endpoint);
+                    if (seen.Add(normalized))
+                        results.Add(item);
+                }
+
+                Add(options.ChatGPTLocalCore);
+                foreach (var item in options.ChatGPTLocalCores ?? [])
+                    Add(item);
+                // Preserve the historical local LM Studio auto-discovery while allowing any number of configured remote hosts.
+                Add(new ChatGPTLocalCoreOptions
+                {
+                    Endpoint = "http://127.0.0.1:1234/v1",
+                    ApiKey = "local-no-key",
+                    ModelName = string.Empty,
+                    AutoStartServer = false
+                });
+
+                return results;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Enumerating configured OpenAI-compatible providers failed.");
                 throw;
             }
         }

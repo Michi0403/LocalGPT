@@ -995,6 +995,24 @@
             Provider-qualified model identity. No credential is stored in this object; credentials are resolved from the matching configured provider at execution time.
             </summary>
     </member>
+    <member name="T:LocalGPT.BusinessObjects.RemoteWebEndpointOptions">
+      <summary>Optional second Kestrel endpoint for LAN/VPN/browser access. The historical loopback endpoint remains authoritative.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Enabled">
+      <summary>Explicit opt-in. A command-line/environment/configured remote port also opts in.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Address">
+      <summary>IP address to bind. Use 0.0.0.0 for all IPv4 interfaces or :: for all IPv6 interfaces.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Port">
+      <summary>Secondary listener port. Zero keeps the endpoint disabled.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePath">
+      <summary>Optional PFX/PKCS#12 certificate path. When set, the secondary endpoint uses HTTPS.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePassword">
+      <summary>Optional PFX password. Prefer an environment variable or command-line secret over committing it to appsettings.</summary>
+    </member>
     <member name="T:LocalGPT.BusinessObjects.RuntimeCapabilityDirectorySnapshot">
       <summary>Current dependency-injected function and organic-skill directory persisted for AI context.</summary>
     </member>
@@ -4162,6 +4180,18 @@
       <param name="userConfirmed">Whether the user approved the destructive database change.</param>
       <param name="cancellationToken">Cancellation token for database work.</param>
       <returns>A task whose result is true when the compiler record was removed.</returns>
+    </member>
+    <member name="T:LocalGPT.Services.ListProjectWorkspaceFilesFunction">
+      <summary>Lists readable source/text files inside the project currently linked to /chat.</summary>
+    </member>
+    <member name="M:LocalGPT.Services.ListProjectWorkspaceFilesFunction.#ctor(LocalGPT.Interfaces.IDxAiFunctionJsonService,LocalGPT.Interfaces.ILocalGptProjectService,LocalGPT.Interfaces.IChatSessionContext,LocalGPT.Services.CouncilRuntimeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ListProjectWorkspaceFilesFunction})">
+      <summary>Lists readable source/text files inside the project currently linked to /chat.</summary>
+    </member>
+    <member name="T:LocalGPT.Services.ReadProjectWorkspaceFileFunction">
+      <summary>Reads one harmless source/text file from the project linked to /chat.</summary>
+    </member>
+    <member name="M:LocalGPT.Services.ReadProjectWorkspaceFileFunction.#ctor(LocalGPT.Interfaces.IDxAiFunctionJsonService,LocalGPT.Interfaces.ILocalGptProjectService,LocalGPT.Interfaces.IChatSessionContext,LocalGPT.Interfaces.ISafeTextDocumentService,LocalGPT.Services.CouncilRuntimeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ReadProjectWorkspaceFileFunction})">
+      <summary>Reads one harmless source/text file from the project linked to /chat.</summary>
     </member>
     <member name="T:LocalGPT.Services.ProviderModelBenchmarkService">
       <summary>

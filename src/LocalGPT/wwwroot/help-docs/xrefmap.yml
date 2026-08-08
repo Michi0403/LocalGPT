@@ -55,6 +55,18 @@ references:
   commentId: Overload:LocalGPT.BusinessObjects.AICoreOptions.ChatGPTLocalCore
   fullName: LocalGPT.BusinessObjects.AICoreOptions.ChatGPTLocalCore
   nameWithType: AICoreOptions.ChatGPTLocalCore
+- uid: LocalGPT.BusinessObjects.AICoreOptions.ChatGPTLocalCores
+  name: ChatGPTLocalCores
+  href: api/LocalGPT.BusinessObjects.AICoreOptions.html#LocalGPT_BusinessObjects_AICoreOptions_ChatGPTLocalCores
+  commentId: P:LocalGPT.BusinessObjects.AICoreOptions.ChatGPTLocalCores
+  fullName: LocalGPT.BusinessObjects.AICoreOptions.ChatGPTLocalCores
+  nameWithType: AICoreOptions.ChatGPTLocalCores
+- uid: LocalGPT.BusinessObjects.AICoreOptions.ChatGPTLocalCores*
+  name: ChatGPTLocalCores
+  href: api/LocalGPT.BusinessObjects.AICoreOptions.html#LocalGPT_BusinessObjects_AICoreOptions_ChatGPTLocalCores_
+  commentId: Overload:LocalGPT.BusinessObjects.AICoreOptions.ChatGPTLocalCores
+  fullName: LocalGPT.BusinessObjects.AICoreOptions.ChatGPTLocalCores
+  nameWithType: AICoreOptions.ChatGPTLocalCores
 - uid: LocalGPT.BusinessObjects.AICoreOptions.OllamaCore
   name: OllamaCore
   href: api/LocalGPT.BusinessObjects.AICoreOptions.html#LocalGPT_BusinessObjects_AICoreOptions_OllamaCore
@@ -47083,6 +47095,96 @@ references:
   commentId: Overload:LocalGPT.BusinessObjects.RemoteKnowledgeImportResult.Warnings
   fullName: LocalGPT.BusinessObjects.RemoteKnowledgeImportResult.Warnings
   nameWithType: RemoteKnowledgeImportResult.Warnings
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions
+  name: RemoteWebEndpointOptions
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html
+  commentId: T:LocalGPT.BusinessObjects.RemoteWebEndpointOptions
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions
+  nameWithType: RemoteWebEndpointOptions
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.#ctor
+  name: RemoteWebEndpointOptions()
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions__ctor
+  commentId: M:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.#ctor
+  name.vb: New()
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.RemoteWebEndpointOptions()
+  fullName.vb: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.New()
+  nameWithType: RemoteWebEndpointOptions.RemoteWebEndpointOptions()
+  nameWithType.vb: RemoteWebEndpointOptions.New()
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.#ctor*
+  name: RemoteWebEndpointOptions
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions__ctor_
+  commentId: Overload:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.#ctor
+  name.vb: New
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.RemoteWebEndpointOptions
+  fullName.vb: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.New
+  nameWithType: RemoteWebEndpointOptions.RemoteWebEndpointOptions
+  nameWithType.vb: RemoteWebEndpointOptions.New
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Address
+  name: Address
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_Address
+  commentId: P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Address
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Address
+  nameWithType: RemoteWebEndpointOptions.Address
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Address*
+  name: Address
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_Address_
+  commentId: Overload:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Address
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Address
+  nameWithType: RemoteWebEndpointOptions.Address
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePassword
+  name: CertificatePassword
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_CertificatePassword
+  commentId: P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePassword
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePassword
+  nameWithType: RemoteWebEndpointOptions.CertificatePassword
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePassword*
+  name: CertificatePassword
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_CertificatePassword_
+  commentId: Overload:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePassword
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePassword
+  nameWithType: RemoteWebEndpointOptions.CertificatePassword
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePath
+  name: CertificatePath
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_CertificatePath
+  commentId: P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePath
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePath
+  nameWithType: RemoteWebEndpointOptions.CertificatePath
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePath*
+  name: CertificatePath
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_CertificatePath_
+  commentId: Overload:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePath
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePath
+  nameWithType: RemoteWebEndpointOptions.CertificatePath
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Enabled
+  name: Enabled
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_Enabled
+  commentId: P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Enabled
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Enabled
+  nameWithType: RemoteWebEndpointOptions.Enabled
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Enabled*
+  name: Enabled
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_Enabled_
+  commentId: Overload:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Enabled
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Enabled
+  nameWithType: RemoteWebEndpointOptions.Enabled
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Port
+  name: Port
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_Port
+  commentId: P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Port
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Port
+  nameWithType: RemoteWebEndpointOptions.Port
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Port*
+  name: Port
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_Port_
+  commentId: Overload:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Port
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Port
+  nameWithType: RemoteWebEndpointOptions.Port
+- uid: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.SectionName
+  name: SectionName
+  href: api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html#LocalGPT_BusinessObjects_RemoteWebEndpointOptions_SectionName
+  commentId: F:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.SectionName
+  fullName: LocalGPT.BusinessObjects.RemoteWebEndpointOptions.SectionName
+  nameWithType: RemoteWebEndpointOptions.SectionName
 - uid: LocalGPT.BusinessObjects.ReportCouncilMemberSkillRequest
   name: ReportCouncilMemberSkillRequest
   href: api/LocalGPT.BusinessObjects.ReportCouncilMemberSkillRequest.html
@@ -81512,6 +81614,54 @@ references:
   commentId: Overload:LocalGPT.Services.ListLocalPathRootsFunction.InvokeAsync
   fullName: LocalGPT.Services.ListLocalPathRootsFunction.InvokeAsync
   nameWithType: ListLocalPathRootsFunction.InvokeAsync
+- uid: LocalGPT.Services.ListProjectWorkspaceFilesFunction
+  name: ListProjectWorkspaceFilesFunction
+  href: api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.html
+  commentId: T:LocalGPT.Services.ListProjectWorkspaceFilesFunction
+  fullName: LocalGPT.Services.ListProjectWorkspaceFilesFunction
+  nameWithType: ListProjectWorkspaceFilesFunction
+- uid: LocalGPT.Services.ListProjectWorkspaceFilesFunction.#ctor(LocalGPT.Interfaces.IDxAiFunctionJsonService,LocalGPT.Interfaces.ILocalGptProjectService,LocalGPT.Interfaces.IChatSessionContext,LocalGPT.Services.CouncilRuntimeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ListProjectWorkspaceFilesFunction})
+  name: ListProjectWorkspaceFilesFunction(IDxAiFunctionJsonService, ILocalGptProjectService, IChatSessionContext, CouncilRuntimeService, ILogger<ListProjectWorkspaceFilesFunction>)
+  href: api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.html#LocalGPT_Services_ListProjectWorkspaceFilesFunction__ctor_LocalGPT_Interfaces_IDxAiFunctionJsonService_LocalGPT_Interfaces_ILocalGptProjectService_LocalGPT_Interfaces_IChatSessionContext_LocalGPT_Services_CouncilRuntimeService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_ListProjectWorkspaceFilesFunction__
+  commentId: M:LocalGPT.Services.ListProjectWorkspaceFilesFunction.#ctor(LocalGPT.Interfaces.IDxAiFunctionJsonService,LocalGPT.Interfaces.ILocalGptProjectService,LocalGPT.Interfaces.IChatSessionContext,LocalGPT.Services.CouncilRuntimeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ListProjectWorkspaceFilesFunction})
+  name.vb: New(IDxAiFunctionJsonService, ILocalGptProjectService, IChatSessionContext, CouncilRuntimeService, ILogger(Of ListProjectWorkspaceFilesFunction))
+  fullName: LocalGPT.Services.ListProjectWorkspaceFilesFunction.ListProjectWorkspaceFilesFunction(LocalGPT.Interfaces.IDxAiFunctionJsonService, LocalGPT.Interfaces.ILocalGptProjectService, LocalGPT.Interfaces.IChatSessionContext, LocalGPT.Services.CouncilRuntimeService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.ListProjectWorkspaceFilesFunction>)
+  fullName.vb: LocalGPT.Services.ListProjectWorkspaceFilesFunction.New(LocalGPT.Interfaces.IDxAiFunctionJsonService, LocalGPT.Interfaces.ILocalGptProjectService, LocalGPT.Interfaces.IChatSessionContext, LocalGPT.Services.CouncilRuntimeService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.ListProjectWorkspaceFilesFunction))
+  nameWithType: ListProjectWorkspaceFilesFunction.ListProjectWorkspaceFilesFunction(IDxAiFunctionJsonService, ILocalGptProjectService, IChatSessionContext, CouncilRuntimeService, ILogger<ListProjectWorkspaceFilesFunction>)
+  nameWithType.vb: ListProjectWorkspaceFilesFunction.New(IDxAiFunctionJsonService, ILocalGptProjectService, IChatSessionContext, CouncilRuntimeService, ILogger(Of ListProjectWorkspaceFilesFunction))
+- uid: LocalGPT.Services.ListProjectWorkspaceFilesFunction.#ctor*
+  name: ListProjectWorkspaceFilesFunction
+  href: api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.html#LocalGPT_Services_ListProjectWorkspaceFilesFunction__ctor_
+  commentId: Overload:LocalGPT.Services.ListProjectWorkspaceFilesFunction.#ctor
+  name.vb: New
+  fullName: LocalGPT.Services.ListProjectWorkspaceFilesFunction.ListProjectWorkspaceFilesFunction
+  fullName.vb: LocalGPT.Services.ListProjectWorkspaceFilesFunction.New
+  nameWithType: ListProjectWorkspaceFilesFunction.ListProjectWorkspaceFilesFunction
+  nameWithType.vb: ListProjectWorkspaceFilesFunction.New
+- uid: LocalGPT.Services.ListProjectWorkspaceFilesFunction.Descriptor
+  name: Descriptor
+  href: api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.html#LocalGPT_Services_ListProjectWorkspaceFilesFunction_Descriptor
+  commentId: P:LocalGPT.Services.ListProjectWorkspaceFilesFunction.Descriptor
+  fullName: LocalGPT.Services.ListProjectWorkspaceFilesFunction.Descriptor
+  nameWithType: ListProjectWorkspaceFilesFunction.Descriptor
+- uid: LocalGPT.Services.ListProjectWorkspaceFilesFunction.Descriptor*
+  name: Descriptor
+  href: api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.html#LocalGPT_Services_ListProjectWorkspaceFilesFunction_Descriptor_
+  commentId: Overload:LocalGPT.Services.ListProjectWorkspaceFilesFunction.Descriptor
+  fullName: LocalGPT.Services.ListProjectWorkspaceFilesFunction.Descriptor
+  nameWithType: ListProjectWorkspaceFilesFunction.Descriptor
+- uid: LocalGPT.Services.ListProjectWorkspaceFilesFunction.InvokeAsync(LocalGPT.BusinessObjects.DxAiFunctionInvocationRequest,System.Threading.CancellationToken)
+  name: InvokeAsync(DxAiFunctionInvocationRequest, CancellationToken)
+  href: api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.html#LocalGPT_Services_ListProjectWorkspaceFilesFunction_InvokeAsync_LocalGPT_BusinessObjects_DxAiFunctionInvocationRequest_System_Threading_CancellationToken_
+  commentId: M:LocalGPT.Services.ListProjectWorkspaceFilesFunction.InvokeAsync(LocalGPT.BusinessObjects.DxAiFunctionInvocationRequest,System.Threading.CancellationToken)
+  fullName: LocalGPT.Services.ListProjectWorkspaceFilesFunction.InvokeAsync(LocalGPT.BusinessObjects.DxAiFunctionInvocationRequest, System.Threading.CancellationToken)
+  nameWithType: ListProjectWorkspaceFilesFunction.InvokeAsync(DxAiFunctionInvocationRequest, CancellationToken)
+- uid: LocalGPT.Services.ListProjectWorkspaceFilesFunction.InvokeAsync*
+  name: InvokeAsync
+  href: api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.html#LocalGPT_Services_ListProjectWorkspaceFilesFunction_InvokeAsync_
+  commentId: Overload:LocalGPT.Services.ListProjectWorkspaceFilesFunction.InvokeAsync
+  fullName: LocalGPT.Services.ListProjectWorkspaceFilesFunction.InvokeAsync
+  nameWithType: ListProjectWorkspaceFilesFunction.InvokeAsync
 - uid: LocalGPT.Services.ListRecentApplicationLogsFunction
   name: ListRecentApplicationLogsFunction
   href: api/LocalGPT.Services.ListRecentApplicationLogsFunction.html
@@ -89243,6 +89393,114 @@ references:
   commentId: Overload:LocalGPT.Services.ProjectOrganicContextService.SaveAsync
   fullName: LocalGPT.Services.ProjectOrganicContextService.SaveAsync
   nameWithType: ProjectOrganicContextService.SaveAsync
+- uid: LocalGPT.Services.ProjectWorkspaceListParameters
+  name: ProjectWorkspaceListParameters
+  href: api/LocalGPT.Services.ProjectWorkspaceListParameters.html
+  commentId: T:LocalGPT.Services.ProjectWorkspaceListParameters
+  fullName: LocalGPT.Services.ProjectWorkspaceListParameters
+  nameWithType: ProjectWorkspaceListParameters
+- uid: LocalGPT.Services.ProjectWorkspaceListParameters.#ctor
+  name: ProjectWorkspaceListParameters()
+  href: api/LocalGPT.Services.ProjectWorkspaceListParameters.html#LocalGPT_Services_ProjectWorkspaceListParameters__ctor
+  commentId: M:LocalGPT.Services.ProjectWorkspaceListParameters.#ctor
+  name.vb: New()
+  fullName: LocalGPT.Services.ProjectWorkspaceListParameters.ProjectWorkspaceListParameters()
+  fullName.vb: LocalGPT.Services.ProjectWorkspaceListParameters.New()
+  nameWithType: ProjectWorkspaceListParameters.ProjectWorkspaceListParameters()
+  nameWithType.vb: ProjectWorkspaceListParameters.New()
+- uid: LocalGPT.Services.ProjectWorkspaceListParameters.#ctor*
+  name: ProjectWorkspaceListParameters
+  href: api/LocalGPT.Services.ProjectWorkspaceListParameters.html#LocalGPT_Services_ProjectWorkspaceListParameters__ctor_
+  commentId: Overload:LocalGPT.Services.ProjectWorkspaceListParameters.#ctor
+  name.vb: New
+  fullName: LocalGPT.Services.ProjectWorkspaceListParameters.ProjectWorkspaceListParameters
+  fullName.vb: LocalGPT.Services.ProjectWorkspaceListParameters.New
+  nameWithType: ProjectWorkspaceListParameters.ProjectWorkspaceListParameters
+  nameWithType.vb: ProjectWorkspaceListParameters.New
+- uid: LocalGPT.Services.ProjectWorkspaceListParameters.ProjectId
+  name: ProjectId
+  href: api/LocalGPT.Services.ProjectWorkspaceListParameters.html#LocalGPT_Services_ProjectWorkspaceListParameters_ProjectId
+  commentId: P:LocalGPT.Services.ProjectWorkspaceListParameters.ProjectId
+  fullName: LocalGPT.Services.ProjectWorkspaceListParameters.ProjectId
+  nameWithType: ProjectWorkspaceListParameters.ProjectId
+- uid: LocalGPT.Services.ProjectWorkspaceListParameters.ProjectId*
+  name: ProjectId
+  href: api/LocalGPT.Services.ProjectWorkspaceListParameters.html#LocalGPT_Services_ProjectWorkspaceListParameters_ProjectId_
+  commentId: Overload:LocalGPT.Services.ProjectWorkspaceListParameters.ProjectId
+  fullName: LocalGPT.Services.ProjectWorkspaceListParameters.ProjectId
+  nameWithType: ProjectWorkspaceListParameters.ProjectId
+- uid: LocalGPT.Services.ProjectWorkspaceListParameters.Take
+  name: Take
+  href: api/LocalGPT.Services.ProjectWorkspaceListParameters.html#LocalGPT_Services_ProjectWorkspaceListParameters_Take
+  commentId: P:LocalGPT.Services.ProjectWorkspaceListParameters.Take
+  fullName: LocalGPT.Services.ProjectWorkspaceListParameters.Take
+  nameWithType: ProjectWorkspaceListParameters.Take
+- uid: LocalGPT.Services.ProjectWorkspaceListParameters.Take*
+  name: Take
+  href: api/LocalGPT.Services.ProjectWorkspaceListParameters.html#LocalGPT_Services_ProjectWorkspaceListParameters_Take_
+  commentId: Overload:LocalGPT.Services.ProjectWorkspaceListParameters.Take
+  fullName: LocalGPT.Services.ProjectWorkspaceListParameters.Take
+  nameWithType: ProjectWorkspaceListParameters.Take
+- uid: LocalGPT.Services.ProjectWorkspaceReadParameters
+  name: ProjectWorkspaceReadParameters
+  href: api/LocalGPT.Services.ProjectWorkspaceReadParameters.html
+  commentId: T:LocalGPT.Services.ProjectWorkspaceReadParameters
+  fullName: LocalGPT.Services.ProjectWorkspaceReadParameters
+  nameWithType: ProjectWorkspaceReadParameters
+- uid: LocalGPT.Services.ProjectWorkspaceReadParameters.#ctor
+  name: ProjectWorkspaceReadParameters()
+  href: api/LocalGPT.Services.ProjectWorkspaceReadParameters.html#LocalGPT_Services_ProjectWorkspaceReadParameters__ctor
+  commentId: M:LocalGPT.Services.ProjectWorkspaceReadParameters.#ctor
+  name.vb: New()
+  fullName: LocalGPT.Services.ProjectWorkspaceReadParameters.ProjectWorkspaceReadParameters()
+  fullName.vb: LocalGPT.Services.ProjectWorkspaceReadParameters.New()
+  nameWithType: ProjectWorkspaceReadParameters.ProjectWorkspaceReadParameters()
+  nameWithType.vb: ProjectWorkspaceReadParameters.New()
+- uid: LocalGPT.Services.ProjectWorkspaceReadParameters.#ctor*
+  name: ProjectWorkspaceReadParameters
+  href: api/LocalGPT.Services.ProjectWorkspaceReadParameters.html#LocalGPT_Services_ProjectWorkspaceReadParameters__ctor_
+  commentId: Overload:LocalGPT.Services.ProjectWorkspaceReadParameters.#ctor
+  name.vb: New
+  fullName: LocalGPT.Services.ProjectWorkspaceReadParameters.ProjectWorkspaceReadParameters
+  fullName.vb: LocalGPT.Services.ProjectWorkspaceReadParameters.New
+  nameWithType: ProjectWorkspaceReadParameters.ProjectWorkspaceReadParameters
+  nameWithType.vb: ProjectWorkspaceReadParameters.New
+- uid: LocalGPT.Services.ProjectWorkspaceReadParameters.MaxCharacters
+  name: MaxCharacters
+  href: api/LocalGPT.Services.ProjectWorkspaceReadParameters.html#LocalGPT_Services_ProjectWorkspaceReadParameters_MaxCharacters
+  commentId: P:LocalGPT.Services.ProjectWorkspaceReadParameters.MaxCharacters
+  fullName: LocalGPT.Services.ProjectWorkspaceReadParameters.MaxCharacters
+  nameWithType: ProjectWorkspaceReadParameters.MaxCharacters
+- uid: LocalGPT.Services.ProjectWorkspaceReadParameters.MaxCharacters*
+  name: MaxCharacters
+  href: api/LocalGPT.Services.ProjectWorkspaceReadParameters.html#LocalGPT_Services_ProjectWorkspaceReadParameters_MaxCharacters_
+  commentId: Overload:LocalGPT.Services.ProjectWorkspaceReadParameters.MaxCharacters
+  fullName: LocalGPT.Services.ProjectWorkspaceReadParameters.MaxCharacters
+  nameWithType: ProjectWorkspaceReadParameters.MaxCharacters
+- uid: LocalGPT.Services.ProjectWorkspaceReadParameters.ProjectId
+  name: ProjectId
+  href: api/LocalGPT.Services.ProjectWorkspaceReadParameters.html#LocalGPT_Services_ProjectWorkspaceReadParameters_ProjectId
+  commentId: P:LocalGPT.Services.ProjectWorkspaceReadParameters.ProjectId
+  fullName: LocalGPT.Services.ProjectWorkspaceReadParameters.ProjectId
+  nameWithType: ProjectWorkspaceReadParameters.ProjectId
+- uid: LocalGPT.Services.ProjectWorkspaceReadParameters.ProjectId*
+  name: ProjectId
+  href: api/LocalGPT.Services.ProjectWorkspaceReadParameters.html#LocalGPT_Services_ProjectWorkspaceReadParameters_ProjectId_
+  commentId: Overload:LocalGPT.Services.ProjectWorkspaceReadParameters.ProjectId
+  fullName: LocalGPT.Services.ProjectWorkspaceReadParameters.ProjectId
+  nameWithType: ProjectWorkspaceReadParameters.ProjectId
+- uid: LocalGPT.Services.ProjectWorkspaceReadParameters.RelativePath
+  name: RelativePath
+  href: api/LocalGPT.Services.ProjectWorkspaceReadParameters.html#LocalGPT_Services_ProjectWorkspaceReadParameters_RelativePath
+  commentId: P:LocalGPT.Services.ProjectWorkspaceReadParameters.RelativePath
+  fullName: LocalGPT.Services.ProjectWorkspaceReadParameters.RelativePath
+  nameWithType: ProjectWorkspaceReadParameters.RelativePath
+- uid: LocalGPT.Services.ProjectWorkspaceReadParameters.RelativePath*
+  name: RelativePath
+  href: api/LocalGPT.Services.ProjectWorkspaceReadParameters.html#LocalGPT_Services_ProjectWorkspaceReadParameters_RelativePath_
+  commentId: Overload:LocalGPT.Services.ProjectWorkspaceReadParameters.RelativePath
+  fullName: LocalGPT.Services.ProjectWorkspaceReadParameters.RelativePath
+  nameWithType: ProjectWorkspaceReadParameters.RelativePath
 - uid: LocalGPT.Services.PromptConfigService
   name: PromptConfigService
   href: api/LocalGPT.Services.PromptConfigService.html
@@ -89660,6 +89918,54 @@ references:
   commentId: Overload:LocalGPT.Services.ReadExactSqliteTableFunction.InvokeAsync
   fullName: LocalGPT.Services.ReadExactSqliteTableFunction.InvokeAsync
   nameWithType: ReadExactSqliteTableFunction.InvokeAsync
+- uid: LocalGPT.Services.ReadProjectWorkspaceFileFunction
+  name: ReadProjectWorkspaceFileFunction
+  href: api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.html
+  commentId: T:LocalGPT.Services.ReadProjectWorkspaceFileFunction
+  fullName: LocalGPT.Services.ReadProjectWorkspaceFileFunction
+  nameWithType: ReadProjectWorkspaceFileFunction
+- uid: LocalGPT.Services.ReadProjectWorkspaceFileFunction.#ctor(LocalGPT.Interfaces.IDxAiFunctionJsonService,LocalGPT.Interfaces.ILocalGptProjectService,LocalGPT.Interfaces.IChatSessionContext,LocalGPT.Interfaces.ISafeTextDocumentService,LocalGPT.Services.CouncilRuntimeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ReadProjectWorkspaceFileFunction})
+  name: ReadProjectWorkspaceFileFunction(IDxAiFunctionJsonService, ILocalGptProjectService, IChatSessionContext, ISafeTextDocumentService, CouncilRuntimeService, ILogger<ReadProjectWorkspaceFileFunction>)
+  href: api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.html#LocalGPT_Services_ReadProjectWorkspaceFileFunction__ctor_LocalGPT_Interfaces_IDxAiFunctionJsonService_LocalGPT_Interfaces_ILocalGptProjectService_LocalGPT_Interfaces_IChatSessionContext_LocalGPT_Interfaces_ISafeTextDocumentService_LocalGPT_Services_CouncilRuntimeService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_ReadProjectWorkspaceFileFunction__
+  commentId: M:LocalGPT.Services.ReadProjectWorkspaceFileFunction.#ctor(LocalGPT.Interfaces.IDxAiFunctionJsonService,LocalGPT.Interfaces.ILocalGptProjectService,LocalGPT.Interfaces.IChatSessionContext,LocalGPT.Interfaces.ISafeTextDocumentService,LocalGPT.Services.CouncilRuntimeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ReadProjectWorkspaceFileFunction})
+  name.vb: New(IDxAiFunctionJsonService, ILocalGptProjectService, IChatSessionContext, ISafeTextDocumentService, CouncilRuntimeService, ILogger(Of ReadProjectWorkspaceFileFunction))
+  fullName: LocalGPT.Services.ReadProjectWorkspaceFileFunction.ReadProjectWorkspaceFileFunction(LocalGPT.Interfaces.IDxAiFunctionJsonService, LocalGPT.Interfaces.ILocalGptProjectService, LocalGPT.Interfaces.IChatSessionContext, LocalGPT.Interfaces.ISafeTextDocumentService, LocalGPT.Services.CouncilRuntimeService, Microsoft.Extensions.Logging.ILogger<LocalGPT.Services.ReadProjectWorkspaceFileFunction>)
+  fullName.vb: LocalGPT.Services.ReadProjectWorkspaceFileFunction.New(LocalGPT.Interfaces.IDxAiFunctionJsonService, LocalGPT.Interfaces.ILocalGptProjectService, LocalGPT.Interfaces.IChatSessionContext, LocalGPT.Interfaces.ISafeTextDocumentService, LocalGPT.Services.CouncilRuntimeService, Microsoft.Extensions.Logging.ILogger(Of LocalGPT.Services.ReadProjectWorkspaceFileFunction))
+  nameWithType: ReadProjectWorkspaceFileFunction.ReadProjectWorkspaceFileFunction(IDxAiFunctionJsonService, ILocalGptProjectService, IChatSessionContext, ISafeTextDocumentService, CouncilRuntimeService, ILogger<ReadProjectWorkspaceFileFunction>)
+  nameWithType.vb: ReadProjectWorkspaceFileFunction.New(IDxAiFunctionJsonService, ILocalGptProjectService, IChatSessionContext, ISafeTextDocumentService, CouncilRuntimeService, ILogger(Of ReadProjectWorkspaceFileFunction))
+- uid: LocalGPT.Services.ReadProjectWorkspaceFileFunction.#ctor*
+  name: ReadProjectWorkspaceFileFunction
+  href: api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.html#LocalGPT_Services_ReadProjectWorkspaceFileFunction__ctor_
+  commentId: Overload:LocalGPT.Services.ReadProjectWorkspaceFileFunction.#ctor
+  name.vb: New
+  fullName: LocalGPT.Services.ReadProjectWorkspaceFileFunction.ReadProjectWorkspaceFileFunction
+  fullName.vb: LocalGPT.Services.ReadProjectWorkspaceFileFunction.New
+  nameWithType: ReadProjectWorkspaceFileFunction.ReadProjectWorkspaceFileFunction
+  nameWithType.vb: ReadProjectWorkspaceFileFunction.New
+- uid: LocalGPT.Services.ReadProjectWorkspaceFileFunction.Descriptor
+  name: Descriptor
+  href: api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.html#LocalGPT_Services_ReadProjectWorkspaceFileFunction_Descriptor
+  commentId: P:LocalGPT.Services.ReadProjectWorkspaceFileFunction.Descriptor
+  fullName: LocalGPT.Services.ReadProjectWorkspaceFileFunction.Descriptor
+  nameWithType: ReadProjectWorkspaceFileFunction.Descriptor
+- uid: LocalGPT.Services.ReadProjectWorkspaceFileFunction.Descriptor*
+  name: Descriptor
+  href: api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.html#LocalGPT_Services_ReadProjectWorkspaceFileFunction_Descriptor_
+  commentId: Overload:LocalGPT.Services.ReadProjectWorkspaceFileFunction.Descriptor
+  fullName: LocalGPT.Services.ReadProjectWorkspaceFileFunction.Descriptor
+  nameWithType: ReadProjectWorkspaceFileFunction.Descriptor
+- uid: LocalGPT.Services.ReadProjectWorkspaceFileFunction.InvokeAsync(LocalGPT.BusinessObjects.DxAiFunctionInvocationRequest,System.Threading.CancellationToken)
+  name: InvokeAsync(DxAiFunctionInvocationRequest, CancellationToken)
+  href: api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.html#LocalGPT_Services_ReadProjectWorkspaceFileFunction_InvokeAsync_LocalGPT_BusinessObjects_DxAiFunctionInvocationRequest_System_Threading_CancellationToken_
+  commentId: M:LocalGPT.Services.ReadProjectWorkspaceFileFunction.InvokeAsync(LocalGPT.BusinessObjects.DxAiFunctionInvocationRequest,System.Threading.CancellationToken)
+  fullName: LocalGPT.Services.ReadProjectWorkspaceFileFunction.InvokeAsync(LocalGPT.BusinessObjects.DxAiFunctionInvocationRequest, System.Threading.CancellationToken)
+  nameWithType: ReadProjectWorkspaceFileFunction.InvokeAsync(DxAiFunctionInvocationRequest, CancellationToken)
+- uid: LocalGPT.Services.ReadProjectWorkspaceFileFunction.InvokeAsync*
+  name: InvokeAsync
+  href: api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.html#LocalGPT_Services_ReadProjectWorkspaceFileFunction_InvokeAsync_
+  commentId: Overload:LocalGPT.Services.ReadProjectWorkspaceFileFunction.InvokeAsync
+  fullName: LocalGPT.Services.ReadProjectWorkspaceFileFunction.InvokeAsync
+  nameWithType: ReadProjectWorkspaceFileFunction.InvokeAsync
 - uid: LocalGPT.Services.RecordProjectCouncilBuildReviewFunction
   name: RecordProjectCouncilBuildReviewFunction
   href: api/LocalGPT.Services.RecordProjectCouncilBuildReviewFunction.html
