@@ -137,7 +137,7 @@
   <PropertyGroup>
     <LocalGptDocumentationScript>$(MSBuildThisFileDirectory)build\Build-Documentation.ps1</LocalGptDocumentationScript>
     <LocalGptPagesSnapshotScript>$(MSBuildThisFileDirectory)build\Update-GitHubPagesSnapshot.ps1</LocalGptPagesSnapshotScript>
-    <LocalGptPagesSnapshotArchive>$(MSBuildThisFileDirectory).github\pages\localgpt-kawaii-docs.zip</LocalGptPagesSnapshotArchive>
+    <LocalGptPagesSnapshotArchive>$(MSBuildThisFileDirectory)\.github\pages\localgpt-kawaii-docs.zip</LocalGptPagesSnapshotArchive>
     <SeedLocalGptGitHubPagesSnapshotOnBuild Condition="'$(SeedLocalGptGitHubPagesSnapshotOnBuild)' == ''">true</SeedLocalGptGitHubPagesSnapshotOnBuild>
     <!-- Append a dot so the quoted Windows argument never ends in a backslash.
          A trailing backslash before a closing quote can absorb the remaining PowerShell -File arguments. -->

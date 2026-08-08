@@ -299,9 +299,9 @@ namespace LocalGPT.Services
     catch (Exception __serviceMethodException)
     {
         if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(GetFunctions)} was canceled.");
+            _logger.LogDebug(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(GetFunctions)} was canceled.");
         else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(GetFunctions)} failed.");
+            _logger.LogError(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(GetFunctions)} failed.");
         throw;
     }
 }
@@ -335,9 +335,9 @@ namespace LocalGPT.Services
     catch (Exception __serviceMethodException)
     {
         if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(BuildPromptBriefing)} was canceled.");
+            _logger.LogDebug(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(BuildPromptBriefing)} was canceled.");
         else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(BuildPromptBriefing)} failed.");
+            _logger.LogError(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(BuildPromptBriefing)} failed.");
         throw;
     }
 }
