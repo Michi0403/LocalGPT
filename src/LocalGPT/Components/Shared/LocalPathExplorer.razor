@@ -27,7 +27,7 @@
 
             @if (current.Warnings.Count > 0)
             {
-                <div class="local-path-warning">@string.Join(" ", current.Warnings)</div>
+                <div class="local-path-warning">@PathExplorer.FormatWarnings(current.Warnings)</div>
             }
 
             <DxGrid Data="@current.Entries"

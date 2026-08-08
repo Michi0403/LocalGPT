@@ -35,6 +35,20 @@ public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> l
         }
     }
 
+    public string FormatWarnings(IEnumerable<string> warnings)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(warnings);
+            return string.Join(" ", warnings);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not format local path explorer warnings.");
+            throw;
+        }
+    }
+
     public LocalPathBrowseResult Browse(LocalPathBrowseRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

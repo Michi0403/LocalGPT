@@ -125,7 +125,7 @@
 
   <h1 id="LocalGPT_Services_OllamaThinkingChatClient" data-uid="LocalGPT.Services.OllamaThinkingChatClient" class="text-break">
 Class OllamaThinkingChatClient  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Services.html">Services</a></dd></dl>
@@ -200,8 +200,8 @@ Class OllamaThinkingChatClient
 
   <a id="LocalGPT_Services_OllamaThinkingChatClient__ctor_" data-uid="LocalGPT.Services.OllamaThinkingChatClient.#ctor*"></a>
 
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_OllamaThinkingChatClient__ctor_LocalGPT_BusinessObjects_OllamaCoreOptions_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_CouncilRuntimeService_System_String_System_Nullable_System_Int32__System_Nullable_System_TimeSpan__System_Nullable_System_Int32__LocalGPT_Interfaces_IChatResponseFormatterFactory_LocalGPT_Interfaces_IChatProtocolResolver_LocalGPT_Interfaces_IPromptConfigService_LocalGPT_Interfaces_IDxAiFunctionRegistry_" data-uid="LocalGPT.Services.OllamaThinkingChatClient.#ctor(LocalGPT.BusinessObjects.OllamaCoreOptions,Microsoft.Extensions.Logging.ILogger,LocalGPT.Services.CouncilRuntimeService,System.String,System.Nullable{System.Int32},System.Nullable{System.TimeSpan},System.Nullable{System.Int32},LocalGPT.Interfaces.IChatResponseFormatterFactory,LocalGPT.Interfaces.IChatProtocolResolver,LocalGPT.Interfaces.IPromptConfigService,LocalGPT.Interfaces.IDxAiFunctionRegistry)">
-  OllamaThinkingChatClient(OllamaCoreOptions, ILogger, CouncilRuntimeService, string?, int?, TimeSpan?, int?, IChatResponseFormatterFactory?, IChatProtocolResolver?, IPromptConfigService?, IDxAiFunctionRegistry?)
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_OllamaThinkingChatClient__ctor_LocalGPT_BusinessObjects_OllamaCoreOptions_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_CouncilRuntimeService_System_String_System_Nullable_System_Int32__System_Nullable_System_TimeSpan__System_Nullable_System_Int32__LocalGPT_Interfaces_IChatResponseFormatterFactory_LocalGPT_Interfaces_IChatProtocolResolver_LocalGPT_Interfaces_IPromptConfigService_LocalGPT_Interfaces_IDxAiFunctionRegistry_LocalGPT_Interfaces_IDxAiFunctionCallRecoveryService_System_Boolean_System_Boolean_" data-uid="LocalGPT.Services.OllamaThinkingChatClient.#ctor(LocalGPT.BusinessObjects.OllamaCoreOptions,Microsoft.Extensions.Logging.ILogger,LocalGPT.Services.CouncilRuntimeService,System.String,System.Nullable{System.Int32},System.Nullable{System.TimeSpan},System.Nullable{System.Int32},LocalGPT.Interfaces.IChatResponseFormatterFactory,LocalGPT.Interfaces.IChatProtocolResolver,LocalGPT.Interfaces.IPromptConfigService,LocalGPT.Interfaces.IDxAiFunctionRegistry,LocalGPT.Interfaces.IDxAiFunctionCallRecoveryService,System.Boolean,System.Boolean)">
+  OllamaThinkingChatClient(OllamaCoreOptions, ILogger, CouncilRuntimeService, string?, int?, TimeSpan?, int?, IChatResponseFormatterFactory?, IChatProtocolResolver?, IPromptConfigService?, IDxAiFunctionRegistry?, IDxAiFunctionCallRecoveryService?, bool, bool)
   
   </h3><div class="localgpt-api-member-item-body">
 
@@ -209,7 +209,7 @@ Class OllamaThinkingChatClient
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public OllamaThinkingChatClient(OllamaCoreOptions options, ILogger logger, CouncilRuntimeService councilRuntime, string? keepAlive = null, int? contextLength = null, TimeSpan? timeout = null, int? numGpu = null, IChatResponseFormatterFactory? formatterFactory = null, IChatProtocolResolver? protocolResolver = null, IPromptConfigService? promptConfigService = null, IDxAiFunctionRegistry? functionRegistry = null)</code></pre>
+    <pre><code class="lang-csharp hljs">public OllamaThinkingChatClient(OllamaCoreOptions options, ILogger logger, CouncilRuntimeService councilRuntime, string? keepAlive = null, int? contextLength = null, TimeSpan? timeout = null, int? numGpu = null, IChatResponseFormatterFactory? formatterFactory = null, IChatProtocolResolver? protocolResolver = null, IPromptConfigService? promptConfigService = null, IDxAiFunctionRegistry? functionRegistry = null, IDxAiFunctionCallRecoveryService? functionCallRecovery = null, bool enableAutomaticTools = true, bool throwOnFailure = false)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -235,6 +235,12 @@ Class OllamaThinkingChatClient
     <dt><code>promptConfigService</code> <a class="xref" href="LocalGPT.Interfaces.IPromptConfigService.html">IPromptConfigService</a></dt>
     <dd></dd>
     <dt><code>functionRegistry</code> <a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionRegistry.html">IDxAiFunctionRegistry</a></dt>
+    <dd></dd>
+    <dt><code>functionCallRecovery</code> <a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionCallRecoveryService.html">IDxAiFunctionCallRecoveryService</a></dt>
+    <dd></dd>
+    <dt><code>enableAutomaticTools</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>throwOnFailure</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
     <dd></dd>
   </dl>
 
@@ -414,10 +420,10 @@ Class OllamaThinkingChatClient
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.3.10 Â· generated documentation
         </div>
       </div>
     </footer>
-  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=2bac52827196" data-localgpt-kawaii-script="true"></script>
 </body>
 </html>
