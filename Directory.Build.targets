@@ -136,6 +136,9 @@
 
   <PropertyGroup>
     <LocalGptDocumentationScript>$(MSBuildThisFileDirectory)build\Build-Documentation.ps1</LocalGptDocumentationScript>
+    <LocalGptPagesSnapshotScript>$(MSBuildThisFileDirectory)build\Update-GitHubPagesSnapshot.ps1</LocalGptPagesSnapshotScript>
+    <LocalGptPagesSnapshotArchive>$(MSBuildThisFileDirectory).github\pages\localgpt-kawaii-docs.zip</LocalGptPagesSnapshotArchive>
+    <SeedLocalGptGitHubPagesSnapshotOnBuild Condition="'$(SeedLocalGptGitHubPagesSnapshotOnBuild)' == ''">true</SeedLocalGptGitHubPagesSnapshotOnBuild>
     <!-- Append a dot so the quoted Windows argument never ends in a backslash.
          A trailing backslash before a closing quote can absorb the remaining PowerShell -File arguments. -->
     <LocalGptDocumentationRepositoryRoot>$(MSBuildThisFileDirectory).</LocalGptDocumentationRepositoryRoot>
@@ -163,6 +166,7 @@
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
     <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\index.html')" Text="LocalGPT documentation generation completed without index.html: $(LocalGptDocumentationOutputRoot)" />
+    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\api\index.html')" Text="LocalGPT documentation generation completed without the API reference root: $(LocalGptDocumentationOutputRoot)\api\index.html" />
     <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\documentation-status.json')" Text="LocalGPT documentation generation completed without documentation-status.json: $(LocalGptDocumentationOutputRoot)" />
     <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\LocalGPT.xml')" Text="LocalGPT documentation generation completed without LocalGPT.xml: $(LocalGptDocumentationOutputRoot)" />
     <Error Condition="'$(RequireLocalGptDocumentationPdf)' == 'true' and !Exists('$(LocalGptDocumentationOutputRoot)\LocalGPT-$(Version).pdf')" Text="LocalGPT documentation generation completed without the complete versioned PDF: $(LocalGptDocumentationOutputRoot)\LocalGPT-$(Version).pdf" />
@@ -172,6 +176,24 @@
     The files are generated after project evaluation, so the SDK's original wwwroot glob cannot
     discover them reliably. Add the generated build-output files directly to the publish graph.
   -->
+  <!--
+    Keep the tracked GitHub Pages ZIP synchronized with the exact documentation produced by
+    the current Debug/Release build. Passing DocumentationRoot explicitly prevents an older
+    Release output from winning over a fresh Debug build (or vice versa).
+  -->
+  <Target Name="SeedLocalGptGitHubPagesSnapshot"
+          AfterTargets="BuildLocalGptDocumentation"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SeedLocalGptGitHubPagesSnapshotOnBuild)' == 'true' and ('$(Configuration)' == 'Debug' or '$(Configuration)' == 'Release') and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(LocalGptPagesSnapshotScript)')" Text="LocalGPT GitHub Pages snapshot script is missing: $(LocalGptPagesSnapshotScript)" />
+    <Message Importance="High" Text="Validating and seeding the LocalGPT $(Version) GitHub Pages snapshot from $(LocalGptDocumentationOutputRoot)" />
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptPagesSnapshotScript)&quot; -DocumentationRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; -OutputArchive &quot;$(LocalGptPagesSnapshotArchive)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="High"
+          StandardErrorImportance="High" />
+    <Error Condition="!Exists('$(LocalGptPagesSnapshotArchive)')" Text="LocalGPT GitHub Pages snapshot was not created: $(LocalGptPagesSnapshotArchive)" />
+  </Target>
+
   <Target Name="IncludeLocalGptDocumentationInPublish"
           AfterTargets="ComputeFilesToPublish"
           BeforeTargets="CopyFilesToPublishDirectory"

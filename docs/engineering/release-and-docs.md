@@ -19,9 +19,9 @@ The build script injects:
 
 ## GitHub Pages
 
-The Pages workflow resolves a release tag, downloads release ZIPs, inspects each ZIP safely, and scores complete documentation candidates. It validates theme markers, hashes, index/API pages, status metadata, relative assets, and page counts before uploading one Pages artifact.
+The repository keeps one pinned `.github/pages/localgpt-kawaii-docs.zip` snapshot. A successful Windows Debug or Release build now validates the exact `wwwroot/help-docs` tree produced by that build and refreshes the pinned ZIP automatically. The snapshot validator requires Python 3 and checks version agreement, theme markers, hashes, `index.html`, `api/index.html`, status metadata, relative links, accessibility, page counts, and the tagged PDF.
 
-Windows ZIP backslashes and UTF-8 BOMs are accepted. Setup archives that do not contain the full site are ignored.
+The GitHub Pages workflow does not rebuild LocalGPT. It validates and extracts the committed, version-matched ZIP, verifies the root and API index again, and deploys that no-Jekyll static artifact. `Update-GitHubPagesSnapshot.cmd` remains available for an explicit refresh and selects only generated documentation whose `documentation-status.json` matches the current project version.
 
 ## Node warnings
 

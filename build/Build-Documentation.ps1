@@ -408,6 +408,27 @@ trailer
     [IO.File]::WriteAllText($Path, $stub, [Text.Encoding]::ASCII)
 }
 
+function Test-LocalGptDocfxPdfLinkStub {
+    param([Parameter(Mandatory)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    try {
+        $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+        try {
+            $bufferLength = [Math]::Min(512, [int]$stream.Length)
+            $buffer = New-Object byte[] $bufferLength
+            $read = $stream.Read($buffer, 0, $buffer.Length)
+            if ($read -le 0) { return $false }
+            $prefixText = [Text.Encoding]::ASCII.GetString($buffer, 0, $read)
+            return $prefixText.IndexOf('LocalGPT build-time DocFX link-validation placeholder', [StringComparison]::Ordinal) -ge 0
+        }
+        finally { $stream.Dispose() }
+    }
+    catch {
+        return $false
+    }
+}
+
 function Install-LocalGptWebsiteThemeAssets {
     param([Parameter(Mandatory)][string]$SiteRoot)
 
@@ -2069,6 +2090,11 @@ if (Test-Path -LiteralPath $configPath) {
     }
 }
 
+# A prior interrupted build may have left the tiny DocFX link-validation placeholder behind.
+# Remove only our own marker-bearing stub; never delete a real authored PDF from the docs tree.
+if (Test-LocalGptDocfxPdfLinkStub -Path $pdfLinkStubPath) {
+    Remove-Item -LiteralPath $pdfLinkStubPath -Force -ErrorAction SilentlyContinue
+}
 if (-not (Test-Path -LiteralPath $pdfLinkStubPath -PathType Leaf)) {
     New-LocalGptDocfxPdfLinkStub -Path $pdfLinkStubPath
     $pdfLinkStubCreated = $true

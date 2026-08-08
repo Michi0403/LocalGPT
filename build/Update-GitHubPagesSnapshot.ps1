@@ -16,10 +16,54 @@ $versionMatch = [regex]::Match($projectText, '<Version>\s*(?<Version>[^<]+?)\s*<
 if (-not $versionMatch.Success) { throw "LocalGPT source version could not be resolved from $projectFile" }
 $expectedVersion = $versionMatch.Groups['Version'].Value.Trim()
 
+function Get-LocalGptDocumentationVersion {
+    param([Parameter(Mandatory = $true)][string]$Root)
+
+    $statusPath = Join-Path $Root 'documentation-status.json'
+    if (-not (Test-Path -LiteralPath $statusPath -PathType Leaf)) { return [string]::Empty }
+    try {
+        $statusText = [IO.File]::ReadAllText($statusPath)
+        $statusVersionMatch = [regex]::Match(
+            $statusText,
+            '"(?:version|Version)"\s*:\s*"(?<Version>[^"]+)"',
+            [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        if ($statusVersionMatch.Success) { return $statusVersionMatch.Groups['Version'].Value.Trim() }
+    }
+    catch {
+        Write-Warning "Could not inspect documentation status at '$statusPath': $($_.Exception.Message)"
+    }
+    return [string]::Empty
+}
+
 if ([string]::IsNullOrWhiteSpace($DocumentationRoot)) {
-    $releaseRoot = Join-Path $repositoryRoot 'src\\LocalGPT\\bin\\Release\\net10.0\\wwwroot\\help-docs'
-    $debugRoot = Join-Path $repositoryRoot 'src\\LocalGPT\\bin\\Debug\\net10.0\\wwwroot\\help-docs'
-    $DocumentationRoot = if (Test-Path -LiteralPath $releaseRoot -PathType Container) { $releaseRoot } else { $debugRoot }
+    $candidateRoots = @(
+        (Join-Path $repositoryRoot 'src\\LocalGPT\\bin\\Release\\net10.0\\wwwroot\\help-docs'),
+        (Join-Path $repositoryRoot 'src\\LocalGPT\\bin\\Debug\\net10.0\\wwwroot\\help-docs'),
+        (Join-Path $repositoryRoot 'src\\LocalGPT\\wwwroot\\help-docs')
+    )
+    $matchingRoots = @()
+    $detectedRoots = [System.Collections.Generic.List[string]]::new()
+    foreach ($candidateRoot in $candidateRoots) {
+        if (-not (Test-Path -LiteralPath $candidateRoot -PathType Container)) { continue }
+        $candidateVersion = Get-LocalGptDocumentationVersion -Root $candidateRoot
+        $displayVersion = if ([string]::IsNullOrWhiteSpace($candidateVersion)) { '<unknown>' } else { $candidateVersion }
+        $detectedRoots.Add("$candidateRoot => $displayVersion")
+        if ([string]::Equals($candidateVersion, $expectedVersion, [StringComparison]::OrdinalIgnoreCase)) {
+            $statusPath = Join-Path $candidateRoot 'documentation-status.json'
+            $matchingRoots += [pscustomobject]@{
+                Root = $candidateRoot
+                LastWriteTimeUtc = (Get-Item -LiteralPath $statusPath).LastWriteTimeUtc
+            }
+        }
+    }
+
+    if ($matchingRoots.Count -eq 0) {
+        $detected = if ($detectedRoots.Count -eq 0) { 'no generated Debug, Release, or source-web documentation output exists' } else { $detectedRoots -join '; ' }
+        throw "No generated LocalGPT documentation matching source version $expectedVersion was found. Build LocalGPT first. Detected: $detected"
+    }
+
+    $DocumentationRoot = ($matchingRoots | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1).Root
+    Write-Host "Selected version-matched LocalGPT documentation output: $DocumentationRoot" -ForegroundColor Cyan
 }
 $DocumentationRoot = [IO.Path]::GetFullPath($DocumentationRoot)
 if (-not (Test-Path -LiteralPath $DocumentationRoot -PathType Container)) {

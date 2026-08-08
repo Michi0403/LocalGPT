@@ -59,5 +59,6 @@ Important checks include:
 ## Documentation checks
 
 The documentation build verifies conceptual pages, generated API YAML/HTML, versioned PDF, Kawaii CSS/JS markers, icon assets, status JSON, and nonzero source/API counts.
+Windows Debug/Release builds also use Python 3 to validate and seed the version-matched GitHub Pages snapshot from the documentation output of that exact build.
 
 The Pages extractor accepts UTF-8 files with or without BOM, normalizes ZIP separators, rejects unsafe paths, and chooses the strongest complete release candidate.
