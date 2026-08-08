@@ -125,7 +125,7 @@
 
   <h1 id="LocalGPT_Services_CodeGenerationWorkflowService" data-uid="LocalGPT.Services.CodeGenerationWorkflowService" class="text-break">
 Class CodeGenerationWorkflowService  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Services.html">Services</a></dd></dl>
@@ -199,8 +199,8 @@ Class CodeGenerationWorkflowService
 
   <a id="LocalGPT_Services_CodeGenerationWorkflowService__ctor_" data-uid="LocalGPT.Services.CodeGenerationWorkflowService.#ctor*"></a>
 
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CodeGenerationWorkflowService__ctor_Microsoft_EntityFrameworkCore_IDbContextFactory_LocalGPT_BusinessObjects_EFCore_LocalGptMemoryDbContext__LocalGPT_Interfaces_ICouncilArtifactService_LocalGPT_Interfaces_IArtifactBuildExecutor_LocalGPT_Interfaces_IProjectMaintenanceService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_CodeGenerationWorkflowService__" data-uid="LocalGPT.Services.CodeGenerationWorkflowService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext},LocalGPT.Interfaces.ICouncilArtifactService,LocalGPT.Interfaces.IArtifactBuildExecutor,LocalGPT.Interfaces.IProjectMaintenanceService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.CodeGenerationWorkflowService})">
-  CodeGenerationWorkflowService(IDbContextFactory&lt;LocalGptMemoryDbContext&gt;, ICouncilArtifactService, IArtifactBuildExecutor, IProjectMaintenanceService, ILogger&lt;CodeGenerationWorkflowService&gt;)
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_CodeGenerationWorkflowService__ctor_Microsoft_EntityFrameworkCore_IDbContextFactory_LocalGPT_BusinessObjects_EFCore_LocalGptMemoryDbContext__LocalGPT_Interfaces_ICouncilArtifactService_LocalGPT_Interfaces_IArtifactBuildExecutor_LocalGPT_Interfaces_IProjectMaintenanceService_LocalGPT_Interfaces_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_CodeGenerationWorkflowService__" data-uid="LocalGPT.Services.CodeGenerationWorkflowService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext},LocalGPT.Interfaces.ICouncilArtifactService,LocalGPT.Interfaces.IArtifactBuildExecutor,LocalGPT.Interfaces.IProjectMaintenanceService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.CodeGenerationWorkflowService})">
+  CodeGenerationWorkflowService(IDbContextFactory&lt;LocalGptMemoryDbContext&gt;, ICouncilArtifactService, IArtifactBuildExecutor, IProjectMaintenanceService, IRegexPatternService, ILogger&lt;CodeGenerationWorkflowService&gt;)
   
   </h3><div class="localgpt-api-member-item-body">
 
@@ -208,7 +208,7 @@ Class CodeGenerationWorkflowService
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public CodeGenerationWorkflowService(IDbContextFactory&lt;LocalGptMemoryDbContext&gt; dbContextFactory, ICouncilArtifactService councilArtifacts, IArtifactBuildExecutor artifactBuildExecutor, IProjectMaintenanceService projectMaintenance, ILogger&lt;CodeGenerationWorkflowService&gt; logger)</code></pre>
+    <pre><code class="lang-csharp hljs">public CodeGenerationWorkflowService(IDbContextFactory&lt;LocalGptMemoryDbContext&gt; dbContextFactory, ICouncilArtifactService councilArtifacts, IArtifactBuildExecutor artifactBuildExecutor, IProjectMaintenanceService projectMaintenance, IRegexPatternService regexPatterns, ILogger&lt;CodeGenerationWorkflowService&gt; logger)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -220,6 +220,8 @@ Class CodeGenerationWorkflowService
     <dt><code>artifactBuildExecutor</code> <a class="xref" href="LocalGPT.Interfaces.IArtifactBuildExecutor.html">IArtifactBuildExecutor</a></dt>
     <dd></dd>
     <dt><code>projectMaintenance</code> <a class="xref" href="LocalGPT.Interfaces.IProjectMaintenanceService.html">IProjectMaintenanceService</a></dt>
+    <dd></dd>
+    <dt><code>regexPatterns</code> <a class="xref" href="LocalGPT.Interfaces.IRegexPatternService.html">IRegexPatternService</a></dt>
     <dd></dd>
     <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger-1">ILogger</a>&lt;<a class="xref" href="LocalGPT.Services.CodeGenerationWorkflowService.html">CodeGenerationWorkflowService</a>&gt;</dt>
     <dd></dd>
@@ -453,10 +455,10 @@ Class CodeGenerationWorkflowService
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.3.13 Â· generated documentation
         </div>
       </div>
     </footer>
-  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=2bac52827196" data-localgpt-kawaii-script="true"></script>
 </body>
 </html>
