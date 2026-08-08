@@ -12,10 +12,10 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "LocalGPT-2.3.13.pdf",
+      "source_relative_path": "LocalGPT-2.3.14.pdf",
       "output": {
         "resource": {
-          "relative_path": "LocalGPT-2.3.13.pdf"
+          "relative_path": "LocalGPT-2.3.14.pdf"
         }
       },
       "version": ""

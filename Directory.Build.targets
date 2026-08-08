@@ -138,12 +138,12 @@
     <LocalGptStaticWebAssetsScript>$(MSBuildThisFileDirectory)build\Assert-StaticWebAssets.ps1</LocalGptStaticWebAssetsScript>
   </PropertyGroup>
 
-  <!--<Target Name="AssertLocalGptStaticWebAssets"
+  <Target Name="AssertLocalGptStaticWebAssets"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptSystemVariableInitialization"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipStaticWebAssetsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(LocalGptStaticWebAssetsScript)')" Text="Static web asset validation script is missing: $(LocalGptStaticWebAssetsScript)" />
     <Exec Condition="Exists('$(LocalGptStaticWebAssetsScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptStaticWebAssetsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>-->
+  </Target>
 
   <PropertyGroup>
     <LocalGptDocumentationScript>$(MSBuildThisFileDirectory)build\Build-Documentation.ps1</LocalGptDocumentationScript>
