@@ -64,11 +64,36 @@ public sealed class ThemeService
     public event Action<Theme>? ActiveComponentThemeChanged;
     public event Action<Theme>? ActiveThemeChanged;
 
-    public Theme GetThemeOrDefault(string? themeName) => FindThemeByName(themeName) ?? defaultTheme;
+    public Theme GetThemeOrDefault(string? themeName) {
+    try
+    {
+        return FindThemeByName(themeName) ?? defaultTheme;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(GetThemeOrDefault)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(GetThemeOrDefault)} failed.");
+        throw;
+    }
+}
 
-    public string GetThemeTitle(string? themeName) =>
-        FindThemeByName(themeName)?.Title
+    public string GetThemeTitle(string? themeName) {
+    try
+    {
+        return FindThemeByName(themeName)?.Title
         ?? (string.IsNullOrWhiteSpace(themeName) ? "Unknown theme" : themeName.Trim());
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(GetThemeTitle)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(GetThemeTitle)} failed.");
+        throw;
+    }
+}
 
     public void ReplaceFusionRoute(IEnumerable<ThemeFusionStep>? steps)
     {
@@ -262,27 +287,90 @@ public sealed class ThemeService
         }
     }
 
-    public void SetActiveShellThemeByName(string? themeName) => SetActiveShellTheme(GetThemeOrDefault(themeName));
-    public void SetActiveComponentThemeByName(string? themeName) => SetActiveComponentTheme(GetThemeOrDefault(themeName));
+    public void SetActiveShellThemeByName(string? themeName) {
+    try
+    {
+        SetActiveShellTheme(GetThemeOrDefault(themeName));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(SetActiveShellThemeByName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(SetActiveShellThemeByName)} failed.");
+        throw;
+    }
+}
+    public void SetActiveComponentThemeByName(string? themeName) {
+    try
+    {
+        SetActiveComponentTheme(GetThemeOrDefault(themeName));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(SetActiveComponentThemeByName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(SetActiveComponentThemeByName)} failed.");
+        throw;
+    }
+}
 
-    public void SetActiveShellTheme(Theme theme) =>
+    public void SetActiveShellTheme(Theme theme) {
+    try
+    {
         SetActiveThemeCore(
             theme,
             ThemeApplicationTarget.Shell,
             ref activeShellTheme,
             changedTheme => ActiveShellThemeChanged?.Invoke(changedTheme));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(SetActiveShellTheme)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(SetActiveShellTheme)} failed.");
+        throw;
+    }
+}
 
-    public void SetActiveComponentTheme(Theme theme) =>
+    public void SetActiveComponentTheme(Theme theme) {
+    try
+    {
         SetActiveThemeCore(
             theme,
             ThemeApplicationTarget.Components,
             ref activeComponentTheme,
             changedTheme => ActiveComponentThemeChanged?.Invoke(changedTheme));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(SetActiveComponentTheme)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(SetActiveComponentTheme)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Backward-compatible single-theme setter. It intentionally updates both layers.
     /// </summary>
-    public void SetActiveThemeByName(string? themeName) => SetActiveTheme(GetThemeOrDefault(themeName));
+    public void SetActiveThemeByName(string? themeName) {
+    try
+    {
+        SetActiveTheme(GetThemeOrDefault(themeName));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(SetActiveThemeByName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(SetActiveThemeByName)} failed.");
+        throw;
+    }
+}
 
     public void SetActiveTheme(Theme theme)
     {
@@ -359,18 +447,30 @@ public sealed class ThemeService
     /// </summary>
     public string GetThemeCssUrl(Theme theme)
     {
-        ArgumentNullException.ThrowIfNull(theme);
-        return theme.IsBootstrapNative
-            ? "_content/DevExpress.Blazor.Themes/bootstrap-external.bs5.min.css"
-            : theme.Name switch
-            {
-                "blazing-berry" => "_content/DevExpress.Blazor.Themes/blazing-berry.bs5.min.css",
-                "blazing-dark" => "_content/DevExpress.Blazor.Themes/blazing-dark.bs5.min.css",
-                "purple" => "_content/DevExpress.Blazor.Themes/purple.bs5.min.css",
-                "office-white" => "_content/DevExpress.Blazor.Themes/office-white.bs5.min.css",
-                _ => string.Empty
-            };
+    try
+    {
+            ArgumentNullException.ThrowIfNull(theme);
+            return theme.IsBootstrapNative
+                ? "_content/DevExpress.Blazor.Themes/bootstrap-external.bs5.min.css"
+                : theme.Name switch
+                {
+                    "blazing-berry" => "_content/DevExpress.Blazor.Themes/blazing-berry.bs5.min.css",
+                    "blazing-dark" => "_content/DevExpress.Blazor.Themes/blazing-dark.bs5.min.css",
+                    "purple" => "_content/DevExpress.Blazor.Themes/purple.bs5.min.css",
+                    "office-white" => "_content/DevExpress.Blazor.Themes/office-white.bs5.min.css",
+                    _ => string.Empty
+                };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(GetThemeCssUrl)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(GetThemeCssUrl)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Compatibility helper for diagnostics. Bootstrap theme files are registered on the
@@ -378,21 +478,47 @@ public sealed class ThemeService
     /// </summary>
     public string GetBootstrapThemeCssUrl(Theme theme)
     {
-        ArgumentNullException.ThrowIfNull(theme);
-        return theme.IsBootstrapNative
-            ? $"switcher-resources/css/themes/{theme.ThemePath}/bootstrap.min.css"
-            : string.Empty;
+    try
+    {
+            ArgumentNullException.ThrowIfNull(theme);
+            return theme.IsBootstrapNative
+                ? $"switcher-resources/css/themes/{theme.ThemePath}/bootstrap.min.css"
+                : string.Empty;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(GetBootstrapThemeCssUrl)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(GetBootstrapThemeCssUrl)} failed.");
+        throw;
+    }
+}
 
     public string GetHighlightJSThemeCssUrl(Theme theme)
     {
-        ArgumentNullException.ThrowIfNull(theme);
-        var highlightThemeName = highlightJsThemeNames.GetValueOrDefault(theme.Name, "default");
-        return $"css/highlight/{highlightThemeName}.css";
+    try
+    {
+            ArgumentNullException.ThrowIfNull(theme);
+            var highlightThemeName = highlightJsThemeNames.GetValueOrDefault(theme.Name, "default");
+            return $"css/highlight/{highlightThemeName}.css";
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(GetHighlightJSThemeCssUrl)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(GetHighlightJSThemeCssUrl)} failed.");
+        throw;
+    }
+}
 
-    private IReadOnlyDictionary<string, string> CreateHighlightJsThemeNames() =>
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    private IReadOnlyDictionary<string, string> CreateHighlightJsThemeNames() {
+    try
+    {
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [DEFAULT_THEME_NAME] = "default",
             ["blazing-berry"] = "default",
@@ -404,64 +530,110 @@ public sealed class ThemeService
             ["solar"] = "androidstudio",
             ["superhero"] = "androidstudio"
         };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(CreateHighlightJsThemeNames)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(CreateHighlightJsThemeNames)} failed.");
+        throw;
+    }
+}
 
     private List<ThemeSet> CreateSets()
     {
-        var classicThemes = new ThemeSet(
-            "DevExpress Classic Themes",
-            CreateClassic("blazing-berry", "Blazing Berry", DxThemes.BlazingBerry),
-            CreateClassic("blazing-dark", "Blazing Dark", DxThemes.BlazingDark, "dark"),
-            CreateClassic("purple", "Purple", DxThemes.Purple),
-            CreateClassic(DEFAULT_THEME_NAME, "Office White", DxThemes.OfficeWhite));
+    try
+    {
+            var classicThemes = new ThemeSet(
+                "DevExpress Classic Themes",
+                CreateClassic("blazing-berry", "Blazing Berry", DxThemes.BlazingBerry),
+                CreateClassic("blazing-dark", "Blazing Dark", DxThemes.BlazingDark, "dark"),
+                CreateClassic("purple", "Purple", DxThemes.Purple),
+                CreateClassic(DEFAULT_THEME_NAME, "Office White", DxThemes.OfficeWhite));
 
-        var fluentThemes = new ThemeSet(
-            "DevExpress Fluent Themes",
-            CreateFluent("fluent-light", "Fluent Light", ThemeMode.Light),
-            CreateFluent("fluent-dark", "Fluent Dark", ThemeMode.Dark));
+            var fluentThemes = new ThemeSet(
+                "DevExpress Fluent Themes",
+                CreateFluent("fluent-light", "Fluent Light", ThemeMode.Light),
+                CreateFluent("fluent-dark", "Fluent Dark", ThemeMode.Dark));
 
-        var bootstrapThemes = new ThemeSet(
-            "Bootstrap Themes",
-            CreateBootstrap("default", "Bootstrap Default", "default", "light"),
-            CreateBootstrap("default-dark", "Bootstrap Default Dark", "default", "dark"),
-            CreateBootstrap("cerulean"),
-            CreateBootstrap("cyborg", bootstrapMode: "dark"),
-            CreateBootstrap("flatly"),
-            CreateBootstrap("journal"),
-            CreateBootstrap("litera"),
-            CreateBootstrap("lumen"),
-            CreateBootstrap("lux"),
-            CreateBootstrap("pulse"),
-            CreateBootstrap("simplex"),
-            CreateBootstrap("solar", bootstrapMode: "dark"),
-            CreateBootstrap("superhero", bootstrapMode: "dark"),
-            CreateBootstrap("united"),
-            CreateBootstrap("yeti"));
+            var bootstrapThemes = new ThemeSet(
+                "Bootstrap Themes",
+                CreateBootstrap("default", "Bootstrap Default", "default", "light"),
+                CreateBootstrap("default-dark", "Bootstrap Default Dark", "default", "dark"),
+                CreateBootstrap("cerulean"),
+                CreateBootstrap("cyborg", bootstrapMode: "dark"),
+                CreateBootstrap("flatly"),
+                CreateBootstrap("journal"),
+                CreateBootstrap("litera"),
+                CreateBootstrap("lumen"),
+                CreateBootstrap("lux"),
+                CreateBootstrap("pulse"),
+                CreateBootstrap("simplex"),
+                CreateBootstrap("solar", bootstrapMode: "dark"),
+                CreateBootstrap("superhero", bootstrapMode: "dark"),
+                CreateBootstrap("united"),
+                CreateBootstrap("yeti"));
 
-        return [classicThemes, fluentThemes, bootstrapThemes];
+            return [classicThemes, fluentThemes, bootstrapThemes];
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(CreateSets)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(CreateSets)} failed.");
+        throw;
+    }
+}
 
     private Theme CreateClassic(string name, string title, DxTheme sourceTheme, string bootstrapMode = "light")
     {
-        var devExpressTheme = sourceTheme.Clone(properties =>
-        {
-            properties.Name = $"LocalGPT-{name}";
-            properties.AddFilePaths(LocalThemeContractPath);
-        });
-        return new Theme(name, devExpressTheme, false, title, bootstrapMode);
+    try
+    {
+            var devExpressTheme = sourceTheme.Clone(properties =>
+            {
+                properties.Name = $"LocalGPT-{name}";
+                properties.AddFilePaths(LocalThemeContractPath);
+            });
+            return new Theme(name, devExpressTheme, false, title, bootstrapMode);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(CreateClassic)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(CreateClassic)} failed.");
+        throw;
+    }
+}
 
     private Theme CreateFluent(string name, string title, ThemeMode mode)
     {
-        var devExpressTheme = DxThemes.Fluent.Clone(properties =>
-        {
-            properties.Name = $"LocalGPT-{name}";
-            properties.Mode = mode;
-            properties.ApplyToPageElements = false;
-            properties.UseBootstrapStyles = true;
-            properties.AddFilePaths(LocalThemeContractPath);
-        });
-        return new Theme(name, devExpressTheme, false, title, mode == ThemeMode.Dark ? "dark" : "light");
+    try
+    {
+            var devExpressTheme = DxThemes.Fluent.Clone(properties =>
+            {
+                properties.Name = $"LocalGPT-{name}";
+                properties.Mode = mode;
+                properties.ApplyToPageElements = false;
+                properties.UseBootstrapStyles = true;
+                properties.AddFilePaths(LocalThemeContractPath);
+            });
+            return new Theme(name, devExpressTheme, false, title, mode == ThemeMode.Dark ? "dark" : "light");
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(CreateFluent)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(CreateFluent)} failed.");
+        throw;
+    }
+}
 
     private Theme CreateBootstrap(
         string name,
@@ -469,14 +641,26 @@ public sealed class ThemeService
         string? themePath = null,
         string bootstrapMode = "light")
     {
-        var resolvedThemePath = string.IsNullOrWhiteSpace(themePath) ? name : themePath;
-        var bootstrapPath = $"switcher-resources/css/themes/{resolvedThemePath}/bootstrap.min.css";
-        var devExpressTheme = DxThemes.BootstrapExternal.Clone(properties =>
-        {
-            properties.Name = $"LocalGPT-bootstrap-{name}";
-            properties.AddFilePaths(bootstrapPath);
-            properties.AddFilePaths(LocalThemeContractPath);
-        });
-        return new Theme(name, devExpressTheme, true, title, bootstrapMode, resolvedThemePath);
+    try
+    {
+            var resolvedThemePath = string.IsNullOrWhiteSpace(themePath) ? name : themePath;
+            var bootstrapPath = $"switcher-resources/css/themes/{resolvedThemePath}/bootstrap.min.css";
+            var devExpressTheme = DxThemes.BootstrapExternal.Clone(properties =>
+            {
+                properties.Name = $"LocalGPT-bootstrap-{name}";
+                properties.AddFilePaths(bootstrapPath);
+                properties.AddFilePaths(LocalThemeContractPath);
+            });
+            return new Theme(name, devExpressTheme, true, title, bootstrapMode, resolvedThemePath);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(CreateBootstrap)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ThemeService)}.{nameof(CreateBootstrap)} failed.");
+        throw;
+    }
+}
 }

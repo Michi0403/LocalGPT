@@ -37,48 +37,72 @@ public sealed class InvokeOrganicPluginFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.Parameters.ValueKind != JsonValueKind.Object)
-            return organicSupport.Invalid("Parameters must be a JSON object.");
-        var peerId = organicSupport.GetString(request.Parameters, "peerId");
-        var capabilityKey = organicSupport.GetString(request.Parameters, "capabilityKey");
-        if (string.IsNullOrWhiteSpace(peerId) || string.IsNullOrWhiteSpace(capabilityKey))
-            return organicSupport.Invalid("peerId and capabilityKey are required.");
-        var peer = peers.GetPeer(peerId);
-        if (peer is null || !connections.IsConnected(peerId))
-            return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The requested organic plugin peer is not connected." };
-        var capability = organicSupport.FindCapability(peer, capabilityKey);
-        if (capability is null)
-            return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The connected peer did not advertise this capability as enabled and online." };
+    try
+    {
+            if (request.Parameters.ValueKind != JsonValueKind.Object)
+                return organicSupport.Invalid("Parameters must be a JSON object.");
+            var peerId = organicSupport.GetString(request.Parameters, "peerId");
+            var capabilityKey = organicSupport.GetString(request.Parameters, "capabilityKey");
+            if (string.IsNullOrWhiteSpace(peerId) || string.IsNullOrWhiteSpace(capabilityKey))
+                return organicSupport.Invalid("peerId and capabilityKey are required.");
+            var peer = peers.GetPeer(peerId);
+            if (peer is null || !connections.IsConnected(peerId))
+                return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The requested organic plugin peer is not connected." };
+            var capability = organicSupport.FindCapability(peer, capabilityKey);
+            if (capability is null)
+                return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The connected peer did not advertise this capability as enabled and online." };
 
-        var payload = request.Parameters.TryGetProperty("payload", out var payloadElement)
-            ? payloadElement.Clone()
-            : JsonSerializer.SerializeToElement(new { });
-        var executionMode = Enum.TryParse<OneWireExecutionMode>(organicSupport.GetString(request.Parameters, "executionMode"), true, out var parsedMode)
-            ? parsedMode
-            : OneWireExecutionMode.Once;
-        var envelope = organicSupport.CreateInvokeEnvelope(
-            peerId,
-            capability,
-            payload,
-            executionMode,
-            organicSupport.GetString(request.Parameters, "workOrderKey"),
-            DateTimeOffset.TryParse(organicSupport.GetString(request.Parameters, "notBeforeUtc"), out var notBefore) ? notBefore : null,
-            request.UserConfirmed,
-            request.Parameters.TryGetProperty("interactionValue", out var interaction) ? interaction.GetRawText() : payload.GetRawText());
-        return await QueueAndSendAsync(envelope, cancellationToken).ConfigureAwait(false);
+            var payload = request.Parameters.TryGetProperty("payload", out var payloadElement)
+                ? payloadElement.Clone()
+                : JsonSerializer.SerializeToElement(new { });
+            var executionMode = Enum.TryParse<OneWireExecutionMode>(organicSupport.GetString(request.Parameters, "executionMode"), true, out var parsedMode)
+                ? parsedMode
+                : OneWireExecutionMode.Once;
+            var envelope = organicSupport.CreateInvokeEnvelope(
+                peerId,
+                capability,
+                payload,
+                executionMode,
+                organicSupport.GetString(request.Parameters, "workOrderKey"),
+                DateTimeOffset.TryParse(organicSupport.GetString(request.Parameters, "notBeforeUtc"), out var notBefore) ? notBefore : null,
+                request.UserConfirmed,
+                request.Parameters.TryGetProperty("interactionValue", out var interaction) ? interaction.GetRawText() : payload.GetRawText());
+            return await QueueAndSendAsync(envelope, cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(InvokeOrganicPluginFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(InvokeOrganicPluginFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<DxAiFunctionInvocationResult> QueueAndSendAsync(OneWireEnvelope envelope, CancellationToken cancellationToken)
     {
-        var work = spooler.Enqueue(envelope);
-        if (!await connections.SendAsync(envelope.TargetPeerId, envelope, cancellationToken).ConfigureAwait(false))
-        {
-            spooler.Fail(work.Id, "The organic plugin disconnected before the request was sent.");
-            return new DxAiFunctionInvocationResult { Status = "Failed", Error = "The organic plugin disconnected before the request was sent." };
-        }
-        logger.LogInformation("Sent organic plugin work {WorkItemId} to {PeerId} for {CapabilityKey}.", work.Id, envelope.TargetPeerId, envelope.CapabilityKey);
-        return organicSupport.Queued(work, envelope.TargetPeerId, envelope.CapabilityKey);
+    try
+    {
+            var work = spooler.Enqueue(envelope);
+            if (!await connections.SendAsync(envelope.TargetPeerId, envelope, cancellationToken).ConfigureAwait(false))
+            {
+                spooler.Fail(work.Id, "The organic plugin disconnected before the request was sent.");
+                return new DxAiFunctionInvocationResult { Status = "Failed", Error = "The organic plugin disconnected before the request was sent." };
+            }
+            logger.LogInformation("Sent organic plugin work {WorkItemId} to {PeerId} for {CapabilityKey}.", work.Id, envelope.TargetPeerId, envelope.CapabilityKey);
+            return organicSupport.Queued(work, envelope.TargetPeerId, envelope.CapabilityKey);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(InvokeOrganicPluginFunction)}.{nameof(QueueAndSendAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(InvokeOrganicPluginFunction)}.{nameof(QueueAndSendAsync)} failed.");
+        throw;
+    }
+}
 }
 
 /// <summary>
@@ -116,47 +140,59 @@ public sealed class InspectPublisherSpreadsheetFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.Parameters.ValueKind != JsonValueKind.Object)
-            return organicSupport.Invalid("Parameters must be a JSON object.");
-        var sessionId = organicSupport.GetString(request.Parameters, "sessionId");
-        if (!Guid.TryParse(sessionId, out _))
-            return organicSupport.Invalid("A valid PublisherStudio spreadsheet sessionId is required.");
+    try
+    {
+            if (request.Parameters.ValueKind != JsonValueKind.Object)
+                return organicSupport.Invalid("Parameters must be a JSON object.");
+            var sessionId = organicSupport.GetString(request.Parameters, "sessionId");
+            if (!Guid.TryParse(sessionId, out _))
+                return organicSupport.Invalid("A valid PublisherStudio spreadsheet sessionId is required.");
 
-        var peerId = organicSupport.GetString(request.Parameters, "peerId");
-        var matching = peers.GetPeers()
-            .Where(peer => connections.IsConnected(peer.PeerId) && organicSupport.FindCapability(peer, CapabilityKey) is not null)
-            .ToList();
-        var peer = string.IsNullOrWhiteSpace(peerId)
-            ? matching.Count == 1 ? matching[0] : null
-            : matching.FirstOrDefault(candidate => string.Equals(candidate.PeerId, peerId, StringComparison.OrdinalIgnoreCase));
-        if (peer is null)
-        {
-            var reason = matching.Count > 1
-                ? "More than one connected peer provides spreadsheet inspection; supply peerId."
-                : "No connected PublisherStudio peer currently advertises spreadsheet inspection.";
-            return new DxAiFunctionInvocationResult { Status = "NotFound", Error = reason };
-        }
+            var peerId = organicSupport.GetString(request.Parameters, "peerId");
+            var matching = peers.GetPeers()
+                .Where(peer => connections.IsConnected(peer.PeerId) && organicSupport.FindCapability(peer, CapabilityKey) is not null)
+                .ToList();
+            var peer = string.IsNullOrWhiteSpace(peerId)
+                ? matching.Count == 1 ? matching[0] : null
+                : matching.FirstOrDefault(candidate => string.Equals(candidate.PeerId, peerId, StringComparison.OrdinalIgnoreCase));
+            if (peer is null)
+            {
+                var reason = matching.Count > 1
+                    ? "More than one connected peer provides spreadsheet inspection; supply peerId."
+                    : "No connected PublisherStudio peer currently advertises spreadsheet inspection.";
+                return new DxAiFunctionInvocationResult { Status = "NotFound", Error = reason };
+            }
 
-        var capability = organicSupport.FindCapability(peer, CapabilityKey)!;
-        var payload = JsonSerializer.SerializeToElement(new { sessionId });
-        var envelope = organicSupport.CreateInvokeEnvelope(
-            peer.PeerId,
-            capability,
-            payload,
-            OneWireExecutionMode.SequentialSpool,
-            organicSupport.GetString(request.Parameters, "workOrderKey", $"spreadsheet:{sessionId}"),
-            null,
-            request.UserConfirmed,
-            JsonSerializer.Serialize(new { sessionId, Request = "Read-only spreadsheet evidence for LocalGPT chat." }));
-        var work = spooler.Enqueue(envelope);
-        if (!await connections.SendAsync(peer.PeerId, envelope, cancellationToken).ConfigureAwait(false))
-        {
-            spooler.Fail(work.Id, "PublisherStudio disconnected before the spreadsheet request was sent.");
-            return new DxAiFunctionInvocationResult { Status = "Failed", Error = "PublisherStudio disconnected before the spreadsheet request was sent." };
-        }
-        logger.LogInformation("Queued read-only spreadsheet evidence request {WorkItemId} for peer {PeerId}.", work.Id, peer.PeerId);
-        return organicSupport.Queued(work, peer.PeerId, CapabilityKey);
+            var capability = organicSupport.FindCapability(peer, CapabilityKey)!;
+            var payload = JsonSerializer.SerializeToElement(new { sessionId });
+            var envelope = organicSupport.CreateInvokeEnvelope(
+                peer.PeerId,
+                capability,
+                payload,
+                OneWireExecutionMode.SequentialSpool,
+                organicSupport.GetString(request.Parameters, "workOrderKey", $"spreadsheet:{sessionId}"),
+                null,
+                request.UserConfirmed,
+                JsonSerializer.Serialize(new { sessionId, Request = "Read-only spreadsheet evidence for LocalGPT chat." }));
+            var work = spooler.Enqueue(envelope);
+            if (!await connections.SendAsync(peer.PeerId, envelope, cancellationToken).ConfigureAwait(false))
+            {
+                spooler.Fail(work.Id, "PublisherStudio disconnected before the spreadsheet request was sent.");
+                return new DxAiFunctionInvocationResult { Status = "Failed", Error = "PublisherStudio disconnected before the spreadsheet request was sent." };
+            }
+            logger.LogInformation("Queued read-only spreadsheet evidence request {WorkItemId} for peer {PeerId}.", work.Id, peer.PeerId);
+            return organicSupport.Queued(work, peer.PeerId, CapabilityKey);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(InspectPublisherSpreadsheetFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(InspectPublisherSpreadsheetFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 /// <summary>
@@ -194,49 +230,61 @@ public sealed class ProposePublisherTextFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.Parameters.ValueKind != JsonValueKind.Object)
-            return organicSupport.Invalid("Parameters must be a JSON object.");
-        var target = organicSupport.GetString(request.Parameters, "target");
-        var text = organicSupport.GetString(request.Parameters, "text");
-        var reason = organicSupport.GetString(request.Parameters, "reason", "Generated by a LocalGPT Council at the PublisherStudio user's request.");
-        if (string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(text))
-            return organicSupport.Invalid("target and text are required.");
+    try
+    {
+            if (request.Parameters.ValueKind != JsonValueKind.Object)
+                return organicSupport.Invalid("Parameters must be a JSON object.");
+            var target = organicSupport.GetString(request.Parameters, "target");
+            var text = organicSupport.GetString(request.Parameters, "text");
+            var reason = organicSupport.GetString(request.Parameters, "reason", "Generated by a LocalGPT Council at the PublisherStudio user's request.");
+            if (string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(text))
+                return organicSupport.Invalid("target and text are required.");
 
-        var requestedPeerId = organicSupport.GetString(request.Parameters, "peerId");
-        var matching = peers.GetPeers()
-            .Where(peer => connections.IsConnected(peer.PeerId) && organicSupport.FindCapability(peer, CapabilityKey) is not null)
-            .ToList();
-        var peer = string.IsNullOrWhiteSpace(requestedPeerId)
-            ? matching.Count == 1 ? matching[0] : null
-            : matching.FirstOrDefault(candidate => string.Equals(candidate.PeerId, requestedPeerId, StringComparison.OrdinalIgnoreCase));
-        if (peer is null)
-        {
-            var error = matching.Count > 1
-                ? "More than one connected peer accepts text proposals; supply peerId."
-                : "No connected PublisherStudio peer currently advertises reviewable text proposals.";
-            return new DxAiFunctionInvocationResult { Status = "NotFound", Error = error };
-        }
+            var requestedPeerId = organicSupport.GetString(request.Parameters, "peerId");
+            var matching = peers.GetPeers()
+                .Where(peer => connections.IsConnected(peer.PeerId) && organicSupport.FindCapability(peer, CapabilityKey) is not null)
+                .ToList();
+            var peer = string.IsNullOrWhiteSpace(requestedPeerId)
+                ? matching.Count == 1 ? matching[0] : null
+                : matching.FirstOrDefault(candidate => string.Equals(candidate.PeerId, requestedPeerId, StringComparison.OrdinalIgnoreCase));
+            if (peer is null)
+            {
+                var error = matching.Count > 1
+                    ? "More than one connected peer accepts text proposals; supply peerId."
+                    : "No connected PublisherStudio peer currently advertises reviewable text proposals.";
+                return new DxAiFunctionInvocationResult { Status = "NotFound", Error = error };
+            }
 
-        var capability = organicSupport.FindCapability(peer, CapabilityKey)!;
-        var payload = JsonSerializer.SerializeToElement(new { target = target.Trim(), text, reason = reason.Trim() });
-        var envelope = organicSupport.CreateInvokeEnvelope(
-            peer.PeerId,
-            capability,
-            payload,
-            OneWireExecutionMode.SequentialSpool,
-            organicSupport.GetString(request.Parameters, "workOrderKey", $"text-proposal:{Guid.NewGuid():N}"),
-            null,
-            request.UserConfirmed,
-            payload.GetRawText());
-        var work = spooler.Enqueue(envelope);
-        if (!await connections.SendAsync(peer.PeerId, envelope, cancellationToken).ConfigureAwait(false))
-        {
-            spooler.Fail(work.Id, "PublisherStudio disconnected before the text proposal was sent.");
-            return new DxAiFunctionInvocationResult { Status = "Failed", Error = "PublisherStudio disconnected before the text proposal was sent." };
-        }
-        logger.LogInformation("Queued reviewable text proposal {WorkItemId} for PublisherStudio peer {PeerId}.", work.Id, peer.PeerId);
-        return organicSupport.Queued(work, peer.PeerId, CapabilityKey);
+            var capability = organicSupport.FindCapability(peer, CapabilityKey)!;
+            var payload = JsonSerializer.SerializeToElement(new { target = target.Trim(), text, reason = reason.Trim() });
+            var envelope = organicSupport.CreateInvokeEnvelope(
+                peer.PeerId,
+                capability,
+                payload,
+                OneWireExecutionMode.SequentialSpool,
+                organicSupport.GetString(request.Parameters, "workOrderKey", $"text-proposal:{Guid.NewGuid():N}"),
+                null,
+                request.UserConfirmed,
+                payload.GetRawText());
+            var work = spooler.Enqueue(envelope);
+            if (!await connections.SendAsync(peer.PeerId, envelope, cancellationToken).ConfigureAwait(false))
+            {
+                spooler.Fail(work.Id, "PublisherStudio disconnected before the text proposal was sent.");
+                return new DxAiFunctionInvocationResult { Status = "Failed", Error = "PublisherStudio disconnected before the text proposal was sent." };
+            }
+            logger.LogInformation("Queued reviewable text proposal {WorkItemId} for PublisherStudio peer {PeerId}.", work.Id, peer.PeerId);
+            return organicSupport.Queued(work, peer.PeerId, CapabilityKey);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProposePublisherTextFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProposePublisherTextFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 /// <summary>Reads the eventual result of a queued organic operation without reissuing it.</summary>
@@ -262,34 +310,70 @@ public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spoo
 
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Organic work-result read DXFunction started.");
-        if (!Guid.TryParse(organicSupport.GetString(request.Parameters, "workItemId"), out var id))
-            return Task.FromResult(organicSupport.Invalid("A valid workItemId is required."));
-        var item = spooler.Get(id);
-        return Task.FromResult(item is null
-            ? new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The 1-Wire work item was not found or expired." }
-            : new DxAiFunctionInvocationResult
-            {
-                Succeeded = item.Status == OneWireWorkStatus.Completed,
-                Status = item.Status.ToString(),
-                Error = item.Error,
-                Value = new { item.Id, item.CorrelationId, item.CapabilityKey, item.Status, item.ResultJson, item.Error, item.CreatedUtc, item.UpdatedUtc }
-            });
+    try
+    {
+            logger.LogInformation("Organic work-result read DXFunction started.");
+            if (!Guid.TryParse(organicSupport.GetString(request.Parameters, "workItemId"), out var id))
+                return Task.FromResult(organicSupport.Invalid("A valid workItemId is required."));
+            var item = spooler.Get(id);
+            return Task.FromResult(item is null
+                ? new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The 1-Wire work item was not found or expired." }
+                : new DxAiFunctionInvocationResult
+                {
+                    Succeeded = item.Status == OneWireWorkStatus.Completed,
+                    Status = item.Status.ToString(),
+                    Error = item.Error,
+                    Value = new { item.Id, item.CorrelationId, item.CapabilityKey, item.Status, item.ResultJson, item.Error, item.CreatedUtc, item.UpdatedUtc }
+                });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ReadOrganicPluginWorkResultFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ReadOrganicPluginWorkResultFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> logger) : IOrganicDxFunctionSupport
 {
     public string GetString(JsonElement element, string name, string fallback = "")
     {
-        logger.LogTrace("Reading bounded organic DXFunction parameter {ParameterName}.", name);
-        return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String
-            ? property.GetString() ?? fallback
-            : fallback;
+    try
+    {
+            logger.LogTrace("Reading bounded organic DXFunction parameter {ParameterName}.", name);
+            return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String
+                ? property.GetString() ?? fallback
+                : fallback;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicDxFunctionSupport)}.{nameof(GetString)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicDxFunctionSupport)}.{nameof(GetString)} failed.");
+        throw;
+    }
+}
 
-    public OneWireCapabilityDescriptor? FindCapability(OneWirePeerAdvertisement peer, string key) =>
-        peer.Capabilities.FirstOrDefault(item => item.IsEnabled && item.IsOnline && string.Equals(item.Key, key, StringComparison.OrdinalIgnoreCase));
+    public OneWireCapabilityDescriptor? FindCapability(OneWirePeerAdvertisement peer, string key) {
+    try
+    {
+        return peer.Capabilities.FirstOrDefault(item => item.IsEnabled && item.IsOnline && string.Equals(item.Key, key, StringComparison.OrdinalIgnoreCase));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicDxFunctionSupport)}.{nameof(FindCapability)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicDxFunctionSupport)}.{nameof(FindCapability)} failed.");
+        throw;
+    }
+}
 
     public OneWireEnvelope CreateInvokeEnvelope(
         string peerId,
@@ -301,39 +385,77 @@ public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> l
         bool userConfirmed,
         string? interactionValueJson)
     {
-        var envelope = new OneWireEnvelope
-        {
-            MessageType = OneWireMessageType.Invoke,
-            SourcePeerId = "localgpt",
-            TargetPeerId = peerId,
-            CapabilityKey = capability.Key,
-            Controller = capability.Controller,
-            Method = capability.Method,
-            Route = capability.Route,
-            Organs = capability.Organs.ToList(),
-            Skills = capability.Skills.ToList(),
-            ExecutionMode = executionMode,
-            WorkOrderKey = workOrderKey,
-            NotBeforeUtc = notBeforeUtc,
-            UserConfirmed = userConfirmed,
-            RequiresHumanInteractionOnTargetSystem = capability.RequiresHumanInteractionOnTargetSystem || capability.RequiresHumanConfirmation,
-            RequiresAutomatedInteractionOnTargetSystem = capability.RequiresAutomatedInteractionOnTargetSystem,
-            InteractionValueJson = interactionValueJson,
-            InteractionValueContentType = "application/json",
-            Properties = new Dictionary<string, JsonElement> { ["Parameters"] = payload }
-        };
-        envelope.NormalizeInteractionKind();
-        return envelope;
+    try
+    {
+            var envelope = new OneWireEnvelope
+            {
+                MessageType = OneWireMessageType.Invoke,
+                SourcePeerId = "localgpt",
+                TargetPeerId = peerId,
+                CapabilityKey = capability.Key,
+                Controller = capability.Controller,
+                Method = capability.Method,
+                Route = capability.Route,
+                Organs = capability.Organs.ToList(),
+                Skills = capability.Skills.ToList(),
+                ExecutionMode = executionMode,
+                WorkOrderKey = workOrderKey,
+                NotBeforeUtc = notBeforeUtc,
+                UserConfirmed = userConfirmed,
+                RequiresHumanInteractionOnTargetSystem = capability.RequiresHumanInteractionOnTargetSystem || capability.RequiresHumanConfirmation,
+                RequiresAutomatedInteractionOnTargetSystem = capability.RequiresAutomatedInteractionOnTargetSystem,
+                InteractionValueJson = interactionValueJson,
+                InteractionValueContentType = "application/json",
+                Properties = new Dictionary<string, JsonElement> { ["Parameters"] = payload }
+            };
+            envelope.NormalizeInteractionKind();
+            return envelope;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicDxFunctionSupport)}.{nameof(CreateInvokeEnvelope)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicDxFunctionSupport)}.{nameof(CreateInvokeEnvelope)} failed.");
+        throw;
+    }
+}
 
-    public DxAiFunctionInvocationResult Queued(OneWireWorkItem work, string peerId, string capabilityKey) => new()
+    public DxAiFunctionInvocationResult Queued(OneWireWorkItem work, string peerId, string capabilityKey) {
+    try
+    {
+        return new()
     {
         Succeeded = true,
         Status = "Queued",
         Value = new { WorkItemId = work.Id, work.CorrelationId, PeerId = peerId, CapabilityKey = capabilityKey, NextFunction = "organic.plugin.work.read" }
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicDxFunctionSupport)}.{nameof(Queued)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicDxFunctionSupport)}.{nameof(Queued)} failed.");
+        throw;
+    }
+}
 
-    public DxAiFunctionInvocationResult Invalid(string error) => new() { Status = "InvalidParameters", Error = error };
+    public DxAiFunctionInvocationResult Invalid(string error) {
+    try
+    {
+        return new() { Status = "InvalidParameters", Error = error };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicDxFunctionSupport)}.{nameof(Invalid)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicDxFunctionSupport)}.{nameof(Invalid)} failed.");
+        throw;
+    }
+}
 }
 
 /// <summary>Asks the PublisherStudio user for reviewed text and returns it through the queued work result.</summary>
@@ -365,8 +487,10 @@ public sealed class RequestPublisherReviewedTextFunction(
         SupportsDeferredApprovalRequest: true,
         ApprovalRequiredBeforeCompletion: true);
 
-    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
-        publisherInteractionSupport.QueueAsync(
+    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
+    try
+    {
+        return publisherInteractionSupport.QueueAsync(
             request, CapabilityKey, connections, peers, spooler, logger,
             parameters =>
             {
@@ -379,6 +503,16 @@ public sealed class RequestPublisherReviewedTextFunction(
                     initialText = organicSupport.GetString(parameters, "initialText")
                 });
             }, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RequestPublisherReviewedTextFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RequestPublisherReviewedTextFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 /// <summary>Requests one fresh browser-mediated screenshot from PublisherStudio.</summary>
@@ -400,9 +534,21 @@ public sealed class RequestPublisherScreenCaptureFunction(
         Source: "OneWire", ParameterSchemaJson: """{"type":"object","properties":{"reason":{"type":"string"},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
-    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
-        publisherInteractionSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
+    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
+    try
+    {
+        return publisherInteractionSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
             parameters => JsonSerializer.SerializeToElement(new { reason = organicSupport.GetString(parameters, "reason", "Visual evidence requested by the AI Council.") }), cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RequestPublisherScreenCaptureFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RequestPublisherScreenCaptureFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 /// <summary>Requests one short browser-mediated screen recording from PublisherStudio.</summary>
@@ -424,14 +570,26 @@ public sealed class RequestPublisherScreenRecordFunction(
         Source: "OneWire", ParameterSchemaJson: """{"type":"object","properties":{"reason":{"type":"string"},"maximumSeconds":{"type":"integer","minimum":1,"maximum":15},"includeAudio":{"type":"boolean"},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
-    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
-        publisherInteractionSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
+    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
+    try
+    {
+        return publisherInteractionSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
             parameters => JsonSerializer.SerializeToElement(new
             {
                 reason = organicSupport.GetString(parameters, "reason", "Temporal visual evidence requested by the AI Council."),
                 maximumSeconds = parameters.TryGetProperty("maximumSeconds", out var seconds) && seconds.TryGetInt32(out var value) ? Math.Clamp(value, 1, 15) : 10,
                 includeAudio = parameters.TryGetProperty("includeAudio", out var audio) && audio.ValueKind is JsonValueKind.True or JsonValueKind.False && audio.GetBoolean()
             }), cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RequestPublisherScreenRecordFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RequestPublisherScreenRecordFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 /// <summary>Requests bounded user-approved HTML/DIV/document content from PublisherStudio.</summary>
@@ -453,8 +611,10 @@ public sealed class RequestPublisherWebsiteContentFunction(
         Source: "OneWire", ParameterSchemaJson: """{"type":"object","required":["question"],"properties":{"question":{"type":"string"},"initialContent":{"type":"string"},"format":{"type":"string","enum":["html","div","text","document"]},"sourceUrl":{"type":"string"},"maximumCharacters":{"type":"integer","minimum":1000,"maximum":200000},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
-    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
-        publisherInteractionSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
+    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
+    try
+    {
+        return publisherInteractionSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
             parameters =>
             {
                 var question = organicSupport.GetString(parameters, "question");
@@ -468,6 +628,16 @@ public sealed class RequestPublisherWebsiteContentFunction(
                     maximumCharacters = parameters.TryGetProperty("maximumCharacters", out var maximum) && maximum.TryGetInt32(out var value) ? Math.Clamp(value, 1000, 200000) : 120000
                 });
             }, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RequestPublisherWebsiteContentFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RequestPublisherWebsiteContentFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 
@@ -494,8 +664,10 @@ public sealed class RequestPublisherEmbeddedWiringEditorFunction(
         Source: "OneWire", ParameterSchemaJson: """{"type":"object","properties":{"boardProfileKey":{"type":"string"},"draft":{"type":"object"},"reason":{"type":"string"},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
-    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
-        publisherInteractionSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
+    public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
+    try
+    {
+        return publisherInteractionSupport.QueueAsync(request, CapabilityKey, connections, peers, spooler, logger,
             parameters => JsonSerializer.SerializeToElement(new
             {
                 boardProfileKey = organicSupport.GetString(parameters, "boardProfileKey", "esp32-classic-generic"),
@@ -505,6 +677,16 @@ public sealed class RequestPublisherEmbeddedWiringEditorFunction(
                 reason = organicSupport.GetString(parameters, "reason", "Review and edit the embedded board pin and wiring plan."),
                 workbench = embeddedCatalog.GetPublisherWorkbenchContract()
             }), cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RequestPublisherEmbeddedWiringEditorFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RequestPublisherEmbeddedWiringEditorFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class PublisherInteractionDxSupport(

@@ -282,8 +282,20 @@ namespace LocalGPT.Services
 
         private async Task EnsureDatabaseFileAsync(CancellationToken cancellationToken)
         {
-            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        }
+    try
+    {
+                await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(SqliteTableEditorService)}.{nameof(EnsureDatabaseFileAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(SqliteTableEditorService)}.{nameof(EnsureDatabaseFileAsync)} failed.");
+        throw;
+    }
+}
 
         private async Task<SqliteConnection> OpenConnectionAsync(CancellationToken cancellationToken)
         {

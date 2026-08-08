@@ -7,7 +7,27 @@ public sealed class DxAiFunctionCatalogSynchronizationGate
 {
     private readonly SemaphoreSlim gate = new(1, 1);
 
-    public Task WaitAsync(CancellationToken cancellationToken) => gate.WaitAsync(cancellationToken);
+    public Task WaitAsync(CancellationToken cancellationToken) {
+    try
+    {
+        return gate.WaitAsync(cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method DxAiFunctionCatalogSynchronizationGate.WaitAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 
-    public void Release() => gate.Release();
+    public void Release() {
+    try
+    {
+        gate.Release();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method DxAiFunctionCatalogSynchronizationGate.Release failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }

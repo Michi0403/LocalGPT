@@ -1,0 +1,147 @@
+@inject ILocalPathExplorerService PathExplorer
+
+<DxPopup Visible="@Visible"
+         VisibleChanged="OnVisibleChanged"
+         HeaderText="@Title"
+         Width="min(1080px, 96vw)"
+         MaxHeight="90vh"
+         CloseOnOutsideClick="false">
+    <BodyContentTemplate>
+        <div class="local-path-explorer">
+            <div class="local-path-explorer-toolbar">
+                <DxButton Text="Up" RenderStyle="ButtonRenderStyle.Secondary" Enabled="@CanGoUp" Click="GoUpAsync" />
+                <input class="local-path-address" @bind="pathInput" @onkeydown="OnPathKeyDown" aria-label="Local path" />
+                <DxButton Text="Open" RenderStyle="ButtonRenderStyle.Secondary" Click="BrowseTypedAsync" />
+                @if (SelectionMode.Equals("Directory", StringComparison.OrdinalIgnoreCase) && current.Exists && current.IsDirectory)
+                {
+                    <DxButton Text="Use this folder" RenderStyle="ButtonRenderStyle.Primary" Click="SelectCurrentAsync" />
+                }
+            </div>
+
+            <div class="local-path-root-strip" aria-label="Suggested local roots">
+                @foreach (var root in current.SuggestedRoots.Take(10))
+                {
+                    <button type="button" title="@root" @onclick="() => BrowseAsync(root)">@ShortRoot(root)</button>
+                }
+            </div>
+
+            @if (current.Warnings.Count > 0)
+            {
+                <div class="local-path-warning">@string.Join(" ", current.Warnings)</div>
+            }
+
+            <DxGrid Data="@current.Entries"
+                    PageSize="18"
+                    ShowFilterRow="true"
+                    HighlightRowOnHover="true"
+                    CssClass="local-path-grid">
+                <Columns>
+                    <DxGridDataColumn FieldName="@nameof(LocalPathEntry.EntryKind)" Caption="Type" Width="110px" />
+                    <DxGridDataColumn FieldName="@nameof(LocalPathEntry.Name)" Caption="Name" MinWidth="300" />
+                    <DxGridDataColumn FieldName="@nameof(LocalPathEntry.SizeBytes)" Caption="Bytes" Width="120px" />
+                    <DxGridDataColumn FieldName="@nameof(LocalPathEntry.ModifiedAtUtc)" Caption="Modified UTC" Width="190px" />
+                    <DxGridDataColumn Caption="Action" Width="190px">
+                        <CellDisplayTemplate Context="cell">
+                            @{ var entry = (LocalPathEntry)cell.DataItem; }
+                            @if (entry.CanEnter)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => BrowseAsync(entry.FullPath)" @onclick:stopPropagation="true">Open</button>
+                            }
+                            @if (CanSelect(entry))
+                            {
+                                <button type="button" class="btn btn-sm btn-primary ms-1" @onclick="() => SelectAsync(entry.FullPath)" @onclick:stopPropagation="true">Select</button>
+                            }
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                </Columns>
+            </DxGrid>
+
+            <div class="local-path-explorer-footer">
+                <span><strong>Selected host path:</strong> @current.CurrentPath</span>
+                <span class="local-path-boundary">Browsing is read-only. A selected path is context, not authorization to write, build, execute, or delete.</span>
+            </div>
+        </div>
+    </BodyContentTemplate>
+</DxPopup>
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [Parameter] public string SelectedPath { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> SelectedPathChanged { get; set; }
+    [Parameter] public string SelectionMode { get; set; } = "Directory";
+    [Parameter] public bool IncludeFiles { get; set; } = true;
+    [Parameter] public string Title { get; set; } = "Choose a local path";
+
+    private LocalPathBrowseResult current = new();
+    private string pathInput = string.Empty;
+    private bool loaded;
+    private bool CanGoUp => !string.IsNullOrWhiteSpace(current.ParentPath);
+
+    protected override void OnParametersSet()
+    {
+        if (!Visible || loaded)
+            return;
+        loaded = true;
+        Browse(string.IsNullOrWhiteSpace(SelectedPath) ? string.Empty : SelectedPath);
+    }
+
+    private Task OnVisibleChanged(bool visible)
+    {
+        if (!visible)
+            loaded = false;
+        return VisibleChanged.InvokeAsync(visible);
+    }
+
+    private void Browse(string path)
+    {
+        current = PathExplorer.Browse(new LocalPathBrowseRequest
+        {
+            Path = path,
+            IncludeFiles = IncludeFiles,
+            MaxEntries = 500
+        });
+        pathInput = current.CurrentPath;
+    }
+
+    private Task BrowseAsync(string path)
+    {
+        Browse(path);
+        return Task.CompletedTask;
+    }
+
+    private Task BrowseTypedAsync() => BrowseAsync(pathInput);
+    private Task GoUpAsync() => BrowseAsync(current.ParentPath);
+
+    private async Task SelectCurrentAsync()
+    {
+        if (!current.Exists || !current.IsDirectory)
+            return;
+        await SelectAsync(current.CurrentPath).ConfigureAwait(false);
+    }
+
+    private async Task SelectAsync(string path)
+    {
+        loaded = false;
+        await SelectedPathChanged.InvokeAsync(path).ConfigureAwait(false);
+        await VisibleChanged.InvokeAsync(false).ConfigureAwait(false);
+    }
+
+    private bool CanSelect(LocalPathEntry entry) =>
+        SelectionMode.Equals("File", StringComparison.OrdinalIgnoreCase)
+            ? entry.EntryKind.Equals("File", StringComparison.OrdinalIgnoreCase)
+            : entry.EntryKind.Equals("Directory", StringComparison.OrdinalIgnoreCase);
+
+    private async Task OnPathKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+            await BrowseTypedAsync().ConfigureAwait(false);
+    }
+
+    private static string ShortRoot(string root)
+    {
+        var trimmed = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var name = Path.GetFileName(trimmed);
+        return string.IsNullOrWhiteSpace(name) ? root : name;
+    }
+}

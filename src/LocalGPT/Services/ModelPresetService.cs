@@ -13,21 +13,33 @@ public sealed class ModelPresetService(
 {
     public async Task<IReadOnlyList<CouncilModelPreset>> GetPresetsAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
     {
-        await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var query = db.CouncilModelPresets.AsNoTracking();
-        if (!includeArchived)
-            query = query.Where(item => !item.IsArchived);
+    try
+    {
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var query = db.CouncilModelPresets.AsNoTracking();
+            if (!includeArchived)
+                query = query.Where(item => !item.IsArchived);
 
-        var presets = await query
-            .OrderByDescending(item => item.IsDefault)
-            .ThenBy(item => item.Name)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-        foreach (var preset in presets)
-            NormalizeLoadedPreset(preset);
-        return presets;
+            var presets = await query
+                .OrderByDescending(item => item.IsDefault)
+                .ThenBy(item => item.Name)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            foreach (var preset in presets)
+                NormalizeLoadedPreset(preset);
+            return presets;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ModelPresetService)}.{nameof(GetPresetsAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ModelPresetService)}.{nameof(GetPresetsAsync)} failed.");
+        throw;
+    }
+}
 
     public async Task<CouncilModelPreset> SavePresetAsync(CouncilModelPreset preset, bool userConfirmed, CancellationToken cancellationToken = default)
     {
@@ -122,65 +134,102 @@ public sealed class ModelPresetService(
 
     private OneWireCouncilModelRoute NormalizeRoute(OneWireCouncilModelRoute route)
     {
-        route.ModelName = route.ModelName.Trim();
-        route.ProviderKind = route.ProviderKind?.Trim() ?? string.Empty;
-        route.ProviderName = route.ProviderName?.Trim() ?? string.Empty;
-        route.ProviderEndpoint = route.ProviderEndpoint?.Trim() ?? string.Empty;
-        route.ProviderModelName = route.ProviderModelName?.Trim() ?? string.Empty;
-        var isLegacyOllamaRoute = string.IsNullOrWhiteSpace(route.ProviderKind)
-            && string.IsNullOrWhiteSpace(route.ProviderName)
-            && string.IsNullOrWhiteSpace(route.ProviderEndpoint)
-            && string.IsNullOrWhiteSpace(route.ProviderModelName)
-            && !new ProviderModelIdentity().LooksProviderQualified(route.ModelName);
-        if (isLegacyOllamaRoute)
-        {
-            route.ProviderKind = ProviderModelKinds.Ollama;
-            route.ProviderName = "Ollama";
-            route.ProviderModelName = route.ModelName;
-        }
-        if (!route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
-            route.OllamaNumGpu = null;
-        route.HardwareName = route.HardwareName?.Trim() ?? string.Empty;
-        route.HardwareIndex = Math.Max(-1, route.HardwareIndex);
-        route.MinOutputTokens = Math.Clamp(route.MinOutputTokens, 128, 262144);
-        route.MaxOutputTokens = Math.Clamp(Math.Max(route.MinOutputTokens, route.MaxOutputTokens), route.MinOutputTokens, 262144);
-        route.MinContextTokens = Math.Clamp(route.MinContextTokens, 512, 262144);
-        route.MaxContextTokens = Math.Clamp(Math.Max(route.MinContextTokens, route.MaxContextTokens), route.MinContextTokens, 262144);
-        route.OllamaNumGpu = route.HardwareKind switch
-        {
-            OneWireHardwareKind.Cpu => 0,
-            OneWireHardwareKind.Gpu or OneWireHardwareKind.Accelerator => route.OllamaNumGpu is > 0
-                ? route.OllamaNumGpu
-                : null,
-            _ => route.OllamaNumGpu is < 0 ? 0 : route.OllamaNumGpu
-        };
-        if (!route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
-            route.OllamaNumGpu = null;
-        route.SelfReportedDxFunctions = NormalizeValues(route.SelfReportedDxFunctions);
-        route.SelfReportedControllerMethods = NormalizeValues(route.SelfReportedControllerMethods);
-        route.SelfReportedOrganicCapabilities = NormalizeValues(route.SelfReportedOrganicCapabilities);
-        route.SelfReportedSkills = NormalizeValues(route.SelfReportedSkills);
-        return route;
+    try
+    {
+            route.ModelName = route.ModelName.Trim();
+            route.ProviderKind = route.ProviderKind?.Trim() ?? string.Empty;
+            route.ProviderName = route.ProviderName?.Trim() ?? string.Empty;
+            route.ProviderEndpoint = route.ProviderEndpoint?.Trim() ?? string.Empty;
+            route.ProviderModelName = route.ProviderModelName?.Trim() ?? string.Empty;
+            var isLegacyOllamaRoute = string.IsNullOrWhiteSpace(route.ProviderKind)
+                && string.IsNullOrWhiteSpace(route.ProviderName)
+                && string.IsNullOrWhiteSpace(route.ProviderEndpoint)
+                && string.IsNullOrWhiteSpace(route.ProviderModelName)
+                && !new ProviderModelIdentity().LooksProviderQualified(route.ModelName);
+            if (isLegacyOllamaRoute)
+            {
+                route.ProviderKind = ProviderModelKinds.Ollama;
+                route.ProviderName = "Ollama";
+                route.ProviderModelName = route.ModelName;
+            }
+            if (!route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                route.OllamaNumGpu = null;
+            route.HardwareName = route.HardwareName?.Trim() ?? string.Empty;
+            route.HardwareIndex = Math.Max(-1, route.HardwareIndex);
+            route.MinOutputTokens = Math.Clamp(route.MinOutputTokens, 128, 262144);
+            route.MaxOutputTokens = Math.Clamp(Math.Max(route.MinOutputTokens, route.MaxOutputTokens), route.MinOutputTokens, 262144);
+            route.MinContextTokens = Math.Clamp(route.MinContextTokens, 512, 262144);
+            route.MaxContextTokens = Math.Clamp(Math.Max(route.MinContextTokens, route.MaxContextTokens), route.MinContextTokens, 262144);
+            route.OllamaNumGpu = route.HardwareKind switch
+            {
+                OneWireHardwareKind.Cpu => 0,
+                OneWireHardwareKind.Gpu or OneWireHardwareKind.Accelerator => route.OllamaNumGpu is > 0
+                    ? route.OllamaNumGpu
+                    : null,
+                _ => route.OllamaNumGpu is < 0 ? 0 : route.OllamaNumGpu
+            };
+            if (!route.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                route.OllamaNumGpu = null;
+            route.SelfReportedDxFunctions = NormalizeValues(route.SelfReportedDxFunctions);
+            route.SelfReportedControllerMethods = NormalizeValues(route.SelfReportedControllerMethods);
+            route.SelfReportedOrganicCapabilities = NormalizeValues(route.SelfReportedOrganicCapabilities);
+            route.SelfReportedSkills = NormalizeValues(route.SelfReportedSkills);
+            return route;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ModelPresetService)}.{nameof(NormalizeRoute)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ModelPresetService)}.{nameof(NormalizeRoute)} failed.");
+        throw;
+    }
+}
 
-    private List<string> NormalizeValues(IEnumerable<string>? values) => (values ?? [])
+    private List<string> NormalizeValues(IEnumerable<string>? values) {
+    try
+    {
+        return (values ?? [])
         .Where(value => !string.IsNullOrWhiteSpace(value))
         .Select(value => value.Trim())
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .Take(128)
         .ToList();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ModelPresetService)}.{nameof(NormalizeValues)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ModelPresetService)}.{nameof(NormalizeValues)} failed.");
+        throw;
+    }
+}
 
     public async Task ArchivePresetAsync(Guid presetId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
-        if (!userConfirmed)
-            throw new InvalidOperationException("Fresh human confirmation is required before archiving a model preset.");
-        await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var entity = await db.CouncilModelPresets.SingleOrDefaultAsync(item => item.Id == presetId, cancellationToken).ConfigureAwait(false)
-            ?? throw new KeyNotFoundException($"Model preset {presetId} was not found.");
-        entity.IsArchived = true;
-        entity.IsDefault = false;
-        entity.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    try
+    {
+            if (!userConfirmed)
+                throw new InvalidOperationException("Fresh human confirmation is required before archiving a model preset.");
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var entity = await db.CouncilModelPresets.SingleOrDefaultAsync(item => item.Id == presetId, cancellationToken).ConfigureAwait(false)
+                ?? throw new KeyNotFoundException($"Model preset {presetId} was not found.");
+            entity.IsArchived = true;
+            entity.IsDefault = false;
+            entity.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ModelPresetService)}.{nameof(ArchivePresetAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ModelPresetService)}.{nameof(ArchivePresetAsync)} failed.");
+        throw;
+    }
+}
 }

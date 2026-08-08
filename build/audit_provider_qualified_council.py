@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 
 
@@ -77,7 +78,7 @@ def main() -> int:
     contains("review evidence marked untrusted", benchmark, "untrusted model output previews")
     contains("apply requires confirmation", benchmark, "Fresh human confirmation is required")
     contains("recommendations retain provider endpoint", benchmark, "ProviderEndpoint = target.Model.Endpoint")
-    contains("non-Ollama recommendation clears num_gpu", benchmark, "? target.Recommendation.OllamaNumGpu\n                : null")
+    checks.append(("non-Ollama recommendation clears num_gpu", bool(re.search(r"\?\s*target\.Recommendation\.OllamaNumGpu\s*:\s*null", benchmark))))
     contains("Council request carries provider selections", council, "request.ModelSelections = references")
     contains("authoritative selections suppress duplicate bare names", council, "Provider-qualified selections are authoritative")
     contains("Council runtime uses provider client factory", council, "providerModels.CreateChatClient")
@@ -124,7 +125,8 @@ def main() -> int:
     excludes("Council no longer injects obsolete prompt service", council, "IPromptConfigService promptConfigService")
     contains("failed final recovery marks the Council step", council, "Error = finalAnswerError")
     contains("failed verifier is not presented as peer verification", council, "did not produce a substantive peer-verification answer")
-    contains("application patch version advanced", project, "<Version>2.3.6</Version>")
+    version_match = re.search(r"<Version>2\.3\.(\d+)</Version>", project)
+    checks.append(("application patch version advanced", bool(version_match and int(version_match.group(1)) >= 8)))
 
     failures = [name for name, passed in checks if not passed]
     if failures:

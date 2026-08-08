@@ -28,16 +28,30 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         legacyMigrationSignatures = CreateLegacyMigrationSignatures();
     }
 
-    public Task PrepareAsync(CancellationToken cancellationToken = default) =>
-        serviceActivity.RunAsync(
+    public Task PrepareAsync(CancellationToken cancellationToken = default) {
+    try
+    {
+        return serviceActivity.RunAsync(
             nameof(DatabaseMigrationCompatibilityService),
             nameof(PrepareAsync),
             PrepareCoreAsync,
             cancellationToken,
             "Legacy migration compatibility inspection completed.");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(PrepareAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(PrepareAsync)} failed.");
+        throw;
+    }
+}
 
-    private DatabaseMigrationSignature[] CreateLegacyMigrationSignatures() =>
-    [
+    private DatabaseMigrationSignature[] CreateLegacyMigrationSignatures() {
+    try
+    {
+        return [
         new(
             "20260616222639_Initial",
             "10.0.9",
@@ -213,107 +227,129 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
                 Column("ProjectWorkspaceRoots", "PreferredCompilerInstallationId")
             ])
     ];
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(CreateLegacyMigrationSignatures)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(CreateLegacyMigrationSignatures)} failed.");
+        throw;
+    }
+}
 
     private async Task PrepareCoreAsync(CancellationToken cancellationToken)
     {
-        if (!File.Exists(databaseFileHealth.DatabasePath))
-            return;
+    try
+    {
+            if (!File.Exists(databaseFileHealth.DatabasePath))
+                return;
 
-        var sourceConnectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = databaseFileHealth.DatabasePath,
-            Mode = SqliteOpenMode.ReadWrite,
-            Cache = SqliteCacheMode.Private
-        }.ToString();
-        await using var connection = new SqliteConnection(sourceConnectionString);
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-        await ClearAbandonedMigrationLockAsync(connection, cancellationToken).ConfigureAwait(false);
-        await EnsureMigrationHistoryTableAsync(connection, cancellationToken).ConfigureAwait(false);
-        var appliedMigrations = await ReadAppliedMigrationsAsync(connection, cancellationToken).ConfigureAwait(false);
-        var schema = await ReadSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
-        if (!schema.Keys.Any(IsApplicationTable))
-            return;
-
-        string? backupPath = null;
-        var adopted = new List<string>();
-        var repaired = new List<string>();
-
-        foreach (var signature in legacyMigrationSignatures)
-        {
-            var state = EvaluateSignature(signature, schema);
-            var markedApplied = appliedMigrations.Contains(signature.Id);
-            if (markedApplied && state == DatabaseMigrationSignatureState.Complete)
-                continue;
-
-            if (state == DatabaseMigrationSignatureState.Missing && !markedApplied)
-                break; // EF will apply this and every later migration in normal order.
-
-            if (state == DatabaseMigrationSignatureState.Complete && !markedApplied)
+            var sourceConnectionString = new SqliteConnectionStringBuilder
             {
-                backupPath ??= await CreateCompatibilityBackupAsync(connection, cancellationToken).ConfigureAwait(false);
-                await InsertMigrationHistoryAsync(connection, signature, cancellationToken).ConfigureAwait(false);
-                appliedMigrations.Add(signature.Id);
-                adopted.Add(signature.Id);
-                continue;
-            }
+                DataSource = databaseFileHealth.DatabasePath,
+                Mode = SqliteOpenMode.ReadWrite,
+                Cache = SqliteCacheMode.Private
+            }.ToString();
+            await using var connection = new SqliteConnection(sourceConnectionString);
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            if (state == DatabaseMigrationSignatureState.Partial && IsSupportedApplicationLogsBootstrap(signature, schema) && !markedApplied)
-            {
-                backupPath ??= await CreateCompatibilityBackupAsync(connection, cancellationToken).ConfigureAwait(false);
-                logger.LogInformation(
-                    "Detected a compatible pre-existing ApplicationLogs table without EF migration history. " +
-                    "The idempotent initial migration will preserve it and create the remaining initial tables. " +
-                    "Compatibility backup: {BackupPath}",
-                    backupPath);
-                break;
-            }
+            await ClearAbandonedMigrationLockAsync(connection, cancellationToken).ConfigureAwait(false);
+            await EnsureMigrationHistoryTableAsync(connection, cancellationToken).ConfigureAwait(false);
+            var appliedMigrations = await ReadAppliedMigrationsAsync(connection, cancellationToken).ConfigureAwait(false);
+            var schema = await ReadSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
+            if (!schema.Keys.Any(IsApplicationTable))
+                return;
 
-            // A history row with missing schema, or a partially applied recent migration, must not be ignored.
-            // Repair only migrations with explicit lossless plans. Malformed newly introduced tables may be renamed to a compatibility archive; no row is deleted.
-            backupPath ??= await CreateCompatibilityBackupAsync(connection, cancellationToken).ConfigureAwait(false);
-            var didRepair = await TryRepairKnownMigrationAsync(connection, signature.Id, schema, cancellationToken).ConfigureAwait(false);
-            if (didRepair)
+            string? backupPath = null;
+            var adopted = new List<string>();
+            var repaired = new List<string>();
+
+            foreach (var signature in legacyMigrationSignatures)
             {
-                schema = await ReadSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
-                state = EvaluateSignature(signature, schema);
-                if (state == DatabaseMigrationSignatureState.Complete)
+                var state = EvaluateSignature(signature, schema);
+                var markedApplied = appliedMigrations.Contains(signature.Id);
+                if (markedApplied && state == DatabaseMigrationSignatureState.Complete)
+                    continue;
+
+                if (state == DatabaseMigrationSignatureState.Missing && !markedApplied)
+                    break; // EF will apply this and every later migration in normal order.
+
+                if (state == DatabaseMigrationSignatureState.Complete && !markedApplied)
                 {
-                    if (!markedApplied)
-                    {
-                        await InsertMigrationHistoryAsync(connection, signature, cancellationToken).ConfigureAwait(false);
-                        appliedMigrations.Add(signature.Id);
-                        adopted.Add(signature.Id);
-                    }
-                    repaired.Add(signature.Id);
+                    backupPath ??= await CreateCompatibilityBackupAsync(connection, cancellationToken).ConfigureAwait(false);
+                    await InsertMigrationHistoryAsync(connection, signature, cancellationToken).ConfigureAwait(false);
+                    appliedMigrations.Add(signature.Id);
+                    adopted.Add(signature.Id);
                     continue;
                 }
+
+                if (state == DatabaseMigrationSignatureState.Partial && IsSupportedApplicationLogsBootstrap(signature, schema) && !markedApplied)
+                {
+                    backupPath ??= await CreateCompatibilityBackupAsync(connection, cancellationToken).ConfigureAwait(false);
+                    logger.LogInformation(
+                        "Detected a compatible pre-existing ApplicationLogs table without EF migration history. " +
+                        "The idempotent initial migration will preserve it and create the remaining initial tables. " +
+                        "Compatibility backup: {BackupPath}",
+                        backupPath);
+                    break;
+                }
+
+                // A history row with missing schema, or a partially applied recent migration, must not be ignored.
+                // Repair only migrations with explicit lossless plans. Malformed newly introduced tables may be renamed to a compatibility archive; no row is deleted.
+                backupPath ??= await CreateCompatibilityBackupAsync(connection, cancellationToken).ConfigureAwait(false);
+                var didRepair = await TryRepairKnownMigrationAsync(connection, signature.Id, schema, cancellationToken).ConfigureAwait(false);
+                if (didRepair)
+                {
+                    schema = await ReadSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
+                    state = EvaluateSignature(signature, schema);
+                    if (state == DatabaseMigrationSignatureState.Complete)
+                    {
+                        if (!markedApplied)
+                        {
+                            await InsertMigrationHistoryAsync(connection, signature, cancellationToken).ConfigureAwait(false);
+                            appliedMigrations.Add(signature.Id);
+                            adopted.Add(signature.Id);
+                        }
+                        repaired.Add(signature.Id);
+                        continue;
+                    }
+                }
+
+                var missing = signature.Requirements
+                    .Where(requirement => !RequirementExists(requirement, schema))
+                    .Select(requirement => requirement.ColumnName is null
+                        ? requirement.TableName
+                        : $"{requirement.TableName}.{requirement.ColumnName}")
+                    .Take(20)
+                    .ToArray();
+                throw new InvalidOperationException(
+                    $"The SQLite database contains an incomplete schema for migration '{signature.Id}'. " +
+                    $"Missing markers: {string.Join(", ", missing)}. " +
+                    $"LocalGPT created the lossless compatibility backup '{backupPath}'. No row was deleted; malformed new tables are retained as compatibility archives; " +
+                    "this migration has no safe additive repair plan yet.");
             }
 
-            var missing = signature.Requirements
-                .Where(requirement => !RequirementExists(requirement, schema))
-                .Select(requirement => requirement.ColumnName is null
-                    ? requirement.TableName
-                    : $"{requirement.TableName}.{requirement.ColumnName}")
-                .Take(20)
-                .ToArray();
-            throw new InvalidOperationException(
-                $"The SQLite database contains an incomplete schema for migration '{signature.Id}'. " +
-                $"Missing markers: {string.Join(", ", missing)}. " +
-                $"LocalGPT created the lossless compatibility backup '{backupPath}'. No row was deleted; malformed new tables are retained as compatibility archives; " +
-                "this migration has no safe additive repair plan yet.");
-        }
-
-        if (adopted.Count > 0 || repaired.Count > 0)
-        {
-            logger.LogWarning(
-                "Migration compatibility completed. Adopted: {Adopted}; additively repaired: {Repaired}. " +
-                "No application row was deleted. Compatibility backup: {BackupPath}",
-                adopted.Count == 0 ? "none" : string.Join(", ", adopted),
-                repaired.Count == 0 ? "none" : string.Join(", ", repaired),
-                backupPath);
-        }
+            if (adopted.Count > 0 || repaired.Count > 0)
+            {
+                logger.LogWarning(
+                    "Migration compatibility completed. Adopted: {Adopted}; additively repaired: {Repaired}. " +
+                    "No application row was deleted. Compatibility backup: {BackupPath}",
+                    adopted.Count == 0 ? "none" : string.Join(", ", adopted),
+                    repaired.Count == 0 ? "none" : string.Join(", ", repaired),
+                    backupPath);
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(PrepareCoreAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(PrepareCoreAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<bool> TryRepairKnownMigrationAsync(
         SqliteConnection connection,
@@ -321,101 +357,137 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         IReadOnlyDictionary<string, HashSet<string>> schema,
         CancellationToken cancellationToken)
     {
-        if (string.Equals(migrationId, "20260726133000_AddOrganicSkillsAndHardwareRoutes", StringComparison.Ordinal))
-        {
-            if (!schema.ContainsKey("CouncilModelPresets"))
-                return false;
-            await AddColumnIfMissingAsync(connection, schema, "CouncilModelPresets", "ModelRoutesJson", "TEXT NOT NULL DEFAULT '[]'", cancellationToken).ConfigureAwait(false);
-            await AddColumnIfMissingAsync(connection, schema, "CouncilModelPresets", "AllowParallelHardwareRoads", "INTEGER NOT NULL DEFAULT 1", cancellationToken).ConfigureAwait(false);
-
-            var archives = new List<(string Archive, string Target)>();
-            foreach (var table in new[] { "OrganicSkills", "ProjectOrganicSkillLinks", "CouncilMemberOrganicSkillLinks" })
+    try
+    {
+            if (string.Equals(migrationId, "20260726133000_AddOrganicSkillsAndHardwareRoutes", StringComparison.Ordinal))
             {
-                var archive = await ArchiveMalformedIdentityTableAsync(connection, schema, table, cancellationToken).ConfigureAwait(false);
-                if (archive is not null) archives.Add((archive, table));
+                if (!schema.ContainsKey("CouncilModelPresets"))
+                    return false;
+                await AddColumnIfMissingAsync(connection, schema, "CouncilModelPresets", "ModelRoutesJson", "TEXT NOT NULL DEFAULT '[]'", cancellationToken).ConfigureAwait(false);
+                await AddColumnIfMissingAsync(connection, schema, "CouncilModelPresets", "AllowParallelHardwareRoads", "INTEGER NOT NULL DEFAULT 1", cancellationToken).ConfigureAwait(false);
+
+                var archives = new List<(string Archive, string Target)>();
+                foreach (var table in new[] { "OrganicSkills", "ProjectOrganicSkillLinks", "CouncilMemberOrganicSkillLinks" })
+                {
+                    var archive = await ArchiveMalformedIdentityTableAsync(connection, schema, table, cancellationToken).ConfigureAwait(false);
+                    if (archive is not null) archives.Add((archive, table));
+                }
+
+                await ExecuteSqlAsync(connection, OrganicSkillTableRepairSql, cancellationToken).ConfigureAwait(false);
+                var repairedSchema = await ReadSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
+                await EnsureOrganicSkillColumnsAsync(connection, repairedSchema, cancellationToken).ConfigureAwait(false);
+                foreach (var archive in archives)
+                    await TryCopyCompatibilityRowsAsync(connection, archive.Archive, archive.Target, cancellationToken).ConfigureAwait(false);
+                await ExecuteSqlAsync(connection, OrganicSkillIndexRepairSql, cancellationToken).ConfigureAwait(false);
+                return true;
             }
 
-            await ExecuteSqlAsync(connection, OrganicSkillTableRepairSql, cancellationToken).ConfigureAwait(false);
-            var repairedSchema = await ReadSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
-            await EnsureOrganicSkillColumnsAsync(connection, repairedSchema, cancellationToken).ConfigureAwait(false);
-            foreach (var archive in archives)
-                await TryCopyCompatibilityRowsAsync(connection, archive.Archive, archive.Target, cancellationToken).ConfigureAwait(false);
-            await ExecuteSqlAsync(connection, OrganicSkillIndexRepairSql, cancellationToken).ConfigureAwait(false);
-            return true;
-        }
+            if (string.Equals(migrationId, "20260726150000_AddCouncilTeamScripting", StringComparison.Ordinal))
+            {
+                var archive = await ArchiveMalformedIdentityTableAsync(connection, schema, "CouncilTeamConfigurations", cancellationToken).ConfigureAwait(false);
+                await ExecuteSqlAsync(connection, CouncilTeamTableRepairSql, cancellationToken).ConfigureAwait(false);
+                var repairedSchema = await ReadSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
+                await EnsureCouncilTeamColumnsAsync(connection, repairedSchema, cancellationToken).ConfigureAwait(false);
+                if (archive is not null)
+                    await TryCopyCompatibilityRowsAsync(connection, archive, "CouncilTeamConfigurations", cancellationToken).ConfigureAwait(false);
+                await ExecuteSqlAsync(connection, CouncilTeamIndexRepairSql, cancellationToken).ConfigureAwait(false);
+                return true;
+            }
 
-        if (string.Equals(migrationId, "20260726150000_AddCouncilTeamScripting", StringComparison.Ordinal))
-        {
-            var archive = await ArchiveMalformedIdentityTableAsync(connection, schema, "CouncilTeamConfigurations", cancellationToken).ConfigureAwait(false);
-            await ExecuteSqlAsync(connection, CouncilTeamTableRepairSql, cancellationToken).ConfigureAwait(false);
-            var repairedSchema = await ReadSchemaAsync(connection, cancellationToken).ConfigureAwait(false);
-            await EnsureCouncilTeamColumnsAsync(connection, repairedSchema, cancellationToken).ConfigureAwait(false);
-            if (archive is not null)
-                await TryCopyCompatibilityRowsAsync(connection, archive, "CouncilTeamConfigurations", cancellationToken).ConfigureAwait(false);
-            await ExecuteSqlAsync(connection, CouncilTeamIndexRepairSql, cancellationToken).ConfigureAwait(false);
-            return true;
-        }
-
-        return false;
+            return false;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(TryRepairKnownMigrationAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(TryRepairKnownMigrationAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task EnsureOrganicSkillColumnsAsync(
         SqliteConnection connection,
         IReadOnlyDictionary<string, HashSet<string>> schema,
         CancellationToken cancellationToken)
     {
-        var organic = new (string Name, string Definition)[]
-        {
-            ("Key", "TEXT NOT NULL DEFAULT ''"), ("DisplayName", "TEXT NOT NULL DEFAULT ''"),
-            ("Description", "TEXT NOT NULL DEFAULT ''"), ("SourcePeerId", "TEXT NOT NULL DEFAULT 'localgpt'"),
-            ("OrgansJson", "TEXT NOT NULL DEFAULT '[]'"), ("CapabilityKeysJson", "TEXT NOT NULL DEFAULT '[]'"),
-            ("UiActivationKeysJson", "TEXT NOT NULL DEFAULT '[]'"), ("IsOnline", "INTEGER NOT NULL DEFAULT 1"),
-            ("IsEnabled", "INTEGER NOT NULL DEFAULT 1"), ("IsUserApproved", "INTEGER NOT NULL DEFAULT 0"),
-            ("CreatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'"), ("UpdatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'")
-        };
-        foreach (var column in organic)
-            await AddColumnIfMissingAsync(connection, schema, "OrganicSkills", column.Name, column.Definition, cancellationToken).ConfigureAwait(false);
+    try
+    {
+            var organic = new (string Name, string Definition)[]
+            {
+                ("Key", "TEXT NOT NULL DEFAULT ''"), ("DisplayName", "TEXT NOT NULL DEFAULT ''"),
+                ("Description", "TEXT NOT NULL DEFAULT ''"), ("SourcePeerId", "TEXT NOT NULL DEFAULT 'localgpt'"),
+                ("OrgansJson", "TEXT NOT NULL DEFAULT '[]'"), ("CapabilityKeysJson", "TEXT NOT NULL DEFAULT '[]'"),
+                ("UiActivationKeysJson", "TEXT NOT NULL DEFAULT '[]'"), ("IsOnline", "INTEGER NOT NULL DEFAULT 1"),
+                ("IsEnabled", "INTEGER NOT NULL DEFAULT 1"), ("IsUserApproved", "INTEGER NOT NULL DEFAULT 0"),
+                ("CreatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'"), ("UpdatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'")
+            };
+            foreach (var column in organic)
+                await AddColumnIfMissingAsync(connection, schema, "OrganicSkills", column.Name, column.Definition, cancellationToken).ConfigureAwait(false);
 
-        var projectLinks = new (string Name, string Definition)[]
-        {
-            ("ProjectId", "TEXT NOT NULL DEFAULT ''"), ("SkillId", "TEXT NOT NULL DEFAULT ''"),
-            ("IsRequired", "INTEGER NOT NULL DEFAULT 1"), ("IsEnabled", "INTEGER NOT NULL DEFAULT 1"),
-            ("Notes", "TEXT NOT NULL DEFAULT ''"), ("UpdatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'")
-        };
-        foreach (var column in projectLinks)
-            await AddColumnIfMissingAsync(connection, schema, "ProjectOrganicSkillLinks", column.Name, column.Definition, cancellationToken).ConfigureAwait(false);
+            var projectLinks = new (string Name, string Definition)[]
+            {
+                ("ProjectId", "TEXT NOT NULL DEFAULT ''"), ("SkillId", "TEXT NOT NULL DEFAULT ''"),
+                ("IsRequired", "INTEGER NOT NULL DEFAULT 1"), ("IsEnabled", "INTEGER NOT NULL DEFAULT 1"),
+                ("Notes", "TEXT NOT NULL DEFAULT ''"), ("UpdatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'")
+            };
+            foreach (var column in projectLinks)
+                await AddColumnIfMissingAsync(connection, schema, "ProjectOrganicSkillLinks", column.Name, column.Definition, cancellationToken).ConfigureAwait(false);
 
-        var memberLinks = new (string Name, string Definition)[]
-        {
-            ("MemberKey", "TEXT NOT NULL DEFAULT ''"), ("SkillId", "TEXT NOT NULL DEFAULT ''"),
-            ("Proficiency", "INTEGER NOT NULL DEFAULT 50"), ("IsSelfRevealed", "INTEGER NOT NULL DEFAULT 0"),
-            ("IsEnabled", "INTEGER NOT NULL DEFAULT 0"), ("Evidence", "TEXT NOT NULL DEFAULT ''"),
-            ("DxFunctionsJson", "TEXT NOT NULL DEFAULT '[]'"), ("ControllerMethodsJson", "TEXT NOT NULL DEFAULT '[]'"),
-            ("OrganicCapabilitiesJson", "TEXT NOT NULL DEFAULT '[]'"), ("UpdatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'")
-        };
-        foreach (var column in memberLinks)
-            await AddColumnIfMissingAsync(connection, schema, "CouncilMemberOrganicSkillLinks", column.Name, column.Definition, cancellationToken).ConfigureAwait(false);
+            var memberLinks = new (string Name, string Definition)[]
+            {
+                ("MemberKey", "TEXT NOT NULL DEFAULT ''"), ("SkillId", "TEXT NOT NULL DEFAULT ''"),
+                ("Proficiency", "INTEGER NOT NULL DEFAULT 50"), ("IsSelfRevealed", "INTEGER NOT NULL DEFAULT 0"),
+                ("IsEnabled", "INTEGER NOT NULL DEFAULT 0"), ("Evidence", "TEXT NOT NULL DEFAULT ''"),
+                ("DxFunctionsJson", "TEXT NOT NULL DEFAULT '[]'"), ("ControllerMethodsJson", "TEXT NOT NULL DEFAULT '[]'"),
+                ("OrganicCapabilitiesJson", "TEXT NOT NULL DEFAULT '[]'"), ("UpdatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'")
+            };
+            foreach (var column in memberLinks)
+                await AddColumnIfMissingAsync(connection, schema, "CouncilMemberOrganicSkillLinks", column.Name, column.Definition, cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(EnsureOrganicSkillColumnsAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(EnsureOrganicSkillColumnsAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task EnsureCouncilTeamColumnsAsync(
         SqliteConnection connection,
         IReadOnlyDictionary<string, HashSet<string>> schema,
         CancellationToken cancellationToken)
     {
-        var columns = new (string Name, string Definition)[]
-        {
-            ("Key", "TEXT NOT NULL DEFAULT ''"), ("DisplayName", "TEXT NOT NULL DEFAULT ''"),
-            ("Purpose", "TEXT NOT NULL DEFAULT ''"), ("RolesJson", "TEXT NOT NULL DEFAULT '[]'"),
-            ("PreferredCapabilitiesJson", "TEXT NOT NULL DEFAULT '[]'"), ("ArchitectureContractsJson", "TEXT NOT NULL DEFAULT '[]'"),
-            ("WorkflowStepsJson", "TEXT NOT NULL DEFAULT '[]'"), ("ExpertPreparationPromptTemplate", "TEXT NOT NULL DEFAULT ''"),
-            ("LeaderSynthesisPromptTemplate", "TEXT NOT NULL DEFAULT ''"), ("MainRoundInstructionTemplate", "TEXT NOT NULL DEFAULT ''"),
-            ("SeedVersion", "INTEGER NOT NULL DEFAULT 1"), ("IsSystemSeed", "INTEGER NOT NULL DEFAULT 1"),
-            ("IsUserModified", "INTEGER NOT NULL DEFAULT 0"), ("IsEnabled", "INTEGER NOT NULL DEFAULT 1"),
-            ("CreatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'"), ("UpdatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'")
-        };
-        foreach (var column in columns)
-            await AddColumnIfMissingAsync(connection, schema, "CouncilTeamConfigurations", column.Name, column.Definition, cancellationToken).ConfigureAwait(false);
+    try
+    {
+            var columns = new (string Name, string Definition)[]
+            {
+                ("Key", "TEXT NOT NULL DEFAULT ''"), ("DisplayName", "TEXT NOT NULL DEFAULT ''"),
+                ("Purpose", "TEXT NOT NULL DEFAULT ''"), ("RolesJson", "TEXT NOT NULL DEFAULT '[]'"),
+                ("PreferredCapabilitiesJson", "TEXT NOT NULL DEFAULT '[]'"), ("ArchitectureContractsJson", "TEXT NOT NULL DEFAULT '[]'"),
+                ("WorkflowStepsJson", "TEXT NOT NULL DEFAULT '[]'"), ("ExpertPreparationPromptTemplate", "TEXT NOT NULL DEFAULT ''"),
+                ("LeaderSynthesisPromptTemplate", "TEXT NOT NULL DEFAULT ''"), ("MainRoundInstructionTemplate", "TEXT NOT NULL DEFAULT ''"),
+                ("SeedVersion", "INTEGER NOT NULL DEFAULT 1"), ("IsSystemSeed", "INTEGER NOT NULL DEFAULT 1"),
+                ("IsUserModified", "INTEGER NOT NULL DEFAULT 0"), ("IsEnabled", "INTEGER NOT NULL DEFAULT 1"),
+                ("CreatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'"), ("UpdatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'")
+            };
+            foreach (var column in columns)
+                await AddColumnIfMissingAsync(connection, schema, "CouncilTeamConfigurations", column.Name, column.Definition, cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(EnsureCouncilTeamColumnsAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(EnsureCouncilTeamColumnsAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<string?> ArchiveMalformedIdentityTableAsync(
         SqliteConnection connection,
@@ -423,19 +495,31 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         string table,
         CancellationToken cancellationToken)
     {
-        if (!schema.TryGetValue(table, out var columns) || columns.Contains("Id"))
-            return null;
+    try
+    {
+            if (!schema.TryGetValue(table, out var columns) || columns.Contains("Id"))
+                return null;
 
-        var archive = $"{table}__compat_{DateTime.UtcNow:yyyyMMddHHmmssfff}_{Guid.NewGuid():N}";
-        await ExecuteSqlAsync(
-            connection,
-            $"ALTER TABLE {QuoteSqliteIdentifier(table)} RENAME TO {QuoteSqliteIdentifier(archive)};",
-            cancellationToken).ConfigureAwait(false);
-        logger.LogWarning(
-            "Archived malformed partially-created table {Table} as {Archive}. Its rows remain untouched and a canonical table will be recreated.",
-            table, archive);
-        return archive;
+            var archive = $"{table}__compat_{DateTime.UtcNow:yyyyMMddHHmmssfff}_{Guid.NewGuid():N}";
+            await ExecuteSqlAsync(
+                connection,
+                $"ALTER TABLE {QuoteSqliteIdentifier(table)} RENAME TO {QuoteSqliteIdentifier(archive)};",
+                cancellationToken).ConfigureAwait(false);
+            logger.LogWarning(
+                "Archived malformed partially-created table {Table} as {Archive}. Its rows remain untouched and a canonical table will be recreated.",
+                table, archive);
+            return archive;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(ArchiveMalformedIdentityTableAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(ArchiveMalformedIdentityTableAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task TryCopyCompatibilityRowsAsync(
         SqliteConnection connection,
@@ -481,20 +565,44 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         string definition,
         CancellationToken cancellationToken)
     {
-        if (schema.TryGetValue(table, out var columns) && columns.Contains(column))
-            return;
-        await ExecuteSqlAsync(
-            connection,
-            $"ALTER TABLE {QuoteSqliteIdentifier(table)} ADD COLUMN {QuoteSqliteIdentifier(column)} {definition};",
-            cancellationToken).ConfigureAwait(false);
+    try
+    {
+            if (schema.TryGetValue(table, out var columns) && columns.Contains(column))
+                return;
+            await ExecuteSqlAsync(
+                connection,
+                $"ALTER TABLE {QuoteSqliteIdentifier(table)} ADD COLUMN {QuoteSqliteIdentifier(column)} {definition};",
+                cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(AddColumnIfMissingAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(AddColumnIfMissingAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task ExecuteSqlAsync(SqliteConnection connection, string sql, CancellationToken cancellationToken)
     {
-        await using var command = connection.CreateCommand();
-        command.CommandText = sql;
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    try
+    {
+            await using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(ExecuteSqlAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(ExecuteSqlAsync)} failed.");
+        throw;
+    }
+}
 
     private const string OrganicSkillTableRepairSql = """
     CREATE TABLE IF NOT EXISTS "OrganicSkills" (
@@ -546,202 +654,360 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     CREATE INDEX IF NOT EXISTS "IX_CouncilTeamConfigurations_IsEnabled_UpdatedAtUtc" ON "CouncilTeamConfigurations" ("IsEnabled", "UpdatedAtUtc");
     """;
 
-    private bool IsApplicationTable(string tableName) =>
-        !tableName.StartsWith("sqlite_", StringComparison.OrdinalIgnoreCase) &&
+    private bool IsApplicationTable(string tableName) {
+    try
+    {
+        return !tableName.StartsWith("sqlite_", StringComparison.OrdinalIgnoreCase) &&
         !tableName.StartsWith("__EF", StringComparison.OrdinalIgnoreCase) &&
         !string.Equals(tableName, "__LocalGptIntegrityProbe", StringComparison.OrdinalIgnoreCase);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(IsApplicationTable)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(IsApplicationTable)} failed.");
+        throw;
+    }
+}
 
     private DatabaseMigrationSignatureState EvaluateSignature(
         DatabaseMigrationSignature signature,
         IReadOnlyDictionary<string, HashSet<string>> schema)
     {
-        var presentCount = signature.Requirements.Count(requirement => RequirementExists(requirement, schema));
-        if (presentCount == 0)
-            return DatabaseMigrationSignatureState.Missing;
-        return presentCount == signature.Requirements.Length
-            ? DatabaseMigrationSignatureState.Complete
-            : DatabaseMigrationSignatureState.Partial;
+    try
+    {
+            var presentCount = signature.Requirements.Count(requirement => RequirementExists(requirement, schema));
+            if (presentCount == 0)
+                return DatabaseMigrationSignatureState.Missing;
+            return presentCount == signature.Requirements.Length
+                ? DatabaseMigrationSignatureState.Complete
+                : DatabaseMigrationSignatureState.Partial;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(EvaluateSignature)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(EvaluateSignature)} failed.");
+        throw;
+    }
+}
 
     private bool RequirementExists(
         DatabaseSchemaRequirement requirement,
         IReadOnlyDictionary<string, HashSet<string>> schema)
     {
-        if (!schema.TryGetValue(requirement.TableName, out var columns))
-            return false;
-        return requirement.ColumnName is null || columns.Contains(requirement.ColumnName);
+    try
+    {
+            if (!schema.TryGetValue(requirement.TableName, out var columns))
+                return false;
+            return requirement.ColumnName is null || columns.Contains(requirement.ColumnName);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(RequirementExists)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(RequirementExists)} failed.");
+        throw;
+    }
+}
 
     private bool IsSupportedApplicationLogsBootstrap(
         DatabaseMigrationSignature signature,
         IReadOnlyDictionary<string, HashSet<string>> schema)
     {
-        if (!string.Equals(signature.Id, "20260616222639_Initial", StringComparison.Ordinal))
-            return false;
+    try
+    {
+            if (!string.Equals(signature.Id, "20260616222639_Initial", StringComparison.Ordinal))
+                return false;
 
-        var applicationLogRequirements = signature.Requirements
-            .Where(requirement => string.Equals(requirement.TableName, "ApplicationLogs", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        if (!applicationLogRequirements.All(requirement => RequirementExists(requirement, schema)))
-            return false;
+            var applicationLogRequirements = signature.Requirements
+                .Where(requirement => string.Equals(requirement.TableName, "ApplicationLogs", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (!applicationLogRequirements.All(requirement => RequirementExists(requirement, schema)))
+                return false;
 
-        return signature.Requirements
-            .Where(requirement => !string.Equals(requirement.TableName, "ApplicationLogs", StringComparison.OrdinalIgnoreCase))
-            .All(requirement => !RequirementExists(requirement, schema));
+            return signature.Requirements
+                .Where(requirement => !string.Equals(requirement.TableName, "ApplicationLogs", StringComparison.OrdinalIgnoreCase))
+                .All(requirement => !RequirementExists(requirement, schema));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(IsSupportedApplicationLogsBootstrap)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(IsSupportedApplicationLogsBootstrap)} failed.");
+        throw;
+    }
+}
 
     private async Task<string> CreateCompatibilityBackupAsync(
         SqliteConnection sourceConnection,
         CancellationToken cancellationToken)
     {
-        var databasePath = databaseFileHealth.DatabasePath;
-        var parent = Path.GetDirectoryName(databasePath)
-            ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
-        var backupDirectory = Path.Combine(
-            parent,
-            "CompatibilityBackups",
-            DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff"));
-        Directory.CreateDirectory(backupDirectory);
-        var backupPath = Path.Combine(backupDirectory, Path.GetFileName(databasePath));
+    try
+    {
+            var databasePath = databaseFileHealth.DatabasePath;
+            var parent = Path.GetDirectoryName(databasePath)
+                ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
+            var backupDirectory = Path.Combine(
+                parent,
+                "CompatibilityBackups",
+                DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff"));
+            Directory.CreateDirectory(backupDirectory);
+            var backupPath = Path.Combine(backupDirectory, Path.GetFileName(databasePath));
 
-        var destinationConnectionString = new SqliteConnectionStringBuilder
-        {
-            DataSource = backupPath,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            Cache = SqliteCacheMode.Private
-        }.ToString();
-        await using var destinationConnection = new SqliteConnection(destinationConnectionString);
-        await destinationConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        sourceConnection.BackupDatabase(destinationConnection);
-        return backupPath;
+            var destinationConnectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = backupPath,
+                Mode = SqliteOpenMode.ReadWriteCreate,
+                Cache = SqliteCacheMode.Private
+            }.ToString();
+            await using var destinationConnection = new SqliteConnection(destinationConnectionString);
+            await destinationConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            sourceConnection.BackupDatabase(destinationConnection);
+            return backupPath;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(CreateCompatibilityBackupAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(CreateCompatibilityBackupAsync)} failed.");
+        throw;
+    }
+}
 
 
     private async Task ClearAbandonedMigrationLockAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
     {
-        await using var tableCommand = connection.CreateCommand();
-        tableCommand.CommandText =
-            """
-            SELECT COUNT(*) FROM "sqlite_master"
-            WHERE "type" = 'table' AND "name" = '__EFMigrationsLock';
-            """;
-        var tableExists = Convert.ToInt32(
-            await tableCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)) > 0;
-        if (!tableExists)
-            return;
+    try
+    {
+            await using var tableCommand = connection.CreateCommand();
+            tableCommand.CommandText =
+                """
+                SELECT COUNT(*) FROM "sqlite_master"
+                WHERE "type" = 'table' AND "name" = '__EFMigrationsLock';
+                """;
+            var tableExists = Convert.ToInt32(
+                await tableCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)) > 0;
+            if (!tableExists)
+                return;
 
-        await using var readCommand = connection.CreateCommand();
-        readCommand.CommandText =
-            """
-            SELECT "Timestamp" FROM "__EFMigrationsLock" WHERE "Id" = 1 LIMIT 1;
-            """;
-        var timestampText = Convert.ToString(
-            await readCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
-        if (string.IsNullOrWhiteSpace(timestampText))
-            return;
+            await using var readCommand = connection.CreateCommand();
+            readCommand.CommandText =
+                """
+                SELECT "Timestamp" FROM "__EFMigrationsLock" WHERE "Id" = 1 LIMIT 1;
+                """;
+            var timestampText = Convert.ToString(
+                await readCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
+            if (string.IsNullOrWhiteSpace(timestampText))
+                return;
 
-        if (!DateTimeOffset.TryParse(timestampText, out var acquiredAtUtc))
-        {
-            throw new InvalidOperationException(
-                "The SQLite migration lock contains an unreadable timestamp. Close every LocalGPT instance and " +
-                "remove the __EFMigrationsLock row manually before retrying.");
-        }
+            if (!DateTimeOffset.TryParse(timestampText, out var acquiredAtUtc))
+            {
+                throw new InvalidOperationException(
+                    "The SQLite migration lock contains an unreadable timestamp. Close every LocalGPT instance and " +
+                    "remove the __EFMigrationsLock row manually before retrying.");
+            }
 
-        var age = DateTimeOffset.UtcNow - acquiredAtUtc.ToUniversalTime();
-        if (age < abandonedMigrationLockAge)
-        {
-            throw new InvalidOperationException(
-                $"A SQLite migration lock acquired at {acquiredAtUtc:O} is still present. " +
-                "Another LocalGPT instance may be migrating this database. Close other instances or retry after " +
-                $"the lock is older than {abandonedMigrationLockAge.TotalMinutes:0} minutes.");
-        }
+            var age = DateTimeOffset.UtcNow - acquiredAtUtc.ToUniversalTime();
+            if (age < abandonedMigrationLockAge)
+            {
+                throw new InvalidOperationException(
+                    $"A SQLite migration lock acquired at {acquiredAtUtc:O} is still present. " +
+                    "Another LocalGPT instance may be migrating this database. Close other instances or retry after " +
+                    $"the lock is older than {abandonedMigrationLockAge.TotalMinutes:0} minutes.");
+            }
 
-        await using var clearCommand = connection.CreateCommand();
-        clearCommand.CommandText = "DELETE FROM \"__EFMigrationsLock\";";
-        await clearCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        logger.LogWarning(
-            "Cleared an abandoned SQLite migration lock acquired at {AcquiredAtUtc}; lock age was {LockAge}.",
-            acquiredAtUtc,
-            age);
+            await using var clearCommand = connection.CreateCommand();
+            clearCommand.CommandText = "DELETE FROM \"__EFMigrationsLock\";";
+            await clearCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogWarning(
+                "Cleared an abandoned SQLite migration lock acquired at {AcquiredAtUtc}; lock age was {LockAge}.",
+                acquiredAtUtc,
+                age);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(ClearAbandonedMigrationLockAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(ClearAbandonedMigrationLockAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task EnsureMigrationHistoryTableAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
     {
-        await using var command = connection.CreateCommand();
-        command.CommandText =
-            """
-            CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
-                "MigrationId" TEXT NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
-                "ProductVersion" TEXT NOT NULL
-            );
-            """;
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    try
+    {
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+                    "MigrationId" TEXT NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
+                    "ProductVersion" TEXT NOT NULL
+                );
+                """;
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(EnsureMigrationHistoryTableAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(EnsureMigrationHistoryTableAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<HashSet<string>> ReadAppliedMigrationsAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
     {
-        var result = new HashSet<string>(StringComparer.Ordinal);
-        await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT \"MigrationId\" FROM \"__EFMigrationsHistory\" ORDER BY \"MigrationId\";";
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            result.Add(reader.GetString(0));
-        return result;
+    try
+    {
+            var result = new HashSet<string>(StringComparer.Ordinal);
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT \"MigrationId\" FROM \"__EFMigrationsHistory\" ORDER BY \"MigrationId\";";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                result.Add(reader.GetString(0));
+            return result;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(ReadAppliedMigrationsAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(ReadAppliedMigrationsAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<Dictionary<string, HashSet<string>>> ReadSchemaAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
     {
-        var schema = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-        var tableNames = new List<string>();
+    try
+    {
+            var schema = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            var tableNames = new List<string>();
 
-        await using (var tableCommand = connection.CreateCommand())
-        {
-            tableCommand.CommandText =
-                "SELECT \"name\" FROM \"sqlite_master\" WHERE \"type\" = 'table' ORDER BY \"name\";";
-            await using var reader = await tableCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                tableNames.Add(reader.GetString(0));
-        }
+            await using (var tableCommand = connection.CreateCommand())
+            {
+                tableCommand.CommandText =
+                    "SELECT \"name\" FROM \"sqlite_master\" WHERE \"type\" = 'table' ORDER BY \"name\";";
+                await using var reader = await tableCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    tableNames.Add(reader.GetString(0));
+            }
 
-        foreach (var tableName in tableNames)
-        {
-            var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            await using var columnCommand = connection.CreateCommand();
-            columnCommand.CommandText = $"PRAGMA table_info({QuoteSqliteIdentifier(tableName)});";
-            await using var reader = await columnCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-                columns.Add(reader.GetString(1));
-            schema[tableName] = columns;
-        }
+            foreach (var tableName in tableNames)
+            {
+                var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                await using var columnCommand = connection.CreateCommand();
+                columnCommand.CommandText = $"PRAGMA table_info({QuoteSqliteIdentifier(tableName)});";
+                await using var reader = await columnCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    columns.Add(reader.GetString(1));
+                schema[tableName] = columns;
+            }
 
-        return schema;
+            return schema;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(ReadSchemaAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(ReadSchemaAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task InsertMigrationHistoryAsync(
         SqliteConnection connection,
         DatabaseMigrationSignature signature,
         CancellationToken cancellationToken)
     {
-        await using var command = connection.CreateCommand();
-        command.CommandText =
-            "INSERT OR IGNORE INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") " +
-            "VALUES ($migrationId, $productVersion);";
-        command.Parameters.AddWithValue("$migrationId", signature.Id);
-        command.Parameters.AddWithValue("$productVersion", signature.ProductVersion);
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    try
+    {
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                "INSERT OR IGNORE INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") " +
+                "VALUES ($migrationId, $productVersion);";
+            command.Parameters.AddWithValue("$migrationId", signature.Id);
+            command.Parameters.AddWithValue("$productVersion", signature.ProductVersion);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(InsertMigrationHistoryAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(InsertMigrationHistoryAsync)} failed.");
+        throw;
+    }
+}
 
-    private string QuoteSqliteIdentifier(string identifier) =>
-        "\"" + identifier.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+    private string QuoteSqliteIdentifier(string identifier) {
+    try
+    {
+        return "\"" + identifier.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(QuoteSqliteIdentifier)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(QuoteSqliteIdentifier)} failed.");
+        throw;
+    }
+}
 
-    private DatabaseSchemaRequirement Table(string tableName) => new(tableName, null);
-    private DatabaseSchemaRequirement Column(string tableName, string columnName) => new(tableName, columnName);
+    private DatabaseSchemaRequirement Table(string tableName) {
+    try
+    {
+        return new(tableName, null);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(Table)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(Table)} failed.");
+        throw;
+    }
+}
+    private DatabaseSchemaRequirement Column(string tableName, string columnName) {
+    try
+    {
+        return new(tableName, columnName);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(Column)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseMigrationCompatibilityService)}.{nameof(Column)} failed.");
+        throw;
+    }
+}
 }

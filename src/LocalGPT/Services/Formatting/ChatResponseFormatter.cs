@@ -552,7 +552,20 @@ internal sealed class ChatResponseFormatter(
     /// </summary>
     /// <param name="text">Raw model-generated visible text.</param>
     /// <returns>HTML-safe Markdown text suitable for the shared Markdig rendering path.</returns>
-    private string EncodeModelMarkdown(string text) => WebUtility.HtmlEncode(text);
+    private string EncodeModelMarkdown(string text) {
+    try
+    {
+        return WebUtility.HtmlEncode(text);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ChatResponseFormatter)}.{nameof(EncodeModelMarkdown)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ChatResponseFormatter)}.{nameof(EncodeModelMarkdown)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Calculates how much buffered text can be emitted without splitting a possible think tag.</summary>
     /// <param name="current">Current content buffer.</param>

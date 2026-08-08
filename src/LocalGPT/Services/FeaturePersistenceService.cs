@@ -98,8 +98,20 @@ public sealed class FeaturePersistenceService(
     }
 
     /// <inheritdoc />
-    public Task<bool> DeleteCouncilPromptStarterAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) =>
-        DeleteAsync(id, userConfirmed, "Council prompt starter", db => db.CouncilPromptStarterConfigurations, cancellationToken);
+    public Task<bool> DeleteCouncilPromptStarterAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) {
+    try
+    {
+        return DeleteAsync(id, userConfirmed, "Council prompt starter", db => db.CouncilPromptStarterConfigurations, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(DeleteCouncilPromptStarterAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(DeleteCouncilPromptStarterAsync)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<LocalizationCatalogRegistration>> GetLocalizationCatalogsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)
@@ -121,8 +133,20 @@ public sealed class FeaturePersistenceService(
     }
 
     /// <inheritdoc />
-    public Task<LocalizationCatalogRegistration?> GetLocalizationCatalogAsync(Guid id, CancellationToken cancellationToken = default) =>
-        GetByIdAsync(id, "localization catalog registration", db => db.LocalizationCatalogRegistrations, cancellationToken);
+    public Task<LocalizationCatalogRegistration?> GetLocalizationCatalogAsync(Guid id, CancellationToken cancellationToken = default) {
+    try
+    {
+        return GetByIdAsync(id, "localization catalog registration", db => db.LocalizationCatalogRegistrations, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(GetLocalizationCatalogAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(GetLocalizationCatalogAsync)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public async Task<LocalizationCatalogRegistration> SaveLocalizationCatalogAsync(SaveFeatureRecordRequest<LocalizationCatalogRegistration> request, CancellationToken cancellationToken = default)
@@ -167,8 +191,20 @@ public sealed class FeaturePersistenceService(
     }
 
     /// <inheritdoc />
-    public Task<bool> DeleteLocalizationCatalogAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) =>
-        DeleteAsync(id, userConfirmed, "localization catalog registration", db => db.LocalizationCatalogRegistrations, cancellationToken);
+    public Task<bool> DeleteLocalizationCatalogAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) {
+    try
+    {
+        return DeleteAsync(id, userConfirmed, "localization catalog registration", db => db.LocalizationCatalogRegistrations, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(DeleteLocalizationCatalogAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(DeleteLocalizationCatalogAsync)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<DocumentationBuildRecord>> GetDocumentationBuildsAsync(CancellationToken cancellationToken = default)
@@ -188,8 +224,20 @@ public sealed class FeaturePersistenceService(
     }
 
     /// <inheritdoc />
-    public Task<DocumentationBuildRecord?> GetDocumentationBuildAsync(Guid id, CancellationToken cancellationToken = default) =>
-        GetByIdAsync(id, "documentation build record", db => db.DocumentationBuildRecords, cancellationToken);
+    public Task<DocumentationBuildRecord?> GetDocumentationBuildAsync(Guid id, CancellationToken cancellationToken = default) {
+    try
+    {
+        return GetByIdAsync(id, "documentation build record", db => db.DocumentationBuildRecords, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(GetDocumentationBuildAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(GetDocumentationBuildAsync)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public async Task<DocumentationBuildRecord> SaveDocumentationBuildAsync(SaveFeatureRecordRequest<DocumentationBuildRecord> request, CancellationToken cancellationToken = default)
@@ -238,8 +286,20 @@ public sealed class FeaturePersistenceService(
     }
 
     /// <inheritdoc />
-    public Task<bool> DeleteDocumentationBuildAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) =>
-        DeleteAsync(id, userConfirmed, "documentation build record", db => db.DocumentationBuildRecords, cancellationToken);
+    public Task<bool> DeleteDocumentationBuildAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) {
+    try
+    {
+        return DeleteAsync(id, userConfirmed, "documentation build record", db => db.DocumentationBuildRecords, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(DeleteDocumentationBuildAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(DeleteDocumentationBuildAsync)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<EmbeddedFirmwarePlanRecord>> GetEmbeddedFirmwarePlansAsync(CancellationToken cancellationToken = default)
@@ -259,8 +319,20 @@ public sealed class FeaturePersistenceService(
     }
 
     /// <inheritdoc />
-    public Task<EmbeddedFirmwarePlanRecord?> GetEmbeddedFirmwarePlanAsync(Guid id, CancellationToken cancellationToken = default) =>
-        GetByIdAsync(id, "embedded firmware plan record", db => db.EmbeddedFirmwarePlanRecords, cancellationToken);
+    public Task<EmbeddedFirmwarePlanRecord?> GetEmbeddedFirmwarePlanAsync(Guid id, CancellationToken cancellationToken = default) {
+    try
+    {
+        return GetByIdAsync(id, "embedded firmware plan record", db => db.EmbeddedFirmwarePlanRecords, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(GetEmbeddedFirmwarePlanAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(GetEmbeddedFirmwarePlanAsync)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public async Task<EmbeddedFirmwarePlanRecord> SaveEmbeddedFirmwarePlanAsync(SaveFeatureRecordRequest<EmbeddedFirmwarePlanRecord> request, CancellationToken cancellationToken = default)
@@ -308,8 +380,20 @@ public sealed class FeaturePersistenceService(
     }
 
     /// <inheritdoc />
-    public Task<bool> DeleteEmbeddedFirmwarePlanAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) =>
-        DeleteAsync(id, userConfirmed, "embedded firmware plan record", db => db.EmbeddedFirmwarePlanRecords, cancellationToken);
+    public Task<bool> DeleteEmbeddedFirmwarePlanAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) {
+    try
+    {
+        return DeleteAsync(id, userConfirmed, "embedded firmware plan record", db => db.EmbeddedFirmwarePlanRecords, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(DeleteEmbeddedFirmwarePlanAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(DeleteEmbeddedFirmwarePlanAsync)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<CouncilGameSessionRecord>> GetCouncilGameSessionsAsync(CancellationToken cancellationToken = default)
@@ -329,8 +413,20 @@ public sealed class FeaturePersistenceService(
     }
 
     /// <inheritdoc />
-    public Task<CouncilGameSessionRecord?> GetCouncilGameSessionAsync(Guid id, CancellationToken cancellationToken = default) =>
-        GetByIdAsync(id, "GameDirector session record", db => db.CouncilGameSessionRecords, cancellationToken);
+    public Task<CouncilGameSessionRecord?> GetCouncilGameSessionAsync(Guid id, CancellationToken cancellationToken = default) {
+    try
+    {
+        return GetByIdAsync(id, "GameDirector session record", db => db.CouncilGameSessionRecords, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(GetCouncilGameSessionAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(GetCouncilGameSessionAsync)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public async Task<CouncilGameSessionRecord> SaveCouncilGameSessionAsync(SaveFeatureRecordRequest<CouncilGameSessionRecord> request, CancellationToken cancellationToken = default)
@@ -378,51 +474,88 @@ public sealed class FeaturePersistenceService(
     }
 
     /// <inheritdoc />
-    public Task<bool> DeleteCouncilGameSessionAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) =>
-        DeleteAsync(id, userConfirmed, "GameDirector session record", db => db.CouncilGameSessionRecords, cancellationToken);
+    public Task<bool> DeleteCouncilGameSessionAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) {
+    try
+    {
+        return DeleteAsync(id, userConfirmed, "GameDirector session record", db => db.CouncilGameSessionRecords, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(DeleteCouncilGameSessionAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(DeleteCouncilGameSessionAsync)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Seeds missing maintained direct-Council prompt rows without overwriting database edits.</summary>
     /// <param name="cancellationToken">Cancels the seed operation.</param>
     /// <returns>A task that completes when missing built-in rows are present.</returns>
     private async Task EnsureBuiltInCouncilStartersAsync(CancellationToken cancellationToken)
     {
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var existingKeys = await db.CouncilPromptStarterConfigurations.AsNoTracking()
-            .Select(item => item.Key)
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-        var keySet = existingKeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var changed = false;
-        foreach (var starter in catalog.GetSuggestion().Where(item => item.StartsCouncilDirectly))
-        {
-            if (!keySet.Add(starter.Key))
-                continue;
-            db.CouncilPromptStarterConfigurations.Add(new CouncilPromptStarterConfiguration
+    try
+    {
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var existingKeys = await db.CouncilPromptStarterConfigurations.AsNoTracking()
+                .Select(item => item.Key)
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
+            var keySet = existingKeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var changed = false;
+            foreach (var starter in catalog.GetSuggestion().Where(item => item.StartsCouncilDirectly))
             {
-                Id = Guid.NewGuid(),
-                Key = starter.Key,
-                Title = starter.Title,
-                Summary = starter.Text,
-                PromptMessage = starter.PromptMessage,
-                TeamKeysJson = System.Text.Json.JsonSerializer.Serialize(starter.TeamKeys),
-                StartsCouncilDirectly = true,
-                IsBuiltIn = true,
-                IsEnabled = true,
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
-            });
-            changed = true;
-        }
-        if (changed)
-        {
-            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogInformation("Seeded missing persistent direct-Council prompt starter records.");
-        }
+                if (!keySet.Add(starter.Key))
+                    continue;
+                db.CouncilPromptStarterConfigurations.Add(new CouncilPromptStarterConfiguration
+                {
+                    Id = Guid.NewGuid(),
+                    Key = starter.Key,
+                    Title = starter.Title,
+                    Summary = starter.Text,
+                    PromptMessage = starter.PromptMessage,
+                    TeamKeysJson = System.Text.Json.JsonSerializer.Serialize(starter.TeamKeys),
+                    StartsCouncilDirectly = true,
+                    IsBuiltIn = true,
+                    IsEnabled = true,
+                    CreatedAtUtc = DateTime.UtcNow,
+                    UpdatedAtUtc = DateTime.UtcNow
+                });
+                changed = true;
+            }
+            if (changed)
+            {
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                logger.LogInformation("Seeded missing persistent direct-Council prompt starter records.");
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(EnsureBuiltInCouncilStartersAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(EnsureBuiltInCouncilStartersAsync)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Ensures database migrations and seeds are ready.</summary>
     /// <param name="cancellationToken">Cancels initialization.</param>
     /// <returns>A task that completes when persistence is ready.</returns>
-    private Task EnsureReadyAsync(CancellationToken cancellationToken) => databaseInitializer.InitializeAsync(cancellationToken);
+    private Task EnsureReadyAsync(CancellationToken cancellationToken) {
+    try
+    {
+        return databaseInitializer.InitializeAsync(cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(EnsureReadyAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(EnsureReadyAsync)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Loads one EF record by its primary key with bounded diagnostics.</summary>
     /// <typeparam name="TRecord">Entity type.</typeparam>
@@ -529,13 +662,25 @@ public sealed class FeaturePersistenceService(
     /// <returns>The trimmed value.</returns>
     private string Require(string? value, string name, int maximumLength)
     {
-        var normalized = value?.Trim() ?? string.Empty;
-        if (normalized.Length == 0)
-            throw new ArgumentException($"{name} is required.", name);
-        if (normalized.Length > maximumLength)
-            throw new ArgumentOutOfRangeException(name, $"{name} must not exceed {maximumLength} characters.");
-        return normalized;
+    try
+    {
+            var normalized = value?.Trim() ?? string.Empty;
+            if (normalized.Length == 0)
+                throw new ArgumentException($"{name} is required.", name);
+            if (normalized.Length > maximumLength)
+                throw new ArgumentOutOfRangeException(name, $"{name} must not exceed {maximumLength} characters.");
+            return normalized;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(Require)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(Require)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Trims a nullable string to a bounded length.</summary>
     /// <param name="value">Candidate value.</param>
@@ -543,9 +688,21 @@ public sealed class FeaturePersistenceService(
     /// <returns>The bounded value.</returns>
     private string Trim(string? value, int maximumLength)
     {
-        var normalized = value?.Trim() ?? string.Empty;
-        return normalized.Length <= maximumLength ? normalized : normalized[..maximumLength];
+    try
+    {
+            var normalized = value?.Trim() ?? string.Empty;
+            return normalized.Length <= maximumLength ? normalized : normalized[..maximumLength];
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(Trim)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(Trim)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Validates and returns a JSON object or array string.</summary>
     /// <param name="value">JSON text.</param>
@@ -553,8 +710,20 @@ public sealed class FeaturePersistenceService(
     /// <returns>The validated JSON text.</returns>
     private string RequireJson(string? value, string name)
     {
-        var normalized = Require(value, name, 4_000_000);
-        using var _ = System.Text.Json.JsonDocument.Parse(normalized);
-        return normalized;
+    try
+    {
+            var normalized = Require(value, name, 4_000_000);
+            using var _ = System.Text.Json.JsonDocument.Parse(normalized);
+            return normalized;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(RequireJson)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FeaturePersistenceService)}.{nameof(RequireJson)} failed.");
+        throw;
+    }
+}
 }

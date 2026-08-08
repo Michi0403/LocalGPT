@@ -15,8 +15,17 @@ public sealed class GetEmbeddedHardwareCatalogFunction(
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","additionalProperties":false}""");
 
-    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) =>
-        json.Success(await catalog.GetCatalogAsync(cancellationToken).ConfigureAwait(false));
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
+    try
+    {
+        return json.Success(await catalog.GetCatalogAsync(cancellationToken).ConfigureAwait(false));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method GetEmbeddedHardwareCatalogFunction.InvokeAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }
 
 public sealed class CreateEmbeddedWiringDraftFunction(
@@ -33,10 +42,19 @@ public sealed class CreateEmbeddedWiringDraftFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<EmbeddedWiringDraftCreateRequest>(request.Parameters);
-        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-        return json.Success(await wiring.CreateDraftAsync(binding.Value.BoardProfileKey, binding.Value.Name, cancellationToken).ConfigureAwait(false));
+    try
+    {
+            var binding = json.Bind<EmbeddedWiringDraftCreateRequest>(request.Parameters);
+            if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+            return json.Success(await wiring.CreateDraftAsync(binding.Value.BoardProfileKey, binding.Value.Name, cancellationToken).ConfigureAwait(false));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method CreateEmbeddedWiringDraftFunction.InvokeAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }
 
 public sealed class ValidateEmbeddedWiringFunction(
@@ -53,10 +71,19 @@ public sealed class ValidateEmbeddedWiringFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<EmbeddedWiringValidationRequest>(request.Parameters);
-        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-        return json.Success(await wiring.ValidateAsync(binding.Value, cancellationToken).ConfigureAwait(false));
+    try
+    {
+            var binding = json.Bind<EmbeddedWiringValidationRequest>(request.Parameters);
+            if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+            return json.Success(await wiring.ValidateAsync(binding.Value, cancellationToken).ConfigureAwait(false));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method ValidateEmbeddedWiringFunction.InvokeAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }
 
 public sealed class PlanEmbeddedFirmwareFunction(
@@ -74,12 +101,24 @@ public sealed class PlanEmbeddedFirmwareFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<EmbeddedFirmwarePlanRequest>(request.Parameters);
-        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-        var result = await planning.CreatePlanAsync(binding.Value, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("DXAIFunction created embedded firmware plan {PlanId} with status {Status}.", result.PlanId, result.OverallStatus);
-        return json.Success(result);
+    try
+    {
+            var binding = json.Bind<EmbeddedFirmwarePlanRequest>(request.Parameters);
+            if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+            var result = await planning.CreatePlanAsync(binding.Value, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("DXAIFunction created embedded firmware plan {PlanId} with status {Status}.", result.PlanId, result.OverallStatus);
+            return json.Success(result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(PlanEmbeddedFirmwareFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(PlanEmbeddedFirmwareFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class CreateEmbeddedFirmwareArtifactsFunction(
@@ -97,12 +136,24 @@ public sealed class CreateEmbeddedFirmwareArtifactsFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<EmbeddedFirmwarePlanRequest>(request.Parameters);
-        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-        var result = await planning.CreateArtifactsAsync(binding.Value, userConfirmed: true, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved DXAIFunction created embedded firmware artifacts for plan {PlanId}; paths omitted from logs.", result.PlanId);
-        return json.Success(result);
+    try
+    {
+            var binding = json.Bind<EmbeddedFirmwarePlanRequest>(request.Parameters);
+            if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+            var result = await planning.CreateArtifactsAsync(binding.Value, userConfirmed: true, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved DXAIFunction created embedded firmware artifacts for plan {PlanId}; paths omitted from logs.", result.PlanId);
+            return json.Success(result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CreateEmbeddedFirmwareArtifactsFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CreateEmbeddedFirmwareArtifactsFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class PreviewEmbeddedTelemetryFunction(
@@ -119,10 +170,19 @@ public sealed class PreviewEmbeddedTelemetryFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<EmbeddedTelemetryBridgeRequest>(request.Parameters);
-        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-        return json.Success(await bridge.PreviewAsync(binding.Value, cancellationToken).ConfigureAwait(false));
+    try
+    {
+            var binding = json.Bind<EmbeddedTelemetryBridgeRequest>(request.Parameters);
+            if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+            return json.Success(await bridge.PreviewAsync(binding.Value, cancellationToken).ConfigureAwait(false));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method PreviewEmbeddedTelemetryFunction.InvokeAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }
 
 public sealed class PreviewEmbeddedOneWireEnvelopeFunction(
@@ -139,10 +199,19 @@ public sealed class PreviewEmbeddedOneWireEnvelopeFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<EmbeddedTelemetryBridgeRequest>(request.Parameters);
-        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-        return json.Success(await bridge.CreateOneWireEnvelopeAsync(binding.Value, cancellationToken).ConfigureAwait(false));
+    try
+    {
+            var binding = json.Bind<EmbeddedTelemetryBridgeRequest>(request.Parameters);
+            if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+            return json.Success(await bridge.CreateOneWireEnvelopeAsync(binding.Value, cancellationToken).ConfigureAwait(false));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method PreviewEmbeddedOneWireEnvelopeFunction.InvokeAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }
 
 public sealed class PublishEmbeddedTelemetryFunction(
@@ -159,8 +228,17 @@ public sealed class PublishEmbeddedTelemetryFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<EmbeddedTelemetryBridgeRequest>(request.Parameters);
-        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-        return json.Success(await ingress.PublishAsync(binding.Value, cancellationToken).ConfigureAwait(false));
+    try
+    {
+            var binding = json.Bind<EmbeddedTelemetryBridgeRequest>(request.Parameters);
+            if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+            return json.Success(await ingress.PublishAsync(binding.Value, cancellationToken).ConfigureAwait(false));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method PublishEmbeddedTelemetryFunction.InvokeAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }

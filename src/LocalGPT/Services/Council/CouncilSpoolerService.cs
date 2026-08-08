@@ -37,97 +37,169 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 
     public void Begin(MultiModelCouncilResult result)
     {
-        ArgumentNullException.ThrowIfNull(result);
-        lock (mutationGate)
-        {
-            runs[result.RunId] = new CouncilSpoolerSnapshot
+    try
+    {
+            ArgumentNullException.ThrowIfNull(result);
+            lock (mutationGate)
             {
-                RunId = result.RunId,
-                StartedAtUtc = result.StartedAtUtc,
-                UpdatedAtUtc = DateTime.UtcNow,
-                Status = vocabulary.Get().CouncilSpoolerRunning,
-                Prompt = result.Prompt,
-                CouncilTeamKey = result.CouncilTeamKey,
-                ModelNames = [.. result.ModelNames]
-            };
-        }
-        NotifyChanged();
+                runs[result.RunId] = new CouncilSpoolerSnapshot
+                {
+                    RunId = result.RunId,
+                    StartedAtUtc = result.StartedAtUtc,
+                    UpdatedAtUtc = DateTime.UtcNow,
+                    Status = vocabulary.Get().CouncilSpoolerRunning,
+                    Prompt = result.Prompt,
+                    CouncilTeamKey = result.CouncilTeamKey,
+                    ModelNames = [.. result.ModelNames]
+                };
+            }
+            NotifyChanged();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(Begin)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(Begin)} failed.");
+        throw;
+    }
+}
 
     public void Update(Guid runId, int round, string phase)
     {
-        lock (mutationGate)
-        {
-            if (!runs.TryGetValue(runId, out var snapshot)) return;
-            snapshot.CurrentRound = Math.Max(0, round);
-            snapshot.Phase = string.IsNullOrWhiteSpace(phase) ? snapshot.Phase : phase.Trim();
-            snapshot.UpdatedAtUtc = DateTime.UtcNow;
-        }
-        NotifyChanged();
+    try
+    {
+            lock (mutationGate)
+            {
+                if (!runs.TryGetValue(runId, out var snapshot)) return;
+                snapshot.CurrentRound = Math.Max(0, round);
+                snapshot.Phase = string.IsNullOrWhiteSpace(phase) ? snapshot.Phase : phase.Trim();
+                snapshot.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            NotifyChanged();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(Update)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(Update)} failed.");
+        throw;
+    }
+}
 
     public void AddStep(Guid runId, MultiModelCouncilStep step)
     {
-        ArgumentNullException.ThrowIfNull(step);
-        lock (mutationGate)
-        {
-            if (!runs.TryGetValue(runId, out var snapshot)) return;
-            var existing = snapshot.Steps.FindIndex(item => item.SortOrder == step.SortOrder &&
-                string.Equals(item.ModelName, step.ModelName, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(item.Phase, step.Phase, StringComparison.OrdinalIgnoreCase));
-            var copy = CloneStep(step);
-            if (existing >= 0) snapshot.Steps[existing] = copy;
-            else snapshot.Steps.Add(copy);
-            snapshot.Steps = snapshot.Steps.OrderBy(item => item.SortOrder).TakeLast(512).ToList();
-            snapshot.CurrentRound = Math.Max(snapshot.CurrentRound, step.Round);
-            snapshot.Phase = step.Phase;
-            snapshot.UpdatedAtUtc = DateTime.UtcNow;
-        }
-        NotifyChanged();
+    try
+    {
+            ArgumentNullException.ThrowIfNull(step);
+            lock (mutationGate)
+            {
+                if (!runs.TryGetValue(runId, out var snapshot)) return;
+                var existing = snapshot.Steps.FindIndex(item => item.SortOrder == step.SortOrder &&
+                    string.Equals(item.ModelName, step.ModelName, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(item.Phase, step.Phase, StringComparison.OrdinalIgnoreCase));
+                var copy = CloneStep(step);
+                if (existing >= 0) snapshot.Steps[existing] = copy;
+                else snapshot.Steps.Add(copy);
+                snapshot.Steps = snapshot.Steps.OrderBy(item => item.SortOrder).TakeLast(512).ToList();
+                snapshot.CurrentRound = Math.Max(snapshot.CurrentRound, step.Round);
+                snapshot.Phase = step.Phase;
+                snapshot.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            NotifyChanged();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(AddStep)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(AddStep)} failed.");
+        throw;
+    }
+}
 
     public void Complete(MultiModelCouncilResult result, bool failed = false)
     {
-        ArgumentNullException.ThrowIfNull(result);
-        lock (mutationGate)
-        {
-            if (!runs.TryGetValue(result.RunId, out var snapshot))
+    try
+    {
+            ArgumentNullException.ThrowIfNull(result);
+            lock (mutationGate)
             {
-                snapshot = new CouncilSpoolerSnapshot { RunId = result.RunId, StartedAtUtc = result.StartedAtUtc };
-                runs[result.RunId] = snapshot;
+                if (!runs.TryGetValue(result.RunId, out var snapshot))
+                {
+                    snapshot = new CouncilSpoolerSnapshot { RunId = result.RunId, StartedAtUtc = result.StartedAtUtc };
+                    runs[result.RunId] = snapshot;
+                }
+                snapshot.Status = failed ? vocabulary.Get().CouncilSpoolerFailed : vocabulary.Get().CouncilSpoolerCompleted;
+                snapshot.CompletedAtUtc = result.CompletedAtUtc ?? DateTime.UtcNow;
+                snapshot.UpdatedAtUtc = DateTime.UtcNow;
+                snapshot.FinalAnswer = result.FinalAnswer;
+                snapshot.Warnings = [.. result.Warnings];
+                snapshot.ModelNames = [.. result.ModelNames];
+                snapshot.CouncilTeamKey = result.CouncilTeamKey;
+                snapshot.Prompt = result.Prompt;
+                snapshot.Steps = result.Steps.OrderBy(item => item.SortOrder).TakeLast(512).Select(CloneStep).ToList();
             }
-            snapshot.Status = failed ? vocabulary.Get().CouncilSpoolerFailed : vocabulary.Get().CouncilSpoolerCompleted;
-            snapshot.CompletedAtUtc = result.CompletedAtUtc ?? DateTime.UtcNow;
-            snapshot.UpdatedAtUtc = DateTime.UtcNow;
-            snapshot.FinalAnswer = result.FinalAnswer;
-            snapshot.Warnings = [.. result.Warnings];
-            snapshot.ModelNames = [.. result.ModelNames];
-            snapshot.CouncilTeamKey = result.CouncilTeamKey;
-            snapshot.Prompt = result.Prompt;
-            snapshot.Steps = result.Steps.OrderBy(item => item.SortOrder).TakeLast(512).Select(CloneStep).ToList();
-        }
-        NotifyChanged();
+            NotifyChanged();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(Complete)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(Complete)} failed.");
+        throw;
+    }
+}
 
     public IReadOnlyList<CouncilSpoolerSnapshot> GetSnapshots(bool includeCompleted = true, int take = 30)
     {
-        lock (mutationGate)
-        {
-            return runs.Values
-                .Where(item => includeCompleted || item.Status == vocabulary.Get().CouncilSpoolerRunning)
-                .OrderByDescending(item => item.Status == vocabulary.Get().CouncilSpoolerRunning)
-                .ThenByDescending(item => item.UpdatedAtUtc)
-                .Take(Math.Clamp(take, 1, 100))
-                .Select(CloneSnapshot)
-                .ToList();
-        }
+    try
+    {
+            lock (mutationGate)
+            {
+                return runs.Values
+                    .Where(item => includeCompleted || item.Status == vocabulary.Get().CouncilSpoolerRunning)
+                    .OrderByDescending(item => item.Status == vocabulary.Get().CouncilSpoolerRunning)
+                    .ThenByDescending(item => item.UpdatedAtUtc)
+                    .Take(Math.Clamp(take, 1, 100))
+                    .Select(CloneSnapshot)
+                    .ToList();
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(GetSnapshots)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(GetSnapshots)} failed.");
+        throw;
+    }
+}
 
     public CouncilSpoolerSnapshot? GetSnapshot(Guid runId)
     {
-        lock (mutationGate)
-            return runs.TryGetValue(runId, out var snapshot) ? CloneSnapshot(snapshot) : null;
+    try
+    {
+            lock (mutationGate)
+                return runs.TryGetValue(runId, out var snapshot) ? CloneSnapshot(snapshot) : null;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(GetSnapshot)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(GetSnapshot)} failed.");
+        throw;
+    }
+}
 
     private void NotifyChanged()
     {
@@ -142,13 +214,25 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 
     private void SchedulePersist()
     {
-        if (disposed) return;
-        var next = new CancellationTokenSource();
-        var previous = Interlocked.Exchange(ref pendingPersist, next);
-        previous?.Cancel();
-        previous?.Dispose();
-        _ = PersistAfterDelayAsync(next.Token);
+    try
+    {
+            if (disposed) return;
+            var next = new CancellationTokenSource();
+            var previous = Interlocked.Exchange(ref pendingPersist, next);
+            previous?.Cancel();
+            previous?.Dispose();
+            _ = PersistAfterDelayAsync(next.Token);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(SchedulePersist)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(SchedulePersist)} failed.");
+        throw;
+    }
+}
 
     private async Task PersistAfterDelayAsync(CancellationToken cancellationToken)
     {
@@ -194,7 +278,10 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         catch (Exception ex) { logger.LogWarning(ex, "Could not load the previous Council spooler checkpoint; active database and chat memory remain unchanged."); }
     }
 
-    private CouncilSpoolerSnapshot CloneSnapshot(CouncilSpoolerSnapshot source) => new()
+    private CouncilSpoolerSnapshot CloneSnapshot(CouncilSpoolerSnapshot source) {
+    try
+    {
+        return new()
     {
         RunId = source.RunId,
         StartedAtUtc = source.StartedAtUtc,
@@ -210,8 +297,21 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         FinalAnswer = source.FinalAnswer,
         Warnings = [.. source.Warnings]
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(CloneSnapshot)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(CloneSnapshot)} failed.");
+        throw;
+    }
+}
 
-    private MultiModelCouncilStep CloneStep(MultiModelCouncilStep source) => new()
+    private MultiModelCouncilStep CloneStep(MultiModelCouncilStep source) {
+    try
+    {
+        return new()
     {
         SortOrder = source.SortOrder,
         Round = source.Round,
@@ -233,13 +333,35 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         DurationSeconds = source.DurationSeconds,
         Error = source.Error
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(CloneStep)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(CloneStep)} failed.");
+        throw;
+    }
+}
 
     public void Dispose()
     {
-        disposed = true;
-        var pending = Interlocked.Exchange(ref pendingPersist, null);
-        pending?.Cancel();
-        pending?.Dispose();
-        persistenceGate.Dispose();
+    try
+    {
+            disposed = true;
+            var pending = Interlocked.Exchange(ref pendingPersist, null);
+            pending?.Cancel();
+            pending?.Dispose();
+            persistenceGate.Dispose();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(Dispose)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilSpoolerService)}.{nameof(Dispose)} failed.");
+        throw;
+    }
+}
 }

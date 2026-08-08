@@ -241,7 +241,19 @@ namespace LocalGPT.Services
             return result;
         }
 
-        private string GetEndpointHost(string endpoint) =>
-            Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ? uri.Host : "invalid-or-unset";
+        private string GetEndpointHost(string endpoint) {
+    try
+    {
+        return Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ? uri.Host : "invalid-or-unset";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(AiDiscoveryService)}.{nameof(GetEndpointHost)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(AiDiscoveryService)}.{nameof(GetEndpointHost)} failed.");
+        throw;
+    }
+}
     }
 }

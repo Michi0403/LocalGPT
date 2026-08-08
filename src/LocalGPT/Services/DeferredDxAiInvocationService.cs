@@ -23,137 +23,265 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
         Guid? councilRunId,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(functionName);
-        ArgumentNullException.ThrowIfNull(request);
-        await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-            if (await db.DeferredDxAiInvocations.AnyAsync(
-                    item => item.ApprovalRequestId == approvalRequestId,
-                    cancellationToken).ConfigureAwait(false))
+    try
+    {
+            ArgumentException.ThrowIfNullOrWhiteSpace(functionName);
+            ArgumentNullException.ThrowIfNull(request);
+            await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                return;
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                if (await db.DeferredDxAiInvocations.AnyAsync(
+                        item => item.ApprovalRequestId == approvalRequestId,
+                        cancellationToken).ConfigureAwait(false))
+                {
+                    return;
+                }
+
+                var parametersJson = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+                    ? "{}"
+                    : request.Parameters.GetRawText();
+                if (parametersJson.Length > 64_000)
+                    throw new InvalidOperationException("The exact deferred function parameters exceed the 64,000-character local safety limit.");
+
+                db.DeferredDxAiInvocations.Add(new DeferredDxAiInvocation
+                {
+                    ApprovalRequestId = approvalRequestId,
+                    CouncilRunId = councilRunId,
+                    OperationId = request.OperationId ?? Guid.NewGuid(),
+                    CorrelationId = Limit(correlationId, 180),
+                    FunctionName = Limit(functionName, 180),
+                    ParametersJson = parametersJson,
+                    ConfirmationSummaryHash = Limit(request.ConfirmationSummaryHash, 180),
+                    RequestedBy = Limit(request.RequestedBy, 160),
+                    ConversationId = request.ConversationId,
+                    ProjectId = request.ProjectId,
+                    ProjectVersionId = request.ProjectVersionId,
+                    ApplicationVersion = Limit(request.ApplicationVersion, 80),
+                    Status = vocabulary.Get().DeferredPendingApproval,
+                    CreatedAtUtc = DateTime.UtcNow,
+                    UpdatedAtUtc = DateTime.UtcNow
+                });
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                logger.LogInformation(
+                    "Queued deferred DXAI invocation for function {FunctionName} under approval request {ApprovalRequestId}; exact parameters were persisted locally and omitted from logs.",
+                    functionName,
+                    approvalRequestId);
             }
-
-            var parametersJson = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-                ? "{}"
-                : request.Parameters.GetRawText();
-            if (parametersJson.Length > 64_000)
-                throw new InvalidOperationException("The exact deferred function parameters exceed the 64,000-character local safety limit.");
-
-            db.DeferredDxAiInvocations.Add(new DeferredDxAiInvocation
+            finally
             {
-                ApprovalRequestId = approvalRequestId,
-                CouncilRunId = councilRunId,
-                OperationId = request.OperationId ?? Guid.NewGuid(),
-                CorrelationId = Limit(correlationId, 180),
-                FunctionName = Limit(functionName, 180),
-                ParametersJson = parametersJson,
-                ConfirmationSummaryHash = Limit(request.ConfirmationSummaryHash, 180),
-                RequestedBy = Limit(request.RequestedBy, 160),
-                ConversationId = request.ConversationId,
-                ProjectId = request.ProjectId,
-                ProjectVersionId = request.ProjectVersionId,
-                ApplicationVersion = Limit(request.ApplicationVersion, 80),
-                Status = vocabulary.Get().DeferredPendingApproval,
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow
-            });
-            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogInformation(
-                "Queued deferred DXAI invocation for function {FunctionName} under approval request {ApprovalRequestId}; exact parameters were persisted locally and omitted from logs.",
-                functionName,
-                approvalRequestId);
-        }
-        finally
-        {
-            databaseGate.Release();
-        }
+                databaseGate.Release();
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(QueueAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(QueueAsync)} failed.");
+        throw;
+    }
+}
 
     public async Task<IReadOnlyList<DeferredDxAiExecutionOutcome>> ExecuteApprovedForHeartbeatAsync(
         Guid councilRunId,
         int councilRound,
         CancellationToken cancellationToken = default)
     {
-        var candidates = await ClaimCandidatesAsync(councilRunId, cancellationToken).ConfigureAwait(false);
-        if (candidates.Count == 0)
-            return [];
+    try
+    {
+            var candidates = await ClaimCandidatesAsync(councilRunId, cancellationToken).ConfigureAwait(false);
+            if (candidates.Count == 0)
+                return [];
 
-        var outcomes = new List<DeferredDxAiExecutionOutcome>(candidates.Count);
-        foreach (var candidate in candidates)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            outcomes.Add(await ExecuteCandidateAsync(candidate, councilRound, cancellationToken).ConfigureAwait(false));
-        }
-        return outcomes;
+            var outcomes = new List<DeferredDxAiExecutionOutcome>(candidates.Count);
+            foreach (var candidate in candidates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                outcomes.Add(await ExecuteCandidateAsync(candidate, councilRound, cancellationToken).ConfigureAwait(false));
+            }
+            return outcomes;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(ExecuteApprovedForHeartbeatAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(ExecuteApprovedForHeartbeatAsync)} failed.");
+        throw;
+    }
+}
+
+    public async Task<IReadOnlyList<DeferredDxAiExecutionOutcome>> ExecuteApprovedForApprovalRequestAsync(
+        Guid approvalRequestId,
+        int councilRound = 0,
+        CancellationToken cancellationToken = default)
+    {
+    try
+    {
+            var candidates = await ClaimCandidatesForApprovalRequestAsync(approvalRequestId, cancellationToken).ConfigureAwait(false);
+            if (candidates.Count == 0)
+                return [];
+            var outcomes = new List<DeferredDxAiExecutionOutcome>(candidates.Count);
+            foreach (var candidate in candidates)
+                outcomes.Add(await ExecuteCandidateAsync(candidate, councilRound, cancellationToken).ConfigureAwait(false));
+            return outcomes;
+    
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(ExecuteApprovedForApprovalRequestAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(ExecuteApprovedForApprovalRequestAsync)} failed.");
+        throw;
+    }
+}
+
+    private async Task<List<DeferredDxAiInvocation>> ClaimCandidatesForApprovalRequestAsync(
+        Guid approvalRequestId,
+        CancellationToken cancellationToken)
+    {
+    try
+    {
+            await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var candidates = await db.DeferredDxAiInvocations
+                    .Where(item => item.ApprovalRequestId == approvalRequestId && item.Status == vocabulary.Get().DeferredPendingApproval)
+                    .OrderBy(item => item.CreatedAtUtc)
+                    .Take(8)
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                if (candidates.Count == 0)
+                    return [];
+
+                var approvalStatus = await db.HumanCollaborationRequests.AsNoTracking()
+                    .Where(item => item.Id == approvalRequestId)
+                    .Select(item => item.Status)
+                    .SingleOrDefaultAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                if (approvalStatus == vocabulary.Get().HumanStatusDeclined)
+                {
+                    foreach (var candidate in candidates)
+                    {
+                        candidate.Status = vocabulary.Get().DeferredDeclined;
+                        candidate.ResultStatus = vocabulary.Get().HumanStatusDeclined;
+                        candidate.ResultSummary = "The local human declined this exact invocation.";
+                        candidate.CompletedAtUtc = DateTime.UtcNow;
+                        candidate.UpdatedAtUtc = DateTime.UtcNow;
+                    }
+                    await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    return [];
+                }
+                if (approvalStatus != vocabulary.Get().HumanStatusApproved)
+                    return [];
+
+                foreach (var candidate in candidates)
+                {
+                    candidate.Status = vocabulary.Get().DeferredExecuting;
+                    candidate.AttemptCount++;
+                    candidate.LastAttemptAtUtc = DateTime.UtcNow;
+                    candidate.UpdatedAtUtc = DateTime.UtcNow;
+                }
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                return candidates.Select(Clone).ToList();
+            }
+            finally
+            {
+                databaseGate.Release();
+            }
+    
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(ClaimCandidatesForApprovalRequestAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(ClaimCandidatesForApprovalRequestAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<List<DeferredDxAiInvocation>> ClaimCandidatesAsync(
         Guid councilRunId,
         CancellationToken cancellationToken)
     {
-        await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-            var candidates = await db.DeferredDxAiInvocations
-                .Where(item => item.CouncilRunId == councilRunId &&
-                    item.Status == vocabulary.Get().DeferredPendingApproval)
-                .OrderBy(item => item.CreatedAtUtc)
-                .Take(8)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-            if (candidates.Count == 0)
-                return [];
-
-            var approvalIds = candidates.Select(item => item.ApprovalRequestId).ToList();
-            var approvalStatuses = await db.HumanCollaborationRequests.AsNoTracking()
-                .Where(item => approvalIds.Contains(item.Id))
-                .ToDictionaryAsync(item => item.Id, item => item.Status, cancellationToken)
-                .ConfigureAwait(false);
-
-            var claimed = new List<DeferredDxAiInvocation>();
-            foreach (var candidate in candidates)
+    try
+    {
+            await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                if (!approvalStatuses.TryGetValue(candidate.ApprovalRequestId, out var approvalStatus))
-                    continue;
-                if (approvalStatus == vocabulary.Get().HumanStatusDeclined)
-                {
-                    candidate.Status = vocabulary.Get().DeferredDeclined;
-                    candidate.ResultStatus = vocabulary.Get().HumanStatusDeclined;
-                    candidate.ResultSummary = "The local human declined this exact invocation.";
-                    candidate.CompletedAtUtc = DateTime.UtcNow;
-                    candidate.UpdatedAtUtc = DateTime.UtcNow;
-                    continue;
-                }
-                if (approvalStatus == vocabulary.Get().HumanStatusConsumed)
-                {
-                    candidate.Status = vocabulary.Get().DeferredCompletedElsewhere;
-                    candidate.ResultStatus = vocabulary.Get().HumanStatusConsumed;
-                    candidate.ResultSummary = "The exact approval was consumed by another retry path.";
-                    candidate.CompletedAtUtc = DateTime.UtcNow;
-                    candidate.UpdatedAtUtc = DateTime.UtcNow;
-                    continue;
-                }
-                if (approvalStatus != vocabulary.Get().HumanStatusApproved)
-                    continue;
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var candidates = await db.DeferredDxAiInvocations
+                    .Where(item => item.CouncilRunId == councilRunId &&
+                        item.Status == vocabulary.Get().DeferredPendingApproval)
+                    .OrderBy(item => item.CreatedAtUtc)
+                    .Take(8)
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                if (candidates.Count == 0)
+                    return [];
 
-                candidate.Status = vocabulary.Get().DeferredExecuting;
-                candidate.AttemptCount++;
-                candidate.LastAttemptAtUtc = DateTime.UtcNow;
-                candidate.UpdatedAtUtc = DateTime.UtcNow;
-                claimed.Add(candidate);
+                var approvalIds = candidates.Select(item => item.ApprovalRequestId).ToList();
+                var approvalStatuses = await db.HumanCollaborationRequests.AsNoTracking()
+                    .Where(item => approvalIds.Contains(item.Id))
+                    .ToDictionaryAsync(item => item.Id, item => item.Status, cancellationToken)
+                    .ConfigureAwait(false);
+
+                var claimed = new List<DeferredDxAiInvocation>();
+                foreach (var candidate in candidates)
+                {
+                    if (!approvalStatuses.TryGetValue(candidate.ApprovalRequestId, out var approvalStatus))
+                        continue;
+                    if (approvalStatus == vocabulary.Get().HumanStatusDeclined)
+                    {
+                        candidate.Status = vocabulary.Get().DeferredDeclined;
+                        candidate.ResultStatus = vocabulary.Get().HumanStatusDeclined;
+                        candidate.ResultSummary = "The local human declined this exact invocation.";
+                        candidate.CompletedAtUtc = DateTime.UtcNow;
+                        candidate.UpdatedAtUtc = DateTime.UtcNow;
+                        continue;
+                    }
+                    if (approvalStatus == vocabulary.Get().HumanStatusConsumed)
+                    {
+                        candidate.Status = vocabulary.Get().DeferredCompletedElsewhere;
+                        candidate.ResultStatus = vocabulary.Get().HumanStatusConsumed;
+                        candidate.ResultSummary = "The exact approval was consumed by another retry path.";
+                        candidate.CompletedAtUtc = DateTime.UtcNow;
+                        candidate.UpdatedAtUtc = DateTime.UtcNow;
+                        continue;
+                    }
+                    if (approvalStatus != vocabulary.Get().HumanStatusApproved)
+                        continue;
+
+                    candidate.Status = vocabulary.Get().DeferredExecuting;
+                    candidate.AttemptCount++;
+                    candidate.LastAttemptAtUtc = DateTime.UtcNow;
+                    candidate.UpdatedAtUtc = DateTime.UtcNow;
+                    claimed.Add(candidate);
+                }
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                return claimed.Select(Clone).ToList();
             }
-            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            return claimed.Select(Clone).ToList();
-        }
-        finally
-        {
-            databaseGate.Release();
-        }
+            finally
+            {
+                databaseGate.Release();
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(ClaimCandidatesAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(ClaimCandidatesAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<DeferredDxAiExecutionOutcome> ExecuteCandidateAsync(
         DeferredDxAiInvocation candidate,
@@ -177,7 +305,7 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
                     ConfirmationSummaryHash = string.IsNullOrWhiteSpace(candidate.ConfirmationSummaryHash)
                         ? null
                         : candidate.ConfirmationSummaryHash,
-                    RequestedBy = $"DeferredCouncilHeartbeat:{councilRound}",
+                    RequestedBy = $"DeferredApprovedInvocation:{councilRound}",
                     ConversationId = candidate.ConversationId,
                     ProjectId = candidate.ProjectId,
                     ProjectVersionId = candidate.ProjectVersionId,
@@ -219,62 +347,105 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
         string summary,
         CancellationToken cancellationToken)
     {
-        await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-            var entity = await db.DeferredDxAiInvocations
-                .SingleAsync(item => item.Id == deferredInvocationId, cancellationToken)
-                .ConfigureAwait(false);
-            entity.Status = result.Succeeded
-                ? vocabulary.Get().DeferredCompleted
-                : vocabulary.Get().DeferredFailed;
-            entity.ResultStatus = Limit(result.Status, 80);
-            entity.ResultSummary = summary;
-            entity.CompletedAtUtc = DateTime.UtcNow;
-            entity.UpdatedAtUtc = DateTime.UtcNow;
-            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogInformation(
-                "Deferred DXAI invocation {DeferredInvocationId} for function {FunctionName} completed with status {ResultStatus} and success={Succeeded}; returned content was omitted from logs.",
-                entity.Id,
-                entity.FunctionName,
-                entity.ResultStatus,
-                result.Succeeded);
-        }
-        finally
-        {
-            databaseGate.Release();
-        }
+    try
+    {
+            await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var entity = await db.DeferredDxAiInvocations
+                    .SingleAsync(item => item.Id == deferredInvocationId, cancellationToken)
+                    .ConfigureAwait(false);
+                entity.Status = result.Succeeded
+                    ? vocabulary.Get().DeferredCompleted
+                    : vocabulary.Get().DeferredFailed;
+                entity.ResultStatus = Limit(result.Status, 80);
+                entity.ResultSummary = summary;
+                entity.CompletedAtUtc = DateTime.UtcNow;
+                entity.UpdatedAtUtc = DateTime.UtcNow;
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                logger.LogInformation(
+                    "Deferred DXAI invocation {DeferredInvocationId} for function {FunctionName} completed with status {ResultStatus} and success={Succeeded}; returned content was omitted from logs.",
+                    entity.Id,
+                    entity.FunctionName,
+                    entity.ResultStatus,
+                    result.Succeeded);
+            }
+            finally
+            {
+                databaseGate.Release();
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(CompleteAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(CompleteAsync)} failed.");
+        throw;
+    }
+}
 
     private string BuildResultSummary(DxAiFunctionInvocationResult result)
     {
-        try
-        {
-            var payload = JsonSerializer.Serialize(new
+    try
+    {
+            try
             {
-                result.Status,
-                result.Succeeded,
-                result.Value,
-                result.Error
-            });
-            return Limit(payload, MaxResultCharacters);
-        }
-        catch
-        {
-            return Limit(
-                JsonSerializer.Serialize(new
+                object? value = result.Value;
+                if (result.Value is CodeGenerationExecutionResult generated)
+                {
+                    value = new
+                    {
+                        generated.ReviewId,
+                        generated.Status,
+                        generated.WorkspaceName,
+                        generated.ZipFileName,
+                        generated.DownloadUrl,
+                        generated.BuildStatus,
+                        WrittenFileCount = generated.WrittenFiles.Count,
+                        generated.Warnings
+                    };
+                }
+
+                var payload = JsonSerializer.Serialize(new
                 {
                     result.Status,
                     result.Succeeded,
-                    Error = result.Error,
-                    ValueSerialization = "The returned value could not be serialized for council context."
-                }),
-                MaxResultCharacters);
-        }
+                    Value = value,
+                    result.Error
+                });
+                return Limit(payload, MaxResultCharacters);
+            }
+            catch
+            {
+                return Limit(
+                    JsonSerializer.Serialize(new
+                    {
+                        result.Status,
+                        result.Succeeded,
+                        Error = result.Error,
+                        ValueSerialization = "The returned value could not be serialized for council context."
+                    }),
+                    MaxResultCharacters);
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(BuildResultSummary)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(BuildResultSummary)} failed.");
+        throw;
+    }
+}
 
-    private DeferredDxAiInvocation Clone(DeferredDxAiInvocation value) => new()
+    private DeferredDxAiInvocation Clone(DeferredDxAiInvocation value) {
+    try
+    {
+        return new()
     {
         Id = value.Id,
         ApprovalRequestId = value.ApprovalRequestId,
@@ -295,10 +466,32 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
         UpdatedAtUtc = value.UpdatedAtUtc,
         LastAttemptAtUtc = value.LastAttemptAtUtc
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(Clone)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(Clone)} failed.");
+        throw;
+    }
+}
 
     private string Limit(string? value, int maxLength)
     {
-        var normalized = value?.Trim() ?? string.Empty;
-        return normalized[..Math.Min(normalized.Length, maxLength)];
+    try
+    {
+            var normalized = value?.Trim() ?? string.Empty;
+            return normalized[..Math.Min(normalized.Length, maxLength)];
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(Limit)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DeferredDxAiInvocationService)}.{nameof(Limit)} failed.");
+        throw;
+    }
+}
 }

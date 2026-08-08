@@ -98,8 +98,20 @@ public class CompositeChatClient : IChatClient
         }
     }
 
-    private ChatResponse CreateFailureResponse(string message) =>
-        new(new ChatMessage(ChatRole.Assistant, [new TextContent(message)]));
+    private ChatResponse CreateFailureResponse(string message) {
+    try
+    {
+        return new(new ChatMessage(ChatRole.Assistant, [new TextContent(message)]));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            _logger.LogDebug(__serviceMethodException, $"Service method {nameof(CompositeChatClient)}.{nameof(CreateFailureResponse)} was canceled.");
+        else
+            _logger.LogError(__serviceMethodException, $"Service method {nameof(CompositeChatClient)}.{nameof(CreateFailureResponse)} failed.");
+        throw;
+    }
+}
 
     private async IAsyncEnumerable<ChatResponseUpdate> CreateFailureUpdates(string message)
     {
@@ -109,17 +121,29 @@ public class CompositeChatClient : IChatClient
 
     private bool IsConnectionRefused(Exception exception)
     {
-        for (Exception? current = exception; current is not null; current = current.InnerException)
-        {
-            if (current is System.Net.Sockets.SocketException socketException
-                && socketException.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionRefused)
-                return true;
-            if (current.Message.Contains("connection refused", StringComparison.OrdinalIgnoreCase)
-                || current.Message.Contains("Verbindung verweigert", StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-        return false;
+    try
+    {
+            for (Exception? current = exception; current is not null; current = current.InnerException)
+            {
+                if (current is System.Net.Sockets.SocketException socketException
+                    && socketException.SocketErrorCode == System.Net.Sockets.SocketError.ConnectionRefused)
+                    return true;
+                if (current.Message.Contains("connection refused", StringComparison.OrdinalIgnoreCase)
+                    || current.Message.Contains("Verbindung verweigert", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            _logger.LogDebug(__serviceMethodException, $"Service method {nameof(CompositeChatClient)}.{nameof(IsConnectionRefused)} was canceled.");
+        else
+            _logger.LogError(__serviceMethodException, $"Service method {nameof(CompositeChatClient)}.{nameof(IsConnectionRefused)} failed.");
+        throw;
+    }
+}
 
     public void Dispose()
     {
@@ -148,11 +172,23 @@ public class CompositeChatClient : IChatClient
     }
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
-        ArgumentNullException.ThrowIfNull(serviceType);
-        if (serviceType.IsInstanceOfType(this))
-            return this;
-        return ResolveSelectedSession()?.Client.GetService(serviceType, serviceKey);
+    try
+    {
+            ArgumentNullException.ThrowIfNull(serviceType);
+            if (serviceType.IsInstanceOfType(this))
+                return this;
+            return ResolveSelectedSession()?.Client.GetService(serviceType, serviceKey);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            _logger.LogDebug(__serviceMethodException, $"Service method {nameof(CompositeChatClient)}.{nameof(GetService)} was canceled.");
+        else
+            _logger.LogError(__serviceMethodException, $"Service method {nameof(CompositeChatClient)}.{nameof(GetService)} failed.");
+        throw;
+    }
+}
 
 
     private async Task<ChatOptions> ApplyDefaultOptionsAsync(
@@ -194,24 +230,36 @@ public class CompositeChatClient : IChatClient
 
     private ChatClientSession? ResolveSelectedSession()
     {
-        if (!string.IsNullOrWhiteSpace(LockedSessionName))
-        {
-            var lockedSession = AvailableChatClients.FirstOrDefault(session =>
-                session.Name.Equals(LockedSessionName, StringComparison.OrdinalIgnoreCase) ||
-                session.Name.Contains(LockedSessionName, StringComparison.OrdinalIgnoreCase));
-            if (lockedSession is not null)
+    try
+    {
+            if (!string.IsNullOrWhiteSpace(LockedSessionName))
             {
-                SelectedSession = lockedSession;
-                return lockedSession;
+                var lockedSession = AvailableChatClients.FirstOrDefault(session =>
+                    session.Name.Equals(LockedSessionName, StringComparison.OrdinalIgnoreCase) ||
+                    session.Name.Contains(LockedSessionName, StringComparison.OrdinalIgnoreCase));
+                if (lockedSession is not null)
+                {
+                    SelectedSession = lockedSession;
+                    return lockedSession;
+                }
+
+                _logger.LogWarning("Locked chat session {LockedSessionName} was not found. Falling back to selected session {SelectedSessionName}.",
+                    LockedSessionName,
+                    SelectedSession?.Name);
             }
 
-            _logger.LogWarning("Locked chat session {LockedSessionName} was not found. Falling back to selected session {SelectedSessionName}.",
-                LockedSessionName,
-                SelectedSession?.Name);
-        }
-
-        return SelectedSession;
+            return SelectedSession;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            _logger.LogDebug(__serviceMethodException, $"Service method {nameof(CompositeChatClient)}.{nameof(ResolveSelectedSession)} was canceled.");
+        else
+            _logger.LogError(__serviceMethodException, $"Service method {nameof(CompositeChatClient)}.{nameof(ResolveSelectedSession)} failed.");
+        throw;
+    }
+}
 
     private async Task<ChatResponse> GetResponseAndReportAsync(
         ChatClientSession session,
@@ -433,8 +481,21 @@ public class CompositeChatClient : IChatClient
                     .GetPromptAsync("RuntimeDecisionPolicy", cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
 
+            var codeGenerationPolicy = _promptConfigService is null
+                ? string.Empty
+                : await _promptConfigService.GetPromptAsync("CodeGenerationChangeReviewPolicy", cancellationToken: cancellationToken).ConfigureAwait(false);
+            var learningRoundPolicy = _promptConfigService is null
+                ? string.Empty
+                : await _promptConfigService.GetPromptAsync("LearningRoundPolicy", cancellationToken: cancellationToken).ConfigureAwait(false);
+            var codeGenerationRoutingPolicy = _promptConfigService is null
+                ? string.Empty
+                : await _promptConfigService.GetPromptAsync("CodeGenerationFunctionRoutingPolicy", cancellationToken: cancellationToken).ConfigureAwait(false);
+
             var systemMessages = new List<ChatMessage>();
             _councilText.AddOptionalSystemMessage(systemMessages, runtimeDecisionPolicy, _logger);
+            _councilText.AddOptionalSystemMessage(systemMessages, codeGenerationPolicy, _logger);
+            _councilText.AddOptionalSystemMessage(systemMessages, learningRoundPolicy, _logger);
+            _councilText.AddOptionalSystemMessage(systemMessages, codeGenerationRoutingPolicy, _logger);
             if (SuppressBootstrapContext || _bootstrapService is null)
             {
                 _councilText.AddOptionalSystemMessage(systemMessages, uploadWorkspacePrompt, _logger);

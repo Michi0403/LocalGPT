@@ -25,19 +25,31 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Learning-round snapshot DXFunction started.");
-        var take = request.Parameters.ValueKind == JsonValueKind.Object && request.Parameters.TryGetProperty("takePerSource", out var element) && element.TryGetInt32(out var parsed)
-            ? Math.Clamp(parsed, 1, 10_000)
-            : 200;
-        var result = new DxAiFunctionInvocationResult
-        {
-            Succeeded = true,
-            Status = "Completed",
-            Value = await learning.BuildSnapshotAsync(take, cancellationToken).ConfigureAwait(false)
-        };
-        logger.LogInformation("Learning-round snapshot DXFunction completed.");
-        return result;
+    try
+    {
+            logger.LogInformation("Learning-round snapshot DXFunction started.");
+            var take = request.Parameters.ValueKind == JsonValueKind.Object && request.Parameters.TryGetProperty("takePerSource", out var element) && element.TryGetInt32(out var parsed)
+                ? Math.Clamp(parsed, 1, 10_000)
+                : 200;
+            var result = new DxAiFunctionInvocationResult
+            {
+                Succeeded = true,
+                Status = "Completed",
+                Value = await learning.BuildSnapshotAsync(take, cancellationToken).ConfigureAwait(false)
+            };
+            logger.LogInformation("Learning-round snapshot DXFunction completed.");
+            return result;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(GetLearningRoundSnapshotFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(GetLearningRoundSnapshotFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService learning, ILogger<MaintainLearningRoundKnowledgeFunction> logger) : IDxAiFunctionHandler
@@ -71,17 +83,29 @@ public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Learning-round maintenance DXFunction started; maintenance payload content was omitted.");
-        var maintenance = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new LearningMaintenanceRequest()
-            : request.Parameters.Deserialize<LearningMaintenanceRequest>(JsonOptions) ?? new LearningMaintenanceRequest();
-        var result = new DxAiFunctionInvocationResult
-        {
-            Succeeded = true,
-            Status = "Completed",
-            Value = await learning.MaintainAsync(maintenance, cancellationToken).ConfigureAwait(false)
-        };
-        logger.LogInformation("Learning-round maintenance DXFunction completed.");
-        return result;
+    try
+    {
+            logger.LogInformation("Learning-round maintenance DXFunction started; maintenance payload content was omitted.");
+            var maintenance = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+                ? new LearningMaintenanceRequest()
+                : request.Parameters.Deserialize<LearningMaintenanceRequest>(JsonOptions) ?? new LearningMaintenanceRequest();
+            var result = new DxAiFunctionInvocationResult
+            {
+                Succeeded = true,
+                Status = "Completed",
+                Value = await learning.MaintainAsync(maintenance, cancellationToken).ConfigureAwait(false)
+            };
+            logger.LogInformation("Learning-round maintenance DXFunction completed.");
+            return result;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(MaintainLearningRoundKnowledgeFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(MaintainLearningRoundKnowledgeFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }

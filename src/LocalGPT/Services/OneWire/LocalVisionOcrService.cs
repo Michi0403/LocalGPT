@@ -82,37 +82,74 @@ public sealed class LocalVisionOcrService(
 
     private OllamaCoreOptions ResolveProvider(string? requestedModel)
     {
-        var ai = options.CurrentValue.AICore ?? new AICoreOptions();
-        var configured = new[] { ai.OllamaCore }
-            .Concat(ai.OllamaCores ?? [])
-            .Where(item => !string.IsNullOrWhiteSpace(item.Uri) && !string.IsNullOrWhiteSpace(item.ModelName))
-            .ToList();
-        if (configured.Count == 0)
-            throw new InvalidOperationException("No Ollama-compatible provider is configured for local OCR.");
+    try
+    {
+            var ai = options.CurrentValue.AICore ?? new AICoreOptions();
+            var configured = new[] { ai.OllamaCore }
+                .Concat(ai.OllamaCores ?? [])
+                .Where(item => !string.IsNullOrWhiteSpace(item.Uri) && !string.IsNullOrWhiteSpace(item.ModelName))
+                .ToList();
+            if (configured.Count == 0)
+                throw new InvalidOperationException("No Ollama-compatible provider is configured for local OCR.");
 
-        if (!string.IsNullOrWhiteSpace(requestedModel))
-        {
-            var exact = configured.FirstOrDefault(item => string.Equals(item.ModelName, requestedModel.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (exact is not null) return exact;
-        }
+            if (!string.IsNullOrWhiteSpace(requestedModel))
+            {
+                var exact = configured.FirstOrDefault(item => string.Equals(item.ModelName, requestedModel.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (exact is not null) return exact;
+            }
 
-        return configured.FirstOrDefault(item => item.ModelName.Contains("ocr", StringComparison.OrdinalIgnoreCase) || item.ModelName.Contains("vision", StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException("No OCR/vision model is configured. Add DeepSeek OCR or another Ollama-compatible vision model in LocalGPT settings.");
+            return configured.FirstOrDefault(item => item.ModelName.Contains("ocr", StringComparison.OrdinalIgnoreCase) || item.ModelName.Contains("vision", StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException("No OCR/vision model is configured. Add DeepSeek OCR or another Ollama-compatible vision model in LocalGPT settings.");
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalVisionOcrService)}.{nameof(ResolveProvider)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalVisionOcrService)}.{nameof(ResolveProvider)} failed.");
+        throw;
+    }
+}
 
     private string ReadImageBase64(string dataUrl, out string mediaType)
     {
-        if (string.IsNullOrWhiteSpace(dataUrl)) throw new ArgumentException("imageDataUrl is required.");
-        var comma = dataUrl.IndexOf(',');
-        if (!dataUrl.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase) || comma <= 0 || !dataUrl[..comma].Contains(";base64", StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("imageDataUrl must be a base64 image data URL.");
-        mediaType = dataUrl[5..dataUrl.IndexOf(';')];
-        var encoded = dataUrl[(comma + 1)..];
-        var bytes = Convert.FromBase64String(encoded);
-        if (bytes.Length == 0 || bytes.Length > MaximumImageBytes)
-            throw new ArgumentException($"The OCR image must be between 1 byte and {MaximumImageBytes} bytes.");
-        return Convert.ToBase64String(bytes);
+    try
+    {
+            if (string.IsNullOrWhiteSpace(dataUrl)) throw new ArgumentException("imageDataUrl is required.");
+            var comma = dataUrl.IndexOf(',');
+            if (!dataUrl.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase) || comma <= 0 || !dataUrl[..comma].Contains(";base64", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("imageDataUrl must be a base64 image data URL.");
+            mediaType = dataUrl[5..dataUrl.IndexOf(';')];
+            var encoded = dataUrl[(comma + 1)..];
+            var bytes = Convert.FromBase64String(encoded);
+            if (bytes.Length == 0 || bytes.Length > MaximumImageBytes)
+                throw new ArgumentException($"The OCR image must be between 1 byte and {MaximumImageBytes} bytes.");
+            return Convert.ToBase64String(bytes);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalVisionOcrService)}.{nameof(ReadImageBase64)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalVisionOcrService)}.{nameof(ReadImageBase64)} failed.");
+        throw;
+    }
+}
 
-    private string Trim(string value, int maximum) => value.Length <= maximum ? value : value[..maximum] + "…";
+    private string Trim(string value, int maximum) {
+    try
+    {
+        return value.Length <= maximum ? value : value[..maximum] + "…";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalVisionOcrService)}.{nameof(Trim)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalVisionOcrService)}.{nameof(Trim)} failed.");
+        throw;
+    }
+}
 }

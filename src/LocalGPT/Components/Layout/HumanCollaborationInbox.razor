@@ -1,6 +1,8 @@
+@using System.Text.Json
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IDisposable
 @inject IHumanCollaborationService Collaboration
+@inject IDeferredDxAiInvocationService DeferredDxInvocations
 @inject ILocalGptVocabularyService Vocabulary
 @inject ILocalGptRuntimePolicyDataService RuntimePolicy
 @inject ILocalHumanInteractionContext HumanAmbientContext
@@ -59,6 +61,27 @@
         else if (!string.IsNullOrWhiteSpace(statusText))
         {
             <p class="human-inbox-status">@statusText</p>
+        }
+
+        @if (recentDeferredResults.Count > 0)
+        {
+            <section class="human-inbox-section human-deferred-results">
+                <h3>Completed approved actions</h3>
+                @foreach (var result in recentDeferredResults)
+                {
+                    <article class="human-run-card">
+                        <div class="human-card-heading">
+                            <strong>@result.FunctionName</strong>
+                            <span>@result.ResultStatus</span>
+                        </div>
+                        <p>@result.Summary</p>
+                        @if (!string.IsNullOrWhiteSpace(result.DownloadUrl))
+                        {
+                            <a class="human-primary human-result-download" href="@result.DownloadUrl" target="_blank" rel="noopener">Download generated ZIP</a>
+                        }
+                    </article>
+                }
+            </section>
         }
 
         <section class="human-inbox-section">
@@ -315,6 +338,7 @@
     private bool isBusy;
     private bool profileDirty;
     private string statusText = string.Empty;
+    private readonly List<DeferredResultView> recentDeferredResults = [];
 
     private IReadOnlyList<HumanCollaborationRequest> PendingRequests => snapshot.Requests
         .Where(item => item.Status == Vocabulary.Get().HumanStatusPending)
@@ -444,6 +468,16 @@
                     editor.ConsumeApproval)).ConfigureAwait(false);
             editors.Remove(request.Id);
             statusText = resolved is null ? "The request no longer exists." : $"Decision saved as {resolved.Status}.";
+            if (approved == true && resolved is not null)
+            {
+                var outcomes = await DeferredDxInvocations.ExecuteApprovedForApprovalRequestAsync(request.Id).ConfigureAwait(false);
+                if (outcomes.Count > 0)
+                {
+                    recentDeferredResults.Clear();
+                    recentDeferredResults.AddRange(outcomes.Select(ToDeferredResultView));
+                    statusText += $" Executed {outcomes.Count} approved deferred function call(s) immediately.";
+                }
+            }
             Notifier.ShowInfo("HumanCollaborationToasts", statusText, "Human decision saved");
         }).ConfigureAwait(false);
     }
@@ -474,6 +508,38 @@
             isBusy = false;
         }
     }
+
+    private static DeferredResultView ToDeferredResultView(DeferredDxAiExecutionOutcome outcome)
+    {
+        var summary = outcome.Status;
+        var downloadUrl = string.Empty;
+        try
+        {
+            using var document = JsonDocument.Parse(outcome.ResultSummary);
+            var root = document.RootElement;
+            if (root.TryGetProperty("Value", out var value) && value.ValueKind == JsonValueKind.Object)
+            {
+                if (value.TryGetProperty("DownloadUrl", out var download) && download.ValueKind == JsonValueKind.String)
+                    downloadUrl = download.GetString() ?? string.Empty;
+                if (value.TryGetProperty("Status", out var generatedStatus) && generatedStatus.ValueKind == JsonValueKind.String)
+                    summary = $"Approved operation completed with status {generatedStatus.GetString()}.";
+                if (value.TryGetProperty("WrittenFileCount", out var written) && written.TryGetInt32(out var count))
+                    summary += $" {count} generated file(s) were packaged.";
+                if (value.TryGetProperty("BuildStatus", out var build) && build.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(build.GetString()))
+                    summary += $" Build: {build.GetString()}.";
+            }
+            if (root.TryGetProperty("Error", out var error) && error.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(error.GetString()))
+                summary = error.GetString()!;
+        }
+        catch (JsonException)
+        {
+            summary = outcome.ResultStatus;
+        }
+
+        return new DeferredResultView(outcome.FunctionName, outcome.ResultStatus, summary, downloadUrl);
+    }
+
+    private sealed record DeferredResultView(string FunctionName, string ResultStatus, string Summary, string DownloadUrl);
 
     private HumanCollaborationRequestEditor GetEditor(HumanCollaborationRequest request)
     {

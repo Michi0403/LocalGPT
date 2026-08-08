@@ -133,6 +133,18 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         }
     }
 
-    private string GetEndpointHost(string? endpoint) =>
-        Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ? uri.Host : "invalid-or-unset";
+    private string GetEndpointHost(string? endpoint) {
+    try
+    {
+        return Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ? uri.Host : "invalid-or-unset";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(AiConnectivityProbe)}.{nameof(GetEndpointHost)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(AiConnectivityProbe)}.{nameof(GetEndpointHost)} failed.");
+        throw;
+    }
+}
 }

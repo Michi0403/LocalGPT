@@ -135,83 +135,119 @@ namespace LocalGPT.Services
         }
         public async Task EnsureValidTableAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(tableName))
-                    throw new InvalidOperationException("Select a table first.");
+    try
+    {
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(tableName))
+                        throw new InvalidOperationException("Select a table first.");
 
-                await using var command = connection.CreateCommand();
-                command.CommandText = """
-                SELECT COUNT(*)
-                FROM sqlite_master
-                WHERE type = 'table'
-                  AND name = $name
-                  AND name NOT LIKE 'sqlite_%';
-                """;
-                command.Parameters.AddWithValue("$name", tableName);
-                var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture);
-                if (count == 0)
-                    throw new InvalidOperationException($"SQLite table '{tableName}' was not found or is not editable.");
-            }
-            catch (Exception ex)
-            {
-                (logger ?? serviceLogger).LogError(ex, "Could not validate SQLite table {TableName}.", tableName);
-                throw;
-            }
-        }
+                    await using var command = connection.CreateCommand();
+                    command.CommandText = """
+                    SELECT COUNT(*)
+                    FROM sqlite_master
+                    WHERE type = 'table'
+                      AND name = $name
+                      AND name NOT LIKE 'sqlite_%';
+                    """;
+                    command.Parameters.AddWithValue("$name", tableName);
+                    var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture);
+                    if (count == 0)
+                        throw new InvalidOperationException($"SQLite table '{tableName}' was not found or is not editable.");
+                }
+                catch (Exception ex)
+                {
+                    (logger ?? serviceLogger).LogError(ex, "Could not validate SQLite table {TableName}.", tableName);
+                    throw;
+                }
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(EnsureValidTableAsync)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(EnsureValidTableAsync)} failed.");
+        throw;
+    }
+}
 
         public async Task<List<SqliteColumnSummary>> GetColumnsAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
-            try
-            {
-                await EnsureValidTableAsync(connection, tableName, cancellationToken, logger).ConfigureAwait(false);
-
-                await using var command = connection.CreateCommand();
-                command.CommandText = $"PRAGMA table_info({QuoteIdentifier(tableName, logger)});";
-
-                var columns = new List<SqliteColumnSummary>();
-                await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+    try
+    {
+                try
                 {
-                    var nameOrdinal = reader.GetOrdinal("name");
-                    var typeOrdinal = reader.GetOrdinal("type");
-                    var notNullOrdinal = reader.GetOrdinal("notnull");
-                    var primaryKeyOrdinal = reader.GetOrdinal("pk");
-                    var defaultValueOrdinal = reader.GetOrdinal("dflt_value");
+                    await EnsureValidTableAsync(connection, tableName, cancellationToken, logger).ConfigureAwait(false);
 
-                    columns.Add(new SqliteColumnSummary(
-                        reader.GetString(nameOrdinal),
-                        reader.IsDBNull(typeOrdinal) ? string.Empty : reader.GetString(typeOrdinal),
-                        reader.GetInt64(notNullOrdinal) != 0,
-                        reader.GetInt64(primaryKeyOrdinal) != 0,
-                        reader.IsDBNull(defaultValueOrdinal) ? null : reader.GetString(defaultValueOrdinal)));
+                    await using var command = connection.CreateCommand();
+                    command.CommandText = $"PRAGMA table_info({QuoteIdentifier(tableName, logger)});";
+
+                    var columns = new List<SqliteColumnSummary>();
+                    await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        var nameOrdinal = reader.GetOrdinal("name");
+                        var typeOrdinal = reader.GetOrdinal("type");
+                        var notNullOrdinal = reader.GetOrdinal("notnull");
+                        var primaryKeyOrdinal = reader.GetOrdinal("pk");
+                        var defaultValueOrdinal = reader.GetOrdinal("dflt_value");
+
+                        columns.Add(new SqliteColumnSummary(
+                            reader.GetString(nameOrdinal),
+                            reader.IsDBNull(typeOrdinal) ? string.Empty : reader.GetString(typeOrdinal),
+                            reader.GetInt64(notNullOrdinal) != 0,
+                            reader.GetInt64(primaryKeyOrdinal) != 0,
+                            reader.IsDBNull(defaultValueOrdinal) ? null : reader.GetString(defaultValueOrdinal)));
+                    }
+
+                    return columns;
                 }
-
-                return columns;
-            }
-            catch (Exception ex)
-            {
-                (logger ?? serviceLogger).LogError(ex, "Could not read SQLite schema for table {TableName}.", tableName);
-                throw;
-            }
-        }
+                catch (Exception ex)
+                {
+                    (logger ?? serviceLogger).LogError(ex, "Could not read SQLite schema for table {TableName}.", tableName);
+                    throw;
+                }
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(GetColumnsAsync)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(GetColumnsAsync)} failed.");
+        throw;
+    }
+}
 
         public async Task<long> GetRowCountAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
-            try
-            {
-                await EnsureValidTableAsync(connection, tableName, cancellationToken, logger).ConfigureAwait(false);
+    try
+    {
+                try
+                {
+                    await EnsureValidTableAsync(connection, tableName, cancellationToken, logger).ConfigureAwait(false);
 
-                await using var command = connection.CreateCommand();
-                command.CommandText = $"SELECT COUNT(*) FROM {QuoteIdentifier(tableName, logger)};";
-                return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture);
-            }
-            catch (Exception ex)
-            {
-                (logger ?? serviceLogger).LogError(ex, "Could not count SQLite rows for table {TableName}.", tableName);
-                throw;
-            }
-        }
+                    await using var command = connection.CreateCommand();
+                    command.CommandText = $"SELECT COUNT(*) FROM {QuoteIdentifier(tableName, logger)};";
+                    return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture);
+                }
+                catch (Exception ex)
+                {
+                    (logger ?? serviceLogger).LogError(ex, "Could not count SQLite rows for table {TableName}.", tableName);
+                    throw;
+                }
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(GetRowCountAsync)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(GetRowCountAsync)} failed.");
+        throw;
+    }
+}
 
         public object? ToSqliteValue(string? value, ILogger? logger = null)
         {
@@ -237,80 +273,116 @@ namespace LocalGPT.Services
 
         public object ToSqliteValue(string? value, SqliteColumnSummary column)
         {
-            if (value is null || value.Equals("[null]", StringComparison.OrdinalIgnoreCase))
-            {
-                if (column.IsNotNull && string.IsNullOrWhiteSpace(column.DefaultValue))
-                    throw new InvalidOperationException($"Column '{column.Name}' is required and cannot be NULL.");
-                return DBNull.Value;
-            }
+    try
+    {
+                if (value is null || value.Equals("[null]", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (column.IsNotNull && string.IsNullOrWhiteSpace(column.DefaultValue))
+                        throw new InvalidOperationException($"Column '{column.Name}' is required and cannot be NULL.");
+                    return DBNull.Value;
+                }
 
-            var type = column.Type?.Trim() ?? string.Empty;
-            if (type.Contains("INT", StringComparison.OrdinalIgnoreCase))
-            {
-                if (bool.TryParse(value, out var boolean))
-                    return boolean ? 1L : 0L;
-                if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer))
-                    return integer;
-                throw new FormatException($"Column '{column.Name}' requires an integer value.");
-            }
-            if (type.Contains("REAL", StringComparison.OrdinalIgnoreCase) ||
-                type.Contains("FLOA", StringComparison.OrdinalIgnoreCase) ||
-                type.Contains("DOUB", StringComparison.OrdinalIgnoreCase) ||
-                type.Contains("NUM", StringComparison.OrdinalIgnoreCase) ||
-                type.Contains("DEC", StringComparison.OrdinalIgnoreCase))
-            {
-                if (decimal.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
-                    return number;
-                throw new FormatException($"Column '{column.Name}' requires a numeric value using invariant decimal notation.");
-            }
-            if (column.Name.EndsWith("Id", StringComparison.OrdinalIgnoreCase) && value.Length == 36 && !Guid.TryParse(value, out _))
-                throw new FormatException($"Column '{column.Name}' requires a GUID value.");
-            if ((column.Name.Contains("Date", StringComparison.OrdinalIgnoreCase) || column.Name.EndsWith("AtUtc", StringComparison.OrdinalIgnoreCase)) &&
-                !DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _))
-            {
-                throw new FormatException($"Column '{column.Name}' requires an ISO-8601 date/time value.");
-            }
-            return value;
-        }
+                var type = column.Type?.Trim() ?? string.Empty;
+                if (type.Contains("INT", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (bool.TryParse(value, out var boolean))
+                        return boolean ? 1L : 0L;
+                    if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer))
+                        return integer;
+                    throw new FormatException($"Column '{column.Name}' requires an integer value.");
+                }
+                if (type.Contains("REAL", StringComparison.OrdinalIgnoreCase) ||
+                    type.Contains("FLOA", StringComparison.OrdinalIgnoreCase) ||
+                    type.Contains("DOUB", StringComparison.OrdinalIgnoreCase) ||
+                    type.Contains("NUM", StringComparison.OrdinalIgnoreCase) ||
+                    type.Contains("DEC", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (decimal.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
+                        return number;
+                    throw new FormatException($"Column '{column.Name}' requires a numeric value using invariant decimal notation.");
+                }
+                if (column.Name.EndsWith("Id", StringComparison.OrdinalIgnoreCase) && value.Length == 36 && !Guid.TryParse(value, out _))
+                    throw new FormatException($"Column '{column.Name}' requires a GUID value.");
+                if ((column.Name.Contains("Date", StringComparison.OrdinalIgnoreCase) || column.Name.EndsWith("AtUtc", StringComparison.OrdinalIgnoreCase)) &&
+                    !DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _))
+                {
+                    throw new FormatException($"Column '{column.Name}' requires an ISO-8601 date/time value.");
+                }
+                return value;
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(ToSqliteValue)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(ToSqliteValue)} failed.");
+        throw;
+    }
+}
 
         public string CreateSqliteEditError(string operation, string tableName, SqliteException exception, ILogger? logger = null)
         {
-            try
-            {
-                return $"SQLite {operation} failed for table '{tableName}'. Check required fields, foreign keys, and value types. SQLite said: {exception.SqliteErrorCode} {exception.Message}";
-            }
-            catch (Exception ex)
-            {
-                (logger ?? serviceLogger).LogError(
-                    ex,
-                    "Could not create the SQLite edit error description for operation {Operation} and table {TableName}.",
-                    operation,
-                    tableName);
-                return string.Empty;
-            }
-        }
+    try
+    {
+                try
+                {
+                    return $"SQLite {operation} failed for table '{tableName}'. Check required fields, foreign keys, and value types. SQLite said: {exception.SqliteErrorCode} {exception.Message}";
+                }
+                catch (Exception ex)
+                {
+                    (logger ?? serviceLogger).LogError(
+                        ex,
+                        "Could not create the SQLite edit error description for operation {Operation} and table {TableName}.",
+                        operation,
+                        tableName);
+                    return string.Empty;
+                }
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(CreateSqliteEditError)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(CreateSqliteEditError)} failed.");
+        throw;
+    }
+}
 
         public string QuoteIdentifier(string identifier, ILogger? logger = null)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(identifier))
-                    throw new InvalidOperationException("SQLite identifier cannot be empty.");
+    try
+    {
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(identifier))
+                        throw new InvalidOperationException("SQLite identifier cannot be empty.");
 
-                var builder = new StringBuilder(identifier.Length + 2);
-                builder.Append('"');
-                builder.Append(identifier.Replace("\"", "\"\"", StringComparison.Ordinal));
-                builder.Append('"');
-                return builder.ToString();
-            }
-            catch (Exception ex)
-            {
-                (logger ?? serviceLogger).LogError(
-                    ex,
-                    "Could not quote a SQLite identifier; identifier content was omitted.");
-                return string.Empty;
-            }
-        }
+                    var builder = new StringBuilder(identifier.Length + 2);
+                    builder.Append('"');
+                    builder.Append(identifier.Replace("\"", "\"\"", StringComparison.Ordinal));
+                    builder.Append('"');
+                    return builder.ToString();
+                }
+                catch (Exception ex)
+                {
+                    (logger ?? serviceLogger).LogError(
+                        ex,
+                        "Could not quote a SQLite identifier; identifier content was omitted.");
+                    return string.Empty;
+                }
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(QuoteIdentifier)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(SqliteUtilityService)}.{nameof(QuoteIdentifier)} failed.");
+        throw;
+    }
+}
         public string ComputeSourceHash(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -389,7 +461,7 @@ namespace LocalGPT.Services
         //                "The useful pattern is a multi-project .NET/Blazor solution with a shared/core layer, server-interactive host, optional WASM client, WinUI/WebView2 wrapper boundary, Telegram or message-event ingestion, update handlers, service/API boundaries, normalized persistence, worker/polling services, notifications/logging, custom security/admin screens, and build/deploy diagnostics. " +
         //                "A generic taco menu, order queue, and reservation app is the wrong template unless the user explicitly asks for only restaurant CRUD. " +
         //                "Generated replacements should include a Source Fidelity page/service/doc explaining which original-system workflows are represented, boundary-only, or missing.",
-        //            HelpfulSources = "- Local learn-base: C:\\learnbaseforlocalgpt\\TacosPortalOpen.\n- Local docs: docs/architecture/system-overview.md.\n- Local generator files: CouncilArtifactService source-fidelity artifact contract and EngineeringBenchmarkService replacement tasks.",
+        //            HelpfulSources = "- Local learn-base: <user-selected learn-base>/TacosPortalOpen.\n- Local docs: docs/architecture/system-overview.md.\n- Local generator files: CouncilArtifactService source-fidelity artifact contract and EngineeringBenchmarkService replacement tasks.",
         //            Tags = "seed; tacosportalopen; source-fidelity; replacement; telegram; workers; webview2; wasm; devexpress; blazor",
         //            Confidence = 94,
         //            IsUserApproved = true,
@@ -541,7 +613,7 @@ namespace LocalGPT.Services
         //                "For documentation generation, use Microsoft Learn/DocFX-style Markdown with normal physical line breaks, front matter, title and description metadata, ms.topic/ms.date fields, includes, images, relative links, and TOC-aware structure. " +
         //                "For software support and generation, use it as a source map for Windows App SDK, WinUI, WebView2, MSIX packaging/deployment, Developer Mode, Device Portal/discovery, winget, Terminal, Dev Drive, PowerToys, Arm64 compatibility, diagnostics, certificates, accessibility, and Windows app design. " +
         //                "LocalGPT should teach this through compact knowledge entries and DocFX-ready docs rather than stuffing large Markdown files into model context.",
-        //            HelpfulSources = "- Local learn-base: C:\\learnbaseforlocalgpt\\windows-dev-docs-docs.\n- Local importer: LearnBaseKnowledgeImporterService Windows docs corpus entries.\n- Microsoft Learn Windows app design guidelines: https://learn.microsoft.com/en-us/windows/apps/design/guidelines-overview.",
+        //            HelpfulSources = "- Local learn-base: <user-selected learn-base>/windows-dev-docs-docs.\n- Local importer: LearnBaseKnowledgeImporterService Windows docs corpus entries.\n- Microsoft Learn Windows app design guidelines: https://learn.microsoft.com/en-us/windows/apps/design/guidelines-overview.",
         //            Tags = "seed; docfx; windows-dev-docs; microsoft-learn; winui; webview2; msix; windowsappsdk; accessibility",
         //            Confidence = 90,
         //            IsUserApproved = true,
@@ -967,7 +1039,7 @@ namespace LocalGPT.Services
         //                "It can call /health, /__diag, /__diag/dxaichat-functions, Minecraft 26.x datapack version checks, deterministic council artifact smoke routes, and learn-base imports, then show JSON and extracted /__artifacts download links. " +
         //                "For the actual WinUI WebView2 wrapper, Microsoft documents two Selenium/Microsoft Edge WebDriver approaches: launch the WebView2 app with EdgeOptions.UseWebView and BinaryLocation, or attach to a running WebView2 instance with a remote debugging port and EdgeOptions.DebuggerAddress. " +
         //                "Browser automation source such as AutomatedDiscordLogin should be imported as compact architecture fingerprints, not pasted wholesale into prompts. Optional Python.NET/Python browser automation can be added as a workbench only behind explicit user permission gates, safe working directories, typed options, logging, and visible run controls.",
-        //            HelpfulSources = "- Microsoft Learn: Automate and test WebView2 apps with Microsoft Edge WebDriver, https://learn.microsoft.com/microsoft-edge/webview2/how-to/webdriver\n- Local page: Components/Pages/TestLab.razor.\n- Local route: /__diag/frontend-test-guidance.\n- Local learn-base request: C:\\learnbaseforlocalgpt\\AutomatedDiscordLogin-master.",
+        //            HelpfulSources = "- Microsoft Learn: Automate and test WebView2 apps with Microsoft Edge WebDriver, https://learn.microsoft.com/microsoft-edge/webview2/how-to/webdriver\n- Local page: Components/Pages/TestLab.razor.\n- Local route: /__diag/frontend-test-guidance.\n- Local learn-base request: <user-selected learn-base>/AutomatedDiscordLogin-master.",
         //            Tags = "seed; frontend; test-lab; webview2; selenium; webdriver; pythonnet; browser-automation; diagnostics",
         //            Confidence = 90,
         //            IsUserApproved = true,

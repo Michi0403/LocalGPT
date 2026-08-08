@@ -168,13 +168,25 @@ public sealed class ChatContentRenderer(
 
     private bool ShouldTranslateStructuredText(string text)
     {
-        if (text.Length > AutomaticStructuredTranslationLimit)
-            return false;
+    try
+    {
+            if (text.Length > AutomaticStructuredTranslationLimit)
+                return false;
 
-        return !text.Contains(
-            "<details class=\"council-step council-live\"",
-            StringComparison.OrdinalIgnoreCase);
+            return !text.Contains(
+                "<details class=\"council-step council-live\"",
+                StringComparison.OrdinalIgnoreCase);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ChatContentRenderer)}.{nameof(ShouldTranslateStructuredText)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ChatContentRenderer)}.{nameof(ShouldTranslateStructuredText)} failed.");
+        throw;
+    }
+}
 
     private string RenderAsciiFrames(string text)
     {

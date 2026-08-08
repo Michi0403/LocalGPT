@@ -119,33 +119,82 @@ public sealed class ArtifactBuildExecutor(
 
     private string NormalizeDirectory(string path)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("Allowed root is required.", nameof(path));
-        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+    try
+    {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new ArgumentException("Allowed root is required.", nameof(path));
+            return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ArtifactBuildExecutor)}.{nameof(NormalizeDirectory)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ArtifactBuildExecutor)}.{nameof(NormalizeDirectory)} failed.");
+        throw;
+    }
+}
 
     private bool IsInsideRoot(string path, string root)
     {
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        return string.Equals(path, root, comparison) || path.StartsWith(root + Path.DirectorySeparatorChar, comparison);
+    try
+    {
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            return string.Equals(path, root, comparison) || path.StartsWith(root + Path.DirectorySeparatorChar, comparison);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ArtifactBuildExecutor)}.{nameof(IsInsideRoot)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ArtifactBuildExecutor)}.{nameof(IsInsideRoot)} failed.");
+        throw;
+    }
+}
 
     private void KillProcessTree(Process process)
     {
-        try
-        {
-            if (!process.HasExited)
-                process.Kill(entireProcessTree: true);
-        }
-        catch (InvalidOperationException)
-        {
-        }
+    try
+    {
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ArtifactBuildExecutor)}.{nameof(KillProcessTree)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ArtifactBuildExecutor)}.{nameof(KillProcessTree)} failed.");
+        throw;
+    }
+}
 
     private ArtifactBuildExecutionResult Result(
         string status,
         int? exitCode,
         DateTime startedAt,
         string output,
-        string error) => new(status, exitCode, output, error, DateTime.UtcNow - startedAt);
+        string error) {
+    try
+    {
+        return new(status, exitCode, output, error, DateTime.UtcNow - startedAt);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ArtifactBuildExecutor)}.{nameof(Result)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ArtifactBuildExecutor)}.{nameof(Result)} failed.");
+        throw;
+    }
+}
 }

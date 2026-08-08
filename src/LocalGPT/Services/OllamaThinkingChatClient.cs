@@ -32,6 +32,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
     private readonly IChatProtocolResolver protocolResolver;
     private readonly IPromptConfigService? promptConfigService;
     private readonly IDxAiFunctionRegistry? functionRegistry;
+    private readonly IDxAiFunctionCallRecoveryService? functionCallRecovery;
     private readonly bool automaticToolsEnabled;
     private readonly bool throwOnFailure;
     private readonly CouncilRuntimeService councilRuntime;
@@ -48,6 +49,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         IChatProtocolResolver? protocolResolver = null,
         IPromptConfigService? promptConfigService = null,
         IDxAiFunctionRegistry? functionRegistry = null,
+        IDxAiFunctionCallRecoveryService? functionCallRecovery = null,
         bool enableAutomaticTools = true,
         bool throwOnFailure = false)
     {
@@ -62,6 +64,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         this.promptConfigService = promptConfigService
             ?? throw new ArgumentNullException(nameof(promptConfigService));
         this.functionRegistry = functionRegistry;
+        this.functionCallRecovery = functionCallRecovery;
         automaticToolsEnabled = enableAutomaticTools;
         this.throwOnFailure = throwOnFailure;
 
@@ -107,6 +110,16 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 }
 
                 var toolCalls = response.Message?.ToolCalls;
+                if (toolCalls is not { Count: > 0 } && response.Message is { Content.Length: > 0 } message && functionCallRecovery is not null)
+                {
+                    var recovered = functionCallRecovery.Recover(message.Content, automaticInvocation: true);
+                    if (recovered.Recognized)
+                    {
+                        toolCalls = ToOllamaToolCalls(recovered.Calls);
+                        message.Content = recovered.VisibleContent;
+                        message.ToolCalls = toolCalls;
+                    }
+                }
                 if (toolCalls is not { Count: > 0 })
                     break;
 
@@ -191,6 +204,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 var toolCalls = new List<OllamaToolCall>();
                 var assistantContent = new StringBuilder();
                 var assistantThinking = new StringBuilder();
+                var pendingContent = new StringBuilder();
+                var contentModeDecided = false;
+                var bufferPotentialFunctionText = false;
 
                 await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
                 using var reader = new StreamReader(stream);
@@ -225,12 +241,60 @@ public sealed class OllamaThinkingChatClient : IChatClient
                     if (!string.IsNullOrEmpty(chunk?.Message?.Content))
                     {
                         assistantContent.Append(chunk.Message.Content);
-                        foreach (var text in formatter.AppendContent(chunk.Message.Content))
-                            yield return CreateStreamingUpdate(text);
+                        if (!contentModeDecided)
+                        {
+                            pendingContent.Append(chunk.Message.Content);
+                            if (!string.IsNullOrWhiteSpace(pendingContent.ToString()))
+                            {
+                                bufferPotentialFunctionText = functionCallRecovery?.LooksLikeStructuredFunctionCall(pendingContent.ToString()) == true;
+                                contentModeDecided = true;
+                                if (!bufferPotentialFunctionText)
+                                {
+                                    foreach (var text in formatter.AppendContent(pendingContent.ToString()))
+                                        yield return CreateStreamingUpdate(text);
+                                    pendingContent.Clear();
+                                }
+                            }
+                        }
+                        else if (bufferPotentialFunctionText)
+                        {
+                            pendingContent.Append(chunk.Message.Content);
+                        }
+                        else
+                        {
+                            foreach (var text in formatter.AppendContent(chunk.Message.Content))
+                                yield return CreateStreamingUpdate(text);
+                        }
                     }
                 }
 
                 toolCalls = DeduplicateToolCalls(toolCalls);
+                if (toolCalls.Count == 0 && bufferPotentialFunctionText && functionCallRecovery is not null)
+                {
+                    var recovered = functionCallRecovery.Recover(assistantContent.ToString(), automaticInvocation: true);
+                    if (recovered.Recognized)
+                    {
+                        toolCalls = ToOllamaToolCalls(recovered.Calls);
+                        assistantContent.Clear();
+                        assistantContent.Append(recovered.VisibleContent);
+                        if (!string.IsNullOrWhiteSpace(recovered.VisibleContent))
+                        {
+                            foreach (var text in formatter.AppendContent(recovered.VisibleContent))
+                                yield return CreateStreamingUpdate(text);
+                        }
+                        var recoveryUpdate = councilRuntime.OllamaThinkingChatClientCreateStreamingStatusUpdate(
+                            $"LocalGPT recovered {toolCalls.Count} structured DX function call(s) from provider text and routed them through the normal function policy.",
+                            logger);
+                        if (recoveryUpdate is not null)
+                            yield return recoveryUpdate;
+                    }
+                }
+                else if (toolCalls.Count == 0 && pendingContent.Length > 0)
+                {
+                    foreach (var text in formatter.AppendContent(pendingContent.ToString()))
+                        yield return CreateStreamingUpdate(text);
+                }
+
                 if (toolCalls.Count == 0)
                 {
                     foreach (var text in formatter.Complete())
@@ -242,7 +306,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 {
                     logger.LogWarning("Stopped Ollama automatic DXAIFunction loop for model {Model} after {ToolRounds} rounds.", model, MaxAutomaticToolRounds);
                     var stoppedUpdate = councilRuntime.OllamaThinkingChatClientCreateStreamingStatusUpdate(
-                        "LocalGPT stopped repeated automatic read-only function calls. Continue manually if more inspection is needed.",
+                        "LocalGPT stopped repeated automatic/deferred DX function rounds. Continue manually if more work is needed.",
                         logger);
                     if (stoppedUpdate is not null)
                         yield return stoppedUpdate;
@@ -265,7 +329,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
                     var toolUpdate = councilRuntime.OllamaThinkingChatClientCreateStreamingStatusUpdate(
                         registryName is null
                             ? $"Ollama requested unknown function {call.Function.Name}; LocalGPT will return a denied tool result."
-                            : $"LocalGPT is invoking read-only function {registryName} for the current answer...",
+                            : $"LocalGPT is routing policy-approved function {registryName} through the DX function registry...",
                         logger);
                     if (toolUpdate is not null)
                         yield return toolUpdate;
@@ -280,13 +344,50 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }
     }
 
-    private ChatResponse CreateFailureResponse(string message) =>
-        new(new ChatMessage(ChatRole.Assistant, [new TextContent(message)]));
+    private ChatResponse CreateFailureResponse(string message) {
+    try
+    {
+        return new(new ChatMessage(ChatRole.Assistant, [new TextContent(message)]));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CreateFailureResponse)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CreateFailureResponse)} failed.");
+        throw;
+    }
+}
 
-    public object? GetService(Type serviceType, object? serviceKey = null) =>
-        serviceType == typeof(HttpClient) ? http : null;
+    public object? GetService(Type serviceType, object? serviceKey = null) {
+    try
+    {
+        return serviceType == typeof(HttpClient) ? http : null;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(GetService)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(GetService)} failed.");
+        throw;
+    }
+}
 
-    public void Dispose() => http.Dispose();
+    public void Dispose() {
+    try
+    {
+        http.Dispose();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(Dispose)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(Dispose)} failed.");
+        throw;
+    }
+}
 
     private async Task<OllamaChatResponse?> SendAsync(
         IReadOnlyList<OllamaChatMessage> messages,
@@ -324,54 +425,90 @@ public sealed class OllamaThinkingChatClient : IChatClient
         HttpCompletionOption completionOption,
         CancellationToken cancellationToken)
     {
-        var response = await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
-        if (response.IsSuccessStatusCode || request.Tools is not { Count: > 0 } ||
-            response.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented))
-        {
-            return response;
-        }
+    try
+    {
+            var response = await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode || request.Tools is not { Count: > 0 } ||
+                response.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented))
+            {
+                return response;
+            }
 
-        logger.LogInformation(
-            "Ollama model {Model} rejected native tool metadata with HTTP {StatusCode}; retrying the same chat request without automatic tools.",
-            model,
-            (int)response.StatusCode);
-        response.Dispose();
-        request.Tools = null;
-        return await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation(
+                "Ollama model {Model} rejected native tool metadata with HTTP {StatusCode}; retrying the same chat request without automatic tools.",
+                model,
+                (int)response.StatusCode);
+            response.Dispose();
+            request.Tools = null;
+            return await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestWithToolFallbackAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestWithToolFallbackAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<HttpResponseMessage> SendRequestOnceAsync(
         OllamaChatRequest request,
         HttpCompletionOption completionOption,
         CancellationToken cancellationToken)
     {
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
-        {
-            Content = JsonContent.Create(request, options: jsonOptions)
-        };
-        return await http.SendAsync(httpRequest, completionOption, cancellationToken).ConfigureAwait(false);
+    try
+    {
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
+            {
+                Content = JsonContent.Create(request, options: jsonOptions)
+            };
+            return await http.SendAsync(httpRequest, completionOption, cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestOnceAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestOnceAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<List<OllamaChatMessage>> CreateConversationAsync(
         IEnumerable<ChatMessage> messages,
         CancellationToken cancellationToken)
     {
-        var mappedMessages = messages
-            .Select(ToOllamaMessage)
-            .Where(message => !string.IsNullOrWhiteSpace(message.Content))
-            .ToList();
+    try
+    {
+            var mappedMessages = messages
+                .Select(ToOllamaMessage)
+                .Where(message => !string.IsNullOrWhiteSpace(message.Content))
+                .ToList();
 
-        if (protocolResolver.Resolve(providerOptions) == ChatResponseProtocol.Harmony)
-        {
-            var harmonyPrompt = await GetPromptAsync("HarmonyResponseProtocol", cancellationToken).ConfigureAwait(false);
-            if (!string.IsNullOrWhiteSpace(harmonyPrompt))
-                AddSystemPrompt(mappedMessages, harmonyPrompt);
-            else
-                logger.LogWarning("Harmony protocol is selected for model {Model}, but its database prompt is unavailable.", model);
-        }
+            if (protocolResolver.Resolve(providerOptions) == ChatResponseProtocol.Harmony)
+            {
+                var harmonyPrompt = await GetPromptAsync("HarmonyResponseProtocol", cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(harmonyPrompt))
+                    AddSystemPrompt(mappedMessages, harmonyPrompt);
+                else
+                    logger.LogWarning("Harmony protocol is selected for model {Model}, but its database prompt is unavailable.", model);
+            }
 
-        return mappedMessages;
+            return mappedMessages;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CreateConversationAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CreateConversationAsync)} failed.");
+        throw;
+    }
+}
 
     private Task<OllamaChatRequest> CreateRequestAsync(
         IReadOnlyList<OllamaChatMessage> messages,
@@ -379,56 +516,83 @@ public sealed class OllamaThinkingChatClient : IChatClient
         bool stream,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var requestMessages = messages.Select(CloneMessage).ToList();
-        return Task.FromResult(new OllamaChatRequest
-        {
-            Model = model,
-            Stream = stream,
-            KeepAlive = keepAlive,
-            Messages = requestMessages,
-            Tools = BuildAutomaticTools(),
-            Options = new OllamaRequestOptions
+    try
+    {
+            cancellationToken.ThrowIfCancellationRequested();
+            var requestMessages = messages.Select(CloneMessage).ToList();
+            return Task.FromResult(new OllamaChatRequest
             {
-                NumPredict = Math.Clamp(options?.MaxOutputTokens ?? 2048, 64, 262144),
-                NumCtx = contextLength,
-                NumGpu = numGpu,
-                Temperature = options?.Temperature
-            }
-        });
+                Model = model,
+                Stream = stream,
+                KeepAlive = keepAlive,
+                Messages = requestMessages,
+                Tools = BuildAutomaticTools(),
+                Options = new OllamaRequestOptions
+                {
+                    NumPredict = Math.Clamp(options?.MaxOutputTokens ?? 2048, 64, 262144),
+                    NumCtx = contextLength,
+                    NumGpu = numGpu,
+                    Temperature = options?.Temperature
+                }
+            });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CreateRequestAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CreateRequestAsync)} failed.");
+        throw;
+    }
+}
 
     private List<OllamaToolDefinition>? BuildAutomaticTools()
     {
-        if (!automaticToolsEnabled)
-            return null;
+    try
+    {
+            if (!automaticToolsEnabled)
+                return null;
 
-        if (functionRegistry is null)
-        {
-            logger.LogWarning("Ollama model {Model} has no DXFunction registry, so native tool metadata cannot be attached.", model);
-            return null;
-        }
-
-        var functions = GetAutomaticFunctions();
-        if (functions.Count == 0)
-        {
-            logger.LogWarning("Ollama model {Model} has no policy-approved automatic DXFunctions to attach.", model);
-            return null;
-        }
-
-        logger.LogInformation("Attaching {FunctionCount} policy-approved automatic DXFunctions to Ollama model {Model}.", functions.Count, model);
-        return functions.Select(function => new OllamaToolDefinition
-        {
-            Function = new OllamaToolFunctionDefinition
+            if (functionRegistry is null)
             {
-                Name = ToOllamaToolName(function.Name),
-                Description = $"{function.Purpose} Parameters: {function.Parameters} Safety: {function.SafetyNotes}",
-                Parameters = BuildParametersSchema(function)
+                logger.LogWarning("Ollama model {Model} has no DXFunction registry, so native tool metadata cannot be attached.", model);
+                return null;
             }
-        }).ToList();
-    }
 
-    private IReadOnlyList<DxaichatFunctionInfo> GetAutomaticFunctions() => functionRegistry?
+            var functions = GetAutomaticFunctions();
+            if (functions.Count == 0)
+            {
+                logger.LogWarning("Ollama model {Model} has no policy-approved automatic DXFunctions to attach.", model);
+                return null;
+            }
+
+            logger.LogInformation("Attaching {FunctionCount} policy-approved automatic DXFunctions to Ollama model {Model}.", functions.Count, model);
+            return functions.Select(function => new OllamaToolDefinition
+            {
+                Function = new OllamaToolFunctionDefinition
+                {
+                    Name = ToOllamaToolName(function.Name),
+                    Description = $"{function.Purpose} Parameters: {function.Parameters} Safety: {function.SafetyNotes}",
+                    Parameters = BuildParametersSchema(function)
+                }
+            }).ToList();
+    
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(BuildAutomaticTools)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(BuildAutomaticTools)} failed.");
+        throw;
+    }
+}
+
+    private IReadOnlyList<DxaichatFunctionInfo> GetAutomaticFunctions() {
+    try
+    {
+        return functionRegistry?
         .GetFunctions()
         .Where(function => function.AvailableToAi &&
                            function.SupportsDirectInvocation &&
@@ -438,75 +602,176 @@ public sealed class OllamaThinkingChatClient : IChatClient
                                  (function.IsReadOnly || function.IsCoordinationOnly)))
         .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
         .ToList() ?? [];
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(GetAutomaticFunctions)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(GetAutomaticFunctions)} failed.");
+        throw;
+    }
+}
+
+    private List<OllamaToolCall> ToOllamaToolCalls(IEnumerable<RecoveredDxAiFunctionCall> calls) {
+    try
+    {
+        return calls.Select(call => new OllamaToolCall
+        {
+            Function = new OllamaToolFunctionCall
+            {
+                Name = ToTransportToolName(call.FunctionName),
+                Arguments = call.Arguments.Clone()
+            }
+        }).ToList();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ToOllamaToolCalls)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ToOllamaToolCalls)} failed.");
+        throw;
+    }
+}
+
+    private string ToTransportToolName(string registryName)
+    {
+    try
+    {
+            var builder = new StringBuilder(registryName.Length);
+            foreach (var character in registryName)
+                builder.Append(char.IsLetterOrDigit(character) || character == '_' ? character : '_');
+            return builder.ToString();
+    
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ToTransportToolName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ToTransportToolName)} failed.");
+        throw;
+    }
+}
 
     private List<OllamaToolCall> DeduplicateToolCalls(IEnumerable<OllamaToolCall> toolCalls)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var result = new List<OllamaToolCall>();
-        foreach (var call in toolCalls)
-        {
-            var key = $"{call.Function.Name}\n{NormalizeArguments(call.Function.Arguments).GetRawText()}";
-            if (seen.Add(key))
-                result.Add(call);
-        }
-        return result;
+    try
+    {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var result = new List<OllamaToolCall>();
+            foreach (var call in toolCalls)
+            {
+                var key = $"{call.Function.Name}\n{NormalizeArguments(call.Function.Arguments).GetRawText()}";
+                if (seen.Add(key))
+                    result.Add(call);
+            }
+            return result;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(DeduplicateToolCalls)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(DeduplicateToolCalls)} failed.");
+        throw;
+    }
+}
 
     private async Task AppendAutomaticToolResultsAsync(
         List<OllamaChatMessage> conversation,
         IReadOnlyList<OllamaToolCall> toolCalls,
         CancellationToken cancellationToken)
     {
-        foreach (var call in toolCalls)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var registryName = ResolveRegistryFunctionName(call.Function.Name);
-            DxAiFunctionInvocationResult result;
-
-            if (functionRegistry is null || registryName is null)
+    try
+    {
+            foreach (var call in toolCalls)
             {
-                result = new DxAiFunctionInvocationResult
+                cancellationToken.ThrowIfCancellationRequested();
+                var registryName = ResolveRegistryFunctionName(call.Function.Name);
+                DxAiFunctionInvocationResult result;
+
+                if (functionRegistry is null || registryName is null)
                 {
-                    FunctionName = call.Function.Name,
-                    Status = "NotFound",
-                    Error = "The requested automatic function is not registered.",
-                    Succeeded = false
-                };
-            }
-            else
-            {
-                result = await functionRegistry.InvokeAsync(
-                    registryName,
-                    new DxAiFunctionInvocationRequest
+                    result = new DxAiFunctionInvocationResult
                     {
-                        Parameters = NormalizeArguments(call.Function.Arguments),
-                        AutomaticInvocation = true,
-                        UserConfirmed = false,
-                        RequestedBy = $"Ollama:{model}"
-                    },
-                    cancellationToken).ConfigureAwait(false);
+                        FunctionName = call.Function.Name,
+                        Status = "NotFound",
+                        Error = "The requested automatic function is not registered.",
+                        Succeeded = false
+                    };
+                }
+                else
+                {
+                    result = await functionRegistry.InvokeAsync(
+                        registryName,
+                        new DxAiFunctionInvocationRequest
+                        {
+                            Parameters = NormalizeArguments(call.Function.Arguments),
+                            AutomaticInvocation = true,
+                            UserConfirmed = false,
+                            RequestedBy = $"Ollama:{model}"
+                        },
+                        cancellationToken).ConfigureAwait(false);
+                }
+
+                conversation.Add(new OllamaChatMessage
+                {
+                    Role = "tool",
+                    ToolName = call.Function.Name,
+                    Content = SerializeToolResult(result)
+                });
             }
-
-            conversation.Add(new OllamaChatMessage
-            {
-                Role = "tool",
-                ToolName = call.Function.Name,
-                Content = SerializeToolResult(result)
-            });
-        }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(AppendAutomaticToolResultsAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(AppendAutomaticToolResultsAsync)} failed.");
+        throw;
+    }
+}
 
-    private string? ResolveRegistryFunctionName(string toolName) => GetAutomaticFunctions()
+    private string? ResolveRegistryFunctionName(string toolName) {
+    try
+    {
+        return GetAutomaticFunctions()
         .FirstOrDefault(function => ToOllamaToolName(function.Name).Equals(toolName, StringComparison.OrdinalIgnoreCase))
         ?.Name;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ResolveRegistryFunctionName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ResolveRegistryFunctionName)} failed.");
+        throw;
+    }
+}
 
     private string ToOllamaToolName(string registryName)
     {
-        var builder = new StringBuilder(registryName.Length);
-        foreach (var character in registryName)
-            builder.Append(char.IsLetterOrDigit(character) || character == '_' ? character : '_');
-        return builder.ToString();
+    try
+    {
+            var builder = new StringBuilder(registryName.Length);
+            foreach (var character in registryName)
+                builder.Append(char.IsLetterOrDigit(character) || character == '_' ? character : '_');
+            return builder.ToString();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ToOllamaToolName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ToOllamaToolName)} failed.");
+        throw;
+    }
+}
 
     private JsonElement BuildParametersSchema(DxaichatFunctionInfo function)
     {
@@ -525,53 +790,105 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }
     }
 
-    private JsonElement NormalizeArguments(JsonElement arguments) => arguments.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+    private JsonElement NormalizeArguments(JsonElement arguments) {
+    try
+    {
+        return arguments.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
         ? JsonSerializer.SerializeToElement(new { })
         : arguments.Clone();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(NormalizeArguments)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(NormalizeArguments)} failed.");
+        throw;
+    }
+}
 
     private string SerializeToolResult(DxAiFunctionInvocationResult result)
     {
-        var json = JsonSerializer.Serialize(result, jsonOptions);
-        return json.Length <= MaxToolResultCharacters
-            ? json
-            : json[..MaxToolResultCharacters] + "\n{\"truncated\":true}";
+    try
+    {
+            var json = JsonSerializer.Serialize(result, jsonOptions);
+            return json.Length <= MaxToolResultCharacters
+                ? json
+                : json[..MaxToolResultCharacters] + "\n{\"truncated\":true}";
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SerializeToolResult)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SerializeToolResult)} failed.");
+        throw;
+    }
+}
 
     private async Task<List<AIContent>> CreateContentsAsync(
         OllamaChatResponse response,
         CancellationToken cancellationToken)
     {
-        var missingFinalAnswerNotice = await GetPromptAsync("MissingFinalAnswerNotice", cancellationToken).ConfigureAwait(false);
-        var formatter = formatterFactory.Create(protocolResolver.Resolve(providerOptions), missingFinalAnswerNotice);
-        var visible = new StringBuilder();
+    try
+    {
+            var missingFinalAnswerNotice = await GetPromptAsync("MissingFinalAnswerNotice", cancellationToken).ConfigureAwait(false);
+            var formatter = formatterFactory.Create(protocolResolver.Resolve(providerOptions), missingFinalAnswerNotice);
+            var visible = new StringBuilder();
 
-        if (!string.IsNullOrWhiteSpace(response.Message?.Thinking))
-        {
-            foreach (var chunk in formatter.AppendThinking(response.Message.Thinking))
+            if (!string.IsNullOrWhiteSpace(response.Message?.Thinking))
+            {
+                foreach (var chunk in formatter.AppendThinking(response.Message.Thinking))
+                    visible.Append(chunk);
+            }
+
+            if (!string.IsNullOrEmpty(response.Message?.Content))
+            {
+                foreach (var chunk in formatter.AppendContent(response.Message.Content))
+                    visible.Append(chunk);
+            }
+
+            foreach (var chunk in formatter.Complete())
                 visible.Append(chunk);
-        }
 
-        if (!string.IsNullOrEmpty(response.Message?.Content))
-        {
-            foreach (var chunk in formatter.AppendContent(response.Message.Content))
-                visible.Append(chunk);
-        }
-
-        foreach (var chunk in formatter.Complete())
-            visible.Append(chunk);
-
-        return [new TextContent(visible.ToString())];
+            return [new TextContent(visible.ToString())];
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CreateContentsAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CreateContentsAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<string> GetPromptAsync(string key, CancellationToken cancellationToken)
     {
-        if (promptConfigService is null)
-            return string.Empty;
+    try
+    {
+            if (promptConfigService is null)
+                return string.Empty;
 
-        return await promptConfigService.GetPromptAsync(key, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return await promptConfigService.GetPromptAsync(key, cancellationToken: cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(GetPromptAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(GetPromptAsync)} failed.");
+        throw;
+    }
+}
 
-    private OllamaChatMessage CloneMessage(OllamaChatMessage message) => new()
+    private OllamaChatMessage CloneMessage(OllamaChatMessage message) {
+    try
+    {
+        return new()
     {
         Role = message.Role,
         Content = message.Content,
@@ -586,8 +903,21 @@ public sealed class OllamaThinkingChatClient : IChatClient
             }
         }).ToList()
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CloneMessage)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CloneMessage)} failed.");
+        throw;
+    }
+}
 
-    private OllamaChatMessage ToOllamaMessage(ChatMessage message) => new()
+    private OllamaChatMessage ToOllamaMessage(ChatMessage message) {
+    try
+    {
+        return new()
     {
         Role = message.Role == ChatRole.System
             ? "system"
@@ -596,26 +926,60 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 : "user",
         Content = message.Text ?? string.Empty
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ToOllamaMessage)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(ToOllamaMessage)} failed.");
+        throw;
+    }
+}
 
     private void AddSystemPrompt(List<OllamaChatMessage> messages, string prompt)
     {
-        if (messages.Count > 0 && messages[0].Role.Equals("system", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!messages[0].Content.Contains(prompt, StringComparison.Ordinal))
-                messages[0].Content = $"{prompt}\n\n{messages[0].Content}";
-            return;
-        }
+    try
+    {
+            if (messages.Count > 0 && messages[0].Role.Equals("system", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!messages[0].Content.Contains(prompt, StringComparison.Ordinal))
+                    messages[0].Content = $"{prompt}\n\n{messages[0].Content}";
+                return;
+            }
 
-        messages.Insert(0, new OllamaChatMessage
-        {
-            Role = "system",
-            Content = prompt
-        });
+            messages.Insert(0, new OllamaChatMessage
+            {
+                Role = "system",
+                Content = prompt
+            });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(AddSystemPrompt)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(AddSystemPrompt)} failed.");
+        throw;
+    }
+}
 
     private ChatResponseUpdate CreateStreamingUpdate(string text)
     {
-        var update = councilRuntime.OllamaThinkingChatClientCreateStreamingUpdate(text, logger);
-        return update ?? new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(text)]);
+    try
+    {
+            var update = councilRuntime.OllamaThinkingChatClientCreateStreamingUpdate(text, logger);
+            return update ?? new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(text)]);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CreateStreamingUpdate)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(CreateStreamingUpdate)} failed.");
+        throw;
+    }
+}
 }

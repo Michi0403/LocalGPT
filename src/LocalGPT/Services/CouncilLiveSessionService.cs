@@ -19,150 +19,318 @@ public sealed class CouncilLiveSessionService(
         string userMessage,
         string initialTranscript)
     {
-        var state = new CouncilLiveSessionState(runId, councilMembers, userMessage, initialTranscript);
-        if (sessions.TryGetValue(runId, out var previous))
-            previous.Dispose();
-        sessions[runId] = state;
-        ScheduleChanged(state);
-        logger.LogInformation("Registered live Council session {RunId} with {MemberCount} member(s).", runId, councilMembers.Count);
-        return state.Cancellation.Token;
+    try
+    {
+            var state = new CouncilLiveSessionState(runId, councilMembers, userMessage, initialTranscript);
+            if (sessions.TryGetValue(runId, out var previous))
+                previous.Dispose();
+            sessions[runId] = state;
+            ScheduleChanged(state);
+            logger.LogInformation("Registered live Council session {RunId} with {MemberCount} member(s).", runId, councilMembers.Count);
+            return state.Cancellation.Token;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Begin)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Begin)} failed.");
+        throw;
+    }
+}
 
     public void Append(Guid runId, string text)
     {
-        if (string.IsNullOrEmpty(text) || !sessions.TryGetValue(runId, out var state))
-            return;
+    try
+    {
+            if (string.IsNullOrEmpty(text) || !sessions.TryGetValue(runId, out var state))
+                return;
 
-        lock (state.SyncRoot)
-        {
-            AppendWithBlockBoundary(state.Transcript, text);
-            if (state.Transcript.Length > MaxTranscriptCharacters)
-                state.Transcript.Remove(0, state.Transcript.Length - MaxTranscriptCharacters);
-            state.UpdatedAtUtc = DateTime.UtcNow;
-        }
-        ScheduleChanged(state);
+            lock (state.SyncRoot)
+            {
+                AppendWithBlockBoundary(state.Transcript, text);
+                if (state.Transcript.Length > MaxTranscriptCharacters)
+                    state.Transcript.Remove(0, state.Transcript.Length - MaxTranscriptCharacters);
+                state.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            ScheduleChanged(state);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Append)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Append)} failed.");
+        throw;
+    }
+}
 
     public void AppendUserMessage(Guid runId, string text)
     {
-        if (string.IsNullOrWhiteSpace(text) || !sessions.TryGetValue(runId, out var state))
-            return;
+    try
+    {
+            if (string.IsNullOrWhiteSpace(text) || !sessions.TryGetValue(runId, out var state))
+                return;
 
-        lock (state.SyncRoot)
-        {
-            state.AdditionalUserMessages.Add(text.Trim());
-            state.UpdatedAtUtc = DateTime.UtcNow;
-        }
-        ScheduleChanged(state);
+            lock (state.SyncRoot)
+            {
+                state.AdditionalUserMessages.Add(text.Trim());
+                state.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            ScheduleChanged(state);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(AppendUserMessage)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(AppendUserMessage)} failed.");
+        throw;
+    }
+}
 
     public void Complete(Guid runId)
     {
-        if (!sessions.TryGetValue(runId, out var state))
-            return;
-        lock (state.SyncRoot)
-        {
-            state.IsRunning = false;
-            state.UpdatedAtUtc = DateTime.UtcNow;
-        }
-        ScheduleChanged(state);
-        logger.LogInformation("Completed live Council session {RunId}.", runId);
+    try
+    {
+            if (!sessions.TryGetValue(runId, out var state))
+                return;
+            lock (state.SyncRoot)
+            {
+                state.IsRunning = false;
+                state.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            ScheduleChanged(state);
+            logger.LogInformation("Completed live Council session {RunId}.", runId);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Complete)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Complete)} failed.");
+        throw;
+    }
+}
 
     public bool Cancel(Guid runId)
     {
-        if (!sessions.TryGetValue(runId, out var state))
-            return false;
-        if (!state.Cancellation.IsCancellationRequested)
-            state.Cancellation.Cancel();
-        lock (state.SyncRoot)
-        {
-            state.IsRunning = false;
-            state.UpdatedAtUtc = DateTime.UtcNow;
-        }
-        ScheduleChanged(state);
-        logger.LogInformation("Cancellation was requested for live Council session {RunId}.", runId);
-        return true;
+    try
+    {
+            if (!sessions.TryGetValue(runId, out var state))
+                return false;
+            if (!state.Cancellation.IsCancellationRequested)
+                state.Cancellation.Cancel();
+            lock (state.SyncRoot)
+            {
+                state.IsRunning = false;
+                state.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            ScheduleChanged(state);
+            logger.LogInformation("Cancellation was requested for live Council session {RunId}.", runId);
+            return true;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Cancel)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Cancel)} failed.");
+        throw;
+    }
+}
 
-    public CouncilLiveSessionSnapshot? Get(Guid runId) =>
-        sessions.TryGetValue(runId, out var state) ? CreateSnapshot(state) : null;
+    public CouncilLiveSessionSnapshot? Get(Guid runId) {
+    try
+    {
+        return sessions.TryGetValue(runId, out var state) ? CreateSnapshot(state) : null;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Get)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Get)} failed.");
+        throw;
+    }
+}
 
-    public CouncilLiveSessionSummary? GetSummary(Guid runId) =>
-        sessions.TryGetValue(runId, out var state) ? CreateSummary(state) : null;
+    public CouncilLiveSessionSummary? GetSummary(Guid runId) {
+    try
+    {
+        return sessions.TryGetValue(runId, out var state) ? CreateSummary(state) : null;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(GetSummary)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(GetSummary)} failed.");
+        throw;
+    }
+}
 
-    public IReadOnlyList<CouncilLiveSessionSnapshot> GetActive() =>
-        sessions.Values
+    public IReadOnlyList<CouncilLiveSessionSnapshot> GetActive() {
+    try
+    {
+        return sessions.Values
             .Select(CreateSnapshot)
             .Where(snapshot => snapshot.IsRunning)
             .OrderByDescending(snapshot => snapshot.UpdatedAtUtc)
             .ToList();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(GetActive)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(GetActive)} failed.");
+        throw;
+    }
+}
 
-    public IReadOnlyList<CouncilLiveSessionSummary> GetActiveSummaries() =>
-        sessions.Values
+    public IReadOnlyList<CouncilLiveSessionSummary> GetActiveSummaries() {
+    try
+    {
+        return sessions.Values
             .Select(CreateSummary)
             .Where(summary => summary.IsRunning)
             .OrderByDescending(summary => summary.UpdatedAtUtc)
             .ToList();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(GetActiveSummaries)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(GetActiveSummaries)} failed.");
+        throw;
+    }
+}
 
     private CouncilLiveSessionSnapshot CreateSnapshot(CouncilLiveSessionState state)
     {
-        lock (state.SyncRoot)
-        {
-            return new CouncilLiveSessionSnapshot(
-                state.RunId,
-                state.IsRunning,
-                state.StartedAtUtc,
-                state.UpdatedAtUtc,
-                state.CouncilMembers,
-                state.UserMessage,
-                state.AdditionalUserMessages.ToArray(),
-                state.Transcript.ToString());
-        }
+    try
+    {
+            lock (state.SyncRoot)
+            {
+                return new CouncilLiveSessionSnapshot(
+                    state.RunId,
+                    state.IsRunning,
+                    state.StartedAtUtc,
+                    state.UpdatedAtUtc,
+                    state.CouncilMembers,
+                    state.UserMessage,
+                    state.AdditionalUserMessages.ToArray(),
+                    state.Transcript.ToString());
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(CreateSnapshot)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(CreateSnapshot)} failed.");
+        throw;
+    }
+}
 
     private CouncilLiveSessionSummary CreateSummary(CouncilLiveSessionState state)
     {
-        lock (state.SyncRoot)
-        {
-            return new CouncilLiveSessionSummary(
-                state.RunId,
-                state.IsRunning,
-                state.StartedAtUtc,
-                state.UpdatedAtUtc,
-                state.CouncilMembers);
-        }
+    try
+    {
+            lock (state.SyncRoot)
+            {
+                return new CouncilLiveSessionSummary(
+                    state.RunId,
+                    state.IsRunning,
+                    state.StartedAtUtc,
+                    state.UpdatedAtUtc,
+                    state.CouncilMembers);
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(CreateSummary)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(CreateSummary)} failed.");
+        throw;
+    }
+}
 
     private void AppendWithBlockBoundary(StringBuilder transcript, string text)
     {
-        if (transcript.Length > 0 && transcript[^1] != '\n' && (StartsVisibleBlock(text) || EndsVisibleBlock(transcript)))
-            transcript.AppendLine();
-        transcript.Append(text);
+    try
+    {
+            if (transcript.Length > 0 && transcript[^1] != '\n' && (StartsVisibleBlock(text) || EndsVisibleBlock(transcript)))
+                transcript.AppendLine();
+            transcript.Append(text);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(AppendWithBlockBoundary)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(AppendWithBlockBoundary)} failed.");
+        throw;
+    }
+}
 
     private bool EndsVisibleBlock(StringBuilder transcript)
     {
-        var length = Math.Min(transcript.Length, 24);
-        if (length == 0) return false;
-        var tail = transcript.ToString(transcript.Length - length, length).TrimEnd(' ', '\t', '\r');
-        return tail.EndsWith("</p>", StringComparison.OrdinalIgnoreCase)
-            || tail.EndsWith("</details>", StringComparison.OrdinalIgnoreCase)
-            || tail.EndsWith("</pre>", StringComparison.OrdinalIgnoreCase)
-            || tail.EndsWith("</div>", StringComparison.OrdinalIgnoreCase)
-            || tail.EndsWith("-->", StringComparison.Ordinal);
+    try
+    {
+            var length = Math.Min(transcript.Length, 24);
+            if (length == 0) return false;
+            var tail = transcript.ToString(transcript.Length - length, length).TrimEnd(' ', '\t', '\r');
+            return tail.EndsWith("</p>", StringComparison.OrdinalIgnoreCase)
+                || tail.EndsWith("</details>", StringComparison.OrdinalIgnoreCase)
+                || tail.EndsWith("</pre>", StringComparison.OrdinalIgnoreCase)
+                || tail.EndsWith("</div>", StringComparison.OrdinalIgnoreCase)
+                || tail.EndsWith("-->", StringComparison.Ordinal);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(EndsVisibleBlock)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(EndsVisibleBlock)} failed.");
+        throw;
+    }
+}
 
     private bool StartsVisibleBlock(string text)
     {
-        var trimmed = text.TrimStart(' ', '\t', '\r');
-        return trimmed.StartsWith("<p", StringComparison.OrdinalIgnoreCase)
-            || trimmed.StartsWith("<details", StringComparison.OrdinalIgnoreCase)
-            || trimmed.StartsWith("_Council", StringComparison.OrdinalIgnoreCase)
-            || trimmed.StartsWith("Council ", StringComparison.OrdinalIgnoreCase)
-            || trimmed.StartsWith("LocalGPT ", StringComparison.OrdinalIgnoreCase)
-            || trimmed.StartsWith("Ollama ", StringComparison.OrdinalIgnoreCase);
+    try
+    {
+            var trimmed = text.TrimStart(' ', '\t', '\r');
+            return trimmed.StartsWith("<p", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("<details", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("_Council", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("Council ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("LocalGPT ", StringComparison.OrdinalIgnoreCase)
+                || trimmed.StartsWith("Ollama ", StringComparison.OrdinalIgnoreCase);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(StartsVisibleBlock)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(StartsVisibleBlock)} failed.");
+        throw;
+    }
+}
 
     private void ScheduleChanged(CouncilLiveSessionState state)
     {

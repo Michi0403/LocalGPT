@@ -406,24 +406,36 @@ public sealed class CouncilGameSessionService(
 
     private void EnsureAutoplayLoop(CouncilGameSessionState session)
     {
-        if (!session.AutoplayEnabled || session.ControlMode == CouncilGameControlMode.Human || session.Status != "Running")
-        {
-            StopAutoplayLoop(session.Id);
-            return;
-        }
+    try
+    {
+            if (!session.AutoplayEnabled || session.ControlMode == CouncilGameControlMode.Human || session.Status != "Running")
+            {
+                StopAutoplayLoop(session.Id);
+                return;
+            }
 
-        if (autoplayLoops.ContainsKey(session.Id))
-            return;
+            if (autoplayLoops.ContainsKey(session.Id))
+                return;
 
-        var cancellation = new CancellationTokenSource();
-        if (!autoplayLoops.TryAdd(session.Id, cancellation))
-        {
-            cancellation.Dispose();
-            return;
-        }
+            var cancellation = new CancellationTokenSource();
+            if (!autoplayLoops.TryAdd(session.Id, cancellation))
+            {
+                cancellation.Dispose();
+                return;
+            }
 
-        _ = Task.Run(() => RunAutoplayLoopAsync(session.Id, cancellation.Token), CancellationToken.None);
+            _ = Task.Run(() => RunAutoplayLoopAsync(session.Id, cancellation.Token), CancellationToken.None);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(EnsureAutoplayLoop)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(EnsureAutoplayLoop)} failed.");
+        throw;
+    }
+}
 
     private async Task RunAutoplayLoopAsync(Guid sessionId, CancellationToken cancellationToken)
     {
@@ -476,39 +488,88 @@ public sealed class CouncilGameSessionService(
 
     private string SelectAutoplayAction(CouncilGameSessionSnapshot snapshot)
     {
-        if (snapshot.GameKey == "green-dragon")
-        {
-            string[] storyActions = ["choice-1", "move-forward", "use", "choice-2", "turn-right", "choice-3"];
-            return storyActions[(int)(snapshot.Turn % storyActions.Length)];
-        }
+    try
+    {
+            if (snapshot.GameKey == "green-dragon")
+            {
+                string[] storyActions = ["choice-1", "move-forward", "use", "choice-2", "turn-right", "choice-3"];
+                return storyActions[(int)(snapshot.Turn % storyActions.Length)];
+            }
 
-        // Deterministic and bounded so an AI player proves the same controller contract without requiring
-        // another expensive model turn for every key press. A Council AI can still override it through
-        // localgpt.game.control using ExpectedTurn concurrency protection.
-        string[] corridorActions =
-        [
-            "move-forward", "turn-right", "move-forward", "shoot", "strafe-left",
-            "move-forward", "use", "turn-left", "move-forward", "duck", "shoot", "duck"
-        ];
-        return corridorActions[(int)(snapshot.Turn % corridorActions.Length)];
+            // Deterministic and bounded so an AI player proves the same controller contract without requiring
+            // another expensive model turn for every key press. A Council AI can still override it through
+            // localgpt.game.control using ExpectedTurn concurrency protection.
+            string[] corridorActions =
+            [
+                "move-forward", "turn-right", "move-forward", "shoot", "strafe-left",
+                "move-forward", "use", "turn-left", "move-forward", "duck", "shoot", "duck"
+            ];
+            return corridorActions[(int)(snapshot.Turn % corridorActions.Length)];
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(SelectAutoplayAction)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(SelectAutoplayAction)} failed.");
+        throw;
+    }
+}
 
     private void StopAutoplayLoop(Guid sessionId)
     {
-        if (autoplayLoops.TryRemove(sessionId, out var cancellation))
-        {
-            cancellation.Cancel();
-            cancellation.Dispose();
-        }
+    try
+    {
+            if (autoplayLoops.TryRemove(sessionId, out var cancellation))
+            {
+                cancellation.Cancel();
+                cancellation.Dispose();
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(StopAutoplayLoop)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(StopAutoplayLoop)} failed.");
+        throw;
+    }
+}
 
-    private int NormalizeAutoplayDelay(int value) => Math.Clamp(value, 250, 10_000);
+    private int NormalizeAutoplayDelay(int value) {
+    try
+    {
+        return Math.Clamp(value, 250, 10_000);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(NormalizeAutoplayDelay)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(NormalizeAutoplayDelay)} failed.");
+        throw;
+    }
+}
 
     private void ThrowIfDisposed()
     {
-        if (Volatile.Read(ref disposed) != 0)
-            throw new ObjectDisposedException(nameof(CouncilGameSessionService));
+    try
+    {
+            if (Volatile.Read(ref disposed) != 0)
+                throw new ObjectDisposedException(nameof(CouncilGameSessionService));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(ThrowIfDisposed)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(ThrowIfDisposed)} failed.");
+        throw;
+    }
+}
 
     public void Dispose()
     {
@@ -529,23 +590,63 @@ public sealed class CouncilGameSessionService(
 
     private string NormalizeGameKey(string? gameKey)
     {
-        var normalized = (gameKey ?? string.Empty).Trim().ToLowerInvariant().Replace('_', '-').Replace(' ', '-');
-        return normalized switch
-        {
-            "doom" or "ascii-doom" or "ascii-doom-council-adventure" => "ascii-doom",
-            "dragon" or "green-dragon" or "lotgd" or "green-dragon-runtime-story" => "green-dragon",
-            _ => throw new ArgumentException($"Unsupported game key '{gameKey}'. Use ascii-doom or green-dragon.", nameof(gameKey))
-        };
+    try
+    {
+            var normalized = (gameKey ?? string.Empty).Trim().ToLowerInvariant().Replace('_', '-').Replace(' ', '-');
+            return normalized switch
+            {
+                "doom" or "ascii-doom" or "ascii-doom-council-adventure" => "ascii-doom",
+                "dragon" or "green-dragon" or "lotgd" or "green-dragon-runtime-story" => "green-dragon",
+                _ => throw new ArgumentException($"Unsupported game key '{gameKey}'. Use ascii-doom or green-dragon.", nameof(gameKey))
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(NormalizeGameKey)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(NormalizeGameKey)} failed.");
+        throw;
+    }
+}
 
-    private string DefaultTeamFor(string gameKey) =>
-        gameKey == "green-dragon" ? "green-dragon-runtime-story" : "ascii-doom-council-adventure";
+    private string DefaultTeamFor(string gameKey) {
+    try
+    {
+        return gameKey == "green-dragon" ? "green-dragon-runtime-story" : "ascii-doom-council-adventure";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(DefaultTeamFor)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(DefaultTeamFor)} failed.");
+        throw;
+    }
+}
 
-    private List<string> BuildLegalActions(string gameKey) => gameKey == "green-dragon"
+    private List<string> BuildLegalActions(string gameKey) {
+    try
+    {
+        return gameKey == "green-dragon"
         ? ["move-forward", "move-backward", "turn-left", "turn-right", "use", "choice-1", "choice-2", "choice-3"]
         : ["move-forward", "move-backward", "strafe-left", "strafe-right", "turn-left", "turn-right", "shoot", "duck", "use"];
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(BuildLegalActions)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(BuildLegalActions)} failed.");
+        throw;
+    }
+}
 
-    private List<RuntimeInputBindingDefinition> BuildInputBindings(string gameKey) => gameKey == "green-dragon"
+    private List<RuntimeInputBindingDefinition> BuildInputBindings(string gameKey) {
+    try
+    {
+        return gameKey == "green-dragon"
         ?
         [
             Binding("move-forward", "Move / choice up", "W / ArrowUp", "D-pad Up"),
@@ -569,8 +670,21 @@ public sealed class CouncilGameSessionService(
             Binding("duck", "Duck / stand", "Ctrl / C", "B"),
             Binding("use", "Use door / switch", "E / Enter", "A")
         ];
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(BuildInputBindings)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(BuildInputBindings)} failed.");
+        throw;
+    }
+}
 
-    private RuntimeInputBindingDefinition Binding(string action, string display, string keyboard, string gamepad) => new()
+    private RuntimeInputBindingDefinition Binding(string action, string display, string keyboard, string gamepad) {
+    try
+    {
+        return new()
     {
         Action = action,
         DisplayName = display,
@@ -578,264 +692,472 @@ public sealed class CouncilGameSessionService(
         GamepadButton = gamepad,
         Description = "The human UI and AI Player Controller call the same localgpt.game.control action."
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(Binding)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(Binding)} failed.");
+        throw;
+    }
+}
 
     private string NormalizeAction(string? action, double? axisX, double? axisY)
     {
-        var value = (action ?? string.Empty).Trim().ToLowerInvariant().Replace('_', '-').Replace(' ', '-');
-        if (string.IsNullOrWhiteSpace(value) && (axisX.HasValue || axisY.HasValue))
-        {
-            var x = axisX ?? 0;
-            var y = axisY ?? 0;
-            if (Math.Abs(y) >= Math.Abs(x)) value = y < 0 ? "move-forward" : "move-backward";
-            else value = x < 0 ? "strafe-left" : "strafe-right";
-        }
-        return value switch
-        {
-            "forward" or "up" or "w" => "move-forward",
-            "back" or "backward" or "down" or "s" => "move-backward",
-            "left" or "a" => "strafe-left",
-            "right" or "d" => "strafe-right",
-            "look-left" or "aim-left" or "rotate-left" or "q" => "turn-left",
-            "look-right" or "aim-right" or "rotate-right" or "r" => "turn-right",
-            "fire" or "attack" or "space" => "shoot",
-            "crouch" or "ctrl" => "duck",
-            "interact" or "enter" or "e" => "use",
-            "1" => "choice-1",
-            "2" => "choice-2",
-            "3" => "choice-3",
-            _ => value
-        };
+    try
+    {
+            var value = (action ?? string.Empty).Trim().ToLowerInvariant().Replace('_', '-').Replace(' ', '-');
+            if (string.IsNullOrWhiteSpace(value) && (axisX.HasValue || axisY.HasValue))
+            {
+                var x = axisX ?? 0;
+                var y = axisY ?? 0;
+                if (Math.Abs(y) >= Math.Abs(x)) value = y < 0 ? "move-forward" : "move-backward";
+                else value = x < 0 ? "strafe-left" : "strafe-right";
+            }
+            return value switch
+            {
+                "forward" or "up" or "w" => "move-forward",
+                "back" or "backward" or "down" or "s" => "move-backward",
+                "left" or "a" => "strafe-left",
+                "right" or "d" => "strafe-right",
+                "look-left" or "aim-left" or "rotate-left" or "q" => "turn-left",
+                "look-right" or "aim-right" or "rotate-right" or "r" => "turn-right",
+                "fire" or "attack" or "space" => "shoot",
+                "crouch" or "ctrl" => "duck",
+                "interact" or "enter" or "e" => "use",
+                "1" => "choice-1",
+                "2" => "choice-2",
+                "3" => "choice-3",
+                _ => value
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(NormalizeAction)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(NormalizeAction)} failed.");
+        throw;
+    }
+}
 
     private void ApplyAction(CouncilGameSessionState session, string action, int? aimX, int? aimY)
     {
-        if (session.GameKey == "green-dragon")
-        {
+    try
+    {
+            if (session.GameKey == "green-dragon")
+            {
+                switch (action)
+                {
+                    case "move-forward": session.PlayerY = Math.Max(1, session.PlayerY - 1); break;
+                    case "move-backward": session.PlayerY = Math.Min(8, session.PlayerY + 1); break;
+                    case "turn-left": session.FacingRadians -= Math.PI / 8d; break;
+                    case "turn-right": session.FacingRadians += Math.PI / 8d; break;
+                    case "use": session.StoryLine = "The innkeeper nods and points toward the moonlit forest path."; break;
+                    case "choice-1": session.StoryLine = "You accept the lantern and prepare for the forest path."; break;
+                    case "choice-2": session.StoryLine = "You ask the villagers what they heard beyond the old gate."; break;
+                    case "choice-3": session.StoryLine = "You rest by the hearth while the Story Director advances the world."; break;
+                }
+                return;
+            }
+
             switch (action)
             {
-                case "move-forward": session.PlayerY = Math.Max(1, session.PlayerY - 1); break;
-                case "move-backward": session.PlayerY = Math.Min(8, session.PlayerY + 1); break;
-                case "turn-left": session.FacingRadians -= Math.PI / 8d; break;
-                case "turn-right": session.FacingRadians += Math.PI / 8d; break;
-                case "use": session.StoryLine = "The innkeeper nods and points toward the moonlit forest path."; break;
-                case "choice-1": session.StoryLine = "You accept the lantern and prepare for the forest path."; break;
-                case "choice-2": session.StoryLine = "You ask the villagers what they heard beyond the old gate."; break;
-                case "choice-3": session.StoryLine = "You rest by the hearth while the Story Director advances the world."; break;
+                case "turn-left":
+                    session.FacingRadians -= Math.PI / 12d;
+                    break;
+                case "turn-right":
+                    session.FacingRadians += Math.PI / 12d;
+                    break;
+                case "duck":
+                    session.IsDucking = !session.IsDucking;
+                    break;
+                case "shoot":
+                    if (session.Ammo > 0)
+                    {
+                        session.Ammo--;
+                        session.MuzzleFlash = 2;
+                        if (aimX.HasValue && aimY.HasValue)
+                            session.FacingRadians = Math.Atan2(aimY.Value - session.PlayerY, aimX.Value - session.PlayerX);
+                    }
+                    break;
+                case "use":
+                    session.UsePulse = 2;
+                    break;
+                case "move-forward":
+                    TryMove(session, Math.Cos(session.FacingRadians), Math.Sin(session.FacingRadians));
+                    break;
+                case "move-backward":
+                    TryMove(session, -Math.Cos(session.FacingRadians), -Math.Sin(session.FacingRadians));
+                    break;
+                case "strafe-left":
+                    TryMove(session, Math.Cos(session.FacingRadians - Math.PI / 2d), Math.Sin(session.FacingRadians - Math.PI / 2d));
+                    break;
+                case "strafe-right":
+                    TryMove(session, Math.Cos(session.FacingRadians + Math.PI / 2d), Math.Sin(session.FacingRadians + Math.PI / 2d));
+                    break;
             }
-            return;
-        }
-
-        switch (action)
-        {
-            case "turn-left":
-                session.FacingRadians -= Math.PI / 12d;
-                break;
-            case "turn-right":
-                session.FacingRadians += Math.PI / 12d;
-                break;
-            case "duck":
-                session.IsDucking = !session.IsDucking;
-                break;
-            case "shoot":
-                if (session.Ammo > 0)
-                {
-                    session.Ammo--;
-                    session.MuzzleFlash = 2;
-                    if (aimX.HasValue && aimY.HasValue)
-                        session.FacingRadians = Math.Atan2(aimY.Value - session.PlayerY, aimX.Value - session.PlayerX);
-                }
-                break;
-            case "use":
-                session.UsePulse = 2;
-                break;
-            case "move-forward":
-                TryMove(session, Math.Cos(session.FacingRadians), Math.Sin(session.FacingRadians));
-                break;
-            case "move-backward":
-                TryMove(session, -Math.Cos(session.FacingRadians), -Math.Sin(session.FacingRadians));
-                break;
-            case "strafe-left":
-                TryMove(session, Math.Cos(session.FacingRadians - Math.PI / 2d), Math.Sin(session.FacingRadians - Math.PI / 2d));
-                break;
-            case "strafe-right":
-                TryMove(session, Math.Cos(session.FacingRadians + Math.PI / 2d), Math.Sin(session.FacingRadians + Math.PI / 2d));
-                break;
-        }
-        session.FacingRadians = NormalizeRadians(session.FacingRadians);
-        session.MuzzleFlash = Math.Max(0, session.MuzzleFlash - 1);
-        session.UsePulse = Math.Max(0, session.UsePulse - 1);
+            session.FacingRadians = NormalizeRadians(session.FacingRadians);
+            session.MuzzleFlash = Math.Max(0, session.MuzzleFlash - 1);
+            session.UsePulse = Math.Max(0, session.UsePulse - 1);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(ApplyAction)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(ApplyAction)} failed.");
+        throw;
+    }
+}
 
     private void TryMove(CouncilGameSessionState session, double dx, double dy)
     {
-        var map = doomMap;
-        var nextX = session.PlayerX + (int)Math.Round(dx);
-        var nextY = session.PlayerY + (int)Math.Round(dy);
-        if (nextY < 0 || nextY >= map.Length || nextX < 0 || nextX >= map[nextY].Length) return;
-        if (map[nextY][nextX] == '#') return;
-        session.PlayerX = nextX;
-        session.PlayerY = nextY;
+    try
+    {
+            var map = doomMap;
+            var nextX = session.PlayerX + (int)Math.Round(dx);
+            var nextY = session.PlayerY + (int)Math.Round(dy);
+            if (nextY < 0 || nextY >= map.Length || nextX < 0 || nextX >= map[nextY].Length) return;
+            if (map[nextY][nextX] == '#') return;
+            session.PlayerX = nextX;
+            session.PlayerY = nextY;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(TryMove)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(TryMove)} failed.");
+        throw;
+    }
+}
 
-    private string Render(CouncilGameSessionState session) => session.GameKey == "green-dragon"
+    private string Render(CouncilGameSessionState session) {
+    try
+    {
+        return session.GameKey == "green-dragon"
         ? RenderGreenDragon(session)
         : RenderDoomLike(session);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(Render)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(Render)} failed.");
+        throw;
+    }
+}
 
     private string RenderDoomLike(CouncilGameSessionState session)
     {
-        var width = session.FrameWidth;
-        var height = session.FrameHeight;
-        var viewHeight = height - 6;
-        var lines = Enumerable.Range(0, height).Select(_ => new string(' ', width).ToCharArray()).ToArray();
-        for (var x = 0; x < width; x++)
-        {
-            var rayAngle = session.FacingRadians - FieldOfView / 2d + FieldOfView * x / Math.Max(1, width - 1);
-            var distance = CastRay(session.PlayerX + .5d, session.PlayerY + .5d, rayAngle);
-            var correctedDistance = Math.Max(.15d, distance * Math.Cos(rayAngle - session.FacingRadians));
-            var wallHeight = Math.Clamp((int)Math.Round(viewHeight / correctedDistance * .82d), 1, viewHeight);
-            var top = Math.Max(0, (viewHeight - wallHeight) / 2 - (session.IsDucking ? -2 : 0));
-            var bottom = Math.Min(viewHeight - 1, top + wallHeight);
-            for (var y = 0; y < viewHeight; y++)
+    try
+    {
+            var width = session.FrameWidth;
+            var height = session.FrameHeight;
+            var viewHeight = height - 6;
+            var lines = Enumerable.Range(0, height).Select(_ => new string(' ', width).ToCharArray()).ToArray();
+            for (var x = 0; x < width; x++)
             {
-                lines[y][x] = y < top ? '.' : y <= bottom ? WallGlyph(correctedDistance, x, y) : FloorGlyph(x, y);
+                var rayAngle = session.FacingRadians - FieldOfView / 2d + FieldOfView * x / Math.Max(1, width - 1);
+                var distance = CastRay(session.PlayerX + .5d, session.PlayerY + .5d, rayAngle);
+                var correctedDistance = Math.Max(.15d, distance * Math.Cos(rayAngle - session.FacingRadians));
+                var wallHeight = Math.Clamp((int)Math.Round(viewHeight / correctedDistance * .82d), 1, viewHeight);
+                var top = Math.Max(0, (viewHeight - wallHeight) / 2 - (session.IsDucking ? -2 : 0));
+                var bottom = Math.Min(viewHeight - 1, top + wallHeight);
+                for (var y = 0; y < viewHeight; y++)
+                {
+                    lines[y][x] = y < top ? '.' : y <= bottom ? WallGlyph(correctedDistance, x, y) : FloorGlyph(x, y);
+                }
             }
-        }
-        var centerY = viewHeight / 2;
-        var centerX = width / 2;
-        lines[centerY][centerX] = session.MuzzleFlash > 0 ? '*' : '+';
-        if (centerX > 0) lines[centerY][centerX - 1] = '-';
-        if (centerX + 1 < width) lines[centerY][centerX + 1] = '-';
-        if (centerY > 0) lines[centerY - 1][centerX] = '|';
-        if (centerY + 1 < viewHeight) lines[centerY + 1][centerX] = '|';
+            var centerY = viewHeight / 2;
+            var centerX = width / 2;
+            lines[centerY][centerX] = session.MuzzleFlash > 0 ? '*' : '+';
+            if (centerX > 0) lines[centerY][centerX - 1] = '-';
+            if (centerX + 1 < width) lines[centerY][centerX + 1] = '-';
+            if (centerY > 0) lines[centerY - 1][centerX] = '|';
+            if (centerY + 1 < viewHeight) lines[centerY + 1][centerX] = '|';
 
-        Put(lines, viewHeight, 0, new string('═', width));
-        Put(lines, viewHeight + 1, 0, Fit($" ASCII CORRIDOR // TURN {session.Turn:000} // {Compass(session.FacingRadians),3} // {(session.IsDucking ? "DUCK" : "STAND")}", width));
-        Put(lines, viewHeight + 2, 0, Fit($" HP {session.Health:000}   AMMO {session.Ammo:000}   POS {session.PlayerX:00},{session.PlayerY:00}   ACTION {session.LastAction}", width));
-        Put(lines, viewHeight + 3, 0, Fit(" W/S move  A/D strafe  Q/R turn  SPACE shoot  CTRL duck  E use  F fullscreen", width));
-        Put(lines, viewHeight + 4, 0, Fit(" Fan-made open-source configuration study; no commercial assets, WADs, or original engine runtime included.", width));
-        Put(lines, viewHeight + 5, 0, new string('═', width));
-        return string.Join(Environment.NewLine, lines.Select(line => new string(line)));
+            Put(lines, viewHeight, 0, new string('═', width));
+            Put(lines, viewHeight + 1, 0, Fit($" ASCII CORRIDOR // TURN {session.Turn:000} // {Compass(session.FacingRadians),3} // {(session.IsDucking ? "DUCK" : "STAND")}", width));
+            Put(lines, viewHeight + 2, 0, Fit($" HP {session.Health:000}   AMMO {session.Ammo:000}   POS {session.PlayerX:00},{session.PlayerY:00}   ACTION {session.LastAction}", width));
+            Put(lines, viewHeight + 3, 0, Fit(" W/S move  A/D strafe  Q/R turn  SPACE shoot  CTRL duck  E use  F fullscreen", width));
+            Put(lines, viewHeight + 4, 0, Fit(" Fan-made open-source configuration study; no commercial assets, WADs, or original engine runtime included.", width));
+            Put(lines, viewHeight + 5, 0, new string('═', width));
+            return string.Join(Environment.NewLine, lines.Select(line => new string(line)));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(RenderDoomLike)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(RenderDoomLike)} failed.");
+        throw;
+    }
+}
 
     private string RenderGreenDragon(CouncilGameSessionState session)
     {
-        var width = session.FrameWidth;
-        var lines = new List<string>
-        {
-            "┌" + new string('─', width - 2) + "┐",
-            Fit("│                         THE LANTERN VILLAGE                                 │", width),
-            Fit("│                                                                            │", width),
-            Fit("│        /\\                  [OLD GATE]                    /\\              │", width),
-            Fit("│       /  \\        * lanterns *                         /  \\             │", width),
-            Fit("│      / INN\\        .-.-.-.-.-.                       /SHOP\\            │", width),
-            Fit("│      |____|---------'         '-----------------------|____|             │", width),
-            Fit("│           \\                    @ player                 /                 │", width),
-            Fit("│            \\____________________.______________________/                  │", width),
-            Fit("│                                 |                                          │", width),
-            Fit("│                              FOREST PATH                                    │", width),
-            Fit("│                                 |                                          │", width),
-            Fit("│                            {green woods}                                    │", width),
-            Fit("│                                                                            │", width),
-            Fit($"│  {session.StoryLine}", width),
-            Fit("│                                                                            │", width),
-            Fit("│  1 Accept the lantern   2 Ask the villagers   3 Rest by the hearth       │", width),
-            Fit("│  W/S move  A/D choose  E/Enter confirm  1/2/3 direct choice              │", width),
-            Fit("│                                                                            │", width),
-            Fit($"│  TURN {session.Turn:000}  PLAYER {session.PlayerX:00},{session.PlayerY:00}  LAST {session.LastAction}", width),
-            Fit("│                                                                            │", width),
-            Fit("│  Runtime story example inspired by open-source text-RPG architecture;      │", width),
-            Fit("│  original scene and content, not affiliated with LOTGD.                    │", width),
-            "└" + new string('─', width - 2) + "┘"
-        };
-        while (lines.Count < session.FrameHeight) lines.Insert(lines.Count - 1, Fit("│", width));
-        return string.Join(Environment.NewLine, lines.Take(session.FrameHeight));
+    try
+    {
+            var width = session.FrameWidth;
+            var lines = new List<string>
+            {
+                "┌" + new string('─', width - 2) + "┐",
+                Fit("│                         THE LANTERN VILLAGE                                 │", width),
+                Fit("│                                                                            │", width),
+                Fit("│        /\\                  [OLD GATE]                    /\\              │", width),
+                Fit("│       /  \\        * lanterns *                         /  \\             │", width),
+                Fit("│      / INN\\        .-.-.-.-.-.                       /SHOP\\            │", width),
+                Fit("│      |____|---------'         '-----------------------|____|             │", width),
+                Fit("│           \\                    @ player                 /                 │", width),
+                Fit("│            \\____________________.______________________/                  │", width),
+                Fit("│                                 |                                          │", width),
+                Fit("│                              FOREST PATH                                    │", width),
+                Fit("│                                 |                                          │", width),
+                Fit("│                            {green woods}                                    │", width),
+                Fit("│                                                                            │", width),
+                Fit($"│  {session.StoryLine}", width),
+                Fit("│                                                                            │", width),
+                Fit("│  1 Accept the lantern   2 Ask the villagers   3 Rest by the hearth       │", width),
+                Fit("│  W/S move  A/D choose  E/Enter confirm  1/2/3 direct choice              │", width),
+                Fit("│                                                                            │", width),
+                Fit($"│  TURN {session.Turn:000}  PLAYER {session.PlayerX:00},{session.PlayerY:00}  LAST {session.LastAction}", width),
+                Fit("│                                                                            │", width),
+                Fit("│  Runtime story example inspired by open-source text-RPG architecture;      │", width),
+                Fit("│  original scene and content, not affiliated with LOTGD.                    │", width),
+                "└" + new string('─', width - 2) + "┘"
+            };
+            while (lines.Count < session.FrameHeight) lines.Insert(lines.Count - 1, Fit("│", width));
+            return string.Join(Environment.NewLine, lines.Take(session.FrameHeight));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(RenderGreenDragon)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(RenderGreenDragon)} failed.");
+        throw;
+    }
+}
 
     private double CastRay(double x, double y, double angle)
     {
-        const double maxDistance = 20d;
-        for (var distance = .05d; distance < maxDistance; distance += .05d)
-        {
-            var sampleX = (int)(x + Math.Cos(angle) * distance);
-            var sampleY = (int)(y + Math.Sin(angle) * distance);
-            if (sampleY < 0 || sampleY >= doomMap.Length || sampleX < 0 || sampleX >= doomMap[sampleY].Length) return distance;
-            if (doomMap[sampleY][sampleX] == '#') return distance;
-        }
-        return maxDistance;
+    try
+    {
+            const double maxDistance = 20d;
+            for (var distance = .05d; distance < maxDistance; distance += .05d)
+            {
+                var sampleX = (int)(x + Math.Cos(angle) * distance);
+                var sampleY = (int)(y + Math.Sin(angle) * distance);
+                if (sampleY < 0 || sampleY >= doomMap.Length || sampleX < 0 || sampleX >= doomMap[sampleY].Length) return distance;
+                if (doomMap[sampleY][sampleX] == '#') return distance;
+            }
+            return maxDistance;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(CastRay)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(CastRay)} failed.");
+        throw;
+    }
+}
 
-    private char WallGlyph(double distance, int x, int y) => distance switch
+    private char WallGlyph(double distance, int x, int y) {
+    try
+    {
+        return distance switch
     {
         < 2.2d => (x + y) % 2 == 0 ? '█' : '▓',
         < 4.2d => (x + y) % 3 == 0 ? '▓' : '▒',
         < 7.5d => '▒',
         _ => '░'
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(WallGlyph)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(WallGlyph)} failed.");
+        throw;
+    }
+}
 
-    private char FloorGlyph(int x, int y) => (x + y) % 5 == 0 ? ':' : (x + y) % 2 == 0 ? '.' : ' ';
+    private char FloorGlyph(int x, int y) {
+    try
+    {
+        return (x + y) % 5 == 0 ? ':' : (x + y) % 2 == 0 ? '.' : ' ';
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(FloorGlyph)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(FloorGlyph)} failed.");
+        throw;
+    }
+}
 
     private void Put(char[][] lines, int row, int column, string text)
     {
-        if (row < 0 || row >= lines.Length) return;
-        for (var index = 0; index < text.Length && column + index < lines[row].Length; index++)
-            lines[row][column + index] = text[index];
+    try
+    {
+            if (row < 0 || row >= lines.Length) return;
+            for (var index = 0; index < text.Length && column + index < lines[row].Length; index++)
+                lines[row][column + index] = text[index];
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(Put)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(Put)} failed.");
+        throw;
+    }
+}
 
     private string Fit(string text, int width)
     {
-        var normalized = (text ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ');
-        if (normalized.Length > width) return normalized[..width];
-        return normalized.PadRight(width);
+    try
+    {
+            var normalized = (text ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ');
+            if (normalized.Length > width) return normalized[..width];
+            return normalized.PadRight(width);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(Fit)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(Fit)} failed.");
+        throw;
+    }
+}
 
     private string NormalizeFrame(string frame, int width, int height)
     {
-        var sourceLines = (frame ?? string.Empty)
-            .Replace("\r\n", "\n", StringComparison.Ordinal)
-            .Replace('\r', '\n')
-            .Split('\n');
-        var result = new List<string>(height);
-        for (var row = 0; row < height; row++)
-        {
-            var line = row < sourceLines.Length ? sourceLines[row] : string.Empty;
-            result.Add(Fit(line, width));
-        }
-        return string.Join(Environment.NewLine, result);
+    try
+    {
+            var sourceLines = (frame ?? string.Empty)
+                .Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace('\r', '\n')
+                .Split('\n');
+            var result = new List<string>(height);
+            for (var row = 0; row < height; row++)
+            {
+                var line = row < sourceLines.Length ? sourceLines[row] : string.Empty;
+                result.Add(Fit(line, width));
+            }
+            return string.Join(Environment.NewLine, result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(NormalizeFrame)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(NormalizeFrame)} failed.");
+        throw;
+    }
+}
 
-    private string BuildCaption(CouncilGameSessionState session) =>
-        $"{session.DisplayName} · turn {session.Turn} · {session.CurrentTurnOwner} · renderer {session.FrameRenderer}";
+    private string BuildCaption(CouncilGameSessionState session) {
+    try
+    {
+        return $"{session.DisplayName} · turn {session.Turn} · {session.CurrentTurnOwner} · renderer {session.FrameRenderer}";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(BuildCaption)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(BuildCaption)} failed.");
+        throw;
+    }
+}
 
     private string Compass(double radians)
     {
-        var degrees = NormalizeRadians(radians) * 180d / Math.PI;
-        return degrees switch
-        {
-            >= 337.5 or < 22.5 => "E",
-            < 67.5 => "SE",
-            < 112.5 => "S",
-            < 157.5 => "SW",
-            < 202.5 => "W",
-            < 247.5 => "NW",
-            < 292.5 => "N",
-            _ => "NE"
-        };
+    try
+    {
+            var degrees = NormalizeRadians(radians) * 180d / Math.PI;
+            return degrees switch
+            {
+                >= 337.5 or < 22.5 => "E",
+                < 67.5 => "SE",
+                < 112.5 => "S",
+                < 157.5 => "SW",
+                < 202.5 => "W",
+                < 247.5 => "NW",
+                < 292.5 => "N",
+                _ => "NE"
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(Compass)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(Compass)} failed.");
+        throw;
+    }
+}
 
     private double NormalizeRadians(double value)
     {
-        while (value < 0) value += Math.PI * 2d;
-        while (value >= Math.PI * 2d) value -= Math.PI * 2d;
-        return value;
+    try
+    {
+            while (value < 0) value += Math.PI * 2d;
+            while (value >= Math.PI * 2d) value -= Math.PI * 2d;
+            return value;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(NormalizeRadians)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(NormalizeRadians)} failed.");
+        throw;
+    }
+}
 
     private CouncilGameSessionSnapshot ToSnapshot(CouncilGameSessionState session)
     {
-        lock (session.SyncRoot)
-            return ToSnapshotUnsafe(session);
+    try
+    {
+            lock (session.SyncRoot)
+                return ToSnapshotUnsafe(session);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(ToSnapshot)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(ToSnapshot)} failed.");
+        throw;
+    }
+}
 
-    private CouncilGameSessionSnapshot ToSnapshotUnsafe(CouncilGameSessionState session) => new()
+    private CouncilGameSessionSnapshot ToSnapshotUnsafe(CouncilGameSessionState session) {
+    try
+    {
+        return new()
     {
         Id = session.Id,
         GameKey = session.GameKey,
@@ -874,8 +1196,21 @@ public sealed class CouncilGameSessionService(
         CreatedAtUtc = session.CreatedAtUtc,
         UpdatedAtUtc = session.UpdatedAtUtc
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(ToSnapshotUnsafe)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(ToSnapshotUnsafe)} failed.");
+        throw;
+    }
+}
 
-    private RuntimeInputBindingDefinition CloneBinding(RuntimeInputBindingDefinition binding) => new()
+    private RuntimeInputBindingDefinition CloneBinding(RuntimeInputBindingDefinition binding) {
+    try
+    {
+        return new()
     {
         Action = binding.Action,
         DisplayName = binding.DisplayName,
@@ -883,8 +1218,21 @@ public sealed class CouncilGameSessionService(
         GamepadButton = binding.GamepadButton,
         Description = binding.Description
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(CloneBinding)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(CloneBinding)} failed.");
+        throw;
+    }
+}
 
-    private CouncilGameSubdirectorPrediction ClonePrediction(CouncilGameSubdirectorPrediction prediction) => new()
+    private CouncilGameSubdirectorPrediction ClonePrediction(CouncilGameSubdirectorPrediction prediction) {
+    try
+    {
+        return new()
     {
         DirectorKey = prediction.DirectorKey,
         ActorKind = prediction.ActorKind,
@@ -893,8 +1241,21 @@ public sealed class CouncilGameSessionService(
         ConfidencePercent = prediction.ConfidencePercent,
         ActorInstances = prediction.ActorInstances.Select(CloneActorRuntime).ToArray()
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(ClonePrediction)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(ClonePrediction)} failed.");
+        throw;
+    }
+}
 
-    private CouncilGameActorRuntimeDescriptor CloneActorRuntime(CouncilGameActorRuntimeDescriptor actor) => new()
+    private CouncilGameActorRuntimeDescriptor CloneActorRuntime(CouncilGameActorRuntimeDescriptor actor) {
+    try
+    {
+        return new()
     {
         InstanceKey = actor.InstanceKey,
         ActorKind = actor.ActorKind,
@@ -904,6 +1265,16 @@ public sealed class CouncilGameSessionService(
         CouncilAssignmentGroup = actor.CouncilAssignmentGroup,
         CouncilAssignmentSlot = actor.CouncilAssignmentSlot
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(CloneActorRuntime)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilGameSessionService)}.{nameof(CloneActorRuntime)} failed.");
+        throw;
+    }
+}
 
     private void Notify(Guid sessionId)
     {

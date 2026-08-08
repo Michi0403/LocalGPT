@@ -18,41 +18,77 @@ public sealed class DocumentationViewerService(ILogger<DocumentationViewerServic
     /// <inheritdoc />
     public void Open(LocalGptDocumentationViewerRequest request)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        var url = NormalizeUrl(request.Url);
-        var title = string.IsNullOrWhiteSpace(request.Title) ? "LocalGPT documentation" : request.Title.Trim();
-        State = new LocalGptDocumentationViewerState
-        {
-            IsOpen = true,
-            Url = url,
-            Title = title,
-            Revision = Interlocked.Increment(ref revision)
-        };
-        logger.LogInformation("Opened the LocalGPT documentation viewer for {DocumentationUrl}.", url);
-        StateChanged?.Invoke();
+    try
+    {
+            ArgumentNullException.ThrowIfNull(request);
+            var url = NormalizeUrl(request.Url);
+            var title = string.IsNullOrWhiteSpace(request.Title) ? "LocalGPT documentation" : request.Title.Trim();
+            State = new LocalGptDocumentationViewerState
+            {
+                IsOpen = true,
+                Url = url,
+                Title = title,
+                Revision = Interlocked.Increment(ref revision)
+            };
+            logger.LogInformation("Opened the LocalGPT documentation viewer for {DocumentationUrl}.", url);
+            StateChanged?.Invoke();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationViewerService)}.{nameof(Open)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationViewerService)}.{nameof(Open)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public void Close()
     {
-        if (!State.IsOpen) return;
-        State = new LocalGptDocumentationViewerState
-        {
-            IsOpen = false,
-            Revision = Interlocked.Increment(ref revision)
-        };
-        logger.LogDebug("Closed the LocalGPT documentation viewer.");
-        StateChanged?.Invoke();
+    try
+    {
+            if (!State.IsOpen) return;
+            State = new LocalGptDocumentationViewerState
+            {
+                IsOpen = false,
+                Revision = Interlocked.Increment(ref revision)
+            };
+            logger.LogDebug("Closed the LocalGPT documentation viewer.");
+            StateChanged?.Invoke();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationViewerService)}.{nameof(Close)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationViewerService)}.{nameof(Close)} failed.");
+        throw;
+    }
+}
 
     private string NormalizeUrl(string url)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(url);
-        var normalized = url.Trim();
-        if (!normalized.StartsWith("/", StringComparison.Ordinal) || normalized.StartsWith("//", StringComparison.Ordinal) || normalized.Contains('\\'))
-            throw new ArgumentException("Documentation viewer URLs must be same-origin application-relative paths.", nameof(url));
-        if (normalized.Any(char.IsControl))
-            throw new ArgumentException("Documentation viewer URLs may not contain control characters.", nameof(url));
-        return normalized;
+    try
+    {
+            ArgumentException.ThrowIfNullOrWhiteSpace(url);
+            var normalized = url.Trim();
+            if (!normalized.StartsWith("/", StringComparison.Ordinal) || normalized.StartsWith("//", StringComparison.Ordinal) || normalized.Contains('\\'))
+                throw new ArgumentException("Documentation viewer URLs must be same-origin application-relative paths.", nameof(url));
+            if (normalized.Any(char.IsControl))
+                throw new ArgumentException("Documentation viewer URLs may not contain control characters.", nameof(url));
+            return normalized;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationViewerService)}.{nameof(NormalizeUrl)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationViewerService)}.{nameof(NormalizeUrl)} failed.");
+        throw;
+    }
+}
 }

@@ -284,62 +284,74 @@ public sealed class ProviderModelBenchmarkService(
         bool userConfirmed,
         CancellationToken cancellationToken = default)
     {
-        if (!userConfirmed)
-            throw new InvalidOperationException("Fresh human confirmation is required before benchmark recommendations are applied.");
-        ArgumentNullException.ThrowIfNull(report);
-        var recommended = report.Targets
-            .Where(target => string.IsNullOrWhiteSpace(target.Error) && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName))
-            .ToList();
-        if (recommended.Count == 0)
-            throw new InvalidOperationException("The benchmark report contains no successful recommendation to apply.");
+    try
+    {
+            if (!userConfirmed)
+                throw new InvalidOperationException("Fresh human confirmation is required before benchmark recommendations are applied.");
+            ArgumentNullException.ThrowIfNull(report);
+            var recommended = report.Targets
+                .Where(target => string.IsNullOrWhiteSpace(target.Error) && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName))
+                .ToList();
+            if (recommended.Count == 0)
+                throw new InvalidOperationException("The benchmark report contains no successful recommendation to apply.");
 
-        var routes = recommended.Select(target => new OneWireCouncilModelRoute
-        {
-            ModelName = target.Model.SelectionKey,
-            ProviderKind = target.Model.ProviderKind,
-            ProviderName = target.Model.ProviderName,
-            ProviderEndpoint = target.Model.Endpoint,
-            ProviderModelName = target.Model.ModelName,
-            HardwareKind = OneWireHardwareKind.Auto,
-            HardwareIndex = -1,
-            HardwareName = "Benchmark recommendation",
-            MinOutputTokens = Math.Min(256, target.Recommendation.OutputTokens),
-            MaxOutputTokens = target.Recommendation.OutputTokens,
-            MinContextTokens = Math.Min(2048, target.Recommendation.ContextTokens),
-            MaxContextTokens = target.Recommendation.ContextTokens,
-            OllamaNumGpu = target.Model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
-                ? target.Recommendation.OllamaNumGpu
-                : null,
-            IsEnabled = true,
-            MaxConcurrentModelsOnLane = 1
-        }).ToList();
+            var routes = recommended.Select(target => new OneWireCouncilModelRoute
+            {
+                ModelName = target.Model.SelectionKey,
+                ProviderKind = target.Model.ProviderKind,
+                ProviderName = target.Model.ProviderName,
+                ProviderEndpoint = target.Model.Endpoint,
+                ProviderModelName = target.Model.ModelName,
+                HardwareKind = OneWireHardwareKind.Auto,
+                HardwareIndex = -1,
+                HardwareName = "Benchmark recommendation",
+                MinOutputTokens = Math.Min(256, target.Recommendation.OutputTokens),
+                MaxOutputTokens = target.Recommendation.OutputTokens,
+                MinContextTokens = Math.Min(2048, target.Recommendation.ContextTokens),
+                MaxContextTokens = target.Recommendation.ContextTokens,
+                OllamaNumGpu = target.Model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                    ? target.Recommendation.OllamaNumGpu
+                    : null,
+                IsEnabled = true,
+                MaxConcurrentModelsOnLane = 1
+            }).ToList();
 
-        var normalizedName = string.IsNullOrWhiteSpace(presetName)
-            ? $"Provider council benchmark {DateTimeOffset.Now:yyyy-MM-dd HHmm}"
-            : presetName.Trim();
-        normalizedName = normalizedName[..Math.Min(normalizedName.Length, 160)];
-        var preset = new CouncilModelPreset
-        {
-            Name = normalizedName,
-            Description = $"User-approved provider-qualified benchmark {report.RunId}. Same-named models remain separated by provider and endpoint.",
-            ModelNamesJson = JsonSerializer.Serialize(routes.Select(route => route.ModelName).ToList()),
-            ModelRoutesJson = JsonSerializer.Serialize(routes),
-            AllowParallelHardwareRoads = false,
-            MaxOutputTokens = routes.Max(route => route.MaxOutputTokens),
-            MaxContextTokens = routes.Max(route => route.MaxContextTokens),
-            MaxParallelModels = 1,
-            OllamaNumGpu = routes.Count == 1 ? routes[0].OllamaNumGpu : null,
-            IncludeMemory = false,
-            GenerateArtifacts = false,
-            CreateProjectPerRun = false,
-            IsDefault = makeDefault,
-            IsUserApproved = true
-        };
-        var saved = await modelPresets.SavePresetAsync(preset, userConfirmed, cancellationToken).ConfigureAwait(false);
-        report.AppliedPresetId = saved.Id;
-        report.AppliedPresetName = saved.Name;
-        return [saved];
+            var normalizedName = string.IsNullOrWhiteSpace(presetName)
+                ? $"Provider council benchmark {DateTimeOffset.Now:yyyy-MM-dd HHmm}"
+                : presetName.Trim();
+            normalizedName = normalizedName[..Math.Min(normalizedName.Length, 160)];
+            var preset = new CouncilModelPreset
+            {
+                Name = normalizedName,
+                Description = $"User-approved provider-qualified benchmark {report.RunId}. Same-named models remain separated by provider and endpoint.",
+                ModelNamesJson = JsonSerializer.Serialize(routes.Select(route => route.ModelName).ToList()),
+                ModelRoutesJson = JsonSerializer.Serialize(routes),
+                AllowParallelHardwareRoads = false,
+                MaxOutputTokens = routes.Max(route => route.MaxOutputTokens),
+                MaxContextTokens = routes.Max(route => route.MaxContextTokens),
+                MaxParallelModels = 1,
+                OllamaNumGpu = routes.Count == 1 ? routes[0].OllamaNumGpu : null,
+                IncludeMemory = false,
+                GenerateArtifacts = false,
+                CreateProjectPerRun = false,
+                IsDefault = makeDefault,
+                IsUserApproved = true
+            };
+            var saved = await modelPresets.SavePresetAsync(preset, userConfirmed, cancellationToken).ConfigureAwait(false);
+            report.AppliedPresetId = saved.Id;
+            report.AppliedPresetName = saved.Name;
+            return [saved];
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ApplyRecommendationsAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ApplyRecommendationsAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<ProviderModelBenchmarkProfileResult> RunProfileAsync(
         ProviderModelReference model,
@@ -499,88 +511,185 @@ public sealed class ProviderModelBenchmarkService(
         return review;
     }
 
-    private IReadOnlyList<BenchmarkTask> BuildTasks() =>
-    [
+    private IReadOnlyList<BenchmarkTask> BuildTasks() {
+    try
+    {
+        return [
         new("C# correctness", "A C# loop sums integers 1 through 5 but uses `for (var i = 1; i < 5; i++)`. State the bug and corrected loop in two short lines.", ["<= 5", "off-by-one"]),
         new("Provider identity", "Explain in one sentence why the pair (provider endpoint, model name) is safer as an AI model address than model name alone.", ["provider", "model"]),
         new("Structured settings", "Return JSON with keys contextTokens, outputTokens, parallelModels and reason for a conservative local AI benchmark configuration.", ["contextTokens", "outputTokens", "parallelModels"], ExpectJson: true),
         new("Accessibility", "Give three concise accessibility requirements for a reusable interactive model card containing select, properties and benchmark actions.", ["keyboard", "label", "focus"])
     ];
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(BuildTasks)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(BuildTasks)} failed.");
+        throw;
+    }
+}
 
     private IReadOnlyList<BenchmarkProfile> BuildProfiles(
         ProviderModelReference model,
         int maximumContext,
         int maximumOutput)
     {
-        var profiles = new List<BenchmarkProfile>();
-        void Add(string name, int context, int output, int? numGpu = null)
-        {
-            context = Math.Clamp(context, 2048, maximumContext);
-            output = Math.Clamp(output, 128, maximumOutput);
-            if (profiles.Any(item => item.ContextTokens == context
-                && item.OutputTokens == output
-                && item.OllamaNumGpu == numGpu))
-                return;
-            profiles.Add(new BenchmarkProfile(name, context, output, numGpu));
-        }
+    try
+    {
+            var profiles = new List<BenchmarkProfile>();
+            void Add(string name, int context, int output, int? numGpu = null)
+            {
+                context = Math.Clamp(context, 2048, maximumContext);
+                output = Math.Clamp(output, 128, maximumOutput);
+                if (profiles.Any(item => item.ContextTokens == context
+                    && item.OutputTokens == output
+                    && item.OllamaNumGpu == numGpu))
+                    return;
+                profiles.Add(new BenchmarkProfile(name, context, output, numGpu));
+            }
 
-        Add("Low latency", Math.Min(2048, maximumContext), Math.Min(256, maximumOutput));
-        Add("Balanced", Math.Min(4096, maximumContext), Math.Min(512, maximumOutput));
-        if (model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
-            Add("CPU-safe control", Math.Min(4096, maximumContext), Math.Min(512, maximumOutput), 0);
-        Add("Quality", Math.Min(8192, maximumContext), Math.Min(768, maximumOutput));
-        Add("Maximum bounded", maximumContext, maximumOutput);
+            Add("Low latency", Math.Min(2048, maximumContext), Math.Min(256, maximumOutput));
+            Add("Balanced", Math.Min(4096, maximumContext), Math.Min(512, maximumOutput));
+            if (model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                Add("CPU-safe control", Math.Min(4096, maximumContext), Math.Min(512, maximumOutput), 0);
+            Add("Quality", Math.Min(8192, maximumContext), Math.Min(768, maximumOutput));
+            Add("Maximum bounded", maximumContext, maximumOutput);
 
-        return profiles;
+            return profiles;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(BuildProfiles)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(BuildProfiles)} failed.");
+        throw;
+    }
+}
 
     private double ScoreQuality(string response, BenchmarkTask task)
     {
-        if (string.IsNullOrWhiteSpace(response))
-            return 0d;
-        var score = 0.2d;
-        var matches = task.ExpectedTokens.Count(token => response.Contains(token, StringComparison.OrdinalIgnoreCase));
-        score += task.ExpectedTokens.Count == 0 ? 0.6d : 0.6d * matches / task.ExpectedTokens.Count;
-        if (task.ExpectJson)
-        {
-            try
+    try
+    {
+            if (string.IsNullOrWhiteSpace(response))
+                return 0d;
+            var score = 0.2d;
+            var matches = task.ExpectedTokens.Count(token => response.Contains(token, StringComparison.OrdinalIgnoreCase));
+            score += task.ExpectedTokens.Count == 0 ? 0.6d : 0.6d * matches / task.ExpectedTokens.Count;
+            if (task.ExpectJson)
             {
-                using var _ = ParseFirstJsonObject(response);
+                try
+                {
+                    using var _ = ParseFirstJsonObject(response);
+                    score += 0.2d;
+                }
+                catch (JsonException)
+                {
+                }
+            }
+            else
+            {
                 score += 0.2d;
             }
-            catch (JsonException)
-            {
-            }
-        }
-        else
-        {
-            score += 0.2d;
-        }
-        return Math.Clamp(score, 0d, 1d);
+            return Math.Clamp(score, 0d, 1d);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ScoreQuality)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ScoreQuality)} failed.");
+        throw;
+    }
+}
 
     private JsonDocument ParseFirstJsonObject(string value)
     {
-        var start = value.IndexOf('{');
-        var end = value.LastIndexOf('}');
-        if (start < 0 || end <= start)
-            throw new JsonException("No JSON object was returned.");
-        return JsonDocument.Parse(value[start..(end + 1)]);
+    try
+    {
+            var start = value.IndexOf('{');
+            var end = value.LastIndexOf('}');
+            if (start < 0 || end <= start)
+                throw new JsonException("No JSON object was returned.");
+            return JsonDocument.Parse(value[start..(end + 1)]);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ParseFirstJsonObject)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ParseFirstJsonObject)} failed.");
+        throw;
+    }
+}
 
-    private int EstimateTokens(string value) => Math.Max(1, (int)Math.Ceiling(value.Length / 4d));
-    private double ReadDouble(JsonElement root, string property, double fallback) =>
-        root.TryGetProperty(property, out var value) && value.TryGetDouble(out var number)
+    private int EstimateTokens(string value) {
+    try
+    {
+        return Math.Max(1, (int)Math.Ceiling(value.Length / 4d));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(EstimateTokens)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(EstimateTokens)} failed.");
+        throw;
+    }
+}
+    private double ReadDouble(JsonElement root, string property, double fallback) {
+    try
+    {
+        return root.TryGetProperty(property, out var value) && value.TryGetDouble(out var number)
             ? Math.Clamp(number, 0d, 100d)
             : fallback;
-    private int ReadInt(JsonElement root, string property, int fallback) =>
-        root.TryGetProperty(property, out var value) && value.TryGetInt32(out var number) ? number : fallback;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ReadDouble)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ReadDouble)} failed.");
+        throw;
+    }
+}
+    private int ReadInt(JsonElement root, string property, int fallback) {
+    try
+    {
+        return root.TryGetProperty(property, out var value) && value.TryGetInt32(out var number) ? number : fallback;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ReadInt)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ReadInt)} failed.");
+        throw;
+    }
+}
     private int ClampToSupportedStep(int value, int minimum, int maximum)
     {
-        var clamped = Math.Clamp(value, minimum, maximum);
-        var step = clamped >= 8192 ? 1024 : clamped >= 2048 ? 512 : 128;
-        return Math.Clamp((int)Math.Round(clamped / (double)step) * step, minimum, maximum);
+    try
+    {
+            var clamped = Math.Clamp(value, minimum, maximum);
+            var step = clamped >= 8192 ? 1024 : clamped >= 2048 ? 512 : 128;
+            return Math.Clamp((int)Math.Round(clamped / (double)step) * step, minimum, maximum);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ClampToSupportedStep)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ClampToSupportedStep)} failed.");
+        throw;
+    }
+}
 
     private sealed record BenchmarkTask(string Name, string Prompt, IReadOnlyList<string> ExpectedTokens, bool ExpectJson = false);
     private sealed record BenchmarkProfile(string Name, int ContextTokens, int OutputTokens, int? OllamaNumGpu);

@@ -63,17 +63,29 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
 
     public DxAiFunctionInvocationResult InvalidParameters(string error)
     {
-        var message = string.IsNullOrWhiteSpace(error)
-            ? "The function parameters are invalid."
-            : error.Trim();
-        logger.LogInformation("Created an invalid DXAI parameter result; parameter values were omitted.");
-        return new DxAiFunctionInvocationResult
-        {
-            Succeeded = false,
-            Status = "InvalidParameters",
-            Error = message
-        };
+    try
+    {
+            var message = string.IsNullOrWhiteSpace(error)
+                ? "The function parameters are invalid."
+                : error.Trim();
+            logger.LogInformation("Created an invalid DXAI parameter result; parameter values were omitted.");
+            return new DxAiFunctionInvocationResult
+            {
+                Succeeded = false,
+                Status = "InvalidParameters",
+                Error = message
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionJsonService)}.{nameof(InvalidParameters)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionJsonService)}.{nameof(InvalidParameters)} failed.");
+        throw;
+    }
+}
 
     public DxAiFunctionInvocationResult Success(object? value = null, string status = "Completed")
     {
@@ -99,14 +111,26 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
 
     private string BuildParameterError(JsonException exception)
     {
-        var path = exception.Path?.Trim();
-        if (!string.IsNullOrWhiteSpace(path))
-        {
-            var parameterName = path.TrimStart('$', '.');
-            if (!string.IsNullOrWhiteSpace(parameterName))
-                return $"Parameter '{parameterName}' has an invalid value or type.";
-        }
+    try
+    {
+            var path = exception.Path?.Trim();
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                var parameterName = path.TrimStart('$', '.');
+                if (!string.IsNullOrWhiteSpace(parameterName))
+                    return $"Parameter '{parameterName}' has an invalid value or type.";
+            }
 
-        return "The function parameters contain invalid JSON values or types.";
+            return "The function parameters contain invalid JSON values or types.";
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionJsonService)}.{nameof(BuildParameterError)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionJsonService)}.{nameof(BuildParameterError)} failed.");
+        throw;
+    }
+}
 }

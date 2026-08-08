@@ -206,16 +206,28 @@ namespace LocalGPT.Services
             bool userConfirmed,
             CancellationToken cancellationToken)
         {
-            var checks = new List<EngineeringBenchmarkBuildCheck>();
-            foreach (var artifact in artifacts
-                .Where(item => item.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(item.FilePath))
-                .Take(Math.Clamp(maxBuildArtifacts, 1, 8)))
-            {
-                var check = await ValidateBuildableArtifactAsync(artifact, userConfirmed, cancellationToken).ConfigureAwait(false);
-                checks.Add(check);
-            }
-            return checks;
-        }
+    try
+    {
+                var checks = new List<EngineeringBenchmarkBuildCheck>();
+                foreach (var artifact in artifacts
+                    .Where(item => item.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && System.IO.File.Exists(item.FilePath))
+                    .Take(Math.Clamp(maxBuildArtifacts, 1, 8)))
+                {
+                    var check = await ValidateBuildableArtifactAsync(artifact, userConfirmed, cancellationToken).ConfigureAwait(false);
+                    checks.Add(check);
+                }
+                return checks;
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(EngineeringBenchmarkService)}.{nameof(ValidateBuildableArtifactsAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(EngineeringBenchmarkService)}.{nameof(ValidateBuildableArtifactsAsync)} failed.");
+        throw;
+    }
+}
 
         private async Task<EngineeringBenchmarkBuildCheck> ValidateBuildableArtifactAsync(
             CouncilArtifact artifact,

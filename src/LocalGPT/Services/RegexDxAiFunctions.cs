@@ -37,27 +37,52 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Regex catalog list DXFunction started.");
-        var parameters = Deserialize<RegexPatternListParameters>(request.Parameters);
-        var rows = await regexPatterns.ListAllAsync(Math.Clamp(parameters.Take, 1, 5000)).ConfigureAwait(false);
-        if (!string.IsNullOrWhiteSpace(parameters.Prefix))
-            rows = rows.Where(item => item.Name.StartsWith(parameters.Prefix.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
-        logger.LogInformation("Regex catalog list DXFunction completed with {PatternCount} pattern(s).", rows.Count);
-        return Completed(rows.Select(item => new
-        {
-            item.Name,
-            item.Pattern,
-            item.Flags,
-            item.CreatedOn,
-            item.UpdatedOn
-        }).ToList());
+    try
+    {
+            logger.LogInformation("Regex catalog list DXFunction started.");
+            var parameters = Deserialize<RegexPatternListParameters>(request.Parameters);
+            var rows = await regexPatterns.ListAllAsync(Math.Clamp(parameters.Take, 1, 5000)).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(parameters.Prefix))
+                rows = rows.Where(item => item.Name.StartsWith(parameters.Prefix.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+            logger.LogInformation("Regex catalog list DXFunction completed with {PatternCount} pattern(s).", rows.Count);
+            return Completed(rows.Select(item => new
+            {
+                item.Name,
+                item.Pattern,
+                item.Flags,
+                item.CreatedOn,
+                item.UpdatedOn
+            }).ToList());
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListRegexPatternsFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListRegexPatternsFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
     private T Deserialize<T>(JsonElement element) where T : new() => element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
         ? new T()
         : element.Deserialize<T>(JsonOptions) ?? new T();
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-    private DxAiFunctionInvocationResult Completed(object value) => new() { Succeeded = true, Status = "Completed", Value = value };
+    private DxAiFunctionInvocationResult Completed(object value) {
+    try
+    {
+        return new() { Succeeded = true, Status = "Completed", Value = value };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListRegexPatternsFunction)}.{nameof(Completed)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListRegexPatternsFunction)}.{nameof(Completed)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<GetRegexPatternFunction> logger) : IDxAiFunctionHandler

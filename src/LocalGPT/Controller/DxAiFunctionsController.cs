@@ -8,6 +8,8 @@ namespace LocalGPT.Controller;
 [Route("api/dxai/functions")]
 public sealed class DxAiFunctionsController(
     IDxAiFunctionServiceClient functionClient,
+    IDxAiFunctionCallRecoveryService recovery,
+    IDeferredDxAiInvocationService deferredInvocations,
     ILogger<DxAiFunctionsController> logger) : ControllerBase
 {
     [HttpGet]
@@ -25,6 +27,40 @@ public sealed class DxAiFunctionsController(
             return Results.InternalServerError("DXAIFunction discovery failed. Review LocalGPT application logs.");
         }
     }
+
+    [HttpPost("recover")]
+    public async Task<IResult> RecoverFunctionText(
+        [FromBody] DxAiFunctionTextRecoveryRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = recovery.Recover(request.Content, request.AutomaticInvocation);
+        if (!result.Recognized || !request.InvokeRecognizedCalls)
+            return Results.Ok(result);
+
+        foreach (var call in result.Calls)
+        {
+            var invocation = await functionClient.CallAsync(
+                call.FunctionName,
+                new DxAiFunctionInvocationRequest
+                {
+                    Parameters = call.Arguments,
+                    AutomaticInvocation = request.AutomaticInvocation,
+                    UserConfirmed = false,
+                    RequestedBy = request.RequestedBy,
+                    ConversationId = request.ConversationId,
+                    ProjectId = request.ProjectId,
+                    ProjectVersionId = request.ProjectVersionId,
+                    ApplicationVersion = request.ApplicationVersion
+                },
+                cancellationToken).ConfigureAwait(false);
+            result.Invocations.Add(invocation);
+        }
+        return Results.Ok(result);
+    }
+
+    [HttpPost("deferred/{approvalRequestId:guid}/execute")]
+    public async Task<IResult> ExecuteApprovedDeferred(Guid approvalRequestId, CancellationToken cancellationToken) =>
+        Results.Ok(await deferredInvocations.ExecuteApprovedForApprovalRequestAsync(approvalRequestId, cancellationToken: cancellationToken).ConfigureAwait(false));
 
     [HttpPost("{functionName}/invoke")]
     public async Task<IResult> InvokeFunction(

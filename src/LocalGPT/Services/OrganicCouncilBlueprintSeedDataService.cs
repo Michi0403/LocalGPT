@@ -17,17 +17,31 @@ public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCounci
     /// <returns>The complete immutable default team catalog.</returns>
     public IReadOnlyList<OrganicCouncilTeamDefinition> CreateDefaultTeams()
     {
-        var teams = CreateDefaultTeamsCore();
-        logger.LogInformation("Created {TeamCount} default organic council team blueprint(s).", teams.Count);
-        return teams;
+    try
+    {
+            var teams = CreateDefaultTeamsCore();
+            logger.LogInformation("Created {TeamCount} default organic council team blueprint(s).", teams.Count);
+            return teams;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateDefaultTeams)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateDefaultTeams)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Builds the default team catalog without logging or database side effects.
     /// </summary>
     /// <returns>The default team definitions.</returns>
-    private IReadOnlyList<OrganicCouncilTeamDefinition> CreateDefaultTeamsCore() =>
-    [
+    private IReadOnlyList<OrganicCouncilTeamDefinition> CreateDefaultTeamsCore() {
+    try
+    {
+        return [
         new()
         {
             Key = "general",
@@ -915,13 +929,26 @@ Original learning request:
             ]
         }
     ];
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateDefaultTeamsCore)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateDefaultTeamsCore)} failed.");
+        throw;
+    }
+}
 
 
     /// <summary>
     /// Creates the bounded installed-model benchmark council used by first-run onboarding and Chat quick starts.
     /// </summary>
     /// <returns>The seeded adaptive benchmark team definition.</returns>
-    private OrganicCouncilTeamDefinition CreateAdaptiveBenchmarkTeam() => new()
+    private OrganicCouncilTeamDefinition CreateAdaptiveBenchmarkTeam() {
+    try
+    {
+        return new()
     {
         Key = "adaptive-model-benchmark",
         DisplayName = "Adaptive Ollama Benchmark Council",
@@ -973,12 +1000,25 @@ Synthesize one recommended model/preset configuration plus alternatives for low-
             "A benchmark may create a new user-approved preset but never overwrites an existing preset."
         ]
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateAdaptiveBenchmarkTeam)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateAdaptiveBenchmarkTeam)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates a low-latency game council in which the deterministic GameDirector remains the authoritative engine.
     /// </summary>
     /// <returns>The seeded GameDirector runtime team definition.</returns>
-    private OrganicCouncilTeamDefinition CreateGameDirectorRuntimeTeam() => new()
+    private OrganicCouncilTeamDefinition CreateGameDirectorRuntimeTeam() {
+    try
+    {
+        return new()
     {
         Key = "game-director-runtime",
         DisplayName = "GameDirector Runtime Council",
@@ -1010,12 +1050,25 @@ Synthesize one recommended model/preset configuration plus alternatives for low-
             "The rendered ASCII frame is a view of committed state, not a second source of truth."
         ]
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateGameDirectorRuntimeTeam)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateGameDirectorRuntimeTeam)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates the modern hosted C# development team based on LocalGPT's PowerShell validation order.
     /// </summary>
     /// <returns>The seeded C# development team definition.</returns>
-    private OrganicCouncilTeamDefinition CreateCSharpModernHostDevelopmentTeam() => CreateDevelopmentTeam(
+    private OrganicCouncilTeamDefinition CreateCSharpModernHostDevelopmentTeam() {
+    try
+    {
+        return CreateDevelopmentTeam(
         "csharp-modern-host-development",
         "Modern C# Host Development Team",
         "Builds maintainable .NET hosted applications with DI, controllers, DXFunctions, project structure, regex ownership and repository validation rounds.",
@@ -1027,12 +1080,25 @@ Synthesize one recommended model/preset configuration plus alternatives for low-
         [".sln", ".slnx", ".csproj", ".cs", ".razor", ".json", ".props", ".targets"],
         "Use a modern Generic Host or ASP.NET Core WebApplication host, explicit DI lifetimes, options binding, controllers/services behind interfaces, cancellation, structured logging and bounded workspace execution.",
         "dotnet restore/build/test plus LocalGPT architecture, async, iterator, localization, text-ownership and system-variable policy guards.");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateCSharpModernHostDevelopmentTeam)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateCSharpModernHostDevelopmentTeam)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates a PowerShell build-system development team that mirrors LocalGPT's repository guard sequence.
     /// </summary>
     /// <returns>The seeded PowerShell development team definition.</returns>
-    private OrganicCouncilTeamDefinition CreatePowerShellBuildDevelopmentTeam() => CreateDevelopmentTeam(
+    private OrganicCouncilTeamDefinition CreatePowerShellBuildDevelopmentTeam() {
+    try
+    {
+        return CreateDevelopmentTeam(
         "powershell-build-development",
         "PowerShell Build-System Development Team",
         "Designs PowerShell modules and repository build automation by following LocalGPT's proven preflight, policy, build, verification and release-handoff sequence.",
@@ -1044,12 +1110,25 @@ Synthesize one recommended model/preset configuration plus alternatives for low-
         [".ps1", ".psm1", ".psd1", ".ps1xml", ".json", ".yml", ".yaml", ".cmd"],
         "Prefer advanced functions, CmdletBinding, explicit parameters, strict mode, approved verbs, structured errors, bounded native-process invocation and deterministic exit codes.",
         "Run parse validation, PSScriptAnalyzer/Pester when installed, repository policy scripts and a dry-run path before any consequential command.");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreatePowerShellBuildDevelopmentTeam)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreatePowerShellBuildDevelopmentTeam)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates a Java hosted-application development team with Maven/Gradle project and regex roles.
     /// </summary>
     /// <returns>The seeded Java development team definition.</returns>
-    private OrganicCouncilTeamDefinition CreateJavaHostedDevelopmentTeam() => CreateDevelopmentTeam(
+    private OrganicCouncilTeamDefinition CreateJavaHostedDevelopmentTeam() {
+    try
+    {
+        return CreateDevelopmentTeam(
         "java-hosted-development",
         "Java Hosted Application Development Team",
         "Builds Java services with Maven or Gradle, explicit package boundaries, controller/service adapters, tests, regex policies and reviewable artifact generation.",
@@ -1061,12 +1140,25 @@ Synthesize one recommended model/preset configuration plus alternatives for low-
         ["pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", ".java", ".properties", ".xml", ".json", ".yml"],
         "Choose Maven or Gradle explicitly, keep controllers thin, use service interfaces/adapters, structured configuration, cancellation/interruption boundaries and testable dependency injection.",
         "Run wrapper-based compile/test/package commands only inside an approved workspace and verify dependency, package, test-report and artifact paths.");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateJavaHostedDevelopmentTeam)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateJavaHostedDevelopmentTeam)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates a Minecraft development team with distinct datapack, scripting and Java-mod roles.
     /// </summary>
     /// <returns>The seeded Minecraft development team definition.</returns>
-    private OrganicCouncilTeamDefinition CreateMinecraftDevelopmentTeam() => CreateDevelopmentTeam(
+    private OrganicCouncilTeamDefinition CreateMinecraftDevelopmentTeam() {
+    try
+    {
+        return CreateDevelopmentTeam(
         "minecraft-development",
         "Minecraft Development Team",
         "Routes Bedrock datapack/scripting and Java-mod work to distinct specialists while preserving manifests, namespaces, pack formats, project regexes and bounded build verification.",
@@ -1078,6 +1170,16 @@ Synthesize one recommended model/preset configuration plus alternatives for low-
         ["manifest.json", "pack.mcmeta", ".mcfunction", ".json", ".js", ".ts", ".java", ".gradle", ".properties", ".lang"],
         "Determine Bedrock add-on, datapack, scripting API, Fabric/Forge/NeoForge or mixed target before generation. Keep namespaces, UUIDs, pack formats, mappings and version compatibility explicit.",
         "Validate JSON/manifests/functions first, then run the selected wrapper/compiler and inspect the generated pack/mod artifact without launching Minecraft automatically.");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateMinecraftDevelopmentTeam)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateMinecraftDevelopmentTeam)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates one language-specific development council using the maintained repository round order.
@@ -1105,7 +1207,10 @@ Synthesize one recommended model/preset configuration plus alternatives for low-
         string curatorRole,
         IReadOnlyList<string> expectedFiles,
         string architectureInstruction,
-        string buildInstruction) => new()
+        string buildInstruction) {
+    try
+    {
+        return new()
     {
         Key = key,
         DisplayName = displayName,
@@ -1161,6 +1266,16 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
             "Every consequential build, script or write remains workspace-bound and user-approved; Council rounds may propose and review but do not create unattended loops."
         ]
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateDevelopmentTeam)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(CreateDevelopmentTeam)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates one maintained council workflow step with conservative defaults.
@@ -1184,7 +1299,10 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         string prompt,
         string executionMode,
         bool canUseOrganicFunctions = false,
-        bool producesFinalAnswer = false) => new()
+        bool producesFinalAnswer = false) {
+    try
+    {
+        return new()
     {
         Key = key,
         DisplayName = displayName,
@@ -1199,16 +1317,38 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         ProducesFinalAnswer = producesFinalAnswer,
         UseBuiltInBehavior = false
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(Step)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(Step)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates architecture contracts shared by every seeded council team.
     /// </summary>
     /// <returns>The shared architecture-contract list.</returns>
-    private List<string> DefaultArchitectureContracts() =>
-    [
+    private List<string> DefaultArchitectureContracts() {
+    try
+    {
+        return [
         "New .NET organ plugins use the existing namespace/service/domain architecture, intentional Singleton/Scoped/Transient lifetimes and structured ILogger<T> logging.",
         "The transport contract remains independent from TCP so later UART, SPI and MQTT adapters can implement the same interfaces.",
         "Runtime identities are generated by each application only after installation. MFA-verified peer trust enables ECDH-derived AES-GCM encryption and ECDSA signing; deleting or regenerating the runtime secret resets cryptographic trust.",
         "Installer, launcher, bootstrap and fixed-port wiring are compatibility contracts and require explicit migration plus regression tests."
     ];
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(DefaultArchitectureContracts)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicCouncilBlueprintSeedDataService)}.{nameof(DefaultArchitectureContracts)} failed.");
+        throw;
+    }
+}
 }

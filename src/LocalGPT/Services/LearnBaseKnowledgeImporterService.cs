@@ -25,10 +25,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var defaultPreset = catalog.LearnBasePresets.FirstOrDefault();
-                var rootPath = string.IsNullOrWhiteSpace(request.RootPath)
-                    ? defaultPreset?.RootPath ?? @"C:\learnbaseforlocalgpt"
-                    : request.RootPath.Trim();
+                var rootPath = request.RootPath?.Trim() ?? string.Empty;
                 var selection = BuildSelectionPolicy(request);
                 var result = new LearnBaseImportResult
                 {
@@ -38,6 +35,11 @@ namespace LocalGPT.Services
                     DuplicatePolicy = catalog.LearnBaseDuplicatePolicySummary
                 };
 
+                if (string.IsNullOrWhiteSpace(rootPath))
+                {
+                    result.Warnings.Add("No learn-base root was selected. Use the local path explorer or supply an explicit host folder.");
+                    return result;
+                }
                 if (!Directory.Exists(rootPath))
                 {
                     result.Warnings.Add($"Learn-base root was not found: {rootPath}");
@@ -275,17 +277,44 @@ namespace LocalGPT.Services
 
         private Guid DeterministicGuid(string hexadecimalHash)
         {
-            var bytes = Convert.FromHexString(hexadecimalHash);
-            return new Guid(bytes.AsSpan(0, 16));
-        }
+    try
+    {
+                var bytes = Convert.FromHexString(hexadecimalHash);
+                return new Guid(bytes.AsSpan(0, 16));
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(DeterministicGuid)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(DeterministicGuid)} failed.");
+        throw;
+    }
+}
 
         private Regex CompileManifestRegex(string? pattern, string fallback)
         {
-            var value = string.IsNullOrWhiteSpace(pattern) ? fallback : pattern;
-            return regexPatterns.Compile(value, "CultureInvariant", runtimePolicy.RegexTimeout);
-        }
+    try
+    {
+                var value = string.IsNullOrWhiteSpace(pattern) ? fallback : pattern;
+                return regexPatterns.Compile(value, "CultureInvariant", runtimePolicy.RegexTimeout);
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(CompileManifestRegex)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(CompileManifestRegex)} failed.");
+        throw;
+    }
+}
 
-        private int RepresentativeRank(string extension) => extension.ToLowerInvariant() switch
+        private int RepresentativeRank(string extension) {
+    try
+    {
+        return extension.ToLowerInvariant() switch
         {
             ".md" or ".mdx" or ".rst" or ".adoc" => 0,
             ".ino" or ".pde" => 1,
@@ -294,23 +323,45 @@ namespace LocalGPT.Services
             ".json" or ".yml" or ".yaml" or ".toml" or ".ini" => 4,
             _ => 5
         };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(RepresentativeRank)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(RepresentativeRank)} failed.");
+        throw;
+    }
+}
 
         private async Task<string> ExtractManifestFileSignatureAsync(string root, FileInfo file, CancellationToken cancellationToken)
         {
-            const int maximumCharacters = 12000;
-            await using var stream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: false);
-            var buffer = new char[Math.Min(maximumCharacters, (int)Math.Min(file.Length + 1, maximumCharacters))];
-            var count = await reader.ReadBlockAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
-            var text = new string(buffer, 0, count);
-            var relative = Path.GetRelativePath(root, file.FullName).Replace('\\', '/');
-            var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(line => line.StartsWith('#') || line.Contains("setup(", StringComparison.Ordinal) || line.Contains("loop(", StringComparison.Ordinal) || line.Contains("#define ", StringComparison.Ordinal) || line.Contains("class ", StringComparison.Ordinal) || line.Contains("struct ", StringComparison.Ordinal) || line.Contains("GPIO", StringComparison.OrdinalIgnoreCase) || line.Contains("pinMode", StringComparison.Ordinal))
-                .Select(line => line.Length <= 220 ? line : line[..220])
-                .Take(6)
-                .ToArray();
-            return lines.Length == 0 ? relative : relative + " :: " + string.Join(" | ", lines);
-        }
+    try
+    {
+                const int maximumCharacters = 12000;
+                await using var stream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: false);
+                var buffer = new char[Math.Min(maximumCharacters, (int)Math.Min(file.Length + 1, maximumCharacters))];
+                var count = await reader.ReadBlockAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+                var text = new string(buffer, 0, count);
+                var relative = Path.GetRelativePath(root, file.FullName).Replace('\\', '/');
+                var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(line => line.StartsWith('#') || line.Contains("setup(", StringComparison.Ordinal) || line.Contains("loop(", StringComparison.Ordinal) || line.Contains("#define ", StringComparison.Ordinal) || line.Contains("class ", StringComparison.Ordinal) || line.Contains("struct ", StringComparison.Ordinal) || line.Contains("GPIO", StringComparison.OrdinalIgnoreCase) || line.Contains("pinMode", StringComparison.Ordinal))
+                    .Select(line => line.Length <= 220 ? line : line[..220])
+                    .Take(6)
+                    .ToArray();
+                return lines.Length == 0 ? relative : relative + " :: " + string.Join(" | ", lines);
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(ExtractManifestFileSignatureAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(ExtractManifestFileSignatureAsync)} failed.");
+        throw;
+    }
+}
 
         private sealed class LearningSourceManifest
         {
@@ -449,47 +500,83 @@ namespace LocalGPT.Services
 
         private LearnBaseSelectionPolicy BuildSelectionPolicy(LearnBaseImportRequest request)
         {
-            var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var extension in request.FileExtensions ?? new List<string>())
-                AddExtension(selected, extension);
-            foreach (var extension in (request.AdditionalFileExtensions ?? string.Empty).Split(
-                         [',', ';', '\r', '\n', '\t', ' '],
-                         StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                AddExtension(selected, extension);
-            if (selected.Count == 0)
-            {
-                foreach (var extension in catalog.LearnBaseKnownExtensions)
+    try
+    {
+                var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var extension in request.FileExtensions ?? new List<string>())
                     AddExtension(selected, extension);
-            }
+                foreach (var extension in (request.AdditionalFileExtensions ?? string.Empty).Split(
+                             [',', ';', '\r', '\n', '\t', ' '],
+                             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    AddExtension(selected, extension);
+                if (selected.Count == 0)
+                {
+                    foreach (var extension in catalog.LearnBaseKnownExtensions)
+                        AddExtension(selected, extension);
+                }
 
-            return new LearnBaseSelectionPolicy(
-                selected,
-                CompileManifestRegex(request.FileIncludeRegex, @".*"),
-                CompileManifestRegex(request.FileExcludeRegex, @"(?!)"),
-                Math.Clamp(request.MaximumFileBytes, 1024, 16 * 1024 * 1024),
-                catalog.ExcludedDirectoryNames,
-                catalog.BinaryExtensions);
-        }
+                return new LearnBaseSelectionPolicy(
+                    selected,
+                    CompileManifestRegex(request.FileIncludeRegex, @".*"),
+                    CompileManifestRegex(request.FileExcludeRegex, @"(?!)"),
+                    Math.Clamp(request.MaximumFileBytes, 1024, 16 * 1024 * 1024),
+                    catalog.ExcludedDirectoryNames,
+                    catalog.BinaryExtensions);
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(BuildSelectionPolicy)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(BuildSelectionPolicy)} failed.");
+        throw;
+    }
+}
 
         private void AddExtension(HashSet<string> extensions, string? value)
         {
-            var trimmed = value?.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed))
-                return;
-            if (trimmed.StartsWith("*.", StringComparison.Ordinal))
-                trimmed = trimmed[1..];
-            if (!trimmed.StartsWith(".", StringComparison.Ordinal))
-                trimmed = "." + trimmed;
-            extensions.Add(trimmed.ToLowerInvariant());
-        }
+    try
+    {
+                var trimmed = value?.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                    return;
+                if (trimmed.StartsWith("*.", StringComparison.Ordinal))
+                    trimmed = trimmed[1..];
+                if (!trimmed.StartsWith(".", StringComparison.Ordinal))
+                    trimmed = "." + trimmed;
+                extensions.Add(trimmed.ToLowerInvariant());
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(AddExtension)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(AddExtension)} failed.");
+        throw;
+    }
+}
 
         private string BuildFilePolicyDescription(LearnBaseSelectionPolicy selection)
         {
-            var ordered = selection.Extensions.OrderBy(extension => extension, StringComparer.OrdinalIgnoreCase).ToArray();
-            var visible = string.Join(", ", ordered.Take(36));
-            var remainder = ordered.Length > 36 ? $" and {ordered.Length - 36} more" : string.Empty;
-            return $"Selected endings: {visible}{remainder}. Include regex: {selection.IncludeRegex}. Exclude regex: {selection.ExcludeRegex}. Maximum file size: {selection.MaximumFileBytes:N0} bytes. Binary containers and excluded build/cache folders remain inactive.";
-        }
+    try
+    {
+                var ordered = selection.Extensions.OrderBy(extension => extension, StringComparer.OrdinalIgnoreCase).ToArray();
+                var visible = string.Join(", ", ordered.Take(36));
+                var remainder = ordered.Length > 36 ? $" and {ordered.Length - 36} more" : string.Empty;
+                return $"Selected endings: {visible}{remainder}. Include regex: {selection.IncludeRegex}. Exclude regex: {selection.ExcludeRegex}. Maximum file size: {selection.MaximumFileBytes:N0} bytes. Binary containers and excluded build/cache folders remain inactive.";
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(BuildFilePolicyDescription)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LearnBaseKnowledgeImporterService)}.{nameof(BuildFilePolicyDescription)} failed.");
+        throw;
+    }
+}
 
         private IReadOnlyList<FileInfo> FindSelectedFiles(
             string rootPath,
@@ -555,14 +642,23 @@ namespace LocalGPT.Services
 
             public bool Matches(string relativePath, long length)
             {
-                if (length <= 0 || length > MaximumFileBytes)
-                    return false;
-                if (!IncludeRegex.IsMatch(relativePath) || ExcludeRegex.IsMatch(relativePath))
-                    return false;
-                if (BinaryExtensions.Any(extension => relativePath.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
-                    return false;
-                return Extensions.Any(extension => relativePath.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
-            }
+    try
+    {
+                    if (length <= 0 || length > MaximumFileBytes)
+                        return false;
+                    if (!IncludeRegex.IsMatch(relativePath) || ExcludeRegex.IsMatch(relativePath))
+                        return false;
+                    if (BinaryExtensions.Any(extension => relativePath.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
+                        return false;
+                    return Extensions.Any(extension => relativePath.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+            
+    }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method LearnBaseSelectionPolicy.Matches failed: {__serviceMethodException}");
+        throw;
+    }
+}
         }
     }
 }

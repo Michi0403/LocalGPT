@@ -83,21 +83,30 @@ public sealed class CreatureCouncilGameSubdirector(
         CouncilGameDirectorContext context,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var noisyAction = context.NormalizedAction is "shoot" or "use";
-        var actors = actorFactory.CreateActors(context, ActorKind);
-        return Task.FromResult(new CouncilGameSubdirectorPrediction
-        {
-            DirectorKey = Key,
-            ActorKind = ActorKind,
-            RuntimeClassKey = "games.ascii.doom.creature",
-            Prediction = noisyAction
-                ? $"{Math.Clamp(context.Session.CreatureDirectorCount, 1, 8)} configured creature director(s) may investigate the sound during the resolved world step."
-                : $"{Math.Clamp(context.Session.CreatureDirectorCount, 1, 8)} configured creature director(s) may keep patrol state or approach only when line-of-sight rules permit.",
-            ConfidencePercent = 70,
-            ActorInstances = actors
-        });
+    try
+    {
+            cancellationToken.ThrowIfCancellationRequested();
+            var noisyAction = context.NormalizedAction is "shoot" or "use";
+            var actors = actorFactory.CreateActors(context, ActorKind);
+            return Task.FromResult(new CouncilGameSubdirectorPrediction
+            {
+                DirectorKey = Key,
+                ActorKind = ActorKind,
+                RuntimeClassKey = "games.ascii.doom.creature",
+                Prediction = noisyAction
+                    ? $"{Math.Clamp(context.Session.CreatureDirectorCount, 1, 8)} configured creature director(s) may investigate the sound during the resolved world step."
+                    : $"{Math.Clamp(context.Session.CreatureDirectorCount, 1, 8)} configured creature director(s) may keep patrol state or approach only when line-of-sight rules permit.",
+                ConfidencePercent = 70,
+                ActorInstances = actors
+            });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method CreatureCouncilGameSubdirector.PredictAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }
 
 /// <summary>Predicts bounded reactions from doors, switches, pickups and hazards.</summary>
@@ -111,21 +120,30 @@ public sealed class ReactiveObjectCouncilGameSubdirector(
         CouncilGameDirectorContext context,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var interaction = context.NormalizedAction == "use";
-        var actors = actorFactory.CreateActors(context, ActorKind);
-        return Task.FromResult(new CouncilGameSubdirectorPrediction
-        {
-            DirectorKey = Key,
-            ActorKind = ActorKind,
-            RuntimeClassKey = "games.ascii.doom.reactive-object",
-            Prediction = interaction
-                ? "The nearest eligible door, switch or pickup may react after range and state checks."
-                : "Reactive objects remain unchanged unless movement enters a trigger volume.",
-            ConfidencePercent = 75,
-            ActorInstances = actors
-        });
+    try
+    {
+            cancellationToken.ThrowIfCancellationRequested();
+            var interaction = context.NormalizedAction == "use";
+            var actors = actorFactory.CreateActors(context, ActorKind);
+            return Task.FromResult(new CouncilGameSubdirectorPrediction
+            {
+                DirectorKey = Key,
+                ActorKind = ActorKind,
+                RuntimeClassKey = "games.ascii.doom.reactive-object",
+                Prediction = interaction
+                    ? "The nearest eligible door, switch or pickup may react after range and state checks."
+                    : "Reactive objects remain unchanged unless movement enters a trigger volume.",
+                ConfidencePercent = 75,
+                ActorInstances = actors
+            });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method ReactiveObjectCouncilGameSubdirector.PredictAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }
 
 /// <summary>Creates stable per-turn actor descriptors without granting them state-mutation authority.</summary>

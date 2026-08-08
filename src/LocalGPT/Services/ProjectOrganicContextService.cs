@@ -41,58 +41,107 @@ public sealed class ProjectOrganicContextService(
 
     public async Task<ProjectOrganicContext> SaveAsync(Guid projectId, SaveProjectOrganicContextRequest request, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        if (!request.UserConfirmed)
-            throw new InvalidOperationException("Saving project installer/compiler/regex/organ wiring requires current user confirmation.");
-        request.ProjectId = projectId;
-        request.LastCouncilActivityUtc ??= DateTimeOffset.UtcNow;
-        var existing = await projectArchitecture.GetArtifactsAsync(projectId, cancellationToken).ConfigureAwait(false);
-        var existingArtifact = existing
-            .Where(item => string.Equals(item.ArtifactKind, ArtifactKind, StringComparison.OrdinalIgnoreCase))
-            .Where(item => item.RevisionId == request.RevisionId)
-            .OrderByDescending(item => item.UpdatedAtUtc)
-            .FirstOrDefault();
-        await projectArchitecture.SaveArtifactAsync(projectId, new SaveProjectArtifactRequest
-        {
-            Id = existingArtifact?.Id,
-            RevisionId = request.RevisionId,
-            ArtifactKind = ArtifactKind,
-            Name = ArtifactName,
-            Value = JsonSerializer.Serialize<ProjectOrganicContext>(request, JsonOptions),
-            DataType = "application/json",
-            Flags = "installer;compiler;commands;knowledge;regex;debug;build;organs;one-wire",
-            Description = "Revision-aware project wiring used by council preparation and organic plugins. This record does not authorize command execution.",
-            IsSensitive = false,
-            UserConfirmed = true
-        }, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Saved approved organic project context for project {ProjectId} and revision {RevisionId}.", projectId, request.RevisionId);
-        return await GetAsync(projectId, request.RevisionId, cancellationToken).ConfigureAwait(false);
+    try
+    {
+            ArgumentNullException.ThrowIfNull(request);
+            if (!request.UserConfirmed)
+                throw new InvalidOperationException("Saving project installer/compiler/regex/organ wiring requires current user confirmation.");
+            request.ProjectId = projectId;
+            request.LastCouncilActivityUtc ??= DateTimeOffset.UtcNow;
+            var existing = await projectArchitecture.GetArtifactsAsync(projectId, cancellationToken).ConfigureAwait(false);
+            var existingArtifact = existing
+                .Where(item => string.Equals(item.ArtifactKind, ArtifactKind, StringComparison.OrdinalIgnoreCase))
+                .Where(item => item.RevisionId == request.RevisionId)
+                .OrderByDescending(item => item.UpdatedAtUtc)
+                .FirstOrDefault();
+            await projectArchitecture.SaveArtifactAsync(projectId, new SaveProjectArtifactRequest
+            {
+                Id = existingArtifact?.Id,
+                RevisionId = request.RevisionId,
+                ArtifactKind = ArtifactKind,
+                Name = ArtifactName,
+                Value = JsonSerializer.Serialize<ProjectOrganicContext>(request, JsonOptions),
+                DataType = "application/json",
+                Flags = "installer;compiler;commands;knowledge;regex;debug;build;organs;one-wire",
+                Description = "Revision-aware project wiring used by council preparation and organic plugins. This record does not authorize command execution.",
+                IsSensitive = false,
+                UserConfirmed = true
+            }, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Saved approved organic project context for project {ProjectId} and revision {RevisionId}.", projectId, request.RevisionId);
+            return await GetAsync(projectId, request.RevisionId, cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProjectOrganicContextService)}.{nameof(SaveAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProjectOrganicContextService)}.{nameof(SaveAsync)} failed.");
+        throw;
+    }
+}
 
     public async Task<string> BuildBriefingAsync(Guid projectId, Guid? revisionId, CancellationToken cancellationToken = default)
     {
-        var context = await GetAsync(projectId, revisionId, cancellationToken).ConfigureAwait(false);
-        var builder = new StringBuilder()
-            .AppendLine("Organic project wiring (approved database artifact):")
-            .AppendLine($"- Installer: {(context.HasInstaller is null ? "unknown" : context.HasInstaller.Value ? "yes" : "no")}; path: {ValueOrUnknown(context.InstallerPath)}")
-            .AppendLine($"- Compilers: {Join(context.Compilers)}")
-            .AppendLine($"- System command references: {Join(context.SystemCommands)}")
-            .AppendLine($"- Knowledge references: {Join(context.KnowledgeReferences)}")
-            .AppendLine($"- Project regex patterns: {Join(context.ProjectRegexPatterns)}")
-            .AppendLine($"- File regex patterns: {Join(context.FileRegexPatterns)}")
-            .AppendLine($"- Debug paths: {Join(context.DebugPaths)}")
-            .AppendLine($"- Last build successful: {(context.BuildSuccessful?.ToString() ?? "unknown")}")
-            .AppendLine($"- Required organic capabilities: {Join(context.RequiredOrganicCapabilities)}")
-            .AppendLine($"- External organ plugins: {Join(context.ExternalOrganPlugins)}")
-            .AppendLine("Treat installer/bootstrap paths, fixed ports and launcher arguments as compatibility contracts. Propose changes explicitly and preserve them unless the user authorizes a migration.");
-        return builder.ToString().Trim();
+    try
+    {
+            var context = await GetAsync(projectId, revisionId, cancellationToken).ConfigureAwait(false);
+            var builder = new StringBuilder()
+                .AppendLine("Organic project wiring (approved database artifact):")
+                .AppendLine($"- Installer: {(context.HasInstaller is null ? "unknown" : context.HasInstaller.Value ? "yes" : "no")}; path: {ValueOrUnknown(context.InstallerPath)}")
+                .AppendLine($"- Compilers: {Join(context.Compilers)}")
+                .AppendLine($"- System command references: {Join(context.SystemCommands)}")
+                .AppendLine($"- Knowledge references: {Join(context.KnowledgeReferences)}")
+                .AppendLine($"- Project regex patterns: {Join(context.ProjectRegexPatterns)}")
+                .AppendLine($"- File regex patterns: {Join(context.FileRegexPatterns)}")
+                .AppendLine($"- Debug paths: {Join(context.DebugPaths)}")
+                .AppendLine($"- Last build successful: {(context.BuildSuccessful?.ToString() ?? "unknown")}")
+                .AppendLine($"- Required organic capabilities: {Join(context.RequiredOrganicCapabilities)}")
+                .AppendLine($"- External organ plugins: {Join(context.ExternalOrganPlugins)}")
+                .AppendLine("Treat installer/bootstrap paths, fixed ports and launcher arguments as compatibility contracts. Propose changes explicitly and preserve them unless the user authorizes a migration.");
+            return builder.ToString().Trim();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProjectOrganicContextService)}.{nameof(BuildBriefingAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProjectOrganicContextService)}.{nameof(BuildBriefingAsync)} failed.");
+        throw;
+    }
+}
 
     private string Join(IEnumerable<string> values)
     {
-        var normalized = values.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase).Take(40).ToList();
-        return normalized.Count == 0 ? "none recorded" : string.Join(", ", normalized);
+    try
+    {
+            var normalized = values.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase).Take(40).ToList();
+            return normalized.Count == 0 ? "none recorded" : string.Join(", ", normalized);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProjectOrganicContextService)}.{nameof(Join)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProjectOrganicContextService)}.{nameof(Join)} failed.");
+        throw;
+    }
+}
 
-    private string ValueOrUnknown(string value) => string.IsNullOrWhiteSpace(value) ? "unknown" : value;
+    private string ValueOrUnknown(string value) {
+    try
+    {
+        return string.IsNullOrWhiteSpace(value) ? "unknown" : value;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProjectOrganicContextService)}.{nameof(ValueOrUnknown)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProjectOrganicContextService)}.{nameof(ValueOrUnknown)} failed.");
+        throw;
+    }
+}
 }

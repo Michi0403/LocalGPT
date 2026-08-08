@@ -24,10 +24,22 @@ public sealed class ListSqliteTablesFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var tables = await editor.GetTablesAsync(cancellationToken).ConfigureAwait(false);
-        logger.LogDebug("DXAIFunction listed {TableCount} SQLite tables.", tables.Count);
-        return json.Success(tables);
+    try
+    {
+            var tables = await editor.GetTablesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogDebug("DXAIFunction listed {TableCount} SQLite tables.", tables.Count);
+            return json.Success(tables);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListSqliteTablesFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListSqliteTablesFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
@@ -52,32 +64,56 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<SqliteTableReadParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
-        var snapshot = await editor.GetTableAsync(parameters.TableName, Math.Clamp(parameters.Take, 1, 100), cancellationToken).ConfigureAwait(false);
-        foreach (var row in snapshot.Rows)
-        {
-            foreach (var key in row.Values.Keys.ToList())
+    try
+    {
+            var binding = json.Bind<SqliteTableReadParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
+            var snapshot = await editor.GetTableAsync(parameters.TableName, Math.Clamp(parameters.Take, 1, 100), cancellationToken).ConfigureAwait(false);
+            foreach (var row in snapshot.Rows)
             {
-                if (IsSensitiveColumn(key))
-                    row.Values[key] = "<masked>";
+                foreach (var key in row.Values.Keys.ToList())
+                {
+                    if (IsSensitiveColumn(key))
+                        row.Values[key] = "<masked>";
+                }
             }
-        }
-        logger.LogDebug("DXAIFunction previewed SQLite table {TableName} with {RowCount} row(s).", parameters.TableName, snapshot.Rows.Count);
-        return json.Success(snapshot);
+            logger.LogDebug("DXAIFunction previewed SQLite table {TableName} with {RowCount} row(s).", parameters.TableName, snapshot.Rows.Count);
+            return json.Success(snapshot);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(PreviewSqliteTableFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(PreviewSqliteTableFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
-    private bool IsSensitiveColumn(string name) =>
-        name.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+    private bool IsSensitiveColumn(string name) {
+    try
+    {
+        return name.Contains("password", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("token", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("apikey", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("connectionstring", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("parametersjson", StringComparison.OrdinalIgnoreCase) ||
         name.Contains("payloadjson", StringComparison.OrdinalIgnoreCase);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(PreviewSqliteTableFunction)}.{nameof(IsSensitiveColumn)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(PreviewSqliteTableFunction)}.{nameof(IsSensitiveColumn)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -105,15 +141,27 @@ public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<SqliteTableReadParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
-        var snapshot = await editor.GetTableAsync(parameters.TableName, Math.Clamp(parameters.Take, 1, 100), cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved exact SQLite read completed for table {TableName} with {RowCount} row(s); values omitted from logs.", parameters.TableName, snapshot.Rows.Count);
-        return json.Success(snapshot);
+    try
+    {
+            var binding = json.Bind<SqliteTableReadParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
+            var snapshot = await editor.GetTableAsync(parameters.TableName, Math.Clamp(parameters.Take, 1, 100), cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved exact SQLite read completed for table {TableName} with {RowCount} row(s); values omitted from logs.", parameters.TableName, snapshot.Rows.Count);
+            return json.Success(snapshot);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ReadExactSqliteTableFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ReadExactSqliteTableFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -141,28 +189,40 @@ public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<SqliteRowUpsertParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
-        if (parameters.Values.Count == 0)
-            throw new JsonException("At least one column value is required.");
-        if (parameters.RowId is long rowId)
-        {
-            await editor.UpdateRowAsync(
-                parameters.TableName,
-                rowId,
-                parameters.Values.Select(pair => new SqliteCellUpdate { ColumnName = pair.Key, Value = pair.Value }).ToList(),
-                cancellationToken).ConfigureAwait(false);
-            logger.LogInformation("Approved SQLite update completed for {TableName} row {RowId}; values omitted from logs.", parameters.TableName, rowId);
-            return json.Success(new { parameters.TableName, RowId = rowId, Operation = "Updated" });
-        }
+    try
+    {
+            var binding = json.Bind<SqliteRowUpsertParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
+            if (parameters.Values.Count == 0)
+                throw new JsonException("At least one column value is required.");
+            if (parameters.RowId is long rowId)
+            {
+                await editor.UpdateRowAsync(
+                    parameters.TableName,
+                    rowId,
+                    parameters.Values.Select(pair => new SqliteCellUpdate { ColumnName = pair.Key, Value = pair.Value }).ToList(),
+                    cancellationToken).ConfigureAwait(false);
+                logger.LogInformation("Approved SQLite update completed for {TableName} row {RowId}; values omitted from logs.", parameters.TableName, rowId);
+                return json.Success(new { parameters.TableName, RowId = rowId, Operation = "Updated" });
+            }
 
-        await editor.InsertRowAsync(parameters.TableName, parameters.Values, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved SQLite insert completed for {TableName}; values omitted from logs.", parameters.TableName);
-        return json.Success(new { parameters.TableName, Operation = "Inserted" });
+            await editor.InsertRowAsync(parameters.TableName, parameters.Values, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved SQLite insert completed for {TableName}; values omitted from logs.", parameters.TableName);
+            return json.Success(new { parameters.TableName, Operation = "Inserted" });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(UpsertSqliteRowFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(UpsertSqliteRowFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -190,15 +250,27 @@ public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<SqliteRowDeleteParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
-        await editor.DeleteRowAsync(parameters.TableName, parameters.RowId, cancellationToken).ConfigureAwait(false);
-        logger.LogWarning("Approved SQLite delete completed for {TableName} row {RowId}.", parameters.TableName, parameters.RowId);
-        return json.Success(new { parameters.TableName, parameters.RowId, Operation = "Deleted" });
+    try
+    {
+            var binding = json.Bind<SqliteRowDeleteParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            ArgumentException.ThrowIfNullOrWhiteSpace(parameters.TableName);
+            await editor.DeleteRowAsync(parameters.TableName, parameters.RowId, cancellationToken).ConfigureAwait(false);
+            logger.LogWarning("Approved SQLite delete completed for {TableName} row {RowId}.", parameters.TableName, parameters.RowId);
+            return json.Success(new { parameters.TableName, parameters.RowId, Operation = "Deleted" });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DeleteSqliteRowFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DeleteSqliteRowFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -226,24 +298,36 @@ public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService j
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectTextDocumentImportParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        var imported = await documents.ImportAsync(parameters.ProjectId, parameters.RevisionId, parameters.FilePath, userConfirmed: true, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved project text import completed as {ImportId}; content omitted from logs.", imported.Id);
-        return json.Success(new
-        {
-            imported.Id,
-            imported.ProjectId,
-            imported.RevisionId,
-            imported.SourceName,
-            imported.ContentHash,
-            imported.ContentType,
-            imported.EncodingName,
-            imported.Status,
-            imported.SafetyNotes
-        });
+    try
+    {
+            var binding = json.Bind<ProjectTextDocumentImportParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            var imported = await documents.ImportAsync(parameters.ProjectId, parameters.RevisionId, parameters.FilePath, userConfirmed: true, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved project text import completed as {ImportId}; content omitted from logs.", imported.Id);
+            return json.Success(new
+            {
+                imported.Id,
+                imported.ProjectId,
+                imported.RevisionId,
+                imported.SourceName,
+                imported.ContentHash,
+                imported.ContentType,
+                imported.EncodingName,
+                imported.Status,
+                imported.SafetyNotes
+            });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ImportProjectTextDocumentFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ImportProjectTextDocumentFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }

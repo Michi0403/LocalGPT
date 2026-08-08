@@ -58,44 +58,80 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
 
     private object?[] BindArguments(MethodInfo method, JsonElement parameters, CancellationToken cancellationToken)
     {
-        var properties = parameters.ValueKind == JsonValueKind.Object
-            ? parameters.EnumerateObject().ToDictionary(item => item.Name, item => item.Value, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
-        return method.GetParameters().Select(parameter =>
-        {
-            if (parameter.ParameterType == typeof(CancellationToken)) return (object?)cancellationToken;
-            if (properties.TryGetValue(parameter.Name ?? string.Empty, out var value))
-                return value.Deserialize(parameter.ParameterType, JsonOptions);
-            if (parameter.HasDefaultValue) return parameter.DefaultValue;
-            if (!parameter.ParameterType.IsValueType || Nullable.GetUnderlyingType(parameter.ParameterType) is not null) return null;
-            throw new JsonException($"Required parameter '{parameter.Name}' is missing.");
-        }).ToArray();
+    try
+    {
+            var properties = parameters.ValueKind == JsonValueKind.Object
+                ? parameters.EnumerateObject().ToDictionary(item => item.Name, item => item.Value, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+            return method.GetParameters().Select(parameter =>
+            {
+                if (parameter.ParameterType == typeof(CancellationToken)) return (object?)cancellationToken;
+                if (properties.TryGetValue(parameter.Name ?? string.Empty, out var value))
+                    return value.Deserialize(parameter.ParameterType, JsonOptions);
+                if (parameter.HasDefaultValue) return parameter.DefaultValue;
+                if (!parameter.ParameterType.IsValueType || Nullable.GetUnderlyingType(parameter.ParameterType) is not null) return null;
+                throw new JsonException($"Required parameter '{parameter.Name}' is missing.");
+            }).ToArray();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(PublicServiceMethodInvoker)}.{nameof(BindArguments)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(PublicServiceMethodInvoker)}.{nameof(BindArguments)} failed.");
+        throw;
+    }
+}
 
     private async Task<object?> AwaitResultAsync(object? value, Type returnType)
     {
-        if (value is Task task)
-        {
-            await task.ConfigureAwait(false);
-            return returnType.IsGenericType ? returnType.GetProperty("Result")?.GetValue(task) : null;
-        }
-        if (returnType == typeof(ValueTask) && value is ValueTask valueTask)
-        {
-            await valueTask.ConfigureAwait(false);
-            return null;
-        }
-        if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
-        {
-            var asTask = returnType.GetMethod("AsTask")?.Invoke(value, null) as Task
-                ?? throw new InvalidOperationException("Could not await the configured ValueTask result.");
-            await asTask.ConfigureAwait(false);
-            return asTask.GetType().GetProperty("Result")?.GetValue(asTask);
-        }
-        return value;
+    try
+    {
+            if (value is Task task)
+            {
+                await task.ConfigureAwait(false);
+                return returnType.IsGenericType ? returnType.GetProperty("Result")?.GetValue(task) : null;
+            }
+            if (returnType == typeof(ValueTask) && value is ValueTask valueTask)
+            {
+                await valueTask.ConfigureAwait(false);
+                return null;
+            }
+            if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
+            {
+                var asTask = returnType.GetMethod("AsTask")?.Invoke(value, null) as Task
+                    ?? throw new InvalidOperationException("Could not await the configured ValueTask result.");
+                await asTask.ConfigureAwait(false);
+                return asTask.GetType().GetProperty("Result")?.GetValue(asTask);
+            }
+            return value;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(PublicServiceMethodInvoker)}.{nameof(AwaitResultAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(PublicServiceMethodInvoker)}.{nameof(AwaitResultAsync)} failed.");
+        throw;
+    }
+}
 
-    private Type? ResolveType(string typeName, Assembly assembly) =>
-        Type.GetType(typeName, throwOnError: false) ?? assembly.GetType(typeName.Split(',')[0].Trim(), throwOnError: false);
+    private Type? ResolveType(string typeName, Assembly assembly) {
+    try
+    {
+        return Type.GetType(typeName, throwOnError: false) ?? assembly.GetType(typeName.Split(',')[0].Trim(), throwOnError: false);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(PublicServiceMethodInvoker)}.{nameof(ResolveType)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(PublicServiceMethodInvoker)}.{nameof(ResolveType)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class InvokeConfiguredPublicServiceMethodFunction(
@@ -119,17 +155,29 @@ public sealed class InvokeConfiguredPublicServiceMethodFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Configured public-service DXFunction invocation started; parameter content was omitted.");
-        var payload = request.Parameters.Deserialize<PublicServiceMethodInvocationParameters>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })
-            ?? throw new JsonException("catalogKey is required.");
-        var result = await invoker.InvokeAsync(new PublicServiceMethodInvocationRequest
-        {
-            CatalogKey = payload.CatalogKey,
-            Parameters = payload.Parameters,
-            RequestedBy = request.RequestedBy
-        }, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Configured public-service DXFunction invocation completed for catalog entry {CatalogKey}.", payload.CatalogKey);
-        return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
+    try
+    {
+            logger.LogInformation("Configured public-service DXFunction invocation started; parameter content was omitted.");
+            var payload = request.Parameters.Deserialize<PublicServiceMethodInvocationParameters>(new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true })
+                ?? throw new JsonException("catalogKey is required.");
+            var result = await invoker.InvokeAsync(new PublicServiceMethodInvocationRequest
+            {
+                CatalogKey = payload.CatalogKey,
+                Parameters = payload.Parameters,
+                RequestedBy = request.RequestedBy
+            }, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Configured public-service DXFunction invocation completed for catalog entry {CatalogKey}.", payload.CatalogKey);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = result };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(InvokeConfiguredPublicServiceMethodFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(InvokeConfiguredPublicServiceMethodFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }

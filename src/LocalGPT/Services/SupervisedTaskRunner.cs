@@ -22,22 +22,34 @@ public sealed class SupervisedTaskRunner(
         Func<CancellationToken, Task> action,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(owner);
-        ArgumentException.ThrowIfNullOrWhiteSpace(operation);
-        ArgumentNullException.ThrowIfNull(action);
+    try
+    {
+            ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+            ArgumentException.ThrowIfNullOrWhiteSpace(operation);
+            ArgumentNullException.ThrowIfNull(action);
 
-        var taskId = Interlocked.Increment(ref nextTaskId);
-        // A component can call Run from the Blazor renderer synchronization context. Starting the
-        // observer through Task.Run keeps intentionally concurrent service/network work from
-        // executing its synchronous prefix on the renderer and freezing the entire circuit.
-        var task = Task.Run(
-            () => ObserveAsync(taskId, owner, operation, action, cancellationToken),
-            CancellationToken.None);
-        if (!activeTasks.TryAdd(taskId, task))
-            throw new InvalidOperationException($"Could not track supervised task {taskId}.");
+            var taskId = Interlocked.Increment(ref nextTaskId);
+            // A component can call Run from the Blazor renderer synchronization context. Starting the
+            // observer through Task.Run keeps intentionally concurrent service/network work from
+            // executing its synchronous prefix on the renderer and freezing the entire circuit.
+            var task = Task.Run(
+                () => ObserveAsync(taskId, owner, operation, action, cancellationToken),
+                CancellationToken.None);
+            if (!activeTasks.TryAdd(taskId, task))
+                throw new InvalidOperationException($"Could not track supervised task {taskId}.");
 
-        task.GetAwaiter().OnCompleted(() => activeTasks.TryRemove(taskId, out _));
+            task.GetAwaiter().OnCompleted(() => activeTasks.TryRemove(taskId, out _));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(SupervisedTaskRunner)}.{nameof(Run)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(SupervisedTaskRunner)}.{nameof(Run)} failed.");
+        throw;
+    }
+}
 
     private async Task ObserveAsync(
         long taskId,

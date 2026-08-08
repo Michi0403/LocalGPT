@@ -25,6 +25,7 @@ namespace LocalGPT.Services
           IVariableStoreService variableStoreService,
           ISystemVariableDefinitionService systemVariables,
           IDxAiFunctionRegistry functionRegistry,
+          IDxAiFunctionCallRecoveryService functionCallRecovery,
           IChatResponseFormatterFactory formatterFactory,
           IChatProtocolResolver protocolResolver
       ,
@@ -58,7 +59,8 @@ namespace LocalGPT.Services
                         formatterFactory: formatterFactory,
                         protocolResolver: protocolResolver,
                         promptConfigService: promptConfigService,
-                        functionRegistry: functionRegistry);
+                        functionRegistry: functionRegistry,
+                        functionCallRecovery: functionCallRecovery);
 
                     sessions.Add(new ChatClientSession(
                         new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),
@@ -258,30 +260,66 @@ namespace LocalGPT.Services
             }
         }
 
-        private string GetLocalProviderName(string endpoint) =>
-            Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && uri.Port == 1234
+        private string GetLocalProviderName(string endpoint) {
+    try
+    {
+        return Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && uri.Port == 1234
                 ? "LM Studio"
                 : "Local OpenAI-compatible";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ChatClientFactory)}.{nameof(GetLocalProviderName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ChatClientFactory)}.{nameof(GetLocalProviderName)} failed.");
+        throw;
+    }
+}
 
         private string NormalizeProviderIdentity(string value)
         {
-            var endpoint = NormalizeOpenAiCompatibleEndpoint(value);
-            var uri = new Uri(endpoint, UriKind.Absolute);
-            var host = string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ? "127.0.0.1" : uri.Host;
-            return $"{uri.Scheme}://{host}:{uri.Port}";
-        }
+    try
+    {
+                var endpoint = NormalizeOpenAiCompatibleEndpoint(value);
+                var uri = new Uri(endpoint, UriKind.Absolute);
+                var host = string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ? "127.0.0.1" : uri.Host;
+                return $"{uri.Scheme}://{host}:{uri.Port}";
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ChatClientFactory)}.{nameof(NormalizeProviderIdentity)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ChatClientFactory)}.{nameof(NormalizeProviderIdentity)} failed.");
+        throw;
+    }
+}
 
         private string NormalizeOpenAiCompatibleEndpoint(string value)
         {
-            var endpoint = value.Trim().TrimEnd('/');
-            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
-                throw new InvalidOperationException("The local OpenAI-compatible endpoint is not a valid absolute URI.");
-            var builder = new UriBuilder(uri);
-            if (string.Equals(builder.Host, "localhost", StringComparison.OrdinalIgnoreCase))
-                builder.Host = "127.0.0.1";
-            if (string.IsNullOrWhiteSpace(builder.Path) || builder.Path == "/")
-                builder.Path = "/v1";
-            return builder.Uri.ToString().TrimEnd('/');
-        }
+    try
+    {
+                var endpoint = value.Trim().TrimEnd('/');
+                if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+                    throw new InvalidOperationException("The local OpenAI-compatible endpoint is not a valid absolute URI.");
+                var builder = new UriBuilder(uri);
+                if (string.Equals(builder.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+                    builder.Host = "127.0.0.1";
+                if (string.IsNullOrWhiteSpace(builder.Path) || builder.Path == "/")
+                    builder.Path = "/v1";
+                return builder.Uri.ToString().TrimEnd('/');
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ChatClientFactory)}.{nameof(NormalizeOpenAiCompatibleEndpoint)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ChatClientFactory)}.{nameof(NormalizeOpenAiCompatibleEndpoint)} failed.");
+        throw;
+    }
+}
     }
 }

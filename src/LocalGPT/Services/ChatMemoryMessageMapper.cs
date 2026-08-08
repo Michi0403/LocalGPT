@@ -67,13 +67,26 @@ public sealed class ChatMemoryMessageMapper(
         }
     }
 
-    public string ToRoleName(ChatMessageRole role) => role switch
+    public string ToRoleName(ChatMessageRole role) {
+    try
+    {
+        return role switch
     {
         ChatMessageRole.Assistant => "assistant",
         ChatMessageRole.System => "system",
         ChatMessageRole.Error => "error",
         _ => "user"
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ChatMemoryMessageMapper)}.{nameof(ToRoleName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ChatMemoryMessageMapper)}.{nameof(ToRoleName)} failed.");
+        throw;
+    }
+}
 
     public BlazorChatMessage ToBlazorChatMessage(ChatMemoryMessage message)
     {
@@ -96,32 +109,56 @@ public sealed class ChatMemoryMessageMapper(
 
     private string? TryExtractPromptFromAssistantMessages(IReadOnlyList<BlazorChatMessage> messages)
     {
-        foreach (var message in messages)
-        {
-            var content = WebUtility.HtmlDecode(message.Content);
-            var promptSection = text.TryFindCouncilPromptSection(content, logger);
-            if (!string.IsNullOrWhiteSpace(promptSection))
+    try
+    {
+            foreach (var message in messages)
             {
-                var fencedPrompt = catalog.CouncilPromptFencePattern.Match(promptSection);
-                if (fencedPrompt.Success)
-                    return text.NormalizeRecoveredPrompt(fencedPrompt.Groups["prompt"].Value, logger);
+                var content = WebUtility.HtmlDecode(message.Content);
+                var promptSection = text.TryFindCouncilPromptSection(content, logger);
+                if (!string.IsNullOrWhiteSpace(promptSection))
+                {
+                    var fencedPrompt = catalog.CouncilPromptFencePattern.Match(promptSection);
+                    if (fencedPrompt.Success)
+                        return text.NormalizeRecoveredPrompt(fencedPrompt.Groups["prompt"].Value, logger);
+                }
+
+                var requestBlock = catalog.CouncilRequestBlockPattern.Match(content);
+                if (requestBlock.Success)
+                    return text.NormalizeRecoveredPrompt(requestBlock.Groups["prompt"].Value, logger);
             }
 
-            var requestBlock = catalog.CouncilRequestBlockPattern.Match(content);
-            if (requestBlock.Success)
-                return text.NormalizeRecoveredPrompt(requestBlock.Groups["prompt"].Value, logger);
-        }
-
-        return null;
+            return null;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ChatMemoryMessageMapper)}.{nameof(TryExtractPromptFromAssistantMessages)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ChatMemoryMessageMapper)}.{nameof(TryExtractPromptFromAssistantMessages)} failed.");
+        throw;
+    }
+}
 
     private bool IsCouncilConversation(
         ChatMemoryConversation conversation,
         IReadOnlyList<BlazorChatMessage> messages)
     {
-        return conversation.ProviderName.Contains("AI Council", StringComparison.OrdinalIgnoreCase) ||
-            conversation.Title.Contains("AI Council request", StringComparison.OrdinalIgnoreCase) ||
-            conversation.Title.Contains("Council members:", StringComparison.OrdinalIgnoreCase) ||
-            messages.Any(message => message.Content.Contains("Council members:", StringComparison.OrdinalIgnoreCase));
+    try
+    {
+            return conversation.ProviderName.Contains("AI Council", StringComparison.OrdinalIgnoreCase) ||
+                conversation.Title.Contains("AI Council request", StringComparison.OrdinalIgnoreCase) ||
+                conversation.Title.Contains("Council members:", StringComparison.OrdinalIgnoreCase) ||
+                messages.Any(message => message.Content.Contains("Council members:", StringComparison.OrdinalIgnoreCase));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ChatMemoryMessageMapper)}.{nameof(IsCouncilConversation)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ChatMemoryMessageMapper)}.{nameof(IsCouncilConversation)} failed.");
+        throw;
+    }
+}
 }

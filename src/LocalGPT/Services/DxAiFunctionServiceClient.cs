@@ -23,7 +23,20 @@ public sealed class DxAiFunctionServiceClient(
 
     public Guid? CurrentOperationId { get; private set; }
 
-    public IReadOnlyList<DxaichatFunctionInfo> GetFunctions() => registry.GetFunctions();
+    public IReadOnlyList<DxaichatFunctionInfo> GetFunctions() {
+    try
+    {
+        return registry.GetFunctions();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionServiceClient)}.{nameof(GetFunctions)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionServiceClient)}.{nameof(GetFunctions)} failed.");
+        throw;
+    }
+}
 
     public Task<DxAiFunctionInvocationResult> CallAsync(
         string functionName,
@@ -33,17 +46,29 @@ public sealed class DxAiFunctionServiceClient(
         string requestedBy = "CurrentUser",
         CancellationToken cancellationToken = default)
     {
-        var request = new DxAiFunctionInvocationRequest
-        {
-            Parameters = parameters is JsonElement element
-                ? element.Clone()
-                : JsonSerializer.SerializeToElement(parameters ?? new { }),
-            UserConfirmed = userConfirmed,
-            AutomaticInvocation = automaticInvocation,
-            RequestedBy = string.IsNullOrWhiteSpace(requestedBy) ? "CurrentUser" : requestedBy.Trim()
-        };
-        return CallAsync(functionName, request, cancellationToken);
+    try
+    {
+            var request = new DxAiFunctionInvocationRequest
+            {
+                Parameters = parameters is JsonElement element
+                    ? element.Clone()
+                    : JsonSerializer.SerializeToElement(parameters ?? new { }),
+                UserConfirmed = userConfirmed,
+                AutomaticInvocation = automaticInvocation,
+                RequestedBy = string.IsNullOrWhiteSpace(requestedBy) ? "CurrentUser" : requestedBy.Trim()
+            };
+            return CallAsync(functionName, request, cancellationToken);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionServiceClient)}.{nameof(CallAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionServiceClient)}.{nameof(CallAsync)} failed.");
+        throw;
+    }
+}
 
     public async Task<DxAiFunctionInvocationResult> CallAsync(
         string functionName,
@@ -112,28 +137,65 @@ public sealed class DxAiFunctionServiceClient(
         }
     }
 
-    public void Cancel() => CancelWithReason("The current user cancelled the function call.");
+    public void Cancel() {
+    try
+    {
+        CancelWithReason("The current user cancelled the function call.");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionServiceClient)}.{nameof(Cancel)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionServiceClient)}.{nameof(Cancel)} failed.");
+        throw;
+    }
+}
 
     public void CancelWithReason(string reason)
     {
-        lock (stateGate)
-        {
-            cancellationReason = string.IsNullOrWhiteSpace(reason)
-                ? "The current user cancelled the function call."
-                : reason.Trim();
-            activeCall?.Cancel();
-        }
+    try
+    {
+            lock (stateGate)
+            {
+                cancellationReason = string.IsNullOrWhiteSpace(reason)
+                    ? "The current user cancelled the function call."
+                    : reason.Trim();
+                activeCall?.Cancel();
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionServiceClient)}.{nameof(CancelWithReason)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionServiceClient)}.{nameof(CancelWithReason)} failed.");
+        throw;
+    }
+}
 
     public void Dispose()
     {
-        lock (stateGate)
-        {
-            if (disposed)
-                return;
-            disposed = true;
-            activeCall?.Cancel();
-            activeCall = null;
-        }
+    try
+    {
+            lock (stateGate)
+            {
+                if (disposed)
+                    return;
+                disposed = true;
+                activeCall?.Cancel();
+                activeCall = null;
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionServiceClient)}.{nameof(Dispose)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionServiceClient)}.{nameof(Dispose)} failed.");
+        throw;
+    }
+}
 }

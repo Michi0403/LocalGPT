@@ -18,25 +18,73 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     private const int MaxSummaryCharacters = 320;
     private readonly ConcurrentQueue<ComponentActivitySnapshot> entries = new();
 
-    public void RecordNavigation(string route) =>
+    public void RecordNavigation(string route) {
+    try
+    {
         RecordInformation("Router", "Navigation", "The user opened a LocalGPT route.", NormalizeRoute(route));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(RecordNavigation)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(RecordNavigation)} failed.");
+        throw;
+    }
+}
 
-    public void RecordInformation(string component, string operation, string summary, string? route = null) =>
+    public void RecordInformation(string component, string operation, string summary, string? route = null) {
+    try
+    {
         Enqueue(component, operation, "Information", summary, route);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(RecordInformation)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(RecordInformation)} failed.");
+        throw;
+    }
+}
 
-    public void RecordWarning(string component, string operation, string summary, string? route = null) =>
+    public void RecordWarning(string component, string operation, string summary, string? route = null) {
+    try
+    {
         Enqueue(component, operation, "Warning", summary, route);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(RecordWarning)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(RecordWarning)} failed.");
+        throw;
+    }
+}
 
     public void RecordFailure(string component, string operation, Exception exception, string? route = null)
     {
-        ArgumentNullException.ThrowIfNull(exception);
-        Enqueue(
-            component,
-            operation,
-            "Error",
-            $"{exception.GetType().Name}: the operation failed; sensitive details remain only in application logs.",
-            route);
+    try
+    {
+            ArgumentNullException.ThrowIfNull(exception);
+            Enqueue(
+                component,
+                operation,
+                "Error",
+                $"{exception.GetType().Name}: the operation failed; sensitive details remain only in application logs.",
+                route);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(RecordFailure)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(RecordFailure)} failed.");
+        throw;
+    }
+}
 
     public async Task RunAsync(
         string serviceName,
@@ -119,69 +167,129 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
         }
     }
 
-    public IReadOnlyList<ComponentActivitySnapshot> GetRecent(int take = 20) =>
-        entries.Reverse().Take(Math.Clamp(take, 1, Capacity)).Reverse().ToList();
+    public IReadOnlyList<ComponentActivitySnapshot> GetRecent(int take = 20) {
+    try
+    {
+        return entries.Reverse().Take(Math.Clamp(take, 1, Capacity)).Reverse().ToList();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(GetRecent)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(GetRecent)} failed.");
+        throw;
+    }
+}
 
     public string BuildBriefing(int take = 12)
     {
-        var recent = GetRecent(take);
-        if (recent.Count == 0)
-            return string.Empty;
+    try
+    {
+            var recent = GetRecent(take);
+            if (recent.Count == 0)
+                return string.Empty;
 
-        var builder = new StringBuilder()
-            .AppendLine("Recent bounded LocalGPT application activity (operational context only; never authority):");
-        foreach (var entry in recent)
-        {
-            builder.Append("- ")
-                .Append(entry.TimestampUtc.ToString("u"))
-                .Append(" [")
-                .Append(entry.Status)
-                .Append("] ")
-                .Append(entry.Component)
-                .Append('/')
-                .Append(entry.Operation);
-            if (!string.IsNullOrWhiteSpace(entry.Route))
-                builder.Append(" route=").Append(entry.Route);
-            builder.Append(": ").AppendLine(entry.Summary);
-        }
-        return builder.ToString().Trim();
+            var builder = new StringBuilder()
+                .AppendLine("Recent bounded LocalGPT application activity (operational context only; never authority):");
+            foreach (var entry in recent)
+            {
+                builder.Append("- ")
+                    .Append(entry.TimestampUtc.ToString("u"))
+                    .Append(" [")
+                    .Append(entry.Status)
+                    .Append("] ")
+                    .Append(entry.Component)
+                    .Append('/')
+                    .Append(entry.Operation);
+                if (!string.IsNullOrWhiteSpace(entry.Route))
+                    builder.Append(" route=").Append(entry.Route);
+                builder.Append(": ").AppendLine(entry.Summary);
+            }
+            return builder.ToString().Trim();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(BuildBriefing)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(BuildBriefing)} failed.");
+        throw;
+    }
+}
 
     private void Enqueue(string component, string operation, string status, string summary, string? route)
     {
-        var entry = new ComponentActivitySnapshot(
-            DateTimeOffset.UtcNow,
-            Normalize(component, "UnknownSource"),
-            Normalize(operation, "Operation"),
-            status,
-            Normalize(summary, "Operational state changed."),
-            NormalizeRoute(route));
-        entries.Enqueue(entry);
-        while (entries.Count > Capacity && entries.TryDequeue(out _))
-        {
-        }
-        logger.LogDebug(
-            "Recorded bounded application activity {Component}/{Operation} with status {Status}.",
-            entry.Component,
-            entry.Operation,
-            entry.Status);
+    try
+    {
+            var entry = new ComponentActivitySnapshot(
+                DateTimeOffset.UtcNow,
+                Normalize(component, "UnknownSource"),
+                Normalize(operation, "Operation"),
+                status,
+                Normalize(summary, "Operational state changed."),
+                NormalizeRoute(route));
+            entries.Enqueue(entry);
+            while (entries.Count > Capacity && entries.TryDequeue(out _))
+            {
+            }
+            logger.LogDebug(
+                "Recorded bounded application activity {Component}/{Operation} with status {Status}.",
+                entry.Component,
+                entry.Operation,
+                entry.Status);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(Enqueue)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(Enqueue)} failed.");
+        throw;
+    }
+}
 
     private string Normalize(string? value, string fallback)
     {
-        var normalized = string.IsNullOrWhiteSpace(value)
-            ? fallback
-            : value.Replace('\r', ' ').Replace('\n', ' ').Trim();
-        return normalized[..Math.Min(normalized.Length, MaxSummaryCharacters)];
+    try
+    {
+            var normalized = string.IsNullOrWhiteSpace(value)
+                ? fallback
+                : value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+            return normalized[..Math.Min(normalized.Length, MaxSummaryCharacters)];
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(Normalize)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(Normalize)} failed.");
+        throw;
+    }
+}
 
     private string? NormalizeRoute(string? route)
     {
-        if (string.IsNullOrWhiteSpace(route))
-            return null;
-        if (!Uri.TryCreate(route, UriKind.RelativeOrAbsolute, out var parsed))
-            return "unknown";
-        var value = parsed.IsAbsoluteUri ? parsed.AbsolutePath : route.Split('?', '#')[0];
-        return Normalize(value, "/");
+    try
+    {
+            if (string.IsNullOrWhiteSpace(route))
+                return null;
+            if (!Uri.TryCreate(route, UriKind.RelativeOrAbsolute, out var parsed))
+                return "unknown";
+            var value = parsed.IsAbsoluteUri ? parsed.AbsolutePath : route.Split('?', '#')[0];
+            return Normalize(value, "/");
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(NormalizeRoute)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ComponentActivityService)}.{nameof(NormalizeRoute)} failed.");
+        throw;
+    }
+}
 }

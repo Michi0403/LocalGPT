@@ -55,10 +55,17 @@
                                 TextFieldName="@nameof(LearnBaseScanProfile.Label)"
                                 ValueChanged="@((LearnBaseScanProfile profile) => SelectLearnBaseScanProfile(profile))" />
                 </label>
-                <label class="test-lab-field learnbase-root-field">
-                    <span>Root path</span>
-                    <DxTextBox @bind-Text="learnBaseRoot" />
-                </label>
+                <div class="test-lab-field learnbase-root-field">
+                    <span>Knowledge root</span>
+                    <div class="path-picker-row">
+                        <DxTextBox @bind-Text="learnBaseRoot" />
+                        <DxButton Text="Browse…"
+                                  RenderStyle="ButtonRenderStyle.Secondary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                  Click="@(() => learnBasePathExplorerVisible = true)" />
+                    </div>
+                    <small>Choose a folder on this LocalGPT host or keep typing a path manually. Selection does not grant write/execute permission.</small>
+                </div>
                 <label class="test-lab-field">
                     <span>Project limit</span>
                     <DxSpinEdit @bind-Value="maxProjects" MinValue="1" MaxValue="120" Increment="5" />
@@ -68,56 +75,60 @@
                     <input type="number" min="1024" max="16777216" step="65536" @bind="learnBaseMaximumFileBytes" />
                 </label>
             </div>
-            <div class="test-lab-import-summary">
-                <strong>@selectedLearnBasePreset.Label</strong>
-                <p>@selectedLearnBasePreset.Description</p>
-                <p>@selectedScanProfile.Description</p>
-                <p>@Catalog.LearnBaseDuplicatePolicySummary</p>
-            </div>
-
-            <details class="learnbase-policy-editor" open>
-                <summary>Selected file endings and regex policy (@selectedLearnBaseExtensions.Count selected)</summary>
-                <div class="learnbase-extension-toolbar">
-                    <button type="button" @onclick="SelectAllLearnBaseExtensions">Select all known</button>
-                    <button type="button" @onclick="ClearLearnBaseExtensions">Clear selection</button>
+            <div class="learnbase-workbench">
+                <div class="learnbase-source-column">
+                    <div class="test-lab-import-summary">
+                        <strong>Source & import behavior · @selectedLearnBasePreset.Label</strong>
+                        <p>@selectedLearnBasePreset.Description</p>
+                        <p>@selectedScanProfile.Description</p>
+                        <p>@Catalog.LearnBaseDuplicatePolicySummary</p>
+                    </div>
+                    <div class="learnbase-mode-grid">
+                        <label><input type="checkbox" @bind="learnBaseImportManifests" /> Import installer learning-source manifests</label>
+                        <label><input type="checkbox" @bind="learnBaseImportDocumentation" /> Detect known documentation corpora</label>
+                        <label><input type="checkbox" @bind="learnBaseImportProjects" /> Build project architecture summaries</label>
+                        <label><input type="checkbox" @bind="saveToKnowledge" /> Save or update SQLite Council knowledge</label>
+                    </div>
                 </div>
-                <div class="learnbase-extension-grid" aria-label="LearnBase file ending selection">
-                    @foreach (var extension in Catalog.LearnBaseKnownExtensions.OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
-                    {
-                        <label>
-                            <input type="checkbox"
-                                   checked="@selectedLearnBaseExtensions.Contains(extension)"
-                                   @onchange="@((ChangeEventArgs args) => ToggleLearnBaseExtension(extension, args))" />
-                            <code>@extension</code>
+
+                <details class="learnbase-policy-editor" open>
+                    <summary>File selection & dynamic regex policy (@selectedLearnBaseExtensions.Count endings)</summary>
+                    <p class="human-inbox-note">The rules are runtime data. Council regex tools can list, test and refine database-backed patterns without recompiling LocalGPT.</p>
+                    <div class="learnbase-extension-toolbar">
+                        <button type="button" @onclick="SelectAllLearnBaseExtensions">Select all known</button>
+                        <button type="button" @onclick="ClearLearnBaseExtensions">Clear selection</button>
+                    </div>
+                    <div class="learnbase-extension-grid" aria-label="LearnBase file ending selection">
+                        @foreach (var extension in Catalog.LearnBaseKnownExtensions.OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
+                        {
+                            <label>
+                                <input type="checkbox"
+                                       checked="@selectedLearnBaseExtensions.Contains(extension)"
+                                       @onchange="@((ChangeEventArgs args) => ToggleLearnBaseExtension(extension, args))" />
+                                <code>@extension</code>
+                            </label>
+                        }
+                    </div>
+                    <div class="learnbase-policy-grid">
+                        <label class="test-lab-field">
+                            <span>Additional file endings</span>
+                            <input @bind="learnBaseAdditionalExtensions" placeholder=".fzz; .kicad_sch; .custom" />
                         </label>
-                    }
-                </div>
-                <div class="learnbase-policy-grid">
-                    <label class="test-lab-field">
-                        <span>Additional file endings</span>
-                        <input @bind="learnBaseAdditionalExtensions" placeholder=".fzz; .kicad_sch; .custom" />
-                    </label>
-                    <label class="test-lab-field">
-                        <span>Include regex (empty means all selected endings)</span>
-                        <textarea rows="3" @bind="learnBaseIncludeRegex"></textarea>
-                    </label>
-                    <label class="test-lab-field">
-                        <span>Exclude regex</span>
-                        <textarea rows="3" @bind="learnBaseExcludeRegex"></textarea>
-                    </label>
-                </div>
-            </details>
-
-            <div class="learnbase-mode-grid">
-                <label><input type="checkbox" @bind="learnBaseImportManifests" /> Import installer learning-source manifests</label>
-                <label><input type="checkbox" @bind="learnBaseImportDocumentation" /> Detect known documentation corpora</label>
-                <label><input type="checkbox" @bind="learnBaseImportProjects" /> Build project architecture summaries</label>
-                <label><input type="checkbox" @bind="saveToKnowledge" /> Save or update SQLite Council knowledge</label>
+                        <label class="test-lab-field">
+                            <span>Include regex (empty means all selected endings)</span>
+                            <textarea rows="3" @bind="learnBaseIncludeRegex"></textarea>
+                        </label>
+                        <label class="test-lab-field">
+                            <span>Exclude regex</span>
+                            <textarea rows="3" @bind="learnBaseExcludeRegex"></textarea>
+                        </label>
+                    </div>
+                </details>
             </div>
             <DxButton Text="Import Learn-Base"
                       RenderStyle="ButtonRenderStyle.Primary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
-                      Enabled="@(!isBusy && (selectedLearnBaseExtensions.Count > 0 || !string.IsNullOrWhiteSpace(learnBaseAdditionalExtensions)))"
+                      Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(learnBaseRoot) && (selectedLearnBaseExtensions.Count > 0 || !string.IsNullOrWhiteSpace(learnBaseAdditionalExtensions)))"
                       Click="RunLearnBaseImportAsync" />
         </article>
 
@@ -273,6 +284,12 @@
         <textarea class="test-lab-output" readonly>@resultText</textarea>
     </section>
 
+    <LocalPathExplorer @bind-Visible="learnBasePathExplorerVisible"
+                       @bind-SelectedPath="learnBaseRoot"
+                       SelectionMode="Directory"
+                       IncludeFiles="true"
+                       Title="Choose Learn-Base source folder" />
+
     <DxPopup @bind-Visible="@sourcePopupVisible"
              HeaderText="@SourcePopupTitle"
              Width="min(1180px, 96vw)"
@@ -351,6 +368,7 @@
     private List<ArtifactWorkspaceFileSummary> artifactWorkspaceFiles = [];
     private ArtifactWorkspaceSummary? selectedArtifactWorkspace;
     private string artifactBaseUrl = string.Empty;
+    private bool learnBasePathExplorerVisible;
     private bool sourcePopupVisible;
     private string openSourceRelativePath = string.Empty;
     private string openSourceContent = string.Empty;
@@ -363,7 +381,9 @@
     {
         selectedLearnBasePreset = Catalog.LearnBasePresets.First();
         selectedScanProfile = Catalog.LearnBaseScanProfiles.Skip(1).FirstOrDefault() ?? Catalog.LearnBaseScanProfiles.First();
-        learnBaseRoot = selectedLearnBasePreset.RootPath;
+        learnBaseRoot = Directory.Exists(selectedLearnBasePreset.RootPath)
+            ? selectedLearnBasePreset.RootPath
+            : string.Empty;
         maxProjects = selectedLearnBasePreset.RecommendedMaxProjects;
         SelectAllLearnBaseExtensions();
         try
@@ -507,7 +527,8 @@
         try
         {
             selectedLearnBasePreset = preset;
-            learnBaseRoot = preset.RootPath;
+            if (!string.IsNullOrWhiteSpace(preset.RootPath) && Directory.Exists(preset.RootPath))
+                learnBaseRoot = preset.RootPath;
             maxProjects = preset.RecommendedMaxProjects;
             selectedScanProfile = Catalog.LearnBaseScanProfiles
                 .FirstOrDefault(profile => profile.MaxProjects == preset.RecommendedMaxProjects) ??

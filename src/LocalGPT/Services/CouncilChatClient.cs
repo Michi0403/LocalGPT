@@ -212,12 +212,36 @@ public sealed partial class CouncilChatClient(
     /// <param name="serviceType">Requested service type.</param>
     /// <param name="serviceKey">Optional service key.</param>
     /// <returns>Always null because dependencies are provided through constructor injection.</returns>
-    public object? GetService(Type serviceType, object? serviceKey = null) => null;
+    public object? GetService(Type serviceType, object? serviceKey = null) {
+    try
+    {
+        return null;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilChatClient)}.{nameof(GetService)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilChatClient)}.{nameof(GetService)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Completes adapter disposal; owned services are managed by dependency injection.</summary>
     public void Dispose()
     {
+    try
+    {
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilChatClient)}.{nameof(Dispose)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilChatClient)}.{nameof(Dispose)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Runs a non-streaming Council request in an isolated service scope.</summary>
     /// <param name="messages">Current chat history.</param>
@@ -471,7 +495,19 @@ public sealed partial class CouncilChatClient(
     /// </summary>
     /// <param name="value">Model-generated Markdown or previously encoded model text.</param>
     /// <returns>Single-encoded Markdown that preserves headings, lists, tables and physical line breaks.</returns>
-    private string EncodeModelMarkdown(string value) =>
-        WebUtility.HtmlEncode(WebUtility.HtmlDecode(value));
+    private string EncodeModelMarkdown(string value) {
+    try
+    {
+        return WebUtility.HtmlEncode(WebUtility.HtmlDecode(value));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilChatClient)}.{nameof(EncodeModelMarkdown)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilChatClient)}.{nameof(EncodeModelMarkdown)} failed.");
+        throw;
+    }
+}
 
 }

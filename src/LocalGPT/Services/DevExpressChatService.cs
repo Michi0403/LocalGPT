@@ -71,7 +71,7 @@ namespace LocalGPT.Services
             "GET",
             "/__diag/learn-base/import?maxProjects=40&saveToKnowledge=true",
             "Import compact architecture fingerprints from the user-selected learn-base folder into CouncilKnowledgeEntries.",
-            "rootPath optional, defaults to C:\\learnbaseforlocalgpt; maxProjects optional; saveToKnowledge optional.",
+            "rootPath should be an explicit user-selected local folder; use localgpt.path.roots/localgpt.path.browse when discovery is needed; maxProjects optional; saveToKnowledge optional.",
             "Reads local source fingerprints and skips raw binaries/build folders. It teaches architecture, protocols, host wiring, libraries, and interop patterns rather than names or branding.",
             false,
             false),
@@ -284,39 +284,63 @@ namespace LocalGPT.Services
 
         public IReadOnlyList<DxaichatFunctionInfo> GetFunctions()
         {
-            var functions = Functions
-                .Concat(_functionRegistry.GetFunctions())
-                .GroupBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.Last())
-                .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            _logger.LogDebug("Built LocalGPT function briefing catalog with {FunctionCount} route and DI function descriptor(s).", functions.Count);
-            return functions;
-        }
+    try
+    {
+                var functions = Functions
+                    .Concat(_functionRegistry.GetFunctions())
+                    .GroupBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.Last())
+                    .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                _logger.LogDebug("Built LocalGPT function briefing catalog with {FunctionCount} route and DI function descriptor(s).", functions.Count);
+                return functions;
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(GetFunctions)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(GetFunctions)} failed.");
+        throw;
+    }
+}
 
         public string BuildPromptBriefing()
         {
-            return string.Join(Environment.NewLine, GetFunctions()
-                .Where(function => function.AvailableToAi)
-                .Select(function =>
-                {
-                    var directInvocation = function.SupportsDirectInvocation ? "supported" : "route-specific";
-                    var automaticUse = function.RequiresHumanConfirmation && function.SupportsDeferredApprovalRequest
-                        ? "exact approval request may be queued; execution deferred"
-                        : function.SupportsAutomaticInvocation
-                            ? function.IsCoordinationOnly ? "coordination-only supported" : "read-only supported"
-                            : "not allowed";
-                    var confirmation = function.RequiresHumanConfirmation
-                        ? "required and one-use"
-                        : function.IsCoordinationOnly
-                            ? "not required for bounded feedback/guidance coordination"
-                            : "not required for this read-only operation";
-                    return $"- {function.Name}: {function.Method} {function.Route} — {function.Purpose} " +
-                        $"Parameters: {function.Parameters} Safety: {function.SafetyNotes} " +
-                        $"Direct invocation: {directInvocation}; automatic use: {automaticUse}; " +
-                        $"fresh confirmation: {confirmation}.";
-                }));
-        }
+    try
+    {
+                return string.Join(Environment.NewLine, GetFunctions()
+                    .Where(function => function.AvailableToAi)
+                    .Select(function =>
+                    {
+                        var directInvocation = function.SupportsDirectInvocation ? "supported" : "route-specific";
+                        var automaticUse = function.RequiresHumanConfirmation && function.SupportsDeferredApprovalRequest
+                            ? "exact approval request may be queued; execution deferred"
+                            : function.SupportsAutomaticInvocation
+                                ? function.IsCoordinationOnly ? "coordination-only supported" : "read-only supported"
+                                : "not allowed";
+                        var confirmation = function.RequiresHumanConfirmation
+                            ? "required and one-use"
+                            : function.IsCoordinationOnly
+                                ? "not required for bounded feedback/guidance coordination"
+                                : "not required for this read-only operation";
+                        return $"- {function.Name}: {function.Method} {function.Route} — {function.Purpose} " +
+                            $"Parameters: {function.Parameters} Safety: {function.SafetyNotes} " +
+                            $"Direct invocation: {directInvocation}; automatic use: {automaticUse}; " +
+                            $"fresh confirmation: {confirmation}.";
+                    }));
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(BuildPromptBriefing)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DevExpressChatService)}.{nameof(BuildPromptBriefing)} failed.");
+        throw;
+    }
+}
         public string BuildTitle(IReadOnlyList<BlazorChatMessage> messages, ILogger logger)
         {
             try

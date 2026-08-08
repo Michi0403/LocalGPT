@@ -94,19 +94,43 @@ public sealed class CouncilHardwareRoadConfigurationService(
 
     public int NormalizeLoadPercent(int value)
     {
-        var normalized = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100);
-        logger.LogTrace("Normalized council hardware load from {RequestedLoad} to {NormalizedLoad} percent.", value, normalized);
-        return normalized;
+    try
+    {
+            var normalized = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100);
+            logger.LogTrace("Normalized council hardware load from {RequestedLoad} to {NormalizedLoad} percent.", value, normalized);
+            return normalized;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilHardwareRoadConfigurationService)}.{nameof(NormalizeLoadPercent)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilHardwareRoadConfigurationService)}.{nameof(NormalizeLoadPercent)} failed.");
+        throw;
+    }
+}
 
     public int Interpolate(int minimum, int maximum, int loadPercent)
     {
-        minimum = Math.Max(0, minimum);
-        maximum = Math.Max(minimum, maximum);
-        var percent = NormalizeLoadPercent(loadPercent);
-        var value = minimum + (long)Math.Round((maximum - minimum) * (percent / 100d), MidpointRounding.AwayFromZero);
-        var result = (int)Math.Clamp(value, minimum, maximum);
-        logger.LogTrace("Interpolated council hardware value {Value} for load {LoadPercent} percent.", result, percent);
-        return result;
+    try
+    {
+            minimum = Math.Max(0, minimum);
+            maximum = Math.Max(minimum, maximum);
+            var percent = NormalizeLoadPercent(loadPercent);
+            var value = minimum + (long)Math.Round((maximum - minimum) * (percent / 100d), MidpointRounding.AwayFromZero);
+            var result = (int)Math.Clamp(value, minimum, maximum);
+            logger.LogTrace("Interpolated council hardware value {Value} for load {LoadPercent} percent.", result, percent);
+            return result;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilHardwareRoadConfigurationService)}.{nameof(Interpolate)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilHardwareRoadConfigurationService)}.{nameof(Interpolate)} failed.");
+        throw;
+    }
+}
 }

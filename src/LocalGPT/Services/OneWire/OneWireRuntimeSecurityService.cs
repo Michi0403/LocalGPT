@@ -344,36 +344,60 @@ public sealed class OneWireRuntimeSecurityService(
 
     private async Task<OneWireRuntimeSecretFile?> LoadCoreAsync(bool createWhenMissing, CancellationToken cancellationToken)
     {
-        if (cached is not null) return cached;
-        var path = ResolveSecretPath();
-        if (!File.Exists(path))
-        {
-            if (!createWhenMissing) return null;
-            var created = CreateSecret(DateTimeOffset.UtcNow, null);
-            await PersistCoreAsync(created, cancellationToken).ConfigureAwait(false);
-            cached = created;
-            logger.LogInformation("Created the LocalGPT runtime 1-Wire secret at {SecretPath}.", path);
-            return created;
-        }
-        var json = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-        var file = JsonSerializer.Deserialize<OneWireRuntimeSecretFile>(json, jsonOptions)
-            ?? throw new JsonException("The LocalGPT 1-Wire secret file is empty.");
-        ValidateSecret(file);
-        cached = file;
-        return file;
+    try
+    {
+            if (cached is not null) return cached;
+            var path = ResolveSecretPath();
+            if (!File.Exists(path))
+            {
+                if (!createWhenMissing) return null;
+                var created = CreateSecret(DateTimeOffset.UtcNow, null);
+                await PersistCoreAsync(created, cancellationToken).ConfigureAwait(false);
+                cached = created;
+                logger.LogInformation("Created the LocalGPT runtime 1-Wire secret at {SecretPath}.", path);
+                return created;
+            }
+            var json = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+            var file = JsonSerializer.Deserialize<OneWireRuntimeSecretFile>(json, jsonOptions)
+                ?? throw new JsonException("The LocalGPT 1-Wire secret file is empty.");
+            ValidateSecret(file);
+            cached = file;
+            return file;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(LoadCoreAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(LoadCoreAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task PersistCoreAsync(OneWireRuntimeSecretFile file, CancellationToken cancellationToken)
     {
-        ValidateSecret(file);
-        var path = ResolveSecretPath();
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var temporary = path + ".tmp";
-        await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(file, jsonOptions), cancellationToken).ConfigureAwait(false);
-        TryRestrictSecretPermissions(temporary);
-        File.Move(temporary, path, overwrite: true);
-        TryRestrictSecretPermissions(path);
+    try
+    {
+            ValidateSecret(file);
+            var path = ResolveSecretPath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var temporary = path + ".tmp";
+            await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(file, jsonOptions), cancellationToken).ConfigureAwait(false);
+            TryRestrictSecretPermissions(temporary);
+            File.Move(temporary, path, overwrite: true);
+            TryRestrictSecretPermissions(path);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(PersistCoreAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(PersistCoreAsync)} failed.");
+        throw;
+    }
+}
 
     private void TryRestrictSecretPermissions(string path)
     {
@@ -392,14 +416,26 @@ public sealed class OneWireRuntimeSecurityService(
 
     private string ResolveSecretPath()
     {
-        if (!string.IsNullOrWhiteSpace(resolvedPath)) return resolvedPath;
-        var preferred = Path.Combine(AppContext.BaseDirectory, "security", "onewire-secret.json");
-        if (CanWriteDirectory(Path.GetDirectoryName(preferred)!))
-            return resolvedPath = preferred;
-        var fallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalGPT", "Security", "onewire-secret.json");
-        logger.LogWarning("The LocalGPT program directory is not writable; the runtime 1-Wire secret will use {SecretPath}.", fallback);
-        return resolvedPath = fallback;
+    try
+    {
+            if (!string.IsNullOrWhiteSpace(resolvedPath)) return resolvedPath;
+            var preferred = Path.Combine(AppContext.BaseDirectory, "security", "onewire-secret.json");
+            if (CanWriteDirectory(Path.GetDirectoryName(preferred)!))
+                return resolvedPath = preferred;
+            var fallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalGPT", "Security", "onewire-secret.json");
+            logger.LogWarning("The LocalGPT program directory is not writable; the runtime 1-Wire secret will use {SecretPath}.", fallback);
+            return resolvedPath = fallback;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(ResolveSecretPath)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(ResolveSecretPath)} failed.");
+        throw;
+    }
+}
 
     private bool CanWriteDirectory(string directory)
     {
@@ -420,37 +456,64 @@ public sealed class OneWireRuntimeSecurityService(
 
     private OneWireRuntimeSecretFile CreateSecret(DateTimeOffset createdUtc, DateTimeOffset? rotatedUtc)
     {
-        using var agreement = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
-        using var signing = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var agreementPublic = agreement.ExportSubjectPublicKeyInfo();
-        var signingPublic = signing.ExportSubjectPublicKeyInfo();
-        var fingerprint = Convert.ToHexString(SHA256.HashData([.. agreementPublic, .. signingPublic]));
-        return new OneWireRuntimeSecretFile
-        {
-            SchemaVersion = SchemaVersion,
-            PeerId = "localgpt",
-            CreatedUtc = createdUtc,
-            RotatedUtc = rotatedUtc,
-            RootSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
-            KeyAgreementPrivateKey = Convert.ToBase64String(agreement.ExportPkcs8PrivateKey()),
-            KeyAgreementPublicKey = Convert.ToBase64String(agreementPublic),
-            SigningPrivateKey = Convert.ToBase64String(signing.ExportPkcs8PrivateKey()),
-            SigningPublicKey = Convert.ToBase64String(signingPublic),
-            MfaSeed = Convert.ToBase64String(RandomNumberGenerator.GetBytes(20)),
-            KeyId = fingerprint[..16],
-            Fingerprint = fingerprint
-        };
+    try
+    {
+            using var agreement = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
+            using var signing = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var agreementPublic = agreement.ExportSubjectPublicKeyInfo();
+            var signingPublic = signing.ExportSubjectPublicKeyInfo();
+            var fingerprint = Convert.ToHexString(SHA256.HashData([.. agreementPublic, .. signingPublic]));
+            return new OneWireRuntimeSecretFile
+            {
+                SchemaVersion = SchemaVersion,
+                PeerId = "localgpt",
+                CreatedUtc = createdUtc,
+                RotatedUtc = rotatedUtc,
+                RootSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
+                KeyAgreementPrivateKey = Convert.ToBase64String(agreement.ExportPkcs8PrivateKey()),
+                KeyAgreementPublicKey = Convert.ToBase64String(agreementPublic),
+                SigningPrivateKey = Convert.ToBase64String(signing.ExportPkcs8PrivateKey()),
+                SigningPublicKey = Convert.ToBase64String(signingPublic),
+                MfaSeed = Convert.ToBase64String(RandomNumberGenerator.GetBytes(20)),
+                KeyId = fingerprint[..16],
+                Fingerprint = fingerprint
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(CreateSecret)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(CreateSecret)} failed.");
+        throw;
+    }
+}
 
     private void ValidateSecret(OneWireRuntimeSecretFile file)
     {
-        if (file.SchemaVersion != SchemaVersion || string.IsNullOrWhiteSpace(file.RootSecret) ||
-            string.IsNullOrWhiteSpace(file.KeyAgreementPrivateKey) || string.IsNullOrWhiteSpace(file.SigningPrivateKey) ||
-            string.IsNullOrWhiteSpace(file.MfaSeed) || string.IsNullOrWhiteSpace(file.Fingerprint))
-            throw new CryptographicException("The runtime 1-Wire secret file is incomplete or uses an unsupported schema.");
+    try
+    {
+            if (file.SchemaVersion != SchemaVersion || string.IsNullOrWhiteSpace(file.RootSecret) ||
+                string.IsNullOrWhiteSpace(file.KeyAgreementPrivateKey) || string.IsNullOrWhiteSpace(file.SigningPrivateKey) ||
+                string.IsNullOrWhiteSpace(file.MfaSeed) || string.IsNullOrWhiteSpace(file.Fingerprint))
+                throw new CryptographicException("The runtime 1-Wire secret file is incomplete or uses an unsupported schema.");
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(ValidateSecret)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(ValidateSecret)} failed.");
+        throw;
+    }
+}
 
-    private OneWireRuntimeSecurityStatus CreateStatus(OneWireRuntimeSecretFile file) => new()
+    private OneWireRuntimeSecurityStatus CreateStatus(OneWireRuntimeSecretFile file) {
+    try
+    {
+        return new()
     {
         HasSecret = true,
         SecretPath = ResolveSecretPath(),
@@ -461,8 +524,21 @@ public sealed class OneWireRuntimeSecurityService(
         TrustedPeerCount = file.TrustedPeers.Count(peer => IsCurrentTrust(peer, peer.PeerId)),
         MfaEnrolled = !string.IsNullOrWhiteSpace(file.MfaSeed)
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(CreateStatus)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(CreateStatus)} failed.");
+        throw;
+    }
+}
 
-    private OneWireSecurityDescriptor CreatePublicDescriptor(OneWireRuntimeSecretFile file) => new()
+    private OneWireSecurityDescriptor CreatePublicDescriptor(OneWireRuntimeSecretFile file) {
+    try
+    {
+        return new()
     {
         HasRuntimeSecret = true,
         KeyId = file.KeyId,
@@ -470,32 +546,70 @@ public sealed class OneWireRuntimeSecurityService(
         KeyAgreementPublicKey = file.KeyAgreementPublicKey,
         SigningPublicKey = file.SigningPublicKey
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(CreatePublicDescriptor)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(CreatePublicDescriptor)} failed.");
+        throw;
+    }
+}
 
     private void ValidatePairingTicket(OneWirePairingTicket ticket)
     {
-        ArgumentNullException.ThrowIfNull(ticket);
-        if (!string.Equals(ticket.Scheme, "onewire-pair-v1", StringComparison.Ordinal) || ticket.ExpiresUtc <= DateTimeOffset.UtcNow ||
-            string.IsNullOrWhiteSpace(ticket.PeerId) || string.IsNullOrWhiteSpace(ticket.KeyAgreementPublicKey) ||
-            string.IsNullOrWhiteSpace(ticket.SigningPublicKey) || string.IsNullOrWhiteSpace(ticket.Signature))
-            throw new InvalidDataException("The 1-Wire pairing ticket is incomplete or expired.");
-        var agreement = Convert.FromBase64String(ticket.KeyAgreementPublicKey);
-        var signing = Convert.FromBase64String(ticket.SigningPublicKey);
-        var expectedFingerprint = Convert.ToHexString(SHA256.HashData([.. agreement, .. signing]));
-        if (!string.Equals(expectedFingerprint, ticket.Fingerprint, StringComparison.OrdinalIgnoreCase))
-            throw new CryptographicException("The pairing-ticket fingerprint does not match its public keys.");
-        using var verifier = ECDsa.Create();
-        verifier.ImportSubjectPublicKeyInfo(signing, out _);
-        if (!verifier.VerifyData(BuildTicketBytes(ticket), Convert.FromBase64String(ticket.Signature), HashAlgorithmName.SHA256))
-            throw new CryptographicException("The pairing ticket signature is invalid.");
+    try
+    {
+            ArgumentNullException.ThrowIfNull(ticket);
+            if (!string.Equals(ticket.Scheme, "onewire-pair-v1", StringComparison.Ordinal) || ticket.ExpiresUtc <= DateTimeOffset.UtcNow ||
+                string.IsNullOrWhiteSpace(ticket.PeerId) || string.IsNullOrWhiteSpace(ticket.KeyAgreementPublicKey) ||
+                string.IsNullOrWhiteSpace(ticket.SigningPublicKey) || string.IsNullOrWhiteSpace(ticket.Signature))
+                throw new InvalidDataException("The 1-Wire pairing ticket is incomplete or expired.");
+            var agreement = Convert.FromBase64String(ticket.KeyAgreementPublicKey);
+            var signing = Convert.FromBase64String(ticket.SigningPublicKey);
+            var expectedFingerprint = Convert.ToHexString(SHA256.HashData([.. agreement, .. signing]));
+            if (!string.Equals(expectedFingerprint, ticket.Fingerprint, StringComparison.OrdinalIgnoreCase))
+                throw new CryptographicException("The pairing-ticket fingerprint does not match its public keys.");
+            using var verifier = ECDsa.Create();
+            verifier.ImportSubjectPublicKeyInfo(signing, out _);
+            if (!verifier.VerifyData(BuildTicketBytes(ticket), Convert.FromBase64String(ticket.Signature), HashAlgorithmName.SHA256))
+                throw new CryptographicException("The pairing ticket signature is invalid.");
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(ValidatePairingTicket)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(ValidatePairingTicket)} failed.");
+        throw;
+    }
+}
 
-    private byte[] BuildTicketBytes(OneWirePairingTicket ticket) => JsonSerializer.SerializeToUtf8Bytes(new
+    private byte[] BuildTicketBytes(OneWirePairingTicket ticket) {
+    try
+    {
+        return JsonSerializer.SerializeToUtf8Bytes(new
     {
         ticket.Scheme, ticket.PeerId, ticket.DisplayName, ticket.Application, ticket.ProtocolVersion, ticket.KeyId,
         ticket.Fingerprint, ticket.KeyAgreementPublicKey, ticket.SigningPublicKey, ticket.CreatedUtc, ticket.ExpiresUtc, ticket.Nonce
     });
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(BuildTicketBytes)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(BuildTicketBytes)} failed.");
+        throw;
+    }
+}
 
-    private byte[] BuildSignatureBytes(OneWireEnvelope envelope) => JsonSerializer.SerializeToUtf8Bytes(new
+    private byte[] BuildSignatureBytes(OneWireEnvelope envelope) {
+    try
+    {
+        return JsonSerializer.SerializeToUtf8Bytes(new
     {
         envelope.ProtocolVersion, envelope.MessageId, envelope.CorrelationId, envelope.ReplyToMessageId, envelope.MessageType,
         envelope.SourcePeerId, envelope.TargetPeerId, envelope.CreatedUtc, envelope.ExpiresUtc, envelope.Sequence,
@@ -506,115 +620,237 @@ public sealed class OneWireRuntimeSecurityService(
         envelope.AuthenticationTag, envelope.UserConfirmed, envelope.ApprovalMode, envelope.WorkOrderKey, envelope.NotBeforeUtc,
         envelope.RequiresHumanInteractionOnTargetSystem, envelope.RequiresAutomatedInteractionOnTargetSystem, envelope.InteractionKind
     });
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(BuildSignatureBytes)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(BuildSignatureBytes)} failed.");
+        throw;
+    }
+}
 
-    private byte[] BuildAssociatedData(OneWireEnvelope envelope) => Encoding.UTF8.GetBytes(
+    private byte[] BuildAssociatedData(OneWireEnvelope envelope) {
+    try
+    {
+        return Encoding.UTF8.GetBytes(
         $"{envelope.ProtocolVersion}|{envelope.MessageId:N}|{envelope.CorrelationId:N}|{envelope.SourcePeerId}|{envelope.TargetPeerId}|{envelope.MessageType}|{envelope.CapabilityKey}");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(BuildAssociatedData)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(BuildAssociatedData)} failed.");
+        throw;
+    }
+}
 
     private byte[] DerivePeerKey(OneWireRuntimeSecretFile file, OneWireTrustedPeerDescriptor peer, string sourcePeerId, string targetPeerId)
     {
-        using var local = ECDiffieHellman.Create();
-        local.ImportPkcs8PrivateKey(Convert.FromBase64String(file.KeyAgreementPrivateKey), out _);
-        using var remote = ECDiffieHellman.Create();
-        remote.ImportSubjectPublicKeyInfo(Convert.FromBase64String(peer.KeyAgreementPublicKey), out _);
-        var shared = local.DeriveKeyMaterial(remote.PublicKey);
-        var orderedPeers = new[] { sourcePeerId, targetPeerId }
-            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        var orderedFingerprints = new[] { file.Fingerprint, peer.Fingerprint }
-            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        var context = $"LocalGPT-Organic-OneWire-v2.1|{string.Join("|", orderedPeers)}|{string.Join("|", orderedFingerprints)}";
-        var salt = SHA256.HashData(Encoding.UTF8.GetBytes("LocalGPT-Organic-OneWire-HKDF-SHA256-v1|" + string.Join("|", orderedFingerprints)));
-        return HkdfSha256(shared, salt, Encoding.UTF8.GetBytes(context), 32);
+    try
+    {
+            using var local = ECDiffieHellman.Create();
+            local.ImportPkcs8PrivateKey(Convert.FromBase64String(file.KeyAgreementPrivateKey), out _);
+            using var remote = ECDiffieHellman.Create();
+            remote.ImportSubjectPublicKeyInfo(Convert.FromBase64String(peer.KeyAgreementPublicKey), out _);
+            var shared = local.DeriveKeyMaterial(remote.PublicKey);
+            var orderedPeers = new[] { sourcePeerId, targetPeerId }
+                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var orderedFingerprints = new[] { file.Fingerprint, peer.Fingerprint }
+                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var context = $"LocalGPT-Organic-OneWire-v2.1|{string.Join("|", orderedPeers)}|{string.Join("|", orderedFingerprints)}";
+            var salt = SHA256.HashData(Encoding.UTF8.GetBytes("LocalGPT-Organic-OneWire-HKDF-SHA256-v1|" + string.Join("|", orderedFingerprints)));
+            return HkdfSha256(shared, salt, Encoding.UTF8.GetBytes(context), 32);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(DerivePeerKey)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(DerivePeerKey)} failed.");
+        throw;
+    }
+}
 
     private byte[] HkdfSha256(ReadOnlySpan<byte> inputKeyMaterial, ReadOnlySpan<byte> salt, ReadOnlySpan<byte> info, int outputLength)
     {
-        if (outputLength <= 0 || outputLength > 255 * 32) throw new ArgumentOutOfRangeException(nameof(outputLength));
-        byte[] pseudoRandomKey;
-        using (var extract = new HMACSHA256(salt.ToArray()))
-            pseudoRandomKey = extract.ComputeHash(inputKeyMaterial.ToArray());
+    try
+    {
+            if (outputLength <= 0 || outputLength > 255 * 32) throw new ArgumentOutOfRangeException(nameof(outputLength));
+            byte[] pseudoRandomKey;
+            using (var extract = new HMACSHA256(salt.ToArray()))
+                pseudoRandomKey = extract.ComputeHash(inputKeyMaterial.ToArray());
 
-        var output = new byte[outputLength];
-        var previous = Array.Empty<byte>();
-        var written = 0;
-        byte counter = 1;
-        using var expand = new HMACSHA256(pseudoRandomKey);
-        while (written < outputLength)
-        {
-            var blockInput = new byte[previous.Length + info.Length + 1];
-            previous.CopyTo(blockInput, 0);
-            info.CopyTo(blockInput.AsSpan(previous.Length));
-            blockInput[^1] = counter++;
-            previous = expand.ComputeHash(blockInput);
-            var count = Math.Min(previous.Length, outputLength - written);
-            previous.AsSpan(0, count).CopyTo(output.AsSpan(written));
-            written += count;
-        }
-        CryptographicOperations.ZeroMemory(pseudoRandomKey);
-        CryptographicOperations.ZeroMemory(previous);
-        return output;
+            var output = new byte[outputLength];
+            var previous = Array.Empty<byte>();
+            var written = 0;
+            byte counter = 1;
+            using var expand = new HMACSHA256(pseudoRandomKey);
+            while (written < outputLength)
+            {
+                var blockInput = new byte[previous.Length + info.Length + 1];
+                previous.CopyTo(blockInput, 0);
+                info.CopyTo(blockInput.AsSpan(previous.Length));
+                blockInput[^1] = counter++;
+                previous = expand.ComputeHash(blockInput);
+                var count = Math.Min(previous.Length, outputLength - written);
+                previous.AsSpan(0, count).CopyTo(output.AsSpan(written));
+                written += count;
+            }
+            CryptographicOperations.ZeroMemory(pseudoRandomKey);
+            CryptographicOperations.ZeroMemory(previous);
+            return output;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(HkdfSha256)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(HkdfSha256)} failed.");
+        throw;
+    }
+}
 
     private bool VerifyTotp(string seedBase64, string code)
     {
-        var normalized = new string((code ?? string.Empty).Where(char.IsDigit).ToArray());
-        if (normalized.Length != 6) return false;
-        var seed = Convert.FromBase64String(seedBase64);
-        var counter = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / TotpPeriodSeconds;
-        for (var offset = -1; offset <= 1; offset++)
-        {
-            var bytes = BitConverter.GetBytes(counter + offset);
-            if (BitConverter.IsLittleEndian) Array.Reverse(bytes);
-            using var hmac = new HMACSHA1(seed);
-            var hash = hmac.ComputeHash(bytes);
-            var index = hash[^1] & 0x0F;
-            var binary = ((hash[index] & 0x7F) << 24) | (hash[index + 1] << 16) | (hash[index + 2] << 8) | hash[index + 3];
-            var expected = (binary % 1_000_000).ToString("D6", System.Globalization.CultureInfo.InvariantCulture);
-            if (CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(expected), Encoding.ASCII.GetBytes(normalized))) return true;
-        }
-        return false;
+    try
+    {
+            var normalized = new string((code ?? string.Empty).Where(char.IsDigit).ToArray());
+            if (normalized.Length != 6) return false;
+            var seed = Convert.FromBase64String(seedBase64);
+            var counter = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / TotpPeriodSeconds;
+            for (var offset = -1; offset <= 1; offset++)
+            {
+                var bytes = BitConverter.GetBytes(counter + offset);
+                if (BitConverter.IsLittleEndian) Array.Reverse(bytes);
+                using var hmac = new HMACSHA1(seed);
+                var hash = hmac.ComputeHash(bytes);
+                var index = hash[^1] & 0x0F;
+                var binary = ((hash[index] & 0x7F) << 24) | (hash[index + 1] << 16) | (hash[index + 2] << 8) | hash[index + 3];
+                var expected = (binary % 1_000_000).ToString("D6", System.Globalization.CultureInfo.InvariantCulture);
+                if (CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(expected), Encoding.ASCII.GetBytes(normalized))) return true;
+            }
+            return false;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(VerifyTotp)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(VerifyTotp)} failed.");
+        throw;
+    }
+}
 
     private string Base32Encode(ReadOnlySpan<byte> data)
     {
-        const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-        var output = new StringBuilder((data.Length * 8 + 4) / 5);
-        var buffer = 0;
-        var bits = 0;
-        foreach (var value in data)
-        {
-            buffer = (buffer << 8) | value;
-            bits += 8;
-            while (bits >= 5)
+    try
+    {
+            const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+            var output = new StringBuilder((data.Length * 8 + 4) / 5);
+            var buffer = 0;
+            var bits = 0;
+            foreach (var value in data)
             {
-                output.Append(alphabet[(buffer >> (bits - 5)) & 31]);
-                bits -= 5;
+                buffer = (buffer << 8) | value;
+                bits += 8;
+                while (bits >= 5)
+                {
+                    output.Append(alphabet[(buffer >> (bits - 5)) & 31]);
+                    bits -= 5;
+                }
             }
-        }
-        if (bits > 0) output.Append(alphabet[(buffer << (5 - bits)) & 31]);
-        return output.ToString();
+            if (bits > 0) output.Append(alphabet[(buffer << (5 - bits)) & 31]);
+            return output.ToString();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(Base32Encode)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(Base32Encode)} failed.");
+        throw;
+    }
+}
 
-    private bool IsCurrentTrust(OneWireTrustedPeerDescriptor peer, string peerId) =>
-        string.Equals(peer.PeerId, peerId, StringComparison.OrdinalIgnoreCase) &&
+    private bool IsCurrentTrust(OneWireTrustedPeerDescriptor peer, string peerId) {
+    try
+    {
+        return string.Equals(peer.PeerId, peerId, StringComparison.OrdinalIgnoreCase) &&
         peer.TrustLevel >= OneWireTrustLevel.MfaVerified &&
         (peer.ValidUntilUtc is null || peer.ValidUntilUtc > DateTimeOffset.UtcNow) &&
         (peer.MfaVerifiedUntilUtc is null || peer.MfaVerifiedUntilUtc > DateTimeOffset.UtcNow);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(IsCurrentTrust)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(IsCurrentTrust)} failed.");
+        throw;
+    }
+}
 
-    private bool IsSecurityBootstrap(OneWireMessageType type) => type is
+    private bool IsSecurityBootstrap(OneWireMessageType type) {
+    try
+    {
+        return type is
         OneWireMessageType.Hello or OneWireMessageType.HelloAck or OneWireMessageType.LinkRequest or OneWireMessageType.LinkStatus or
         OneWireMessageType.SecurityProfileRequest or OneWireMessageType.SecurityProfileResponse or OneWireMessageType.MfaChallenge or
         OneWireMessageType.MfaProof or OneWireMessageType.TrustEstablished or OneWireMessageType.TrustRevoked;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(IsSecurityBootstrap)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(IsSecurityBootstrap)} failed.");
+        throw;
+    }
+}
 
-    private TimeSpan Clamp(TimeSpan value, TimeSpan minimum, TimeSpan maximum) => value < minimum ? minimum : value > maximum ? maximum : value;
+    private TimeSpan Clamp(TimeSpan value, TimeSpan minimum, TimeSpan maximum) {
+    try
+    {
+        return value < minimum ? minimum : value > maximum ? maximum : value;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(Clamp)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(Clamp)} failed.");
+        throw;
+    }
+}
 
-    private OneWireTrustedPeerDescriptor CloneTrustedPeer(OneWireTrustedPeerDescriptor peer) => new()
+    private OneWireTrustedPeerDescriptor CloneTrustedPeer(OneWireTrustedPeerDescriptor peer) {
+    try
+    {
+        return new()
     {
         PeerId = peer.PeerId, DisplayName = peer.DisplayName, Fingerprint = peer.Fingerprint,
         KeyAgreementPublicKey = peer.KeyAgreementPublicKey, SigningPublicKey = peer.SigningPublicKey,
         TrustLevel = peer.TrustLevel, TrustedUtc = peer.TrustedUtc, ValidUntilUtc = peer.ValidUntilUtc,
         MfaVerifiedUntilUtc = peer.MfaVerifiedUntilUtc
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(CloneTrustedPeer)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OneWireRuntimeSecurityService)}.{nameof(CloneTrustedPeer)} failed.");
+        throw;
+    }
+}
 
 }

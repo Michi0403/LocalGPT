@@ -44,22 +44,46 @@ public sealed class DocumentationTranslationAdapter(
 
     private string BuildLocalizationKey(string memberId)
     {
-        var builder = new StringBuilder("Documentation.");
-        foreach (var character in memberId)
-            builder.Append(char.IsLetterOrDigit(character) ? character : '_');
-        return builder.ToString();
+    try
+    {
+            var builder = new StringBuilder("Documentation.");
+            foreach (var character in memberId)
+                builder.Append(char.IsLetterOrDigit(character) ? character : '_');
+            return builder.ToString();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationTranslationAdapter)}.{nameof(BuildLocalizationKey)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationTranslationAdapter)}.{nameof(BuildLocalizationKey)} failed.");
+        throw;
+    }
+}
 
     private string NormalizeCulture(string? culture)
     {
-        var requested = string.IsNullOrWhiteSpace(culture) ? CultureInfo.CurrentUICulture.Name : culture.Trim();
-        try
-        {
-            return CultureInfo.GetCultureInfo(requested).Name;
-        }
-        catch (CultureNotFoundException)
-        {
-            return "en-US";
-        }
+    try
+    {
+            var requested = string.IsNullOrWhiteSpace(culture) ? CultureInfo.CurrentUICulture.Name : culture.Trim();
+            try
+            {
+                return CultureInfo.GetCultureInfo(requested).Name;
+            }
+            catch (CultureNotFoundException)
+            {
+                return "en-US";
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationTranslationAdapter)}.{nameof(NormalizeCulture)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationTranslationAdapter)}.{nameof(NormalizeCulture)} failed.");
+        throw;
+    }
+}
 }

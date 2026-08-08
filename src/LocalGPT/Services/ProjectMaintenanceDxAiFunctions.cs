@@ -63,13 +63,25 @@ public sealed class SaveProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonSer
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectWorkspaceEnvironmentSaveParameters>(request.Parameters);
-        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-        binding.Value.Request.UserConfirmed = true;
-        var result = await maintenance.SaveWorkspaceRootAsync(binding.Value.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved workspace environment metadata saved for workspace {WorkspaceRootId}; paths and regex content omitted from logs.", result.Id);
-        return json.Success(result);
+    try
+    {
+            var binding = json.Bind<ProjectWorkspaceEnvironmentSaveParameters>(request.Parameters);
+            if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+            binding.Value.Request.UserConfirmed = true;
+            var result = await maintenance.SaveWorkspaceRootAsync(binding.Value.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved workspace environment metadata saved for workspace {WorkspaceRootId}; paths and regex content omitted from logs.", result.Id);
+            return json.Success(result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(SaveProjectWorkspaceEnvironmentFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(SaveProjectWorkspaceEnvironmentFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class AssessProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<AssessProjectWorkspaceEnvironmentFunction> logger) : IDxAiFunctionHandler
@@ -84,12 +96,24 @@ public sealed class AssessProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonS
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectWorkspaceEnvironmentAssessParameters>(request.Parameters);
-        if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-        var result = await maintenance.AssessWorkspacePermissionsAsync(binding.Value.WorkspaceRootId, userConfirmedWriteProbe: true, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved workspace permission assessment completed for workspace {WorkspaceRootId} with status {Status}.", result.WorkspaceRootId, result.Status);
-        return json.Success(result);
+    try
+    {
+            var binding = json.Bind<ProjectWorkspaceEnvironmentAssessParameters>(request.Parameters);
+            if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
+            var result = await maintenance.AssessWorkspacePermissionsAsync(binding.Value.WorkspaceRootId, userConfirmedWriteProbe: true, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved workspace permission assessment completed for workspace {WorkspaceRootId} with status {Status}.", result.WorkspaceRootId, result.Status);
+            return json.Success(result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(AssessProjectWorkspaceEnvironmentFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(AssessProjectWorkspaceEnvironmentFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class RegisterProjectRevisionWorkspaceFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<RegisterProjectRevisionWorkspaceFunction> logger) : IDxAiFunctionHandler
@@ -103,20 +127,32 @@ public sealed class RegisterProjectRevisionWorkspaceFunction(IDxAiFunctionJsonSe
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectRevisionWorkspaceRegisterParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        var revision = await maintenance.RegisterRevisionWorkspaceAsync(
-            parameters.ProjectId,
-            parameters.RevisionId,
-            parameters.SourceRootPath,
-            parameters.SolutionPath,
-            userConfirmed: true,
-            cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved workspace registration completed for project {ProjectId} revision {RevisionId}; paths omitted from logs.", parameters.ProjectId, parameters.RevisionId);
-        return json.Success(new { revision.Id, revision.ProjectId, revision.SourceRootPath, revision.SolutionPath, revision.CompileVerified, revision.CouncilVerified, revision.ReadyForTesting });
+    try
+    {
+            var binding = json.Bind<ProjectRevisionWorkspaceRegisterParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            var revision = await maintenance.RegisterRevisionWorkspaceAsync(
+                parameters.ProjectId,
+                parameters.RevisionId,
+                parameters.SourceRootPath,
+                parameters.SolutionPath,
+                userConfirmed: true,
+                cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved workspace registration completed for project {ProjectId} revision {RevisionId}; paths omitted from logs.", parameters.ProjectId, parameters.RevisionId);
+            return json.Success(new { revision.Id, revision.ProjectId, revision.SourceRootPath, revision.SolutionPath, revision.CompileVerified, revision.CouncilVerified, revision.ReadyForTesting });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RegisterProjectRevisionWorkspaceFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RegisterProjectRevisionWorkspaceFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -130,15 +166,27 @@ public sealed class ScanProjectFilesFunction(IDxAiFunctionJsonService json, IPro
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectFilesScanParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var p = binding.Value;
-        p.Request.UserConfirmed = true;
-        var result = await maintenance.ScanProjectFilesAsync(p.ProjectId, p.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved project scan completed for project {ProjectId} with {FileCount} stored files.", p.ProjectId, result.FilesStored);
-        return json.Success(result);
+    try
+    {
+            var binding = json.Bind<ProjectFilesScanParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var p = binding.Value;
+            p.Request.UserConfirmed = true;
+            var result = await maintenance.ScanProjectFilesAsync(p.ProjectId, p.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved project scan completed for project {ProjectId} with {FileCount} stored files.", p.ProjectId, result.FilesStored);
+            return json.Success(result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ScanProjectFilesFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ScanProjectFilesFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class SaveProjectFilePatternsFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<SaveProjectFilePatternsFunction> logger) : IDxAiFunctionHandler
@@ -152,15 +200,27 @@ public sealed class SaveProjectFilePatternsFunction(IDxAiFunctionJsonService jso
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectFilePatternsSaveParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        parameters.Request.UserConfirmed = true;
-        var result = await maintenance.SaveTrackedFilePatternAsync(parameters.TrackedFileId, parameters.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved regex metadata was saved for tracked file {TrackedFileId}; regex content omitted from logs.", parameters.TrackedFileId);
-        return json.Success(result);
+    try
+    {
+            var binding = json.Bind<ProjectFilePatternsSaveParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            parameters.Request.UserConfirmed = true;
+            var result = await maintenance.SaveTrackedFilePatternAsync(parameters.TrackedFileId, parameters.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved regex metadata was saved for tracked file {TrackedFileId}; regex content omitted from logs.", parameters.TrackedFileId);
+            return json.Success(result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(SaveProjectFilePatternsFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(SaveProjectFilePatternsFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -174,15 +234,27 @@ public sealed class VerifyProjectRevisionBuildFunction(IDxAiFunctionJsonService 
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectRevisionBuildVerifyParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var p = binding.Value;
-        p.Request.UserConfirmed = true;
-        var result = await maintenance.RunBuildVerificationAsync(p.ProjectId, p.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved build verification {VerificationId} completed for project {ProjectId}.", result.Id, p.ProjectId);
-        return json.Success(result);
+    try
+    {
+            var binding = json.Bind<ProjectRevisionBuildVerifyParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var p = binding.Value;
+            p.Request.UserConfirmed = true;
+            var result = await maintenance.RunBuildVerificationAsync(p.ProjectId, p.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved build verification {VerificationId} completed for project {ProjectId}.", result.Id, p.ProjectId);
+            return json.Success(result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(VerifyProjectRevisionBuildFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(VerifyProjectRevisionBuildFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class RecordProjectCouncilBuildReviewFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<RecordProjectCouncilBuildReviewFunction> logger) : IDxAiFunctionHandler
@@ -195,15 +267,27 @@ public sealed class RecordProjectCouncilBuildReviewFunction(IDxAiFunctionJsonSer
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectCouncilBuildReviewRecordParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var p = binding.Value;
-        p.Request.UserConfirmed = true;
-        var result = await maintenance.RecordCouncilBuildReviewAsync(p.VerificationId, p.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved council review recorded for verification {VerificationId}.", p.VerificationId);
-        return json.Success(result);
+    try
+    {
+            var binding = json.Bind<ProjectCouncilBuildReviewRecordParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var p = binding.Value;
+            p.Request.UserConfirmed = true;
+            var result = await maintenance.RecordCouncilBuildReviewAsync(p.VerificationId, p.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved council review recorded for verification {VerificationId}.", p.VerificationId);
+            return json.Success(result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RecordProjectCouncilBuildReviewFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RecordProjectCouncilBuildReviewFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class ApproveProjectRevisionReadyFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<ApproveProjectRevisionReadyFunction> logger) : IDxAiFunctionHandler
@@ -216,13 +300,25 @@ public sealed class ApproveProjectRevisionReadyFunction(IDxAiFunctionJsonService
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectRevisionApproveParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var p = binding.Value;
-        p.Request.UserConfirmed = true;
-        var result = await maintenance.ApproveRevisionReadyForTestAsync(p.ProjectId, p.RevisionId, p.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved revision {RevisionId} for project {ProjectId} as ready for testing.", p.RevisionId, p.ProjectId);
-        return json.Success(result);
+    try
+    {
+            var binding = json.Bind<ProjectRevisionApproveParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var p = binding.Value;
+            p.Request.UserConfirmed = true;
+            var result = await maintenance.ApproveRevisionReadyForTestAsync(p.ProjectId, p.RevisionId, p.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved revision {RevisionId} for project {ProjectId} as ready for testing.", p.RevisionId, p.ProjectId);
+            return json.Success(result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ApproveProjectRevisionReadyFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ApproveProjectRevisionReadyFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }

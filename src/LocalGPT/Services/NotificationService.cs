@@ -48,16 +48,93 @@ namespace TacosPortal.Services
 
         private string NormalizeText(string? value, string fallback, int maxLength)
         {
-            var normalized = string.IsNullOrWhiteSpace(value)
-                ? fallback
-                : value.Replace('\r', ' ').Replace('\n', ' ').Trim();
-            return normalized[..Math.Min(normalized.Length, maxLength)];
-        }
+    try
+    {
+                var normalized = string.IsNullOrWhiteSpace(value)
+                    ? fallback
+                    : value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+                return normalized[..Math.Min(normalized.Length, maxLength)];
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(NormalizeText)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(NormalizeText)} failed.");
+        throw;
+    }
+}
 
-        public void ShowInfo(string providerName, string message, string title = "Info") => Show(providerName, title, message, ToastRenderStyle.Info);
-        public void ShowSuccess(string providerName, string message, string title = "Success") => Show(providerName, title, message, ToastRenderStyle.Success);
-        public void ShowWarning(string providerName, string message, string title = "Warning") => Show(providerName, title, message, ToastRenderStyle.Warning);
-        public void ShowError(string providerName, string message, string title = "Error") => Show(providerName, title, message, ToastRenderStyle.Danger);
-        public void ShowRegular(string providerName, string message, string title = "Error") => Show(providerName, title, message, ToastRenderStyle.Primary);
+        public void ShowInfo(string providerName, string message, string title = "Info") {
+    try
+    {
+        Show(providerName, title, message, ToastRenderStyle.Info);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(ShowInfo)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(ShowInfo)} failed.");
+        throw;
+    }
+}
+        public void ShowSuccess(string providerName, string message, string title = "Success") {
+    try
+    {
+        Show(providerName, title, message, ToastRenderStyle.Success);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(ShowSuccess)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(ShowSuccess)} failed.");
+        throw;
+    }
+}
+        public void ShowWarning(string providerName, string message, string title = "Warning") {
+    try
+    {
+        Show(providerName, title, message, ToastRenderStyle.Warning);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(ShowWarning)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(ShowWarning)} failed.");
+        throw;
+    }
+}
+        public void ShowError(string providerName, string message, string title = "Error") {
+    try
+    {
+        Show(providerName, title, message, ToastRenderStyle.Danger);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(ShowError)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(ShowError)} failed.");
+        throw;
+    }
+}
+        public void ShowRegular(string providerName, string message, string title = "Error") {
+    try
+    {
+        Show(providerName, title, message, ToastRenderStyle.Primary);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(ShowRegular)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(NotificationService)}.{nameof(ShowRegular)} failed.");
+        throw;
+    }
+}
     }
 }

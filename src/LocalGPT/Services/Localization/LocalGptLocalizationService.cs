@@ -121,99 +121,207 @@ public sealed class LocalGptLocalizationService(
     /// <inheritdoc />
     public IReadOnlyList<LocalizationCatalogDescriptor> GetCatalogs()
     {
-        return GetAvailableCultures()
-            .Select(culture => new LocalizationCatalogDescriptor(
-                culture,
-                File.Exists(GetBuiltInCatalogPath(culture)),
-                File.Exists(GetUserCatalogPath(culture)),
-                GetStrings(culture).Count,
-                GetCultureDisplayName(culture)))
-            .ToArray();
+    try
+    {
+            return GetAvailableCultures()
+                .Select(culture => new LocalizationCatalogDescriptor(
+                    culture,
+                    File.Exists(GetBuiltInCatalogPath(culture)),
+                    File.Exists(GetUserCatalogPath(culture)),
+                    GetStrings(culture).Count,
+                    GetCultureDisplayName(culture)))
+                .ToArray();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetCatalogs)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetCatalogs)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public IReadOnlyDictionary<string, string> GetStrings(string? culture = null)
     {
-        var normalized = NormalizeCulture(culture);
-        return cache.GetOrAdd(normalized, Load);
+    try
+    {
+            var normalized = NormalizeCulture(culture);
+            return cache.GetOrAdd(normalized, Load);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetStrings)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetStrings)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public string Get(string key, string? culture = null, string? fallback = null)
     {
-        if (string.IsNullOrWhiteSpace(key)) return fallback ?? string.Empty;
-        if (GetStrings(culture).TryGetValue(key, out var value)) return value;
-        if (GetStrings("en-US").TryGetValue(key, out value)) return value;
-        return fallback ?? key;
+    try
+    {
+            if (string.IsNullOrWhiteSpace(key)) return fallback ?? string.Empty;
+            if (GetStrings(culture).TryGetValue(key, out var value)) return value;
+            if (GetStrings("en-US").TryGetValue(key, out value)) return value;
+            return fallback ?? key;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(Get)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(Get)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public string GetText(string source, string? culture = null)
     {
-        if (string.IsNullOrWhiteSpace(source)) return string.Empty;
-        var key = "Text." + source.Replace(" ", "␠", StringComparison.Ordinal);
-        return Get(key, culture, source);
+    try
+    {
+            if (string.IsNullOrWhiteSpace(source)) return string.Empty;
+            var key = "Text." + source.Replace(" ", "␠", StringComparison.Ordinal);
+            return Get(key, culture, source);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetText)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetText)} failed.");
+        throw;
+    }
+}
 
 
     /// <inheritdoc />
     public string ResolveAvailableCulture(string? culture)
     {
-        var normalized = NormalizeCulture(culture);
-        return GetAvailableCultures().FirstOrDefault(item =>
-            string.Equals(item, normalized, StringComparison.OrdinalIgnoreCase)) ?? "en-US";
+    try
+    {
+            var normalized = NormalizeCulture(culture);
+            return GetAvailableCultures().FirstOrDefault(item =>
+                string.Equals(item, normalized, StringComparison.OrdinalIgnoreCase)) ?? "en-US";
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(ResolveAvailableCulture)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(ResolveAvailableCulture)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public string BuildCultureReturnUrl(string absoluteUri)
     {
-        if (!Uri.TryCreate(absoluteUri, UriKind.Absolute, out var current)) return "/";
-        return BuildCultureUrl(current.AbsolutePath, current.Query, null);
+    try
+    {
+            if (!Uri.TryCreate(absoluteUri, UriKind.Absolute, out var current)) return "/";
+            return BuildCultureUrl(current.AbsolutePath, current.Query, null);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(BuildCultureReturnUrl)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(BuildCultureReturnUrl)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public string BuildCultureRedirectUrl(string? returnUrl, string culture)
     {
-        var selected = ResolveAvailableCulture(culture);
-        var local = string.IsNullOrWhiteSpace(returnUrl) || !returnUrl.StartsWith("/", StringComparison.Ordinal) || returnUrl.StartsWith("//", StringComparison.Ordinal)
-            ? "/"
-            : returnUrl;
-        if (!Uri.TryCreate("http://localgpt.invalid" + local, UriKind.Absolute, out var parsed))
-            return "/?culture=" + Uri.EscapeDataString(selected) + "&ui-culture=" + Uri.EscapeDataString(selected);
-        return BuildCultureUrl(parsed.AbsolutePath, parsed.Query, selected);
+    try
+    {
+            var selected = ResolveAvailableCulture(culture);
+            var local = string.IsNullOrWhiteSpace(returnUrl) || !returnUrl.StartsWith("/", StringComparison.Ordinal) || returnUrl.StartsWith("//", StringComparison.Ordinal)
+                ? "/"
+                : returnUrl;
+            if (!Uri.TryCreate("http://localgpt.invalid" + local, UriKind.Absolute, out var parsed))
+                return "/?culture=" + Uri.EscapeDataString(selected) + "&ui-culture=" + Uri.EscapeDataString(selected);
+            return BuildCultureUrl(parsed.AbsolutePath, parsed.Query, selected);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(BuildCultureRedirectUrl)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(BuildCultureRedirectUrl)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public string BuildCultureSelectionUrl(string absoluteUri, string culture)
     {
-        var selected = ResolveAvailableCulture(culture);
-        var returnUrl = BuildCultureReturnUrl(absoluteUri);
-        var endpoint = QueryHelpers.AddQueryString("/api/localization/select", "culture", selected);
-        return QueryHelpers.AddQueryString(endpoint, "returnUrl", returnUrl);
+    try
+    {
+            var selected = ResolveAvailableCulture(culture);
+            var returnUrl = BuildCultureReturnUrl(absoluteUri);
+            var endpoint = QueryHelpers.AddQueryString("/api/localization/select", "culture", selected);
+            return QueryHelpers.AddQueryString(endpoint, "returnUrl", returnUrl);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(BuildCultureSelectionUrl)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(BuildCultureSelectionUrl)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Builds one local route while preserving non-localization query values.</summary>
     private string BuildCultureUrl(string absolutePath, string query, string? culture)
     {
-        var result = string.IsNullOrWhiteSpace(absolutePath) ? "/" : absolutePath;
-        foreach (var pair in QueryHelpers.ParseQuery(query))
-        {
-            if (string.Equals(pair.Key, "culture", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(pair.Key, "ui-culture", StringComparison.OrdinalIgnoreCase))
-                continue;
-            foreach (var value in pair.Value)
+    try
+    {
+            var result = string.IsNullOrWhiteSpace(absolutePath) ? "/" : absolutePath;
+            foreach (var pair in QueryHelpers.ParseQuery(query))
             {
-                if (value is null) continue;
-                result = QueryHelpers.AddQueryString(result, pair.Key, value);
+                if (string.Equals(pair.Key, "culture", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(pair.Key, "ui-culture", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                foreach (var value in pair.Value)
+                {
+                    if (value is null) continue;
+                    result = QueryHelpers.AddQueryString(result, pair.Key, value);
+                }
             }
-        }
-        if (!string.IsNullOrWhiteSpace(culture))
-        {
-            result = QueryHelpers.AddQueryString(result, "culture", culture);
-            result = QueryHelpers.AddQueryString(result, "ui-culture", culture);
-        }
-        return result;
+            if (!string.IsNullOrWhiteSpace(culture))
+            {
+                result = QueryHelpers.AddQueryString(result, "culture", culture);
+                result = QueryHelpers.AddQueryString(result, "ui-culture", culture);
+            }
+            return result;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(BuildCultureUrl)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(BuildCultureUrl)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public LocalizationCatalogValidationResult ValidateCatalog(string culture, string json)
@@ -277,66 +385,102 @@ public sealed class LocalGptLocalizationService(
     /// <inheritdoc />
     public string FormatValidationErrors(LocalizationCatalogValidationResult validation)
     {
-        ArgumentNullException.ThrowIfNull(validation);
-        return validation.Errors.Count == 0
-            ? "The localization catalog did not provide a validation error."
-            : string.Join(" ", validation.Errors.Take(20));
+    try
+    {
+            ArgumentNullException.ThrowIfNull(validation);
+            return validation.Errors.Count == 0
+                ? "The localization catalog did not provide a validation error."
+                : string.Join(" ", validation.Errors.Take(20));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(FormatValidationErrors)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(FormatValidationErrors)} failed.");
+        throw;
+    }
+}
 
     /// <inheritdoc />
     public async Task<LocalizationCatalogImportResult> ImportCatalogAsync(string culture, string json, bool overwrite, CancellationToken cancellationToken = default)
     {
-        var validation = ValidateCatalog(culture, json);
-        if (!validation.IsValid)
-            throw new InvalidDataException(string.Join(" ", validation.Errors));
+    try
+    {
+            var validation = ValidateCatalog(culture, json);
+            if (!validation.IsValid)
+                throw new InvalidDataException(string.Join(" ", validation.Errors));
 
-        Directory.CreateDirectory(UserLocalizationPath);
-        var destination = GetUserCatalogPath(validation.Culture);
-        if (File.Exists(destination) && !overwrite)
-            throw new IOException($"A user localization catalog for {validation.Culture} already exists. Enable overwrite to replace it.");
+            Directory.CreateDirectory(UserLocalizationPath);
+            var destination = GetUserCatalogPath(validation.Culture);
+            if (File.Exists(destination) && !overwrite)
+                throw new IOException($"A user localization catalog for {validation.Culture} already exists. Enable overwrite to replace it.");
 
-        var parsed = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
-            ?? throw new InvalidDataException("The localization catalog contained no dictionary.");
-        var normalized = parsed
-            .Where(pair => !string.IsNullOrWhiteSpace(pair.Key))
-            .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(pair => pair.Key.Trim(), pair => pair.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
-        var serialized = JsonSerializer.Serialize(normalized, new JsonSerializerOptions { WriteIndented = true });
-        var temporary = destination + ".tmp-" + Guid.NewGuid().ToString("N");
-        try
-        {
-            await File.WriteAllTextAsync(temporary, serialized, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
-            File.Move(temporary, destination, overwrite);
-        }
-        finally
-        {
-            if (File.Exists(temporary)) File.Delete(temporary);
-        }
+            var parsed = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
+                ?? throw new InvalidDataException("The localization catalog contained no dictionary.");
+            var normalized = parsed
+                .Where(pair => !string.IsNullOrWhiteSpace(pair.Key))
+                .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(pair => pair.Key.Trim(), pair => pair.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+            var serialized = JsonSerializer.Serialize(normalized, new JsonSerializerOptions { WriteIndented = true });
+            var temporary = destination + ".tmp-" + Guid.NewGuid().ToString("N");
+            try
+            {
+                await File.WriteAllTextAsync(temporary, serialized, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+                File.Move(temporary, destination, overwrite);
+            }
+            finally
+            {
+                if (File.Exists(temporary)) File.Delete(temporary);
+            }
 
-        if (string.Equals(validation.Culture, "en-US", StringComparison.OrdinalIgnoreCase))
-            cache.Clear();
-        else
-            cache.TryRemove(validation.Culture, out _);
-        logger.LogInformation("Imported a persistent LocalGPT localization catalog for culture {Culture} with {StringCount} entries.", validation.Culture, normalized.Count);
-        return new LocalizationCatalogImportResult(validation.Culture, normalized.Count, validation.MissingBaselineKeyCount);
+            if (string.Equals(validation.Culture, "en-US", StringComparison.OrdinalIgnoreCase))
+                cache.Clear();
+            else
+                cache.TryRemove(validation.Culture, out _);
+            logger.LogInformation("Imported a persistent LocalGPT localization catalog for culture {Culture} with {StringCount} entries.", validation.Culture, normalized.Count);
+            return new LocalizationCatalogImportResult(validation.Culture, normalized.Count, validation.MissingBaselineKeyCount);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(ImportCatalogAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(ImportCatalogAsync)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Loads one effective culture catalog with English fallback and user overrides.</summary>
     /// <param name="culture">Normalized culture name.</param>
     /// <returns>The immutable effective string dictionary.</returns>
     private IReadOnlyDictionary<string, string> Load(string culture)
     {
-        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        Merge(GetBuiltInCatalogPath("en-US"), result, "en-US built-in");
-        Merge(GetUserCatalogPath("en-US"), result, "en-US user override");
-        if (!string.Equals(culture, "en-US", StringComparison.OrdinalIgnoreCase))
-        {
-            Merge(GetBuiltInCatalogPath(culture), result, culture + " built-in");
-            Merge(GetUserCatalogPath(culture), result, culture + " user override");
-        }
-        logger.LogDebug("Loaded {StringCount} LocalGPT localization strings for culture {Culture}.", result.Count, culture);
-        return result;
+    try
+    {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Merge(GetBuiltInCatalogPath("en-US"), result, "en-US built-in");
+            Merge(GetUserCatalogPath("en-US"), result, "en-US user override");
+            if (!string.Equals(culture, "en-US", StringComparison.OrdinalIgnoreCase))
+            {
+                Merge(GetBuiltInCatalogPath(culture), result, culture + " built-in");
+                Merge(GetUserCatalogPath(culture), result, culture + " user override");
+            }
+            logger.LogDebug("Loaded {StringCount} LocalGPT localization strings for culture {Culture}.", result.Count, culture);
+            return result;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(Load)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(Load)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Merges one optional catalog file into an effective catalog.</summary>
     /// <param name="path">Catalog file path.</param>
@@ -344,9 +488,21 @@ public sealed class LocalGptLocalizationService(
     /// <param name="source">Diagnostic source label.</param>
     private void Merge(string path, IDictionary<string, string> result, string source)
     {
-        foreach (var pair in LoadCatalogFile(path)) result[pair.Key] = pair.Value;
-        if (File.Exists(path)) logger.LogDebug("Merged LocalGPT localization source {Source}.", source);
+    try
+    {
+            foreach (var pair in LoadCatalogFile(path)) result[pair.Key] = pair.Value;
+            if (File.Exists(path)) logger.LogDebug("Merged LocalGPT localization source {Source}.", source);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(Merge)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(Merge)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Reads one JSON catalog without throwing for missing or invalid optional files.</summary>
     /// <param name="path">Catalog file path.</param>
@@ -402,25 +558,75 @@ public sealed class LocalGptLocalizationService(
     /// <returns>The normalized culture name.</returns>
     private string NormalizeRequiredCulture(string culture)
     {
-        if (string.IsNullOrWhiteSpace(culture)) throw new CultureNotFoundException(nameof(culture));
-        return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+    try
+    {
+            if (string.IsNullOrWhiteSpace(culture)) throw new CultureNotFoundException(nameof(culture));
+            return CultureInfo.GetCultureInfo(culture.Trim()).Name;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(NormalizeRequiredCulture)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(NormalizeRequiredCulture)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Resolves a culture display name for installer presentation.</summary>
     /// <param name="culture">Normalized culture name.</param>
     /// <returns>The runtime display name or the original culture string.</returns>
     private string GetCultureDisplayName(string culture)
     {
-        try { return CultureInfo.GetCultureInfo(culture).DisplayName; }
-        catch (CultureNotFoundException) { return culture; }
+    try
+    {
+            try { return CultureInfo.GetCultureInfo(culture).DisplayName; }
+            catch (CultureNotFoundException) { return culture; }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetCultureDisplayName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetCultureDisplayName)} failed.");
+        throw;
+    }
+}
 
     /// <summary>Builds the shipped catalog path for a culture.</summary>
     /// <param name="culture">Normalized culture name.</param>
     /// <returns>The built-in JSON path.</returns>
-    private string GetBuiltInCatalogPath(string culture) => Path.Combine(BuiltInLocalizationPath, culture + ".json");
+    private string GetBuiltInCatalogPath(string culture) {
+    try
+    {
+        return Path.Combine(BuiltInLocalizationPath, culture + ".json");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetBuiltInCatalogPath)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetBuiltInCatalogPath)} failed.");
+        throw;
+    }
+}
     /// <summary>Builds the persistent user catalog path for a culture.</summary>
     /// <param name="culture">Normalized culture name.</param>
     /// <returns>The user JSON path.</returns>
-    private string GetUserCatalogPath(string culture) => Path.Combine(UserLocalizationPath, culture + ".json");
+    private string GetUserCatalogPath(string culture) {
+    try
+    {
+        return Path.Combine(UserLocalizationPath, culture + ".json");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetUserCatalogPath)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptLocalizationService)}.{nameof(GetUserCatalogPath)} failed.");
+        throw;
+    }
+}
 }

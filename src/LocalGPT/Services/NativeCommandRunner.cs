@@ -212,64 +212,88 @@ public sealed class NativeCommandRunner(
 
     private CommandPolicyDecision ValidatePolicy(string fileName, string arguments, string workingDirectory)
     {
-        var policyOptions = commandOptions.CurrentValue;
-        if (!policyOptions.Enabled)
-        {
-            return DenyDecision(
-                "Native command execution is disabled. The repository owner must explicitly enable NativeCommands:Enabled.");
-        }
-
-        var executable = Path.GetFileName(fileName.Trim());
-        if (!runtimePolicy.AllowedNativeExecutables.Contains(executable))
-            return DenyDecision($"Executable '{executable}' is not allowlisted.");
-
-        if (sqliteUtility.ContainsPathSegment(fileName, logger))
-        {
-            var executablePath = Path.GetFullPath(Path.Combine(workingDirectory, fileName));
-            if (!workspaceService.IsPathInsideWorkspaceRoot(executablePath))
-                return DenyDecision("Executable paths must stay inside the LocalGPT Minecraft workspace root.");
-        }
-
-        if (sqliteUtility.IsPowerShell(executable, logger))
-        {
-            if (!policyOptions.AllowPowerShellWorkspaceScripts)
+    try
+    {
+            var policyOptions = commandOptions.CurrentValue;
+            if (!policyOptions.Enabled)
             {
                 return DenyDecision(
-                    "PowerShell workspace scripts are disabled. The repository owner must explicitly enable NativeCommands:AllowPowerShellWorkspaceScripts.");
+                    "Native command execution is disabled. The repository owner must explicitly enable NativeCommands:Enabled.");
             }
 
-            return ValidatePowerShellPolicy(arguments, workingDirectory);
-        }
+            var executable = Path.GetFileName(fileName.Trim());
+            if (!runtimePolicy.AllowedNativeExecutables.Contains(executable))
+                return DenyDecision($"Executable '{executable}' is not allowlisted.");
 
-        var profile = sqliteUtility.ClassifyCommandProfile(executable, arguments, logger);
-        return AllowDecision(
-            profile,
-            $"Profile '{profile}' selected for allowlisted executable '{executable}'.");
+            if (sqliteUtility.ContainsPathSegment(fileName, logger))
+            {
+                var executablePath = Path.GetFullPath(Path.Combine(workingDirectory, fileName));
+                if (!workspaceService.IsPathInsideWorkspaceRoot(executablePath))
+                    return DenyDecision("Executable paths must stay inside the LocalGPT Minecraft workspace root.");
+            }
+
+            if (sqliteUtility.IsPowerShell(executable, logger))
+            {
+                if (!policyOptions.AllowPowerShellWorkspaceScripts)
+                {
+                    return DenyDecision(
+                        "PowerShell workspace scripts are disabled. The repository owner must explicitly enable NativeCommands:AllowPowerShellWorkspaceScripts.");
+                }
+
+                return ValidatePowerShellPolicy(arguments, workingDirectory);
+            }
+
+            var profile = sqliteUtility.ClassifyCommandProfile(executable, arguments, logger);
+            return AllowDecision(
+                profile,
+                $"Profile '{profile}' selected for allowlisted executable '{executable}'.");
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(NativeCommandRunner)}.{nameof(ValidatePolicy)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(NativeCommandRunner)}.{nameof(ValidatePolicy)} failed.");
+        throw;
+    }
+}
 
     private CommandPolicyDecision ValidatePowerShellPolicy(string arguments, string workingDirectory)
     {
-        if (runtimePolicy.PowerShellInlineCommandPattern.IsMatch(arguments))
-            return DenyDecision("PowerShell inline commands are blocked; use -File with a workspace script.");
+    try
+    {
+            if (runtimePolicy.PowerShellInlineCommandPattern.IsMatch(arguments))
+                return DenyDecision("PowerShell inline commands are blocked; use -File with a workspace script.");
 
-        var match = runtimePolicy.PowerShellFilePattern.Match(arguments);
-        if (!match.Success)
-            return DenyDecision("PowerShell commands must use -File with a workspace script.");
+            var match = runtimePolicy.PowerShellFilePattern.Match(arguments);
+            if (!match.Success)
+                return DenyDecision("PowerShell commands must use -File with a workspace script.");
 
-        var scriptPath = match.Groups["path"].Value;
-        if (!scriptPath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
-            return DenyDecision("PowerShell -File must target a .ps1 script.");
+            var scriptPath = match.Groups["path"].Value;
+            if (!scriptPath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))
+                return DenyDecision("PowerShell -File must target a .ps1 script.");
 
-        var fullScriptPath = Path.GetFullPath(Path.Combine(workingDirectory, scriptPath));
-        if (!workspaceService.IsPathInsideWorkspaceRoot(fullScriptPath))
-            return DenyDecision("PowerShell script paths must stay inside the LocalGPT Minecraft workspace root.");
-        if (!File.Exists(fullScriptPath))
-            return DenyDecision("The requested PowerShell workspace script does not exist.");
+            var fullScriptPath = Path.GetFullPath(Path.Combine(workingDirectory, scriptPath));
+            if (!workspaceService.IsPathInsideWorkspaceRoot(fullScriptPath))
+                return DenyDecision("PowerShell script paths must stay inside the LocalGPT Minecraft workspace root.");
+            if (!File.Exists(fullScriptPath))
+                return DenyDecision("The requested PowerShell workspace script does not exist.");
 
-        return AllowDecision(
-            "PowerShellWorkspaceScript",
-            "PowerShell -File script is inside the LocalGPT Minecraft workspace root.");
+            return AllowDecision(
+                "PowerShellWorkspaceScript",
+                "PowerShell -File script is inside the LocalGPT Minecraft workspace root.");
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(NativeCommandRunner)}.{nameof(ValidatePowerShellPolicy)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(NativeCommandRunner)}.{nameof(ValidatePowerShellPolicy)} failed.");
+        throw;
+    }
+}
 
     private async Task<(string StdoutPath, string StderrPath)> WriteCommandOutputAsync(
         string workingDirectory,
@@ -357,25 +381,49 @@ public sealed class NativeCommandRunner(
 
     private void KillProcessTree(Process process)
     {
-        try
-        {
-            if (!process.HasExited)
-                process.Kill(entireProcessTree: true);
-        }
-        catch (InvalidOperationException)
-        {
-            // The process exited between the state check and the termination request.
-        }
+    try
+    {
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // The process exited between the state check and the termination request.
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(NativeCommandRunner)}.{nameof(KillProcessTree)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(NativeCommandRunner)}.{nameof(KillProcessTree)} failed.");
+        throw;
+    }
+}
 
     private string RedactArguments(string arguments)
     {
-        if (string.IsNullOrEmpty(arguments))
-            return string.Empty;
+    try
+    {
+            if (string.IsNullOrEmpty(arguments))
+                return string.Empty;
 
-        return runtimePolicy.SensitiveArgumentPattern.Replace(arguments, match =>
-            $"{match.Groups["name"].Value}{match.Groups["separator"].Value}[REDACTED]");
+            return runtimePolicy.SensitiveArgumentPattern.Replace(arguments, match =>
+                $"{match.Groups["name"].Value}{match.Groups["separator"].Value}[REDACTED]");
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(NativeCommandRunner)}.{nameof(RedactArguments)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(NativeCommandRunner)}.{nameof(RedactArguments)} failed.");
+        throw;
+    }
+}
     private CommandPolicyDecision AllowDecision(string profile, string reason)
     {
         try

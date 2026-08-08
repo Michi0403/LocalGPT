@@ -54,8 +54,12 @@
                 @if (selectedRevisionId is Guid)
                 {
                     <div class="field-grid revision-workspace">
-                        <label class="span-all">@T("ProjectMaintenance.RevisionSourceRoot", "Revision source root")<input @bind="revisionWorkspaceEdit.SourceRootPath" /></label>
-                        <label class="span-all">@T("ProjectMaintenance.RevisionSolutionPath", "Revision solution path")<input @bind="revisionWorkspaceEdit.SolutionPath" /></label>
+                        <label class="span-all">@T("ProjectMaintenance.RevisionSourceRoot", "Revision source root")
+                            <div class="path-picker-row"><input @bind="revisionWorkspaceEdit.SourceRootPath" /><button type="button" class="btn btn-outline-secondary" @onclick='@(() => OpenPathExplorer("RevisionSource"))'>Browse…</button></div>
+                        </label>
+                        <label class="span-all">@T("ProjectMaintenance.RevisionSolutionPath", "Revision solution path")
+                            <div class="path-picker-row"><input @bind="revisionWorkspaceEdit.SolutionPath" /><button type="button" class="btn btn-outline-secondary" @onclick='@(() => OpenPathExplorer("RevisionSolution"))'>Browse…</button></div>
+                        </label>
                     </div>
                     <div class="action-row">
                         <DxButton Text='@T("ProjectMaintenance.SaveRevisionWorkspace", "Save revision workspace")' RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!busy && !string.IsNullOrWhiteSpace(revisionWorkspaceEdit.SourceRootPath))" Click="SaveRevisionWorkspaceAsync" />
@@ -109,7 +113,9 @@
             <p>@T("ProjectMaintenance.WorkspaceHelp", "Project scope wins over project-type scope; global scope is the fallback. Source projects are never overwritten by revision snapshots.")</p>
             <div class="field-grid">
                 <label>@T("Common.Name", "Name")<input @bind="workspaceEdit.Name" /></label>
-                <label>@T("Common.Path", "Path")<input @bind="workspaceEdit.RootPath" placeholder="C:\LocalGPT-Workspaces" /></label>
+                <label>@T("Common.Path", "Path")
+                    <div class="path-picker-row"><input @bind="workspaceEdit.RootPath" placeholder="Local workspace folder" /><button type="button" class="btn btn-outline-secondary" @onclick='@(() => OpenPathExplorer("WorkspaceRoot"))'>Browse…</button></div>
+                </label>
                 <label>@T("Common.Scope", "Scope")
                     <select @bind="workspaceEdit.ScopeKind">
                         <option value="Project">@T("ProjectMaintenance.ScopeProject", "Selected project")</option>
@@ -120,7 +126,9 @@
                 <label>@T("ProjectMaintenance.ProjectTypeRegex", "Project type regex")<input @bind="workspaceEdit.ProjectTypePattern" placeholder="(?i)DotNet.*" /></label>
                 <label>@T("ProjectMaintenance.SolutionRegex", "Solution regex")<input @bind="workspaceEdit.SolutionPattern" /></label>
                 <label>@T("ProjectMaintenance.EnvironmentKind", "Local environment kind")<select @bind="workspaceEdit.EnvironmentKind"><option>LocalHost</option><option>PythonNet</option><option>PlatformIO</option><option>ArduinoCLI</option><option>Custom</option></select></label>
-                <label>@T("ProjectMaintenance.EnvironmentRoot", "Environment root")<input @bind="workspaceEdit.EnvironmentRootPath" placeholder="C:\LocalGPT-Workspaces\project\.localenv" /></label>
+                <label>@T("ProjectMaintenance.EnvironmentRoot", "Environment root")
+                    <div class="path-picker-row"><input @bind="workspaceEdit.EnvironmentRootPath" placeholder="Optional local environment folder" /><button type="button" class="btn btn-outline-secondary" @onclick='@(() => OpenPathExplorer("EnvironmentRoot"))'>Browse…</button></div>
+                </label>
                 <label>@T("ProjectMaintenance.PreferredCompiler", "Preferred compiler")
                     <select @bind="workspaceEdit.PreferredCompilerInstallationId">
                         <option value="">@T("Common.None", "None")</option>
@@ -266,6 +274,14 @@
             }
         </article>
     </section>
+
+    <LocalPathExplorer Visible="@pathExplorerVisible"
+                       VisibleChanged="OnPathExplorerVisibleChanged"
+                       SelectedPath="@ActivePathExplorerPath"
+                       SelectedPathChanged="ApplyPathSelectionAsync"
+                       SelectionMode="@PathExplorerSelectionMode"
+                       IncludeFiles="@PathExplorerIncludesFiles"
+                       Title="@PathExplorerTitle" />
 </main>
 
 @code {
@@ -290,6 +306,8 @@
     Guid? selectedTrackedFileId;
     string customCompilerRoots = string.Empty;
     bool busy;
+    bool pathExplorerVisible;
+    string pathExplorerTarget = string.Empty;
 
     string SelectedProjectValue
     {
@@ -300,6 +318,48 @@
     string SelectedCompilerValue { get => selectedCompilerId?.ToString() ?? string.Empty; set { selectedCompilerId = Guid.TryParse(value, out var id) ? id : null; buildEdit.CompilerInstallationId = selectedCompilerId ?? Guid.Empty; } }
     string SelectedTrackedFileValue { get => selectedTrackedFileId?.ToString() ?? string.Empty; set { selectedTrackedFileId = Guid.TryParse(value, out var id) ? id : null; SelectTrackedFile(); } }
     bool CanVerifyBuild => !busy && selectedProjectId is not null && selectedRevisionId is not null && selectedCompilerId is not null;
+
+    string ActivePathExplorerPath => pathExplorerTarget switch
+    {
+        "RevisionSource" => revisionWorkspaceEdit.SourceRootPath,
+        "RevisionSolution" => revisionWorkspaceEdit.SolutionPath,
+        "EnvironmentRoot" => workspaceEdit.EnvironmentRootPath,
+        _ => workspaceEdit.RootPath
+    };
+    string PathExplorerSelectionMode => pathExplorerTarget == "RevisionSolution" ? "File" : "Directory";
+    bool PathExplorerIncludesFiles => pathExplorerTarget == "RevisionSolution";
+    string PathExplorerTitle => pathExplorerTarget switch
+    {
+        "RevisionSource" => "Choose revision source folder",
+        "RevisionSolution" => "Choose revision solution/project file",
+        "EnvironmentRoot" => "Choose local environment folder",
+        _ => "Choose project workspace folder"
+    };
+
+    void OpenPathExplorer(string target)
+    {
+        pathExplorerTarget = target;
+        pathExplorerVisible = true;
+    }
+
+    Task OnPathExplorerVisibleChanged(bool visible)
+    {
+        pathExplorerVisible = visible;
+        return Task.CompletedTask;
+    }
+
+    Task ApplyPathSelectionAsync(string path)
+    {
+        switch (pathExplorerTarget)
+        {
+            case "RevisionSource": revisionWorkspaceEdit.SourceRootPath = path; break;
+            case "RevisionSolution": revisionWorkspaceEdit.SolutionPath = path; break;
+            case "EnvironmentRoot": workspaceEdit.EnvironmentRootPath = path; break;
+            default: workspaceEdit.RootPath = path; break;
+        }
+        pathExplorerVisible = false;
+        return Task.CompletedTask;
+    }
 
     protected override Task OnInitializedAsync()
     {

@@ -13,11 +13,30 @@ public sealed class DatabaseLoggerReadiness : IDatabaseLoggerReadiness
 
     public Task WaitUntilReadyAsync(CancellationToken cancellationToken = default)
     {
-        if (IsReady)
-            return Task.CompletedTask;
+    try
+    {
+            if (IsReady)
+                return Task.CompletedTask;
 
-        return ready.Task.WaitAsync(cancellationToken);
+            return ready.Task.WaitAsync(cancellationToken);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method DatabaseLoggerReadiness.WaitUntilReadyAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 
-    public void MarkReady() => ready.TrySetResult(true);
+    public void MarkReady() {
+    try
+    {
+        ready.TrySetResult(true);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method DatabaseLoggerReadiness.MarkReady failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }

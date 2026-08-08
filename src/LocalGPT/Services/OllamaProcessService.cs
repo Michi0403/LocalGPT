@@ -13,9 +13,21 @@ public sealed class OllamaProcessService(
 
     public async Task<OllamaProcessStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        return await Task.FromResult(BuildStatus()).ConfigureAwait(false);
+    try
+    {
+            cancellationToken.ThrowIfCancellationRequested();
+            return await Task.FromResult(BuildStatus()).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(GetStatusAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(GetStatusAsync)} failed.");
+        throw;
+    }
+}
 
     public async Task<OllamaProcessStatus> StartAsync(CancellationToken cancellationToken = default)
     {
@@ -70,156 +82,240 @@ public sealed class OllamaProcessService(
 
     public async Task<OllamaProcessStatus> StopAsync(CancellationToken cancellationToken = default)
     {
-        await processGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var terminatedCount = await TerminateAllOllamaProcessesAsync(cancellationToken).ConfigureAwait(false);
-            var stopped = BuildStatus();
-            return stopped with
+    try
+    {
+            await processGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                Message = stopped.IsRunning
-                    ? $"Ollama stop was requested, but {stopped.Processes.Count} process(es) are still running."
-                    : terminatedCount == 0
-                        ? "Ollama was not running."
-                        : $"Stopped {terminatedCount} Ollama process(es), including ollama.exe and Ollama app processes."
-            };
-        }
-        finally
-        {
-            processGate.Release();
-        }
+                var terminatedCount = await TerminateAllOllamaProcessesAsync(cancellationToken).ConfigureAwait(false);
+                var stopped = BuildStatus();
+                return stopped with
+                {
+                    Message = stopped.IsRunning
+                        ? $"Ollama stop was requested, but {stopped.Processes.Count} process(es) are still running."
+                        : terminatedCount == 0
+                            ? "Ollama was not running."
+                            : $"Stopped {terminatedCount} Ollama process(es), including ollama.exe and Ollama app processes."
+                };
+            }
+            finally
+            {
+                processGate.Release();
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(StopAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(StopAsync)} failed.");
+        throw;
+    }
+}
 
     public async Task<OllamaProcessStatus> RestartAsync(CancellationToken cancellationToken = default)
     {
-        await processGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await TerminateAllOllamaProcessesAsync(cancellationToken).ConfigureAwait(false);
-
-            var executable = ResolveOllamaExecutable();
-            if (string.IsNullOrWhiteSpace(executable))
-                return BuildStatus() with { Message = "Ollama was stopped, but its executable could not be resolved for restart." };
-
-            var isGuiExecutable = IsOllamaAppExecutable(executable);
-            var startInfo = new ProcessStartInfo
+    try
+    {
+            await processGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                FileName = executable,
-                WorkingDirectory = Path.GetDirectoryName(executable) ?? Environment.CurrentDirectory,
-                UseShellExecute = isGuiExecutable,
-                CreateNoWindow = !isGuiExecutable
-            };
-            if (!isGuiExecutable)
-                startInfo.ArgumentList.Add("serve");
+                await TerminateAllOllamaProcessesAsync(cancellationToken).ConfigureAwait(false);
 
-            Process.Start(startInfo)?.Dispose();
-            await WaitForProcessStateAsync(expectedRunning: true, cancellationToken).ConfigureAwait(false);
-            var restarted = BuildStatus();
-            return restarted with
+                var executable = ResolveOllamaExecutable();
+                if (string.IsNullOrWhiteSpace(executable))
+                    return BuildStatus() with { Message = "Ollama was stopped, but its executable could not be resolved for restart." };
+
+                var isGuiExecutable = IsOllamaAppExecutable(executable);
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = executable,
+                    WorkingDirectory = Path.GetDirectoryName(executable) ?? Environment.CurrentDirectory,
+                    UseShellExecute = isGuiExecutable,
+                    CreateNoWindow = !isGuiExecutable
+                };
+                if (!isGuiExecutable)
+                    startInfo.ArgumentList.Add("serve");
+
+                Process.Start(startInfo)?.Dispose();
+                await WaitForProcessStateAsync(expectedRunning: true, cancellationToken).ConfigureAwait(false);
+                var restarted = BuildStatus();
+                return restarted with
+                {
+                    Message = restarted.IsRunning
+                        ? $"Ollama restarted successfully with {restarted.Processes.Count} process(es)."
+                        : "Ollama was relaunched, but no Ollama process became visible before the startup timeout."
+                };
+            }
+            finally
             {
-                Message = restarted.IsRunning
-                    ? $"Ollama restarted successfully with {restarted.Processes.Count} process(es)."
-                    : "Ollama was relaunched, but no Ollama process became visible before the startup timeout."
-            };
-        }
-        finally
-        {
-            processGate.Release();
-        }
+                processGate.Release();
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(RestartAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(RestartAsync)} failed.");
+        throw;
+    }
+}
 
     private OllamaProcessStatus BuildStatus()
     {
-        var executable = ResolveOllamaExecutable();
-        var processes = GetOllamaProcesses()
-            .Select(process =>
-            {
-                using (process)
+    try
+    {
+            var executable = ResolveOllamaExecutable();
+            var processes = GetOllamaProcesses()
+                .Select(process =>
                 {
-                    string? path = null;
-                    try { path = process.MainModule?.FileName; }
-                    catch { }
-                    return new OllamaProcessInfo(process.Id, process.ProcessName, path);
-                }
-            })
-            .OrderBy(process => process.ProcessName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(process => process.ProcessId)
-            .ToList();
+                    using (process)
+                    {
+                        string? path = null;
+                        try { path = process.MainModule?.FileName; }
+                        catch { }
+                        return new OllamaProcessInfo(process.Id, process.ProcessName, path);
+                    }
+                })
+                .OrderBy(process => process.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(process => process.ProcessId)
+                .ToList();
 
-        var processSummary = string.Join(
-            ", ",
-            processes.Select(process => $"{process.ProcessName} ({process.ProcessId})"));
+            var processSummary = string.Join(
+                ", ",
+                processes.Select(process => $"{process.ProcessName} ({process.ProcessId})"));
 
-        return new OllamaProcessStatus(
-            !string.IsNullOrWhiteSpace(executable),
-            processes.Count > 0,
-            executable,
-            processes,
-            processSummary,
-            processes.Count > 0
-                ? $"Ollama is running in {processes.Count} process(es)."
-                : !string.IsNullOrWhiteSpace(executable)
-                    ? "Ollama is installed but not running."
-                    : "Ollama is not installed or could not be found.");
+            return new OllamaProcessStatus(
+                !string.IsNullOrWhiteSpace(executable),
+                processes.Count > 0,
+                executable,
+                processes,
+                processSummary,
+                processes.Count > 0
+                    ? $"Ollama is running in {processes.Count} process(es)."
+                    : !string.IsNullOrWhiteSpace(executable)
+                        ? "Ollama is installed but not running."
+                        : "Ollama is not installed or could not be found.");
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(BuildStatus)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(BuildStatus)} failed.");
+        throw;
+    }
+}
 
     private List<Process> GetOllamaProcesses()
     {
-        var matches = new List<Process>();
-        foreach (var process in Process.GetProcesses())
-        {
-            try
+    try
+    {
+            var matches = new List<Process>();
+            foreach (var process in Process.GetProcesses())
             {
-                if (ollamaProcessNames.Contains(NormalizeProcessName(process.ProcessName), StringComparer.Ordinal))
-                    matches.Add(process);
-                else
+                try
+                {
+                    if (ollamaProcessNames.Contains(NormalizeProcessName(process.ProcessName), StringComparer.Ordinal))
+                        matches.Add(process);
+                    else
+                        process.Dispose();
+                }
+                catch
+                {
                     process.Dispose();
+                }
             }
-            catch
-            {
-                process.Dispose();
-            }
-        }
-        return matches;
+            return matches;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(GetOllamaProcesses)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(GetOllamaProcesses)} failed.");
+        throw;
+    }
+}
 
-    private string NormalizeProcessName(string value) =>
-        new string(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+    private string NormalizeProcessName(string value) {
+    try
+    {
+        return new string(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(NormalizeProcessName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(NormalizeProcessName)} failed.");
+        throw;
+    }
+}
 
-    private bool IsOllamaAppExecutable(string executable) =>
-        NormalizeProcessName(Path.GetFileNameWithoutExtension(executable)) == "ollamaapp";
+    private bool IsOllamaAppExecutable(string executable) {
+    try
+    {
+        return NormalizeProcessName(Path.GetFileNameWithoutExtension(executable)) == "ollamaapp";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(IsOllamaAppExecutable)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(IsOllamaAppExecutable)} failed.");
+        throw;
+    }
+}
 
     private string? ResolveOllamaExecutable()
     {
-        var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "ollama.exe" : "ollama";
-        var candidates = new List<string>();
+    try
+    {
+            var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "ollama.exe" : "ollama";
+            var candidates = new List<string>();
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (!string.IsNullOrWhiteSpace(localAppData))
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", executableName));
-                candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", "ollama app.exe"));
-                candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", "ollama.app.exe"));
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (!string.IsNullOrWhiteSpace(localAppData))
+                {
+                    candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", executableName));
+                    candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", "ollama app.exe"));
+                    candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", "ollama.app.exe"));
+                }
+
+                var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                if (!string.IsNullOrWhiteSpace(programFiles))
+                {
+                    candidates.Add(Path.Combine(programFiles, "Ollama", executableName));
+                    candidates.Add(Path.Combine(programFiles, "Ollama", "ollama app.exe"));
+                    candidates.Add(Path.Combine(programFiles, "Ollama", "ollama.app.exe"));
+                }
             }
 
-            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            if (!string.IsNullOrWhiteSpace(programFiles))
-            {
-                candidates.Add(Path.Combine(programFiles, "Ollama", executableName));
-                candidates.Add(Path.Combine(programFiles, "Ollama", "ollama app.exe"));
-                candidates.Add(Path.Combine(programFiles, "Ollama", "ollama.app.exe"));
-            }
-        }
+            var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            candidates.AddRange(path
+                .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(directory => Path.Combine(directory, executableName)));
 
-        var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-        candidates.AddRange(path
-            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(directory => Path.Combine(directory, executableName)));
-
-        return candidates.FirstOrDefault(File.Exists);
+            return candidates.FirstOrDefault(File.Exists);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(ResolveOllamaExecutable)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(ResolveOllamaExecutable)} failed.");
+        throw;
+    }
+}
 
     private async Task<int> TerminateAllOllamaProcessesAsync(CancellationToken cancellationToken)
     {
@@ -263,17 +359,29 @@ public sealed class OllamaProcessService(
 
     private async Task WaitForProcessStateAsync(bool expectedRunning, CancellationToken cancellationToken)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(expectedRunning ? 10 : 5);
-        while (DateTime.UtcNow < deadline)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var processes = GetOllamaProcesses();
-            var isRunning = processes.Count > 0;
-            foreach (var process in processes)
-                process.Dispose();
-            if (isRunning == expectedRunning)
-                return;
-            await Task.Delay(250, cancellationToken).ConfigureAwait(false);
-        }
+    try
+    {
+            var deadline = DateTime.UtcNow.AddSeconds(expectedRunning ? 10 : 5);
+            while (DateTime.UtcNow < deadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var processes = GetOllamaProcesses();
+                var isRunning = processes.Count > 0;
+                foreach (var process in processes)
+                    process.Dispose();
+                if (isRunning == expectedRunning)
+                    return;
+                await Task.Delay(250, cancellationToken).ConfigureAwait(false);
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(WaitForProcessStateAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(WaitForProcessStateAsync)} failed.");
+        throw;
+    }
+}
 }

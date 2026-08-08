@@ -10,28 +10,40 @@ namespace LocalGPT.Services
     {
         public async Task<string> BuildDevExpressBriefingAsync(CancellationToken cancellationToken = default)
         {
-            var root = councilRuntime.FindRepositoryRoot(logger);
-            var builder = new StringBuilder()
-                .AppendLine("DevExpress package and capability inventory for LocalGPT:");
+    try
+    {
+                var root = councilRuntime.FindRepositoryRoot(logger);
+                var builder = new StringBuilder()
+                    .AppendLine("DevExpress package and capability inventory for LocalGPT:");
 
-            var wroteSourceInventory = false;
-            if (root is not null)
-            {
-                wroteSourceInventory = await AppendProjectPackageReferencesAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.AppendDevExpressImportsAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.AppendDevExpressRegistrationsAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
-            }
+                var wroteSourceInventory = false;
+                if (root is not null)
+                {
+                    wroteSourceInventory = await AppendProjectPackageReferencesAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.AppendDevExpressImportsAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
+                    await councilRuntime.AppendDevExpressRegistrationsAsync(builder, root, cancellationToken, logger).ConfigureAwait(false);
+                }
 
-            councilRuntime.AppendLoadedDevExpressAssemblies(builder, logger);
-            if (!wroteSourceInventory)
-                builder.AppendLine("- Source `LocalGPT.csproj` was not found from this runtime location; use loaded assemblies and copied AI docs as fallback evidence.");
+                councilRuntime.AppendLoadedDevExpressAssemblies(builder, logger);
+                if (!wroteSourceInventory)
+                    builder.AppendLine("- Source `LocalGPT.csproj` was not found from this runtime location; use loaded assemblies and copied AI docs as fallback evidence.");
 
-            builder
-                .AppendLine("- Rule: do not invent DevExpress components or APIs beyond the referenced package/version family. Mark uncertain APIs as Needs verification.")
-                .AppendLine("- Rule: Office document generation, report generation, PDF export, and file download workflows belong in the ASP.NET Core/Blazor server backend with service methods and safe download endpoints. The frontend should call those services and display links/status.");
+                builder
+                    .AppendLine("- Rule: do not invent DevExpress components or APIs beyond the referenced package/version family. Mark uncertain APIs as Needs verification.")
+                    .AppendLine("- Rule: Office document generation, report generation, PDF export, and file download workflows belong in the ASP.NET Core/Blazor server backend with service methods and safe download endpoints. The frontend should call those services and display links/status.");
 
-            return builder.ToString().Trim();
-        }
+                return builder.ToString().Trim();
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProjectLibraryInventoryService)}.{nameof(BuildDevExpressBriefingAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ProjectLibraryInventoryService)}.{nameof(BuildDevExpressBriefingAsync)} failed.");
+        throw;
+    }
+}
 
         private async Task<bool> AppendProjectPackageReferencesAsync(StringBuilder builder, string root, CancellationToken cancellationToken, ILogger logger)
         {

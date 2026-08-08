@@ -185,167 +185,266 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 
     private List<StructuredJsonCandidate> FindJsonCandidates(string text, int maximumDocuments)
     {
-        var excluded = fencedBlockRegex.Matches(text)
-            .Concat(protectedBlockRegex.Matches(text).Cast<Match>())
-            .Select(match => (Start: match.Index, End: match.Index + match.Length))
-            .OrderBy(range => range.Start)
-            .ToList();
-        var candidates = new List<StructuredJsonCandidate>();
+    try
+    {
+            var excluded = fencedBlockRegex.Matches(text)
+                .Concat(protectedBlockRegex.Matches(text).Cast<Match>())
+                .Select(match => (Start: match.Index, End: match.Index + match.Length))
+                .OrderBy(range => range.Start)
+                .ToList();
+            var candidates = new List<StructuredJsonCandidate>();
 
-        foreach (Match startMatch in plainStartRegex.Matches(text))
-        {
-            if (candidates.Count >= maximumDocuments)
-                break;
-            var startGroup = startMatch.Groups["jsonStart"];
-            var index = startGroup.Success ? startGroup.Index : startMatch.Index;
-            if (index < 0 || index >= text.Length || IsInsideExcludedRange(index, excluded) || !StartsStandaloneBlock(text, index))
-                continue;
-            if (!TryFindBalancedJsonEnd(text, index, out var end) || !EndsStandaloneBlock(text, end))
-                continue;
+            foreach (Match startMatch in plainStartRegex.Matches(text))
+            {
+                if (candidates.Count >= maximumDocuments)
+                    break;
+                var startGroup = startMatch.Groups["jsonStart"];
+                var index = startGroup.Success ? startGroup.Index : startMatch.Index;
+                if (index < 0 || index >= text.Length || IsInsideExcludedRange(index, excluded) || !StartsStandaloneBlock(text, index))
+                    continue;
+                if (!TryFindBalancedJsonEnd(text, index, out var end) || !EndsStandaloneBlock(text, end))
+                    continue;
 
-            var length = end - index + 1;
-            candidates.Add(new StructuredJsonCandidate(index, length, text.Substring(index, length)));
-        }
+                var length = end - index + 1;
+                candidates.Add(new StructuredJsonCandidate(index, length, text.Substring(index, length)));
+            }
 
-        return candidates;
+            return candidates;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(FindJsonCandidates)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(FindJsonCandidates)} failed.");
+        throw;
+    }
+}
 
-    private bool IsInsideExcludedRange(int index, IReadOnlyList<(int Start, int End)> excluded) =>
-        excluded.Any(range => index >= range.Start && index < range.End);
+    private bool IsInsideExcludedRange(int index, IReadOnlyList<(int Start, int End)> excluded) {
+    try
+    {
+        return excluded.Any(range => index >= range.Start && index < range.End);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(IsInsideExcludedRange)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(IsInsideExcludedRange)} failed.");
+        throw;
+    }
+}
 
     private bool StartsStandaloneBlock(string text, int index)
     {
-        var lineStart = text.LastIndexOf('\n', Math.Max(0, index - 1));
-        lineStart = lineStart < 0 ? 0 : lineStart + 1;
-        for (var cursor = lineStart; cursor < index; cursor++)
-        {
-            if (!char.IsWhiteSpace(text[cursor]))
-                return false;
-        }
-        return true;
+    try
+    {
+            var lineStart = text.LastIndexOf('\n', Math.Max(0, index - 1));
+            lineStart = lineStart < 0 ? 0 : lineStart + 1;
+            for (var cursor = lineStart; cursor < index; cursor++)
+            {
+                if (!char.IsWhiteSpace(text[cursor]))
+                    return false;
+            }
+            return true;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(StartsStandaloneBlock)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(StartsStandaloneBlock)} failed.");
+        throw;
+    }
+}
 
     private bool EndsStandaloneBlock(string text, int end)
     {
-        for (var cursor = end + 1; cursor < text.Length && text[cursor] is not ('\r' or '\n'); cursor++)
-        {
-            if (!char.IsWhiteSpace(text[cursor]))
-                return false;
-        }
-        return true;
+    try
+    {
+            for (var cursor = end + 1; cursor < text.Length && text[cursor] is not ('\r' or '\n'); cursor++)
+            {
+                if (!char.IsWhiteSpace(text[cursor]))
+                    return false;
+            }
+            return true;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(EndsStandaloneBlock)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(EndsStandaloneBlock)} failed.");
+        throw;
+    }
+}
 
     private bool TryFindBalancedJsonEnd(string text, int start, out int end)
     {
-        var stack = new Stack<char>();
-        var inString = false;
-        var escaping = false;
-        for (var index = start; index < text.Length; index++)
-        {
-            var current = text[index];
-            if (inString)
+    try
+    {
+            var stack = new Stack<char>();
+            var inString = false;
+            var escaping = false;
+            for (var index = start; index < text.Length; index++)
             {
-                if (escaping)
+                var current = text[index];
+                if (inString)
                 {
-                    escaping = false;
+                    if (escaping)
+                    {
+                        escaping = false;
+                        continue;
+                    }
+                    if (current == '\\')
+                    {
+                        escaping = true;
+                        continue;
+                    }
+                    if (current == '"')
+                        inString = false;
                     continue;
                 }
-                if (current == '\\')
-                {
-                    escaping = true;
-                    continue;
-                }
+
                 if (current == '"')
-                    inString = false;
-                continue;
-            }
-
-            if (current == '"')
-            {
-                inString = true;
-                continue;
-            }
-            if (current is '{' or '[')
-            {
-                stack.Push(current);
-                continue;
-            }
-            if (current is '}' or ']')
-            {
-                if (stack.Count == 0)
-                    break;
-                var opening = stack.Pop();
-                if ((opening == '{' && current != '}') || (opening == '[' && current != ']'))
-                    break;
-                if (stack.Count == 0)
                 {
-                    end = index;
-                    return true;
+                    inString = true;
+                    continue;
+                }
+                if (current is '{' or '[')
+                {
+                    stack.Push(current);
+                    continue;
+                }
+                if (current is '}' or ']')
+                {
+                    if (stack.Count == 0)
+                        break;
+                    var opening = stack.Pop();
+                    if ((opening == '{' && current != '}') || (opening == '[' && current != ']'))
+                        break;
+                    if (stack.Count == 0)
+                    {
+                        end = index;
+                        return true;
+                    }
                 }
             }
-        }
 
-        end = -1;
-        return false;
+            end = -1;
+            return false;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(TryFindBalancedJsonEnd)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(TryFindBalancedJsonEnd)} failed.");
+        throw;
+    }
+}
 
     private string RenderElement(JsonElement element, int depth, string? name)
     {
-        if (depth > MaximumDepth)
-            return "- … depth limit reached";
+    try
+    {
+            if (depth > MaximumDepth)
+                return "- … depth limit reached";
 
-        var indent = new string(' ', depth * 2);
-        var label = string.IsNullOrWhiteSpace(name) ? string.Empty : $"**{Encode(BeautifyKey(name))}**: ";
-        return element.ValueKind switch
-        {
-            JsonValueKind.Object => RenderObject(element, depth, label),
-            JsonValueKind.Array => RenderArray(element, depth, label),
-            _ => $"{indent}- {label}{RenderScalar(element)}"
-        };
+            var indent = new string(' ', depth * 2);
+            var label = string.IsNullOrWhiteSpace(name) ? string.Empty : $"**{Encode(BeautifyKey(name))}**: ";
+            return element.ValueKind switch
+            {
+                JsonValueKind.Object => RenderObject(element, depth, label),
+                JsonValueKind.Array => RenderArray(element, depth, label),
+                _ => $"{indent}- {label}{RenderScalar(element)}"
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(RenderElement)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(RenderElement)} failed.");
+        throw;
+    }
+}
 
     private string RenderObject(JsonElement element, int depth, string label)
     {
-        var lines = new List<string>();
-        var indent = new string(' ', depth * 2);
-        if (!string.IsNullOrEmpty(label))
-            lines.Add($"{indent}- {label}");
-        if (!element.EnumerateObject().Any())
-        {
-            lines.Add($"{indent}  - _(empty object)_");
-            return string.Join(Environment.NewLine, lines);
-        }
+    try
+    {
+            var lines = new List<string>();
+            var indent = new string(' ', depth * 2);
+            if (!string.IsNullOrEmpty(label))
+                lines.Add($"{indent}- {label}");
+            if (!element.EnumerateObject().Any())
+            {
+                lines.Add($"{indent}  - _(empty object)_");
+                return string.Join(Environment.NewLine, lines);
+            }
 
-        var childDepth = string.IsNullOrEmpty(label) ? depth : depth + 1;
-        foreach (var property in element.EnumerateObject())
-            lines.Add(RenderElement(property.Value, childDepth, property.Name));
-        return string.Join(Environment.NewLine, lines);
+            var childDepth = string.IsNullOrEmpty(label) ? depth : depth + 1;
+            foreach (var property in element.EnumerateObject())
+                lines.Add(RenderElement(property.Value, childDepth, property.Name));
+            return string.Join(Environment.NewLine, lines);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(RenderObject)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(RenderObject)} failed.");
+        throw;
+    }
+}
 
     private string RenderArray(JsonElement element, int depth, string label)
     {
-        var lines = new List<string>();
-        var indent = new string(' ', depth * 2);
-        if (!string.IsNullOrEmpty(label))
-            lines.Add($"{indent}- {label}");
-        var items = element.EnumerateArray().ToList();
-        if (items.Count == 0)
-        {
-            lines.Add($"{indent}  - _(empty list)_");
+    try
+    {
+            var lines = new List<string>();
+            var indent = new string(' ', depth * 2);
+            if (!string.IsNullOrEmpty(label))
+                lines.Add($"{indent}- {label}");
+            var items = element.EnumerateArray().ToList();
+            if (items.Count == 0)
+            {
+                lines.Add($"{indent}  - _(empty list)_");
+                return string.Join(Environment.NewLine, lines);
+            }
+
+            var childDepth = string.IsNullOrEmpty(label) ? depth : depth + 1;
+            for (var index = 0; index < items.Count; index++)
+            {
+                var item = items[index];
+                var itemName = $"Item {index + 1}";
+                lines.Add(RenderElement(item, childDepth, itemName));
+            }
             return string.Join(Environment.NewLine, lines);
-        }
-
-        var childDepth = string.IsNullOrEmpty(label) ? depth : depth + 1;
-        for (var index = 0; index < items.Count; index++)
-        {
-            var item = items[index];
-            var itemName = $"Item {index + 1}";
-            lines.Add(RenderElement(item, childDepth, itemName));
-        }
-        return string.Join(Environment.NewLine, lines);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(RenderArray)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(RenderArray)} failed.");
+        throw;
+    }
+}
 
-    private string RenderScalar(JsonElement element) => element.ValueKind switch
+    private string RenderScalar(JsonElement element) {
+    try
+    {
+        return element.ValueKind switch
     {
         JsonValueKind.String => Encode(element.GetString() ?? string.Empty),
         JsonValueKind.Number => $"`{Encode(element.GetRawText())}`",
@@ -354,37 +453,71 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         JsonValueKind.Null => "_(null)_",
         _ => Encode(element.GetRawText())
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(RenderScalar)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(RenderScalar)} failed.");
+        throw;
+    }
+}
 
     private string BeautifyKey(string key)
     {
-        var parts = keyTokenRegex.Split(key)
-            .Where(part => !string.IsNullOrWhiteSpace(part))
-            .ToArray();
-        if (parts.Length == 0)
-            return key;
-        return string.Join(" ", parts.Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
+    try
+    {
+            var parts = keyTokenRegex.Split(key)
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .ToArray();
+            if (parts.Length == 0)
+                return key;
+            return string.Join(" ", parts.Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(BeautifyKey)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(BeautifyKey)} failed.");
+        throw;
+    }
+}
 
     private string BuildTranslatedBlock(string markdown, string normalizedJson, bool includeRawJson)
     {
-        var builder = new StringBuilder()
-            .AppendLine("<details class=\"localgpt-json-translation\" open>")
-            .AppendLine("<summary>Structured data</summary>")
-            .AppendLine()
-            .AppendLine(markdown);
-        if (includeRawJson)
-        {
-            builder.AppendLine()
-                .AppendLine("<details class=\"localgpt-json-source\">")
-                .AppendLine("<summary>Raw JSON</summary>")
-                .Append("<pre><code class=\"language-json\">")
-                .Append(Encode(normalizedJson))
-                .AppendLine("</code></pre>")
-                .AppendLine("</details>");
-        }
-        builder.AppendLine("</details>");
-        return builder.ToString().TrimEnd();
+    try
+    {
+            var builder = new StringBuilder()
+                .AppendLine("<details class=\"localgpt-json-translation\" open>")
+                .AppendLine("<summary>Structured data</summary>")
+                .AppendLine()
+                .AppendLine(markdown);
+            if (includeRawJson)
+            {
+                builder.AppendLine()
+                    .AppendLine("<details class=\"localgpt-json-source\">")
+                    .AppendLine("<summary>Raw JSON</summary>")
+                    .Append("<pre><code class=\"language-json\">")
+                    .Append(Encode(normalizedJson))
+                    .AppendLine("</code></pre>")
+                    .AppendLine("</details>");
+            }
+            builder.AppendLine("</details>");
+            return builder.ToString().TrimEnd();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(BuildTranslatedBlock)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(BuildTranslatedBlock)} failed.");
+        throw;
+    }
+}
 
     private Regex CreateCatalogRegex(
         IReadOnlyList<RegexPatternDto> patterns,
@@ -393,13 +526,38 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         string fallbackFlags,
         TimeSpan timeout)
     {
-        var definition = patterns.FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
-        var flags = string.IsNullOrWhiteSpace(definition?.Flags)
-            ? fallbackFlags
-            : $"{fallbackFlags}|{definition.Flags}";
-        return regexPatternService.Compile(definition?.Pattern ?? fallback, flags, timeout);
+    try
+    {
+            var definition = patterns.FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+            var flags = string.IsNullOrWhiteSpace(definition?.Flags)
+                ? fallbackFlags
+                : $"{fallbackFlags}|{definition.Flags}";
+            return regexPatternService.Compile(definition?.Pattern ?? fallback, flags, timeout);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(CreateCatalogRegex)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(CreateCatalogRegex)} failed.");
+        throw;
+    }
+}
 
-    private string Encode(string value) => HtmlEncoder.Default.Encode(value);
+    private string Encode(string value) {
+    try
+    {
+        return HtmlEncoder.Default.Encode(value);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(Encode)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(StructuredTextTranslationService)}.{nameof(Encode)} failed.");
+        throw;
+    }
+}
 
 }

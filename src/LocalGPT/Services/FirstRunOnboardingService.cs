@@ -87,11 +87,23 @@ public sealed class FirstRunOnboardingService(
     /// <inheritdoc />
     public async Task CompleteAsync(bool userConfirmed, CancellationToken cancellationToken = default)
     {
-        if (!userConfirmed)
-            throw new InvalidOperationException("Explicit user confirmation is required before the first-run guide is dismissed.");
-        await variables.SetAsync(systemVariables.FirstRunOnboardingCompleted.Name, true, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("The LocalGPT first-run onboarding guide was marked completed.");
+    try
+    {
+            if (!userConfirmed)
+                throw new InvalidOperationException("Explicit user confirmation is required before the first-run guide is dismissed.");
+            await variables.SetAsync(systemVariables.FirstRunOnboardingCompleted.Name, true, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("The LocalGPT first-run onboarding guide was marked completed.");
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FirstRunOnboardingService)}.{nameof(CompleteAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FirstRunOnboardingService)}.{nameof(CompleteAsync)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Reads the database-owned onboarding-completion flag and treats an absent legacy value as incomplete.
@@ -100,22 +112,36 @@ public sealed class FirstRunOnboardingService(
     /// <returns>A task that completes with true when onboarding was previously completed.</returns>
     private async Task<bool> ReadCompletionAsync(CancellationToken cancellationToken)
     {
-        try
-        {
-            return await variables.GetAsync<bool>(systemVariables.FirstRunOnboardingCompleted.Name, cancellationToken).ConfigureAwait(false);
-        }
-        catch (KeyNotFoundException)
-        {
-            return false;
-        }
+    try
+    {
+            try
+            {
+                return await variables.GetAsync<bool>(systemVariables.FirstRunOnboardingCompleted.Name, cancellationToken).ConfigureAwait(false);
+            }
+            catch (KeyNotFoundException)
+            {
+                return false;
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FirstRunOnboardingService)}.{nameof(ReadCompletionAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FirstRunOnboardingService)}.{nameof(ReadCompletionAsync)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates the maintained installer profiles exposed by UI, controller and DXFunction surfaces.
     /// </summary>
     /// <returns>The immutable installer-profile catalog.</returns>
-    private IReadOnlyList<OnboardingInstallerProfile> CreateInstallerProfiles() =>
-    [
+    private IReadOnlyList<OnboardingInstallerProfile> CreateInstallerProfiles() {
+    try
+    {
+        return [
         new(
             "game-low-b",
             "Fast game council",
@@ -138,13 +164,25 @@ public sealed class FirstRunOnboardingService(
             [],
             ["dotnet/docs", "MicrosoftDocs/windows-dev-docs", "Mojang/bedrock-protocol-docs", "arduino/reference-en", "espressif/arduino-esp32"])
     ];
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FirstRunOnboardingService)}.{nameof(CreateInstallerProfiles)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FirstRunOnboardingService)}.{nameof(CreateInstallerProfiles)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates direct Chat routes for the maintained seeded teams and model presets.
     /// </summary>
     /// <returns>The immutable quick-start catalog.</returns>
-    private IReadOnlyList<CouncilQuickStart> CreateQuickStarts() =>
-    [
+    private IReadOnlyList<CouncilQuickStart> CreateQuickStarts() {
+    try
+    {
+        return [
         QuickStart("benchmark", "Benchmark installed models", "Runs the bounded benchmark council and lets code-curator roles compare installed Ollama models.", "adaptive-model-benchmark", "Benchmark Candidate Pool", "benchmark-council-start"),
         QuickStart("game", "Fast GameDirector council", "Uses small models while the deterministic GameDirector remains authoritative.", "game-director-runtime", "Fast Game Council (Low-B)", "game-director-council-start"),
         QuickStart("csharp", "Modern C# host team", "Plans and verifies a hosted .NET solution through architecture, implementation, regex, build and curator rounds.", "csharp-modern-host-development", "Code Curator Council", "csharp-host-council-start"),
@@ -152,6 +190,16 @@ public sealed class FirstRunOnboardingService(
         QuickStart("java", "Java hosted application team", "Builds Maven or Gradle services with bounded project and compiler policies.", "java-hosted-development", "Code Curator Council", "java-hosted-council-start"),
         QuickStart("minecraft", "Minecraft development team", "Routes datapack, scripting and Java-mod work to separate roles and verification rounds.", "minecraft-development", "Code Curator Council", "minecraft-development-council-start")
     ];
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FirstRunOnboardingService)}.{nameof(CreateQuickStarts)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FirstRunOnboardingService)}.{nameof(CreateQuickStarts)} failed.");
+        throw;
+    }
+}
 
     /// <summary>
     /// Creates one URL-encoded Chat quick start.
@@ -163,7 +211,19 @@ public sealed class FirstRunOnboardingService(
     /// <param name="presetName">Seeded model-preset name.</param>
     /// <param name="starterPromptKey">Stable prompt key submitted after the Council chat is ready.</param>
     /// <returns>The configured quick-start record.</returns>
-    private CouncilQuickStart QuickStart(string key, string displayName, string description, string teamKey, string presetName, string starterPromptKey) =>
-        new(key, displayName, description, teamKey, presetName, starterPromptKey,
+    private CouncilQuickStart QuickStart(string key, string displayName, string description, string teamKey, string presetName, string starterPromptKey) {
+    try
+    {
+        return new(key, displayName, description, teamKey, presetName, starterPromptKey,
             $"/chat?team={Uri.EscapeDataString(teamKey)}&preset={Uri.EscapeDataString(presetName)}&starter={Uri.EscapeDataString(starterPromptKey)}&autoStartCouncil=true&newCouncil=true");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(FirstRunOnboardingService)}.{nameof(QuickStart)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(FirstRunOnboardingService)}.{nameof(QuickStart)} failed.");
+        throw;
+    }
+}
 }

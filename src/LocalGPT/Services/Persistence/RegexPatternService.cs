@@ -159,34 +159,58 @@ public sealed class RegexPatternService(
 
     private void ValidatePattern(string pattern, string? flags)
     {
-        ArgumentNullException.ThrowIfNull(pattern);
-        if (pattern.Length > 16_000)
-            throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
-        _ = Compile(pattern, flags, TimeSpan.FromSeconds(2));
+    try
+    {
+            ArgumentNullException.ThrowIfNull(pattern);
+            if (pattern.Length > 16_000)
+                throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
+            _ = Compile(pattern, flags, TimeSpan.FromSeconds(2));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RegexPatternService)}.{nameof(ValidatePattern)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RegexPatternService)}.{nameof(ValidatePattern)} failed.");
+        throw;
+    }
+}
 
     private RegexOptions ParseFlags(string? flags)
     {
-        if (string.IsNullOrWhiteSpace(flags))
-            return RegexOptions.CultureInvariant;
-        var result = RegexOptions.CultureInvariant;
-        foreach (var token in flags.Split([',', '|', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            result |= token.ToLowerInvariant() switch
+    try
+    {
+            if (string.IsNullOrWhiteSpace(flags))
+                return RegexOptions.CultureInvariant;
+            var result = RegexOptions.CultureInvariant;
+            foreach (var token in flags.Split([',', '|', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                "i" or "ignorecase" => RegexOptions.IgnoreCase,
-                "m" or "multiline" => RegexOptions.Multiline,
-                "s" or "singleline" => RegexOptions.Singleline,
-                "x" or "ignorepatternwhitespace" => RegexOptions.IgnorePatternWhitespace,
-                "n" or "explicitcapture" => RegexOptions.ExplicitCapture,
-                "compiled" => RegexOptions.Compiled,
-                "c" or "cultureinvariant" => RegexOptions.CultureInvariant,
-                "ecmascript" => RegexOptions.ECMAScript,
-                "none" => RegexOptions.None,
-                _ when Enum.TryParse<RegexOptions>(token, true, out var parsed) => parsed,
-                _ => throw new ArgumentException($"Unknown regular-expression option '{token}'.", nameof(flags))
-            };
-        }
-        return result;
+                result |= token.ToLowerInvariant() switch
+                {
+                    "i" or "ignorecase" => RegexOptions.IgnoreCase,
+                    "m" or "multiline" => RegexOptions.Multiline,
+                    "s" or "singleline" => RegexOptions.Singleline,
+                    "x" or "ignorepatternwhitespace" => RegexOptions.IgnorePatternWhitespace,
+                    "n" or "explicitcapture" => RegexOptions.ExplicitCapture,
+                    "compiled" => RegexOptions.Compiled,
+                    "c" or "cultureinvariant" => RegexOptions.CultureInvariant,
+                    "ecmascript" => RegexOptions.ECMAScript,
+                    "none" => RegexOptions.None,
+                    _ when Enum.TryParse<RegexOptions>(token, true, out var parsed) => parsed,
+                    _ => throw new ArgumentException($"Unknown regular-expression option '{token}'.", nameof(flags))
+                };
+            }
+            return result;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RegexPatternService)}.{nameof(ParseFlags)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RegexPatternService)}.{nameof(ParseFlags)} failed.");
+        throw;
+    }
+}
 }

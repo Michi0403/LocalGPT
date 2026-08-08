@@ -26,13 +26,25 @@ public sealed class DxAiFunctionRegistry(
 
     public IReadOnlyList<DxaichatFunctionInfo> GetFunctions()
     {
-        var functions = handlersByName.Value.Values
-            .Select(handler => handler.Descriptor)
-            .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        logger.LogDebug("Discovered {FunctionCount} DI-backed DXAIFunction handler(s).", functions.Count);
-        return functions;
+    try
+    {
+            var functions = handlersByName.Value.Values
+                .Select(handler => handler.Descriptor)
+                .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            logger.LogDebug("Discovered {FunctionCount} DI-backed DXAIFunction handler(s).", functions.Count);
+            return functions;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionRegistry)}.{nameof(GetFunctions)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionRegistry)}.{nameof(GetFunctions)} failed.");
+        throw;
+    }
+}
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         string functionName,
@@ -150,13 +162,13 @@ public sealed class DxAiFunctionRegistry(
                     FunctionName = functionName,
                     OperationId = operationId,
                     Status = "HumanApprovalPending",
-                    Error = "This exact function invocation is waiting in the Human Collaboration Inbox. Other council work may continue; an approved deferred invocation can run on the next council heartbeat.",
+                    Error = "This exact function invocation is waiting in the Human Collaboration Inbox. Other council work may continue; an approved deferred invocation can run immediately from the Human Collaboration Inbox or on a council heartbeat.",
                     Value = new
                     {
                         gate.RequestId,
                         gate.CorrelationId,
                         RetryAfterApproval = true,
-                        DeferredToCouncilHeartbeat = request.AutomaticInvocation && descriptor.SupportsDeferredApprovalRequest
+                        DeferredExecutionAvailable = request.AutomaticInvocation && descriptor.SupportsDeferredApprovalRequest
                     }
                 };
             }
@@ -224,77 +236,125 @@ public sealed class DxAiFunctionRegistry(
 
     private string BuildApprovalDescription(DxaichatFunctionInfo descriptor, DxAiFunctionInvocationRequest request)
     {
-        var builder = new StringBuilder()
-            .Append(descriptor.Purpose)
-            .Append(' ')
-            .Append(descriptor.SafetyNotes)
-            .AppendLine()
-            .Append("Exact request summary: ");
+    try
+    {
+            var builder = new StringBuilder()
+                .Append(descriptor.Purpose)
+                .Append(' ')
+                .Append(descriptor.SafetyNotes)
+                .AppendLine()
+                .Append("Exact request summary: ");
 
-        if (request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
-            builder.Append("no parameters");
-        else if (request.Parameters.ValueKind == JsonValueKind.Object)
-        {
-            var parts = new List<string>();
-            foreach (var property in request.Parameters.EnumerateObject().Take(24))
-                parts.Add($"{property.Name}={SummarizeApprovalValue(property.Name, property.Value)}");
-            builder.Append(string.Join("; ", parts));
-        }
-        else
-        {
-            builder.Append(SummarizeApprovalValue("parameters", request.Parameters));
-        }
+            if (request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+                builder.Append("no parameters");
+            else if (request.Parameters.ValueKind == JsonValueKind.Object)
+            {
+                var parts = new List<string>();
+                foreach (var property in request.Parameters.EnumerateObject().Take(24))
+                    parts.Add($"{property.Name}={SummarizeApprovalValue(property.Name, property.Value)}");
+                builder.Append(string.Join("; ", parts));
+            }
+            else
+            {
+                builder.Append(SummarizeApprovalValue("parameters", request.Parameters));
+            }
 
-        var text = builder.ToString();
-        return text.Length <= 1900 ? text : text[..1900] + "...";
+            var text = builder.ToString();
+            return text.Length <= 1900 ? text : text[..1900] + "...";
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionRegistry)}.{nameof(BuildApprovalDescription)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionRegistry)}.{nameof(BuildApprovalDescription)} failed.");
+        throw;
+    }
+}
 
     private string SummarizeApprovalValue(string name, JsonElement value)
     {
-        var sensitiveName = name.Contains("password", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("token", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("key", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("connectionstring", StringComparison.OrdinalIgnoreCase);
-        if (sensitiveName)
-            return "<redacted sensitive value>";
+    try
+    {
+            var sensitiveName = name.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("token", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("key", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("connectionstring", StringComparison.OrdinalIgnoreCase);
+            if (sensitiveName)
+                return "<redacted sensitive value>";
 
-        return value.ValueKind switch
-        {
-            JsonValueKind.String => QuoteAndTrim(value.GetString(), 180),
-            JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False => value.GetRawText(),
-            JsonValueKind.Null => "null",
-            JsonValueKind.Array => $"array[{value.GetArrayLength()}]",
-            JsonValueKind.Object when name.Equals("values", StringComparison.OrdinalIgnoreCase) =>
-                "{" + string.Join(", ", value.EnumerateObject().Take(24).Select(item =>
-                    $"{item.Name}:{(item.Name.Contains("secret", StringComparison.OrdinalIgnoreCase) || item.Name.Contains("password", StringComparison.OrdinalIgnoreCase) || item.Name.Contains("token", StringComparison.OrdinalIgnoreCase) ? "<redacted>" : SummarizeApprovalValue(item.Name, item.Value))}")) + "}",
-            JsonValueKind.Object => $"object[{value.EnumerateObject().Count()}]",
-            _ => value.ValueKind.ToString()
-        };
+            return value.ValueKind switch
+            {
+                JsonValueKind.String => QuoteAndTrim(value.GetString(), 180),
+                JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False => value.GetRawText(),
+                JsonValueKind.Null => "null",
+                JsonValueKind.Array => $"array[{value.GetArrayLength()}]",
+                JsonValueKind.Object when name.Equals("values", StringComparison.OrdinalIgnoreCase) =>
+                    "{" + string.Join(", ", value.EnumerateObject().Take(24).Select(item =>
+                        $"{item.Name}:{(item.Name.Contains("secret", StringComparison.OrdinalIgnoreCase) || item.Name.Contains("password", StringComparison.OrdinalIgnoreCase) || item.Name.Contains("token", StringComparison.OrdinalIgnoreCase) ? "<redacted>" : SummarizeApprovalValue(item.Name, item.Value))}")) + "}",
+                JsonValueKind.Object => $"object[{value.EnumerateObject().Count()}]",
+                _ => value.ValueKind.ToString()
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionRegistry)}.{nameof(SummarizeApprovalValue)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionRegistry)}.{nameof(SummarizeApprovalValue)} failed.");
+        throw;
+    }
+}
 
     private string QuoteAndTrim(string? value, int maxLength)
     {
-        var normalized = (value ?? string.Empty)
-            .Replace("\r", " ", StringComparison.Ordinal)
-            .Replace("\n", " ", StringComparison.Ordinal)
-            .Trim();
-        if (normalized.Length > maxLength)
-            normalized = normalized[..maxLength] + "...";
-        return $"\"{normalized}\"";
+    try
+    {
+            var normalized = (value ?? string.Empty)
+                .Replace("\r", " ", StringComparison.Ordinal)
+                .Replace("\n", " ", StringComparison.Ordinal)
+                .Trim();
+            if (normalized.Length > maxLength)
+                normalized = normalized[..maxLength] + "...";
+            return $"\"{normalized}\"";
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionRegistry)}.{nameof(QuoteAndTrim)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionRegistry)}.{nameof(QuoteAndTrim)} failed.");
+        throw;
+    }
+}
 
     private string BuildInvocationFingerprint(string functionName, DxAiFunctionInvocationRequest request)
     {
-        var canonical = new StringBuilder()
-            .Append(functionName).Append('|')
-            .Append(request.Parameters.ValueKind == JsonValueKind.Undefined ? "{}" : request.Parameters.GetRawText()).Append('|')
-            .Append(request.ProjectId).Append('|')
-            .Append(request.ProjectVersionId).Append('|')
-            .Append(request.ConversationId)
-            .ToString();
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
+    try
+    {
+            var canonical = new StringBuilder()
+                .Append(functionName).Append('|')
+                .Append(request.Parameters.ValueKind == JsonValueKind.Undefined ? "{}" : request.Parameters.GetRawText()).Append('|')
+                .Append(request.ProjectId).Append('|')
+                .Append(request.ProjectVersionId).Append('|')
+                .Append(request.ConversationId)
+                .ToString();
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionRegistry)}.{nameof(BuildInvocationFingerprint)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionRegistry)}.{nameof(BuildInvocationFingerprint)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class ListCodeGenerationReviewsFunction(
@@ -336,14 +396,26 @@ public sealed class ListCodeGenerationReviewsFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<CodeGenerationReviewListParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        var reviews = await workflow.ListReviewsAsync(parameters.ProjectId, parameters.Take, cancellationToken).ConfigureAwait(false);
-        logger.LogDebug("DXAIFunction listed {ReviewCount} change review(s).", reviews.Count);
-        return json.Success(reviews);
+    try
+    {
+            var binding = json.Bind<CodeGenerationReviewListParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            var reviews = await workflow.ListReviewsAsync(parameters.ProjectId, parameters.Take, cancellationToken).ConfigureAwait(false);
+            logger.LogDebug("DXAIFunction listed {ReviewCount} change review(s).", reviews.Count);
+            return json.Success(reviews);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListCodeGenerationReviewsFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListCodeGenerationReviewsFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 
 }
@@ -384,20 +456,32 @@ public sealed class GetCodeGenerationReviewFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<CodeGenerationReviewGetParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        var review = await workflow.GetReviewAsync(parameters.ReviewId, cancellationToken).ConfigureAwait(false);
-        logger.LogDebug("DXAIFunction loaded review {ReviewId}; found={Found}.", parameters.ReviewId, review is not null);
-        return new DxAiFunctionInvocationResult
-        {
-            Succeeded = review is not null,
-            Status = review is null ? "NotFound" : "Completed",
-            Value = review,
-            Error = review is null ? "The review was not found." : null
-        };
+    try
+    {
+            var binding = json.Bind<CodeGenerationReviewGetParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            var review = await workflow.GetReviewAsync(parameters.ReviewId, cancellationToken).ConfigureAwait(false);
+            logger.LogDebug("DXAIFunction loaded review {ReviewId}; found={Found}.", parameters.ReviewId, review is not null);
+            return new DxAiFunctionInvocationResult
+            {
+                Succeeded = review is not null,
+                Status = review is null ? "NotFound" : "Completed",
+                Value = review,
+                Error = review is null ? "The review was not found." : null
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(GetCodeGenerationReviewFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(GetCodeGenerationReviewFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -411,14 +495,15 @@ public sealed class CreateCodeGenerationReviewFunction(
         "POST",
         "/api/dxai/functions/codegen.review.create/invoke",
         "Create a database-backed change review containing the exact proposed files, CodeDOM types, output targets, current project-state summary, council summary, safety summary, and immutable review hash.",
-        "JSON parameters follow CreateCodeGenerationReviewRequest. Include goal, summaries, files, CodeDomTypes, and output targets such as SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, or JavaScriptModule.",
-        "Creates review metadata only. It does not write a project workspace, build, execute, load, or integrate generated code. The current user must explicitly request this review creation.",
+        "JSON parameters follow CreateCodeGenerationReviewRequest. Use goal plus the exact fields currentProjectState, councilSummary, changeSummary, safetySummary, files, codeDomTypes, and outputs. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, and JavaScriptModule.",
+        "Coordination-only review metadata. It does not write a project workspace, build, execute, load, or integrate generated code. The actual codegen.review.execute step remains separately approval-gated.",
         IsReadOnly: false,
         AvailableToAi: true,
-        RequiresHumanConfirmation: true,
+        RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true,
-        SupportsAutomaticInvocation: false,
+        SupportsAutomaticInvocation: true,
         Source: "DIHandler",
+        IsCoordinationOnly: true,
         ParameterSchemaJson: """
         {
           "type": "object",
@@ -551,19 +636,30 @@ public sealed class CreateCodeGenerationReviewFunction(
           ],
           "additionalProperties": false
         }
-        """,
-        SupportsDeferredApprovalRequest: true);
+        """);
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<CreateCodeGenerationReviewRequest>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        var review = await workflow.CreateReviewAsync(parameters, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("DXAIFunction created review {ReviewId} with hash prefix {HashPrefix}.", review.Id, review.ReviewHash[..Math.Min(12, review.ReviewHash.Length)]);
-        return new DxAiFunctionInvocationResult { Succeeded = true, Status = review.Status, Value = review };
+    try
+    {
+            var binding = json.Bind<CreateCodeGenerationReviewRequest>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            var review = await workflow.CreateReviewAsync(parameters, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("DXAIFunction created review {ReviewId} with hash prefix {HashPrefix}.", review.Id, review.ReviewHash[..Math.Min(12, review.ReviewHash.Length)]);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = review.Status, Value = review };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CreateCodeGenerationReviewFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CreateCodeGenerationReviewFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class ExecuteCodeGenerationReviewFunction(
@@ -628,19 +724,31 @@ public sealed class ExecuteCodeGenerationReviewFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<CodeGenerationReviewExecuteParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        parameters.Request.UserConfirmed = request.UserConfirmed;
-        if (request.UserConfirmed && parameters.Request.BuildAfterGeneration)
-            parameters.Request.UserConfirmedBuild = true;
-        if (string.IsNullOrWhiteSpace(parameters.Request.ExpectedReviewHash))
-            parameters.Request.ExpectedReviewHash = request.ConfirmationSummaryHash ?? string.Empty;
-        var result = await workflow.ExecuteReviewAsync(parameters.ReviewId, parameters.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("DXAIFunction executed review {ReviewId} with status {Status}.", parameters.ReviewId, result.Status);
-        return new DxAiFunctionInvocationResult { Succeeded = result.Status is CodeGenerationReviewStatuses.Generated or CodeGenerationReviewStatuses.BuildPassed, Status = result.Status, Value = result };
+    try
+    {
+            var binding = json.Bind<CodeGenerationReviewExecuteParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            parameters.Request.UserConfirmed = request.UserConfirmed;
+            if (request.UserConfirmed && parameters.Request.BuildAfterGeneration)
+                parameters.Request.UserConfirmedBuild = true;
+            if (string.IsNullOrWhiteSpace(parameters.Request.ExpectedReviewHash))
+                parameters.Request.ExpectedReviewHash = request.ConfirmationSummaryHash ?? string.Empty;
+            var result = await workflow.ExecuteReviewAsync(parameters.ReviewId, parameters.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("DXAIFunction executed review {ReviewId} with status {Status}.", parameters.ReviewId, result.Status);
+            return new DxAiFunctionInvocationResult { Succeeded = result.Status is CodeGenerationReviewStatuses.Generated or CodeGenerationReviewStatuses.BuildPassed, Status = result.Status, Value = result };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ExecuteCodeGenerationReviewFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ExecuteCodeGenerationReviewFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -699,17 +807,29 @@ public sealed class RejectCodeGenerationReviewFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<CodeGenerationReviewRejectParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        parameters.Request.UserConfirmed = request.UserConfirmed;
-        if (string.IsNullOrWhiteSpace(parameters.Request.ExpectedReviewHash))
-            parameters.Request.ExpectedReviewHash = request.ConfirmationSummaryHash ?? string.Empty;
-        var review = await workflow.RejectReviewAsync(parameters.ReviewId, parameters.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("DXAIFunction rejected review {ReviewId}.", parameters.ReviewId);
-        return new DxAiFunctionInvocationResult { Succeeded = true, Status = review.Status, Value = review };
+    try
+    {
+            var binding = json.Bind<CodeGenerationReviewRejectParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            parameters.Request.UserConfirmed = request.UserConfirmed;
+            if (string.IsNullOrWhiteSpace(parameters.Request.ExpectedReviewHash))
+                parameters.Request.ExpectedReviewHash = request.ConfirmationSummaryHash ?? string.Empty;
+            var review = await workflow.RejectReviewAsync(parameters.ReviewId, parameters.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("DXAIFunction rejected review {ReviewId}.", parameters.ReviewId);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = review.Status, Value = review };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RejectCodeGenerationReviewFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RejectCodeGenerationReviewFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -744,13 +864,25 @@ public sealed class ListLocalGptProjectsFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new LocalGptProjectListParameters()
-            : request.Parameters.Deserialize<LocalGptProjectListParameters>(JsonOptions) ?? new LocalGptProjectListParameters();
-        var values = await projects.GetProjectsAsync(parameters.IncludeArchived, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("DXAIFunction listed {ProjectCount} LocalGPT project record(s).", values.Count);
-        return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = values };
+    try
+    {
+            var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+                ? new LocalGptProjectListParameters()
+                : request.Parameters.Deserialize<LocalGptProjectListParameters>(JsonOptions) ?? new LocalGptProjectListParameters();
+            var values = await projects.GetProjectsAsync(parameters.IncludeArchived, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("DXAIFunction listed {ProjectCount} LocalGPT project record(s).", values.Count);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = values };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListLocalGptProjectsFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListLocalGptProjectsFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 }
@@ -791,20 +923,32 @@ public sealed class GetLocalGptProjectFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<LocalGptProjectGetParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        var value = await projects.GetProjectAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("DXAIFunction loaded LocalGPT project {ProjectId}; found={Found}.", parameters.ProjectId, value is not null);
-        return new DxAiFunctionInvocationResult
-        {
-            Succeeded = value is not null,
-            Status = value is null ? "NotFound" : "Completed",
-            Value = value,
-            Error = value is null ? "The LocalGPT project was not found." : null
-        };
+    try
+    {
+            var binding = json.Bind<LocalGptProjectGetParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            var value = await projects.GetProjectAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("DXAIFunction loaded LocalGPT project {ProjectId}; found={Found}.", parameters.ProjectId, value is not null);
+            return new DxAiFunctionInvocationResult
+            {
+                Succeeded = value is not null,
+                Status = value is null ? "NotFound" : "Completed",
+                Value = value,
+                Error = value is null ? "The LocalGPT project was not found." : null
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(GetLocalGptProjectFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(GetLocalGptProjectFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -852,28 +996,53 @@ public sealed class ListRecentApplicationLogsFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new RecentApplicationLogListParameters()
-            : request.Parameters.Deserialize<RecentApplicationLogListParameters>(JsonOptions) ?? new RecentApplicationLogListParameters();
-        var level = Enum.TryParse<LogLevel>(parameters.MinimumLevel, true, out var parsed) ? parsed : LogLevel.Warning;
-        var entries = await applicationLogs.GetRecentAsync(level, Math.Clamp(parameters.Take, 1, 50), cancellationToken).ConfigureAwait(false);
-        var safeEntries = entries.Select(entry => new
-        {
-            entry.Id,
-            entry.TimestampUtc,
-            entry.Level,
-            entry.Category,
-            entry.EventId,
-            entry.EventName,
-            Message = Limit(entry.Message, 1200),
-            HasTechnicalException = !string.IsNullOrWhiteSpace(entry.Exception)
-        }).ToList();
-        logger.LogInformation("DXAIFunction returned {LogCount} recent application log summary row(s) at minimum level {MinimumLevel}.", safeEntries.Count, level);
-        return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = safeEntries };
+    try
+    {
+            var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+                ? new RecentApplicationLogListParameters()
+                : request.Parameters.Deserialize<RecentApplicationLogListParameters>(JsonOptions) ?? new RecentApplicationLogListParameters();
+            var level = Enum.TryParse<LogLevel>(parameters.MinimumLevel, true, out var parsed) ? parsed : LogLevel.Warning;
+            var entries = await applicationLogs.GetRecentAsync(level, Math.Clamp(parameters.Take, 1, 50), cancellationToken).ConfigureAwait(false);
+            var safeEntries = entries.Select(entry => new
+            {
+                entry.Id,
+                entry.TimestampUtc,
+                entry.Level,
+                entry.Category,
+                entry.EventId,
+                entry.EventName,
+                Message = Limit(entry.Message, 1200),
+                HasTechnicalException = !string.IsNullOrWhiteSpace(entry.Exception)
+            }).ToList();
+            logger.LogInformation("DXAIFunction returned {LogCount} recent application log summary row(s) at minimum level {MinimumLevel}.", safeEntries.Count, level);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = safeEntries };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListRecentApplicationLogsFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListRecentApplicationLogsFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-    private string Limit(string value, int max) => value.Length <= max ? value : value[..max] + "...";
+    private string Limit(string value, int max) {
+    try
+    {
+        return value.Length <= max ? value : value[..max] + "...";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListRecentApplicationLogsFunction)}.{nameof(Limit)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListRecentApplicationLogsFunction)}.{nameof(Limit)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class ListCouncilKnowledgeFunction(
@@ -912,31 +1081,56 @@ public sealed class ListCouncilKnowledgeFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new CouncilKnowledgeListParameters()
-            : request.Parameters.Deserialize<CouncilKnowledgeListParameters>(JsonOptions) ?? new CouncilKnowledgeListParameters();
-        var entries = await knowledge.GetEntriesAsync(parameters.IncludeArchived, Math.Clamp(parameters.Take, 1, 30), cancellationToken).ConfigureAwait(false);
-        var summaries = entries.Select(entry => new
-        {
-            entry.Id,
-            entry.Topic,
-            entry.Scope,
-            ContentExcerpt = Limit(entry.Content, 1200),
-            entry.Source,
-            entry.Tags,
-            entry.Confidence,
-            entry.VerificationStatus,
-            entry.ReviewStatus,
-            entry.IsUserApproved,
-            entry.IsArchived,
-            entry.UpdatedAtUtc
-        }).ToList();
-        logger.LogInformation("DXAIFunction listed {KnowledgeCount} bounded Council knowledge summary row(s).", summaries.Count);
-        return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = summaries };
+    try
+    {
+            var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+                ? new CouncilKnowledgeListParameters()
+                : request.Parameters.Deserialize<CouncilKnowledgeListParameters>(JsonOptions) ?? new CouncilKnowledgeListParameters();
+            var entries = await knowledge.GetEntriesAsync(parameters.IncludeArchived, Math.Clamp(parameters.Take, 1, 30), cancellationToken).ConfigureAwait(false);
+            var summaries = entries.Select(entry => new
+            {
+                entry.Id,
+                entry.Topic,
+                entry.Scope,
+                ContentExcerpt = Limit(entry.Content, 1200),
+                entry.Source,
+                entry.Tags,
+                entry.Confidence,
+                entry.VerificationStatus,
+                entry.ReviewStatus,
+                entry.IsUserApproved,
+                entry.IsArchived,
+                entry.UpdatedAtUtc
+            }).ToList();
+            logger.LogInformation("DXAIFunction listed {KnowledgeCount} bounded Council knowledge summary row(s).", summaries.Count);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = summaries };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListCouncilKnowledgeFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListCouncilKnowledgeFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
-    private string Limit(string value, int max) => value.Length <= max ? value : value[..max] + "...";
+    private string Limit(string value, int max) {
+    try
+    {
+        return value.Length <= max ? value : value[..max] + "...";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListCouncilKnowledgeFunction)}.{nameof(Limit)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListCouncilKnowledgeFunction)}.{nameof(Limit)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class ListChatMemoryConversationsFunction(
@@ -972,13 +1166,25 @@ public sealed class ListChatMemoryConversationsFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new ChatMemoryConversationListParameters()
-            : request.Parameters.Deserialize<ChatMemoryConversationListParameters>(JsonOptions) ?? new ChatMemoryConversationListParameters();
-        var entries = await memory.GetConversationsAsync(Math.Clamp(parameters.Take, 1, 50), cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("DXAIFunction listed {ConversationCount} chat-memory conversation summary row(s).", entries.Count);
-        return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = entries };
+    try
+    {
+            var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+                ? new ChatMemoryConversationListParameters()
+                : request.Parameters.Deserialize<ChatMemoryConversationListParameters>(JsonOptions) ?? new ChatMemoryConversationListParameters();
+            var entries = await memory.GetConversationsAsync(Math.Clamp(parameters.Take, 1, 50), cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("DXAIFunction listed {ConversationCount} chat-memory conversation summary row(s).", entries.Count);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = entries };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListChatMemoryConversationsFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListChatMemoryConversationsFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 }
@@ -1043,129 +1249,165 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
     {
-        var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
-            ? new HumanCollaborationRequestParameters()
-            : request.Parameters.Deserialize<HumanCollaborationRequestParameters>(JsonOptions) ?? new HumanCollaborationRequestParameters();
-        if (string.IsNullOrWhiteSpace(parameters.Title) || string.IsNullOrWhiteSpace(parameters.Description))
-            throw new JsonException("title and description are required.");
+    try
+    {
+            var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+                ? new HumanCollaborationRequestParameters()
+                : request.Parameters.Deserialize<HumanCollaborationRequestParameters>(JsonOptions) ?? new HumanCollaborationRequestParameters();
+            if (string.IsNullOrWhiteSpace(parameters.Title) || string.IsNullOrWhiteSpace(parameters.Description))
+                throw new JsonException("title and description are required.");
 
-        var kind = string.Equals(parameters.Kind, vocabulary.Get().HumanRequestGuidance, StringComparison.OrdinalIgnoreCase)
-            ? vocabulary.Get().HumanRequestGuidance
-            : vocabulary.Get().HumanRequestFeedback;
-        var ambient = ambientContext.Current;
-        var questionScope = NormalizeQuestionScope(parameters.QuestionScope);
-        var gateMode = NormalizeGateMode(parameters.Gate, parameters.RequiredBeforeCompletion);
-        var targetMembers = (parameters.TargetMembers ?? [])
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Select(item => item.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(16)
-            .ToArray();
-        if (questionScope == "SelectedMembers" && targetMembers.Length == 0)
-            questionScope = "Member";
-        if (questionScope == "Member" && targetMembers.Length == 0 && !string.IsNullOrWhiteSpace(ambient.ActorDisplayName))
-            targetMembers = [ambient.ActorDisplayName];
-        var suggestions = (parameters.SuggestedResponses ?? [])
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Select(item => item.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(8)
-            .ToArray();
-        var earliestCouncilRound = gateMode == "NextRound"
-            ? Math.Max(0, ambient.CouncilRound + 1)
-            : Math.Max(0, ambient.CouncilRound);
-        var fingerprintSource = JsonSerializer.Serialize(new
-        {
-            kind,
-            parameters.Title,
-            parameters.Description,
-            parameters.RequestedRole,
-            parameters.ResponsePrompt,
-            Suggestions = suggestions,
-            parameters.PrefillText,
-            parameters.AllowFreeText,
-            questionScope,
-            gateMode,
-            TargetMembers = targetMembers,
-            parameters.RequiredBeforeCompletion,
-            ambient.CouncilRunId,
-            ambient.CouncilRound,
-            ambient.Phase
-        }, JsonOptions);
-        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprintSource))).ToLowerInvariant();
-        var gate = await collaboration.AuthorizeOrEnqueueAsync(
-            new HumanApprovalRequestSpec(
-                $"human-question:{ambient.CouncilRunId?.ToString("N") ?? "general"}:{fingerprint}",
-                "human.collaboration.request",
+            var kind = string.Equals(parameters.Kind, vocabulary.Get().HumanRequestGuidance, StringComparison.OrdinalIgnoreCase)
+                ? vocabulary.Get().HumanRequestGuidance
+                : vocabulary.Get().HumanRequestFeedback;
+            var ambient = ambientContext.Current;
+            var questionScope = NormalizeQuestionScope(parameters.QuestionScope);
+            var gateMode = NormalizeGateMode(parameters.Gate, parameters.RequiredBeforeCompletion);
+            var targetMembers = (parameters.TargetMembers ?? [])
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(16)
+                .ToArray();
+            if (questionScope == "SelectedMembers" && targetMembers.Length == 0)
+                questionScope = "Member";
+            if (questionScope == "Member" && targetMembers.Length == 0 && !string.IsNullOrWhiteSpace(ambient.ActorDisplayName))
+                targetMembers = [ambient.ActorDisplayName];
+            var suggestions = (parameters.SuggestedResponses ?? [])
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(8)
+                .ToArray();
+            var earliestCouncilRound = gateMode == "NextRound"
+                ? Math.Max(0, ambient.CouncilRound + 1)
+                : Math.Max(0, ambient.CouncilRound);
+            var fingerprintSource = JsonSerializer.Serialize(new
+            {
+                kind,
                 parameters.Title,
                 parameters.Description,
-                "Low",
-                nameof(RequestHumanCollaborationFunction),
-                ambient.ActorDisplayName,
-                string.IsNullOrWhiteSpace(parameters.RequestedRole) ? "Human collaborator" : parameters.RequestedRole,
-                ambient.CouncilRunId,
-                earliestCouncilRound,
-                parameters.RequiredBeforeCompletion,
-                IsSensitive: false,
-                RequestKind: kind,
-                SuggestedResponsesText: string.Join('\n', suggestions),
-                ResponsePrompt: parameters.ResponsePrompt ?? string.Empty,
-                PrefillText: parameters.PrefillText ?? string.Empty,
-                AllowFreeText: parameters.AllowFreeText,
-                ParameterFingerprint: fingerprint,
-                QuestionScope: questionScope,
-                GateMode: gateMode,
-                TargetMembersText: string.Join('\n', targetMembers),
-                RequestedCouncilRound: Math.Max(0, ambient.CouncilRound),
-                RequestedCouncilPhase: ambient.Phase),
-            directHumanConfirmation: false,
-            cancellationToken).ConfigureAwait(false);
-
-        logger.LogInformation(
-            "DXAIFunction queued human {RequestKind} request {RequestId} for council run {CouncilRunId}; question content was omitted from logs.",
-            kind,
-            gate.RequestId,
-            ambient.CouncilRunId);
-        return new DxAiFunctionInvocationResult
-        {
-            Succeeded = gate.RequestId is not null,
-            Status = gate.Status,
-            Value = new
-            {
-                gate.RequestId,
-                gate.CorrelationId,
-                RequestKind = kind,
-                QuestionScope = questionScope,
-                Gate = gateMode,
+                parameters.RequestedRole,
+                parameters.ResponsePrompt,
+                Suggestions = suggestions,
+                parameters.PrefillText,
+                parameters.AllowFreeText,
+                questionScope,
+                gateMode,
                 TargetMembers = targetMembers,
-                EntersNextHeartbeat = ambient.CouncilRunId is not null,
-                BlocksNextPhase = gateMode == "NextPhase",
-                BlocksNextRound = gateMode == "NextRound",
-                BlocksCompletion = gateMode == "Completion",
-                BlocksUnrelatedWork = false
-            },
-            Error = gate.RequestId is null ? gate.Message : null
-        };
+                parameters.RequiredBeforeCompletion,
+                ambient.CouncilRunId,
+                ambient.CouncilRound,
+                ambient.Phase
+            }, JsonOptions);
+            var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprintSource))).ToLowerInvariant();
+            var gate = await collaboration.AuthorizeOrEnqueueAsync(
+                new HumanApprovalRequestSpec(
+                    $"human-question:{ambient.CouncilRunId?.ToString("N") ?? "general"}:{fingerprint}",
+                    "human.collaboration.request",
+                    parameters.Title,
+                    parameters.Description,
+                    "Low",
+                    nameof(RequestHumanCollaborationFunction),
+                    ambient.ActorDisplayName,
+                    string.IsNullOrWhiteSpace(parameters.RequestedRole) ? "Human collaborator" : parameters.RequestedRole,
+                    ambient.CouncilRunId,
+                    earliestCouncilRound,
+                    parameters.RequiredBeforeCompletion,
+                    IsSensitive: false,
+                    RequestKind: kind,
+                    SuggestedResponsesText: string.Join('\n', suggestions),
+                    ResponsePrompt: parameters.ResponsePrompt ?? string.Empty,
+                    PrefillText: parameters.PrefillText ?? string.Empty,
+                    AllowFreeText: parameters.AllowFreeText,
+                    ParameterFingerprint: fingerprint,
+                    QuestionScope: questionScope,
+                    GateMode: gateMode,
+                    TargetMembersText: string.Join('\n', targetMembers),
+                    RequestedCouncilRound: Math.Max(0, ambient.CouncilRound),
+                    RequestedCouncilPhase: ambient.Phase),
+                directHumanConfirmation: false,
+                cancellationToken).ConfigureAwait(false);
+
+            logger.LogInformation(
+                "DXAIFunction queued human {RequestKind} request {RequestId} for council run {CouncilRunId}; question content was omitted from logs.",
+                kind,
+                gate.RequestId,
+                ambient.CouncilRunId);
+            return new DxAiFunctionInvocationResult
+            {
+                Succeeded = gate.RequestId is not null,
+                Status = gate.Status,
+                Value = new
+                {
+                    gate.RequestId,
+                    gate.CorrelationId,
+                    RequestKind = kind,
+                    QuestionScope = questionScope,
+                    Gate = gateMode,
+                    TargetMembers = targetMembers,
+                    EntersNextHeartbeat = ambient.CouncilRunId is not null,
+                    BlocksNextPhase = gateMode == "NextPhase",
+                    BlocksNextRound = gateMode == "NextRound",
+                    BlocksCompletion = gateMode == "Completion",
+                    BlocksUnrelatedWork = false
+                },
+                Error = gate.RequestId is null ? gate.Message : null
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RequestHumanCollaborationFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RequestHumanCollaborationFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 
     private string NormalizeQuestionScope(string? value)
     {
-        if (string.Equals(value, "Consensus", StringComparison.OrdinalIgnoreCase))
-            return "Consensus";
-        if (string.Equals(value, "SelectedMembers", StringComparison.OrdinalIgnoreCase))
-            return "SelectedMembers";
-        return "Member";
+    try
+    {
+            if (string.Equals(value, "Consensus", StringComparison.OrdinalIgnoreCase))
+                return "Consensus";
+            if (string.Equals(value, "SelectedMembers", StringComparison.OrdinalIgnoreCase))
+                return "SelectedMembers";
+            return "Member";
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RequestHumanCollaborationFunction)}.{nameof(NormalizeQuestionScope)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RequestHumanCollaborationFunction)}.{nameof(NormalizeQuestionScope)} failed.");
+        throw;
+    }
+}
 
     private string NormalizeGateMode(string? value, bool requiredBeforeCompletion)
     {
-        if (string.Equals(value, "NextPhase", StringComparison.OrdinalIgnoreCase))
-            return "NextPhase";
-        if (string.Equals(value, "NextRound", StringComparison.OrdinalIgnoreCase))
-            return "NextRound";
-        if (string.Equals(value, "Completion", StringComparison.OrdinalIgnoreCase) || requiredBeforeCompletion)
-            return "Completion";
-        return "None";
+    try
+    {
+            if (string.Equals(value, "NextPhase", StringComparison.OrdinalIgnoreCase))
+                return "NextPhase";
+            if (string.Equals(value, "NextRound", StringComparison.OrdinalIgnoreCase))
+                return "NextRound";
+            if (string.Equals(value, "Completion", StringComparison.OrdinalIgnoreCase) || requiredBeforeCompletion)
+                return "Completion";
+            return "None";
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RequestHumanCollaborationFunction)}.{nameof(NormalizeGateMode)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(RequestHumanCollaborationFunction)}.{nameof(NormalizeGateMode)} failed.");
+        throw;
+    }
+}
 }

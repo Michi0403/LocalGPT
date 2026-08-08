@@ -182,25 +182,61 @@ namespace LocalGPT.Services
 
         public string NormalizeName(string value, string fallback)
         {
-            var normalized = patterns.NameCleanerPattern.Replace(value.Trim(), string.Empty);
-            return string.IsNullOrWhiteSpace(normalized) ? fallback : normalized;
-        }
+    try
+    {
+                var normalized = patterns.NameCleanerPattern.Replace(value.Trim(), string.Empty);
+                return string.IsNullOrWhiteSpace(normalized) ? fallback : normalized;
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(NormalizeName)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(NormalizeName)} failed.");
+        throw;
+    }
+}
 
         public string NormalizeModId(string value, string fallback)
         {
-            var normalized = patterns.ModIdCleanerPattern.Replace(value.Trim().ToLowerInvariant().Replace('-', '_'), string.Empty);
-            return string.IsNullOrWhiteSpace(normalized) ? fallback : normalized;
-        }
+    try
+    {
+                var normalized = patterns.ModIdCleanerPattern.Replace(value.Trim().ToLowerInvariant().Replace('-', '_'), string.Empty);
+                return string.IsNullOrWhiteSpace(normalized) ? fallback : normalized;
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(NormalizeModId)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(NormalizeModId)} failed.");
+        throw;
+    }
+}
 
         public string NormalizePackageName(string value)
         {
-            var parts = value.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(part => patterns.PackagePartCleanerPattern.Replace(part.ToLowerInvariant(), string.Empty))
-                .Where(part => !string.IsNullOrWhiteSpace(part))
-                .ToArray();
+    try
+    {
+                var parts = value.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(part => patterns.PackagePartCleanerPattern.Replace(part.ToLowerInvariant(), string.Empty))
+                    .Where(part => !string.IsNullOrWhiteSpace(part))
+                    .ToArray();
 
-            return parts.Length == 0 ? "com.localgpt.livingcities" : string.Join(".", parts);
-        }
+                return parts.Length == 0 ? "com.localgpt.livingcities" : string.Join(".", parts);
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(NormalizePackageName)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(NormalizePackageName)} failed.");
+        throw;
+    }
+}
 
         public string NormalizeLoader(string? loader, ILogger logger)
         {
@@ -253,10 +289,25 @@ namespace LocalGPT.Services
         
         }
 
-        public string EscapeJson(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        public string EscapeJson(string value) {
+    try
+    {
+        return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(EscapeJson)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(EscapeJson)} failed.");
+        throw;
+    }
+}
 
-        public string CreateFabricSettingsGradle(string projectName) =>
-            $$"""
+        public string CreateFabricSettingsGradle(string projectName) {
+    try
+    {
+        return $$"""
             pluginManagement {
                 repositories {
                     maven { url = 'https://maven.fabricmc.net/' }
@@ -274,8 +325,20 @@ namespace LocalGPT.Services
 
             rootProject.name = '{{projectName}}'
             """;
-        public string CreateNeoForgeSettingsGradle(string projectName) =>
-    $$"""
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFabricSettingsGradle)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFabricSettingsGradle)} failed.");
+        throw;
+    }
+}
+        public string CreateNeoForgeSettingsGradle(string projectName) {
+    try
+    {
+        return $$"""
             pluginManagement {
                 repositories {
                     maven { url = 'https://maven.neoforged.net/releases' }
@@ -293,8 +356,20 @@ namespace LocalGPT.Services
 
             rootProject.name = '{{projectName}}'
             """;
-        public string CreateFabricBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) =>
-       $$"""
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateNeoForgeSettingsGradle)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateNeoForgeSettingsGradle)} failed.");
+        throw;
+    }
+}
+        public string CreateFabricBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) {
+    try
+    {
+        return $$"""
             plugins {
                 id 'fabric-loom' version '1.10-SNAPSHOT'
                 id 'maven-publish'
@@ -343,8 +418,20 @@ namespace LocalGPT.Services
                 }
             }
             """;
-        public string CreateNeoForgeBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) =>
-    $$"""
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFabricBuildGradle)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFabricBuildGradle)} failed.");
+        throw;
+    }
+}
+        public string CreateNeoForgeBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) {
+    try
+    {
+        return $$"""
             plugins {
                 id 'java-library'
                 id 'maven-publish'
@@ -390,8 +477,20 @@ namespace LocalGPT.Services
                 srcDir 'src/generated/resources'
             }
             """;
-        public string CreatePaperSettingsGradle(string projectName) =>
-    $$"""
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateNeoForgeBuildGradle)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateNeoForgeBuildGradle)} failed.");
+        throw;
+    }
+}
+        public string CreatePaperSettingsGradle(string projectName) {
+    try
+    {
+        return $$"""
             pluginManagement {
                 repositories {
                     gradlePluginPortal()
@@ -408,8 +507,20 @@ namespace LocalGPT.Services
 
             rootProject.name = '{{projectName}}'
             """;
-        public string CreatePaperBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) =>
-    $$"""
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreatePaperSettingsGradle)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreatePaperSettingsGradle)} failed.");
+        throw;
+    }
+}
+        public string CreatePaperBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) {
+    try
+    {
+        return $$"""
             plugins {
                 id 'java'
             }
@@ -455,16 +566,40 @@ namespace LocalGPT.Services
                 }
             }
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreatePaperBuildGradle)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreatePaperBuildGradle)} failed.");
+        throw;
+    }
+}
         public string NormalizeDescription(string description)
         {
-            var value = string.IsNullOrWhiteSpace(description)
-                ? "LocalGPT generated Minecraft Java mod workspace."
-                : description.ReplaceLineEndings(" ").Trim();
-            return value.Length <= 220 ? value : value[..220];
-        }
+    try
+    {
+                var value = string.IsNullOrWhiteSpace(description)
+                    ? "LocalGPT generated Minecraft Java mod workspace."
+                    : description.ReplaceLineEndings(" ").Trim();
+                return value.Length <= 220 ? value : value[..220];
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(NormalizeDescription)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(NormalizeDescription)} failed.");
+        throw;
+    }
+}
 
-        public string CreateFabricMainClass(WorkspaceContext context) =>
-            $$"""
+        public string CreateFabricMainClass(WorkspaceContext context) {
+    try
+    {
+        return $$"""
             package {{context.PackageName}};
 
             import com.mojang.brigadier.CommandDispatcher;
@@ -509,9 +644,21 @@ namespace LocalGPT.Services
                 }
             }
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFabricMainClass)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFabricMainClass)} failed.");
+        throw;
+    }
+}
 
-        public string CreateNeoForgeMainClass(WorkspaceContext context) =>
-            $$"""
+        public string CreateNeoForgeMainClass(WorkspaceContext context) {
+    try
+    {
+        return $$"""
             package {{context.PackageName}};
 
             import com.mojang.brigadier.CommandDispatcher;
@@ -569,9 +716,21 @@ namespace LocalGPT.Services
                 }
             }
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateNeoForgeMainClass)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateNeoForgeMainClass)} failed.");
+        throw;
+    }
+}
 
-        public string CreatePaperMainClass(WorkspaceContext context) =>
-            $$"""
+        public string CreatePaperMainClass(WorkspaceContext context) {
+    try
+    {
+        return $$"""
             package {{context.PackageName}};
 
             import org.bukkit.command.Command;
@@ -601,9 +760,21 @@ namespace LocalGPT.Services
                 }
             }
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreatePaperMainClass)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreatePaperMainClass)} failed.");
+        throw;
+    }
+}
 
-        public string CreateFabricEmptyMainClass(WorkspaceContext context) =>
-            $$"""
+        public string CreateFabricEmptyMainClass(WorkspaceContext context) {
+    try
+    {
+        return $$"""
             package {{context.PackageName}};
 
             import net.fabricmc.api.ModInitializer;
@@ -620,9 +791,21 @@ namespace LocalGPT.Services
                 }
             }
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFabricEmptyMainClass)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFabricEmptyMainClass)} failed.");
+        throw;
+    }
+}
 
-        public string CreateNeoForgeEmptyMainClass(WorkspaceContext context) =>
-            $$"""
+        public string CreateNeoForgeEmptyMainClass(WorkspaceContext context) {
+    try
+    {
+        return $$"""
             package {{context.PackageName}};
 
             import net.neoforged.bus.api.IEventBus;
@@ -640,9 +823,21 @@ namespace LocalGPT.Services
                 }
             }
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateNeoForgeEmptyMainClass)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateNeoForgeEmptyMainClass)} failed.");
+        throw;
+    }
+}
 
-        public string CreateLivingCitiesReportClass(string packageName) =>
-            $$"""
+        public string CreateLivingCitiesReportClass(string packageName) {
+    try
+    {
+        return $$"""
             package {{packageName}};
 
             public final class LivingCitiesReport {
@@ -654,8 +849,20 @@ namespace LocalGPT.Services
                 }
             }
             """;
-        public string CreateFabricMetadata(MinecraftModBuildRequest request, WorkspaceContext context) =>
-    $$"""
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateLivingCitiesReportClass)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateLivingCitiesReportClass)} failed.");
+        throw;
+    }
+}
+        public string CreateFabricMetadata(MinecraftModBuildRequest request, WorkspaceContext context) {
+    try
+    {
+        return $$"""
             {
               "schemaVersion": 1,
               "id": "{{context.ModId}}",
@@ -681,9 +888,21 @@ namespace LocalGPT.Services
               }
             }
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFabricMetadata)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFabricMetadata)} failed.");
+        throw;
+    }
+}
 
-        public string CreateNeoForgeMetadata(MinecraftModBuildRequest request, WorkspaceContext context) =>
-            $$"""
+        public string CreateNeoForgeMetadata(MinecraftModBuildRequest request, WorkspaceContext context) {
+    try
+    {
+        return $$"""
             modLoader="javafml"
             loaderVersion="${neo_version_range}"
             license="${mod_license}"
@@ -709,9 +928,21 @@ namespace LocalGPT.Services
             ordering="NONE"
             side="BOTH"
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateNeoForgeMetadata)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateNeoForgeMetadata)} failed.");
+        throw;
+    }
+}
 
-        public string CreatePaperPluginYaml(MinecraftModBuildRequest request, WorkspaceContext context) =>
-            $$"""
+        public string CreatePaperPluginYaml(MinecraftModBuildRequest request, WorkspaceContext context) {
+    try
+    {
+        return $$"""
             name: ${plugin_name}
             version: ${plugin_version}
             main: ${plugin_main}
@@ -728,16 +959,40 @@ namespace LocalGPT.Services
                 description: Allows reading the Living Cities starter report.
                 default: true
             """;
-        public string CreateEnglishLang(string modId) =>
-     $$"""
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreatePaperPluginYaml)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreatePaperPluginYaml)} failed.");
+        throw;
+    }
+}
+        public string CreateEnglishLang(string modId) {
+    try
+    {
+        return $$"""
             {
               "item.{{modId}}.city_charter": "City Charter",
               "commands.{{modId}}.report": "Living Cities Report"
             }
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateEnglishLang)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateEnglishLang)} failed.");
+        throw;
+    }
+}
 
-        public string CreateCityCharterModel() =>
-            """
+        public string CreateCityCharterModel() {
+    try
+    {
+        return """
             {
               "parent": "minecraft:item/generated",
               "textures": {
@@ -745,6 +1000,16 @@ namespace LocalGPT.Services
               }
             }
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateCityCharterModel)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateCityCharterModel)} failed.");
+        throw;
+    }
+}
         public string GetPackFormatJsonValue(string minecraftVersion, ILogger logger)
         {
             try
@@ -761,17 +1026,31 @@ namespace LocalGPT.Services
             }
         }
 
-        public string CreateFunctionTag(string modId, string functionName) =>
-            $$"""
+        public string CreateFunctionTag(string modId, string functionName) {
+    try
+    {
+        return $$"""
             {
               "values": [
                 "{{modId}}:{{functionName}}"
               ]
             }
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFunctionTag)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateFunctionTag)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackLoadFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackLoadFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             # Living Cities 0.1 - core load
             # Re-running /reload may print "already exists" warnings for objectives; that is harmless.
             scoreboard objectives add lc_year dummy "LC Year"
@@ -803,9 +1082,21 @@ namespace LocalGPT.Services
             function {{{context.ModId}}}:city/register_banner
             tellraw @a [{"text":"[Living Cities] ","color":"green"},{"text":"Datapack loaded. Use /function {{{context.ModId}}}:ui/townhall or the admin book."}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackLoadFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackLoadFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackTickFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackTickFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             # Living Cities tick stays small: menu handling every tick, simulation every 5 seconds.
             execute as @a[tag=!lc_received_book] run function {{{context.ModId}}}:ui/give_admin_book
             scoreboard players enable @a lc_menu
@@ -822,9 +1113,21 @@ namespace LocalGPT.Services
             execute if score #tick lc_scan_timer matches 100.. as @a[limit=1,sort=nearest] at @s run function {{{context.ModId}}}:core/schedule
             execute if score #tick lc_scan_timer matches 100.. run scoreboard players set #tick lc_scan_timer 0
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackTickFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackTickFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackScheduleFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackScheduleFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             # Scheduled aggregate simulation. Keep this local to the selected city area.
             execute unless data storage {{{context.ModId}}}:city {founded:1b} run return 0
             function {{{context.ModId}}}:citizens/register
@@ -834,23 +1137,59 @@ namespace LocalGPT.Services
             function {{{context.ModId}}}:quests/update
             function {{{context.ModId}}}:chronicle/update
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackScheduleFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackScheduleFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackCityCreateFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackCityCreateFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             execute if data storage {{{context.ModId}}}:city {founded:1b} run function {{{context.ModId}}}:city/already_exists
             execute unless data storage {{{context.ModId}}}:city {founded:1b} run function {{{context.ModId}}}:city/check_villagers
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCityCreateFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCityCreateFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackCityCheckVillagersFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackCityCheckVillagersFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             scoreboard players set #nearby_villagers lc_tmp 0
             execute store result score #nearby_villagers lc_tmp if entity @e[type=minecraft:villager,distance=..96]
             execute if score #nearby_villagers lc_tmp matches 2.. run function {{{context.ModId}}}:city/create_new
             execute unless score #nearby_villagers lc_tmp matches 2.. run tellraw @s [{"text":"[Living Cities] ","color":"red"},{"text":"At least 2 villagers must be within 96 blocks before founding a city."}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCityCheckVillagersFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCityCheckVillagersFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackCityCreateNewFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackCityCreateNewFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             data merge storage {{{context.ModId}}}:city {founded:1b,year:1,population:0,food:100,security:100,prestige:0,houses:0,workplaces:0,founder:{x:0,y:0,z:0},banner:{x:0,y:0,z:0}}
             execute store result storage {{{context.ModId}}}:city year int 1 run scoreboard players get #year lc_year
             execute store result storage {{{context.ModId}}}:city founder.x int 1 run data get entity @s Pos[0] 1
@@ -864,64 +1203,172 @@ namespace LocalGPT.Services
             function {{{context.ModId}}}:chronicle/add_event
             tellraw @a [{"text":"[Living Cities] ","color":"gold"},{"text":"A city was founded. Register the banner from the town hall menu next."}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCityCreateNewFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCityCreateNewFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackCityAlreadyExistsFunction() =>
-            """
+        public string CreateDatapackCityAlreadyExistsFunction() {
+    try
+    {
+        return """
             tellraw @s [{"text":"[Living Cities] ","color":"yellow"},{"text":"A city already exists in this starter datapack. Use reset only in a test world."}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCityAlreadyExistsFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCityAlreadyExistsFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackRegisterBannerFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackRegisterBannerFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             say LC register_banner loaded
             execute if entity @s[type=minecraft:player] store result storage {{{context.ModId}}}:city banner.x int 1 run data get entity @s Pos[0] 1
             execute if entity @s[type=minecraft:player] store result storage {{{context.ModId}}}:city banner.y int 1 run data get entity @s Pos[1] 1
             execute if entity @s[type=minecraft:player] store result storage {{{context.ModId}}}:city banner.z int 1 run data get entity @s Pos[2] 1
             execute if entity @s[type=minecraft:player] run tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"Town banner position registered at your current location."}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackRegisterBannerFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackRegisterBannerFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackUpdatePopulationFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackUpdatePopulationFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             scoreboard players set #population lc_population 0
             execute store result score #population lc_population if entity @e[type=minecraft:villager,tag=lc_citizen,distance=..96]
             execute store result storage {{{context.ModId}}}:city population int 1 run scoreboard players get #population lc_population
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackUpdatePopulationFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackUpdatePopulationFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackCitizenRegisterFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackCitizenRegisterFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             execute unless data storage {{{context.ModId}}}:city {founded:1b} run return 0
             scoreboard players set #registered_this_scan lc_population 0
             execute as @e[type=minecraft:villager,distance=..96,tag=!lc_citizen] at @s run function {{{context.ModId}}}:citizens/detect_new
             function {{{context.ModId}}}:citizens/aging
             function {{{context.ModId}}}:citizens/personalities
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCitizenRegisterFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCitizenRegisterFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackCitizenDetectNewFunction() =>
-            """
+        public string CreateDatapackCitizenDetectNewFunction() {
+    try
+    {
+        return """
             tag @s add lc_citizen
             scoreboard players operation @s lc_birth_year = #year lc_year
             scoreboard players add #registered_this_scan lc_population 1
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCitizenDetectNewFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCitizenDetectNewFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackCitizenAgingFunction() =>
-            """
+        public string CreateDatapackCitizenAgingFunction() {
+    try
+    {
+        return """
             execute as @e[type=minecraft:villager,tag=lc_citizen] run scoreboard players operation @s lc_tmp = #year lc_year
             execute as @e[type=minecraft:villager,tag=lc_citizen] run scoreboard players operation @s lc_tmp -= @s lc_birth_year
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCitizenAgingFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCitizenAgingFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackCitizenPersonalitiesFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackCitizenPersonalitiesFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             execute if score #population lc_population matches 5.. as @e[type=minecraft:villager,tag=lc_citizen,tag=!lc_personality,limit=1,sort=random] run tag @s add lc_personality
             execute store result storage {{{context.ModId}}}:personalities count int 1 if entity @e[type=minecraft:villager,tag=lc_personality]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCitizenPersonalitiesFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCitizenPersonalitiesFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackCitizenStatusFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackCitizenStatusFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             tellraw @s [{"text":"Registered citizens: ","color":"gold"},{"score":{"name":"#population","objective":"lc_population"}}]
             tellraw @s [{"text":"Personalities: ","color":"light_purple"},{"storage":"{{{context.ModId}}}:personalities","nbt":"count"}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCitizenStatusFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackCitizenStatusFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackFoodUpdateFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackFoodUpdateFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             function {{{context.ModId}}}:food/production
             function {{{context.ModId}}}:food/consumption
             scoreboard players operation #food lc_food += #food_production lc_tmp
@@ -929,9 +1376,21 @@ namespace LocalGPT.Services
             execute if score #food lc_food matches ..0 run tellraw @a [{"text":"[Living Cities] ","color":"red"},{"text":"Food stores are empty. Growth and migration should pause in the next milestone."}]
             execute store result storage {{{context.ModId}}}:city food int 1 run scoreboard players get #food lc_food
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackFoodUpdateFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackFoodUpdateFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackFoodProductionFunction() =>
-            """
+        public string CreateDatapackFoodProductionFunction() {
+    try
+    {
+        return """
             scoreboard players set #food_production lc_tmp 0
             scoreboard players set #food_counter lc_tmp 0
             execute store result score #food_counter lc_tmp if entity @e[type=minecraft:villager,tag=lc_citizen,distance=..96,nbt={VillagerData:{profession:"minecraft:farmer"}}]
@@ -943,72 +1402,180 @@ namespace LocalGPT.Services
             execute store result score #food_counter lc_tmp if entity @e[type=minecraft:villager,tag=lc_citizen,distance=..96,nbt={VillagerData:{profession:"minecraft:shepherd"}}]
             scoreboard players operation #food_production lc_tmp += #food_counter lc_tmp
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackFoodProductionFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackFoodProductionFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackFoodConsumptionFunction() =>
-            """
+        public string CreateDatapackFoodConsumptionFunction() {
+    try
+    {
+        return """
             scoreboard players operation #food_consumption lc_tmp = #population lc_population
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackFoodConsumptionFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackFoodConsumptionFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackSecurityUpdateFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackSecurityUpdateFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             function {{{context.ModId}}}:security/golems
             function {{{context.ModId}}}:security/nightwatch
             execute store result storage {{{context.ModId}}}:city security int 1 run scoreboard players get #security lc_security
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackSecurityUpdateFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackSecurityUpdateFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackSecurityGolemsFunction() =>
-            """
+        public string CreateDatapackSecurityGolemsFunction() {
+    try
+    {
+        return """
             scoreboard players set #golems lc_tmp 0
             scoreboard players set #security_factor lc_tmp 20
             execute store result score #golems lc_tmp if entity @e[type=minecraft:iron_golem,distance=..96]
             scoreboard players operation #security lc_security = #golems lc_tmp
             scoreboard players operation #security lc_security *= #security_factor lc_tmp
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackSecurityGolemsFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackSecurityGolemsFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackSecurityNightwatchFunction() =>
-            """
+        public string CreateDatapackSecurityNightwatchFunction() {
+    try
+    {
+        return """
             execute if score #security lc_security matches ..19 run tellraw @a [{"text":"[Living Cities] ","color":"red"},{"text":"Security is low. Build defenses or protect villagers at night."}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackSecurityNightwatchFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackSecurityNightwatchFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackChronicleAddEventFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackChronicleAddEventFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             data modify storage {{{context.ModId}}}:chronicle events append value {type:"city_founded",text:"A city was founded.",year:1}
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackChronicleAddEventFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackChronicleAddEventFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackChronicleUpdateFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackChronicleUpdateFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             execute if score #registered_this_scan lc_population matches 1.. run data modify storage {{{context.ModId}}}:chronicle events append value {type:"citizens_registered",text:"New citizens were registered.",year:1}
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackChronicleUpdateFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackChronicleUpdateFunction)} failed.");
+        throw;
+    }
+}
 
         public string CreateDatapackAdminBookFunction(WorkspaceContext context)
         {
-            var bookContent = "{title:\"Living Cities\",author:\"LocalGPT\",pages:[["
-                + "{text:\"=== Living Cities ===\\n\\n\",bold:true,color:\"gold\"},"
-                + "{text:\"[Found city]\\n\",color:\"green\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 1\"}},"
-                + "{text:\"\\n[Status]\\n\",color:\"aqua\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 2\"}},"
-                + "{text:\"\\n[Register banner]\\n\",color:\"yellow\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 3\"}},"
-                + "{text:\"\\n[Register house]\\n\",color:\"light_purple\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 4\"}},"
-                + "{text:\"\\n[Chronicle]\\n\",color:\"gold\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 5\"}},"
-                + "{text:\"\\n[Reset test city]\",color:\"red\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 6\"}}"
-                + "]]}";
+    try
+    {
+                var bookContent = "{title:\"Living Cities\",author:\"LocalGPT\",pages:[["
+                    + "{text:\"=== Living Cities ===\\n\\n\",bold:true,color:\"gold\"},"
+                    + "{text:\"[Found city]\\n\",color:\"green\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 1\"}},"
+                    + "{text:\"\\n[Status]\\n\",color:\"aqua\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 2\"}},"
+                    + "{text:\"\\n[Register banner]\\n\",color:\"yellow\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 3\"}},"
+                    + "{text:\"\\n[Register house]\\n\",color:\"light_purple\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 4\"}},"
+                    + "{text:\"\\n[Chronicle]\\n\",color:\"gold\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 5\"}},"
+                    + "{text:\"\\n[Reset test city]\",color:\"red\",click_event:{action:\"run_command\",command:\"/trigger lc_menu set 6\"}}"
+                    + "]]}";
 
-            return $$"""
-                tag @s add lc_received_book
-                scoreboard players enable @s lc_menu
-                give @s written_book[written_book_content={{bookContent}}] 1
-                tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"Admin book created. You can also run /function {{context.ModId}}:ui/townhall."}]
-                """;
-        }
+                return $$"""
+                    tag @s add lc_received_book
+                    scoreboard players enable @s lc_menu
+                    give @s written_book[written_book_content={{bookContent}}] 1
+                    tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"Admin book created. You can also run /function {{context.ModId}}:ui/townhall."}]
+                    """;
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackAdminBookFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackAdminBookFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackTownHallFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackTownHallFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             tellraw @s [{"text":"=== Living Cities Town Hall ===","color":"gold","bold":true}]
             tellraw @s [{"text":"Found city","color":"green","click_event":{"action":"run_command","command":"/trigger lc_menu set 1"}},{"text":" | "},{"text":"Status","color":"aqua","click_event":{"action":"run_command","command":"/trigger lc_menu set 2"}},{"text":" | "},{"text":"Chronicle","color":"yellow","click_event":{"action":"run_command","command":"/trigger lc_menu set 5"}}]
             tellraw @s [{"text":"Direct report: /function {{{context.ModId}}}:ui/status","color":"gray"}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackTownHallFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackTownHallFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackReportFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackReportFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             tellraw @s [{"text":"=== Living Cities Status ===","color":"gold","bold":true}]
             execute if data storage {{{context.ModId}}}:city {founded:1b} run tellraw @s [{"text":"City founded: ","color":"gray"},{"text":"yes","color":"green"}]
             execute unless data storage {{{context.ModId}}}:city {founded:1b} run tellraw @s [{"text":"City founded: ","color":"gray"},{"text":"no","color":"red"}]
@@ -1019,47 +1586,131 @@ namespace LocalGPT.Services
             tellraw @s [{"text":"Next: use the admin book or /function {{{context.ModId}}}:ui/townhall","color":"green"}]
             function {{{context.ModId}}}:citizens/status
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackReportFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackReportFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackChronicleUiFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackChronicleUiFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             tellraw @s [{"text":"=== Living Cities Chronicle ===","color":"gold","bold":true}]
             tellraw @s [{"storage":"{{{context.ModId}}}:chronicle","nbt":"events"}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackChronicleUiFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackChronicleUiFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackQuestUpdateFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackQuestUpdateFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             function {{{context.ModId}}}:quests/generate
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackQuestUpdateFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackQuestUpdateFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackQuestGenerateFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackQuestGenerateFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             execute if score #houses lc_buildings matches ..0 run data merge storage {{{context.ModId}}}:city {quest:"Register at least one house."}
             execute if score #food lc_food matches ..20 run data merge storage {{{context.ModId}}}:city {quest:"Increase food production."}
             execute if score #security lc_security matches ..20 run data merge storage {{{context.ModId}}}:city {quest:"Improve security."}
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackQuestGenerateFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackQuestGenerateFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackBuildingsInitFunction() =>
-            """
+        public string CreateDatapackBuildingsInitFunction() {
+    try
+    {
+        return """
             scoreboard players set #houses lc_buildings 0
             scoreboard players set #workplaces lc_buildings 0
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackBuildingsInitFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackBuildingsInitFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackRegisterHouseFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackRegisterHouseFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             execute unless data storage {{{context.ModId}}}:city {founded:1b} run tellraw @s [{"text":"[Living Cities] ","color":"red"},{"text":"Found a city before registering houses."}]
             execute if data storage {{{context.ModId}}}:city {founded:1b} run scoreboard players add #houses lc_buildings 1
             execute if data storage {{{context.ModId}}}:city {founded:1b} store result storage {{{context.ModId}}}:city houses int 1 run scoreboard players get #houses lc_buildings
             execute if data storage {{{context.ModId}}}:city {founded:1b} run tellraw @s [{"text":"[Living Cities] ","color":"green"},{"text":"House registered for the current city."}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackRegisterHouseFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackRegisterHouseFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackBuildingDebugListFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackBuildingDebugListFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             tellraw @s [{"text":"Registered houses: ","color":"gold"},{"storage":"{{{context.ModId}}}:city","nbt":"houses"}]
             tellraw @s [{"text":"Workplaces: ","color":"gold"},{"storage":"{{{context.ModId}}}:city","nbt":"workplaces"}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackBuildingDebugListFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackBuildingDebugListFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackResetCityFunction(WorkspaceContext context) =>
-            $$$"""
+        public string CreateDatapackResetCityFunction(WorkspaceContext context) {
+    try
+    {
+        return $$$"""
             data modify storage {{{context.ModId}}}:city set value {}
             data modify storage {{{context.ModId}}}:chronicle set value {events:[]}
             data modify storage {{{context.ModId}}}:personalities set value {notables:[]}
@@ -1072,9 +1723,21 @@ namespace LocalGPT.Services
             function {{{context.ModId}}}:core/load
             tellraw @s [{"text":"[Living Cities] ","color":"yellow"},{"text":"Test city state reset."}]
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackResetCityFunction)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackResetCityFunction)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackBuildScript(WorkspaceContext context) =>
-            $$"""
+        public string CreateDatapackBuildScript(WorkspaceContext context) {
+    try
+    {
+        return $$"""
             [CmdletBinding()]
             param(
                 [string]$Configuration = "Release"
@@ -1200,9 +1863,21 @@ namespace LocalGPT.Services
             Write-Host "Validated $($functionFiles.Count) mcfunction files."
             Write-Host "Created datapack: $zipPath"
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackBuildScript)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackBuildScript)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackBenchmarkNotes(WorkspaceContext context) =>
-            $$"""
+        public string CreateDatapackBenchmarkNotes(WorkspaceContext context) {
+    try
+    {
+        return $$"""
             # Living Cities Reference Benchmark
 
             This generated datapack was shaped against the provided early `living_cities.zip` reference.
@@ -1231,9 +1906,21 @@ namespace LocalGPT.Services
             - run `/reload`, `/datapack list`, and `/function {{context.ModId}}:ui/townhall`
             - decide whether banner registration should stay menu-based or become a stricter raycast/block-position workflow
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackBenchmarkNotes)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackBenchmarkNotes)} failed.");
+        throw;
+    }
+}
 
-        public string CreateDatapackReadme(MinecraftModBuildRequest request, WorkspaceContext context) =>
-            $$"""
+        public string CreateDatapackReadme(MinecraftModBuildRequest request, WorkspaceContext context) {
+    try
+    {
+        return $$"""
             # {{context.ProjectName}} Datapack
 
             Generated by LocalGPT as a vanilla Minecraft Java datapack.
@@ -1280,9 +1967,21 @@ namespace LocalGPT.Services
 
             This datapack implements the first Living Cities 0.1 vertical slice: scoreboards, storage, city founding, citizen registration, aggregate population, food, security, chronicle, basic quests, and a town hall/admin-book UI. Keep tick work tiny; scale the real system through scheduled, city-scoped functions and stored aggregate values.
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackReadme)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateDatapackReadme)} failed.");
+        throw;
+    }
+}
 
-        public string CreateWorkspaceReadme(MinecraftModBuildRequest request, WorkspaceContext context, string loader) =>
-            $$"""
+        public string CreateWorkspaceReadme(MinecraftModBuildRequest request, WorkspaceContext context, string loader) {
+    try
+    {
+        return $$"""
             # {{context.ProjectName}}
 
             Generated by LocalGPT as a Minecraft Java {{loader}} mod workspace.
@@ -1322,9 +2021,21 @@ namespace LocalGPT.Services
 
             The next AI Council milestone should implement city founding with banner plus torch, scoreboard/storage state, and a minimal town hall report.
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateWorkspaceReadme)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateWorkspaceReadme)} failed.");
+        throw;
+    }
+}
 
-        public string CreateLivingCitiesPlan(MinecraftModBuildRequest request) =>
-            $$"""
+        public string CreateLivingCitiesPlan(MinecraftModBuildRequest request) {
+    try
+    {
+        return $$"""
             # Living Cities 0.1 - LocalGPT Starter Plan
 
             User request:
@@ -1365,6 +2076,16 @@ namespace LocalGPT.Services
             - Add version-aware datapack `pack_format` lookup from the installed Minecraft version manifest.
             - Add Bedrock behavior/resource pack exporter as a separate target, not mixed into Java mod generation.
             """;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateLivingCitiesPlan)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(CreateLivingCitiesPlan)} failed.");
+        throw;
+    }
+}
 
         public bool LooksLikeMissingFeatureReport(string text, ILogger<AiFeatureReportService> logger)
         {
@@ -1578,106 +2299,130 @@ namespace LocalGPT.Services
         }
         public IReadOnlyList<BenchmarkTaskDefinition> BuildEngineeringTasks()
         {
-            return
-            [
-                new(
-                    "devexpress-webshop-efcore",
-                    "DevExpress Blazor webshop with EF Core",
-                    "Generate a downloadable whole solution zip for a DevExpress Blazor webshop with EF Core, SQLite seed data, products, carts, orders, admin CRUD grid, detail form, Bootstrap v5 layout, and README.",
-                    "A strong answer contains a .NET solution, EF Core DbContext/entities/migration guidance, DevExpress product/admin grids, cart/order services, seed data, app navigation, build/run steps, and no client-side privileged commands.",
-                    "Benchmark answer: create a full solution zip with DevExpress Blazor pages, EF Core entities, services, product/cart/order workflows, and README. Include Implementation artifact request.",
-                    6,
-                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/"],
-                    ["DevExpress", "Blazor", "service", "model"],
-                    ["Components/Pages", "Services", "Models"]),
-                new(
-                    "blazor-admin-crud-dashboard",
-                    "Blazor admin dashboard with CRUD grid and detail form",
-                    "Generate a downloadable whole solution zip for a Blazor admin dashboard with DevExpress DxGrid CRUD, detail form, validation, SQLite persistence, audit log, and Bootstrap v5 navigation.",
-                    "A strong answer contains DxGrid, EditForm/DxFormLayout detail editing, validation, EF Core persistence, audit logging, clear service boundaries, and buildable project files.",
-                    "Benchmark answer: create a full solution zip with DxGrid CRUD, detail form, validation, SQLite persistence, audit notes, and README. Include Implementation artifact request.",
-                    6,
-                    ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/"],
-                    ["DevExpress", "Blazor", "grid"],
-                    ["Components/Pages", "Services", "Models"]),
-                new(
-                    "msix-winui-blazor-packaging",
-                    "MSIX/WinUI/Blazor packaging error diagnosis",
-                    "Diagnose and produce a downloadable LocalGPT-style implementation note for an MSIX WinUI WebView2 Blazor packaging error involving static web assets, LocalGPT.deps.json, IncludeLocalGptPublishedPayload, and APPX1111 duplicate paths.",
-                    "A strong answer separates SDK dotnet build from Visual Studio MSBuild, preserves thin WinUI wrapper, explains IncludeLocalGptPublishedPayload=false for Debug/F5 and release opt-in, and names static web asset payload risks.",
-                    "Benchmark answer: produce a concise .cs artifact note and optional solution zip explaining DesktopBridge diagnosis, package-map duplicate risks, and verification commands. Include Implementation artifact request.",
-                    5,
-                    [],
-                    ["MSIX", "WebView2", "WinUI"],
-                    []),
-                new(
-                    "minecraft-datapack-workspace",
-                    "Minecraft datapack workspace",
-                    "Generate a downloadable Minecraft Java datapack zip for a prompt-driven city simulation datapack named Benchmark Borough with scoreboards, storage, load/tick tags, debug function, docs, and Minecraft 1.21.4 pack format.",
-                    "A strong answer contains zip root pack.mcmeta and data/ directly, singular 1.21 function folders, valid load/tick tags, lowercase namespace, no .mcfunction.txt files, no leading slash commands, and install/test steps.",
-                    "Benchmark answer: generate a prompt-driven datapack zip for Benchmark Borough, not a hard-coded Living Cities artifact. Include pack.mcmeta and data/ at zip root.",
-                    9,
-                    ["pack.mcmeta", "data/minecraft/tags/function/load.json", "data/minecraft/tags/function/tick.json"],
-                    ["datapack", "pack.mcmeta"],
-                    ["pack.mcmeta", "data/"]),
-                new(
-                    "minecraft-loader-skeletons",
-                    "Fabric/Paper/NeoForge project skeleton distinction",
-                    "Generate a downloadable Minecraft Java project skeleton distinction zip that contains separate Fabric, Paper, and NeoForge skeletons for Minecraft 1.21.4, with each loader using its own metadata and Gradle dependency conventions.",
-                    "A strong answer keeps Fabric metadata, Paper plugin.yml, and NeoForge mods.toml/dependencies separate; it does not reuse one loader template for all three.",
-                    "Benchmark answer: create a loader matrix zip with distinct Fabric, Paper, and NeoForge workspaces. Include project skeleton distinction in the answer.",
-                    8,
-                    ["fabric/", "paper/", "neoforge/"],
-                    ["Fabric", "Paper", "NeoForge"],
-                    ["fabric", "paper", "neoforge"])
-            ];
-        }
+    try
+    {
+                return
+                [
+                    new(
+                        "devexpress-webshop-efcore",
+                        "DevExpress Blazor webshop with EF Core",
+                        "Generate a downloadable whole solution zip for a DevExpress Blazor webshop with EF Core, SQLite seed data, products, carts, orders, admin CRUD grid, detail form, Bootstrap v5 layout, and README.",
+                        "A strong answer contains a .NET solution, EF Core DbContext/entities/migration guidance, DevExpress product/admin grids, cart/order services, seed data, app navigation, build/run steps, and no client-side privileged commands.",
+                        "Benchmark answer: create a full solution zip with DevExpress Blazor pages, EF Core entities, services, product/cart/order workflows, and README. Include Implementation artifact request.",
+                        6,
+                        ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/"],
+                        ["DevExpress", "Blazor", "service", "model"],
+                        ["Components/Pages", "Services", "Models"]),
+                    new(
+                        "blazor-admin-crud-dashboard",
+                        "Blazor admin dashboard with CRUD grid and detail form",
+                        "Generate a downloadable whole solution zip for a Blazor admin dashboard with DevExpress DxGrid CRUD, detail form, validation, SQLite persistence, audit log, and Bootstrap v5 navigation.",
+                        "A strong answer contains DxGrid, EditForm/DxFormLayout detail editing, validation, EF Core persistence, audit logging, clear service boundaries, and buildable project files.",
+                        "Benchmark answer: create a full solution zip with DxGrid CRUD, detail form, validation, SQLite persistence, audit notes, and README. Include Implementation artifact request.",
+                        6,
+                        ["PROJECT_INDEX.md", ".localgpt-generation.json", "src/"],
+                        ["DevExpress", "Blazor", "grid"],
+                        ["Components/Pages", "Services", "Models"]),
+                    new(
+                        "msix-winui-blazor-packaging",
+                        "MSIX/WinUI/Blazor packaging error diagnosis",
+                        "Diagnose and produce a downloadable LocalGPT-style implementation note for an MSIX WinUI WebView2 Blazor packaging error involving static web assets, LocalGPT.deps.json, IncludeLocalGptPublishedPayload, and APPX1111 duplicate paths.",
+                        "A strong answer separates SDK dotnet build from Visual Studio MSBuild, preserves thin WinUI wrapper, explains IncludeLocalGptPublishedPayload=false for Debug/F5 and release opt-in, and names static web asset payload risks.",
+                        "Benchmark answer: produce a concise .cs artifact note and optional solution zip explaining DesktopBridge diagnosis, package-map duplicate risks, and verification commands. Include Implementation artifact request.",
+                        5,
+                        [],
+                        ["MSIX", "WebView2", "WinUI"],
+                        []),
+                    new(
+                        "minecraft-datapack-workspace",
+                        "Minecraft datapack workspace",
+                        "Generate a downloadable Minecraft Java datapack zip for a prompt-driven city simulation datapack named Benchmark Borough with scoreboards, storage, load/tick tags, debug function, docs, and Minecraft 1.21.4 pack format.",
+                        "A strong answer contains zip root pack.mcmeta and data/ directly, singular 1.21 function folders, valid load/tick tags, lowercase namespace, no .mcfunction.txt files, no leading slash commands, and install/test steps.",
+                        "Benchmark answer: generate a prompt-driven datapack zip for Benchmark Borough, not a hard-coded Living Cities artifact. Include pack.mcmeta and data/ at zip root.",
+                        9,
+                        ["pack.mcmeta", "data/minecraft/tags/function/load.json", "data/minecraft/tags/function/tick.json"],
+                        ["datapack", "pack.mcmeta"],
+                        ["pack.mcmeta", "data/"]),
+                    new(
+                        "minecraft-loader-skeletons",
+                        "Fabric/Paper/NeoForge project skeleton distinction",
+                        "Generate a downloadable Minecraft Java project skeleton distinction zip that contains separate Fabric, Paper, and NeoForge skeletons for Minecraft 1.21.4, with each loader using its own metadata and Gradle dependency conventions.",
+                        "A strong answer keeps Fabric metadata, Paper plugin.yml, and NeoForge mods.toml/dependencies separate; it does not reuse one loader template for all three.",
+                        "Benchmark answer: create a loader matrix zip with distinct Fabric, Paper, and NeoForge workspaces. Include project skeleton distinction in the answer.",
+                        8,
+                        ["fabric/", "paper/", "neoforge/"],
+                        ["Fabric", "Paper", "NeoForge"],
+                        ["fabric", "paper", "neoforge"])
+                ];
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(BuildEngineeringTasks)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(BuildEngineeringTasks)} failed.");
+        throw;
+    }
+}
         public IReadOnlyList<BenchmarkTaskDefinition> BuildReplacementTasks()
         {
-            return
-            [
-                new(
-                    "localgpt-replacement",
-                    "LocalGPT replacement workbench",
-                    "Generate a downloadable whole solution zip that can stand in for LocalGPT as a local-first AI workbench. It must include DXAiChat, AI Council with minimum two-member feedback talk, SQLite memory and knowledge approval markers, artifact download routes, Minecraft builder, install/setup, and Test Lab surfaces. No missing feature is acceptable; if a capability is not implemented, represent it as a visible backend service boundary and capability gap.",
-                    "A strong answer is a buildable .NET/Blazor/DevExpress solution with recognizable LocalGPT navigation: DXAiChat, AI Council, SQLite Database, Minecraft Mod Builder, Install, Help/Test Lab, artifact routes, memory/knowledge services, logs, and missing-feature feedback capture.",
-                    "Benchmark answer: create a full LocalGPT-like workbench solution zip with distinct pages for DXAiChat, AI Council, SQLite, Minecraft, Install, and Test Lab. Include Implementation artifact request.",
-                    7,
-                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor", "Components/Pages/MinecraftModBuilder.razor", "Components/Pages/TestLab.razor", "Components/Pages/Install.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
-                    ["DXAiChat", "AI Council", "SQLite", "Minecraft", "Test Lab", "Source Fidelity", "Artifact"],
-                    ["Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor", "Services/GeneratedSourceFidelityService.cs"]),
-                new(
-                    "tacosportalopen-replacement",
-                    "TacosPortalOpen replacement portal",
-                    "Generate a downloadable whole solution zip that can stand in for TacosPortalOpen as a server-interactive DevExpress/Blazor system. It must represent the real architecture: multi-project/core service topology, Telegram or message-event ingestion, normalized persistence, worker services, notifications/logging, custom security/admin UI, optional WASM client, WinUI/WebView2 wrapper boundary, and a sanitized simpler bot backend implementation.",
-                    "A strong answer is a buildable .NET/Blazor/DevExpress solution with pages and service boundaries for Telegram ingestion, persistence, workers, admin/security, client shells, notification/logging, EF/SQLite or provider-backed data, validation, and build/run docs. A generic menu/orders/reservations restaurant portal is the wrong template.",
-                    "Benchmark answer: create a full TacosPortalOpen-style multi-host/event-ingestion solution zip with Telegram ingestion, persistence, workers, admin, client-shell boundaries, and source-fidelity docs. Include Implementation artifact request.",
-                    7,
-                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/TelegramIngestion.razor", "Components/Pages/Persistence.razor", "Components/Pages/Workers.razor", "Components/Pages/Admin.razor", "Components/Pages/ClientShells.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
-                    ["Telegram", "Persistence", "Workers", "WebView2", "WASM", "DevExpress", "Source Fidelity"],
-                    ["Components/Pages/TelegramIngestion.razor", "Components/Pages/Persistence.razor", "Components/Pages/Workers.razor", "Services/GeneratedSourceFidelityService.cs"]),
-                new(
-                    "ai-host-replacement",
-                    "Provider-compatible AI host replacement",
-                    "Generate a downloadable whole solution zip for a provider-neutral AI host replacement in .NET 10, ASP.NET Core, Blazor, and DevExpress. It must include model catalog, chat, downloads, running models, API console, logs, settings, templates, hardware, runner/plugins, /api/version, /api/tags, /api/ps, /api/chat, /api/generate, OpenAI-compatible routes, direct local model-file runner interfaces, Python.NET/PowerShell extension boundaries, and SQLite/appsettings state.",
-                    "A strong answer is a buildable AI-host solution with provider-compatible routes, DevExpress navigation, model/download/runtime pages, native local-model-file runner interfaces, no upstream provider proxying, and explicit runner setup/status.",
-                    "Benchmark answer: create a buildable AI-host replacement solution zip with DevExpress pages, provider-compatible routes, runner/plugin service contracts, and no Go dependency. Include Implementation artifact request.",
-                    9,
-                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/RunningModels.razor", "Components/Pages/ModelDownloads.razor", "Components/Pages/RunnerPlugins.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedAiHostArchitectureServices.cs", "Services/GeneratedSourceFidelityService.cs"],
-                    ["IInferenceProvider", "IInferenceRunner", "RunnerPlugins", "/api/chat", "Source Fidelity"],
-                    ["Components/Pages/RunnerPlugins.razor", "Services/GeneratedAiHostArchitectureServices.cs", "Services/GeneratedSourceFidelityService.cs"]),
-                new(
-                    "simple-bot-backend",
-                    "Simpler bot backend implementation",
-                    "Generate a downloadable whole solution zip for a simpler bot backend inspired by legacy Telegram-style integrations, but sanitized. It must include webhooks, conversation state, command routing, moderation/retry queues, optional Python.NET boundary for speech/translation/media helpers, settings, logs, EF/SQLite, and a DevExpress Blazor operator UI.",
-                    "A strong answer is a buildable .NET/Blazor/DevExpress bot backend with Webhooks, Conversations, Bot Settings, Python Interop pages, services, safe permission gates, and no private database dump requirement.",
-                    "Benchmark answer: create a simple bot backend solution zip with webhook/conversation/settings/python-interop pages and safe backend service boundaries. Include Implementation artifact request.",
-                    7,
-                    ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Webhooks.razor", "Components/Pages/Conversations.razor", "Components/Pages/BotSettings.razor", "Components/Pages/PythonInterop.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
-                    ["Webhooks", "Conversations", "Python Interop", "SQLite"],
-                    ["Components/Pages/Webhooks.razor", "Components/Pages/PythonInterop.razor", "Services/GeneratedSourceFidelityService.cs"])
-            ];
-        }
+    try
+    {
+                return
+                [
+                    new(
+                        "localgpt-replacement",
+                        "LocalGPT replacement workbench",
+                        "Generate a downloadable whole solution zip that can stand in for LocalGPT as a local-first AI workbench. It must include DXAiChat, AI Council with minimum two-member feedback talk, SQLite memory and knowledge approval markers, artifact download routes, Minecraft builder, install/setup, and Test Lab surfaces. No missing feature is acceptable; if a capability is not implemented, represent it as a visible backend service boundary and capability gap.",
+                        "A strong answer is a buildable .NET/Blazor/DevExpress solution with recognizable LocalGPT navigation: DXAiChat, AI Council, SQLite Database, Minecraft Mod Builder, Install, Help/Test Lab, artifact routes, memory/knowledge services, logs, and missing-feature feedback capture.",
+                        "Benchmark answer: create a full LocalGPT-like workbench solution zip with distinct pages for DXAiChat, AI Council, SQLite, Minecraft, Install, and Test Lab. Include Implementation artifact request.",
+                        7,
+                        ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor", "Components/Pages/MinecraftModBuilder.razor", "Components/Pages/TestLab.razor", "Components/Pages/Install.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
+                        ["DXAiChat", "AI Council", "SQLite", "Minecraft", "Test Lab", "Source Fidelity", "Artifact"],
+                        ["Components/Pages/Chat.razor", "Components/Pages/ModelCouncil.razor", "Components/Pages/Database.razor", "Services/GeneratedSourceFidelityService.cs"]),
+                    new(
+                        "tacosportalopen-replacement",
+                        "TacosPortalOpen replacement portal",
+                        "Generate a downloadable whole solution zip that can stand in for TacosPortalOpen as a server-interactive DevExpress/Blazor system. It must represent the real architecture: multi-project/core service topology, Telegram or message-event ingestion, normalized persistence, worker services, notifications/logging, custom security/admin UI, optional WASM client, WinUI/WebView2 wrapper boundary, and a sanitized simpler bot backend implementation.",
+                        "A strong answer is a buildable .NET/Blazor/DevExpress solution with pages and service boundaries for Telegram ingestion, persistence, workers, admin/security, client shells, notification/logging, EF/SQLite or provider-backed data, validation, and build/run docs. A generic menu/orders/reservations restaurant portal is the wrong template.",
+                        "Benchmark answer: create a full TacosPortalOpen-style multi-host/event-ingestion solution zip with Telegram ingestion, persistence, workers, admin, client-shell boundaries, and source-fidelity docs. Include Implementation artifact request.",
+                        7,
+                        ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/TelegramIngestion.razor", "Components/Pages/Persistence.razor", "Components/Pages/Workers.razor", "Components/Pages/Admin.razor", "Components/Pages/ClientShells.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
+                        ["Telegram", "Persistence", "Workers", "WebView2", "WASM", "DevExpress", "Source Fidelity"],
+                        ["Components/Pages/TelegramIngestion.razor", "Components/Pages/Persistence.razor", "Components/Pages/Workers.razor", "Services/GeneratedSourceFidelityService.cs"]),
+                    new(
+                        "ai-host-replacement",
+                        "Provider-compatible AI host replacement",
+                        "Generate a downloadable whole solution zip for a provider-neutral AI host replacement in .NET 10, ASP.NET Core, Blazor, and DevExpress. It must include model catalog, chat, downloads, running models, API console, logs, settings, templates, hardware, runner/plugins, /api/version, /api/tags, /api/ps, /api/chat, /api/generate, OpenAI-compatible routes, direct local model-file runner interfaces, Python.NET/PowerShell extension boundaries, and SQLite/appsettings state.",
+                        "A strong answer is a buildable AI-host solution with provider-compatible routes, DevExpress navigation, model/download/runtime pages, native local-model-file runner interfaces, no upstream provider proxying, and explicit runner setup/status.",
+                        "Benchmark answer: create a buildable AI-host replacement solution zip with DevExpress pages, provider-compatible routes, runner/plugin service contracts, and no Go dependency. Include Implementation artifact request.",
+                        9,
+                        ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Chat.razor", "Components/Pages/RunningModels.razor", "Components/Pages/ModelDownloads.razor", "Components/Pages/RunnerPlugins.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedAiHostArchitectureServices.cs", "Services/GeneratedSourceFidelityService.cs"],
+                        ["IInferenceProvider", "IInferenceRunner", "RunnerPlugins", "/api/chat", "Source Fidelity"],
+                        ["Components/Pages/RunnerPlugins.razor", "Services/GeneratedAiHostArchitectureServices.cs", "Services/GeneratedSourceFidelityService.cs"]),
+                    new(
+                        "simple-bot-backend",
+                        "Simpler bot backend implementation",
+                        "Generate a downloadable whole solution zip for a simpler bot backend inspired by legacy Telegram-style integrations, but sanitized. It must include webhooks, conversation state, command routing, moderation/retry queues, optional Python.NET boundary for speech/translation/media helpers, settings, logs, EF/SQLite, and a DevExpress Blazor operator UI.",
+                        "A strong answer is a buildable .NET/Blazor/DevExpress bot backend with Webhooks, Conversations, Bot Settings, Python Interop pages, services, safe permission gates, and no private database dump requirement.",
+                        "Benchmark answer: create a simple bot backend solution zip with webhook/conversation/settings/python-interop pages and safe backend service boundaries. Include Implementation artifact request.",
+                        7,
+                        ["PROJECT_INDEX.md", "SOURCE_FIDELITY.md", ".localgpt-generation.json", "src/", "Components/Pages/Webhooks.razor", "Components/Pages/Conversations.razor", "Components/Pages/BotSettings.razor", "Components/Pages/PythonInterop.razor", "Components/Pages/SourceFidelity.razor", "Services/GeneratedSourceFidelityService.cs"],
+                        ["Webhooks", "Conversations", "Python Interop", "SQLite"],
+                        ["Components/Pages/Webhooks.razor", "Components/Pages/PythonInterop.razor", "Services/GeneratedSourceFidelityService.cs"])
+                ];
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(BuildReplacementTasks)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(BuildReplacementTasks)} failed.");
+        throw;
+    }
+}
         public string NormalizeOpenAIEndpoint(string endpoint, ILogger<AiConnectivityProbe> logger)
         {
             try
@@ -6940,27 +7685,39 @@ namespace LocalGPT.Services
 
         public List< MinecraftDatapackVersionInfo> MinecraftDatapackVersionKnownVersions (ILogger logger)
         {
-            try
-            {
-                return new()
+    try
+    {
+                try
                 {
-                         MinecraftDatapackVersionInfoKnown("26.2", "105.0", "function", "Minecraft Java 26.2 snapshot family. Use only for snapshot worlds and verify against the installed launcher build.",logger),
-        MinecraftDatapackVersionInfoKnown("26.2-snapshot-6", "105.0", "function", "Minecraft Java 26.2 Snapshot 6 datapack format.",logger),
-        MinecraftDatapackVersionInfoKnown("26.1.2", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
-        MinecraftDatapackVersionInfoKnown("26.1.1", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
-        MinecraftDatapackVersionInfoKnown("26.1", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
-        MinecraftDatapackVersionInfoKnown("1.21.4", 61.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "LocalGPT Living Cities benchmark target.",logger),
-        MinecraftDatapackVersionInfoKnown("1.21.3", 57.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21.2/1.21.3 datapack format family.",logger),
-        MinecraftDatapackVersionInfoKnown("1.21.2", 57.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21.2/1.21.3 datapack format family.",logger),
-        MinecraftDatapackVersionInfoKnown("1.21.1", 48.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21/1.21.1 datapack format family.",logger),
-        MinecraftDatapackVersionInfoKnown("1.21",48.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21/1.21.1 datapack format family.",logger)
-                };
-            }
-            catch (Exception)
-            {
-                return new();
-            }
-        }
+                    return new()
+                    {
+                             MinecraftDatapackVersionInfoKnown("26.2", "105.0", "function", "Minecraft Java 26.2 snapshot family. Use only for snapshot worlds and verify against the installed launcher build.",logger),
+            MinecraftDatapackVersionInfoKnown("26.2-snapshot-6", "105.0", "function", "Minecraft Java 26.2 Snapshot 6 datapack format.",logger),
+            MinecraftDatapackVersionInfoKnown("26.1.2", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
+            MinecraftDatapackVersionInfoKnown("26.1.1", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
+            MinecraftDatapackVersionInfoKnown("26.1", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
+            MinecraftDatapackVersionInfoKnown("1.21.4", 61.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "LocalGPT Living Cities benchmark target.",logger),
+            MinecraftDatapackVersionInfoKnown("1.21.3", 57.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21.2/1.21.3 datapack format family.",logger),
+            MinecraftDatapackVersionInfoKnown("1.21.2", 57.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21.2/1.21.3 datapack format family.",logger),
+            MinecraftDatapackVersionInfoKnown("1.21.1", 48.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21/1.21.1 datapack format family.",logger),
+            MinecraftDatapackVersionInfoKnown("1.21",48.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21/1.21.1 datapack format family.",logger)
+                    };
+                }
+                catch (Exception)
+                {
+                    return new();
+                }
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(MinecraftDatapackVersionKnownVersions)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilTextService)}.{nameof(MinecraftDatapackVersionKnownVersions)} failed.");
+        throw;
+    }
+}
 
         public MinecraftDatapackVersionInfo MinecraftDatapackVersionInfoKnown(string version, string packFormat, string functionRegistryFolder, string notes, ILogger logger) 
         {

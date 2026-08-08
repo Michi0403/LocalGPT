@@ -1383,11 +1383,12 @@ namespace LocalGPT.Controller
                 if (RequireHumanConfirmation(userConfirmed, "read a user-selected learn-base path and optionally save knowledge") is { } denied)
                     return denied;
 
+                if (string.IsNullOrWhiteSpace(rootPath))
+                    return Results.BadRequest("Select an explicit local learn-base folder. LocalGPT no longer invents a machine-specific default path.");
+
                 return Results.Ok(await importer.ImportAsync(new LearnBaseImportRequest
                 {
-                    RootPath = string.IsNullOrWhiteSpace(rootPath)
-                  ? @"C:\learnbaseforlocalgpt"
-                  : rootPath,
+                    RootPath = rootPath.Trim(),
                     MaxProjects = maxProjects ?? 40,
                     SaveToKnowledge = saveToKnowledge != false,
                     AdditionalFileExtensions = fileExtensions ?? string.Empty,

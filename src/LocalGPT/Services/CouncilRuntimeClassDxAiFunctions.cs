@@ -68,10 +68,22 @@ public sealed class ListCouncilRuntimeClassesFunction(
         }
     }
 
-    private string GetString(JsonElement parameters, string name) =>
-        parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var element) && element.ValueKind == JsonValueKind.String
+    private string GetString(JsonElement parameters, string name) {
+    try
+    {
+        return parameters.ValueKind == JsonValueKind.Object && parameters.TryGetProperty(name, out var element) && element.ValueKind == JsonValueKind.String
             ? element.GetString() ?? string.Empty
             : string.Empty;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ListCouncilRuntimeClassesFunction)}.{nameof(GetString)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(ListCouncilRuntimeClassesFunction)}.{nameof(GetString)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class ResolveCouncilRuntimeClassFunction(

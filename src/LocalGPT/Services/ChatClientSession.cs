@@ -24,10 +24,29 @@ public class ChatClientSession
         Messages = [];
     }
 
-    private string InferProvider(string name) => name.Split('—', 2, StringSplitOptions.TrimEntries)[0];
+    private string InferProvider(string name) {
+    try
+    {
+        return name.Split('—', 2, StringSplitOptions.TrimEntries)[0];
+    }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method ChatClientSession.InferProvider failed: {__serviceMethodException}");
+        throw;
+    }
+}
     private string InferModel(string name)
     {
-        var parts = name.Split('—', 2, StringSplitOptions.TrimEntries);
-        return parts.Length == 2 ? parts[1] : name;
+    try
+    {
+            var parts = name.Split('—', 2, StringSplitOptions.TrimEntries);
+            return parts.Length == 2 ? parts[1] : name;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method ChatClientSession.InferModel failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }

@@ -140,27 +140,39 @@ namespace LocalGPT.Services
             string? loaderOverride,
             string? failureReason)
         {
-            var loader = string.IsNullOrWhiteSpace(loaderOverride) ? request.Loader : loaderOverride;
-            var normalizedLoader = string.IsNullOrWhiteSpace(loader) ? "Fabric" : loader.Trim();
-            var minecraftVersion = string.IsNullOrWhiteSpace(request.MinecraftVersion) ? catalog.DefaultMinecraftVersion : request.MinecraftVersion.Trim();
-            var javaVersion = string.IsNullOrWhiteSpace(request.JavaVersion) ? catalog.DefaultJavaVersion : request.JavaVersion.Trim();
-            var gradleVersion = string.IsNullOrWhiteSpace(request.GradleVersion) ? catalog.DefaultGradleVersion : request.GradleVersion.Trim();
-            return new MinecraftDependencyVersionInfo(
-                Loader: normalizedLoader,
-                RequestedMinecraftVersion: minecraftVersion,
-                MatchedMinecraftVersion: minecraftVersion,
-                JavaVersion: javaVersion,
-                GradleVersion: gradleVersion,
-                "",
-                FabricApiVersion: null,
-                NeoForgeVersion: null,
-                PaperApiVersion: null,
-                DatapackPackFormat: normalizedLoader.Equals("Datapack", StringComparison.OrdinalIgnoreCase) ? "101.1" : null,
-                IsExactMatch: false,
-                NeedsVerification: true,
-                Notes: $"Dependency resolution failed and a conservative project-local fallback was used. {failureReason}".Trim(),
-                Source: "LocalGPT defensive fallback; verify versions with the official loader and Minecraft sources before release.");
-        }
+    try
+    {
+                var loader = string.IsNullOrWhiteSpace(loaderOverride) ? request.Loader : loaderOverride;
+                var normalizedLoader = string.IsNullOrWhiteSpace(loader) ? "Fabric" : loader.Trim();
+                var minecraftVersion = string.IsNullOrWhiteSpace(request.MinecraftVersion) ? catalog.DefaultMinecraftVersion : request.MinecraftVersion.Trim();
+                var javaVersion = string.IsNullOrWhiteSpace(request.JavaVersion) ? catalog.DefaultJavaVersion : request.JavaVersion.Trim();
+                var gradleVersion = string.IsNullOrWhiteSpace(request.GradleVersion) ? catalog.DefaultGradleVersion : request.GradleVersion.Trim();
+                return new MinecraftDependencyVersionInfo(
+                    Loader: normalizedLoader,
+                    RequestedMinecraftVersion: minecraftVersion,
+                    MatchedMinecraftVersion: minecraftVersion,
+                    JavaVersion: javaVersion,
+                    GradleVersion: gradleVersion,
+                    "",
+                    FabricApiVersion: null,
+                    NeoForgeVersion: null,
+                    PaperApiVersion: null,
+                    DatapackPackFormat: normalizedLoader.Equals("Datapack", StringComparison.OrdinalIgnoreCase) ? "101.1" : null,
+                    IsExactMatch: false,
+                    NeedsVerification: true,
+                    Notes: $"Dependency resolution failed and a conservative project-local fallback was used. {failureReason}".Trim(),
+                    Source: "LocalGPT defensive fallback; verify versions with the official loader and Minecraft sources before release.");
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(CreateFallbackDependencyVersionInfo)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(CreateFallbackDependencyVersionInfo)} failed.");
+        throw;
+    }
+}
 
         /// <summary>Executes the create build local script operation.</summary>
         /// <param name="request">Input value for request.</param>
@@ -474,27 +486,39 @@ namespace LocalGPT.Services
         /// <returns>The operation result.</returns>
         public List< MinecraftDatapackVersionInfo> MinecraftDatapackVersionKnownVersions (ILogger logger)
         {
-            try
-            {
-                return new()
+    try
+    {
+                try
                 {
-                         MinecraftDatapackVersionInfoKnown("26.2", "105.0", "function", "Minecraft Java 26.2 snapshot family. Use only for snapshot worlds and verify against the installed launcher build.",logger),
-        MinecraftDatapackVersionInfoKnown("26.2-snapshot-6", "105.0", "function", "Minecraft Java 26.2 Snapshot 6 datapack format.",logger),
-        MinecraftDatapackVersionInfoKnown("26.1.2", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
-        MinecraftDatapackVersionInfoKnown("26.1.1", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
-        MinecraftDatapackVersionInfoKnown("26.1", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
-        MinecraftDatapackVersionInfoKnown("1.21.4", 61.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "LocalGPT Living Cities benchmark target.",logger),
-        MinecraftDatapackVersionInfoKnown("1.21.3", 57.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21.2/1.21.3 datapack format family.",logger),
-        MinecraftDatapackVersionInfoKnown("1.21.2", 57.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21.2/1.21.3 datapack format family.",logger),
-        MinecraftDatapackVersionInfoKnown("1.21.1", 48.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21/1.21.1 datapack format family.",logger),
-        MinecraftDatapackVersionInfoKnown("1.21",48.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21/1.21.1 datapack format family.",logger)
-                };
-            }
-            catch (Exception)
-            {
-                return new();
-            }
-        }
+                    return new()
+                    {
+                             MinecraftDatapackVersionInfoKnown("26.2", "105.0", "function", "Minecraft Java 26.2 snapshot family. Use only for snapshot worlds and verify against the installed launcher build.",logger),
+            MinecraftDatapackVersionInfoKnown("26.2-snapshot-6", "105.0", "function", "Minecraft Java 26.2 Snapshot 6 datapack format.",logger),
+            MinecraftDatapackVersionInfoKnown("26.1.2", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
+            MinecraftDatapackVersionInfoKnown("26.1.1", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
+            MinecraftDatapackVersionInfoKnown("26.1", "101.1", "function", "Minecraft Java 26.1 stable family; Java 25 runtime required.",logger),
+            MinecraftDatapackVersionInfoKnown("1.21.4", 61.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "LocalGPT Living Cities benchmark target.",logger),
+            MinecraftDatapackVersionInfoKnown("1.21.3", 57.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21.2/1.21.3 datapack format family.",logger),
+            MinecraftDatapackVersionInfoKnown("1.21.2", 57.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21.2/1.21.3 datapack format family.",logger),
+            MinecraftDatapackVersionInfoKnown("1.21.1", 48.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21/1.21.1 datapack format family.",logger),
+            MinecraftDatapackVersionInfoKnown("1.21",48.ToString(System.Globalization.CultureInfo.InvariantCulture), "function", "Minecraft 1.21/1.21.1 datapack format family.",logger)
+                    };
+                }
+                catch (Exception)
+                {
+                    return new();
+                }
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(MinecraftDatapackVersionKnownVersions)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(MinecraftDatapackVersionKnownVersions)} failed.");
+        throw;
+    }
+}
         /// <summary>Executes the minecraft datapack version info known operation.</summary>
         /// <param name="version">Input value for version.</param>
         /// <param name="packFormat">Input value for packFormat.</param>
@@ -1065,7 +1089,7 @@ namespace LocalGPT.Services
                     Scope = "Selected local project learn-base",
                     Source = $"Local learn-base scan: {sanitizedSourcePath}",
                     Content = content,
-                    HelpfulSources = "Local user-selected source folder C:\\learnbaseforlocalgpt. Import stores compact fingerprints only; inspect source directly before copying exact code. Legacy offensive names are sanitized before teaching.",
+                    HelpfulSources = "The user-selected local learn-base source folder. Import stores compact fingerprints only; inspect the selected source directly before copying exact code. Legacy offensive names are sanitized before teaching.",
                     Tags = BuildTags(summary, logger),
                     Confidence = 78,
                     VerificationStatus = "SourceBacked",
@@ -2096,21 +2120,33 @@ namespace LocalGPT.Services
         /// <returns>Markdown with balanced fenced-code delimiters.</returns>
         private string RepairUnbalancedMarkdownFence(string value)
         {
-            var matches = Regex.Matches(
-                value,
-                @"(?m)^[ \t]*(?<fence>`{3,})[^\r\n]*$",
-                RegexOptions.CultureInvariant,
-                TimeSpan.FromSeconds(2));
-            if (matches.Count == 0 || matches.Count % 2 == 0)
-                return value;
+    try
+    {
+                var matches = Regex.Matches(
+                    value,
+                    @"(?m)^[ \t]*(?<fence>`{3,})[^\r\n]*$",
+                    RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(2));
+                if (matches.Count == 0 || matches.Count % 2 == 0)
+                    return value;
 
-            var finalMatch = matches[^1];
-            if (string.IsNullOrWhiteSpace(value[(finalMatch.Index + finalMatch.Length)..]))
-                return value.Remove(finalMatch.Index, finalMatch.Length).TrimEnd();
+                var finalMatch = matches[^1];
+                if (string.IsNullOrWhiteSpace(value[(finalMatch.Index + finalMatch.Length)..]))
+                    return value.Remove(finalMatch.Index, finalMatch.Length).TrimEnd();
 
-            var openingFence = matches[0].Groups["fence"].Value;
-            return value.TrimEnd() + Environment.NewLine + openingFence;
-        }
+                var openingFence = matches[0].Groups["fence"].Value;
+                return value.TrimEnd() + Environment.NewLine + openingFence;
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(RepairUnbalancedMarkdownFence)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(RepairUnbalancedMarkdownFence)} failed.");
+        throw;
+    }
+}
 
         /// <summary>
         /// Extracts the last user-authored body when an older Council wrapper was accidentally persisted as user text.
@@ -2119,29 +2155,41 @@ namespace LocalGPT.Services
         /// <returns>The innermost user request without generated Council wrapper headings.</returns>
         private string ExtractInnermostUserRequest(string value)
         {
-            if (!value.Contains("AI Council request:", StringComparison.OrdinalIgnoreCase) &&
-                !value.Contains("Answer this DXAiChat conversation", StringComparison.OrdinalIgnoreCase))
-                return value;
+    try
+    {
+                if (!value.Contains("AI Council request:", StringComparison.OrdinalIgnoreCase) &&
+                    !value.Contains("Answer this DXAiChat conversation", StringComparison.OrdinalIgnoreCase))
+                    return value;
 
-            var matches = Regex.Matches(
-                value,
-                @"(?ms)^User:\s*(?<body>.*?)(?=^Previous assistant consensus:|^User:|\z)",
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-                TimeSpan.FromSeconds(2));
-            var candidate = matches
-                .Select(match => match.Groups["body"].Value.Trim())
-                .LastOrDefault(body => !string.IsNullOrWhiteSpace(body) &&
-                    !body.StartsWith("AI Council request:", StringComparison.OrdinalIgnoreCase));
-            if (!string.IsNullOrWhiteSpace(candidate))
-                return candidate;
+                var matches = Regex.Matches(
+                    value,
+                    @"(?ms)^User:\s*(?<body>.*?)(?=^Previous assistant consensus:|^User:|\z)",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(2));
+                var candidate = matches
+                    .Select(match => match.Groups["body"].Value.Trim())
+                    .LastOrDefault(body => !string.IsNullOrWhiteSpace(body) &&
+                        !body.StartsWith("AI Council request:", StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(candidate))
+                    return candidate;
 
-            return Regex.Replace(
-                value,
-                @"(?im)^(?:AI Council request:|Council members:.*|Answer this DXAiChat conversation.*|Use the selected members.*)\s*$",
-                string.Empty,
-                RegexOptions.CultureInvariant,
-                TimeSpan.FromSeconds(2)).Trim();
-        }
+                return Regex.Replace(
+                    value,
+                    @"(?im)^(?:AI Council request:|Council members:.*|Answer this DXAiChat conversation.*|Use the selected members.*)\s*$",
+                    string.Empty,
+                    RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(2)).Trim();
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(ExtractInnermostUserRequest)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(ExtractInnermostUserRequest)} failed.");
+        throw;
+    }
+}
 
         /// <summary>
         /// Keeps only the latest visible consensus/final-answer section from a stored assistant Council response.
@@ -2150,40 +2198,52 @@ namespace LocalGPT.Services
         /// <returns>The latest final section or the original value when no known heading exists.</returns>
         private string ExtractLatestAssistantConsensus(string value)
         {
-            var markers = new[]
-            {
-                "\n## Consensus\n",
-                "\n## Final Answer\n",
-                "\n## Final council answer\n",
-                "\n### Final Answer\n"
-            };
-            var markerIndex = -1;
-            var markerLength = 0;
-            foreach (var marker in markers)
-            {
-                var index = value.LastIndexOf(marker, StringComparison.OrdinalIgnoreCase);
-                if (index <= markerIndex)
-                    continue;
-                markerIndex = index;
-                markerLength = marker.Length;
-            }
+    try
+    {
+                var markers = new[]
+                {
+                    "\n## Consensus\n",
+                    "\n## Final Answer\n",
+                    "\n## Final council answer\n",
+                    "\n### Final Answer\n"
+                };
+                var markerIndex = -1;
+                var markerLength = 0;
+                foreach (var marker in markers)
+                {
+                    var index = value.LastIndexOf(marker, StringComparison.OrdinalIgnoreCase);
+                    if (index <= markerIndex)
+                        continue;
+                    markerIndex = index;
+                    markerLength = marker.Length;
+                }
 
-            var result = markerIndex >= 0 ? value[(markerIndex + markerLength)..] : value;
-            var boundaries = new[]
-            {
-                "\n## Continue Action",
-                "\n## Generated Artifact Links",
-                "\n## User Decision Poll",
-                "\n## User decision poll",
-                "\n## Artifacts"
-            };
-            var boundary = boundaries
-                .Select(item => result.IndexOf(item, StringComparison.OrdinalIgnoreCase))
-                .Where(index => index >= 0)
-                .DefaultIfEmpty(-1)
-                .Min();
-            return (boundary >= 0 ? result[..boundary] : result).Trim();
-        }
+                var result = markerIndex >= 0 ? value[(markerIndex + markerLength)..] : value;
+                var boundaries = new[]
+                {
+                    "\n## Continue Action",
+                    "\n## Generated Artifact Links",
+                    "\n## User Decision Poll",
+                    "\n## User decision poll",
+                    "\n## Artifacts"
+                };
+                var boundary = boundaries
+                    .Select(item => result.IndexOf(item, StringComparison.OrdinalIgnoreCase))
+                    .Where(index => index >= 0)
+                    .DefaultIfEmpty(-1)
+                    .Min();
+                return (boundary >= 0 ? result[..boundary] : result).Trim();
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(ExtractLatestAssistantConsensus)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(ExtractLatestAssistantConsensus)} failed.");
+        throw;
+    }
+}
 
         /// <summary>
         /// Removes LocalGPT-owned details/pre panels so model thinking and live process markup never become later prompt content.
@@ -2192,28 +2252,40 @@ namespace LocalGPT.Services
         /// <returns>Response text without controlled rendering panels or orphaned panel tags.</returns>
         private string StripLocalGptRenderingPanels(string value)
         {
-            var result = value;
-            const string controlledPanelPattern = @"<details\s+class=""(?:model-thinking(?:\s+open)?|council-step(?:\s+council-live)?|council-prompt)""[^>]*>.*?</details>";
-            for (var pass = 0; pass < 6; pass++)
-            {
-                var cleaned = Regex.Replace(
-                    result,
-                    controlledPanelPattern,
-                    string.Empty,
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
-                    TimeSpan.FromSeconds(2));
-                if (string.Equals(cleaned, result, StringComparison.Ordinal))
-                    break;
-                result = cleaned;
-            }
+    try
+    {
+                var result = value;
+                const string controlledPanelPattern = @"<details\s+class=""(?:model-thinking(?:\s+open)?|council-step(?:\s+council-live)?|council-prompt)""[^>]*>.*?</details>";
+                for (var pass = 0; pass < 6; pass++)
+                {
+                    var cleaned = Regex.Replace(
+                        result,
+                        controlledPanelPattern,
+                        string.Empty,
+                        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
+                        TimeSpan.FromSeconds(2));
+                    if (string.Equals(cleaned, result, StringComparison.Ordinal))
+                        break;
+                    result = cleaned;
+                }
 
-            return Regex.Replace(
-                result,
-                @"</?(?:details|summary|pre)(?:\s[^>]*)?>",
-                string.Empty,
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-                TimeSpan.FromSeconds(2));
-        }
+                return Regex.Replace(
+                    result,
+                    @"</?(?:details|summary|pre)(?:\s[^>]*)?>",
+                    string.Empty,
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(2));
+        
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(StripLocalGptRenderingPanels)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(StripLocalGptRenderingPanels)} failed.");
+        throw;
+    }
+}
         /// <summary>Executes the format step progress operation.</summary>
         /// <param name="step">Input value for step.</param>
         /// <param name="logger">Input value for logger.</param>
@@ -4089,7 +4161,20 @@ namespace LocalGPT.Services
         /// <summary>Executes the estimate text length operation.</summary>
         /// <param name="message">Input value for message.</param>
         /// <returns>The operation result.</returns>
-        public int EstimateTextLength(ChatMessage message) => message.Text?.Length ?? 0;
+        public int EstimateTextLength(ChatMessage message) {
+    try
+    {
+        return message.Text?.Length ?? 0;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            serviceLogger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(EstimateTextLength)} was canceled.");
+        else
+            serviceLogger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRuntimeService)}.{nameof(EstimateTextLength)} failed.");
+        throw;
+    }
+}
 
         /// <summary>Executes the try is supported ollama mode operation.</summary>
         /// <param name="mode">Input value for mode.</param>

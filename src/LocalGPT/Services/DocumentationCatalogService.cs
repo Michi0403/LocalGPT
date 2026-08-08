@@ -141,102 +141,174 @@ public sealed class DocumentationCatalogService(
 
     private IReadOnlyList<LocalGptDocumentationComment> GetCommentCatalog()
     {
-        var xmlDocumentationPath = ResolveXmlDocumentationPath(ResolveDocumentationRoot());
-        if (xmlDocumentationPath is null) return [];
-        var writeUtc = File.GetLastWriteTimeUtc(xmlDocumentationPath);
-        lock (commentSync)
-        {
-            if (commentCache is not null &&
-                commentCacheWriteUtc == writeUtc &&
-                string.Equals(commentCachePath, xmlDocumentationPath, StringComparison.OrdinalIgnoreCase))
-                return commentCache;
+    try
+    {
+            var xmlDocumentationPath = ResolveXmlDocumentationPath(ResolveDocumentationRoot());
+            if (xmlDocumentationPath is null) return [];
+            var writeUtc = File.GetLastWriteTimeUtc(xmlDocumentationPath);
+            lock (commentSync)
+            {
+                if (commentCache is not null &&
+                    commentCacheWriteUtc == writeUtc &&
+                    string.Equals(commentCachePath, xmlDocumentationPath, StringComparison.OrdinalIgnoreCase))
+                    return commentCache;
 
-            commentCache = LoadCommentCatalog(xmlDocumentationPath);
-            commentCachePath = xmlDocumentationPath;
-            commentCacheWriteUtc = writeUtc;
-            return commentCache;
-        }
+                commentCache = LoadCommentCatalog(xmlDocumentationPath);
+                commentCachePath = xmlDocumentationPath;
+                commentCacheWriteUtc = writeUtc;
+                return commentCache;
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(GetCommentCatalog)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(GetCommentCatalog)} failed.");
+        throw;
+    }
+}
 
     private IReadOnlyList<LocalGptDocumentationComment> LoadCommentCatalog(string xmlDocumentationPath)
     {
-        var document = XDocument.Load(xmlDocumentationPath, LoadOptions.PreserveWhitespace);
-        var assembly = typeof(DocumentationCatalogService).Assembly;
-        return document
-            .Descendants("member")
-            .Select(member => BuildComment(member, assembly))
-            .Where(comment => comment is not null)
-            .Cast<LocalGptDocumentationComment>()
-            .OrderBy(comment => comment.MemberId, StringComparer.Ordinal)
-            .ToArray();
+    try
+    {
+            var document = XDocument.Load(xmlDocumentationPath, LoadOptions.PreserveWhitespace);
+            var assembly = typeof(DocumentationCatalogService).Assembly;
+            return document
+                .Descendants("member")
+                .Select(member => BuildComment(member, assembly))
+                .Where(comment => comment is not null)
+                .Cast<LocalGptDocumentationComment>()
+                .OrderBy(comment => comment.MemberId, StringComparer.Ordinal)
+                .ToArray();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(LoadCommentCatalog)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(LoadCommentCatalog)} failed.");
+        throw;
+    }
+}
 
     private LocalGptDocumentationComment? BuildComment(XElement member, Assembly assembly)
     {
-        var memberId = member.Attribute("name")?.Value?.Trim();
-        if (string.IsNullOrWhiteSpace(memberId)) return null;
+    try
+    {
+            var memberId = member.Attribute("name")?.Value?.Trim();
+            if (string.IsNullOrWhiteSpace(memberId)) return null;
 
-        var summary = NormalizeCommentText(member.Element("summary")?.Value);
-        var remarks = NormalizeCommentText(member.Element("remarks")?.Value);
-        if (summary.Length == 0 && remarks.Length == 0) return null;
+            var summary = NormalizeCommentText(member.Element("summary")?.Value);
+            var remarks = NormalizeCommentText(member.Element("remarks")?.Value);
+            if (summary.Length == 0 && remarks.Length == 0) return null;
 
-        var lastUpdatedVersion = ResolveDocumentationVersion(assembly, memberId);
-        return new LocalGptDocumentationComment
-        {
-            MemberId = memberId,
-            DisplayName = BuildDisplayName(memberId),
-            Summary = summary,
-            Remarks = remarks,
-            Culture = "en-US",
-            LastUpdatedVersion = lastUpdatedVersion,
-            CurrentVersion = version.Version,
-            IsCurrent = string.Equals(lastUpdatedVersion, version.Version, StringComparison.OrdinalIgnoreCase)
-        };
+            var lastUpdatedVersion = ResolveDocumentationVersion(assembly, memberId);
+            return new LocalGptDocumentationComment
+            {
+                MemberId = memberId,
+                DisplayName = BuildDisplayName(memberId),
+                Summary = summary,
+                Remarks = remarks,
+                Culture = "en-US",
+                LastUpdatedVersion = lastUpdatedVersion,
+                CurrentVersion = version.Version,
+                IsCurrent = string.Equals(lastUpdatedVersion, version.Version, StringComparison.OrdinalIgnoreCase)
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(BuildComment)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(BuildComment)} failed.");
+        throw;
+    }
+}
 
     private string ResolveDocumentationVersion(Assembly assembly, string memberId)
     {
-        var declaringType = ResolveDeclaringType(assembly, memberId);
-        return declaringType?.GetCustomAttribute<DocumentationUpdatedAttribute>(inherit: true)?.Version
-            ?? "unversioned";
+    try
+    {
+            var declaringType = ResolveDeclaringType(assembly, memberId);
+            return declaringType?.GetCustomAttribute<DocumentationUpdatedAttribute>(inherit: true)?.Version
+                ?? "unversioned";
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ResolveDocumentationVersion)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ResolveDocumentationVersion)} failed.");
+        throw;
+    }
+}
 
     private Type? ResolveDeclaringType(Assembly assembly, string memberId)
     {
-        if (memberId.Length < 3 || memberId[1] != ':') return null;
-        var identifier = memberId[2..];
-        var parameterStart = identifier.IndexOf('(');
-        if (parameterStart >= 0) identifier = identifier[..parameterStart];
-        if (memberId[0] == 'T') return ResolveType(assembly, identifier);
+    try
+    {
+            if (memberId.Length < 3 || memberId[1] != ':') return null;
+            var identifier = memberId[2..];
+            var parameterStart = identifier.IndexOf('(');
+            if (parameterStart >= 0) identifier = identifier[..parameterStart];
+            if (memberId[0] == 'T') return ResolveType(assembly, identifier);
 
-        var separator = identifier.LastIndexOf('.');
-        while (separator > 0)
-        {
-            var candidate = identifier[..separator];
-            var type = ResolveType(assembly, candidate);
-            if (type is not null) return type;
-            separator = identifier.LastIndexOf('.', separator - 1);
-        }
-        return null;
+            var separator = identifier.LastIndexOf('.');
+            while (separator > 0)
+            {
+                var candidate = identifier[..separator];
+                var type = ResolveType(assembly, candidate);
+                if (type is not null) return type;
+                separator = identifier.LastIndexOf('.', separator - 1);
+            }
+            return null;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ResolveDeclaringType)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ResolveDeclaringType)} failed.");
+        throw;
+    }
+}
 
     private Type? ResolveType(Assembly assembly, string identifier)
     {
-        var normalized = identifier.Replace('#', '.');
-        var type = assembly.GetType(normalized, throwOnError: false, ignoreCase: false);
-        if (type is not null) return type;
-
-        var nestedCandidate = normalized;
-        var separator = nestedCandidate.LastIndexOf('.');
-        while (separator > 0)
-        {
-            nestedCandidate = nestedCandidate[..separator] + "+" + nestedCandidate[(separator + 1)..];
-            type = assembly.GetType(nestedCandidate, throwOnError: false, ignoreCase: false);
+    try
+    {
+            var normalized = identifier.Replace('#', '.');
+            var type = assembly.GetType(normalized, throwOnError: false, ignoreCase: false);
             if (type is not null) return type;
-            separator = nestedCandidate.LastIndexOf('.', separator - 1);
-        }
-        return null;
+
+            var nestedCandidate = normalized;
+            var separator = nestedCandidate.LastIndexOf('.');
+            while (separator > 0)
+            {
+                nestedCandidate = nestedCandidate[..separator] + "+" + nestedCandidate[(separator + 1)..];
+                type = assembly.GetType(nestedCandidate, throwOnError: false, ignoreCase: false);
+                if (type is not null) return type;
+                separator = nestedCandidate.LastIndexOf('.', separator - 1);
+            }
+            return null;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ResolveType)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ResolveType)} failed.");
+        throw;
+    }
+}
 
     private DocumentationBuildManifest? ReadBuildManifest(string? documentationRoot)
     {
@@ -257,57 +329,93 @@ public sealed class DocumentationCatalogService(
 
     private string? ResolveDocumentationRoot()
     {
-        lock (documentationRootSync)
-        {
-            if (DateTime.UtcNow < documentationRootCacheExpiresUtc &&
-                (documentationRootCache is null || Directory.Exists(documentationRootCache)))
-                return documentationRootCache;
-
-            var previous = documentationRootCache;
-            var selected = EnumerateDocumentationRoots()
-                .Select(InspectDocumentationRoot)
-                .Where(candidate => candidate is not null)
-                .Cast<DocumentationRootCandidate>()
-                .OrderByDescending(candidate => candidate.IsCurrentVersion)
-                .ThenByDescending(candidate => candidate.ParsedVersion ?? new System.Version(0, 0))
-                .ThenByDescending(candidate => candidate.GeneratedAtUtc)
-                .ThenByDescending(candidate => candidate.LastWriteUtc)
-                .FirstOrDefault();
-
-            documentationRootCache = selected?.Path;
-            documentationRootCacheExpiresUtc = DateTime.UtcNow.AddSeconds(20);
-            if (!string.Equals(previous, documentationRootCache, StringComparison.OrdinalIgnoreCase))
+    try
+    {
+            lock (documentationRootSync)
             {
-                logger.LogInformation(
-                    "Resolved LocalGPT documentation root to canonical shipped path {DocumentationRoot}.",
-                    documentationRootCache ?? "not found");
+                if (DateTime.UtcNow < documentationRootCacheExpiresUtc &&
+                    (documentationRootCache is null || Directory.Exists(documentationRootCache)))
+                    return documentationRootCache;
+
+                var previous = documentationRootCache;
+                var selected = EnumerateDocumentationRoots()
+                    .Select(InspectDocumentationRoot)
+                    .Where(candidate => candidate is not null)
+                    .Cast<DocumentationRootCandidate>()
+                    .OrderByDescending(candidate => candidate.IsCurrentVersion)
+                    .ThenByDescending(candidate => candidate.ParsedVersion ?? new System.Version(0, 0))
+                    .ThenByDescending(candidate => candidate.GeneratedAtUtc)
+                    .ThenByDescending(candidate => candidate.LastWriteUtc)
+                    .FirstOrDefault();
+
+                documentationRootCache = selected?.Path;
+                documentationRootCacheExpiresUtc = DateTime.UtcNow.AddSeconds(20);
+                if (!string.Equals(previous, documentationRootCache, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogInformation(
+                        "Resolved LocalGPT documentation root to canonical shipped path {DocumentationRoot}.",
+                        documentationRootCache ?? "not found");
+                }
+                return documentationRootCache;
             }
-            return documentationRootCache;
-        }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ResolveDocumentationRoot)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ResolveDocumentationRoot)} failed.");
+        throw;
+    }
+}
 
     private IEnumerable<string> EnumerateDocumentationRoots()
     {
-        var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        AddDocumentationRoot(results, Path.Combine(environment.WebRootPath ?? string.Empty, "help-docs"));
-        AddDocumentationRoot(results, Path.Combine(applicationRoot, "wwwroot", "help-docs"));
-        AddDocumentationRoot(results, Path.Combine(environment.ContentRootPath, "wwwroot", "help-docs"));
-        return results;
+    try
+    {
+            var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            AddDocumentationRoot(results, Path.Combine(environment.WebRootPath ?? string.Empty, "help-docs"));
+            AddDocumentationRoot(results, Path.Combine(applicationRoot, "wwwroot", "help-docs"));
+            AddDocumentationRoot(results, Path.Combine(environment.ContentRootPath, "wwwroot", "help-docs"));
+            return results;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(EnumerateDocumentationRoots)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(EnumerateDocumentationRoots)} failed.");
+        throw;
+    }
+}
 
     private void AddDocumentationRoot(ISet<string> roots, string path)
     {
-        if (string.IsNullOrWhiteSpace(path)) return;
-        try
-        {
-            var fullPath = Path.GetFullPath(path);
-            if (Directory.Exists(fullPath)) roots.Add(fullPath);
-        }
-        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            _ = exception;
-        }
+    try
+    {
+            if (string.IsNullOrWhiteSpace(path)) return;
+            try
+            {
+                var fullPath = Path.GetFullPath(path);
+                if (Directory.Exists(fullPath)) roots.Add(fullPath);
+            }
+            catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                _ = exception;
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(AddDocumentationRoot)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(AddDocumentationRoot)} failed.");
+        throw;
+    }
+}
 
     private DocumentationRootCandidate? InspectDocumentationRoot(string path)
     {
@@ -421,46 +529,132 @@ public sealed class DocumentationCatalogService(
 
     private void AddPdfFiles(ISet<string> files, string root)
     {
-        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return;
-        foreach (var file in EnumeratePdfFiles(root))
-            files.Add(file);
+    try
+    {
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return;
+            foreach (var file in EnumeratePdfFiles(root))
+                files.Add(file);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(AddPdfFiles)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(AddPdfFiles)} failed.");
+        throw;
+    }
+}
 
     private string? ResolveXmlDocumentationPath(string? documentationRoot)
     {
-        var candidates = new[]
-        {
-            documentationRoot is null ? null : Path.Combine(documentationRoot, "LocalGPT.xml"),
-            Path.Combine(applicationRoot, "LocalGPT.xml"),
-            Path.Combine(environment.ContentRootPath, "LocalGPT.xml")
-        };
-        return candidates.Where(path => !string.IsNullOrWhiteSpace(path)).FirstOrDefault(path => File.Exists(path));
+    try
+    {
+            var candidates = new[]
+            {
+                documentationRoot is null ? null : Path.Combine(documentationRoot, "LocalGPT.xml"),
+                Path.Combine(applicationRoot, "LocalGPT.xml"),
+                Path.Combine(environment.ContentRootPath, "LocalGPT.xml")
+            };
+            return candidates.Where(path => !string.IsNullOrWhiteSpace(path)).FirstOrDefault(path => File.Exists(path));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ResolveXmlDocumentationPath)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ResolveXmlDocumentationPath)} failed.");
+        throw;
+    }
+}
 
     private bool IsWithinRoot(string root, string candidate)
     {
-        var normalizedRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var normalizedCandidate = Path.GetFullPath(candidate);
-        return string.Equals(normalizedRoot, normalizedCandidate, StringComparison.OrdinalIgnoreCase) ||
-            normalizedCandidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    try
+    {
+            var normalizedRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var normalizedCandidate = Path.GetFullPath(candidate);
+            return string.Equals(normalizedRoot, normalizedCandidate, StringComparison.OrdinalIgnoreCase) ||
+                normalizedCandidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(IsWithinRoot)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(IsWithinRoot)} failed.");
+        throw;
+    }
+}
 
     private System.Version? ParseVersion(string? value)
-        => System.Version.TryParse(value, out var parsed) ? parsed : null;
+        {
+    try
+    {
+        return System.Version.TryParse(value, out var parsed) ? parsed : null;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ParseVersion)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ParseVersion)} failed.");
+        throw;
+    }
+}
 
     private System.Version ParseVersionOrZero(string? value)
-        => ParseVersion(value) ?? new System.Version(0, 0);
+        {
+    try
+    {
+        return ParseVersion(value) ?? new System.Version(0, 0);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ParseVersionOrZero)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(ParseVersionOrZero)} failed.");
+        throw;
+    }
+}
 
     private string BuildDisplayName(string memberId)
     {
-        var value = memberId.Length > 2 ? memberId[2..] : memberId;
-        return value.Replace('#', '.');
+    try
+    {
+            var value = memberId.Length > 2 ? memberId[2..] : memberId;
+            return value.Replace('#', '.');
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(BuildDisplayName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(BuildDisplayName)} failed.");
+        throw;
+    }
+}
 
-    private string NormalizeCommentText(string? value) =>
-        string.IsNullOrWhiteSpace(value)
+    private string NormalizeCommentText(string? value) {
+    try
+    {
+        return string.IsNullOrWhiteSpace(value)
             ? string.Empty
             : Regex.Replace(value, @"\s+", " ").Trim();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(NormalizeCommentText)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DocumentationCatalogService)}.{nameof(NormalizeCommentText)} failed.");
+        throw;
+    }
+}
 
     private sealed class DocumentationBuildManifest
     {

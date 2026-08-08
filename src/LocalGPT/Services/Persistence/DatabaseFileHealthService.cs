@@ -18,98 +18,134 @@ public sealed class DatabaseFileHealthService(
 
     public async Task EnsureHealthyOrRecoverAsync(CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(DatabasePath);
-        var directory = Path.GetDirectoryName(DatabasePath)
-            ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
-        Directory.CreateDirectory(directory);
+    try
+    {
+            ArgumentException.ThrowIfNullOrWhiteSpace(DatabasePath);
+            var directory = Path.GetDirectoryName(DatabasePath)
+                ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
+            Directory.CreateDirectory(directory);
 
-        if (File.Exists(GetRecoveryMarkerPath()))
-        {
-            logger.LogWarning(
-                "A pending SQLite recovery marker exists for {DatabasePath}; preserving the current files before database initialization.",
-                DatabasePath);
-            await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        if (!File.Exists(DatabasePath))
-        {
-            if (DatabaseSuffixes.Skip(1).Any(suffix => File.Exists(DatabasePath + suffix)))
+            if (File.Exists(GetRecoveryMarkerPath()))
             {
                 logger.LogWarning(
-                    "SQLite sidecars exist without the base database at {DatabasePath}; preserving the orphan files.",
+                    "A pending SQLite recovery marker exists for {DatabasePath}; preserving the current files before database initialization.",
                     DatabasePath);
                 await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
+                return;
             }
-            return;
-        }
 
-        var quickCheck = await RunQuickCheckAsync(cancellationToken).ConfigureAwait(false);
-        if (quickCheck == DatabaseProbeResult.Corrupt)
-        {
-            await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
-            return;
-        }
+            if (!File.Exists(DatabasePath))
+            {
+                if (DatabaseSuffixes.Skip(1).Any(suffix => File.Exists(DatabasePath + suffix)))
+                {
+                    logger.LogWarning(
+                        "SQLite sidecars exist without the base database at {DatabasePath}; preserving the orphan files.",
+                        DatabasePath);
+                    await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
+                }
+                return;
+            }
 
-        if (quickCheck == DatabaseProbeResult.Inconclusive)
-            return;
+            var quickCheck = await RunQuickCheckAsync(cancellationToken).ConfigureAwait(false);
+            if (quickCheck == DatabaseProbeResult.Corrupt)
+            {
+                await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
 
-        var writeProbe = await RunWriteProbeAsync(cancellationToken).ConfigureAwait(false);
-        if (writeProbe == DatabaseProbeResult.Corrupt)
-            await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
+            if (quickCheck == DatabaseProbeResult.Inconclusive)
+                return;
+
+            var writeProbe = await RunWriteProbeAsync(cancellationToken).ConfigureAwait(false);
+            if (writeProbe == DatabaseProbeResult.Corrupt)
+                await RecoverMalformedDatabaseAsync(cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseFileHealthService)}.{nameof(EnsureHealthyOrRecoverAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseFileHealthService)}.{nameof(EnsureHealthyOrRecoverAsync)} failed.");
+        throw;
+    }
+}
 
     public bool IsSqliteCorruption(Exception exception)
     {
-        for (var current = exception; current is not null; current = current.InnerException)
-        {
-            if (current is SqliteException sqlite &&
-                (sqlite.SqliteErrorCode is 11 or 26 ||
-                 ContainsCorruptionText(sqlite.Message)))
+    try
+    {
+            for (var current = exception; current is not null; current = current.InnerException)
             {
-                return true;
+                if (current is SqliteException sqlite &&
+                    (sqlite.SqliteErrorCode is 11 or 26 ||
+                     ContainsCorruptionText(sqlite.Message)))
+                {
+                    return true;
+                }
+
+                if (ContainsCorruptionText(current.Message))
+                    return true;
             }
 
-            if (ContainsCorruptionText(current.Message))
-                return true;
-        }
-
-        return false;
+            return false;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseFileHealthService)}.{nameof(IsSqliteCorruption)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseFileHealthService)}.{nameof(IsSqliteCorruption)} failed.");
+        throw;
+    }
+}
 
     public async Task RecoverMalformedDatabaseAsync(CancellationToken cancellationToken = default)
     {
-        WriteRecoveryMarker();
+    try
+    {
+            WriteRecoveryMarker();
 
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-        var parent = Path.GetDirectoryName(DatabasePath)
-            ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
-        var backupDirectory = Path.Combine(parent, "CorruptDatabaseBackups", timestamp);
-        Directory.CreateDirectory(backupDirectory);
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            var parent = Path.GetDirectoryName(DatabasePath)
+                ?? throw new InvalidOperationException("The LocalGPT database path has no parent directory.");
+            var backupDirectory = Path.Combine(parent, "CorruptDatabaseBackups", timestamp);
+            Directory.CreateDirectory(backupDirectory);
 
-        foreach (var suffix in DatabaseSuffixes)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var sourcePath = DatabasePath + suffix;
-            if (!File.Exists(sourcePath))
-                continue;
+            foreach (var suffix in DatabaseSuffixes)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var sourcePath = DatabasePath + suffix;
+                if (!File.Exists(sourcePath))
+                    continue;
 
-            var backupPath = Path.Combine(backupDirectory, Path.GetFileName(sourcePath));
-            if (TryMoveToBackup(sourcePath, backupPath))
-                continue;
+                var backupPath = Path.Combine(backupDirectory, Path.GetFileName(sourcePath));
+                if (TryMoveToBackup(sourcePath, backupPath))
+                    continue;
 
-            TryQuarantineOrDelete(sourcePath, $"{sourcePath}.malformed-{timestamp}");
-        }
+                TryQuarantineOrDelete(sourcePath, $"{sourcePath}.malformed-{timestamp}");
+            }
 
-        logger.LogWarning(
-            "Preserved confirmed malformed SQLite files in {BackupDirectory}. A clean database will be created during initialization.",
-            backupDirectory);
+            logger.LogWarning(
+                "Preserved confirmed malformed SQLite files in {BackupDirectory}. A clean database will be created during initialization.",
+                backupDirectory);
 
-        if (!DatabaseSuffixes.Any(suffix => File.Exists(DatabasePath + suffix)))
-            TryDeleteRecoveryMarker();
+            if (!DatabaseSuffixes.Any(suffix => File.Exists(DatabasePath + suffix)))
+                TryDeleteRecoveryMarker();
 
-        await Task.CompletedTask.ConfigureAwait(false);
+            await Task.CompletedTask.ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseFileHealthService)}.{nameof(RecoverMalformedDatabaseAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseFileHealthService)}.{nameof(RecoverMalformedDatabaseAsync)} failed.");
+        throw;
+    }
+}
 
     private async Task<DatabaseProbeResult> RunQuickCheckAsync(CancellationToken cancellationToken)
     {
@@ -188,10 +224,22 @@ public sealed class DatabaseFileHealthService(
         }
     }
 
-    private bool ContainsCorruptionText(string? message) =>
-        !string.IsNullOrWhiteSpace(message) &&
+    private bool ContainsCorruptionText(string? message) {
+    try
+    {
+        return !string.IsNullOrWhiteSpace(message) &&
         (message.Contains("database disk image is malformed", StringComparison.OrdinalIgnoreCase) ||
          message.Contains("file is not a database", StringComparison.OrdinalIgnoreCase));
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseFileHealthService)}.{nameof(ContainsCorruptionText)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseFileHealthService)}.{nameof(ContainsCorruptionText)} failed.");
+        throw;
+    }
+}
 
     private bool TryMoveToBackup(string sourcePath, string backupPath)
     {
@@ -227,7 +275,20 @@ public sealed class DatabaseFileHealthService(
         }
     }
 
-    private string GetRecoveryMarkerPath() => $"{DatabasePath}.recover";
+    private string GetRecoveryMarkerPath() {
+    try
+    {
+        return $"{DatabasePath}.recover";
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseFileHealthService)}.{nameof(GetRecoveryMarkerPath)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseFileHealthService)}.{nameof(GetRecoveryMarkerPath)} failed.");
+        throw;
+    }
+}
 
     private void WriteRecoveryMarker()
     {

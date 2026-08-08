@@ -40,20 +40,44 @@ public sealed class VariableStoreService(
         logger.LogInformation("Stored system variable {VariableName}; value omitted from logs.", name);
     }
 
-    public Task<IEnumerable<SystemVariable>> ListAllAsync(CancellationToken cancellationToken = default) =>
-        ListAllAsync(string.Empty, cancellationToken);
+    public Task<IEnumerable<SystemVariable>> ListAllAsync(CancellationToken cancellationToken = default) {
+    try
+    {
+        return ListAllAsync(string.Empty, cancellationToken);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(VariableStoreService)}.{nameof(ListAllAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(VariableStoreService)}.{nameof(ListAllAsync)} failed.");
+        throw;
+    }
+}
 
     public async Task<IEnumerable<SystemVariable>> ListAllAsync(string filter, CancellationToken cancellationToken = default)
     {
-        await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var query = db.SystemVariables.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(filter))
-        {
-            query = query.Where(item => item.Name.Contains(filter) ||
-                item.ValueString.Contains(filter) ||
-                (item.DataType != null && item.DataType.Contains(filter)));
-        }
-        return await query.OrderBy(item => item.Name).ToListAsync(cancellationToken).ConfigureAwait(false);
+    try
+    {
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var query = db.SystemVariables.AsNoTracking();
+            if (!string.IsNullOrWhiteSpace(filter))
+            {
+                query = query.Where(item => item.Name.Contains(filter) ||
+                    item.ValueString.Contains(filter) ||
+                    (item.DataType != null && item.DataType.Contains(filter)));
+            }
+            return await query.OrderBy(item => item.Name).ToListAsync(cancellationToken).ConfigureAwait(false);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(VariableStoreService)}.{nameof(ListAllAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(VariableStoreService)}.{nameof(ListAllAsync)} failed.");
+        throw;
+    }
+}
 }

@@ -28,24 +28,36 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectArchitectureGetParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        var details = await projects.GetProjectAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
-        if (details is null)
-            return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The project was not found." };
-        var briefing = await architecture.BuildArchitectureBriefingAsync(parameters.ProjectId, details.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id, cancellationToken).ConfigureAwait(false);
-        logger.LogDebug("DXAIFunction loaded database-first architecture for project {ProjectId}.", parameters.ProjectId);
-        return json.Success(new
-        {
-            Project = new { details.Project.Id, details.Project.Name, details.Project.Purpose, details.Project.Status, details.Project.CurrentVersion },
-            Revisions = details.Revisions.Select(item => new { item.Id, item.ParentRevisionId, item.BranchName, item.RevisionName, item.Summary, item.IsCurrent, item.IsUserApproved }),
-            Requirements = details.Requirements.Select(item => new { item.Id, item.RevisionId, item.Name, item.Description, item.RequirementType, item.Status, item.Priority, item.RequiredCapability, item.CouncilRating, item.IsUserApproved, Links = item.Links.Select(link => new { link.TargetKind, link.TargetName, link.TargetId, link.TargetTable, link.LinkPurpose, link.CouncilReviewStatus, link.IsUserApproved }) }),
-            Artifacts = details.Artifacts.Select(item => new { item.Id, item.RevisionId, item.RequirementId, item.ArtifactKind, item.Name, item.DataType, item.Flags, item.Description, item.IsSensitive, item.IsUserApproved, item.CouncilReviewStatus }),
-            Briefing = briefing
-        });
+    try
+    {
+            var binding = json.Bind<ProjectArchitectureGetParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            var details = await projects.GetProjectAsync(parameters.ProjectId, cancellationToken).ConfigureAwait(false);
+            if (details is null)
+                return new DxAiFunctionInvocationResult { Status = "NotFound", Error = "The project was not found." };
+            var briefing = await architecture.BuildArchitectureBriefingAsync(parameters.ProjectId, details.Revisions.FirstOrDefault(item => item.IsCurrent)?.Id, cancellationToken).ConfigureAwait(false);
+            logger.LogDebug("DXAIFunction loaded database-first architecture for project {ProjectId}.", parameters.ProjectId);
+            return json.Success(new
+            {
+                Project = new { details.Project.Id, details.Project.Name, details.Project.Purpose, details.Project.Status, details.Project.CurrentVersion },
+                Revisions = details.Revisions.Select(item => new { item.Id, item.ParentRevisionId, item.BranchName, item.RevisionName, item.Summary, item.IsCurrent, item.IsUserApproved }),
+                Requirements = details.Requirements.Select(item => new { item.Id, item.RevisionId, item.Name, item.Description, item.RequirementType, item.Status, item.Priority, item.RequiredCapability, item.CouncilRating, item.IsUserApproved, Links = item.Links.Select(link => new { link.TargetKind, link.TargetName, link.TargetId, link.TargetTable, link.LinkPurpose, link.CouncilReviewStatus, link.IsUserApproved }) }),
+                Artifacts = details.Artifacts.Select(item => new { item.Id, item.RevisionId, item.RequirementId, item.ArtifactKind, item.Name, item.DataType, item.Flags, item.Description, item.IsSensitive, item.IsUserApproved, item.CouncilReviewStatus }),
+                Briefing = briefing
+            });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(GetProjectArchitectureFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(GetProjectArchitectureFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -70,15 +82,27 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectRevisionSaveParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        parameters.Request.UserConfirmed = true;
-        var revision = await architecture.SaveRevisionAsync(parameters.ProjectId, parameters.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved project revision {RevisionId} saved for project {ProjectId}.", revision.Id, parameters.ProjectId);
-        return json.Success(revision);
+    try
+    {
+            var binding = json.Bind<ProjectRevisionSaveParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            parameters.Request.UserConfirmed = true;
+            var revision = await architecture.SaveRevisionAsync(parameters.ProjectId, parameters.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved project revision {RevisionId} saved for project {ProjectId}.", revision.Id, parameters.ProjectId);
+            return json.Success(revision);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(SaveProjectRevisionFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(SaveProjectRevisionFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -103,15 +127,27 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectRequirementSaveParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        parameters.Request.UserConfirmed = true;
-        var requirement = await architecture.SaveRequirementAsync(parameters.ProjectId, parameters.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved requirement {RequirementId} saved for project {ProjectId}.", requirement.Id, parameters.ProjectId);
-        return json.Success(requirement);
+    try
+    {
+            var binding = json.Bind<ProjectRequirementSaveParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            parameters.Request.UserConfirmed = true;
+            var requirement = await architecture.SaveRequirementAsync(parameters.ProjectId, parameters.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved requirement {RequirementId} saved for project {ProjectId}.", requirement.Id, parameters.ProjectId);
+            return json.Success(requirement);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(SaveProjectRequirementFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(SaveProjectRequirementFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }
 
@@ -136,28 +172,40 @@ public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var binding = json.Bind<ProjectArtifactSaveParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        parameters.Request.UserConfirmed = true;
-        var artifact = await architecture.SaveArtifactAsync(parameters.ProjectId, parameters.Request, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Approved project artifact {ArtifactId} saved for project {ProjectId}; value omitted from logs.", artifact.Id, parameters.ProjectId);
-        return json.Success(new
-        {
-            artifact.Id,
-            artifact.ProjectId,
-            artifact.RevisionId,
-            artifact.RequirementId,
-            artifact.ArtifactKind,
-            artifact.Name,
-            artifact.DataType,
-            artifact.Flags,
-            artifact.Description,
-            artifact.IsSensitive,
-            artifact.IsUserApproved,
-            artifact.CouncilReviewStatus
-        });
+    try
+    {
+            var binding = json.Bind<ProjectArtifactSaveParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            parameters.Request.UserConfirmed = true;
+            var artifact = await architecture.SaveArtifactAsync(parameters.ProjectId, parameters.Request, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Approved project artifact {ArtifactId} saved for project {ProjectId}; value omitted from logs.", artifact.Id, parameters.ProjectId);
+            return json.Success(new
+            {
+                artifact.Id,
+                artifact.ProjectId,
+                artifact.RevisionId,
+                artifact.RequirementId,
+                artifact.ArtifactKind,
+                artifact.Name,
+                artifact.DataType,
+                artifact.Flags,
+                artifact.Description,
+                artifact.IsSensitive,
+                artifact.IsUserApproved,
+                artifact.CouncilReviewStatus
+            });
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(SaveProjectArtifactFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(SaveProjectArtifactFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }

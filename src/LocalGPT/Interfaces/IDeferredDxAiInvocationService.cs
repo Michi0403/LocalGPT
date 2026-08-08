@@ -16,4 +16,9 @@ public interface IDeferredDxAiInvocationService
         Guid councilRunId,
         int councilRound,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DeferredDxAiExecutionOutcome>> ExecuteApprovedForApprovalRequestAsync(
+        Guid approvalRequestId,
+        int councilRound = 0,
+        CancellationToken cancellationToken = default);
 }

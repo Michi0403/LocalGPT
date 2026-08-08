@@ -36,15 +36,24 @@ public sealed class GetFirstRunOnboardingStatusFunction(IFirstRunOnboardingServi
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
     {
-        var refresh = request.Parameters.ValueKind == System.Text.Json.JsonValueKind.Object
-            && request.Parameters.TryGetProperty("refreshConnectivity", out var value)
-            && value.ValueKind is System.Text.Json.JsonValueKind.True;
-        var status = await onboarding.GetStatusAsync(refresh, cancellationToken).ConfigureAwait(false);
-        return new DxAiFunctionInvocationResult
-        {
-            Succeeded = true,
-            Status = "Completed",
-            Value = status
-        };
+    try
+    {
+            var refresh = request.Parameters.ValueKind == System.Text.Json.JsonValueKind.Object
+                && request.Parameters.TryGetProperty("refreshConnectivity", out var value)
+                && value.ValueKind is System.Text.Json.JsonValueKind.True;
+            var status = await onboarding.GetStatusAsync(refresh, cancellationToken).ConfigureAwait(false);
+            return new DxAiFunctionInvocationResult
+            {
+                Succeeded = true,
+                Status = "Completed",
+                Value = status
+            };
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        System.Diagnostics.Trace.TraceError($"Service method GetFirstRunOnboardingStatusFunction.InvokeAsync failed: {__serviceMethodException}");
+        throw;
+    }
+}
 }

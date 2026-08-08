@@ -26,42 +26,79 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
 
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        var assembly = typeof(Program).Assembly;
-        var methods = assembly.DefinedTypes
-            .Where(type => type.IsPublic && !type.IsAbstract &&
-                (type.Namespace?.StartsWith("LocalGPT.Services", StringComparison.Ordinal) == true ||
-                 typeof(ControllerBase).IsAssignableFrom(type.AsType())))
-            .SelectMany(type => type.DeclaredMethods
-                .Where(method => method.IsPublic && !method.IsSpecialName)
-                .Select(method => new
-                {
-                    Type = type.FullName,
-                    Method = method.Name,
-                    ReturnType = FriendlyName(method.ReturnType),
-                    Parameters = method.GetParameters().Select(parameter => new { parameter.Name, Type = FriendlyName(parameter.ParameterType), parameter.HasDefaultValue }).ToList(),
-                    ControllerRoute = ResolveRoute(type.AsType(), method),
-                    IsController = typeof(ControllerBase).IsAssignableFrom(type.AsType())
-                }))
-            .OrderBy(item => item.Type, StringComparer.Ordinal)
-            .ThenBy(item => item.Method, StringComparer.Ordinal)
-            .Take(4096)
-            .ToList();
-        var functions = registry.GetFunctions();
-        logger.LogDebug("Published {MethodCount} public methods and {FunctionCount} DXFunctions.", methods.Count, functions.Count);
-        return Task.FromResult(json.Success(new { Methods = methods, DxFunctions = functions }));
+    try
+    {
+            var assembly = typeof(Program).Assembly;
+            var methods = assembly.DefinedTypes
+                .Where(type => type.IsPublic && !type.IsAbstract &&
+                    (type.Namespace?.StartsWith("LocalGPT.Services", StringComparison.Ordinal) == true ||
+                     typeof(ControllerBase).IsAssignableFrom(type.AsType())))
+                .SelectMany(type => type.DeclaredMethods
+                    .Where(method => method.IsPublic && !method.IsSpecialName)
+                    .Select(method => new
+                    {
+                        Type = type.FullName,
+                        Method = method.Name,
+                        ReturnType = FriendlyName(method.ReturnType),
+                        Parameters = method.GetParameters().Select(parameter => new { parameter.Name, Type = FriendlyName(parameter.ParameterType), parameter.HasDefaultValue }).ToList(),
+                        ControllerRoute = ResolveRoute(type.AsType(), method),
+                        IsController = typeof(ControllerBase).IsAssignableFrom(type.AsType())
+                    }))
+                .OrderBy(item => item.Type, StringComparer.Ordinal)
+                .ThenBy(item => item.Method, StringComparer.Ordinal)
+                .Take(4096)
+                .ToList();
+            var functions = registry.GetFunctions();
+            logger.LogDebug("Published {MethodCount} public methods and {FunctionCount} DXFunctions.", methods.Count, functions.Count);
+            return Task.FromResult(json.Success(new { Methods = methods, DxFunctions = functions }));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(GetPublicArchitectureDirectoryFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(GetPublicArchitectureDirectoryFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
-    private string FriendlyName(Type type) => type.FullName ?? type.Name;
+    private string FriendlyName(Type type) {
+    try
+    {
+        return type.FullName ?? type.Name;
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(GetPublicArchitectureDirectoryFunction)}.{nameof(FriendlyName)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(GetPublicArchitectureDirectoryFunction)}.{nameof(FriendlyName)} failed.");
+        throw;
+    }
+}
 
     private string ResolveRoute(Type type, MethodInfo method)
     {
-        var controllerRoute = type.GetCustomAttribute<RouteAttribute>()?.Template ?? string.Empty;
-        var methodRoute = method.GetCustomAttributes()
-            .OfType<HttpMethodAttribute>()
-            .Select(attribute => attribute.Template)
-            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
-        return string.Join('/', new[] { controllerRoute, methodRoute }.Where(value => !string.IsNullOrWhiteSpace(value))).Replace("//", "/", StringComparison.Ordinal);
+    try
+    {
+            var controllerRoute = type.GetCustomAttribute<RouteAttribute>()?.Template ?? string.Empty;
+            var methodRoute = method.GetCustomAttributes()
+                .OfType<HttpMethodAttribute>()
+                .Select(attribute => attribute.Template)
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+            return string.Join('/', new[] { controllerRoute, methodRoute }.Where(value => !string.IsNullOrWhiteSpace(value))).Replace("//", "/", StringComparison.Ordinal);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(GetPublicArchitectureDirectoryFunction)}.{nameof(ResolveRoute)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(GetPublicArchitectureDirectoryFunction)}.{nameof(ResolveRoute)} failed.");
+        throw;
+    }
+}
 }
 
 public sealed class InspectDebugArtifactFunction(
@@ -86,14 +123,26 @@ public sealed class InspectDebugArtifactFunction(
 
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Debug-artifact inspection DXFunction started; file path content was omitted.");
-        var binding = json.Bind<InspectDebugArtifactParameters>(request.Parameters);
-        if (!binding.Succeeded)
-            return json.InvalidParameters(binding.Error);
-        var parameters = binding.Value;
-        var result = await inspector.InspectAsync(parameters.FilePath, cancellationToken).ConfigureAwait(false);
-        logger.LogInformation("Debug-artifact inspection DXFunction completed.");
-        return json.Success(result);
+    try
+    {
+            logger.LogInformation("Debug-artifact inspection DXFunction started; file path content was omitted.");
+            var binding = json.Bind<InspectDebugArtifactParameters>(request.Parameters);
+            if (!binding.Succeeded)
+                return json.InvalidParameters(binding.Error);
+            var parameters = binding.Value;
+            var result = await inspector.InspectAsync(parameters.FilePath, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Debug-artifact inspection DXFunction completed.");
+            return json.Success(result);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(InspectDebugArtifactFunction)}.{nameof(InvokeAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(InspectDebugArtifactFunction)}.{nameof(InvokeAsync)} failed.");
+        throw;
+    }
+}
 
 }

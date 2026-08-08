@@ -18,64 +18,112 @@ public sealed class CouncilRunConfigurationService(
         MultiModelCouncilRequest request,
         IReadOnlyCollection<string> participants)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(participants);
+    try
+    {
+            ArgumentNullException.ThrowIfNull(request);
+            ArgumentNullException.ThrowIfNull(participants);
 
-        var state = runs.GetOrAdd(
-            request.RunId,
-            _ => new CouncilRunState(
+            var state = runs.GetOrAdd(
                 request.RunId,
-                participants,
-                request.ModelRoutes.Select(CloneRoute),
-                request.ResourceLoadPercent,
-                request.MaxOutputTokens,
-                request.MaxContextTokens,
-                request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu,
-                request.AllowParallelHardwareRoads));
+                _ => new CouncilRunState(
+                    request.RunId,
+                    participants,
+                    request.ModelRoutes.Select(CloneRoute),
+                    request.ResourceLoadPercent,
+                    request.MaxOutputTokens,
+                    request.MaxContextTokens,
+                    request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu,
+                    request.AllowParallelHardwareRoads));
 
-        lock (state.SyncRoot)
-        {
-            state.Participants = participants
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Select(name => name.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            // The first Ensure call captures the request as the run's configuration snapshot.
-            // Later Ensure calls may refine the participant list, but must not overwrite
-            // user edits that reached this running session before execution begins.
-            state.IsRunning = true;
-            return CreateSnapshotLocked(state);
-        }
+            lock (state.SyncRoot)
+            {
+                state.Participants = participants
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => name.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                // The first Ensure call captures the request as the run's configuration snapshot.
+                // Later Ensure calls may refine the participant list, but must not overwrite
+                // user edits that reached this running session before execution begins.
+                state.IsRunning = true;
+                return CreateSnapshotLocked(state);
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(Ensure)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(Ensure)} failed.");
+        throw;
+    }
+}
 
 
     public CouncilPreparationConfiguration? GetPreparation()
     {
-        lock (preparationSyncRoot)
-            return preparationConfiguration is null ? null : ClonePreparation(preparationConfiguration);
+    try
+    {
+            lock (preparationSyncRoot)
+                return preparationConfiguration is null ? null : ClonePreparation(preparationConfiguration);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(GetPreparation)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(GetPreparation)} failed.");
+        throw;
+    }
+}
 
     public CouncilPreparationConfiguration SavePreparation(CouncilPreparationConfiguration configuration)
     {
-        ArgumentNullException.ThrowIfNull(configuration);
-        var normalized = NormalizePreparation(configuration);
-        lock (preparationSyncRoot)
-            preparationConfiguration = normalized;
+    try
+    {
+            ArgumentNullException.ThrowIfNull(configuration);
+            var normalized = NormalizePreparation(configuration);
+            lock (preparationSyncRoot)
+                preparationConfiguration = normalized;
 
-        logger.LogDebug(
-            "Captured the process-local Council preparation configuration for {ModelCount} model(s); running Council snapshots remain isolated.",
-            normalized.ModelNames.Count);
-        return ClonePreparation(normalized);
+            logger.LogDebug(
+                "Captured the process-local Council preparation configuration for {ModelCount} model(s); running Council snapshots remain isolated.",
+                normalized.ModelNames.Count);
+            return ClonePreparation(normalized);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(SavePreparation)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(SavePreparation)} failed.");
+        throw;
+    }
+}
 
     public CouncilRunConfigurationSnapshot? Get(Guid runId)
     {
-        if (!runs.TryGetValue(runId, out var state))
-            return null;
+    try
+    {
+            if (!runs.TryGetValue(runId, out var state))
+                return null;
 
-        lock (state.SyncRoot)
-            return CreateSnapshotLocked(state);
+            lock (state.SyncRoot)
+                return CreateSnapshotLocked(state);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(Get)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(Get)} failed.");
+        throw;
+    }
+}
 
     public bool Update(
         Guid runId,
@@ -86,33 +134,45 @@ public sealed class CouncilRunConfigurationService(
         int? fallbackOllamaNumGpu,
         bool allowParallelHardwareRoads)
     {
-        ArgumentNullException.ThrowIfNull(routes);
-        if (!runs.TryGetValue(runId, out var state))
-            return false;
-
-        long revision;
-        lock (state.SyncRoot)
-        {
-            if (!state.IsRunning)
+    try
+    {
+            ArgumentNullException.ThrowIfNull(routes);
+            if (!runs.TryGetValue(runId, out var state))
                 return false;
 
-            state.ModelRoutes = routes.Select(CloneRoute).ToList();
-            state.ResourceLoadPercent = Math.Clamp((int)Math.Round(resourceLoadPercent / 5d) * 5, 0, 100);
-            state.RequestedMaxOutputTokens = Math.Max(1, requestedMaxOutputTokens);
-            state.RequestedMaxContextTokens = Math.Max(256, requestedMaxContextTokens);
-            state.FallbackOllamaNumGpu = fallbackOllamaNumGpu is < 0 ? 0 : fallbackOllamaNumGpu;
-            state.AllowParallelHardwareRoads = allowParallelHardwareRoads;
-            revision = ++state.Revision;
-            PulseLocked(state);
-        }
+            long revision;
+            lock (state.SyncRoot)
+            {
+                if (!state.IsRunning)
+                    return false;
 
-        logger.LogInformation(
-            "Updated run-scoped Council model settings, token ceilings and fallback acceleration for run {RunId} to revision {Revision}; saved presets and other runs were not changed.",
-            runId,
-            revision);
-        Changed?.Invoke(runId);
-        return true;
+                state.ModelRoutes = routes.Select(CloneRoute).ToList();
+                state.ResourceLoadPercent = Math.Clamp((int)Math.Round(resourceLoadPercent / 5d) * 5, 0, 100);
+                state.RequestedMaxOutputTokens = Math.Max(1, requestedMaxOutputTokens);
+                state.RequestedMaxContextTokens = Math.Max(256, requestedMaxContextTokens);
+                state.FallbackOllamaNumGpu = fallbackOllamaNumGpu is < 0 ? 0 : fallbackOllamaNumGpu;
+                state.AllowParallelHardwareRoads = allowParallelHardwareRoads;
+                revision = ++state.Revision;
+                PulseLocked(state);
+            }
+
+            logger.LogInformation(
+                "Updated run-scoped Council model settings, token ceilings and fallback acceleration for run {RunId} to revision {Revision}; saved presets and other runs were not changed.",
+                runId,
+                revision);
+            Changed?.Invoke(runId);
+            return true;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(Update)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(Update)} failed.");
+        throw;
+    }
+}
 
     public void BeginRound(Guid runId, int round, string phase)
     {
@@ -162,32 +222,56 @@ public sealed class CouncilRunConfigurationService(
 
     public CancellationToken GetRoundCancellationToken(Guid runId, int round, string phase)
     {
-        if (!runs.TryGetValue(runId, out var state))
-            return CancellationToken.None;
+    try
+    {
+            if (!runs.TryGetValue(runId, out var state))
+                return CancellationToken.None;
 
-        lock (state.SyncRoot)
-        {
-            return state.IsRunning &&
-                state.CurrentRound == round &&
-                string.Equals(state.CurrentPhase, phase, StringComparison.Ordinal)
-                    ? state.RoundCancellation.Token
-                    : CancellationToken.None;
-        }
+            lock (state.SyncRoot)
+            {
+                return state.IsRunning &&
+                    state.CurrentRound == round &&
+                    string.Equals(state.CurrentPhase, phase, StringComparison.Ordinal)
+                        ? state.RoundCancellation.Token
+                        : CancellationToken.None;
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(GetRoundCancellationToken)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(GetRoundCancellationToken)} failed.");
+        throw;
+    }
+}
 
     public bool IsRoundSkipRequested(Guid runId, int round, string phase)
     {
-        if (!runs.TryGetValue(runId, out var state))
-            return false;
+    try
+    {
+            if (!runs.TryGetValue(runId, out var state))
+                return false;
 
-        lock (state.SyncRoot)
-        {
-            return state.IsRunning &&
-                state.IsRoundSkipRequested &&
-                state.CurrentRound == round &&
-                string.Equals(state.CurrentPhase, phase, StringComparison.Ordinal);
-        }
+            lock (state.SyncRoot)
+            {
+                return state.IsRunning &&
+                    state.IsRoundSkipRequested &&
+                    state.CurrentRound == round &&
+                    string.Equals(state.CurrentPhase, phase, StringComparison.Ordinal);
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(IsRoundSkipRequested)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(IsRoundSkipRequested)} failed.");
+        throw;
+    }
+}
 
     public bool RequestSkipCurrentRound(Guid runId)
     {
@@ -233,47 +317,59 @@ public sealed class CouncilRunConfigurationService(
         CouncilHardwareRoadPlan fallbackPlan,
         CancellationToken cancellationToken = default)
     {
-        if (!runs.TryGetValue(runId, out var state))
-            return new CouncilModelRequestLease(fallbackPlan, revision: 0, isEnabled: true, release: null);
+    try
+    {
+            if (!runs.TryGetValue(runId, out var state))
+                return new CouncilModelRequestLease(fallbackPlan, revision: 0, isEnabled: true, release: null);
 
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            CouncilRunPlanCandidate candidate;
-            Task waitTask;
-            lock (state.SyncRoot)
+            while (true)
             {
-                if (!state.IsRunning)
-                    return new CouncilModelRequestLease(fallbackPlan, state.Revision, isEnabled: true, release: null);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                candidate = BuildCandidateLocked(state, modelName, fallbackPlan);
-                if (!candidate.IsEnabled)
-                    return new CouncilModelRequestLease(candidate.Plan, candidate.Revision, isEnabled: false, release: null);
-
-                var laneKey = state.AllowParallelHardwareRoads
-                    ? candidate.Plan.LaneKey
-                    : "council:single-lane";
-                var laneCapacity = state.AllowParallelHardwareRoads
-                    ? Math.Max(1, candidate.Plan.MaxConcurrentModelsOnLane)
-                    : 1;
-                var activeCount = state.ActiveLaneCounts.GetValueOrDefault(laneKey);
-                if (activeCount < laneCapacity)
+                CouncilRunPlanCandidate candidate;
+                Task waitTask;
+                lock (state.SyncRoot)
                 {
-                    state.ActiveLaneCounts[laneKey] = activeCount + 1;
-                    return new CouncilModelRequestLease(
-                        candidate.Plan,
-                        candidate.Revision,
-                        isEnabled: true,
-                        release: () => Release(state, laneKey));
+                    if (!state.IsRunning)
+                        return new CouncilModelRequestLease(fallbackPlan, state.Revision, isEnabled: true, release: null);
+
+                    candidate = BuildCandidateLocked(state, modelName, fallbackPlan);
+                    if (!candidate.IsEnabled)
+                        return new CouncilModelRequestLease(candidate.Plan, candidate.Revision, isEnabled: false, release: null);
+
+                    var laneKey = state.AllowParallelHardwareRoads
+                        ? candidate.Plan.LaneKey
+                        : "council:single-lane";
+                    var laneCapacity = state.AllowParallelHardwareRoads
+                        ? Math.Max(1, candidate.Plan.MaxConcurrentModelsOnLane)
+                        : 1;
+                    var activeCount = state.ActiveLaneCounts.GetValueOrDefault(laneKey);
+                    if (activeCount < laneCapacity)
+                    {
+                        state.ActiveLaneCounts[laneKey] = activeCount + 1;
+                        return new CouncilModelRequestLease(
+                            candidate.Plan,
+                            candidate.Revision,
+                            isEnabled: true,
+                            release: () => Release(state, laneKey));
+                    }
+
+                    waitTask = state.ChangeSignal.Task;
                 }
 
-                waitTask = state.ChangeSignal.Task;
+                await waitTask.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
-
-            await waitTask.WaitAsync(cancellationToken).ConfigureAwait(false);
-        }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(AcquireModelRequestAsync)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(AcquireModelRequestAsync)} failed.");
+        throw;
+    }
+}
 
     public void Complete(Guid runId)
     {
@@ -304,47 +400,97 @@ public sealed class CouncilRunConfigurationService(
         string modelName,
         CouncilHardwareRoadPlan fallbackPlan)
     {
-        var route = state.ModelRoutes.LastOrDefault(item =>
-            string.Equals(item.ModelName, modelName, StringComparison.OrdinalIgnoreCase));
-        var isEnabled = route?.IsEnabled ?? true;
-        var plans = hardwareRoadPlanner.BuildPlans(
-            state.ModelRoutes,
-            [modelName],
-            state.RequestedMaxOutputTokens,
-            state.RequestedMaxContextTokens,
-            state.ResourceLoadPercent,
-            state.FallbackOllamaNumGpu);
-        var plan = plans.TryGetValue(modelName, out var configuredPlan)
-            ? configuredPlan
-            : fallbackPlan;
-        return new CouncilRunPlanCandidate(plan, state.Revision, isEnabled);
+    try
+    {
+            var route = state.ModelRoutes.LastOrDefault(item =>
+                string.Equals(item.ModelName, modelName, StringComparison.OrdinalIgnoreCase));
+            var isEnabled = route?.IsEnabled ?? true;
+            var plans = hardwareRoadPlanner.BuildPlans(
+                state.ModelRoutes,
+                [modelName],
+                state.RequestedMaxOutputTokens,
+                state.RequestedMaxContextTokens,
+                state.ResourceLoadPercent,
+                state.FallbackOllamaNumGpu);
+            var plan = plans.TryGetValue(modelName, out var configuredPlan)
+                ? configuredPlan
+                : fallbackPlan;
+            return new CouncilRunPlanCandidate(plan, state.Revision, isEnabled);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(BuildCandidateLocked)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(BuildCandidateLocked)} failed.");
+        throw;
+    }
+}
 
     private void Release(CouncilRunState state, string laneKey)
     {
-        lock (state.SyncRoot)
-        {
-            var activeCount = state.ActiveLaneCounts.GetValueOrDefault(laneKey);
-            if (activeCount <= 1)
-                state.ActiveLaneCounts.Remove(laneKey);
-            else
-                state.ActiveLaneCounts[laneKey] = activeCount - 1;
-            PulseLocked(state);
-        }
+    try
+    {
+            lock (state.SyncRoot)
+            {
+                var activeCount = state.ActiveLaneCounts.GetValueOrDefault(laneKey);
+                if (activeCount <= 1)
+                    state.ActiveLaneCounts.Remove(laneKey);
+                else
+                    state.ActiveLaneCounts[laneKey] = activeCount - 1;
+                PulseLocked(state);
+            }
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(Release)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(Release)} failed.");
+        throw;
+    }
+}
 
     private void PulseLocked(CouncilRunState state)
     {
-        var previous = state.ChangeSignal;
-        state.ChangeSignal = CreateSignal();
-        previous.TrySetResult(true);
+    try
+    {
+            var previous = state.ChangeSignal;
+            state.ChangeSignal = CreateSignal();
+            previous.TrySetResult(true);
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(PulseLocked)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(PulseLocked)} failed.");
+        throw;
+    }
+}
 
-    private TaskCompletionSource<bool> CreateSignal() =>
-        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private TaskCompletionSource<bool> CreateSignal() {
+    try
+    {
+        return new(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(CreateSignal)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(CreateSignal)} failed.");
+        throw;
+    }
+}
 
-    private CouncilRunConfigurationSnapshot CreateSnapshotLocked(CouncilRunState state) =>
-        new(
+    private CouncilRunConfigurationSnapshot CreateSnapshotLocked(CouncilRunState state) {
+    try
+    {
+        return new(
             state.RunId,
             state.Revision,
             state.Participants.ToList(),
@@ -358,36 +504,60 @@ public sealed class CouncilRunConfigurationService(
             state.CurrentPhase,
             state.IsRoundSkipRequested,
             state.IsRunning);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(CreateSnapshotLocked)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(CreateSnapshotLocked)} failed.");
+        throw;
+    }
+}
 
 
     private CouncilPreparationConfiguration NormalizePreparation(CouncilPreparationConfiguration configuration)
     {
-        var modelNames = configuration.ModelNames
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => name.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var modelRoutes = configuration.ModelRoutes
-            .Where(route => route is not null && !string.IsNullOrWhiteSpace(route.ModelName))
-            .Select(CloneRoute)
-            .ToList();
-        return new CouncilPreparationConfiguration(
-            modelNames,
-            modelRoutes,
-            Math.Clamp((int)Math.Round(configuration.ResourceLoadPercent / 5d) * 5, 0, 100),
-            Math.Max(1, configuration.MaxOutputTokens),
-            Math.Max(256, configuration.MaxContextTokens),
-            configuration.OllamaNumGpu is < 0 ? 0 : configuration.OllamaNumGpu,
-            configuration.AllowParallelHardwareRoads,
-            Math.Max(1, configuration.MaxParallelModels),
-            Math.Max(0, configuration.CritiqueRounds),
-            configuration.IncludeMemory,
-            configuration.CreateProjectPerRun,
-            string.IsNullOrWhiteSpace(configuration.CouncilTeamKey) ? "general" : configuration.CouncilTeamKey.Trim());
+    try
+    {
+            var modelNames = configuration.ModelNames
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var modelRoutes = configuration.ModelRoutes
+                .Where(route => route is not null && !string.IsNullOrWhiteSpace(route.ModelName))
+                .Select(CloneRoute)
+                .ToList();
+            return new CouncilPreparationConfiguration(
+                modelNames,
+                modelRoutes,
+                Math.Clamp((int)Math.Round(configuration.ResourceLoadPercent / 5d) * 5, 0, 100),
+                Math.Max(1, configuration.MaxOutputTokens),
+                Math.Max(256, configuration.MaxContextTokens),
+                configuration.OllamaNumGpu is < 0 ? 0 : configuration.OllamaNumGpu,
+                configuration.AllowParallelHardwareRoads,
+                Math.Max(1, configuration.MaxParallelModels),
+                Math.Max(0, configuration.CritiqueRounds),
+                configuration.IncludeMemory,
+                configuration.CreateProjectPerRun,
+                string.IsNullOrWhiteSpace(configuration.CouncilTeamKey) ? "general" : configuration.CouncilTeamKey.Trim());
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(NormalizePreparation)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(NormalizePreparation)} failed.");
+        throw;
+    }
+}
 
-    private CouncilPreparationConfiguration ClonePreparation(CouncilPreparationConfiguration configuration) =>
-        new(
+    private CouncilPreparationConfiguration ClonePreparation(CouncilPreparationConfiguration configuration) {
+    try
+    {
+        return new(
             configuration.ModelNames.ToList(),
             configuration.ModelRoutes.Select(CloneRoute).ToList(),
             configuration.ResourceLoadPercent,
@@ -400,8 +570,21 @@ public sealed class CouncilRunConfigurationService(
             configuration.IncludeMemory,
             configuration.CreateProjectPerRun,
             configuration.CouncilTeamKey);
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(ClonePreparation)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(ClonePreparation)} failed.");
+        throw;
+    }
+}
 
-    private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
+    private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) {
+    try
+    {
+        return new()
     {
         ModelName = route.ModelName,
         ProviderKind = route.ProviderKind,
@@ -424,4 +607,14 @@ public sealed class CouncilRunConfigurationService(
         IsEnabled = route.IsEnabled,
         MaxConcurrentModelsOnLane = route.MaxConcurrentModelsOnLane
     };
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(CloneRoute)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilRunConfigurationService)}.{nameof(CloneRoute)} failed.");
+        throw;
+    }
+}
 }

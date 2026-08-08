@@ -57,7 +57,10 @@ public sealed class OrganicAddonManifestService(
         return result;
     }
 
-    public IReadOnlyList<OneWireSkillDescriptor> GetSkillDescriptors() => GetManifests()
+    public IReadOnlyList<OneWireSkillDescriptor> GetSkillDescriptors() {
+    try
+    {
+        return GetManifests()
         .Select(manifest => new OneWireSkillDescriptor
         {
             Key = manifest.Key,
@@ -72,73 +75,107 @@ public sealed class OrganicAddonManifestService(
             UpdatedUtc = DateTimeOffset.UtcNow
         })
         .ToList();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(GetSkillDescriptors)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(GetSkillDescriptors)} failed.");
+        throw;
+    }
+}
 
     public IReadOnlyList<DxAiFunctionCatalogEntry> GetCatalogEntries()
     {
-        var entries = new List<DxAiFunctionCatalogEntry>();
-        foreach (var manifest in GetManifests())
-        {
-            var online = IsPeerOnline(manifest.SourcePeerId);
-            foreach (var method in manifest.ControllerMethods)
+    try
+    {
+            var entries = new List<DxAiFunctionCatalogEntry>();
+            foreach (var manifest in GetManifests())
             {
-                var signature = $"{manifest.Key}|{method.Controller}|{method.MethodName}|{method.HttpMethod}|{method.Route}";
-                var shortHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(signature))).ToLowerInvariant()[..12];
-                var functionName = $"organic.{NormalizeIdentifier(manifest.Key)}.{NormalizeIdentifier(method.Controller)}.{NormalizeIdentifier(method.MethodName)}.{shortHash}";
-                var entry = new DxAiFunctionCatalogEntry
+                var online = IsPeerOnline(manifest.SourcePeerId);
+                foreach (var method in manifest.ControllerMethods)
                 {
-                    CatalogKey = $"organic-controller:{shortHash}",
-                    Kind = "OrganicAddonControllerMethod",
-                    FunctionName = functionName,
-                    DisplayName = $"{manifest.DisplayName}: {method.Controller}.{method.MethodName}",
-                    Purpose = string.IsNullOrWhiteSpace(method.Purpose)
-                        ? $"Discover the {method.HttpMethod} {method.Route} controller method exposed by the {manifest.DisplayName} organic add-on."
-                        : method.Purpose,
-                    Method = method.HttpMethod,
-                    Route = method.Route,
-                    ParameterSchemaJson = "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":true}",
-                    Source = $"OrganicAddonManifest:{manifest.Key}",
-                    ServiceContractTypeName = manifest.SourcePeerId,
-                    ImplementationTypeName = method.Controller,
-                    ServiceMethodName = method.MethodName,
-                    ParameterTypeNamesJson = "[]",
-                    IsReadOnly = method.IsReadOnly,
-                    IsAvailable = online,
-                    IsEnabled = true,
-                    ExposeToAiChat = false,
-                    ExposeToOneWire = false,
-                    AllowRemoteInvocation = false,
-                    RequiresFrontendConfirmation = true,
-                    InteractionEditor = OneWireInteractionEditor.Json,
-                    IsSystemSeed = true,
-                    UpdatedBy = "Organic add-on manifest"
-                };
-                entry.DescriptorHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('|',
-                    entry.Kind,
-                    entry.FunctionName,
-                    entry.Method,
-                    entry.Route,
-                    entry.Source)))).ToLowerInvariant();
-                entries.Add(entry);
+                    var signature = $"{manifest.Key}|{method.Controller}|{method.MethodName}|{method.HttpMethod}|{method.Route}";
+                    var shortHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(signature))).ToLowerInvariant()[..12];
+                    var functionName = $"organic.{NormalizeIdentifier(manifest.Key)}.{NormalizeIdentifier(method.Controller)}.{NormalizeIdentifier(method.MethodName)}.{shortHash}";
+                    var entry = new DxAiFunctionCatalogEntry
+                    {
+                        CatalogKey = $"organic-controller:{shortHash}",
+                        Kind = "OrganicAddonControllerMethod",
+                        FunctionName = functionName,
+                        DisplayName = $"{manifest.DisplayName}: {method.Controller}.{method.MethodName}",
+                        Purpose = string.IsNullOrWhiteSpace(method.Purpose)
+                            ? $"Discover the {method.HttpMethod} {method.Route} controller method exposed by the {manifest.DisplayName} organic add-on."
+                            : method.Purpose,
+                        Method = method.HttpMethod,
+                        Route = method.Route,
+                        ParameterSchemaJson = "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":true}",
+                        Source = $"OrganicAddonManifest:{manifest.Key}",
+                        ServiceContractTypeName = manifest.SourcePeerId,
+                        ImplementationTypeName = method.Controller,
+                        ServiceMethodName = method.MethodName,
+                        ParameterTypeNamesJson = "[]",
+                        IsReadOnly = method.IsReadOnly,
+                        IsAvailable = online,
+                        IsEnabled = true,
+                        ExposeToAiChat = false,
+                        ExposeToOneWire = false,
+                        AllowRemoteInvocation = false,
+                        RequiresFrontendConfirmation = true,
+                        InteractionEditor = OneWireInteractionEditor.Json,
+                        IsSystemSeed = true,
+                        UpdatedBy = "Organic add-on manifest"
+                    };
+                    entry.DescriptorHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('|',
+                        entry.Kind,
+                        entry.FunctionName,
+                        entry.Method,
+                        entry.Route,
+                        entry.Source)))).ToLowerInvariant();
+                    entries.Add(entry);
+                }
             }
-        }
 
-        logger.LogInformation(
-            "Discovered {ControllerMethodCount} organic add-on controller method descriptor(s); offline methods remain discovery-only.",
-            entries.Count);
-        return entries;
+            logger.LogInformation(
+                "Discovered {ControllerMethodCount} organic add-on controller method descriptor(s); offline methods remain discovery-only.",
+                entries.Count);
+            return entries;
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(GetCatalogEntries)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(GetCatalogEntries)} failed.");
+        throw;
+    }
+}
 
     private bool IsPeerOnline(string sourcePeerId)
     {
-        if (connections.IsConnected(sourcePeerId))
-            return true;
+    try
+    {
+            if (connections.IsConnected(sourcePeerId))
+                return true;
 
-        return peers.GetPeers().Any(peer =>
-            peer.IsConnected &&
-            (string.Equals(peer.PeerId, sourcePeerId, StringComparison.OrdinalIgnoreCase) ||
-             peer.PeerId.StartsWith($"{sourcePeerId}:", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(peer.Application, sourcePeerId, StringComparison.OrdinalIgnoreCase)));
+            return peers.GetPeers().Any(peer =>
+                peer.IsConnected &&
+                (string.Equals(peer.PeerId, sourcePeerId, StringComparison.OrdinalIgnoreCase) ||
+                 peer.PeerId.StartsWith($"{sourcePeerId}:", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(peer.Application, sourcePeerId, StringComparison.OrdinalIgnoreCase)));
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(IsPeerOnline)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(IsPeerOnline)} failed.");
+        throw;
+    }
+}
 
     private IEnumerable<string> GetManifestDirectories()
     {
@@ -160,34 +197,71 @@ public sealed class OrganicAddonManifestService(
 
     private void Normalize(OrganicAddonManifest manifest)
     {
-        manifest.Key = manifest.Key.Trim().ToLowerInvariant();
-        manifest.DisplayName = string.IsNullOrWhiteSpace(manifest.DisplayName) ? manifest.Key : manifest.DisplayName.Trim();
-        manifest.Description = manifest.Description?.Trim() ?? string.Empty;
-        manifest.SourcePeerId = manifest.SourcePeerId.Trim();
-        manifest.Organs = NormalizeList(manifest.Organs);
-        manifest.CapabilityKeys = NormalizeList(manifest.CapabilityKeys);
-        manifest.UiActivationKeys = NormalizeList(manifest.UiActivationKeys);
-        manifest.ControllerMethods = (manifest.ControllerMethods ?? [])
-            .Where(item => !string.IsNullOrWhiteSpace(item.Controller) && !string.IsNullOrWhiteSpace(item.MethodName) && !string.IsNullOrWhiteSpace(item.Route))
-            .GroupBy(item => $"{item.Controller}|{item.MethodName}|{item.HttpMethod}|{item.Route}", StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .OrderBy(item => item.Controller, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(item => item.MethodName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+    try
+    {
+            manifest.Key = manifest.Key.Trim().ToLowerInvariant();
+            manifest.DisplayName = string.IsNullOrWhiteSpace(manifest.DisplayName) ? manifest.Key : manifest.DisplayName.Trim();
+            manifest.Description = manifest.Description?.Trim() ?? string.Empty;
+            manifest.SourcePeerId = manifest.SourcePeerId.Trim();
+            manifest.Organs = NormalizeList(manifest.Organs);
+            manifest.CapabilityKeys = NormalizeList(manifest.CapabilityKeys);
+            manifest.UiActivationKeys = NormalizeList(manifest.UiActivationKeys);
+            manifest.ControllerMethods = (manifest.ControllerMethods ?? [])
+                .Where(item => !string.IsNullOrWhiteSpace(item.Controller) && !string.IsNullOrWhiteSpace(item.MethodName) && !string.IsNullOrWhiteSpace(item.Route))
+                .GroupBy(item => $"{item.Controller}|{item.MethodName}|{item.HttpMethod}|{item.Route}", StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .OrderBy(item => item.Controller, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(item => item.MethodName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(Normalize)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(Normalize)} failed.");
+        throw;
+    }
+}
 
-    private List<string> NormalizeList(IEnumerable<string>? values) => (values ?? [])
+    private List<string> NormalizeList(IEnumerable<string>? values) {
+    try
+    {
+        return (values ?? [])
         .Where(value => !string.IsNullOrWhiteSpace(value))
         .Select(value => value.Trim())
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
         .ToList();
+    }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(NormalizeList)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(NormalizeList)} failed.");
+        throw;
+    }
+}
 
     private string NormalizeIdentifier(string value)
     {
-        var builder = new StringBuilder(value.Length);
-        foreach (var character in value)
-            builder.Append(char.IsLetterOrDigit(character) || character == '_' ? char.ToLowerInvariant(character) : '_');
-        return builder.ToString().Trim('_');
+    try
+    {
+            var builder = new StringBuilder(value.Length);
+            foreach (var character in value)
+                builder.Append(char.IsLetterOrDigit(character) || character == '_' ? char.ToLowerInvariant(character) : '_');
+            return builder.ToString().Trim('_');
+    
     }
+    catch (Exception __serviceMethodException)
+    {
+        if (__serviceMethodException is OperationCanceledException)
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(NormalizeIdentifier)} was canceled.");
+        else
+            logger.LogError(__serviceMethodException, $"Service method {nameof(OrganicAddonManifestService)}.{nameof(NormalizeIdentifier)} failed.");
+        throw;
+    }
+}
 }
