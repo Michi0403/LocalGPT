@@ -12,16 +12,6 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "LocalGPT-2.3.14.pdf",
-      "output": {
-        "resource": {
-          "relative_path": "LocalGPT-2.3.14.pdf"
-        }
-      },
-      "version": ""
-    },
-    {
-      "type": "Resource",
       "source_relative_path": "LocalGPT-2.3.2.pdf",
       "output": {
         "resource": {
@@ -66,6 +56,16 @@
       "output": {
         "resource": {
           "relative_path": "LocalGPT-2.3.6.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.4.1.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.4.1.pdf"
         }
       },
       "version": ""

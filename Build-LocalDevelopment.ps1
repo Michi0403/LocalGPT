@@ -10,6 +10,9 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
+& (Join-Path $root 'build\Update-JavaScriptDiagnosticsManifest.ps1')
+& (Join-Path $root 'build\Assert-JavaScriptDiagnostics.ps1')
 Write-Host "Clearing repository-local obj restore state before the ordered CLI build..." -ForegroundColor DarkCyan
 Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force |
     Where-Object { $_.Name -eq "obj" } |

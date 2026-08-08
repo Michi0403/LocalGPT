@@ -136,8 +136,16 @@
 
   <PropertyGroup>
     <LocalGptStaticWebAssetsScript>$(MSBuildThisFileDirectory)build\Assert-StaticWebAssets.ps1</LocalGptStaticWebAssetsScript>
+    <LocalGptJavaScriptDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-JavaScriptDiagnostics.ps1</LocalGptJavaScriptDiagnosticsScript>
   </PropertyGroup>
 
+
+  <Target Name="AssertLocalGptJavaScriptDiagnostics"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipJavaScriptDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(LocalGptJavaScriptDiagnosticsScript)')" Text="JavaScript diagnostics guard script is missing: $(LocalGptJavaScriptDiagnosticsScript)" />
+    <Exec Condition="Exists('$(LocalGptJavaScriptDiagnosticsScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptJavaScriptDiagnosticsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
   <Target Name="AssertLocalGptStaticWebAssets"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptSystemVariableInitialization"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipStaticWebAssetsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">

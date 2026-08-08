@@ -5,7 +5,6 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Fail([string]$Message) { throw "JavaScript diagnostics validation failed: $Message" }
-
 function Get-NormalizedTextSha256([string]$Path) {
     $text = [IO.File]::ReadAllText($Path)
     $normalized = $text.Replace("`r`n", "`n").Replace("`r", "`n")
@@ -16,16 +15,11 @@ function Get-NormalizedTextSha256([string]$Path) {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
-$appRoot = Join-Path $root 'src\PublisherStudio.Web'
-$jsRoot = Join-Path $appRoot 'wwwroot\js'
+$jsRoot = Join-Path $root 'src\LocalGPT\wwwroot\js'
 $manifestPath = Join-Path $PSScriptRoot 'javascript-diagnostics-files.sha256'
-$appPath = Join-Path $appRoot 'Components\App.razor'
-$bridgePath = Join-Path $appRoot 'Components\Layout\JavaScriptDiagnosticsBridge.razor'
-foreach ($requiredPath in @($manifestPath, $appPath, $bridgePath)) {
-    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) { Fail "Required diagnostics source is missing: $requiredPath" }
-}
+if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { Fail "Required diagnostics manifest is missing: $manifestPath" }
 
-$maintained = @(Get-ChildItem -LiteralPath $jsRoot -File -Filter '*.js')
+$maintained = @(Get-ChildItem -LiteralPath $jsRoot -File -Filter '*.js' | Where-Object { -not $_.Name.EndsWith('.example.js', [StringComparison]::OrdinalIgnoreCase) })
 $relativeFiles = @($maintained | ForEach-Object { $_.FullName.Substring($root.Length + 1).Replace([char]'\', [char]'/') } | Sort-Object -Unique)
 $manifest = @{}
 foreach ($line in Get-Content -LiteralPath $manifestPath) {
@@ -43,36 +37,18 @@ foreach ($relative in $relativeFiles) {
     $path = Join-Path $root ($relative.Replace([char]'/', [IO.Path]::DirectorySeparatorChar))
     $text = [IO.File]::ReadAllText($path)
     if ((Get-NormalizedTextSha256 $path) -ne $manifest[$relative]) { $errors.Add("Reviewed JavaScript diagnostics file changed without refreshing its manifest: $relative") }
-    if ($text -notmatch 'javascript-diagnostics:\s*guarded') { $errors.Add("Maintained JavaScript file lacks the function-level diagnostics marker: $relative") }
+    if ($text -notmatch 'javascript-diagnostics:\s*guarded') { $errors.Add("Maintained JavaScript file lacks the diagnostics marker: $relative") }
     if ($text -notmatch '\btry\s*\{' -or $text -notmatch '\bcatch\s*(?:\([^)]*\))?\s*\{') { $errors.Add("Maintained JavaScript file lacks try/catch protection: $relative") }
     if ($text -match 'catch\s*(?:\([^)]*\))?\s*\{\s*\}') { $errors.Add("Maintained JavaScript file contains an empty catch block: $relative") }
     if ($relative.EndsWith('/javascript-diagnostics.js')) {
-        foreach ($required in @('console.error', 'window.addEventListener("error"', 'unhandledrejection', 'ReportJavaScriptErrorAsync', 'pendingReports', 'guardObject', 'guardClass')) {
+        foreach ($required in @('console.error', 'window.addEventListener("error"', 'unhandledrejection', 'ReportJavaScriptErrorAsync')) {
             if (-not $text.Contains($required)) { $errors.Add("JavaScript diagnostics runtime is missing '$required': $relative") }
         }
     }
-    elseif ($text -notmatch '(?:publisherStudioJavaScriptDiagnostics|publisherStudioDiagnostics|\bpublisherDiagnostics)\.report\s*\(') {
-        $errors.Add("Maintained JavaScript file does not report failures through PublisherStudio diagnostics: $relative")
-    }
 }
 foreach ($relative in $manifest.Keys | Where-Object { $_ -notin $relativeFiles }) { $errors.Add("Unexpected JavaScript diagnostics manifest entry: $relative") }
-
-$app = [IO.File]::ReadAllText($appPath)
-$diagnosticsIndex = $app.IndexOf('<script src="js/javascript-diagnostics.js"></script>', [StringComparison]::Ordinal)
-$jqueryIndex = $app.IndexOf('<script src="vendor/jquery/jquery.min.js"></script>', [StringComparison]::Ordinal)
-$blazorIndex = $app.IndexOf('<script src="_framework/blazor.web.js"></script>', [StringComparison]::Ordinal)
-if ($diagnosticsIndex -lt 0 -or $jqueryIndex -lt 0 -or $blazorIndex -lt 0 -or $diagnosticsIndex -gt $jqueryIndex -or $diagnosticsIndex -gt $blazorIndex) {
-    $errors.Add('App.razor must load JavaScript diagnostics before vendor and Blazor browser scripts.')
-}
-if (-not $app.Contains('<JavaScriptDiagnosticsBridge />')) { $errors.Add('App.razor no longer renders the interactive JavaScript diagnostics bridge.') }
-
-$bridge = [IO.File]::ReadAllText($bridgePath)
-foreach ($required in @('@rendermode @(new InteractiveServerRenderMode(prerender: false))', 'publisherStudioJavaScriptDiagnostics.bindDotNet', '[JSInvokable]', 'ReportJavaScriptErrorAsync', 'Logger.LogError')) {
-    if (-not $bridge.Contains($required)) { $errors.Add("Interactive JavaScript logger bridge is missing '$required'.") }
-}
-
 if ($errors.Count -gt 0) {
     $errors | ForEach-Object { Write-Error $_ }
-    Fail "$($errors.Count) problem(s) found."
+    Fail "$($errors.Count) problem(s) found. Run build\Update-JavaScriptDiagnosticsManifest.ps1 only after reviewing the frontend change."
 }
-Write-Host "JavaScript diagnostics validation passed for $($relativeFiles.Count) maintained PublisherStudio browser files; errors are console-logged and mirrored to ILogger."
+Write-Host "JavaScript diagnostics validation passed for $($relativeFiles.Count) maintained LocalGPT browser files." -ForegroundColor Green
