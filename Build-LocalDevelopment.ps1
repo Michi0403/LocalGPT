@@ -10,12 +10,19 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+Write-Host "Clearing repository-local obj restore state before the ordered CLI build..." -ForegroundColor DarkCyan
+Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force |
+    Where-Object { $_.Name -eq "obj" } |
+    Sort-Object FullName -Descending |
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 $solutionRoot = Join-Path $root "src"
 $wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
 $appProject = Join-Path $solutionRoot "LocalGPT\LocalGPT.csproj"
 $setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole\LocalGPTInstallerConsole.csproj"
 $wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj"
 $documentationScript = Join-Path $root "build\Build-Documentation.ps1"
+$pagesSnapshotScript = Join-Path $root "build\Update-GitHubPagesSnapshot.ps1"
+$pagesSnapshotArchive = Join-Path $root ".github\pages\localgpt-kawaii-docs.zip"
 $packageDirectory = Join-Path $root "packages"
 $wireVersion = "2.1.1"
 $wirePackage = Join-Path $packageDirectory "LocalGPT.WireProtocolVersion.$wireVersion.nupkg"
@@ -118,7 +125,7 @@ $appProperties = @(
 if ($UseWireProtocolPackage) { $appProperties += "-p:RestorePackagesPath=$packageRestoreCache" }
 Write-Host "Restoring and building LocalGPT..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments (@("restore", $appProject, "--disable-parallel", "--force-evaluate") + $appProperties) -FailureMessage "LocalGPT application restore failed."
-Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false") + $appProperties) -FailureMessage "LocalGPT application build failed."
+Invoke-DotNet -Arguments (@("build", $appProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=false", "-p:BuildLocalGptDocumentation=false", "-p:SeedLocalGptGitHubPagesSnapshotOnBuild=false") + $appProperties) -FailureMessage "LocalGPT application build failed."
 
 Write-Host "Restoring and building the installer..." -ForegroundColor Cyan
 Invoke-DotNet -Arguments @("restore", $setupProject, "--disable-parallel", "--force-evaluate") -FailureMessage "LocalGPT installer restore failed."
@@ -144,6 +151,10 @@ Write-Host "Generating LocalGPT documentation once from the completed RID-neutra
     -OutputWebRoot $documentationRoot `
     -RequirePdf:$requireDocumentationPdf
 Assert-LocalGptDocumentation -DocumentationRoot $documentationRoot -Version $appVersion
+if (-not (Test-Path -LiteralPath $pagesSnapshotScript -PathType Leaf)) { throw "GitHub Pages snapshot script not found: $pagesSnapshotScript" }
+Write-Host "Validating and seeding the LocalGPT $appVersion GitHub Pages snapshot from the completed documentation build..." -ForegroundColor Cyan
+& $pagesSnapshotScript -DocumentationRoot $documentationRoot -OutputArchive $pagesSnapshotArchive
+if (-not (Test-Path -LiteralPath $pagesSnapshotArchive -PathType Leaf)) { throw "LocalGPT GitHub Pages snapshot update failed to create $pagesSnapshotArchive." }
 
 $wrapperProperties = @(
     "-p:Platform=$Platform",
@@ -160,7 +171,7 @@ Invoke-DotNet -Arguments (@("restore", $wrapperProject, "--disable-parallel", "-
 # skipped the architecture-specific protocol target and left the compiler looking for
 # bin\$Platform\$Configuration\net10.0\LocalGPT.WireProtocolVersion.dll. Keep documentation
 # disabled for this dependency pass, but allow MSBuild to materialize the complete reference graph.
-Invoke-DotNet -Arguments (@("build", $wrapperProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=true", "-p:BuildLocalGptDocumentation=false") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper build failed."
+Invoke-DotNet -Arguments (@("build", $wrapperProject, "-c", $Configuration, "--no-restore", "-maxcpucount:1", "-p:BuildProjectReferences=true", "-p:BuildLocalGptDocumentation=false", "-p:SeedLocalGptGitHubPagesSnapshotOnBuild=false") + $wrapperProperties) -FailureMessage "LocalGPT WinUI wrapper build failed."
 
 $dependencyMode = if ($UseWireProtocolPackage) { "package" } else { "source project" }
 Write-Host "LocalGPT development build completed in protocol -> app ($dependencyMode graph) -> installer -> documentation -> wrapper order." -ForegroundColor Green

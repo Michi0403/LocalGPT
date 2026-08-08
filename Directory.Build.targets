@@ -135,9 +135,20 @@
   </Target>
 
   <PropertyGroup>
+    <LocalGptStaticWebAssetsScript>$(MSBuildThisFileDirectory)build\Assert-StaticWebAssets.ps1</LocalGptStaticWebAssetsScript>
+  </PropertyGroup>
+
+  <Target Name="AssertLocalGptStaticWebAssets"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptSystemVariableInitialization"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipStaticWebAssetsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(LocalGptStaticWebAssetsScript)')" Text="Static web asset validation script is missing: $(LocalGptStaticWebAssetsScript)" />
+    <Exec Condition="Exists('$(LocalGptStaticWebAssetsScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptStaticWebAssetsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
+  <PropertyGroup>
     <LocalGptDocumentationScript>$(MSBuildThisFileDirectory)build\Build-Documentation.ps1</LocalGptDocumentationScript>
     <LocalGptPagesSnapshotScript>$(MSBuildThisFileDirectory)build\Update-GitHubPagesSnapshot.ps1</LocalGptPagesSnapshotScript>
-    <LocalGptPagesSnapshotArchive>$(MSBuildThisFileDirectory)\.github\pages\localgpt-kawaii-docs.zip</LocalGptPagesSnapshotArchive>
+    <LocalGptPagesSnapshotArchive>$(MSBuildThisFileDirectory).github\pages\localgpt-kawaii-docs.zip</LocalGptPagesSnapshotArchive>
     <SeedLocalGptGitHubPagesSnapshotOnBuild Condition="'$(SeedLocalGptGitHubPagesSnapshotOnBuild)' == ''">true</SeedLocalGptGitHubPagesSnapshotOnBuild>
     <!-- Append a dot so the quoted Windows argument never ends in a backslash.
          A trailing backslash before a closing quote can absorb the remaining PowerShell -File arguments. -->
@@ -183,7 +194,7 @@
   -->
   <Target Name="SeedLocalGptGitHubPagesSnapshot"
           AfterTargets="BuildLocalGptDocumentation"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SeedLocalGptGitHubPagesSnapshotOnBuild)' == 'true' and ('$(Configuration)' == 'Debug' or '$(Configuration)' == 'Release') and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(SeedLocalGptGitHubPagesSnapshotOnBuild)' == 'true' and ('$(Configuration)' == 'Debug' or '$(Configuration)' == 'Release') and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(LocalGptPagesSnapshotScript)')" Text="LocalGPT GitHub Pages snapshot script is missing: $(LocalGptPagesSnapshotScript)" />
     <Message Importance="High" Text="Validating and seeding the LocalGPT $(Version) GitHub Pages snapshot from $(LocalGptDocumentationOutputRoot)" />
     <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptPagesSnapshotScript)&quot; -DocumentationRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; -OutputArchive &quot;$(LocalGptPagesSnapshotArchive)&quot;"

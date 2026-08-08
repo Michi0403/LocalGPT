@@ -84,6 +84,9 @@
     ],
     "Components/Pages/Index.razor": [
       "CompleteOnboardingAsync"
+    ],
+    "Components/Shared/DocumentationViewerHost.razor": [
+      "RefreshViewerAsync"
     ]
   }
 }

@@ -75,7 +75,7 @@ public sealed class DocumentationViewerService(ILogger<DocumentationViewerServic
     {
             ArgumentException.ThrowIfNullOrWhiteSpace(url);
             var normalized = url.Trim();
-            if (!normalized.StartsWith("/", StringComparison.Ordinal) || normalized.StartsWith("//", StringComparison.Ordinal) || normalized.Contains('\\'))
+            if (!normalized.StartsWith('/') || normalized.StartsWith("//", StringComparison.Ordinal) || normalized.Contains('\\'))
                 throw new ArgumentException("Documentation viewer URLs must be same-origin application-relative paths.", nameof(url));
             if (normalized.Any(char.IsControl))
                 throw new ArgumentException("Documentation viewer URLs may not contain control characters.", nameof(url));

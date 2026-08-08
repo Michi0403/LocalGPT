@@ -13,6 +13,11 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+Write-Host "Clearing repository-local bin/obj build state for the authoritative release build..." -ForegroundColor Cyan
+Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force |
+    Where-Object { $_.Name -in @("bin", "obj") } |
+    Sort-Object FullName -Descending |
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 $solutionRoot = Join-Path $root "src"
 $artifacts = Join-Path $root "artifacts\release"
 $packageDirectory = Join-Path $root "packages"
@@ -21,6 +26,8 @@ $setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole\LocalGPTInstal
 $wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj"
 $wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
 $documentationScript = Join-Path $root "build\Build-Documentation.ps1"
+$pagesSnapshotScript = Join-Path $root "build\Update-GitHubPagesSnapshot.ps1"
+$pagesSnapshotArchive = Join-Path $root ".github\pages\localgpt-kawaii-docs.zip"
 $wirePackageName = "LocalGPT.WireProtocolVersion.$WireProtocolVersion.nupkg"
 $wirePackage = Join-Path $packageDirectory $wirePackageName
 $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
@@ -101,7 +108,9 @@ function Prepare-LocalGptDocumentation {
     $documentationBuildProperties = @(
         "-p:UseLocalWireProtocolProject=true",
         "-p:RuntimeIdentifier=",
-        "-p:RuntimeIdentifiers="
+        "-p:RuntimeIdentifiers=",
+        "-p:BuildLocalGptDocumentation=false",
+        "-p:SeedLocalGptGitHubPagesSnapshotOnBuild=false"
     )
 
     Write-Host "Building the RID-neutral LocalGPT assembly once for shared release documentation..." -ForegroundColor Cyan
@@ -121,6 +130,10 @@ function Prepare-LocalGptDocumentation {
         -RequirePdf
 
     Assert-LocalGptDocumentationPayload -DocumentationRoot $documentationOutput -Version $appVersion
+    if (-not (Test-Path -LiteralPath $pagesSnapshotScript -PathType Leaf)) { throw "GitHub Pages snapshot script not found: $pagesSnapshotScript" }
+    Write-Host "Validating and seeding the LocalGPT $appVersion GitHub Pages snapshot from the release documentation payload..." -ForegroundColor Cyan
+    & $pagesSnapshotScript -DocumentationRoot $documentationOutput -OutputArchive $pagesSnapshotArchive
+    if (-not (Test-Path -LiteralPath $pagesSnapshotArchive -PathType Leaf)) { throw "LocalGPT GitHub Pages snapshot update failed to create $pagesSnapshotArchive." }
     Remove-Item -LiteralPath $script:documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path $script:documentationCacheRoot -Force | Out-Null
     Copy-Item -Path (Join-Path $documentationOutput "*") -Destination $script:documentationCacheRoot -Recurse -Force
@@ -255,6 +268,7 @@ function Publish-Runtime {
         "-c", $Configuration,
         "-p:PublishProfile=$($profile.AppProfile)",
         "-p:BuildLocalGptDocumentation=$buildDocumentation",
+        "-p:SeedLocalGptGitHubPagesSnapshotOnBuild=false",
         "-p:RequireLocalGptDocumentationPdf=$requireDocumentationPdf"
     ) -FailureMessage "LocalGPT application publish failed for $Rid."
 

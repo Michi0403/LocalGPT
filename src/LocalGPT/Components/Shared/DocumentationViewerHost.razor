@@ -17,7 +17,10 @@
         </header>
         @if (Viewer.State.IsOpen)
         {
-            <iframe src="@Viewer.State.Url" title="@Viewer.State.Title" loading="eager"></iframe>
+            <iframe @key="Viewer.State.Revision"
+                    src="@Viewer.State.Url"
+                    title="@Viewer.State.Title"
+                    loading="eager"></iframe>
         }
     </section>
 </dialog>
@@ -57,7 +60,19 @@
     private void OnViewerStateChanged()
     {
         synchronizeDialog = true;
-        _ = InvokeAsync(StateHasChanged);
+        _ = RefreshViewerAsync();
+    }
+
+    private async Task RefreshViewerAsync()
+    {
+        try
+        {
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Refreshing the LocalGPT documentation viewer state failed.");
+        }
     }
 
     private void Close() => Viewer.Close();

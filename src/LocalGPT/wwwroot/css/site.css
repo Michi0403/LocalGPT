@@ -18,8 +18,8 @@ html, body {
     height: 40px;
     color: var(--bs-white, #fff);
     background-color: var(--localgpt-primary, #0d6efd);
-    mask-image: url('images/menubutton.svg');
-    -webkit-mask-image: url('images/menubutton.svg');
+    mask-image: url('../images/menubutton.svg');
+    -webkit-mask-image: url('../images/menubutton.svg');
 }
 .invalid {
     outline: 1px solid var(--localgpt-danger, #dc3545);
