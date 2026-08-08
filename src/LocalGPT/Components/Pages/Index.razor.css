@@ -1,4 +1,4 @@
-﻿::deep .welcome-gridlayout {
+::deep .welcome-gridlayout {
     margin: auto;
     width: auto;
     height: auto;
@@ -132,3 +132,21 @@
 @media (max-width: 720px) {
     .first-run-onboarding { margin: .75rem; }
 }
+
+
+/* v2.4.2: first-run guidance follows the active shell theme instead of forcing a dark island. */
+.first-run-onboarding {
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    border-color: color-mix(in srgb, var(--bs-primary) 35%, var(--bs-border-color));
+    box-shadow: 0 .65rem 2rem color-mix(in srgb, var(--bs-body-color) 12%, transparent);
+}
+.first-run-status-card,
+.first-run-profile,
+.first-run-quickstart {
+    color: var(--bs-body-color);
+    background: var(--bs-tertiary-bg);
+    border-color: var(--bs-border-color);
+}
+.first-run-quickstart span, .first-run-quickstart small { color: var(--bs-secondary-color, var(--bs-body-color)); }
+.first-run-warnings { color: var(--bs-warning-text-emphasis, #997404); }

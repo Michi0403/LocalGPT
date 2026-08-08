@@ -55302,33 +55302,18 @@ references:
   commentId: Overload:LocalGPT.Components.Shared.DocumentationViewerHost.CloseFromBrowser
   fullName: LocalGPT.Components.Shared.DocumentationViewerHost.CloseFromBrowser
   nameWithType: DocumentationViewerHost.CloseFromBrowser
-- uid: LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync
-  name: DisposeAsync()
-  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_DisposeAsync
-  commentId: M:LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync
-  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync()
-  nameWithType: DocumentationViewerHost.DisposeAsync()
-- uid: LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync*
-  name: DisposeAsync
-  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_DisposeAsync_
-  commentId: Overload:LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync
-  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.DisposeAsync
-  nameWithType: DocumentationViewerHost.DisposeAsync
-- uid: LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync(System.Boolean)
-  name: OnAfterRenderAsync(bool)
-  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_OnAfterRenderAsync_System_Boolean_
-  commentId: M:LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync(System.Boolean)
-  name.vb: OnAfterRenderAsync(Boolean)
-  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync(bool)
-  fullName.vb: LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync(Boolean)
-  nameWithType: DocumentationViewerHost.OnAfterRenderAsync(bool)
-  nameWithType.vb: DocumentationViewerHost.OnAfterRenderAsync(Boolean)
-- uid: LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync*
-  name: OnAfterRenderAsync
-  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_OnAfterRenderAsync_
-  commentId: Overload:LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync
-  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.OnAfterRenderAsync
-  nameWithType: DocumentationViewerHost.OnAfterRenderAsync
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.Dispose
+  name: Dispose()
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_Dispose
+  commentId: M:LocalGPT.Components.Shared.DocumentationViewerHost.Dispose
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.Dispose()
+  nameWithType: DocumentationViewerHost.Dispose()
+- uid: LocalGPT.Components.Shared.DocumentationViewerHost.Dispose*
+  name: Dispose
+  href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_Dispose_
+  commentId: Overload:LocalGPT.Components.Shared.DocumentationViewerHost.Dispose
+  fullName: LocalGPT.Components.Shared.DocumentationViewerHost.Dispose
+  nameWithType: DocumentationViewerHost.Dispose
 - uid: LocalGPT.Components.Shared.DocumentationViewerHost.OnInitialized
   name: OnInitialized()
   href: api/LocalGPT.Components.Shared.DocumentationViewerHost.html#LocalGPT_Components_Shared_DocumentationViewerHost_OnInitialized

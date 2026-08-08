@@ -2241,3 +2241,40 @@
         grid-column: auto;
     }
 }
+
+
+/* v2.4.2: Chat configuration grows with its content instead of reserving an empty viewport. */
+.chat-configuration-ribbon[open] {
+    inset-block-start: clamp(.45rem, 1.5dvh, 1.25rem) !important;
+    inset-block-end: auto !important;
+    height: auto !important;
+    max-height: calc(100dvh - clamp(.9rem, 3dvh, 2.5rem)) !important;
+    grid-template-rows: auto minmax(0, auto) !important;
+}
+.chat-configuration-ribbon[open] .chat-configuration-content {
+    height: auto !important;
+    max-height: calc(100dvh - 5rem) !important;
+    overflow: auto !important;
+}
+.chat-configuration-content .component-actions-menu[open] {
+    grid-column: 1 / -1;
+}
+.chat-configuration-content .component-actions-menu[open] .component-actions-menu-items {
+    position: static !important;
+    inset: auto !important;
+    width: min(100%, 28rem);
+    margin-top: .35rem;
+    box-shadow: none;
+}
+.memory-all-conversations {
+    align-self: stretch;
+}
+.chat-memory-project-center[open] > .memory-toolbar {
+    align-items: start;
+}
+.chat-memory-project-center[open],
+.chat-memory-project-center[open] > .memory-toolbar,
+.chat-memory-project-center[open] > .memory-toolbar > * {
+    position: relative;
+    min-width: 0;
+}

@@ -296,15 +296,29 @@
                 <div class="component-actions-menu-items" role="menu">
                     <button role="menuitem" type="button" disabled="@isMemoryBusy" @onclick="SaveCurrentConversationAsync">Save memory</button>
                     <button role="menuitem" type="button" disabled="@(isMemoryBusy || SavedConversations.Count == 0)" @onclick="LoadLatestConversationAsync">Recall latest</button>
+                    <button role="menuitem" type="button" disabled="@(isMemoryBusy || SelectedConversation is null)" @onclick="LoadSelectedConversationAsync">Recall selected chat</button>
                 </div>
             </details>
-            <span title="Pick an older saved chat from the SQLite memory database.">
-                <DxComboBox Data="@SavedConversations"
-                            Value="@SelectedConversation"
-                            CssClass="memory-selector"
-                            TextFieldName="@nameof(ChatMemoryConversationSummary.DisplayName)"
-                            ValueChanged="@((ChatMemoryConversationSummary conversation) => LoadSavedConversationAsync(conversation))" />
-            </span>
+            <label class="memory-all-conversations" title="Pick any saved chat from the SQLite memory database and continue it in the chat window.">
+                <span>All saved chats</span>
+                <select class="form-select memory-selector"
+                        aria-label="All saved chats"
+                        value="@(SelectedConversation?.Id.ToString() ?? string.Empty)"
+                        @onchange="OnSavedConversationSelectionChangedAsync"
+                        disabled="@(isMemoryBusy || SavedConversations.Count == 0)">
+                    @if (SavedConversations.Count == 0)
+                    {
+                        <option value="">No saved chats</option>
+                    }
+                    else
+                    {
+                        @foreach (var conversation in SavedConversations)
+                        {
+                            <option value="@conversation.Id">@conversation.DisplayName</option>
+                        }
+                    }
+                </select>
+            </label>
             @if (!string.IsNullOrWhiteSpace(memoryStatus))
             {
                 <span class="memory-status">@memoryStatus</span>
@@ -2803,6 +2817,38 @@
 
     }
 
+    private async Task LoadSelectedConversationAsync()
+    {
+        try
+        {
+            if (SelectedConversation is not null)
+                await LoadSavedConversationAsync(SelectedConversation).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Loading the selected saved chat failed.");
+            Notifier.ShowError(toastName, "The selected saved chat could not be loaded. See local application logs for technical details.", "Recall chat failed");
+        }
+    }
+
+    private async Task OnSavedConversationSelectionChangedAsync(ChangeEventArgs args)
+    {
+        try
+        {
+            if (!Guid.TryParse(args.Value?.ToString(), out var conversationId))
+                return;
+
+            SelectedConversation = SavedConversations.FirstOrDefault(item => item.Id == conversationId);
+            if (SelectedConversation is not null)
+                await LoadSavedConversationAsync(SelectedConversation).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Selecting a saved chat from the complete memory list failed.");
+            Notifier.ShowError(toastName, "The saved chat could not be selected. See local application logs for technical details.", "Recall chat failed");
+        }
+    }
+
     private async Task LoadLatestConversationIntoSessionAsync(bool loadIntoDxChat)
     {
         try
@@ -2838,7 +2884,7 @@
     {
         try
         {
-            if (conversation is null || ChatClientProvider?.SelectedSession is null)
+            if (conversation is null || ChatClientProvider is null)
                 return;
 
             try
@@ -2851,6 +2897,17 @@
                 if (snapshot is null)
                     return;
 
+                var restoredSession = ChatClientProvider.AvailableChatClients.FirstOrDefault(session =>
+                    string.Equals(session.Name, snapshot.ProviderName, StringComparison.OrdinalIgnoreCase));
+                restoredSession ??= ChatClientProvider.SelectedSession;
+                restoredSession ??= ChatClientProvider.AvailableChatClients.FirstOrDefault();
+                if (restoredSession is null)
+                {
+                    memoryStatus = "The saved chat is ready, but no AI provider session is currently available. Configure a provider and recall it again.";
+                    return;
+                }
+
+                ChatClientProvider.SelectedSession = restoredSession;
                 ActiveConversationId = snapshot.Id;
                 SessionContext.Restore(new ChatSessionContextSnapshot(
                     snapshot.Id,
@@ -2859,10 +2916,12 @@
                     SessionContext.ApplicationVersion));
                 await LoadSelectedChatProjectDetailsAsync(snapshot.ProjectId).ConfigureAwait(true) /* renderer-affine loading continuation */;
                 SelectedConversation = conversation;
-                ChatClientProvider.SelectedSession.Messages.Clear();
-                ChatClientProvider.SelectedSession.Messages.AddRange(snapshot.Messages);
+                restoredSession.Messages.Clear();
+                restoredSession.Messages.AddRange(snapshot.Messages);
                 lastSavedSignature = CouncilText.CreateMessageSignature(snapshot.Messages, Logger);
-                memoryStatus = $"Loaded memory: {snapshot.Title}";
+                memoryStatus = string.Equals(restoredSession.Name, snapshot.ProviderName, StringComparison.OrdinalIgnoreCase)
+                    ? $"Loaded chat: {snapshot.Title} · restored {restoredSession.Name}"
+                    : $"Loaded legacy chat: {snapshot.Title} · continued with {restoredSession.Name}";
                 SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(snapshot.Id).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
 
                 if (loadIntoDxChat && DxAiChat is not null)
