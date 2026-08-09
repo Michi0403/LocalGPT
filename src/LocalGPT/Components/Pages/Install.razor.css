@@ -653,3 +653,45 @@
         max-height: none;
     }
 }
+
+/* v2.5.5: the v2.5.3 outer two-column grid became obsolete once v2.5.4 introduced
+   install-workbench-layout. Keep exactly one desktop grid owner so the inner navigation/stage
+   can use the full application canvas instead of being squeezed into the legacy 15rem column. */
+.install-page-scroll-owner {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+.install-workbench {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin-inline: 0 !important;
+}
+
+.install-workbench ::deep .localgpt-workbench-header,
+.install-workbench-layout {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+}
+
+.install-workbench-layout {
+    grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr) !important;
+    align-items: stretch;
+}
+
+.install-workbench-stage,
+.install-workbench-stage > ::deep .configuration-workbench-panel {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+}
+
+@media (max-width: 860px) {
+    .install-workbench-layout {
+        grid-template-columns: 1fr !important;
+    }
+}

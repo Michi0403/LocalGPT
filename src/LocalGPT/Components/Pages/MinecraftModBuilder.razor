@@ -13,109 +13,126 @@
 
 <PageTitle>Minecraft Mod Builder</PageTitle>
 
-<div class="mod-builder">
-    <ToastWrapper Name="@toastName" />
+<div class="minecraft-builder-page-scroll-owner">
+    <div class="mod-builder">
+        <ToastWrapper Name="@toastName" />
 
-    <section class="builder-panel">
-        <div class="builder-header">
-            <div>
-                <h1>Minecraft Mod Builder</h1>
-                <p>Generate a Java mod workspace, ask Ollama or the AI Council for a grounded plan, then run scoped build commands.</p>
+        <WorkbenchHeader Eyebrow="Build studio"
+                         Title="Minecraft Mod Builder"
+                         Subtitle="Configure a Minecraft workspace, generate a grounded implementation plan with one model or an AI Council, and run only scoped build commands from the generated project.">
+            <Actions>
+                <DxButton Text="Create Workspace"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Click="CreateWorkspaceAsync"
+                          Enabled="@(!isBusy)" />
+                <DxButton Text="Create Datapack ZIP"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Click="CreateDatapackZipAsync"
+                          Enabled="@(!isBusy && IsDatapack)" />
+            </Actions>
+        </WorkbenchHeader>
+
+        <section class="builder-panel builder-request-panel" aria-labelledby="minecraft-build-request-heading">
+            <header class="builder-section-heading">
+                <div>
+                    <span class="builder-section-kicker">Project definition</span>
+                    <h2 id="minecraft-build-request-heading">Workspace and target</h2>
+                    <p>Keep the project identity, Minecraft target, toolchain and Council inputs together before creating files.</p>
+                </div>
+                @if (isBusy)
+                {
+                    <span class="builder-status-badge">Working…</span>
+                }
+            </header>
+
+            <div class="form-grid">
+                <label>
+                    <span>Project name</span>
+                    <input @bind="request.ProjectName" />
+                </label>
+                <label>
+                    <span>Mod id</span>
+                    <input @bind="request.ModId" />
+                </label>
+                <label>
+                    <span>Package</span>
+                    <input @bind="request.PackageName" />
+                </label>
+                <label>
+                    <span>Minecraft version</span>
+                    <input @bind="request.MinecraftVersion" />
+                </label>
+                <label>
+                    <span>Loader</span>
+                    <select @bind="request.Loader">
+                        <option>Fabric Mod</option>
+                        <option>NeoForge Mod</option>
+                        <option>Paper Plugin</option>
+                        <option>Datapack</option>
+                        <option>Bedrock Add-on</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Java</span>
+                    <input @bind="request.JavaVersion" />
+                </label>
+                <label>
+                    <span>Gradle</span>
+                    <input @bind="request.GradleVersion" />
+                </label>
+                <label>
+                    <span>IDE</span>
+                    <select @bind="request.Ide">
+                        <option>Eclipse</option>
+                        <option>IntelliJ IDEA</option>
+                        <option>Visual Studio Code</option>
+                    </select>
+                </label>
+                <label class="checkbox-label" title="Adds a small item, command, and design brief for the Living Cities 0.1 sample.">
+                    <input type="checkbox" @bind="request.IncludeLivingCitiesStarter" />
+                    <span>Living Cities starter</span>
+                </label>
             </div>
-            <DxButton Text="Create Workspace"
-                      RenderStyle="ButtonRenderStyle.Primary"
-                      RenderStyleMode="ButtonRenderStyleMode.Contained"
-                      Click="CreateWorkspaceAsync"
-                      Enabled="@(!isBusy)" />
-            <DxButton Text="Create Datapack ZIP"
-                      RenderStyle="ButtonRenderStyle.Secondary"
-                      RenderStyleMode="ButtonRenderStyleMode.Contained"
-                      Click="CreateDatapackZipAsync"
-                      Enabled="@(!isBusy && IsDatapack)" />
-        </div>
 
-        <div class="form-grid">
-            <label>
-                Project name
-                <input @bind="request.ProjectName" />
-            </label>
-            <label>
-                Mod id
-                <input @bind="request.ModId" />
-            </label>
-            <label>
-                Package
-                <input @bind="request.PackageName" />
-            </label>
-            <label>
-                Minecraft version
-                <input @bind="request.MinecraftVersion" />
-            </label>
-            <label>
-                Loader
-                <select @bind="request.Loader">
-                    <option>Fabric Mod</option>
-                    <option>NeoForge Mod</option>
-                    <option>Paper Plugin</option>
-                    <option>Datapack</option>
-                    <option>Bedrock Add-on</option>
-                </select>
-            </label>
-            <label>
-                Java
-                <input @bind="request.JavaVersion" />
-            </label>
-            <label>
-                Gradle
-                <input @bind="request.GradleVersion" />
-            </label>
-            <label>
-                IDE
-                <select @bind="request.Ide">
-                    <option>Eclipse</option>
-                    <option>IntelliJ IDEA</option>
-                    <option>Visual Studio Code</option>
-                </select>
-            </label>
-            <label class="checkbox-label" title="Adds a small item, command, and design brief for the Living Cities 0.1 sample.">
-                <input type="checkbox" @bind="request.IncludeLivingCitiesStarter" />
-                Living Cities starter
-            </label>
-        </div>
+            <div class="builder-ai-grid">
+                <label class="wide-field">
+                    <span>What should the mod do?</span>
+                    <textarea @bind="request.Description" rows="8" placeholder="Example: Create a magic ore, a wand item, custom crafting recipes, and server-side commands to grant spell XP."></textarea>
+                </label>
 
-        <label class="wide-field">
-            What should the mod do?
-            <textarea @bind="request.Description" rows="8" placeholder="Example: Create a magic ore, a wand item, custom crafting recipes, and server-side commands to grant spell XP."></textarea>
-        </label>
+                <div class="builder-council-card">
+                    <label class="wide-field">
+                        <span>Council Models</span>
+                        <input @bind="councilModels" placeholder="gpt-oss:20b, qwen3-coder:30b" />
+                    </label>
+                    <label class="checkbox-label" title="When enabled, LocalGPT sends num_gpu=0 to Ollama for safer low-resource council tests. Turn it off only when you intentionally want a GPU-backed model run.">
+                        <input type="checkbox" @bind="useCpuOnlyCouncil" />
+                        <span>CPU-only council</span>
+                    </label>
+                    <p>Use a single configured model for a fast plan or the Council for a multi-model implementation review.</p>
+                </div>
+            </div>
 
-        <label class="wide-field">
-            Council Models
-            <input @bind="councilModels" placeholder="gpt-oss:20b, qwen3-coder:30b" />
-        </label>
-
-        <label class="checkbox-label" title="When enabled, LocalGPT sends num_gpu=0 to Ollama for safer low-resource council tests. Turn it off only when you intentionally want a GPU-backed model run.">
-            <input type="checkbox" @bind="useCpuOnlyCouncil" />
-            CPU-only council
-        </label>
-
-        <div class="button-row">
-            <DxButton Text="Ask AI For Plan"
-                      RenderStyle="ButtonRenderStyle.Secondary"
-                      RenderStyleMode="ButtonRenderStyleMode.Contained"
-                      Click="GeneratePlanAsync"
-                      Enabled="@(!isBusy && ChatClient is not null)" />
-            <DxButton Text="Ask AI Council"
-                      RenderStyle="ButtonRenderStyle.Secondary"
-                      RenderStyleMode="ButtonRenderStyleMode.Contained"
-                      Click="GenerateCouncilPlanAsync"
-                      Enabled="@(!isBusy)" />
-            <DxButton Text="Living Cities Prompt"
-                      RenderStyle="ButtonRenderStyle.Secondary"
-                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                      Click="LoadLivingCitiesPrompt"
-                      Enabled="@(!isBusy)" />
-        </div>
-    </section>
+            <div class="button-row builder-ai-actions">
+                <DxButton Text="Ask AI For Plan"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Click="GeneratePlanAsync"
+                          Enabled="@(!isBusy && ChatClient is not null)" />
+                <DxButton Text="Ask AI Council"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Click="GenerateCouncilPlanAsync"
+                          Enabled="@(!isBusy)" />
+                <DxButton Text="Living Cities Prompt"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Click="LoadLivingCitiesPrompt"
+                          Enabled="@(!isBusy)" />
+            </div>
+        </section>
 
     @if (workspace is not null)
     {
@@ -209,6 +226,7 @@
             }
         </section>
     }
+    </div>
 </div>
 
 @code {

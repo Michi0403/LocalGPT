@@ -2786,3 +2786,112 @@
         overflow-y: hidden;
     }
 }
+
+/* v2.5.5: final full-viewport Chat configuration contract. The modal, workbench, stage and
+   active section now share the same available block size; the active section itself scrolls.
+   This also overrides the older Council max-height cap that left most of the modal unused. */
+.chat-configuration-ribbon[open] {
+    inset: .5rem !important;
+    width: calc(100vw - 1rem) !important;
+    height: calc(100dvh - 1rem) !important;
+    max-width: none !important;
+    max-height: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    overflow: hidden !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-content {
+    display: grid !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    padding: .65rem !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-workbench {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    align-items: stretch !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-stage {
+    display: grid !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    padding: 0 .2rem 0 0 !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-stage ::deep .configuration-workbench-panel {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: 0 .35rem .65rem 0;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-stage ::deep .configuration-workbench-panel > .council-command-center[open],
+.chat-configuration-ribbon[open] .chat-configuration-stage ::deep .configuration-workbench-panel > .chat-memory-project-center[open],
+.chat-configuration-ribbon[open] .chat-configuration-stage ::deep .configuration-workbench-panel > .architecture-poll[open] {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+}
+
+.chat-configuration-ribbon[open] .council-member-list,
+.chat-configuration-ribbon[open] .council-member-list.provider-model-list,
+.chat-configuration-ribbon[open] .provider-model-list {
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+.chat-configuration-ribbon[open] .council-provider-hosts,
+.chat-configuration-ribbon[open] .council-picker {
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+@media (max-width: 900px) {
+    .chat-configuration-ribbon[open] .chat-configuration-workbench {
+        grid-template-columns: 1fr !important;
+        grid-template-rows: auto minmax(0, 1fr) !important;
+    }
+
+    .chat-configuration-ribbon[open] .chat-configuration-workbench ::deep .configuration-workbench-nav {
+        max-height: 9rem !important;
+    }
+}
+
+@media (max-width: 680px) {
+    .chat-configuration-ribbon[open] {
+        inset: .2rem !important;
+        width: calc(100vw - .4rem) !important;
+        height: calc(100dvh - .4rem) !important;
+    }
+}
