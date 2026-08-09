@@ -37,6 +37,7 @@ $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]
 $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT\NuGet" }
 $documentationCacheRoot = Join-Path $artifacts ".documentation-cache"
 $documentationPrepared = $false
+$releaseZipPaths = New-Object 'System.Collections.Generic.List[string]'
 
 & (Join-Path $root 'build\Assert-PowerShellCompatibility.ps1')
 
@@ -221,6 +222,154 @@ function Resolve-ReleaseProfile {
     }
 }
 
+
+function New-PortableReleaseArchive {
+    param(
+        [Parameter(Mandatory)][string]$SourceDirectory,
+        [Parameter(Mandatory)][string]$DestinationPath,
+        [Parameter(Mandatory)][string]$RootFolderName
+    )
+
+    $sourceRoot = [IO.Path]::GetFullPath($SourceDirectory).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    if (-not (Test-Path -LiteralPath $sourceRoot -PathType Container)) {
+        throw "Release archive source directory does not exist: $sourceRoot"
+    }
+    if ([string]::IsNullOrWhiteSpace($RootFolderName) -or $RootFolderName.IndexOfAny([char[]]"/\\") -ge 0) {
+        throw "Release archive wrapper must be one directory name: $RootFolderName"
+    }
+
+    $files = @(Get-ChildItem -LiteralPath $sourceRoot -File -Recurse | Sort-Object FullName)
+    if ($files.Count -eq 0) { throw "Release archive source is empty: $sourceRoot" }
+
+    $destination = [IO.Path]::GetFullPath($DestinationPath)
+    New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+    $temporaryArchive = "$destination.$([Guid]::NewGuid().ToString('N')).tmp"
+
+    Add-Type -AssemblyName System.IO.Compression -ErrorAction SilentlyContinue
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    try {
+        $archive = [IO.Compression.ZipFile]::Open($temporaryArchive, [IO.Compression.ZipArchiveMode]::Create)
+        try {
+            foreach ($file in $files) {
+                $relative = $file.FullName.Substring($sourceRoot.Length).TrimStart([char[]]"\/").Replace('\', '/')
+                if ([string]::IsNullOrWhiteSpace($relative) -or $relative.Split('/') -contains '..') {
+                    throw "Unsafe release archive source path: $($file.FullName)"
+                }
+                $entryName = "$RootFolderName/$relative"
+                if ($entryName.Contains('\')) {
+                    throw "Portable ZIP entries may not contain Windows path separators: $entryName"
+                }
+
+                $entry = $archive.CreateEntry($entryName, [IO.Compression.CompressionLevel]::Optimal)
+                $entry.LastWriteTime = [DateTimeOffset]::new(1980, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
+                $input = [IO.File]::Open($file.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+                try {
+                    $output = $entry.Open()
+                    try { $input.CopyTo($output) }
+                    finally { $output.Dispose() }
+                }
+                finally { $input.Dispose() }
+            }
+        }
+        finally { $archive.Dispose() }
+
+        $verification = [IO.Compression.ZipFile]::OpenRead($temporaryArchive)
+        try {
+            $entries = @($verification.Entries | Where-Object { -not [string]::IsNullOrWhiteSpace($_.Name) })
+            if ($entries.Count -ne $files.Count) {
+                throw "Release archive entry count $($entries.Count) does not match source file count $($files.Count): $temporaryArchive"
+            }
+            foreach ($entry in $entries) {
+                if ($entry.FullName.Contains('\')) {
+                    throw "Release archive is not POSIX/ZIP portable because it contains a backslash entry: $($entry.FullName)"
+                }
+                if (-not $entry.FullName.StartsWith("$RootFolderName/", [StringComparison]::Ordinal)) {
+                    throw "Release archive entry '$($entry.FullName)' escapes expected wrapper '$RootFolderName'."
+                }
+            }
+        }
+        finally { $verification.Dispose() }
+
+        Remove-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+        [IO.File]::Move($temporaryArchive, $destination)
+    }
+    finally {
+        Remove-Item -LiteralPath $temporaryArchive -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Test-VersionDirectoryName {
+    param([Parameter(Mandatory)][string]$Name)
+    return $Name -match '^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$'
+}
+
+function Complete-ReleaseBundle {
+    param(
+        [Parameter(Mandatory)][string]$Version,
+        [Parameter(Mandatory)][string[]]$ReleaseZipPaths,
+        [Parameter(Mandatory)][string]$DocumentationPdfPath,
+        [Parameter(Mandatory)][string]$WindowsX64SetupExecutablePath,
+        [Parameter(Mandatory)][string]$ReadmePath,
+        [Parameter(Mandatory)][string]$LicensePath,
+        [Parameter(Mandatory)][string]$WireProtocolPackagePath,
+        [Parameter(Mandatory)][string]$SetupIconPath,
+        [Parameter(Mandatory)][bool]$RequireWindowsX64Setup
+    )
+
+    $versionDirectory = Join-Path $artifacts $Version
+    if (Test-Path -LiteralPath $versionDirectory) {
+        throw "Release bundle '$versionDirectory' already exists. Existing version directories are never overwritten."
+    }
+
+    $uniqueZipPaths = @($ReleaseZipPaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+    if ($uniqueZipPaths.Count -eq 0) { throw "No release ZIPs were produced for release $Version." }
+    foreach ($zipPath in $uniqueZipPaths) {
+        if (-not (Test-Path -LiteralPath $zipPath -PathType Leaf)) { throw "Expected release ZIP is missing: $zipPath" }
+    }
+    foreach ($requiredFile in @($DocumentationPdfPath, $ReadmePath, $LicensePath, $WireProtocolPackagePath, $SetupIconPath)) {
+        if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) { throw "Required upload-ready release file is missing: $requiredFile" }
+    }
+    if ($RequireWindowsX64Setup -and -not (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf)) {
+        throw "Windows x64 setup executable is required for the full release bundle but is missing: $WindowsX64SetupExecutablePath"
+    }
+
+    $stagingDirectory = Join-Path $artifacts (".release-bundle-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
+    try {
+        foreach ($zipPath in $uniqueZipPaths) {
+            Copy-Item -LiteralPath $zipPath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($zipPath))) -Force
+        }
+        Copy-Item -LiteralPath $DocumentationPdfPath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($DocumentationPdfPath))) -Force
+        Copy-Item -LiteralPath $ReadmePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($ReadmePath))) -Force
+        Copy-Item -LiteralPath $LicensePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($LicensePath))) -Force
+        Copy-Item -LiteralPath $WireProtocolPackagePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($WireProtocolPackagePath))) -Force
+        Copy-Item -LiteralPath $SetupIconPath -Destination (Join-Path $stagingDirectory "LocalGPT.ico") -Force
+        if (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf) {
+            Copy-Item -LiteralPath $WindowsX64SetupExecutablePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($WindowsX64SetupExecutablePath))) -Force
+        }
+
+        New-Item -ItemType Directory -Path $versionDirectory -Force | Out-Null
+        foreach ($file in Get-ChildItem -LiteralPath $stagingDirectory -File) {
+            Move-Item -LiteralPath $file.FullName -Destination (Join-Path $versionDirectory $file.Name)
+        }
+
+        foreach ($zipPath in $uniqueZipPaths) {
+            Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+        }
+
+        foreach ($directory in Get-ChildItem -LiteralPath $artifacts -Directory -Force) {
+            if ($directory.FullName -eq $versionDirectory) { continue }
+            if (Test-VersionDirectoryName -Name $directory.Name) { continue }
+            Remove-Item -LiteralPath $directory.FullName -Recurse -Force -ErrorAction Stop
+        }
+
+        Write-Host "Upload-ready release bundle: $versionDirectory" -ForegroundColor Green
+    }
+    finally {
+        Remove-Item -LiteralPath $stagingDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Ensure-WireProtocolPackage {
     New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
 
@@ -336,10 +485,14 @@ function Publish-Runtime {
 
     # Final release-boundary check: optional wrapper/publish steps must not reintroduce stale documentation.
     Assert-LocalGptDocumentationPayload -DocumentationRoot $publishedDocumentationRoot -Version $appVersion
-    Compress-Archive -Path $appFolder -DestinationPath $appZip -CompressionLevel Optimal -Force
-    Compress-Archive -Path $setupFolder -DestinationPath $setupZip -CompressionLevel Optimal -Force
-    Write-Host "Created $appZip" -ForegroundColor Green
-    Write-Host "Created $setupZip" -ForegroundColor Green
+    $appRootFolderName = Split-Path -Leaf $appFolder
+    $setupRootFolderName = Split-Path -Leaf $setupFolder
+    New-PortableReleaseArchive -SourceDirectory $appFolder -DestinationPath $appZip -RootFolderName $appRootFolderName
+    New-PortableReleaseArchive -SourceDirectory $setupFolder -DestinationPath $setupZip -RootFolderName $setupRootFolderName
+    $script:releaseZipPaths.Add($appZip)
+    $script:releaseZipPaths.Add($setupZip)
+    Write-Host "Created portable ZIP $appZip" -ForegroundColor Green
+    Write-Host "Created portable ZIP $setupZip" -ForegroundColor Green
 }
 
 New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
@@ -362,10 +515,30 @@ $runtimes = if ($Runtime -eq "all") {
 
 try {
     foreach ($rid in $runtimes) { Publish-Runtime $rid }
+
+    $documentationPdf = Join-Path $documentationCacheRoot "LocalGPT-$appVersion.pdf"
+    $winX64Profile = Resolve-ReleaseProfile -Rid "win-x64"
+    $winX64SetupFolder = Resolve-ProfilePublishFolder -ProjectPath $setupProject -ProfileName $winX64Profile.SetupProfile
+    $winX64SetupExecutable = Join-Path $winX64SetupFolder "LocalGPTInstallerConsole.exe"
+    $requireWinX64Setup = @($runtimes) -contains "win-x64"
+    $licensePath = Join-Path $root "LICENSE.MD"
+    if (-not (Test-Path -LiteralPath $licensePath -PathType Leaf)) { $licensePath = Join-Path $root "LICENSE" }
+
+    Complete-ReleaseBundle `
+        -Version $appVersion `
+        -ReleaseZipPaths @($releaseZipPaths) `
+        -DocumentationPdfPath $documentationPdf `
+        -WindowsX64SetupExecutablePath $winX64SetupExecutable `
+        -ReadmePath (Join-Path $root "README.md") `
+        -LicensePath $licensePath `
+        -WireProtocolPackagePath $wirePackage `
+        -SetupIconPath (Join-Path $root "src\LocalGPT\wwwroot\favicon.ico") `
+        -RequireWindowsX64Setup $requireWinX64Setup
 }
 finally {
     Remove-Item -LiteralPath $documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-Write-Host "Release output: $artifacts" -ForegroundColor Green
-Write-Host "Protocol package: $(Join-Path $artifacts $wirePackageName)" -ForegroundColor Green
+$releaseBundle = Join-Path $artifacts $appVersion
+Write-Host "Release output: $releaseBundle" -ForegroundColor Green
+Write-Host "Protocol package cache: $(Join-Path $artifacts $wirePackageName)" -ForegroundColor Green
