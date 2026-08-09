@@ -2480,3 +2480,98 @@
     .council-host-actions { width: 100%; }
     .council-host-actions > button { flex: 1 1 10rem; }
 }
+
+
+/* v2.4.9: final modal viewport contract. The outer dialog never grows beyond the
+   viewport; only its body scrolls. This intentionally overrides earlier grid/contain
+   experiments that could make a large provider catalog taller than the browser. */
+.chat-configuration-ribbon[open] {
+    position: fixed !important;
+    inset: 3dvh 3vw !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    contain: none !important;
+}
+
+.chat-configuration-ribbon[open] > summary {
+    flex: 0 0 auto !important;
+    min-height: 2.8rem;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    contain: none !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-content > *,
+.chat-configuration-ribbon[open] .chat-individual-model-controls,
+.chat-configuration-ribbon[open] .council-command-center,
+.chat-configuration-ribbon[open] .chat-memory-project-center,
+.chat-configuration-ribbon[open] .memory-thoughts,
+.chat-configuration-ribbon[open] .architecture-poll,
+.chat-configuration-ribbon[open] .council-direct-starters {
+    position: relative !important;
+    inset: auto !important;
+    transform: none !important;
+    contain: none !important;
+    overflow: visible;
+}
+
+.chat-configuration-ribbon[open] .chat-model-session-grid,
+.chat-configuration-ribbon[open] .provider-model-list,
+.chat-configuration-ribbon[open] .council-member-list.provider-model-list {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)) !important;
+    min-width: 0 !important;
+}
+
+.chat-configuration-ribbon[open] .provider-model-panel,
+.chat-configuration-ribbon[open] .provider-model-heading,
+.chat-configuration-ribbon[open] .provider-model-title,
+.chat-configuration-ribbon[open] .provider-model-title small,
+.chat-configuration-ribbon[open] .council-provider-host,
+.chat-configuration-ribbon[open] .council-provider-host small {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word;
+}
+
+.chat-configuration-ribbon[open] .provider-model-heading {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: start !important;
+}
+
+.chat-configuration-ribbon[open] .provider-model-heading > input {
+    justify-self: start;
+}
+
+.chat-configuration-ribbon[open] .provider-model-badges {
+    justify-content: start !important;
+    max-width: 100%;
+}
+
+.chat-configuration-ribbon[open] .provider-model-commandbar {
+    align-items: stretch;
+}
+
+.chat-configuration-ribbon[open] .provider-model-commandbar > * {
+    max-width: 100%;
+}
+
+@media (max-width: 760px) {
+    .chat-configuration-ribbon[open] {
+        inset: .25rem !important;
+    }
+}

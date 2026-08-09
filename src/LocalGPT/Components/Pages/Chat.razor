@@ -57,7 +57,7 @@
                       Click="ToggleGameConsole" />
         </div>
         <details class="chat-configuration-ribbon" data-testid="chat-configuration-ribbon">
-            <summary title="Open provider, council, memory, project and architecture controls without taking space from the conversation.">
+            <summary title="Open provider, council, memory, project and architecture controls without taking space from the conversation." @onclick="OnChatConfigurationSummaryClickedAsync">
                 <span>Chat configuration</span>
                 <small>@(ChatClientProvider.SelectedSession?.Name ?? "No provider") · @CouncilEditorModelNames.Count council model@(CouncilEditorModelNames.Count == 1 ? string.Empty : "s")</small>
             </summary>
@@ -769,6 +769,7 @@
     string feedbackStatus = string.Empty;
     bool isMemoryBusy;
     bool isModelRefreshBusy;
+    bool chatConfigurationOpen;
     readonly CancellationTokenSource componentLifetimeCts = new();
     bool autoSaveStarted;
     bool interactiveAttached;
@@ -1393,6 +1394,21 @@
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
+    }
+
+    private Task OnChatConfigurationSummaryClickedAsync()
+    {
+        chatConfigurationOpen = !chatConfigurationOpen;
+        if (chatConfigurationOpen && !isModelRefreshBusy && !isDisposed)
+        {
+            TaskRunner.Run(
+                nameof(Chat),
+                "RefreshProvidersOnChatConfigurationOpen",
+                cancellationToken => DiscoverAndApplyOllamaModelsAsync(showToast: false, cancellationToken),
+                componentLifetimeCts.Token);
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task RefreshOllamaModelsAsync()

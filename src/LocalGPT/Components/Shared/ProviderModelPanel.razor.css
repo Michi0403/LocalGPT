@@ -118,3 +118,13 @@
     .provider-model-commandbar > * { flex: 1 1 auto; }
     .provider-model-menu-items { position: fixed; inset-inline: .6rem; inset-block: auto .6rem; }
 }
+
+
+/* v2.4.9: endpoint/status text must never paint underneath adjacent badges. */
+.provider-model-heading { align-items: start; }
+.provider-model-title small { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+.provider-model-badges { min-width: 0; max-width: 100%; }
+@container (max-width: 24rem) {
+    .provider-model-heading { grid-template-columns: auto minmax(0, 1fr); }
+    .provider-model-badges { grid-column: 1 / -1; justify-content: start; }
+}

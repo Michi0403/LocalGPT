@@ -109,12 +109,28 @@
         @if (DiscoveredHosts.Count > 0)
         {
             <DxFormLayout>
-                <DxFormLayoutGroup Caption="Discovered Local AI Hosts" ColSpanMd="12">
+                <DxFormLayoutGroup Caption="Reachable AI hosts (discovery; configuration is saved separately)" ColSpanMd="12">
                     @foreach (var host in DiscoveredHosts)
                     {
                         <DxFormLayoutItem Caption="@($"{host.Provider} - {host.Endpoint}")" ColSpanMd="12">
                             <div class="discovered-ai-host">
-                                <div>@(host.IsReachable ? "Reachable" : "Unavailable"): @host.Status</div>
+                                <div class="discovered-host-status-row">
+                                    <div>
+                                        <strong>@(host.IsReachable ? "Reachable" : "Unavailable")</strong>: @host.Status
+                                        @if (IsConfiguredHost(host))
+                                        {
+                                            <span class="configured-host-badge">configured</span>
+                                        }
+                                    </div>
+                                    @if (IsConfiguredHost(host))
+                                    {
+                                        <DxButton Text="Remove saved host"
+                                                  RenderStyle="ButtonRenderStyle.Danger"
+                                                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                                  Click="@(() => RemoveConfiguredHostAsync(host))" />
+                                    }
+                                </div>
+                                <p class="field-help">Discovery only verifies reachability. Use a model below to load it into setup, then press Save provider settings. Existing provider values stay editable in the provider tabs.</p>
                                 @if (host.Models.Count > 0)
                                 {
                                     <div class="install-provider-model-grid">
@@ -171,6 +187,10 @@
                         <DxButton Text="Download Model" Click="DownloadModel" /> *@
                         <DxButton Text="Start Local Server" Click="StartLocal" />
                         <DxButton Text="Test Connection" Click="TestLocal" />
+                        <DxButton Text="Save provider settings"
+                                  RenderStyle="ButtonRenderStyle.Primary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Click="Save" />
                     </div>
 
                     <DxFormLayoutItem Caption="Additional OpenAI-compatible hosts">
@@ -191,10 +211,17 @@
                             <DxTextBox @bind-Text="host.ModelName" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem>
-                            <DxButton Text="Remove"
-                                      RenderStyle="ButtonRenderStyle.Danger"
-                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                                      Click="@(() => RemoveOpenAiCompatibleHost(host))" />
+                            <div class="configured-provider-actions">
+                                <DxButton Text="Test connection" Click="@(() => TestOpenAiCompatibleHostAsync(host))" />
+                                <DxButton Text="Save provider settings"
+                                          RenderStyle="ButtonRenderStyle.Primary"
+                                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                          Click="Save" />
+                                <DxButton Text="Remove"
+                                          RenderStyle="ButtonRenderStyle.Danger"
+                                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                          Click="@(() => RemoveOpenAiCompatibleHostAsync(host))" />
+                            </div>
                         </DxFormLayoutItem>
                     }
                 </DxFormLayoutTabPage>
@@ -206,7 +233,13 @@
                     <DxFormLayoutItem Caption="Model">
                         <DxTextBox @bind-Text="Model.OllamaCore.ModelName" />
                     </DxFormLayoutItem>
-                    <DxButton Text="Test Connection" Click="TestOllama" />
+                    <div class="configured-provider-actions">
+                        <DxButton Text="Test Connection" Click="TestOllama" />
+                        <DxButton Text="Save provider settings"
+                                  RenderStyle="ButtonRenderStyle.Primary"
+                                  RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                  Click="Save" />
+                    </div>
 
                     <DxFormLayoutItem Caption="Additional Ollama Models">
                         <DxButton Text="Add Ollama Model"
@@ -224,10 +257,17 @@
                             <DxTextBox @bind-Text="ollama.ModelName" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem>
-                            <DxButton Text="Remove"
-                                      RenderStyle="ButtonRenderStyle.Danger"
-                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                                      Click="@(() => RemoveOllamaModel(ollama))" />
+                            <div class="configured-provider-actions">
+                                <DxButton Text="Test connection" Click="@(() => TestOllamaHostAsync(ollama))" />
+                                <DxButton Text="Save provider settings"
+                                          RenderStyle="ButtonRenderStyle.Primary"
+                                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                                          Click="Save" />
+                                <DxButton Text="Remove"
+                                          RenderStyle="ButtonRenderStyle.Danger"
+                                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                          Click="@(() => RemoveOllamaModelAsync(ollama))" />
+                            </div>
                         </DxFormLayoutItem>
                     }
                 </DxFormLayoutTabPage>
@@ -1289,9 +1329,10 @@
         });
     }
 
-    private void RemoveOpenAiCompatibleHost(ChatGPTLocalCoreOptions host)
+    private async Task RemoveOpenAiCompatibleHostAsync(ChatGPTLocalCoreOptions host)
     {
         Model.ChatGPTLocalCores?.Remove(host);
+        await Save().ConfigureAwait(false);
     }
 
     private void AddOllamaModel()
@@ -1311,19 +1352,95 @@
         }
     }
 
-    private void RemoveOllamaModel(OllamaCoreOptions ollama)
+    private async Task RemoveOllamaModelAsync(OllamaCoreOptions ollama)
     {
         try
         {
-
             Model.OllamaCores.Remove(ollama);
+            await Save().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "RemoveOllamaModel failed: {Message}", ex.Message);
+            Logger.LogError(ex, "RemoveOllamaModelAsync failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
     }
+
+    private async Task TestOpenAiCompatibleHostAsync(ChatGPTLocalCoreOptions host)
+    {
+        try
+        {
+            var (ok, msg) = await Probe.TestLocalOpenAICompatAsync(host, default).ConfigureAwait(false);
+            await Append((ok ? "OK" : "FAIL") + $" OpenAI-compatible {host.Endpoint}: " + msg).ConfigureAwait(false);
+            if (ok) Notifier.ShowSuccess(toastName, host.Endpoint, "Provider reachable");
+            else Notifier.ShowWarning(toastName, msg, "Provider test failed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "TestOpenAiCompatibleHostAsync failed for provider endpoint host.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+        }
+    }
+
+    private async Task TestOllamaHostAsync(OllamaCoreOptions host)
+    {
+        try
+        {
+            var (ok, msg) = await Probe.TestOllamaAsync(host, default).ConfigureAwait(false);
+            await Append((ok ? "OK" : "FAIL") + $" Ollama {host.Uri}: " + msg).ConfigureAwait(false);
+            if (ok) Notifier.ShowSuccess(toastName, host.Uri, "Provider reachable");
+            else Notifier.ShowWarning(toastName, msg, "Provider test failed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "TestOllamaHostAsync failed for provider endpoint host.");
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+        }
+    }
+
+    private bool IsConfiguredHost(LocalAiHostDiscoveryResult host)
+    {
+        var endpoint = NormalizeProviderEndpoint(host.Endpoint);
+        if (string.Equals(host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(NormalizeProviderEndpoint(Model.OllamaCore?.Uri), endpoint, StringComparison.OrdinalIgnoreCase)
+                || Model.OllamaCores.Any(item => string.Equals(NormalizeProviderEndpoint(item.Uri), endpoint, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return string.Equals(NormalizeProviderEndpoint(Model.ChatGPTLocalCore?.Endpoint), endpoint, StringComparison.OrdinalIgnoreCase)
+            || Model.ChatGPTLocalCores.Any(item => string.Equals(NormalizeProviderEndpoint(item.Endpoint), endpoint, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task RemoveConfiguredHostAsync(LocalAiHostDiscoveryResult host)
+    {
+        try
+        {
+            var endpoint = NormalizeProviderEndpoint(host.Endpoint);
+            if (string.Equals(host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(NormalizeProviderEndpoint(Model.OllamaCore?.Uri), endpoint, StringComparison.OrdinalIgnoreCase))
+                    Model.OllamaCore = new OllamaCoreOptions { Uri = string.Empty, ModelName = string.Empty };
+                Model.OllamaCores.RemoveAll(item => string.Equals(NormalizeProviderEndpoint(item.Uri), endpoint, StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                if (string.Equals(NormalizeProviderEndpoint(Model.ChatGPTLocalCore?.Endpoint), endpoint, StringComparison.OrdinalIgnoreCase))
+                    Model.ChatGPTLocalCore = new ChatGPTLocalCoreOptions { Endpoint = string.Empty, ApiKey = string.Empty, ModelName = string.Empty, AutoStartServer = false };
+                Model.ChatGPTLocalCores.RemoveAll(item => string.Equals(NormalizeProviderEndpoint(item.Endpoint), endpoint, StringComparison.OrdinalIgnoreCase));
+            }
+
+            await Save().ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, host.Endpoint, "Saved provider removed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "RemoveConfiguredHostAsync failed for provider endpoint host.");
+            Notifier.ShowError(toastName, "The provider could not be removed. See local application logs for details.", "Remove provider failed");
+        }
+    }
+
+    private static string NormalizeProviderEndpoint(string? endpoint)
+        => string.IsNullOrWhiteSpace(endpoint) ? string.Empty : endpoint.Trim().TrimEnd('/');
 
     private async Task TestOpenAI()
     {

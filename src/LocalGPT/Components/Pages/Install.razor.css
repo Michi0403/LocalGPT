@@ -282,3 +282,36 @@
     gap: .75rem;
     margin-top: .65rem;
 }
+
+
+/* v2.4.9: make provider setup workflow explicit and keep long network addresses readable. */
+.discovered-host-status-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .65rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+.discovered-host-status-row > div { min-width: 0; overflow-wrap: anywhere; }
+.configured-host-badge {
+    display: inline-flex;
+    margin-inline-start: .45rem;
+    padding: .1rem .45rem;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 700;
+}
+.configured-provider-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+    align-items: center;
+    width: 100%;
+}
+.configured-provider-actions > * { flex: 0 1 auto; }
+@media (max-width: 680px) {
+    .configured-provider-actions { display: grid; grid-template-columns: 1fr; }
+    .configured-provider-actions ::deep .dxbl-btn { width: 100%; }
+}
