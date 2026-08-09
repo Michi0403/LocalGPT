@@ -1,4 +1,4 @@
-param(
+﻿param(
     [ValidateSet("all", "win-x64", "win-x86", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")]
     [string]$Runtime = "all",
     [ValidateSet("Release", "Debug")]
@@ -78,6 +78,17 @@ function Assert-LocalGptDocumentationPayload {
 
     $statusPath = Join-Path $DocumentationRoot "documentation-status.json"
     $status = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
+    if (-not [string]::Equals([string]$status.version, $Version, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Published LocalGPT documentation version '$($status.version)' does not match application version '$Version'."
+    }
+    $versionedPdfs = @(Get-ChildItem -LiteralPath $DocumentationRoot -File -Filter 'LocalGPT-*.pdf' -ErrorAction SilentlyContinue)
+    if ($versionedPdfs.Count -ne 1 -or -not [string]::Equals($versionedPdfs[0].Name, "LocalGPT-$Version.pdf", [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Published LocalGPT documentation must contain exactly one current versioned PDF (LocalGPT-$Version.pdf). Found: $($versionedPdfs.Name -join ', ')"
+    }
+    $apiIndex = Join-Path $DocumentationRoot 'api\index.html'
+    if (-not (Test-Path -LiteralPath $apiIndex -PathType Leaf)) { throw "Published LocalGPT documentation is missing api/index.html: $apiIndex" }
+    $physicalApiHtmlCount = @(Get-ChildItem -LiteralPath (Join-Path $DocumentationRoot 'api') -Filter '*.html' -File -Recurse -ErrorAction SilentlyContinue).Count
+    if ($physicalApiHtmlCount -le 1) { throw "Published LocalGPT documentation API directory is physically incomplete ($physicalApiHtmlCount HTML file(s))." }
     if ([string]$status.documentationMode -ne "docfx") { throw "Published LocalGPT documentation did not use the DocFX modern site." }
     if ([string]$status.pdfMode -notin @("html-browser-print", "docfx-pdf-plugin")) { throw "Published LocalGPT documentation does not contain the complete HTML-backed documentation PDF." }
     if ([string]$status.pdfMode -eq "html-browser-print" -and [int]$status.pdfSourcePageCount -lt 10) { throw "The LocalGPT documentation PDF did not include the expected HTML page set." }
@@ -323,6 +334,8 @@ function Publish-Runtime {
         Copy-Item (Join-Path $wrapperFolder "*") $appFolder -Recurse -Force
     }
 
+    # Final release-boundary check: optional wrapper/publish steps must not reintroduce stale documentation.
+    Assert-LocalGptDocumentationPayload -DocumentationRoot $publishedDocumentationRoot -Version $appVersion
     Compress-Archive -Path $appFolder -DestinationPath $appZip -CompressionLevel Optimal -Force
     Compress-Archive -Path $setupFolder -DestinationPath $setupZip -CompressionLevel Optimal -Force
     Write-Host "Created $appZip" -ForegroundColor Green

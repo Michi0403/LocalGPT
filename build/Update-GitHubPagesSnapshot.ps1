@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$DocumentationRoot = "",
     [string]$OutputArchive = ""
 )
@@ -66,6 +66,11 @@ if ([string]::IsNullOrWhiteSpace($DocumentationRoot)) {
     Write-Host "Selected version-matched LocalGPT documentation output: $DocumentationRoot" -ForegroundColor Cyan
 }
 $DocumentationRoot = [IO.Path]::GetFullPath($DocumentationRoot)
+$versionedDocumentationPdfs = @(Get-ChildItem -LiteralPath $DocumentationRoot -File -Filter 'LocalGPT-*.pdf' -ErrorAction SilentlyContinue)
+$expectedDocumentationPdf = 'LocalGPT-' + $expectedVersion + '.pdf'
+if ($versionedDocumentationPdfs.Count -ne 1 -or -not [string]::Equals($versionedDocumentationPdfs[0].Name, $expectedDocumentationPdf, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "LocalGPT Pages source must contain exactly one current versioned PDF '$expectedDocumentationPdf'. Found: $($versionedDocumentationPdfs.Name -join ', ')"
+}
 if (-not (Test-Path -LiteralPath $DocumentationRoot -PathType Container)) {
     throw "Generated LocalGPT documentation was not found: $DocumentationRoot"
 }
