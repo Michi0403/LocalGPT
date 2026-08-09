@@ -1,37 +1,125 @@
-.onewire-security-page{display:grid;gap:14px;width:100%;max-width:none;margin:0;padding:clamp(10px,2vw,24px)}.onewire-security-hero,.onewire-security-card{border:1px solid var(--bs-border-color);border-radius:8px;background:var(--bs-body-bg);box-shadow:0 3px 16px rgba(0,0,0,.08)}.onewire-security-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px}.onewire-security-hero h1{margin:.15rem 0}.onewire-security-hero p{margin:0;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em}.onewire-security-state{padding:6px 10px;border:1px solid var(--bs-border-color);border-radius:999px;white-space:nowrap}.onewire-security-card{min-width:0;padding:16px}.onewire-security-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(18rem,100%),1fr));gap:10px}.onewire-security-facts>span{display:grid;gap:4px;min-width:0;padding:9px;border:1px solid var(--bs-border-color);border-radius:6px}.onewire-security-facts code{overflow-wrap:anywhere}.onewire-security-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px}.onewire-security-actions label{display:flex;align-items:center;gap:6px}.onewire-security-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(32rem,100%),1fr));gap:14px}.onewire-security-card label{display:grid;gap:5px}.onewire-security-card textarea,.onewire-security-card input{width:100%;box-sizing:border-box}.onewire-security-inline{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(14rem,100%),1fr));gap:10px;margin:10px 0}.onewire-security-peer{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bs-border-color)}.onewire-security-peer>div{display:grid;gap:2px;min-width:0}.onewire-security-peer span,.onewire-security-peer small{overflow-wrap:anywhere}.onewire-security-error{color:var(--bs-danger);font-weight:600}@media(max-width:850px){.onewire-security-grid,.onewire-security-facts,.onewire-security-inline{grid-template-columns:1fr}.onewire-security-hero{display:grid}.onewire-security-state{justify-self:start}.onewire-security-peer{align-items:flex-start}}
-
-.onewire-security-qr{display:grid;place-items:center;min-height:180px;padding:10px;margin:10px 0;border:1px solid var(--bs-border-color);border-radius:8px;background:#fff;overflow:auto}.onewire-security-qr ::deep svg{display:block;max-width:min(100%,320px);height:auto}
-
-.onewire-protocol-table-wrap {
-    border: 1px solid color-mix(in srgb, var(--bs-border-color, #ced4da) 78%, transparent);
-    border-radius: .85rem;
-    margin-top: .75rem;
+.onewire-security-page {
+    display: grid;
+    gap: 1rem;
+    width: 100%;
     max-width: 100%;
+    margin: 0;
+    padding: clamp(.75rem, 2vw, 1.5rem);
+    min-width: 0;
+}
+
+.onewire-workbench-layout {
+    display: grid;
+    grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr);
+    align-items: start;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.onewire-workbench-layout ::deep .configuration-workbench-nav {
+    position: sticky;
+    top: .75rem;
+    max-height: calc(100dvh - 7rem);
     overflow: auto;
 }
 
-.onewire-protocol-table {
-    border-collapse: collapse;
-    min-width: 54rem;
-    width: 100%;
+.onewire-workbench-stage,
+.onewire-panel-stack {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+    min-height: 0;
 }
 
+.onewire-security-card,
+.onewire-security-subcard {
+    min-width: 0;
+    border: 1px solid color-mix(in srgb, var(--bs-border-color, #ced4da) 88%, transparent);
+    border-radius: .8rem;
+    background: var(--bs-body-bg, #fff);
+    box-shadow: 0 .2rem .8rem rgba(0,0,0,.055);
+}
+
+.onewire-security-card { padding: clamp(.9rem, 1.8vw, 1.25rem); }
+.onewire-security-subcard { padding: 1rem; box-shadow: none; }
+
+.onewire-security-section-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .9rem;
+}
+
+.onewire-security-section-heading h2,
+.onewire-security-subcard h3 { margin: .12rem 0 .25rem; }
+.onewire-security-section-heading p,
+.onewire-security-subcard p { margin: 0; color: var(--bs-secondary-color, #6c757d); }
+.onewire-security-kicker { font-size: .72rem; font-weight: 800; letter-spacing: .08em; color: var(--bs-primary, #0d6efd); }
+.onewire-count-badge,
+.onewire-security-state {
+    display: inline-flex;
+    align-items: center;
+    width: max-content;
+    padding: .32rem .58rem;
+    border: 1px solid var(--bs-border-color, #ced4da);
+    border-radius: 999px;
+    white-space: nowrap;
+    font-size: .78rem;
+}
+
+.onewire-security-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+    gap: .65rem;
+}
+.onewire-security-facts > span {
+    display: grid;
+    gap: .25rem;
+    min-width: 0;
+    padding: .7rem;
+    border: 1px solid var(--bs-border-color, #ced4da);
+    border-radius: .55rem;
+    background: color-mix(in srgb, var(--bs-body-bg, #fff) 96%, var(--bs-primary, #0d6efd));
+}
+.onewire-security-facts code { overflow-wrap: anywhere; }
+.onewire-security-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem; margin-top: .8rem; }
+.onewire-security-actions label { display: flex; align-items: center; gap: .4rem; }
+.onewire-security-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(28rem, 100%), 1fr)); gap: .85rem; }
+.onewire-security-card label,
+.onewire-security-subcard label { display: grid; gap: .35rem; }
+.onewire-security-card textarea,
+.onewire-security-card input,
+.onewire-security-subcard textarea,
+.onewire-security-subcard input { width: 100%; box-sizing: border-box; }
+.onewire-security-inline { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(14rem,100%),1fr)); gap: .65rem; margin: .7rem 0; }
+.onewire-security-peer { display: flex; justify-content: space-between; align-items: center; gap: .8rem; padding: .8rem 0; border-bottom: 1px solid var(--bs-border-color, #ced4da); }
+.onewire-security-peer:last-child { border-bottom: 0; }
+.onewire-security-peer > div { display: grid; gap: .14rem; min-width: 0; }
+.onewire-security-peer span,
+.onewire-security-peer small { overflow-wrap: anywhere; }
+.onewire-security-error { color: var(--bs-danger, #dc3545); font-weight: 600; }
+.onewire-empty-state { display: grid; justify-items: start; gap: .45rem; padding: 1rem; border: 1px dashed var(--bs-border-color, #ced4da); border-radius: .65rem; color: var(--bs-secondary-color, #6c757d); }
+.onewire-empty-state strong { color: var(--bs-body-color, #212529); }
+.onewire-ocr-status { margin: .9rem 0 0; }
+.onewire-security-qr { display:grid; place-items:center; min-height:180px; padding:10px; margin:10px 0; border:1px solid var(--bs-border-color); border-radius:8px; background:#fff; overflow:auto }
+.onewire-security-qr ::deep svg { display:block; max-width:min(100%,320px); height:auto }
+.onewire-protocol-table-wrap { border:1px solid color-mix(in srgb,var(--bs-border-color,#ced4da) 78%,transparent); border-radius:.7rem; margin-top:.75rem; max-width:100%; overflow:auto; }
+.onewire-protocol-table { border-collapse:collapse; min-width:54rem; width:100%; }
 .onewire-protocol-table th,
-.onewire-protocol-table td {
-    border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color, #ced4da) 72%, transparent);
-    padding: .72rem .8rem;
-    text-align: left;
-    vertical-align: top;
-}
+.onewire-protocol-table td { border-bottom:1px solid color-mix(in srgb,var(--bs-border-color,#ced4da) 72%,transparent); padding:.72rem .8rem; text-align:left; vertical-align:top; }
+.onewire-protocol-table th { background:color-mix(in srgb,var(--bs-body-bg,#fff) 82%,var(--bs-primary,#6f42c1)); position:sticky; top:0; z-index:1; }
+.onewire-protocol-table small { display:block; margin-top:.18rem; overflow-wrap:anywhere; }
+.onewire-protocol-table code { overflow-wrap:anywhere; white-space:normal; }
+.onewire-peer-surface { margin-top:.85rem; }
+.onewire-security-card details > summary { cursor:pointer; font-weight:700; padding:.5rem 0; }
 
-.onewire-protocol-table th {
-    background: color-mix(in srgb, var(--bs-body-bg, #fff) 82%, var(--bs-primary, #6f42c1));
-    position: sticky;
-    top: 0;
-    z-index: 1;
+@media (max-width: 860px) {
+    .onewire-workbench-layout { grid-template-columns: 1fr; }
+    .onewire-workbench-layout ::deep .configuration-workbench-nav { position: static; max-height: none; }
+    .onewire-security-grid,
+    .onewire-security-facts,
+    .onewire-security-inline { grid-template-columns: 1fr; }
+    .onewire-security-section-heading { display: grid; }
+    .onewire-security-peer { align-items: flex-start; }
 }
-
-.onewire-protocol-table small { display: block; margin-top: .18rem; overflow-wrap: anywhere; }
-.onewire-protocol-table code { overflow-wrap: anywhere; white-space: normal; }
-.onewire-peer-surface { margin-top: .85rem; }
-.onewire-security-card details > summary { cursor: pointer; font-weight: 700; padding: .5rem 0; }

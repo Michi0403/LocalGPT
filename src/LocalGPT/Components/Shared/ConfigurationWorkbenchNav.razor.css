@@ -1,0 +1,75 @@
+.configuration-workbench-nav {
+    display: grid;
+    align-content: start;
+    gap: .35rem;
+    min-width: 0;
+    padding: .45rem;
+    border: 1px solid var(--bs-border-color, #d7dce2);
+    border-radius: .75rem;
+    background: var(--bs-tertiary-bg, var(--bs-body-bg, #fff));
+    box-shadow: 0 .25rem .9rem rgba(0, 0, 0, .05);
+}
+
+.configuration-workbench-nav-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .12rem .45rem;
+    width: 100%;
+    min-width: 0;
+    padding: .55rem .65rem;
+    border: 1px solid transparent;
+    border-radius: .55rem;
+    color: var(--bs-body-color, #20242a);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.configuration-workbench-nav-item:hover,
+.configuration-workbench-nav-item:focus-visible {
+    border-color: color-mix(in srgb, var(--bs-primary, #ff6b00) 45%, var(--bs-border-color, #d7dce2));
+    background: color-mix(in srgb, var(--bs-primary, #ff6b00) 7%, var(--bs-body-bg, #fff));
+    outline: none;
+}
+
+.configuration-workbench-nav-item.active {
+    border-color: var(--bs-primary, #ff6b00);
+    background: color-mix(in srgb, var(--bs-primary, #ff6b00) 10%, var(--bs-body-bg, #fff));
+    box-shadow: inset .18rem 0 0 var(--bs-primary, #ff6b00);
+}
+
+.configuration-workbench-nav-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: .88rem;
+    font-weight: 750;
+}
+
+.configuration-workbench-nav-badge {
+    align-self: start;
+    padding: .08rem .4rem;
+    border: 1px solid var(--bs-border-color, #d7dce2);
+    border-radius: 999px;
+    font-size: .7rem;
+    font-weight: 750;
+}
+
+.configuration-workbench-nav-item small {
+    grid-column: 1 / -1;
+    color: var(--bs-secondary-color, #667085);
+    font-size: .75rem;
+    line-height: 1.25;
+}
+
+@media (max-width: 860px) {
+    .configuration-workbench-nav {
+        display: flex;
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+        scrollbar-gutter: stable;
+    }
+
+    .configuration-workbench-nav-item {
+        flex: 0 0 min(15rem, 72vw);
+    }
+}

@@ -581,9 +581,9 @@
     {
         try
         {
-            await LoadCandidatesAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
-            await LoadSavedCouncilConversationsAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
-            await LoadProjectsAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            await LoadCandidatesAsync().ConfigureAwait(false);
+            await LoadSavedCouncilConversationsAsync().ConfigureAwait(false);
+            await LoadProjectsAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -602,7 +602,7 @@
            var previouslySelectedCandidates = Candidates
                .Where(candidate => SelectedModels.Contains(candidate.SelectionKey))
                .ToList();
-           var discoveredCandidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+           var discoveredCandidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(false)).ToList();
            foreach (var preserved in previouslySelectedCandidates)
            {
                if (!discoveredCandidates.Any(candidate => candidate.SelectionKey.Equals(preserved.SelectionKey, StringComparison.OrdinalIgnoreCase)))
@@ -644,7 +644,7 @@
            statusText = Candidates.Count == 0
                ? "No provider models found."
                : $"Found {Candidates.Count(candidate => candidate.IsInstalled)} discovered provider model(s) across {Candidates.Select(candidate => candidate.Provider).Distinct(StringComparer.OrdinalIgnoreCase).Count()} provider(s); {Candidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured model(s) will verify connectivity when benchmarked or called.";
-       }, "LoadCandidatesAsync").ConfigureAwait(true) /* renderer-affine loading continuation */;
+       }, "LoadCandidatesAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -696,7 +696,7 @@
     {
         try
         {
-            await LoadSavedCouncilConversationsAsync(showStatus: true).ConfigureAwait(true) /* renderer-affine loading continuation */; ;
+            await LoadSavedCouncilConversationsAsync(showStatus: true).ConfigureAwait(false); ;
         }
         catch (Exception ex)
         {
@@ -712,7 +712,7 @@
         {
             await RunUiActionAsync(async () =>
        {
-           SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100).ConfigureAwait(true) /* renderer-affine loading continuation */)
+           SavedCouncilConversations = (await ChatMemory.GetConversationsAsync(100).ConfigureAwait(false))
                .Where(conversation => conversation.ProviderName.StartsWith("AI Council", StringComparison.OrdinalIgnoreCase))
                .ToList();
 
@@ -722,7 +722,7 @@
 
            if (showStatus)
                statusText = $"Loaded {SavedCouncilConversations.Count} saved council conversation(s).";
-       }, "LoadSavedCouncilConversationsAsync").ConfigureAwait(true) /* renderer-affine loading continuation */;
+       }, "LoadSavedCouncilConversationsAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -734,10 +734,10 @@
 
     async Task LoadProjectsAsync()
     {
-        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: false).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+        ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: false).ConfigureAwait(false)).ToList();
 
         if (Request.ProjectId is Guid projectId)
-            SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
     }
 
     async Task SelectProjectAsync(ChangeEventArgs args)
@@ -1203,7 +1203,7 @@
         ComponentActivity.RecordInformation(nameof(ModelCouncil), operation, "The AI Council UI operation started.");
         try
         {
-            await action().ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await action().ConfigureAwait(false);
             ComponentActivity.RecordInformation(nameof(ModelCouncil), operation, "The AI Council UI operation completed.");
         }
         catch (OperationCanceledException)

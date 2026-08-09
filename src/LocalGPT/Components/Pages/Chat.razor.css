@@ -2696,3 +2696,93 @@
         flex: 0 0 auto;
     }
 }
+
+/* v2.5.4: real configuration workbench. Only the selected section exists in the
+   configuration viewport; Council, memory/project and architecture panels can
+   therefore never paint over each other. The stage owns scrolling. */
+.chat-configuration-ribbon[open] .chat-configuration-content {
+    display: block !important;
+    min-height: 0 !important;
+    height: auto !important;
+    flex: 1 1 0 !important;
+    overflow: hidden !important;
+    padding: .7rem !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-workbench {
+    display: grid !important;
+    grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr) !important;
+    gap: .75rem !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    position: static !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-workbench ::deep .configuration-workbench-nav {
+    min-height: 0;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-stage {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    padding: 0 .25rem .5rem 0;
+    position: relative !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-stage ::deep .configuration-workbench-panel {
+    display: grid;
+    align-content: start;
+    gap: .75rem;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    position: static !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-stage .council-command-center,
+.chat-configuration-ribbon[open] .chat-configuration-stage .chat-memory-project-center,
+.chat-configuration-ribbon[open] .chat-configuration-stage .architecture-poll,
+.chat-configuration-ribbon[open] .chat-configuration-stage .chat-individual-model-controls,
+.chat-configuration-ribbon[open] .chat-configuration-stage .council-road-details,
+.chat-configuration-ribbon[open] .chat-configuration-stage .memory-thoughts,
+.chat-configuration-ribbon[open] .chat-configuration-stage .model-toolbar,
+.chat-configuration-ribbon[open] .chat-configuration-stage .memory-toolbar,
+.chat-configuration-ribbon[open] .chat-configuration-stage .council-picker,
+.chat-configuration-ribbon[open] .chat-configuration-stage .council-provider-hosts,
+.chat-configuration-ribbon[open] .chat-configuration-stage .council-provider-host {
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    float: none !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-stage > ::deep .configuration-workbench-panel > details {
+    width: 100%;
+    max-width: 100%;
+}
+
+@media (max-width: 900px) {
+    .chat-configuration-ribbon[open] .chat-configuration-workbench {
+        grid-template-columns: 1fr !important;
+        grid-template-rows: auto minmax(0, 1fr) !important;
+    }
+
+    .chat-configuration-ribbon[open] .chat-configuration-workbench ::deep .configuration-workbench-nav {
+        max-height: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+}

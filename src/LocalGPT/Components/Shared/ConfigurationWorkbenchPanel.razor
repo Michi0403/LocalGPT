@@ -1,0 +1,26 @@
+@inject ILogger<ConfigurationWorkbenchPanel> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
+@if (IsActive)
+{
+    <div class="configuration-workbench-panel" role="region" aria-label="@AriaLabel">
+        @ChildContent
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string SectionKey { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string ActiveKey { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? AriaLabel { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private bool IsActive => string.Equals(SectionKey, ActiveKey, StringComparison.OrdinalIgnoreCase);
+}

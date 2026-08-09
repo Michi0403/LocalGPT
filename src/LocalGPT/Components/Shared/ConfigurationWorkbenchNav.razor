@@ -1,0 +1,53 @@
+@inject ILogger<ConfigurationWorkbenchNav> Logger
+@inject INotificationService Notifier
+@inject IComponentActivityService ComponentActivity
+
+<nav class="configuration-workbench-nav" aria-label="@AriaLabel">
+    @foreach (var item in Items)
+    {
+        var active = string.Equals(item.Key, ActiveKey, StringComparison.OrdinalIgnoreCase);
+        <button type="button"
+                class="configuration-workbench-nav-item @(active ? "active" : string.Empty)"
+                aria-current="@(active ? "page" : null)"
+                @onclick="@(() => SelectAsync(item.Key))">
+            <span class="configuration-workbench-nav-label">@item.Label</span>
+            @if (!string.IsNullOrWhiteSpace(item.Badge))
+            {
+                <span class="configuration-workbench-nav-badge">@item.Badge</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(item.Description))
+            {
+                <small>@item.Description</small>
+            }
+        </button>
+    }
+</nav>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<WorkbenchNavItem> Items { get; set; } = Array.Empty<WorkbenchNavItem>();
+
+    [Parameter, EditorRequired]
+    public string ActiveKey { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ActiveKeyChanged { get; set; }
+
+    [Parameter]
+    public string AriaLabel { get; set; } = "Configuration sections";
+
+    private async Task SelectAsync(string key)
+    {
+        try
+        {
+            if (ActiveKeyChanged.HasDelegate)
+                await ActiveKeyChanged.InvokeAsync(key).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Configuration workbench section selection failed for {SectionKey}.", key);
+            ComponentActivity.RecordFailure(nameof(ConfigurationWorkbenchNav), nameof(SelectAsync), ex);
+            Notifier.ShowError("ComponentSafetyToasts", "The requested configuration section could not be opened. See local logs for details.", "Configuration navigation");
+        }
+    }
+}

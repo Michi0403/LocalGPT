@@ -380,7 +380,7 @@
     {
         try
         {
-            snapshot = await Collaboration.GetSnapshotAsync(includeResolved: true, take: 80).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            snapshot = await Collaboration.GetSnapshotAsync(includeResolved: true, take: 80).ConfigureAwait(false);
             if (!profileDirty)
             {
                 profile = new HumanCouncilParticipantProfile
@@ -398,7 +398,7 @@
             }
             foreach (var request in snapshot.Requests)
                 editors.TryAdd(request.Id, CreateEditor(request));
-            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -490,8 +490,8 @@
         statusText = string.Empty;
         try
         {
-            await action().ConfigureAwait(true) /* renderer-affine loading continuation */;
-            await RefreshAsync().ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await action().ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
             ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), operation, "The trusted local human UI operation completed.");
         }
         catch (Exception ex)

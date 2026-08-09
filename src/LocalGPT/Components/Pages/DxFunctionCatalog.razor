@@ -214,7 +214,7 @@
         _busy = true;
         try
         {
-            _entries = (await Catalog.GetEntriesAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).Select(Clone).ToList();
+            _entries = (await Catalog.GetEntriesAsync().ConfigureAwait(false)).Select(Clone).ToList();
             _dirtyGridCatalogKeys.Clear();
             _status = $"Loaded {_entries.Count} database-backed function and service policies.";
             _hasError = false;

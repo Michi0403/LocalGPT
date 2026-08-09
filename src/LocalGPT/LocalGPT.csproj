@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>2.5.3</Version>
+    <Version>2.5.4</Version>
 	  <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -31,7 +31,8 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(UseLocalWireProtocolProject)' == 'true'">
-    <ProjectReference Include="..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj" GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot" />
+    <ProjectReference Include="..\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
+                      GlobalPropertiesToRemove="Platform;PlatformTarget;RuntimeIdentifier;RuntimeIdentifiers;SelfContained;PublishSingleFile;PublishTrimmed;PublishReadyToRun;PublishAot" />
   </ItemGroup>
   <ItemGroup Condition="'$(UseLocalWireProtocolProject)' != 'true'">
     <PackageReference Include="LocalGPT.WireProtocolVersion" Version="$(LocalGptWireProtocolVersion)" />
@@ -368,6 +369,9 @@
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	  <Content Update="wwwroot\images\github.svg">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Update="wwwroot\images\home-fluent.svg">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	  <Content Update="wwwroot\images\home.svg">
@@ -1286,13 +1290,18 @@
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>-->
   </ItemGroup>
+  <ItemGroup>
+  </ItemGroup>
 
-  <Target Name="IncludeWireProtocolPackageForPublish" BeforeTargets="ComputeFilesToPublish" Condition="'$(IncludeWireProtocolPackageInPublish)' == 'true'">
+  <Target Name="IncludeWireProtocolPackageForPublish"
+          BeforeTargets="ComputeFilesToPublish"
+          Condition="'$(IncludeWireProtocolPackageInPublish)' == 'true'">
     <PropertyGroup>
       <WireProtocolPackageName>LocalGPT.WireProtocolVersion.$(LocalGptWireProtocolVersion).nupkg</WireProtocolPackageName>
       <WireProtocolPackage>$(LocalGptWireProtocolPackageDirectory)\$(WireProtocolPackageName)</WireProtocolPackage>
     </PropertyGroup>
-    <Error Condition="!Exists('$(WireProtocolPackage)')" Text="The RID-neutral LocalGPT 1-Wire package is missing: $(WireProtocolPackage). Run build\Publish-WireProtocolPackage.ps1 first or disable IncludeWireProtocolPackageInPublish." />
+    <Error Condition="!Exists('$(WireProtocolPackage)')"
+           Text="The RID-neutral LocalGPT 1-Wire package is missing: $(WireProtocolPackage). Run build\Publish-WireProtocolPackage.ps1 first or disable IncludeWireProtocolPackageInPublish." />
     <ItemGroup>
       <ResolvedFileToPublish Include="$(WireProtocolPackage)">
         <RelativePath>protocol/$(WireProtocolPackageName)</RelativePath>

@@ -537,3 +537,119 @@
         grid-column: 2;
     }
 }
+
+/* v2.5.4: real PublisherStudio-style workbench navigation. Only the selected setup segment
+   is rendered in the stage, while the left rail remains stable and independently usable. */
+.install-workbench-layout {
+    display: grid;
+    grid-template-columns: minmax(13.5rem, 18rem) minmax(0, 1fr);
+    gap: .85rem;
+    align-items: start;
+    min-width: 0;
+}
+
+.install-workbench-layout ::deep .configuration-workbench-nav {
+    position: sticky;
+    top: .25rem;
+    max-height: calc(100dvh - 7rem);
+    overflow: auto;
+}
+
+.install-workbench-stage {
+    min-width: 0;
+    width: 100%;
+}
+
+.install-workbench-stage > ::deep .configuration-workbench-panel,
+.install-workbench-stage section {
+    min-width: 0;
+    width: 100%;
+}
+
+.configured-provider-catalog {
+    display: grid;
+    gap: .7rem;
+    padding: .75rem;
+    border: 1px solid var(--bs-border-color, #d6dce3);
+    border-radius: .65rem;
+    background: color-mix(in srgb, var(--bs-body-bg, #fff) 96%, var(--bs-primary, #ff6b00) 4%);
+}
+
+.configured-provider-catalog > header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.configured-provider-catalog > header > div {
+    display: grid;
+    gap: .12rem;
+    min-width: 0;
+}
+
+.configured-provider-catalog > header small {
+    color: var(--bs-secondary-color, #667085);
+}
+
+.configured-provider-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: .2rem .45rem;
+    border-radius: 999px;
+    background: var(--bs-primary, #ff6b00);
+    color: var(--bs-white, #fff);
+    font-weight: 800;
+}
+
+.configured-provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+    gap: .65rem;
+}
+
+.configured-provider-card {
+    display: grid;
+    align-content: start;
+    gap: .45rem;
+    min-width: 0;
+    padding: .7rem;
+    border: 1px solid var(--bs-border-color, #d6dce3);
+    border-radius: .6rem;
+    background: var(--bs-body-bg, #fff);
+}
+
+.configured-provider-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .55rem;
+}
+
+.configured-provider-card-heading > div {
+    display: grid;
+    min-width: 0;
+}
+
+.configured-provider-card-heading small {
+    color: var(--bs-secondary-color, #667085);
+}
+
+.configured-provider-card code,
+.configured-provider-card span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 860px) {
+    .install-workbench-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .install-workbench-layout ::deep .configuration-workbench-nav {
+        position: static;
+        max-height: none;
+    }
+}

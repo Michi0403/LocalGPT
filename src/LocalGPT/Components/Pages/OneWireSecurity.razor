@@ -17,146 +17,217 @@
 <ToastWrapper Name="OneWireSecurityToasts" />
 
 <main class="onewire-security-page">
-    <header class="onewire-security-hero">
-        <div>
-            <p>LocalGPT · Organic system</p>
-            <h1>Runtime 1-Wire identity and trust</h1>
-            <span>Generate, rotate or delete the local identity at runtime. No private key, MFA seed or trust database is compiled into LocalGPT.</span>
-        </div>
-        <span class="onewire-security-state">@(_status.HasSecret ? "Identity ready" : "Not initialized")</span>
-    </header>
+    <WorkbenchHeader Eyebrow="LOCALGPT · 1-WIRE WORKBENCH"
+                     Title="Runtime 1-Wire identity and trust"
+                     Subtitle="Identity, protocol surface, pairing and trusted peers are separated into focused work areas so large capability catalogs never paint over security controls.">
+        <Actions>
+            <span class="onewire-security-state">@(_status.HasSecret ? "Identity ready" : "Not initialized")</span>
+        </Actions>
+    </WorkbenchHeader>
 
-    <section class="onewire-security-card">
-        <div class="onewire-security-facts">
-            <span><strong>Fingerprint</strong>@(_status.HasSecret ? _status.Fingerprint : "Not created")</span>
-            <span><strong>Trusted peers</strong>@_status.TrustedPeerCount</span>
-            <span><strong>Secret file</strong><code>@_status.SecretPath</code></span>
-        </div>
-        <div class="onewire-security-actions">
-            <DxButton Text="Create identity" Enabled="@(!_status.HasSecret)" Click="CreateAsync" RenderStyle="ButtonRenderStyle.Primary" />
-            <DxButton Text="Create pairing material" Enabled="@_status.HasSecret" Click="CreatePairingMaterialAsync" />
-            <DxButton Text="Regenerate identity" Enabled="@(_status.HasSecret && _allowReset)" Click="RegenerateAsync" RenderStyle="ButtonRenderStyle.Warning" />
-            <DxButton Text="Delete identity" Enabled="@(_status.HasSecret && _allowReset)" Click="DeleteAsync" RenderStyle="ButtonRenderStyle.Danger" />
-            <label><input type="checkbox" @bind="_allowReset" /> allow trust reset</label>
-        </div>
-        @if (!string.IsNullOrWhiteSpace(_status.Warning))
-        {
-            <p class="onewire-security-error">@_status.Warning</p>
-        }
-    </section>
+    <div class="onewire-workbench-layout">
+        <ConfigurationWorkbenchNav Items="@OneWireSections"
+                                   ActiveKey="@ActiveOneWireSection"
+                                   ActiveKeyChanged="OnOneWireSectionChangedAsync"
+                                   AriaLabel="1-Wire security sections" />
 
-    <section class="onewire-security-card">
-        <h2>Active 1-Wire protocol surface</h2>
-        <p>LocalGPT and every connected organic peer publish the exact method, route and configuration key currently available. This is the same catalog used for Council and PublisherStudio capability negotiation.</p>
-        <div class="onewire-security-facts">
-            <span><strong>Protocol</strong>@OneWireProtocol.Version (minimum @OneWireProtocol.MinimumCompatibleVersion)</span>
-            <span><strong>Runtime</strong>@(OneWireOptions.Value.Enabled ? "enabled" : "disabled") · discovery @(OneWireOptions.Value.EnableDiscovery ? "enabled" : "disabled") · LAN @(OneWireOptions.Value.EnableLanTransport ? "enabled" : "disabled")</span>
-            <span><strong>Transport</strong>@OneWireOptions.Value.ListenAddress:@OneWireOptions.Value.ServicePort · discovery UDP @OneWireOptions.Value.DiscoveryPort</span>
-            <span><strong>Limits</strong>@OneWireOptions.Value.MaximumMessageBytes bytes · broadcast @OneWireOptions.Value.BroadcastIntervalSeconds seconds · peer expiry @OneWireOptions.Value.PeerExpirySeconds seconds</span>
-            <span><strong>HTTP/JSON profile</strong><code>/api/onewire/http-json/profile</code></span>
-        </div>
-        <details open>
-            <summary>LocalGPT methods (@_localCapabilities.Count)</summary>
-            <div class="onewire-protocol-table-wrap" role="region" aria-label="Active LocalGPT 1-Wire methods" tabindex="0">
-                <table class="onewire-protocol-table">
-                    <thead><tr><th>Capability</th><th>Method and route</th><th>Configuration</th><th>Approval</th></tr></thead>
-                    <tbody>
-                        @foreach (var capability in _localCapabilities.OrderBy(item => item.Key))
-                        {
-                            <tr @key="capability.Key">
-                                <td><strong>@capability.DisplayName</strong><small>@capability.Key</small></td>
-                                <td><code>@capability.Method @capability.Route</code></td>
-                                <td><code>@capability.ConfigurationKey</code></td>
-                                <td>@(capability.RequiresFrontendUserConfirmation ? "Receiving frontend" : capability.RequiresHumanConfirmation ? "Required" : "Read-only / policy")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </details>
-        @foreach (var peer in _advertisedPeers.OrderBy(item => item.DisplayName))
-        {
-            <details class="onewire-peer-surface" @key="peer.PeerId">
-                <summary>@peer.DisplayName · @(ConnectionRegistry.IsConnected(peer.PeerId) ? "connected" : "discovered") · @peer.Capabilities.Count method(s)</summary>
-                <div class="onewire-protocol-table-wrap" role="region" aria-label="@peer.DisplayName active 1-Wire methods" tabindex="0">
-                    <table class="onewire-protocol-table">
-                        <thead><tr><th>Capability</th><th>Method and route</th><th>Configuration</th><th>Source</th></tr></thead>
-                        <tbody>
-                            @foreach (var capability in peer.Capabilities.Where(item => item.IsEnabled && item.IsOnline).OrderBy(item => item.Key))
-                            {
-                                <tr @key="capability.Key">
-                                    <td><strong>@capability.DisplayName</strong><small>@capability.Key</small></td>
-                                    <td><code>@capability.Method @capability.Route</code></td>
-                                    <td><code>@capability.ConfigurationKey</code></td>
-                                    <td>@capability.Source</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </details>
-        }
-        <p><strong>OCR check:</strong> @OcrCapabilityStatus</p>
-    </section>
-
-    @if (!string.IsNullOrWhiteSpace(_pairingTicketJson) || !string.IsNullOrWhiteSpace(_otpUri))
-    {
-        <section class="onewire-security-grid">
-            <article class="onewire-security-card">
-                <h2>Authenticator enrollment</h2>
-                <p>Scan this QR code with an Authenticator-compatible app. Generate it only when you are ready to enroll this local runtime identity.</p>
-                <div id="localgpt-security-otp-qr" class="onewire-security-qr" aria-label="LocalGPT Authenticator QR code"></div>
-                <textarea rows="5" readonly>@_otpUri</textarea>
-            </article>
-            <article class="onewire-security-card">
-                <h2>Public pairing ticket</h2>
-                <p>This short-lived ticket contains public keys and a signature only. Scan or import it in PublisherStudio or a compatible organic add-on.</p>
-                <div id="localgpt-security-ticket-qr" class="onewire-security-qr" aria-label="LocalGPT public pairing ticket QR code"></div>
-                <textarea rows="12" readonly>@_pairingTicketJson</textarea>
-            </article>
-        </section>
-    }
-
-    <section class="onewire-security-grid">
-        <article class="onewire-security-card">
-            <h2>Trust a remote peer</h2>
-            <label>Remote public pairing ticket
-                <textarea rows="11" @bind="_remoteTicketJson" @bind:event="oninput" placeholder="Paste the PublisherStudio, ESP32 gateway or custom add-on pairing-ticket JSON."></textarea>
-            </label>
-            <div class="onewire-security-inline">
-                <label>Current LocalGPT MFA code <input inputmode="numeric" maxlength="8" @bind="_mfaCode" /></label>
-                <label>Validity in minutes <input type="number" min="5" max="525600" @bind="_validForMinutes" /></label>
-            </div>
-            <DxButton Text="Verify MFA and trust peer" Click="EstablishTrustAsync" RenderStyle="ButtonRenderStyle.Primary" />
-            <p>Trust is reciprocal. Repeat the process in the remote application with LocalGPT's public ticket. Private material never crosses the wire.</p>
-        </article>
-        <article class="onewire-security-card">
-            <h2>Trusted peers</h2>
-            @if (_trustedPeers.Count == 0)
-            {
-                <p>No encrypted peer trust exists yet. Discovery and explicit frontend link approval can still be used without encrypted payloads.</p>
-            }
-            else
-            {
-                @foreach (var peer in _trustedPeers)
-                {
-                    <div class="onewire-security-peer" @key="peer.PeerId">
+        <div class="onewire-workbench-stage">
+            <ConfigurationWorkbenchPanel SectionKey="identity" ActiveKey="@ActiveOneWireSection" AriaLabel="Runtime identity">
+                <section class="onewire-security-card">
+                    <div class="onewire-security-section-heading">
                         <div>
-                            <strong>@peer.DisplayName</strong>
-                            <span>@peer.PeerId</span>
-                            <small>@peer.TrustLevel · valid until @(peer.ValidUntilUtc?.LocalDateTime.ToString("g") ?? "manual revocation")</small>
+                            <span class="onewire-security-kicker">IDENTITY</span>
+                            <h2>Local runtime identity</h2>
+                            <p>Create or rotate the local identity without compiling private material into LocalGPT.</p>
                         </div>
-                        <DxButton Text="Revoke" Click="() => RevokeAsync(peer.PeerId)" RenderStyle="ButtonRenderStyle.Danger" />
                     </div>
-                }
-            }
-        </article>
-    </section>
+                    <div class="onewire-security-facts">
+                        <span><strong>Fingerprint</strong>@(_status.HasSecret ? _status.Fingerprint : "Not created")</span>
+                        <span><strong>Trusted peers</strong>@_status.TrustedPeerCount</span>
+                        <span><strong>Secret file</strong><code>@_status.SecretPath</code></span>
+                    </div>
+                    <div class="onewire-security-actions">
+                        <DxButton Text="Create identity" Enabled="@(!_status.HasSecret)" Click="CreateAsync" RenderStyle="ButtonRenderStyle.Primary" />
+                        <DxButton Text="Create pairing material" Enabled="@_status.HasSecret" Click="CreatePairingMaterialAsync" />
+                        <DxButton Text="Regenerate identity" Enabled="@(_status.HasSecret && _allowReset)" Click="RegenerateAsync" RenderStyle="ButtonRenderStyle.Warning" />
+                        <DxButton Text="Delete identity" Enabled="@(_status.HasSecret && _allowReset)" Click="DeleteAsync" RenderStyle="ButtonRenderStyle.Danger" />
+                        <label><input type="checkbox" @bind="_allowReset" /> allow trust reset</label>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_status.Warning))
+                    {
+                        <p class="onewire-security-error">@_status.Warning</p>
+                    }
+                </section>
+            </ConfigurationWorkbenchPanel>
+
+            <ConfigurationWorkbenchPanel SectionKey="protocol" ActiveKey="@ActiveOneWireSection" AriaLabel="Active 1-Wire protocol surface">
+                <section class="onewire-security-card onewire-protocol-card">
+                    <div class="onewire-security-section-heading">
+                        <div>
+                            <span class="onewire-security-kicker">PROTOCOL</span>
+                            <h2>Active 1-Wire protocol surface</h2>
+                            <p>LocalGPT and connected organic peers publish the exact methods, routes and configuration keys used for Council and PublisherStudio capability negotiation.</p>
+                        </div>
+                        <span class="onewire-count-badge">@_localCapabilities.Count local methods</span>
+                    </div>
+                    <div class="onewire-security-facts">
+                        <span><strong>Protocol</strong>@OneWireProtocol.Version (minimum @OneWireProtocol.MinimumCompatibleVersion)</span>
+                        <span><strong>Runtime</strong>@(OneWireOptions.Value.Enabled ? "enabled" : "disabled") · discovery @(OneWireOptions.Value.EnableDiscovery ? "enabled" : "disabled") · LAN @(OneWireOptions.Value.EnableLanTransport ? "enabled" : "disabled")</span>
+                        <span><strong>Transport</strong>@OneWireOptions.Value.ListenAddress:@OneWireOptions.Value.ServicePort · discovery UDP @OneWireOptions.Value.DiscoveryPort</span>
+                        <span><strong>Limits</strong>@OneWireOptions.Value.MaximumMessageBytes bytes · broadcast @OneWireOptions.Value.BroadcastIntervalSeconds seconds · peer expiry @OneWireOptions.Value.PeerExpirySeconds seconds</span>
+                        <span><strong>HTTP/JSON profile</strong><code>/api/onewire/http-json/profile</code></span>
+                    </div>
+                    <details open>
+                        <summary>LocalGPT methods (@_localCapabilities.Count)</summary>
+                        <div class="onewire-protocol-table-wrap" role="region" aria-label="Active LocalGPT 1-Wire methods" tabindex="0">
+                            <table class="onewire-protocol-table">
+                                <thead><tr><th>Capability</th><th>Method and route</th><th>Configuration</th><th>Approval</th></tr></thead>
+                                <tbody>
+                                    @foreach (var capability in _localCapabilities.OrderBy(item => item.Key))
+                                    {
+                                        <tr @key="capability.Key">
+                                            <td><strong>@capability.DisplayName</strong><small>@capability.Key</small></td>
+                                            <td><code>@capability.Method @capability.Route</code></td>
+                                            <td><code>@capability.ConfigurationKey</code></td>
+                                            <td>@(capability.RequiresFrontendUserConfirmation ? "Receiving frontend" : capability.RequiresHumanConfirmation ? "Required" : "Read-only / policy")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                    @foreach (var peer in _advertisedPeers.OrderBy(item => item.DisplayName))
+                    {
+                        <details class="onewire-peer-surface" @key="peer.PeerId">
+                            <summary>@peer.DisplayName · @(ConnectionRegistry.IsConnected(peer.PeerId) ? "connected" : "discovered") · @peer.Capabilities.Count method(s)</summary>
+                            <div class="onewire-protocol-table-wrap" role="region" aria-label="@peer.DisplayName active 1-Wire methods" tabindex="0">
+                                <table class="onewire-protocol-table">
+                                    <thead><tr><th>Capability</th><th>Method and route</th><th>Configuration</th><th>Source</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var capability in peer.Capabilities.Where(item => item.IsEnabled && item.IsOnline).OrderBy(item => item.Key))
+                                        {
+                                            <tr @key="capability.Key">
+                                                <td><strong>@capability.DisplayName</strong><small>@capability.Key</small></td>
+                                                <td><code>@capability.Method @capability.Route</code></td>
+                                                <td><code>@capability.ConfigurationKey</code></td>
+                                                <td>@capability.Source</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    }
+                    <p class="onewire-ocr-status"><strong>OCR check:</strong> @OcrCapabilityStatus</p>
+                </section>
+            </ConfigurationWorkbenchPanel>
+
+            <ConfigurationWorkbenchPanel SectionKey="pairing" ActiveKey="@ActiveOneWireSection" AriaLabel="Pairing and trust establishment">
+                <div class="onewire-panel-stack">
+                    <section class="onewire-security-card">
+                        <div class="onewire-security-section-heading">
+                            <div>
+                                <span class="onewire-security-kicker">PAIRING</span>
+                                <h2>Pairing material</h2>
+                                <p>Generate public pairing material from the Identity section, then enroll MFA or exchange the public ticket here.</p>
+                            </div>
+                        </div>
+                        @if (string.IsNullOrWhiteSpace(_pairingTicketJson) && string.IsNullOrWhiteSpace(_otpUri))
+                        {
+                            <div class="onewire-empty-state">
+                                <strong>No pairing material generated.</strong>
+                                <span>Open Identity and choose “Create pairing material”.</span>
+                                <DxButton Text="Open identity" Click="OpenIdentitySectionAsync" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="onewire-security-grid">
+                                <article class="onewire-security-subcard">
+                                    <h3>Authenticator enrollment</h3>
+                                    <p>Scan this QR code with an Authenticator-compatible app.</p>
+                                    <div id="localgpt-security-otp-qr" class="onewire-security-qr" aria-label="LocalGPT Authenticator QR code"></div>
+                                    <textarea rows="5" readonly>@_otpUri</textarea>
+                                </article>
+                                <article class="onewire-security-subcard">
+                                    <h3>Public pairing ticket</h3>
+                                    <p>The short-lived ticket contains public keys and a signature only.</p>
+                                    <div id="localgpt-security-ticket-qr" class="onewire-security-qr" aria-label="LocalGPT public pairing ticket QR code"></div>
+                                    <textarea rows="12" readonly>@_pairingTicketJson</textarea>
+                                </article>
+                            </div>
+                        }
+                    </section>
+
+                    <section class="onewire-security-card">
+                        <div class="onewire-security-section-heading">
+                            <div>
+                                <span class="onewire-security-kicker">REMOTE TRUST</span>
+                                <h2>Trust a remote peer</h2>
+                                <p>Paste the remote public ticket and confirm with the current LocalGPT MFA code.</p>
+                            </div>
+                        </div>
+                        <label>Remote public pairing ticket
+                            <textarea rows="11" @bind="_remoteTicketJson" @bind:event="oninput" placeholder="Paste the PublisherStudio, ESP32 gateway or custom add-on pairing-ticket JSON."></textarea>
+                        </label>
+                        <div class="onewire-security-inline">
+                            <label>Current LocalGPT MFA code <input inputmode="numeric" maxlength="8" @bind="_mfaCode" /></label>
+                            <label>Validity in minutes <input type="number" min="5" max="525600" @bind="_validForMinutes" /></label>
+                        </div>
+                        <DxButton Text="Verify MFA and trust peer" Click="EstablishTrustAsync" RenderStyle="ButtonRenderStyle.Primary" />
+                        <p>Trust is reciprocal. Repeat the process in the remote application with LocalGPT's public ticket. Private material never crosses the wire.</p>
+                    </section>
+                </div>
+            </ConfigurationWorkbenchPanel>
+
+            <ConfigurationWorkbenchPanel SectionKey="peers" ActiveKey="@ActiveOneWireSection" AriaLabel="Trusted peers">
+                <section class="onewire-security-card">
+                    <div class="onewire-security-section-heading">
+                        <div>
+                            <span class="onewire-security-kicker">TRUST STORE</span>
+                            <h2>Trusted peers</h2>
+                            <p>Review and revoke encrypted peer trust without mixing the list with the protocol catalog.</p>
+                        </div>
+                        <span class="onewire-count-badge">@_trustedPeers.Count trusted</span>
+                    </div>
+                    @if (_trustedPeers.Count == 0)
+                    {
+                        <div class="onewire-empty-state">
+                            <strong>No encrypted peer trust exists yet.</strong>
+                            <span>Discovery and explicit frontend link approval remain available without encrypted payloads.</span>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var peer in _trustedPeers)
+                        {
+                            <div class="onewire-security-peer" @key="peer.PeerId">
+                                <div>
+                                    <strong>@peer.DisplayName</strong>
+                                    <span>@peer.PeerId</span>
+                                    <small>@peer.TrustLevel · valid until @(peer.ValidUntilUtc?.LocalDateTime.ToString("g") ?? "manual revocation")</small>
+                                </div>
+                                <DxButton Text="Revoke" Click="() => RevokeAsync(peer.PeerId)" RenderStyle="ButtonRenderStyle.Danger" />
+                            </div>
+                        }
+                    }
+                </section>
+            </ConfigurationWorkbenchPanel>
+        </div>
+    </div>
 </main>
 
 @code {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private readonly CancellationTokenSource lifetimeCts = new();
+    private string ActiveOneWireSection { get; set; } = "identity";
+    private IReadOnlyList<WorkbenchNavItem> OneWireSections =>
+    [
+        new("identity", "Identity", "Create, rotate and inspect the local runtime identity.", _status.HasSecret ? "ready" : "new"),
+        new("protocol", "Protocol surface", "Browse LocalGPT and peer methods without crowding the trust controls.", _localCapabilities.Count.ToString()),
+        new("pairing", "Pairing & trust", "Generate QR material and establish encrypted remote trust."),
+        new("peers", "Trusted peers", "Review and revoke stored peer trust.", _trustedPeers.Count.ToString())
+    ];
     private OneWireRuntimeSecurityStatus _status = new();
     private IReadOnlyList<OneWireTrustedPeerDescriptor> _trustedPeers = [];
     private IReadOnlyList<OneWireCapabilityDescriptor> _localCapabilities = [];
@@ -170,6 +241,24 @@
     private bool _renderQr;
     private bool initializationStarted;
     private bool isDisposed;
+
+    private Task OnOneWireSectionChangedAsync(string key)
+    {
+        ActiveOneWireSection = key;
+        if (string.Equals(key, "pairing", StringComparison.OrdinalIgnoreCase) &&
+            (!string.IsNullOrWhiteSpace(_pairingTicketJson) || !string.IsNullOrWhiteSpace(_otpUri)))
+        {
+            _renderQr = true;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OpenIdentitySectionAsync()
+    {
+        ActiveOneWireSection = "identity";
+        return Task.CompletedTask;
+    }
 
     protected override void OnInitialized()
     {
@@ -188,7 +277,7 @@
                 lifetimeCts.Token);
         }
 
-        if (!_renderQr || isDisposed)
+        if (!_renderQr || isDisposed || !string.Equals(ActiveOneWireSection, "pairing", StringComparison.OrdinalIgnoreCase))
             return;
 
         _renderQr = false;
@@ -313,6 +402,7 @@
         _otpUri = await Security.GetOtpAuthUriAsync(cancellationToken).ConfigureAwait(false);
         var ticket = await Security.CreatePairingTicketAsync(TimeSpan.FromMinutes(15), cancellationToken).ConfigureAwait(false);
         _pairingTicketJson = JsonSerializer.Serialize(ticket, JsonOptions);
+        ActiveOneWireSection = "pairing";
         _renderQr = true;
         Notifier.ShowSuccess("OneWireSecurityToasts", "Authenticator enrollment and public pairing material created.", "1-Wire Security");
     }, "CreatePairingMaterial", "Could not create 1-Wire pairing material.").ConfigureAwait(false);
@@ -409,7 +499,7 @@
         _otpUri = string.Empty;
         _pairingTicketJson = string.Empty;
         _allowReset = false;
-        _renderQr = true;
+        _renderQr = false;
     }
 
     public void Dispose()

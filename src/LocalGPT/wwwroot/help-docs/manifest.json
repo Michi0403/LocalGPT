@@ -72,10 +72,10 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "LocalGPT-2.5.3.pdf",
+      "source_relative_path": "LocalGPT-2.5.4.pdf",
       "output": {
         "resource": {
-          "relative_path": "LocalGPT-2.5.3.pdf"
+          "relative_path": "LocalGPT-2.5.4.pdf"
         }
       },
       "version": ""
@@ -6074,6 +6074,34 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.ConfigurationWorkbenchNav",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.ConfigurationWorkbenchPanel",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Components.Shared.CouncilHardwareRoadEditor.yml",
       "output": {
         ".html": {
@@ -6154,6 +6182,20 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.Components.Shared.WorkbenchHeader",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.WorkbenchNavItem.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.WorkbenchNavItem.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.WorkbenchNavItem",
       "Summary": null
     },
     {

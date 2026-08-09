@@ -63,12 +63,13 @@
                 <small>@(ChatClientProvider.SelectedSession?.Name ?? "No provider") · @CouncilEditorModelNames.Count council model@(CouncilEditorModelNames.Count == 1 ? string.Empty : "s")</small>
             </summary>
             <div class="chat-configuration-content" role="region" aria-label="Chat configuration workspace" tabindex="0">
-        <nav class="chat-configuration-section-nav" aria-label="Chat configuration sections">
-            <a href="#chat-provider-controls">@Localization.Get("Chat.Configuration.Provider", fallback: "Provider")</a>
-            <a href="#localgpt-council-controls">@Localization.Get("Chat.Configuration.Council", fallback: "AI Council")</a>
-            <a href="#localgpt-memory-controls">@Localization.Get("Chat.Configuration.MemoryProjects", fallback: "Memory & projects")</a>
-            <a href="#architecture-options">@Localization.Get("Chat.Configuration.Architecture", fallback: "Architecture")</a>
-        </nav>
+                <div class="chat-configuration-workbench">
+                    <ConfigurationWorkbenchNav Items="@ChatConfigurationSections"
+                                               ActiveKey="@ActiveChatConfigurationSection"
+                                               ActiveKeyChanged="OnChatConfigurationSectionChangedAsync"
+                                               AriaLabel="Chat configuration sections" />
+                    <div class="chat-configuration-stage">
+                        <ConfigurationWorkbenchPanel SectionKey="provider" ActiveKey="@ActiveChatConfigurationSection" AriaLabel="AI provider configuration">
         <nav class="chat-session-toolbar chat-navigation-actions" data-testid="chat-session-actions" aria-label="Chat actions">
             <strong>Chat actions</strong>
             <details class="chat-actions-menu">
@@ -138,7 +139,10 @@
                 </div>
             </details>
         }
-        <details id="localgpt-council-controls" class="council-command-center" data-testid="council-command-center">
+                        </ConfigurationWorkbenchPanel>
+
+                        <ConfigurationWorkbenchPanel SectionKey="council" ActiveKey="@ActiveChatConfigurationSection" AriaLabel="AI Council configuration">
+        <details id="localgpt-council-controls" class="council-command-center" data-testid="council-command-center" open>
             <summary title="Open model, hardware, team and artifact settings for AI Council runs.">
                 <span>AI Council controls</span>
                 <small>@CouncilEditorModelNames.Count model@(CouncilEditorModelNames.Count == 1 ? string.Empty : "s") · @CouncilEditorResourceLoadPercent% power · @CouncilEditorMaxContextTokens.ToString("N0") context</small>
@@ -310,7 +314,10 @@
             </section>
         }
         </details>
-        <details id="localgpt-memory-controls" class="chat-memory-project-center">
+                        </ConfigurationWorkbenchPanel>
+
+                        <ConfigurationWorkbenchPanel SectionKey="memory" ActiveKey="@ActiveChatConfigurationSection" AriaLabel="Memory and project context">
+        <details id="localgpt-memory-controls" class="chat-memory-project-center" open>
             <summary title="Open saved memory and project-version controls.">
                 <span>Memory & project context</span>
                 <small>@(SelectedChatProjectDetails?.Project.Name ?? "No project selected")</small>
@@ -391,7 +398,10 @@
                 }
             </div>
         }
-        <details id="architecture-options" class="architecture-poll">
+                        </ConfigurationWorkbenchPanel>
+
+                        <ConfigurationWorkbenchPanel SectionKey="architecture" ActiveKey="@ActiveChatConfigurationSection" AriaLabel="Architecture choices">
+        <details id="architecture-options" class="architecture-poll" open>
             <summary>
                 <span>Optional architecture choices</span>
                 <small>Open only when you want to decide now. Otherwise the AI should ask with a runtime poll before coding.</small>
@@ -459,6 +469,9 @@
                 <p class="memory-status">@ArchitecturePollStatus</p>
             }
         </details>
+                        </ConfigurationWorkbenchPanel>
+                    </div>
+                </div>
             </div>
         </details>
         @if (showGameConsole)
@@ -659,6 +672,21 @@
 </div>
 
 @code {
+    private string ActiveChatConfigurationSection { get; set; } = "provider";
+    private IReadOnlyList<WorkbenchNavItem> ChatConfigurationSections =>
+    [
+        new("provider", Localization.Get("Chat.Configuration.Provider", fallback: "Provider"), "Configured AI sessions and per-model properties.", ModelsList.Count.ToString()),
+        new("council", Localization.Get("Chat.Configuration.Council", fallback: "AI Council"), "Council members, hosts, hardware roads, presets and team workflow.", CouncilEditorModelNames.Count.ToString()),
+        new("memory", Localization.Get("Chat.Configuration.MemoryProjects", fallback: "Memory & projects"), "Saved conversations, project and release context.", SavedConversations.Count.ToString()),
+        new("architecture", Localization.Get("Chat.Configuration.Architecture", fallback: "Architecture"), "Optional implementation decisions for the next Council answer.")
+    ];
+
+    private Task OnChatConfigurationSectionChangedAsync(string key)
+    {
+        ActiveChatConfigurationSection = key;
+        return Task.CompletedTask;
+    }
+
     /*in razor can render as html..  AllowedFileExtensions="@Catalog.AllowedUploadExtensions"
                                                 FileTypeFilter="@Catalog.AllowedUploadMimeTypes"*/
     [Inject]
@@ -861,6 +889,8 @@
     }
     bool autoSaveFailureNotified;
     bool initialModelRefreshStarted;
+    bool initialStateInitializationStarted;
+    bool initialStateReady;
     bool hasUserSelectedSession;
     string lastSavedSignature = string.Empty;
     DotNetObjectReference<Chat>? chatInteropReference;
@@ -871,7 +901,7 @@
 
     private void CloseGameConsole() => showGameConsole = false;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
         try
         {
@@ -888,18 +918,38 @@
             HumanCollaboration.Changed += OnHumanCollaborationChanged;
             CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
             CouncilRunConfigurations.Changed += OnCouncilRunConfigurationChanged;
-            await RefreshHumanCollaborationAsync().ConfigureAwait(false);
+
             ArchitectureUiStack = Catalog.ArchitectureUiStackOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureSolutionShape = Catalog.ArchitectureSolutionShapeOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureRenderMode = Catalog.ArchitectureRenderModeOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureReferenceLook = Catalog.ArchitectureReferenceLookOptions.FirstOrDefault() ?? string.Empty;
-
-            await LoadDatabaseBackedDefaultsAsync().ConfigureAwait(false);
             AllPromptSuggestions = Catalog.GetSuggestion();
+            RefreshPromptSuggestions();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Exception in OnInitializedAsync: {Message}", ex);
+            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            initialStateReady = true;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task InitializeChatStateAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await RefreshHumanCollaborationAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await LoadDatabaseBackedDefaultsAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             await LoadPersistentPromptSuggestionsAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             await LoadCouncilTeamsAsync().ConfigureAwait(false);
             RefreshPromptSuggestions();
             await LoadChatProjectsAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             await RefreshMemoryAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);
             await LoadModelPresetsAsync().ConfigureAwait(false);
@@ -918,12 +968,29 @@
                 memoryStatus = "Saved memory is available. Click Load latest memory when you want to continue an older chat.";
             }
         }
+        catch (OperationCanceledException) when (isDisposed || cancellationToken.IsCancellationRequested)
+        {
+            Logger.LogDebug("Chat initial state loading was cancelled during component teardown.");
+        }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Exception in OnInitializedAsync: {Message}", ex);
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            Logger.LogError(ex, "Chat background initialization failed: {Message}", ex.Message);
+            ComponentActivity.RecordFailure(nameof(Chat), nameof(InitializeChatStateAsync), ex);
+            Notifier.ShowError(toastName, "Chat state could not be fully initialized. See local application logs for details.", "Chat initialization");
         }
-
+        finally
+        {
+            initialStateReady = true;
+            if (!isDisposed)
+            {
+                await InvokeAsync(() =>
+                {
+                    RefreshPromptSuggestions();
+                    ScheduleChatRuntimeActivation();
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+            }
+        }
     }
 
     /// <summary>Merges enabled database-owned prompt starters without removing maintained built-in quick prompts.</summary>
@@ -965,7 +1032,7 @@
 
     private async Task LoadCouncilTeamsAsync()
     {
-        var teams = await CouncilTeamConfigurations.GetTeamsAsync(includeDisabled: false).ConfigureAwait(true) /* renderer-affine loading continuation */;
+        var teams = await CouncilTeamConfigurations.GetTeamsAsync(includeDisabled: false).ConfigureAwait(false);
         CouncilTeams = teams.OrderBy(team => team.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
         if (CouncilTeams.Count == 0)
             return;
@@ -1003,33 +1070,33 @@
 
     private async Task LoadDatabaseBackedDefaultsAsync()
     {
-        await MigrateCouncilDefaultsAsync().ConfigureAwait(true) /* renderer-affine loading continuation */;
+        await MigrateCouncilDefaultsAsync().ConfigureAwait(false);
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultMaxOutputTokens,
             value => CouncilMaxOutputTokens = Math.Clamp(
                 value,
                 Catalog.MinCouncilOutputTokens,
-                Catalog.MaxCouncilOutputTokens)).ConfigureAwait(true) /* renderer-affine loading continuation */;
+                Catalog.MaxCouncilOutputTokens)).ConfigureAwait(false);
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultContextTokens,
             value => CouncilMaxContextTokens = Math.Clamp(
                 value,
                 Catalog.MinCouncilContextTokens,
-                Catalog.MaxCouncilContextTokens)).ConfigureAwait(true) /* renderer-affine loading continuation */;
+                Catalog.MaxCouncilContextTokens)).ConfigureAwait(false);
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultHeavyModelGpuLayers,
-            value => LimitedGpuLayers = Math.Clamp(value, 1, 99)).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            value => LimitedGpuLayers = Math.Clamp(value, 1, 99)).ConfigureAwait(false);
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultCouncilResourceLoadPercent,
-            value => CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100)).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            value => CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(value / 5d) * 5, 0, 100)).ConfigureAwait(false);
         await TryApplyDatabaseVariableAsync<int>(
             SystemVariables.DefaultCouncilCritiqueRounds,
-            value => CouncilCritiqueRounds = Math.Clamp(value, 0, 3)).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            value => CouncilCritiqueRounds = Math.Clamp(value, 0, 3)).ConfigureAwait(false);
         await TryApplyDatabaseVariableAsync<string>(
             SystemVariables.DefaultOllamaEndpoint,
             value => OllamaEndpoint = string.IsNullOrWhiteSpace(value)
                 ? Catalog.DefaultOllamaEndpoint
-                : value.Trim()).ConfigureAwait(true) /* renderer-affine loading continuation */;
+                : value.Trim()).ConfigureAwait(false);
     }
 
     private async Task MigrateCouncilDefaultsAsync()
@@ -1038,22 +1105,22 @@
         try
         {
             int version;
-            try { version = await VariableStore.GetAsync<int>(SystemVariables.CouncilDefaultsVersion.Name).ConfigureAwait(true) /* renderer-affine loading continuation */; }
+            try { version = await VariableStore.GetAsync<int>(SystemVariables.CouncilDefaultsVersion.Name).ConfigureAwait(false); }
             catch { version = 0; }
             if (version >= targetVersion) return;
 
             try
             {
-                var previousLoad = await VariableStore.GetAsync<int>(SystemVariables.DefaultCouncilResourceLoadPercent.Name).ConfigureAwait(true) /* renderer-affine loading continuation */;
+                var previousLoad = await VariableStore.GetAsync<int>(SystemVariables.DefaultCouncilResourceLoadPercent.Name).ConfigureAwait(false);
                 if (previousLoad == SystemVariables.LegacyCouncilResourceLoadPercent)
-                    await VariableStore.SetAsync(SystemVariables.DefaultCouncilResourceLoadPercent.Name, SystemVariables.DefaultCouncilResourceLoadPercent.DefaultValue).ConfigureAwait(true) /* renderer-affine loading continuation */;
+                    await VariableStore.SetAsync(SystemVariables.DefaultCouncilResourceLoadPercent.Name, SystemVariables.DefaultCouncilResourceLoadPercent.DefaultValue).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 Logger.LogDebug(ex, "The previous Council power default was unavailable during migration.");
             }
 
-            await VariableStore.SetAsync(SystemVariables.CouncilDefaultsVersion.Name, targetVersion).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await VariableStore.SetAsync(SystemVariables.CouncilDefaultsVersion.Name, targetVersion).ConfigureAwait(false);
             Logger.LogInformation("Migrated AI Council defaults to version {Version}.", targetVersion);
         }
         catch (Exception ex)
@@ -1090,6 +1157,15 @@
                     await JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").ConfigureAwait(false);
                 Logger.LogInformation($"Chat interactive render attached; waiting for the DXAiChat control before background work starts.");
                 ComponentActivity.RecordInformation(nameof(Chat), "InteractiveAttach", "The Chat page attached to the interactive circuit and is waiting for its chat control.");
+                if (!initialStateInitializationStarted)
+                {
+                    initialStateInitializationStarted = true;
+                    TaskRunner.Run(
+                        nameof(Chat),
+                        "InitializeChatState",
+                        InitializeChatStateAsync,
+                        componentLifetimeCts.Token);
+                }
                 ScheduleChatRuntimeActivation();
             }
 
@@ -1138,7 +1214,7 @@
 
     private void ScheduleChatRuntimeActivation()
     {
-        if (chatRuntimeActivationScheduled || chatRuntimeStarted || isDisposed || !interactiveAttached || !chatControlInitialized)
+        if (chatRuntimeActivationScheduled || chatRuntimeStarted || isDisposed || !interactiveAttached || !chatControlInitialized || !initialStateReady)
             return;
 
         chatRuntimeActivationScheduled = true;
@@ -2290,7 +2366,7 @@
     {
         try
         {
-            ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+            ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(false)).ToList();
             var requestedPreset = string.IsNullOrWhiteSpace(RequestedModelPresetName)
                 ? null
                 : ModelPresets.FirstOrDefault(item => string.Equals(item.Name, RequestedModelPresetName.Trim(), StringComparison.OrdinalIgnoreCase));
@@ -3001,7 +3077,7 @@
             if (SavedConversations.Count == 0)
                 return;
 
-            await LoadSavedConversationAsync(SavedConversations[0], saveCurrentFirst: false, loadIntoDxChat).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await LoadSavedConversationAsync(SavedConversations[0], saveCurrentFirst: false, loadIntoDxChat).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -3016,7 +3092,7 @@
     {
         try
         {
-            await LoadSavedConversationAsync(conversation, saveCurrentFirst: true, loadIntoDxChat: true).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await LoadSavedConversationAsync(conversation, saveCurrentFirst: true, loadIntoDxChat: true).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -3035,10 +3111,10 @@
             try
             {
                 if (saveCurrentFirst)
-                    await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(true) /* renderer-affine loading continuation */;
+                    await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
 
                 isMemoryBusy = true;
-                var snapshot = await ChatMemory.LoadConversationAsync(conversation.Id).ConfigureAwait(true) /* renderer-affine loading continuation */;
+                var snapshot = await ChatMemory.LoadConversationAsync(conversation.Id).ConfigureAwait(false);
                 if (snapshot is null)
                     return;
 
@@ -3059,7 +3135,7 @@
                     snapshot.ProjectId,
                     snapshot.ProjectVersionId,
                     SessionContext.ApplicationVersion));
-                await LoadSelectedChatProjectDetailsAsync(snapshot.ProjectId).ConfigureAwait(true) /* renderer-affine loading continuation */;
+                await LoadSelectedChatProjectDetailsAsync(snapshot.ProjectId).ConfigureAwait(false);
                 SelectedConversation = conversation;
                 restoredSession.Messages.Clear();
                 restoredSession.Messages.AddRange(snapshot.Messages);
@@ -3067,10 +3143,16 @@
                 memoryStatus = string.Equals(restoredSession.Name, snapshot.ProviderName, StringComparison.OrdinalIgnoreCase)
                     ? $"Loaded chat: {snapshot.Title} · restored {restoredSession.Name}"
                     : $"Loaded legacy chat: {snapshot.Title} · continued with {restoredSession.Name}";
-                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(snapshot.Id).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(snapshot.Id).ConfigureAwait(false)).ToList();
 
-                if (loadIntoDxChat && DxAiChat is not null)
-                    DxAiChat.LoadMessages(snapshot.Messages);
+                if (loadIntoDxChat)
+                {
+                    await InvokeAsync(() =>
+                    {
+                        if (DxAiChat is not null)
+                            DxAiChat.LoadMessages(snapshot.Messages);
+                    }).ConfigureAwait(false);
+                }
 
                 RefreshFeedbackTargets();
             }
@@ -3096,11 +3178,14 @@
     {
         try
         {
-            if (DxAiChat is null)
+            var messages = await CaptureCurrentMessagesAsync().ConfigureAwait(false);
+            if (messages.Count == 0)
                 return;
 
-            var messages = DxAiChat.SaveMessages().ToList();
-            SaveMessagesForSelectedSession(messages);
+            // Database, project-context and memory refresh work deliberately runs outside the
+            // renderer synchronization context. Only the synchronous DevExpress message capture
+            // above is renderer-affine. This keeps the supervised 12-second auto-save from
+            // periodically monopolizing the interactive circuit.
             await PersistMessagesAsync(messages, force, showToast).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -3108,7 +3193,24 @@
             Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
+    }
 
+    private async Task<IReadOnlyList<BlazorChatMessage>> CaptureCurrentMessagesAsync()
+    {
+        if (isDisposed)
+            return [];
+
+        List<BlazorChatMessage> captured = [];
+        await InvokeAsync(() =>
+        {
+            if (DxAiChat is null)
+                return;
+
+            captured = DxAiChat.SaveMessages().ToList();
+            SaveMessagesForSelectedSession(captured);
+        }).ConfigureAwait(false);
+
+        return captured;
     }
 
     private async Task PersistMessagesAsync(IReadOnlyList<BlazorChatMessage> messages, bool force, bool showToast)
@@ -3168,13 +3270,13 @@
     {
         try
         {
-            SavedConversations = (await ChatMemory.GetConversationsAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
-            RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+            SavedConversations = (await ChatMemory.GetConversationsAsync().ConfigureAwait(false)).ToList();
+            RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync().ConfigureAwait(false)).ToList();
 
             if (ActiveConversationId is Guid id)
             {
                 SelectedConversation = SavedConversations.FirstOrDefault(conversation => conversation.Id == id);
-                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(id).ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(id).ConfigureAwait(false)).ToList();
             }
             else
             {
@@ -3198,14 +3300,14 @@
 
     private async Task LoadChatProjectsAsync()
     {
-        ChatProjects = (await ProjectService.GetProjectsAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
-        await LoadSelectedChatProjectDetailsAsync(SessionContext.ProjectId).ConfigureAwait(true) /* renderer-affine loading continuation */;
+        ChatProjects = (await ProjectService.GetProjectsAsync().ConfigureAwait(false)).ToList();
+        await LoadSelectedChatProjectDetailsAsync(SessionContext.ProjectId).ConfigureAwait(false);
     }
 
     private async Task LoadSelectedChatProjectDetailsAsync(Guid? projectId)
     {
         SelectedChatProjectDetails = projectId is Guid id
-            ? await ProjectService.GetProjectAsync(id).ConfigureAwait(true) /* renderer-affine loading continuation */
+            ? await ProjectService.GetProjectAsync(id).ConfigureAwait(false)
             : null;
     }
 
@@ -3472,7 +3574,7 @@
                 if (!hasPersistableState)
                     continue;
 
-                await InvokeAsync(() => PersistCurrentConversationAsync(force: false, showToast: false)).ConfigureAwait(false);
+                await PersistCurrentConversationAsync(force: false, showToast: false).ConfigureAwait(false);
                 autoSaveFailureNotified = false;
             }
             catch (ObjectDisposedException) when (isDisposed)
@@ -3500,22 +3602,25 @@
     {
         try
         {
-            collaborationSnapshot = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 100).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            var snapshot = await HumanCollaboration.GetSnapshotAsync(includeResolved: false, take: 100).ConfigureAwait(false);
             var activeLiveSessions = CouncilLiveSessions.GetActiveSummaries();
-            var activeLiveRunIds = activeLiveSessions
-                .Select(session => session.RunId)
-                .ToHashSet();
-            if (SelectedCouncilRunId is null && activeLiveSessions.FirstOrDefault() is { } newestLiveSession)
-                SelectedCouncilRunId = newestLiveSession.RunId;
-            if (SelectedCouncilRunId is Guid selectedRunId
-                && collaborationSnapshot.ActiveRuns.All(run => run.RunId != selectedRunId)
-                && !activeLiveRunIds.Contains(selectedRunId))
-            {
-                SelectedCouncilRunId = null;
-            }
+            var activeLiveRunIds = activeLiveSessions.Select(session => session.RunId).ToHashSet();
 
-            LoadCouncilRunConfiguration(SelectedCouncilRunId);
-            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await InvokeAsync(() =>
+            {
+                collaborationSnapshot = snapshot;
+                if (SelectedCouncilRunId is null && activeLiveSessions.FirstOrDefault() is { } newestLiveSession)
+                    SelectedCouncilRunId = newestLiveSession.RunId;
+                if (SelectedCouncilRunId is Guid selectedRunId
+                    && collaborationSnapshot.ActiveRuns.All(run => run.RunId != selectedRunId)
+                    && !activeLiveRunIds.Contains(selectedRunId))
+                {
+                    SelectedCouncilRunId = null;
+                }
+
+                LoadCouncilRunConfiguration(SelectedCouncilRunId);
+                StateHasChanged();
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -3697,7 +3802,7 @@
         ComponentActivity.RecordInformation(nameof(Chat), operation, "The chat UI operation started.");
         try
         {
-            await action().ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await action().ConfigureAwait(false);
             ComponentActivity.RecordInformation(nameof(Chat), operation, "The chat UI operation completed.");
         }
         catch (OperationCanceledException)
@@ -4027,7 +4132,7 @@
             TaskRunner.Run(
                 nameof(Chat),
                 "RefreshHumanCollaboration",
-                _ => InvokeAsync(RefreshHumanCollaborationAsync),
+                _ => RefreshHumanCollaborationAsync(),
                 componentLifetimeCts.Token);
         }
         catch (ObjectDisposedException) when (isDisposed)

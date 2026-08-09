@@ -1,0 +1,14 @@
+.configuration-workbench-panel {
+    min-width: 0;
+    width: 100%;
+    animation: localgpt-workbench-panel-in .12s ease-out;
+}
+
+@keyframes localgpt-workbench-panel-in {
+    from { opacity: .72; transform: translateY(2px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .configuration-workbench-panel { animation: none; }
+}

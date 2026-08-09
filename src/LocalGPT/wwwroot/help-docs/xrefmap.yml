@@ -55347,6 +55347,21 @@ references:
   commentId: Overload:LocalGPT.Components.Pages.TestLab.BuildRenderTree
   fullName: LocalGPT.Components.Pages.TestLab.BuildRenderTree
   nameWithType: TestLab.BuildRenderTree
+- uid: LocalGPT.Components.Pages.TestLab.OnAfterRenderAsync(System.Boolean)
+  name: OnAfterRenderAsync(bool)
+  href: api/LocalGPT.Components.Pages.TestLab.html#LocalGPT_Components_Pages_TestLab_OnAfterRenderAsync_System_Boolean_
+  commentId: M:LocalGPT.Components.Pages.TestLab.OnAfterRenderAsync(System.Boolean)
+  name.vb: OnAfterRenderAsync(Boolean)
+  fullName: LocalGPT.Components.Pages.TestLab.OnAfterRenderAsync(bool)
+  fullName.vb: LocalGPT.Components.Pages.TestLab.OnAfterRenderAsync(Boolean)
+  nameWithType: TestLab.OnAfterRenderAsync(bool)
+  nameWithType.vb: TestLab.OnAfterRenderAsync(Boolean)
+- uid: LocalGPT.Components.Pages.TestLab.OnAfterRenderAsync*
+  name: OnAfterRenderAsync
+  href: api/LocalGPT.Components.Pages.TestLab.html#LocalGPT_Components_Pages_TestLab_OnAfterRenderAsync_
+  commentId: Overload:LocalGPT.Components.Pages.TestLab.OnAfterRenderAsync
+  fullName: LocalGPT.Components.Pages.TestLab.OnAfterRenderAsync
+  nameWithType: TestLab.OnAfterRenderAsync
 - uid: LocalGPT.Components.Pages.TestLab.OnInitializedAsync
   name: OnInitializedAsync()
   href: api/LocalGPT.Components.Pages.TestLab.html#LocalGPT_Components_Pages_TestLab_OnInitializedAsync
@@ -55707,6 +55722,174 @@ references:
   commentId: Overload:LocalGPT.Components.Shared.ChatGameConsole.SuggestedTeamKey
   fullName: LocalGPT.Components.Shared.ChatGameConsole.SuggestedTeamKey
   nameWithType: ChatGameConsole.SuggestedTeamKey
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav
+  name: ConfigurationWorkbenchNav
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html
+  commentId: T:LocalGPT.Components.Shared.ConfigurationWorkbenchNav
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav
+  nameWithType: ConfigurationWorkbenchNav
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.#ctor
+  name: ConfigurationWorkbenchNav()
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav__ctor
+  commentId: M:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.#ctor
+  name.vb: New()
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ConfigurationWorkbenchNav()
+  fullName.vb: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.New()
+  nameWithType: ConfigurationWorkbenchNav.ConfigurationWorkbenchNav()
+  nameWithType.vb: ConfigurationWorkbenchNav.New()
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.#ctor*
+  name: ConfigurationWorkbenchNav
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav__ctor_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.#ctor
+  name.vb: New
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ConfigurationWorkbenchNav
+  fullName.vb: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.New
+  nameWithType: ConfigurationWorkbenchNav.ConfigurationWorkbenchNav
+  nameWithType.vb: ConfigurationWorkbenchNav.New
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKey
+  name: ActiveKey
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav_ActiveKey
+  commentId: P:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKey
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKey
+  nameWithType: ConfigurationWorkbenchNav.ActiveKey
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKey*
+  name: ActiveKey
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav_ActiveKey_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKey
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKey
+  nameWithType: ConfigurationWorkbenchNav.ActiveKey
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKeyChanged
+  name: ActiveKeyChanged
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav_ActiveKeyChanged
+  commentId: P:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKeyChanged
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKeyChanged
+  nameWithType: ConfigurationWorkbenchNav.ActiveKeyChanged
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKeyChanged*
+  name: ActiveKeyChanged
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav_ActiveKeyChanged_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKeyChanged
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.ActiveKeyChanged
+  nameWithType: ConfigurationWorkbenchNav.ActiveKeyChanged
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.AriaLabel
+  name: AriaLabel
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav_AriaLabel
+  commentId: P:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.AriaLabel
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.AriaLabel
+  nameWithType: ConfigurationWorkbenchNav.AriaLabel
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.AriaLabel*
+  name: AriaLabel
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav_AriaLabel_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.AriaLabel
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.AriaLabel
+  nameWithType: ConfigurationWorkbenchNav.AriaLabel
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  name: BuildRenderTree(RenderTreeBuilder)
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav_BuildRenderTree_Microsoft_AspNetCore_Components_Rendering_RenderTreeBuilder_
+  commentId: M:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  nameWithType: ConfigurationWorkbenchNav.BuildRenderTree(RenderTreeBuilder)
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.BuildRenderTree*
+  name: BuildRenderTree
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav_BuildRenderTree_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.BuildRenderTree
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.BuildRenderTree
+  nameWithType: ConfigurationWorkbenchNav.BuildRenderTree
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.Items
+  name: Items
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav_Items
+  commentId: P:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.Items
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.Items
+  nameWithType: ConfigurationWorkbenchNav.Items
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.Items*
+  name: Items
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html#LocalGPT_Components_Shared_ConfigurationWorkbenchNav_Items_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchNav.Items
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchNav.Items
+  nameWithType: ConfigurationWorkbenchNav.Items
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel
+  name: ConfigurationWorkbenchPanel
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html
+  commentId: T:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel
+  nameWithType: ConfigurationWorkbenchPanel
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.#ctor
+  name: ConfigurationWorkbenchPanel()
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel__ctor
+  commentId: M:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.#ctor
+  name.vb: New()
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ConfigurationWorkbenchPanel()
+  fullName.vb: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.New()
+  nameWithType: ConfigurationWorkbenchPanel.ConfigurationWorkbenchPanel()
+  nameWithType.vb: ConfigurationWorkbenchPanel.New()
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.#ctor*
+  name: ConfigurationWorkbenchPanel
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel__ctor_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.#ctor
+  name.vb: New
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ConfigurationWorkbenchPanel
+  fullName.vb: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.New
+  nameWithType: ConfigurationWorkbenchPanel.ConfigurationWorkbenchPanel
+  nameWithType.vb: ConfigurationWorkbenchPanel.New
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ActiveKey
+  name: ActiveKey
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel_ActiveKey
+  commentId: P:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ActiveKey
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ActiveKey
+  nameWithType: ConfigurationWorkbenchPanel.ActiveKey
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ActiveKey*
+  name: ActiveKey
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel_ActiveKey_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ActiveKey
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ActiveKey
+  nameWithType: ConfigurationWorkbenchPanel.ActiveKey
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.AriaLabel
+  name: AriaLabel
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel_AriaLabel
+  commentId: P:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.AriaLabel
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.AriaLabel
+  nameWithType: ConfigurationWorkbenchPanel.AriaLabel
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.AriaLabel*
+  name: AriaLabel
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel_AriaLabel_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.AriaLabel
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.AriaLabel
+  nameWithType: ConfigurationWorkbenchPanel.AriaLabel
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  name: BuildRenderTree(RenderTreeBuilder)
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel_BuildRenderTree_Microsoft_AspNetCore_Components_Rendering_RenderTreeBuilder_
+  commentId: M:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)
+  nameWithType: ConfigurationWorkbenchPanel.BuildRenderTree(RenderTreeBuilder)
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.BuildRenderTree*
+  name: BuildRenderTree
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel_BuildRenderTree_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.BuildRenderTree
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.BuildRenderTree
+  nameWithType: ConfigurationWorkbenchPanel.BuildRenderTree
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ChildContent
+  name: ChildContent
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel_ChildContent
+  commentId: P:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ChildContent
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ChildContent
+  nameWithType: ConfigurationWorkbenchPanel.ChildContent
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ChildContent*
+  name: ChildContent
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel_ChildContent_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ChildContent
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.ChildContent
+  nameWithType: ConfigurationWorkbenchPanel.ChildContent
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.SectionKey
+  name: SectionKey
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel_SectionKey
+  commentId: P:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.SectionKey
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.SectionKey
+  nameWithType: ConfigurationWorkbenchPanel.SectionKey
+- uid: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.SectionKey*
+  name: SectionKey
+  href: api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html#LocalGPT_Components_Shared_ConfigurationWorkbenchPanel_SectionKey_
+  commentId: Overload:LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.SectionKey
+  fullName: LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.SectionKey
+  nameWithType: ConfigurationWorkbenchPanel.SectionKey
 - uid: LocalGPT.Components.Shared.CouncilHardwareRoadEditor
   name: CouncilHardwareRoadEditor
   href: api/LocalGPT.Components.Shared.CouncilHardwareRoadEditor.html
@@ -56355,6 +56538,177 @@ references:
   commentId: Overload:LocalGPT.Components.Shared.WorkbenchHeader.Title
   fullName: LocalGPT.Components.Shared.WorkbenchHeader.Title
   nameWithType: WorkbenchHeader.Title
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem
+  name: WorkbenchNavItem
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html
+  commentId: T:LocalGPT.Components.Shared.WorkbenchNavItem
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem
+  nameWithType: WorkbenchNavItem
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.#ctor(System.String,System.String,System.String,System.String)
+  name: WorkbenchNavItem(string, string, string?, string?)
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem__ctor_System_String_System_String_System_String_System_String_
+  commentId: M:LocalGPT.Components.Shared.WorkbenchNavItem.#ctor(System.String,System.String,System.String,System.String)
+  name.vb: New(String, String, String, String)
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.WorkbenchNavItem(string, string, string?, string?)
+  fullName.vb: LocalGPT.Components.Shared.WorkbenchNavItem.New(String, String, String, String)
+  nameWithType: WorkbenchNavItem.WorkbenchNavItem(string, string, string?, string?)
+  nameWithType.vb: WorkbenchNavItem.New(String, String, String, String)
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.#ctor*
+  name: WorkbenchNavItem
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem__ctor_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.#ctor
+  name.vb: New
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.WorkbenchNavItem
+  fullName.vb: LocalGPT.Components.Shared.WorkbenchNavItem.New
+  nameWithType: WorkbenchNavItem.WorkbenchNavItem
+  nameWithType.vb: WorkbenchNavItem.New
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Badge
+  name: Badge
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Badge
+  commentId: P:LocalGPT.Components.Shared.WorkbenchNavItem.Badge
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Badge
+  nameWithType: WorkbenchNavItem.Badge
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Badge*
+  name: Badge
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Badge_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.Badge
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Badge
+  nameWithType: WorkbenchNavItem.Badge
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Deconstruct(System.String@,System.String@,System.String@,System.String@)
+  name: Deconstruct(out string, out string, out string?, out string?)
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Deconstruct_System_String__System_String__System_String__System_String__
+  commentId: M:LocalGPT.Components.Shared.WorkbenchNavItem.Deconstruct(System.String@,System.String@,System.String@,System.String@)
+  name.vb: Deconstruct(String, String, String, String)
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Deconstruct(out string, out string, out string?, out string?)
+  fullName.vb: LocalGPT.Components.Shared.WorkbenchNavItem.Deconstruct(String, String, String, String)
+  nameWithType: WorkbenchNavItem.Deconstruct(out string, out string, out string?, out string?)
+  nameWithType.vb: WorkbenchNavItem.Deconstruct(String, String, String, String)
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Deconstruct*
+  name: Deconstruct
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Deconstruct_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.Deconstruct
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Deconstruct
+  nameWithType: WorkbenchNavItem.Deconstruct
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Description
+  name: Description
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Description
+  commentId: P:LocalGPT.Components.Shared.WorkbenchNavItem.Description
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Description
+  nameWithType: WorkbenchNavItem.Description
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Description*
+  name: Description
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Description_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.Description
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Description
+  nameWithType: WorkbenchNavItem.Description
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Equals(LocalGPT.Components.Shared.WorkbenchNavItem)
+  name: Equals(WorkbenchNavItem?)
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Equals_LocalGPT_Components_Shared_WorkbenchNavItem_
+  commentId: M:LocalGPT.Components.Shared.WorkbenchNavItem.Equals(LocalGPT.Components.Shared.WorkbenchNavItem)
+  name.vb: Equals(WorkbenchNavItem)
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Equals(LocalGPT.Components.Shared.WorkbenchNavItem?)
+  fullName.vb: LocalGPT.Components.Shared.WorkbenchNavItem.Equals(LocalGPT.Components.Shared.WorkbenchNavItem)
+  nameWithType: WorkbenchNavItem.Equals(WorkbenchNavItem?)
+  nameWithType.vb: WorkbenchNavItem.Equals(WorkbenchNavItem)
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Equals(System.Object)
+  name: Equals(object?)
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Equals_System_Object_
+  commentId: M:LocalGPT.Components.Shared.WorkbenchNavItem.Equals(System.Object)
+  name.vb: Equals(Object)
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Equals(object?)
+  fullName.vb: LocalGPT.Components.Shared.WorkbenchNavItem.Equals(Object)
+  nameWithType: WorkbenchNavItem.Equals(object?)
+  nameWithType.vb: WorkbenchNavItem.Equals(Object)
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Equals*
+  name: Equals
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Equals_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.Equals
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Equals
+  nameWithType: WorkbenchNavItem.Equals
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.GetHashCode
+  name: GetHashCode()
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_GetHashCode
+  commentId: M:LocalGPT.Components.Shared.WorkbenchNavItem.GetHashCode
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.GetHashCode()
+  nameWithType: WorkbenchNavItem.GetHashCode()
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.GetHashCode*
+  name: GetHashCode
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_GetHashCode_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.GetHashCode
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.GetHashCode
+  nameWithType: WorkbenchNavItem.GetHashCode
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Key
+  name: Key
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Key
+  commentId: P:LocalGPT.Components.Shared.WorkbenchNavItem.Key
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Key
+  nameWithType: WorkbenchNavItem.Key
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Key*
+  name: Key
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Key_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.Key
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Key
+  nameWithType: WorkbenchNavItem.Key
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Label
+  name: Label
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Label
+  commentId: P:LocalGPT.Components.Shared.WorkbenchNavItem.Label
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Label
+  nameWithType: WorkbenchNavItem.Label
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.Label*
+  name: Label
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_Label_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.Label
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.Label
+  nameWithType: WorkbenchNavItem.Label
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.ToString
+  name: ToString()
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_ToString
+  commentId: M:LocalGPT.Components.Shared.WorkbenchNavItem.ToString
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.ToString()
+  nameWithType: WorkbenchNavItem.ToString()
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.ToString*
+  name: ToString
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_ToString_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.ToString
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.ToString
+  nameWithType: WorkbenchNavItem.ToString
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.op_Equality(LocalGPT.Components.Shared.WorkbenchNavItem,LocalGPT.Components.Shared.WorkbenchNavItem)
+  name: operator ==(WorkbenchNavItem?, WorkbenchNavItem?)
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_op_Equality_LocalGPT_Components_Shared_WorkbenchNavItem_LocalGPT_Components_Shared_WorkbenchNavItem_
+  commentId: M:LocalGPT.Components.Shared.WorkbenchNavItem.op_Equality(LocalGPT.Components.Shared.WorkbenchNavItem,LocalGPT.Components.Shared.WorkbenchNavItem)
+  name.vb: =(WorkbenchNavItem, WorkbenchNavItem)
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.operator ==(LocalGPT.Components.Shared.WorkbenchNavItem?, LocalGPT.Components.Shared.WorkbenchNavItem?)
+  fullName.vb: LocalGPT.Components.Shared.WorkbenchNavItem.=(LocalGPT.Components.Shared.WorkbenchNavItem, LocalGPT.Components.Shared.WorkbenchNavItem)
+  nameWithType: WorkbenchNavItem.operator ==(WorkbenchNavItem?, WorkbenchNavItem?)
+  nameWithType.vb: WorkbenchNavItem.=(WorkbenchNavItem, WorkbenchNavItem)
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.op_Equality*
+  name: operator ==
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_op_Equality_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.op_Equality
+  name.vb: =
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.operator ==
+  fullName.vb: LocalGPT.Components.Shared.WorkbenchNavItem.=
+  nameWithType: WorkbenchNavItem.operator ==
+  nameWithType.vb: WorkbenchNavItem.=
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.op_Inequality(LocalGPT.Components.Shared.WorkbenchNavItem,LocalGPT.Components.Shared.WorkbenchNavItem)
+  name: operator !=(WorkbenchNavItem?, WorkbenchNavItem?)
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_op_Inequality_LocalGPT_Components_Shared_WorkbenchNavItem_LocalGPT_Components_Shared_WorkbenchNavItem_
+  commentId: M:LocalGPT.Components.Shared.WorkbenchNavItem.op_Inequality(LocalGPT.Components.Shared.WorkbenchNavItem,LocalGPT.Components.Shared.WorkbenchNavItem)
+  name.vb: <>(WorkbenchNavItem, WorkbenchNavItem)
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.operator !=(LocalGPT.Components.Shared.WorkbenchNavItem?, LocalGPT.Components.Shared.WorkbenchNavItem?)
+  fullName.vb: LocalGPT.Components.Shared.WorkbenchNavItem.<>(LocalGPT.Components.Shared.WorkbenchNavItem, LocalGPT.Components.Shared.WorkbenchNavItem)
+  nameWithType: WorkbenchNavItem.operator !=(WorkbenchNavItem?, WorkbenchNavItem?)
+  nameWithType.vb: WorkbenchNavItem.<>(WorkbenchNavItem, WorkbenchNavItem)
+- uid: LocalGPT.Components.Shared.WorkbenchNavItem.op_Inequality*
+  name: operator !=
+  href: api/LocalGPT.Components.Shared.WorkbenchNavItem.html#LocalGPT_Components_Shared_WorkbenchNavItem_op_Inequality_
+  commentId: Overload:LocalGPT.Components.Shared.WorkbenchNavItem.op_Inequality
+  name.vb: <>
+  fullName: LocalGPT.Components.Shared.WorkbenchNavItem.operator !=
+  fullName.vb: LocalGPT.Components.Shared.WorkbenchNavItem.<>
+  nameWithType: WorkbenchNavItem.operator !=
+  nameWithType.vb: WorkbenchNavItem.<>
 - uid: LocalGPT.Components._Imports
   name: _Imports
   href: api/LocalGPT.Components._Imports.html

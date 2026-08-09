@@ -387,7 +387,7 @@
         {
             KnowledgeEdit = Catalog.CouncilKnowledgeEntryNew;
 
-            await RefreshAllAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            await RefreshAllAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -402,8 +402,8 @@
         {
             await RunUiActionAsync(async () =>
      {
-         KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(true) /* renderer-affine loading continuation */, Logger);
-         Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+         KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
+         Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(false)).ToList();
          SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();
          if (SelectedKnowledgeEntry is not null)
              SelectKnowledgeEntry(SelectedKnowledgeEntry);
@@ -414,10 +414,10 @@
              SelectedTable = Tables.FirstOrDefault(table => table.Name.Equals(SelectedTable.Name, StringComparison.OrdinalIgnoreCase));
          SelectedTable ??= Tables.FirstOrDefault(table => table.Name.Equals("CouncilKnowledgeEntries", StringComparison.OrdinalIgnoreCase)) ?? Tables.FirstOrDefault();
          if (SelectedTable is not null)
-             await LoadTableAsync(SelectedTable).ConfigureAwait(true) /* renderer-affine loading continuation */;
+             await LoadTableAsync(SelectedTable).ConfigureAwait(false);
 
          statusText = $"Loaded {Tables.Count} table(s) and {KnowledgeEntries.Count} knowledge note(s).";
-     }, "RefreshAllAsync").ConfigureAwait(true) /* renderer-affine loading continuation */;
+     }, "RefreshAllAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -641,7 +641,7 @@
         try
         {
             if (SelectedTable is not null)
-                await LoadTableAsync(SelectedTable).ConfigureAwait(true) /* renderer-affine loading continuation */;
+                await LoadTableAsync(SelectedTable).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -657,8 +657,8 @@
             await RunUiActionAsync(async () =>
         {
             SelectedTable = table;
-            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(true) /* renderer-affine loading continuation */;
-            EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(true) /* renderer-affine loading continuation */, StringComparer.OrdinalIgnoreCase);
+            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(false);
+            EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(false), StringComparer.OrdinalIgnoreCase);
             SessionEditorKinds.Clear();
             GridRows.Clear();
             foreach (var row in CurrentTable.Rows)
@@ -683,7 +683,7 @@
             else
                 NewSqliteRow();
             statusText = $"Loaded {CurrentTable.Rows.Count} row(s) from {CurrentTable.TableName}.";
-        }, "LoadTableAsync").ConfigureAwait(true) /* renderer-affine loading continuation */;
+        }, "LoadTableAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -798,7 +798,7 @@
     {
         try
         {
-            Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(true) /* renderer-affine loading continuation */).ToList();
+            Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(false)).ToList();
             if (!loadSelectedTable || CurrentTable is null)
                 return;
 
@@ -806,8 +806,8 @@
             if (table is not null)
             {
                 SelectedTable = table;
-                CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(true) /* renderer-affine loading continuation */;
-                EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(true) /* renderer-affine loading continuation */, StringComparer.OrdinalIgnoreCase);
+                CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(false);
+                EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(false), StringComparer.OrdinalIgnoreCase);
                 SessionEditorKinds.Clear();
                 GridRows.Clear();
                 foreach (var row in CurrentTable.Rows)
@@ -934,7 +934,7 @@
         ComponentActivity.RecordInformation(nameof(Database), operation, "The database UI operation started.");
         try
         {
-            await action().ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await action().ConfigureAwait(false);
             ComponentActivity.RecordInformation(nameof(Database), operation, "The database UI operation completed.");
         }
         catch (OperationCanceledException)

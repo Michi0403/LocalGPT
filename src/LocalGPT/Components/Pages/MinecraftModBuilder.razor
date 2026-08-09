@@ -566,7 +566,7 @@
         ComponentActivity.RecordInformation(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation started.");
         try
         {
-            await action().ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await action().ConfigureAwait(false);
             ComponentActivity.RecordInformation(nameof(MinecraftModBuilder), operation, "The Minecraft workspace UI operation completed.");
         }
         catch (OperationCanceledException)

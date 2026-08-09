@@ -10,6 +10,7 @@
 @inject ILogger<TestLab> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject ISupervisedTaskRunner TaskRunner
 @inject IRemoteKnowledgeImportService RemoteKnowledgeImporter
 @inject ILearnBaseKnowledgeImporterService LearnBaseImporter
 @inject ICouncilTeamConfigurationService CouncilTeams
@@ -20,16 +21,15 @@
     <WorkbenchHeader Eyebrow='@Localization.Get("TestLab.Workbench.Eyebrow", fallback: "Diagnostics studio")'
                      Title='@Localization.Get("TestLab.Workbench.Title", fallback: "Test Lab")'
                      Subtitle='@Localization.Get("TestLab.Workbench.Subtitle", fallback: "Run local diagnostics, inspect generated artifacts and manage bounded knowledge imports from one responsive workbench.")' />
-    <nav class="test-lab-section-nav" aria-label="Test Lab sections">
-        <a href="#frontend-smoke">@Localization.Get("TestLab.Workbench.Nav.Frontend", fallback: "Frontend smoke")</a>
-        <a href="#learnbase-import">@Localization.Get("TestLab.Workbench.Nav.LearnBase", fallback: "Learn-Base")</a>
-        <a href="#remote-knowledge">@Localization.Get("TestLab.Workbench.Nav.Remote", fallback: "Remote knowledge")</a>
-        <a href="#custom-route">@Localization.Get("TestLab.Workbench.Nav.Route", fallback: "Custom route")</a>
-        <a href="#generated-workspace">@Localization.Get("TestLab.Workbench.Nav.Workspace", fallback: "Workspace")</a>
-        <a href="#test-result">@Localization.Get("TestLab.Workbench.Nav.Result", fallback: "Result")</a>
-    </nav>
     <ToastWrapper Name="@toastName" />
+    <div class="test-lab-workbench-layout">
+        <ConfigurationWorkbenchNav Items="@TestLabSections"
+                                   ActiveKey="@ActiveTestLabSection"
+                                   ActiveKeyChanged="OnTestLabSectionChanged"
+                                   AriaLabel="Test Lab sections" />
+        <div class="test-lab-workbench-stage">
     <section class="test-lab-grid">
+        <ConfigurationWorkbenchPanel SectionKey="frontend" ActiveKey="@ActiveTestLabSection" AriaLabel="Frontend API smoke tests">
         <article id="frontend-smoke" class="help-panel test-lab-panel frontend-api-smoke-panel">
             <h2>Frontend API Smoke</h2>
             <p>These checks stay on the local loopback server and are useful before loading a heavy model.</p>
@@ -44,7 +44,9 @@
                 }
             </div>
         </article>
+        </ConfigurationWorkbenchPanel>
 
+        <ConfigurationWorkbenchPanel SectionKey="learnbase" ActiveKey="@ActiveTestLabSection" AriaLabel="Learn-Base import">
         <article id="learnbase-import" class="help-panel test-lab-panel learnbase-panel">
             <h2>Learn-Base Import</h2>
             <p>Import compact, bounded source maps into the Council knowledge database. Presets are starting points; the actual file endings and regex policy remain editable for every run.</p>
@@ -139,7 +141,9 @@
                       Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(learnBaseRoot) && (selectedLearnBaseExtensions.Count > 0 || !string.IsNullOrWhiteSpace(learnBaseAdditionalExtensions)))"
                       Click="RunLearnBaseImportAsync" />
         </article>
+        </ConfigurationWorkbenchPanel>
 
+        <ConfigurationWorkbenchPanel SectionKey="remote" ActiveKey="@ActiveTestLabSection" AriaLabel="Remote knowledge import">
         <article id="remote-knowledge" class="help-panel test-lab-panel remote-knowledge-panel">
             <h2>GitHub / Website Knowledge</h2>
             <p>Download a public repository or webpage into LocalGPT's bounded source cache, inspect the returned files, apply a regex/file-ending policy, and optionally pass the result into the existing learn-base database importer.</p>
@@ -211,8 +215,10 @@
                 </details>
             }
         </article>
+        </ConfigurationWorkbenchPanel>
     </section>
 
+    <ConfigurationWorkbenchPanel SectionKey="route" ActiveKey="@ActiveTestLabSection" AriaLabel="Custom local route">
     <section id="custom-route" class="help-panel help-wide test-lab-panel">
         <h2>Custom Local Route</h2>
         <p>Allowed routes are constrained to local diagnostics and artifact paths.</p>
@@ -225,7 +231,9 @@
                       Click="RunCustomRouteAsync" />
         </div>
     </section>
+    </ConfigurationWorkbenchPanel>
 
+    <ConfigurationWorkbenchPanel SectionKey="workspace" ActiveKey="@ActiveTestLabSection" AriaLabel="Generated workspace">
     <section id="generated-workspace" class="help-panel help-wide test-lab-panel">
         <h2>Generated Workspace</h2>
         <p>Inspect and edit generated source before refreshing the zip. Starting programs or scripts stays a user-approved action.</p>
@@ -272,7 +280,9 @@
             </div>
         }
     </section>
+    </ConfigurationWorkbenchPanel>
 
+    <ConfigurationWorkbenchPanel SectionKey="result" ActiveKey="@ActiveTestLabSection" AriaLabel="Test result">
     <section id="test-result" class="help-panel help-wide test-lab-panel test-result-panel">
         <h2>Result</h2>
         @if (!string.IsNullOrWhiteSpace(statusText))
@@ -291,6 +301,9 @@
         }
         <textarea class="test-lab-output" readonly>@resultText</textarea>
     </section>
+    </ConfigurationWorkbenchPanel>
+        </div>
+    </div>
 
     <LocalPathExplorer @bind-Visible="learnBasePathExplorerVisible"
                        @bind-SelectedPath="learnBaseRoot"
@@ -340,6 +353,23 @@
 </main>
 
 @code {
+    private string ActiveTestLabSection { get; set; } = "frontend";
+    private IReadOnlyList<WorkbenchNavItem> TestLabSections =>
+    [
+        new("frontend", Localization.Get("TestLab.Workbench.Nav.Frontend", fallback: "Frontend smoke"), "Local API health and diagnostics"),
+        new("learnbase", Localization.Get("TestLab.Workbench.Nav.LearnBase", fallback: "Learn-Base"), "Bounded local source import"),
+        new("remote", Localization.Get("TestLab.Workbench.Nav.Remote", fallback: "Remote knowledge"), "Preview then approve remote knowledge"),
+        new("route", Localization.Get("TestLab.Workbench.Nav.Route", fallback: "Custom route"), "Allowed local diagnostic routes"),
+        new("workspace", Localization.Get("TestLab.Workbench.Nav.Workspace", fallback: "Workspace"), "Inspect generated source and ZIPs"),
+        new("result", Localization.Get("TestLab.Workbench.Nav.Result", fallback: "Result"), "Current operation output")
+    ];
+
+    private Task OnTestLabSectionChanged(string key)
+    {
+        ActiveTestLabSection = key;
+        return Task.CompletedTask;
+    }
+
 
     string toastName = "TestLabToasts";
     private bool isBusy;
@@ -385,8 +415,11 @@
         ? "Generated Source"
         : $"Generated Source - {openSourceRelativePath}";
 
-    protected override async Task OnInitializedAsync()
+    private bool initialRoleCatalogLoadStarted;
+
+    protected override Task OnInitializedAsync()
     {
+        ApplyRequestedTestLabSection();
         selectedLearnBasePreset = Catalog.LearnBasePresets.First();
         selectedScanProfile = Catalog.LearnBaseScanProfiles.Skip(1).FirstOrDefault() ?? Catalog.LearnBaseScanProfiles.First();
         learnBaseRoot = Directory.Exists(selectedLearnBasePreset.RootPath)
@@ -394,19 +427,68 @@
             : string.Empty;
         maxProjects = selectedLearnBasePreset.RecommendedMaxProjects;
         SelectAllLearnBaseExtensions();
+        return Task.CompletedTask;
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !initialRoleCatalogLoadStarted)
+        {
+            initialRoleCatalogLoadStarted = true;
+            TaskRunner.Run(nameof(TestLab), "PreloadRemoteRoleCatalog", PreloadRemoteRoleCatalogAsync);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task PreloadRemoteRoleCatalogAsync(CancellationToken cancellationToken)
+    {
         try
         {
-            availableRemoteRoleKeys = (await CouncilTeams.GetTeamsAsync().ConfigureAwait(true) /* renderer-affine lifecycle continuation */)
+            var roleKeys = (await CouncilTeams.GetTeamsAsync().ConfigureAwait(false))
                 .SelectMany(team => team.Roles)
                 .Select(role => role.Role)
                 .Where(role => !string.IsNullOrWhiteSpace(role))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(role => role, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            cancellationToken.ThrowIfCancellationRequested();
+            await InvokeAsync(() =>
+            {
+                availableRemoteRoleKeys = roleKeys;
+                StateHasChanged();
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogDebug("Test Lab role catalog preload was cancelled.");
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not preload Council role choices for remote knowledge import; free-text role entry remains available.");
+        }
+    }
+
+
+    private void ApplyRequestedTestLabSection()
+    {
+        try
+        {
+            var fragment = new Uri(NavigationManager.Uri).Fragment.TrimStart('#');
+            ActiveTestLabSection = fragment switch
+            {
+                "frontend-smoke" => "frontend",
+                "learnbase-import" => "learnbase",
+                "remote-knowledge" => "remote",
+                "custom-route" => "route",
+                "generated-workspace" => "workspace",
+                "test-result" => "result",
+                _ => ActiveTestLabSection
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not map the Test Lab URL fragment to a workbench section.");
         }
     }
 
@@ -620,16 +702,16 @@
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
             var response = await http.GetFromJsonAsync<ArtifactWorkspaceListResponse>(
-                NavigationManager.ToAbsoluteUri("/__diag/artifact-workspaces?take=30")).ConfigureAwait(true) /* renderer-affine loading continuation */;
+                NavigationManager.ToAbsoluteUri("/__diag/artifact-workspaces?take=30")).ConfigureAwait(false);
 
             artifactBaseUrl = response?.BaseUrl ?? NavigationManager.BaseUri.TrimEnd('/');
             artifactWorkspaces = response?.Workspaces ?? [];
             selectedArtifactWorkspace = response?.LatestWorkspace ?? artifactWorkspaces.FirstOrDefault();
-            await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await LoadSelectedWorkspaceFilesAsync().ConfigureAwait(false);
             statusText = selectedArtifactWorkspace is null
                 ? "No generated artifact workspaces found yet."
                 : $"Loaded workspace {selectedArtifactWorkspace.WorkspaceName}.";
-        }, "LoadArtifactWorkspacesAsync").ConfigureAwait(true) /* renderer-affine loading continuation */;
+        }, "LoadArtifactWorkspacesAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -666,7 +748,7 @@
 
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
             var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/files?take=500";
-            var response = await http.GetFromJsonAsync<ArtifactWorkspaceFilesResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(true) /* renderer-affine loading continuation */;
+            var response = await http.GetFromJsonAsync<ArtifactWorkspaceFilesResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(false);
             artifactWorkspaceFiles = response?.Files ?? [];
         }
         catch (Exception ex)
@@ -689,13 +771,13 @@
 
            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
            var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/file?path={Uri.EscapeDataString(file.RelativePath)}";
-           var response = await http.GetFromJsonAsync<ArtifactWorkspaceFileResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(true) /* renderer-affine loading continuation */;
+           var response = await http.GetFromJsonAsync<ArtifactWorkspaceFileResponse>(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(false);
            openSourceRelativePath = response?.RelativePath ?? file.RelativePath;
            openSourceContent = response?.Content ?? string.Empty;
            openSourcePreviewMarkup = CouncilText.BuildSourcePreviewMarkup(openSourceRelativePath, openSourceContent, Logger);
            sourcePopupVisible = true;
            statusText = $"Opened {openSourceRelativePath}.";
-       }, "OpenWorkspaceFileAsync").ConfigureAwait(true) /* renderer-affine loading continuation */;
+       }, "OpenWorkspaceFileAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -749,15 +831,15 @@
 
           var route = $"/__diag/artifact-workspace/{Uri.EscapeDataString(selectedArtifactWorkspace.WorkspaceName)}/zip";
           using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-          var response = await http.GetAsync(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(true) /* renderer-affine loading continuation */;
-          var text = await response.Content.ReadAsStringAsync().ConfigureAwait(true) /* renderer-affine loading continuation */;
+          var response = await http.GetAsync(NavigationManager.ToAbsoluteUri(route)).ConfigureAwait(false);
+          var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
           statusText = response.IsSuccessStatusCode
               ? $"Workspace zip refreshed for {selectedArtifactWorkspace.WorkspaceName}."
               : $"Zip refresh failed: {(int)response.StatusCode} {response.ReasonPhrase}";
           resultText = CouncilText.PrettyPrintJson(text, Logger);
           downloadLinks = ExtractDownloadLinks(text);
-          await LoadArtifactWorkspacesAsync().ConfigureAwait(true) /* renderer-affine loading continuation */;
-      }, "RefreshWorkspaceZipAsync").ConfigureAwait(true) /* renderer-affine loading continuation */;
+          await LoadArtifactWorkspacesAsync().ConfigureAwait(false);
+      }, "RefreshWorkspaceZipAsync").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -862,7 +944,7 @@
         ComponentActivity.RecordInformation(nameof(TestLab), operation, "The Test Lab UI operation started.");
         try
         {
-            await action().ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await action().ConfigureAwait(false);
             ComponentActivity.RecordInformation(nameof(TestLab), operation, "The Test Lab UI operation completed.");
         }
         catch (OperationCanceledException)

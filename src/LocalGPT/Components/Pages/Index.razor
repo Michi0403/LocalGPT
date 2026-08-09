@@ -156,7 +156,7 @@
         Logger.LogInformation("LocalGPT home page initialized.");
         try
         {
-            _onboarding = await Onboarding.GetStatusAsync(refreshConnectivity: true).ConfigureAwait(true);
+            _onboarding = await Onboarding.GetStatusAsync(refreshConnectivity: true).ConfigureAwait(false);
         }
         catch (Exception exception)
         {
@@ -179,7 +179,7 @@
         _onboardingBusy = true;
         try
         {
-            await Onboarding.CompleteAsync(userConfirmed: true).ConfigureAwait(true);
+            await Onboarding.CompleteAsync(userConfirmed: true).ConfigureAwait(false);
             _onboarding.IsCompleted = true;
         }
         catch (Exception exception)

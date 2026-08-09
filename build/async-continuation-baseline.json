@@ -13,80 +13,11 @@
   "awaitForeachRequirement": "ConfigureAwait(false)",
   "awaitUsingPolicy": "Language-level asynchronous disposal is reviewed separately; awaited resource initializers remain explicitly configured.",
   "rendererAffineHelperMethods": {
-    "Components/Layout/HumanCollaborationInbox.razor": [
-      "RefreshAsync",
-      "RunHumanUiOperationAsync"
-    ],
-    "Components/Pages/ProjectMaintenance.razor": [
-      "LoadAsync",
-      "RefreshTrackedFilesAsync",
-      "RunAsync"
-    ],
-    "Components/Pages/Database.razor": [
-      "LoadSelectedTableAsync",
-      "LoadTableAsync",
-      "RefreshAllAsync",
-      "RefreshTablesOnlyAsync",
-      "RunUiActionAsync"
-    ],
-    "Components/Pages/ModelCouncil.razor": [
-      "LoadCandidatesAsync",
-      "LoadProjectsAsync",
-      "LoadSavedCouncilConversationsAsync",
-      "RunUiActionAsync"
-    ],
-    "Components/Pages/DxFunctionCatalog.razor": [
-      "ReloadAsync"
-    ],
-    "Components/Pages/Projects.razor": [
-      "LoadProjectsAsync",
-      "RefreshSelectedProjectAsync",
-      "RunUiActionAsync"
-    ],
-    "Components/Pages/CouncilTeams.razor": [
-      "ReloadAsync"
-    ],
     "Components/Pages/Chat.razor": [
       "AttachToLiveCouncilSessionAsync",
       "AutoStartRequestedCouncilPromptAsync",
-      "LoadChatProjectsAsync",
-      "LoadCouncilTeamsAsync",
-      "LoadDatabaseBackedDefaultsAsync",
-      "LoadLatestConversationIntoSessionAsync",
-      "LoadModelPresetsAsync",
-      "LoadSavedConversationAsync",
-      "LoadSelectedChatProjectDetailsAsync",
-      "MigrateCouncilDefaultsAsync",
       "OnProviderSelectionChanged",
-      "RefreshHumanCollaborationAsync",
-      "RefreshMemoryAsync",
-      "RunUiActionAsync",
       "StartCouncilPromptAsync"
-    ],
-    "Components/Pages/Install.razor": [
-      "DeleteCompilerAsync",
-      "DiscoverToolchainsAsync",
-      "MakeCompilerDefaultAsync",
-      "RefreshCompilerInstallationsAsync",
-      "RefreshConnectivityStatusAsync",
-      "RefreshOllamaProcessStatusAsync",
-      "ValidateCompilerAsync"
-    ],
-    "Components/Pages/TestLab.razor": [
-      "LoadArtifactWorkspacesAsync",
-      "LoadSelectedWorkspaceFilesAsync",
-      "OpenWorkspaceFileAsync",
-      "RefreshWorkspaceZipAsync",
-      "RunUiActionAsync"
-    ],
-    "Components/Pages/MinecraftModBuilder.razor": [
-      "RunUiActionAsync"
-    ],
-    "Components/Pages/Index.razor": [
-      "CompleteOnboardingAsync"
-    ],
-    "Components/Shared/DocumentationViewerHost.razor": [
-      "RefreshViewerAsync"
     ]
   }
 }

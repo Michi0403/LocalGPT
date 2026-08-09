@@ -148,13 +148,13 @@
     protected override async Task OnInitializedAsync()
     {
         Games.Changed += OnGameChanged;
-        snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+        snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
     }
 
     protected override async Task OnParametersSetAsync()
     {
         if (snapshot is null || (ConversationId is not null && snapshot.ConversationId != ConversationId))
-            snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
+            snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
