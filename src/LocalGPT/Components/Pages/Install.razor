@@ -4,6 +4,7 @@
 @inject CouncilTextService CouncilText
 @inject IOptionsMonitor<LocalGPT.BusinessObjects.ConfigurationRoot> Opts
 @inject IConfigurationWriter Writer
+@inject INetworkCertificateService NetworkCertificates
 @inject IAiConnectivityProbe Probe
 @inject IOllamaProcessService OllamaProcesses
 @inject NavigationManager Nav
@@ -22,7 +23,7 @@
 
     <div class="p-4 space-y-6">
         <div class="top-container">
-            <DxButton Text="@(IsSaving ? "Saving and refreshing..." : "Save provider settings")"
+            <DxButton Text="@(IsSaving ? "Saving and refreshing..." : "Save setup settings")"
                       CssClass="provider-save-button"
                       Enabled="@(!IsSaving)"
                       RenderStyle="ButtonRenderStyle.Primary"
@@ -41,7 +42,7 @@
         <div class="@ConnectivityAlertCss" role="status">
             <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
                 <div>
-                    <strong>Local AI Connectivity</strong>
+                    <strong>AI Provider Connectivity</strong>
                     <div>@ConnectivityStatus</div>
                     @if (LastConnectivityCheck is not null)
                     {
@@ -94,7 +95,7 @@
         </div>
 
         <div class="top-container">
-            <DxButton Text="Find Local AI Hosts"
+            <DxButton Text="Find configured / local AI hosts"
                       RenderStyle="ButtonRenderStyle.Secondary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       Enabled="@(!IsDiscovering)"
@@ -280,6 +281,99 @@
             </DxFormLayoutTabPages>
         </DxFormLayout>
 
+        <section class="installer-workbench-card" aria-labelledby="network-endpoint-heading">
+            <div class="installer-card-heading">
+                <div>
+                    <h3 id="network-endpoint-heading">Remote web endpoint (LAN / VPN / smartphone)</h3>
+                    <p class="field-help">This is an optional second Kestrel listener. The existing http://127.0.0.1 LocalGPT endpoint remains unchanged. Saving these settings requires a LocalGPT restart before the listener is rebound.</p>
+                </div>
+            </div>
+            <DxFormLayout>
+                <DxFormLayoutItem Caption="Enable remote endpoint">
+                    <DxCheckBox @bind-Checked="NetworkModel.Enabled" Text="Listen on a second network endpoint" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Bind address">
+                    <DxTextBox @bind-Text="NetworkModel.Address" />
+                    <p class="field-help">Use 0.0.0.0 for all IPv4 interfaces, :: for all IPv6 interfaces, or one concrete local interface IP.</p>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Port">
+                    <DxSpinEdit @bind-Value="NetworkModel.Port" Min="0" Max="65535" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="PFX certificate path">
+                    <DxTextBox @bind-Text="NetworkModel.CertificatePath" />
+                    <p class="field-help">Leave empty for HTTP. Select or create a PFX below for HTTPS.</p>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="PFX password">
+                    <DxTextBox @bind-Text="NetworkModel.CertificatePassword" />
+                    <p class="field-help">For reusable deployments prefer LOCALGPT_NETWORK_CERTIFICATE_PASSWORD instead of persisting a production password.</p>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Effective after restart">
+                    <div class="installer-status-line"><code>@NetworkEndpointPreview</code></div>
+                </DxFormLayoutItem>
+            </DxFormLayout>
+        </section>
+
+        <section class="installer-workbench-card" aria-labelledby="certificate-heading">
+            <div class="installer-card-heading">
+                <div>
+                    <h3 id="certificate-heading">Create TLS certificate</h3>
+                    <p class="field-help">Creates a user-requested self-signed server certificate with Server Authentication EKU and SAN entries. A self-signed certificate is encrypted traffic, but browsers still require the certificate or issuing authority to be trusted.</p>
+                </div>
+            </div>
+            <DxFormLayout>
+                <DxFormLayoutItem Caption="Common name">
+                    <DxTextBox @bind-Text="CertificateRequest.CommonName" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Subject alternative names">
+                    <DxMemo Rows="3" @bind-Text="CertificateRequest.SubjectAlternativeNames" />
+                    <p class="field-help">Separate DNS names and IP addresses with semicolons. The current machine name and detected local addresses are prefilled.</p>
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="RSA key size">
+                    <DxComboBox Data="@CertificateKeySizes" @bind-Value="CertificateRequest.KeySize" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Hash algorithm">
+                    <DxComboBox Data="@CertificateHashes" @bind-Value="CertificateRequest.Hash" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Validity (days)">
+                    <DxSpinEdit @bind-Value="CertificateRequest.ValidityDays" Min="1" Max="3650" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Save PFX to">
+                    <DxTextBox @bind-Text="CertificateRequest.OutputPath" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="PFX password">
+                    <DxTextBox @bind-Text="CertificateRequest.Password" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Certificate store">
+                    <DxCheckBox @bind-Checked="CertificateRequest.InstallToStore" Text="Install the generated certificate into a Windows/.NET certificate store" />
+                </DxFormLayoutItem>
+                @if (CertificateRequest.InstallToStore)
+                {
+                    <DxFormLayoutItem Caption="Store location">
+                        <DxComboBox Data="@CertificateStoreLocations" @bind-Value="CertificateRequest.StoreLocation" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Store name">
+                        <DxComboBox Data="@CertificateStoreNames" @bind-Value="CertificateRequest.StoreName" />
+                    </DxFormLayoutItem>
+                }
+                <DxFormLayoutItem>
+                    <DxCheckBox @bind-Checked="UseCreatedCertificateForRemoteEndpoint" Text="Use the generated PFX for the remote Kestrel endpoint" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem>
+                    <DxButton Text="@(IsCertificateBusy ? "Creating certificate..." : "Create certificate")"
+                              Enabled="@(!IsCertificateBusy)"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Contained"
+                              Click="CreateNetworkCertificateAsync" />
+                </DxFormLayoutItem>
+                @if (!string.IsNullOrWhiteSpace(CertificateStatus))
+                {
+                    <DxFormLayoutItem Caption="Certificate status">
+                        <div class="installer-status-line">@CertificateStatus</div>
+                    </DxFormLayoutItem>
+                }
+            </DxFormLayout>
+        </section>
+
         <section class="installer-workbench-card" aria-labelledby="onboarding-heading">
             <div class="installer-card-heading">
                 <div>
@@ -445,6 +539,18 @@
     private LoggingCoreOptions LoggingModel = new();
     private DatabaseLoggerCoreOptions DatabaseLoggerModel = new();
     private IReadOnlyList<CoreLogLevel> LogLevels { get; } = Enum.GetValues<CoreLogLevel>();
+    private RemoteWebEndpointOptions NetworkModel = new();
+    private NetworkCertificateCreateRequest CertificateRequest = new();
+    private IReadOnlyList<NetworkCertificateKeySize> CertificateKeySizes { get; } = Enum.GetValues<NetworkCertificateKeySize>();
+    private IReadOnlyList<NetworkCertificateHash> CertificateHashes { get; } = Enum.GetValues<NetworkCertificateHash>();
+    private IReadOnlyList<System.Security.Cryptography.X509Certificates.StoreLocation> CertificateStoreLocations { get; } = Enum.GetValues<System.Security.Cryptography.X509Certificates.StoreLocation>();
+    private IReadOnlyList<System.Security.Cryptography.X509Certificates.StoreName> CertificateStoreNames { get; } = Enum.GetValues<System.Security.Cryptography.X509Certificates.StoreName>();
+    private bool UseCreatedCertificateForRemoteEndpoint = true;
+    private bool IsCertificateBusy;
+    private string CertificateStatus = string.Empty;
+    private string NetworkEndpointPreview => !NetworkModel.Enabled || NetworkModel.Port <= 0
+        ? "disabled (loopback-only LocalGPT remains active)"
+        : $"{(string.IsNullOrWhiteSpace(NetworkModel.CertificatePath) ? "http" : "https")}://{(string.IsNullOrWhiteSpace(NetworkModel.Address) ? "0.0.0.0" : NetworkModel.Address)}:{NetworkModel.Port}";
     private string _log = "";
     private string toastName = "InstallToasts";
     private bool IsDiscovering;
@@ -463,7 +569,7 @@
     private IReadOnlyList<LocalizationCatalogDescriptor> LocalizationCatalogs = Array.Empty<LocalizationCatalogDescriptor>();
     private IReadOnlyList<ProjectCompilerInstallation> CompilerInstallations = Array.Empty<ProjectCompilerInstallation>();
     private OllamaProcessStatus OllamaProcessStatus = new(false, false, null, Array.Empty<OllamaProcessInfo>(), string.Empty, "Ollama process status not checked yet.");
-    private string ConnectivityStatus = "Connectivity not checked yet. Refresh to verify Ollama or LM Studio.";
+    private string ConnectivityStatus = "Connectivity not checked yet. Refresh to verify configured and local Ollama / OpenAI-compatible hosts.";
     private DateTimeOffset? LastConnectivityCheck;
     private IReadOnlyList<LocalAiHostDiscoveryResult> DiscoveredHosts = Array.Empty<LocalAiHostDiscoveryResult>();
     private IReadOnlyList<ProviderModelReference> DiscoveredProviderModels => DiscoveredHosts
@@ -501,6 +607,13 @@
             LoggingModel.EmailCore ??= new EmailLoggerCoreOptions { CoreLogLevel = CoreLogLevel.None };
             DatabaseLoggerModel = LoggingModel.DatabaseCore ?? new DatabaseLoggerCoreOptions { CoreLogLevel = CoreLogLevel.Warning };
             LoggingModel.DatabaseCore = DatabaseLoggerModel;
+            NetworkModel = Opts.CurrentValue.LocalGPT?.RemoteEndpoint ?? new RemoteWebEndpointOptions();
+            CertificateRequest = NetworkCertificates.CreateDefaultRequest();
+            if (!string.IsNullOrWhiteSpace(NetworkModel.CertificatePath))
+            {
+                CertificateRequest.OutputPath = NetworkModel.CertificatePath;
+                CertificateRequest.Password = NetworkModel.CertificatePassword;
+            }
         }
         catch (Exception ex)
         {
@@ -984,10 +1097,9 @@
         try
         {
             IsDiscovering = true;
-            await Append("Scanning localhost for Ollama and LM Studio...").ConfigureAwait(false);
+            await Append("Scanning configured providers plus standard localhost discovery endpoints...").ConfigureAwait(false);
 
             DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default).ConfigureAwait(false);
-            AutoSelectBestDiscoveredModel();
 
             var reachable = DiscoveredHosts.Count(h => h.IsReachable);
             var models = DiscoveredHosts.Sum(h => h.Models.Count);
@@ -997,9 +1109,9 @@
             ConnectivityStatus = BuildConnectivityStatus(reachable, models);
 
             if (reachable > 0)
-                Notifier.ShowSuccess(toastName, $"Found {reachable} local AI host(s).", "Discovery Complete");
+                Notifier.ShowSuccess(toastName, $"Found {reachable} reachable AI host(s).", "Discovery Complete");
             else
-                Notifier.ShowWarning(toastName, "No local AI hosts responded.", "Discovery Complete");
+                Notifier.ShowWarning(toastName, "No configured or standard local AI hosts responded.", "Discovery Complete");
         }
         catch (Exception ex)
         {
@@ -1034,7 +1146,6 @@
             IsConnectivityChecking = true;
             await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine loading continuation */;
             DiscoveredHosts = await Probe.DiscoverLocalHostsAsync(default).ConfigureAwait(true) /* renderer-affine loading continuation */;
-            AutoSelectBestDiscoveredModel();
 
             var reachable = DiscoveredHosts.Count(host => host.IsReachable);
             var models = DiscoveredHosts.Sum(host => host.Models.Count);
@@ -1071,7 +1182,7 @@
         try
         {
             if (reachable <= 0)
-                return "No local Ollama or LM Studio host is reachable. Start Ollama or LM Studio, then refresh.";
+                return "No configured or standard local Ollama / OpenAI-compatible host is reachable. Verify the endpoint, provider bind address and firewall, then refresh.";
 
             var hostSummaries = DiscoveredHosts
                 .Where(host => host.IsReachable)
@@ -1099,7 +1210,8 @@
             ProviderName = host.Provider,
             Endpoint = endpoint,
             ModelName = model.Name,
-            IsLocal = true,
+            IsLocal = Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri) &&
+                (endpointUri.IsLoopback || endpointUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)),
             IsReachable = host.IsReachable,
             IsConfigured = isOllama
                 ? string.Equals(Model.OllamaCore?.ModelName, model.Name, StringComparison.OrdinalIgnoreCase)
@@ -1147,48 +1259,6 @@
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
             await Append("(Selection) " + ex.Message).ConfigureAwait(false);
         }
-    }
-
-    private void AutoSelectBestDiscoveredModel()
-    {
-        try
-        {
-            var best = DiscoveredHosts
-            .Where(h => h.IsReachable)
-            .SelectMany(h => h.Models.Select(m => new { Host = h, Model = m }))
-            .OrderByDescending(x => string.Equals(x.Host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
-            .ThenByDescending(x => x.Model.Name.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
-            .ThenByDescending(x => x.Model.IsLoaded)
-            .FirstOrDefault();
-
-            if (best is null)
-            {
-                var ollama = DiscoveredHosts.FirstOrDefault(h => h.IsReachable && string.Equals(h.Provider, "Ollama", StringComparison.OrdinalIgnoreCase));
-                if (ollama is not null && string.IsNullOrWhiteSpace(Model.OllamaCore.Uri))
-                    Model.OllamaCore.Uri = ollama.Endpoint;
-                return;
-            }
-
-            if (string.Equals(best.Host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
-            {
-                Model.OllamaCore.Uri = best.Host.Endpoint;
-                Model.OllamaCore.ModelName = best.Model.Name;
-            }
-            else
-            {
-                Model.ChatGPTLocalCore.Endpoint = best.Host.Endpoint;
-                Model.ChatGPTLocalCore.ApiKey = string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore.ApiKey)
-                    ? (string.Equals(best.Host.Provider, "LM Studio", StringComparison.OrdinalIgnoreCase) ? "lm-studio" : "local-key")
-                    : Model.ChatGPTLocalCore.ApiKey;
-                Model.ChatGPTLocalCore.ModelName = best.Model.Name;
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "AutoSelectBestDiscoveredModel failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-        }
-
     }
 
     private async Task UseOllamaGptOss20b()
@@ -1300,17 +1370,15 @@
             ApplyModelsToConfiguration(root);
             await Writer.SaveAsync(root).ConfigureAwait(false);
 
-            // Saving provider setup always performs one fresh local-host/model scan.
-            // Any default-port Ollama or LM Studio selection discovered by that scan is
-            // persisted immediately, so the next application boot uses it without a
-            // separate Test Connection + Save cycle.
+            // Refresh connectivity for status only. Discovery must never rewrite provider
+            // configuration; selecting a discovered model remains an explicit user action.
             await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(false);
             NormalizeLocalEndpoint();
             ApplyModelsToConfiguration(root);
             await Writer.SaveAsync(root).ConfigureAwait(false);
 
-            await Append("Saved durable provider settings and refreshed local models.").ConfigureAwait(false);
-            Notifier.ShowSuccess(toastName, "Provider settings saved and local models refreshed.", "Saved");
+            await Append("Saved durable provider and network endpoint settings. A changed network listener becomes active after restart.").ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, "Provider/network settings saved. Restart LocalGPT to apply listener changes.", "Saved");
         }
         catch (Exception ex)
         {
@@ -1340,6 +1408,47 @@
         root.AICore.OpenAIServiceCore = Model.OpenAIServiceCore;
         root.LoggingCore = LoggingModel;
         root.LoggingCore.DatabaseCore = DatabaseLoggerModel;
+        root.LocalGPT ??= new LocalGptHostOptions();
+        root.LocalGPT.RemoteEndpoint = new RemoteWebEndpointOptions
+        {
+            Enabled = NetworkModel.Enabled,
+            Address = string.IsNullOrWhiteSpace(NetworkModel.Address) ? "0.0.0.0" : NetworkModel.Address.Trim(),
+            Port = NetworkModel.Port,
+            CertificatePath = NetworkModel.CertificatePath?.Trim() ?? string.Empty,
+            CertificatePassword = NetworkModel.CertificatePassword ?? string.Empty
+        };
+    }
+
+    private async Task CreateNetworkCertificateAsync()
+    {
+        try
+        {
+            IsCertificateBusy = true;
+            CertificateStatus = "Creating certificate...";
+            var result = await NetworkCertificates.CreateAsync(CertificateRequest).ConfigureAwait(false);
+            CertificateStatus = $"Created {result.Thumbprint} at {result.PfxPath}; {result.StoreDescription}; valid until {result.NotAfter:O}.";
+            if (UseCreatedCertificateForRemoteEndpoint)
+            {
+                NetworkModel.CertificatePath = result.PfxPath;
+                NetworkModel.CertificatePassword = CertificateRequest.Password ?? string.Empty;
+                if (NetworkModel.Port <= 0) NetworkModel.Port = 5443;
+                NetworkModel.Enabled = true;
+            }
+            await Append(CertificateStatus).ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, "Certificate created. Save setup settings and restart LocalGPT to activate HTTPS.", "TLS certificate ready");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Certificate creation failed: {Message}", ex.Message);
+            CertificateStatus = ex.Message;
+            Notifier.ShowError(toastName, "Certificate creation failed. See local application logs for details.", "TLS certificate failed");
+            await Append("(Certificate) " + ex.Message).ConfigureAwait(false);
+        }
+        finally
+        {
+            IsCertificateBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
     }
 
     private void GoChat()

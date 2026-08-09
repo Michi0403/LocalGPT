@@ -5,7 +5,8 @@ namespace LocalGPT.Services;
 
 public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         AiDiscoveryService aiDiscovery,
-        CouncilTextService councilText) : IAiConnectivityProbe
+        CouncilTextService councilText,
+        Microsoft.Extensions.Options.IOptionsMonitor<ConfigurationRoot> optionsRoot) : IAiConnectivityProbe
 {
     public async Task<(bool ok, string message)> TestAzureAsync(OpenAIServiceCoreOptions options, CancellationToken cancellationToken)
     {
@@ -113,14 +114,41 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
     {
         try
         {
-            var probes = new[]
-            {
-                aiDiscovery.ProbeOllamaAsync("http://localhost:11434", cancellationToken, logger),
-                aiDiscovery.ProbeOpenAICompatibleAsync("LM Studio", "http://localhost:1234", cancellationToken, logger),
-                aiDiscovery.ProbeOpenAICompatibleAsync("Local OpenAI-compatible", "http://localhost:8080", cancellationToken, logger)
-            };
+            var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
+            var probes = new List<Task<LocalAiHostDiscoveryResult>>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            return await Task.WhenAll(probes).ConfigureAwait(false);
+            void AddOllama(string? endpoint)
+            {
+                if (!TryNormalizeAuthority(endpoint, out var normalized) || !seen.Add($"ollama|{normalized}"))
+                    return;
+                probes.Add(aiDiscovery.ProbeOllamaAsync(normalized, cancellationToken, logger));
+            }
+
+            void AddOpenAiCompatible(string provider, string? endpoint)
+            {
+                if (!TryNormalizeAuthority(endpoint, out var normalized) || !seen.Add($"openai|{normalized}"))
+                    return;
+                probes.Add(aiDiscovery.ProbeOpenAICompatibleAsync(provider, normalized, cancellationToken, logger));
+            }
+
+            // Configured endpoints are authoritative. Local defaults remain discovery candidates only;
+            // they must never rewrite a configured remote provider merely because localhost responds.
+            AddOllama(options.OllamaCore?.Uri);
+            foreach (var configured in options.OllamaCores ?? [])
+                AddOllama(configured.Uri);
+
+            AddOpenAiCompatible("OpenAI-compatible", options.ChatGPTLocalCore?.Endpoint);
+            foreach (var configured in options.ChatGPTLocalCores ?? [])
+                AddOpenAiCompatible("OpenAI-compatible", configured.Endpoint);
+
+            AddOllama("http://localhost:11434");
+            AddOpenAiCompatible("LM Studio", "http://localhost:1234");
+            AddOpenAiCompatible("Local OpenAI-compatible", "http://localhost:8080");
+
+            return probes.Count == 0
+                ? []
+                : await Task.WhenAll(probes).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -128,8 +156,29 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Local AI host discovery failed.");
+            logger.LogError(ex, "Configured/local AI host discovery failed.");
             return [];
+        }
+    }
+
+    private bool TryNormalizeAuthority(string? endpoint, out string normalized)
+    {
+        try
+        {
+            normalized = string.Empty;
+            if (!Uri.TryCreate(endpoint?.Trim(), UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                return false;
+
+            var builder = new UriBuilder(uri.Scheme, uri.Host, uri.Port);
+            normalized = builder.Uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "AI endpoint normalization failed while enumerating configured hosts.");
+            normalized = string.Empty;
+            return false;
         }
     }
 

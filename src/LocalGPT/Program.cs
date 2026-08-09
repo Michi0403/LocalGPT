@@ -261,7 +261,7 @@ namespace LocalGPT
 
                 // PublisherStudio-style application boundaries: runtime helpers are injected services,
                 // not mutable process-wide utility classes.
-                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.4.5"));
+                builder.Services.AddSingleton<ICustomVersion>(new CustomVersion("2.4.7"));
                 builder.Services.AddSingleton<LocalGptCatalogService>();
                 builder.Services.AddSingleton<ILocalGptRequestFactoryService, LocalGptRequestFactoryService>();
                 builder.Services.AddSingleton<ICouncilTextPatternDataService, CouncilTextPatternDataService>();
@@ -285,6 +285,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<ILocalHumanInteractionContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
                 builder.Services.AddSingleton<IHumanApprovalExecutionContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
                 builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
+                builder.Services.AddSingleton<INetworkCertificateService, NetworkCertificateService>();
                 builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
                 builder.Services.AddSingleton<IOllamaProcessService, OllamaProcessService>();
                 builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();

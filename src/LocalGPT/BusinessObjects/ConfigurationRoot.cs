@@ -13,6 +13,7 @@ namespace LocalGPT.BusinessObjects
         public PythonCoreOptions? PythonCore { get; set; }
         public ConnectionStringsCoreOptions? ConnectionStringsCore { get; set; }
         public AICoreOptions? AICore { get; set; }
+        public LocalGptHostOptions? LocalGPT { get; set; }
     }
     public class MsLoggingOptions
     {

@@ -125,7 +125,7 @@
 
   <h1 id="LocalGPT_Services_ProviderModelRuntimeService" data-uid="LocalGPT.Services.ProviderModelRuntimeService" class="text-break">
 Class ProviderModelRuntimeService  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Services.html">Services</a></dd></dl>
@@ -200,8 +200,8 @@ Class ProviderModelRuntimeService
 
   <a id="LocalGPT_Services_ProviderModelRuntimeService__ctor_" data-uid="LocalGPT.Services.ProviderModelRuntimeService.#ctor*"></a>
 
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_ProviderModelRuntimeService__ctor_Microsoft_Extensions_Options_IOptionsMonitor_LocalGPT_BusinessObjects_ConfigurationRoot__Microsoft_Extensions_Logging_ILoggerFactory_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_ProviderModelRuntimeService__LocalGPT_Services_CouncilRuntimeService_LocalGPT_Interfaces_IChatResponseFormatterFactory_LocalGPT_Interfaces_IChatProtocolResolver_LocalGPT_Interfaces_IPromptConfigService_LocalGPT_Interfaces_IDxAiFunctionRegistry_LocalGPT_Interfaces_IDxAiFunctionCallRecoveryService_" data-uid="LocalGPT.Services.ProviderModelRuntimeService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{LocalGPT.BusinessObjects.ConfigurationRoot},Microsoft.Extensions.Logging.ILoggerFactory,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelRuntimeService},LocalGPT.Services.CouncilRuntimeService,LocalGPT.Interfaces.IChatResponseFormatterFactory,LocalGPT.Interfaces.IChatProtocolResolver,LocalGPT.Interfaces.IPromptConfigService,LocalGPT.Interfaces.IDxAiFunctionRegistry,LocalGPT.Interfaces.IDxAiFunctionCallRecoveryService)">
-  ProviderModelRuntimeService(IOptionsMonitor&lt;ConfigurationRoot&gt;, ILoggerFactory, ILogger&lt;ProviderModelRuntimeService&gt;, CouncilRuntimeService, IChatResponseFormatterFactory, IChatProtocolResolver, IPromptConfigService, IDxAiFunctionRegistry, IDxAiFunctionCallRecoveryService)
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_ProviderModelRuntimeService__ctor_Microsoft_Extensions_Options_IOptionsMonitor_LocalGPT_BusinessObjects_ConfigurationRoot__Microsoft_Extensions_Logging_ILoggerFactory_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_ProviderModelRuntimeService__LocalGPT_Services_CouncilRuntimeService_LocalGPT_Interfaces_IChatResponseFormatterFactory_LocalGPT_Interfaces_IChatProtocolResolver_LocalGPT_Interfaces_IPromptConfigService_LocalGPT_Interfaces_IDxAiFunctionRegistry_" data-uid="LocalGPT.Services.ProviderModelRuntimeService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{LocalGPT.BusinessObjects.ConfigurationRoot},Microsoft.Extensions.Logging.ILoggerFactory,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelRuntimeService},LocalGPT.Services.CouncilRuntimeService,LocalGPT.Interfaces.IChatResponseFormatterFactory,LocalGPT.Interfaces.IChatProtocolResolver,LocalGPT.Interfaces.IPromptConfigService,LocalGPT.Interfaces.IDxAiFunctionRegistry)">
+  ProviderModelRuntimeService(IOptionsMonitor&lt;ConfigurationRoot&gt;, ILoggerFactory, ILogger&lt;ProviderModelRuntimeService&gt;, CouncilRuntimeService, IChatResponseFormatterFactory, IChatProtocolResolver, IPromptConfigService, IDxAiFunctionRegistry)
   
   </h3><div class="localgpt-api-member-item-body">
 
@@ -210,7 +210,7 @@ Class ProviderModelRuntimeService
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public ProviderModelRuntimeService(IOptionsMonitor&lt;ConfigurationRoot&gt; optionsRoot, ILoggerFactory loggerFactory, ILogger&lt;ProviderModelRuntimeService&gt; logger, CouncilRuntimeService councilRuntime, IChatResponseFormatterFactory formatterFactory, IChatProtocolResolver protocolResolver, IPromptConfigService promptConfigService, IDxAiFunctionRegistry functionRegistry, IDxAiFunctionCallRecoveryService functionCallRecovery)</code></pre>
+    <pre><code class="lang-csharp hljs">public ProviderModelRuntimeService(IOptionsMonitor&lt;ConfigurationRoot&gt; optionsRoot, ILoggerFactory loggerFactory, ILogger&lt;ProviderModelRuntimeService&gt; logger, CouncilRuntimeService councilRuntime, IChatResponseFormatterFactory formatterFactory, IChatProtocolResolver protocolResolver, IPromptConfigService promptConfigService, IDxAiFunctionRegistry functionRegistry)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -231,8 +231,6 @@ Class ProviderModelRuntimeService
     <dd></dd>
     <dt><code>functionRegistry</code> <a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionRegistry.html">IDxAiFunctionRegistry</a></dt>
     <dd></dd>
-    <dt><code>functionCallRecovery</code> <a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionCallRecoveryService.html">IDxAiFunctionCallRecoveryService</a></dt>
-    <dd></dd>
   </dl>
 
 
@@ -252,8 +250,8 @@ Class ProviderModelRuntimeService
 
   <a id="LocalGPT_Services_ProviderModelRuntimeService_CreateChatClient_" data-uid="LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient*"></a>
 
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_ProviderModelRuntimeService_CreateChatClient_LocalGPT_BusinessObjects_ProviderModelReference_System_String_System_Int32_System_TimeSpan_System_Nullable_System_Int32__System_Boolean_System_Boolean_" data-uid="LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference,System.String,System.Int32,System.TimeSpan,System.Nullable{System.Int32},System.Boolean,System.Boolean)">
-  CreateChatClient(ProviderModelReference, string, int, TimeSpan, int?, bool, bool)
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_ProviderModelRuntimeService_CreateChatClient_LocalGPT_BusinessObjects_ProviderModelReference_System_String_System_Int32_System_TimeSpan_System_Nullable_System_Int32__" data-uid="LocalGPT.Services.ProviderModelRuntimeService.CreateChatClient(LocalGPT.BusinessObjects.ProviderModelReference,System.String,System.Int32,System.TimeSpan,System.Nullable{System.Int32})">
+  CreateChatClient(ProviderModelReference, string, int, TimeSpan, int?)
   
   </h3><div class="localgpt-api-member-item-body">
 
@@ -261,7 +259,7 @@ Class ProviderModelRuntimeService
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public IChatClient CreateChatClient(ProviderModelReference model, string keepAlive, int maxContextTokens, TimeSpan timeout, int? ollamaNumGpu, bool enableAutomaticTools = true, bool throwOnFailure = false)</code></pre>
+    <pre><code class="lang-csharp hljs">public IChatClient CreateChatClient(ProviderModelReference model, string keepAlive, int maxContextTokens, TimeSpan timeout, int? ollamaNumGpu)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -275,10 +273,6 @@ Class ProviderModelRuntimeService
     <dt><code>timeout</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.timespan">TimeSpan</a></dt>
     <dd></dd>
     <dt><code>ollamaNumGpu</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>?</dt>
-    <dd></dd>
-    <dt><code>enableAutomaticTools</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
-    <dd></dd>
-    <dt><code>throwOnFailure</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
     <dd></dd>
   </dl>
 
@@ -494,10 +488,10 @@ Class ProviderModelRuntimeService
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.4.5 Â· generated documentation
+          LocalGPT 2.3.7 · generated documentation
         </div>
       </div>
     </footer>
-  <script type="module" src="../styles/localgpt-kawaii.js?v=2bac52827196" data-localgpt-kawaii-script="true"></script>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
 </body>
 </html>

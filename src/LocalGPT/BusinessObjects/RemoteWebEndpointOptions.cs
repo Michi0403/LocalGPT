@@ -1,5 +1,12 @@
 namespace LocalGPT.BusinessObjects;
 
+/// <summary>Application-host settings. The loopback endpoint remains authoritative while RemoteEndpoint adds optional LAN/VPN access.</summary>
+public sealed class LocalGptHostOptions
+{
+    public int Port { get; set; } = 5000;
+    public RemoteWebEndpointOptions RemoteEndpoint { get; set; } = new();
+}
+
 /// <summary>Optional second Kestrel endpoint for LAN/VPN/browser access. The historical loopback endpoint remains authoritative.</summary>
 public sealed class RemoteWebEndpointOptions
 {
@@ -17,6 +24,6 @@ public sealed class RemoteWebEndpointOptions
     /// <summary>Optional PFX/PKCS#12 certificate path. When set, the secondary endpoint uses HTTPS.</summary>
     public string CertificatePath { get; set; } = string.Empty;
 
-    /// <summary>Optional PFX password. Prefer an environment variable or command-line secret over committing it to appsettings.</summary>
+    /// <summary>Optional PFX password. Prefer an environment variable over persisting a reusable production secret.</summary>
     public string CertificatePassword { get; set; } = string.Empty;
 }

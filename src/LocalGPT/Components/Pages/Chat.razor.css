@@ -2278,3 +2278,57 @@
     position: relative;
     min-width: 0;
 }
+
+
+/* v2.4.7: provider/council configuration is a human-scale 90vw workspace.
+   These final rules intentionally override the older 100rem centering cap. */
+.chat-configuration-ribbon[open] {
+    inset-inline: 5vw !important;
+    width: 90vw !important;
+    max-width: 90vw !important;
+    box-sizing: border-box !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-content {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+.chat-configuration-ribbon[open] .council-command-center,
+.chat-configuration-ribbon[open] .chat-memory-project-center,
+.chat-configuration-ribbon[open] .memory-thoughts,
+.chat-configuration-ribbon[open] .architecture-poll,
+.chat-configuration-ribbon[open] .council-direct-starters {
+    position: static !important;
+    float: none !important;
+    clear: both;
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box;
+}
+
+.chat-configuration-ribbon[open] .council-road-details {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    margin-block: .75rem;
+    padding: .65rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .65rem;
+    overflow: hidden;
+}
+
+.chat-configuration-ribbon[open] .council-road-details > summary {
+    cursor: pointer;
+    font-weight: 750;
+}
+
+@media (max-width: 760px) {
+    .chat-configuration-ribbon[open] {
+        inset-inline: .25rem !important;
+        width: auto !important;
+        max-width: none !important;
+    }
+}
