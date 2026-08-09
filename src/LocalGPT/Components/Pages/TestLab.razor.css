@@ -271,3 +271,146 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* v2.5.3: PublisherStudio-style diagnostics workbench. Keep dense tools in normal flow,
+   add fast section navigation, and preserve explicit scroll owners for long previews. */
+.test-lab-page {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: clamp(.55rem, 1vw, 1rem);
+}
+
+.test-lab-section-nav {
+    position: sticky;
+    top: 0;
+    z-index: 16;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    min-width: 0;
+    padding: .5rem;
+    border: 1px solid var(--bs-border-color, #d6dce3);
+    border-radius: .65rem;
+    background: color-mix(in srgb, var(--bs-body-bg, Canvas) 96%, transparent);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 .25rem .8rem rgba(0, 0, 0, .06);
+}
+
+.test-lab-section-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.2rem;
+    padding: .32rem .62rem;
+    border: 1px solid var(--bs-border-color, #d6dce3);
+    border-radius: .45rem;
+    background: var(--bs-body-bg, Canvas);
+    color: var(--bs-body-color, CanvasText);
+    font-size: .82rem;
+    font-weight: 750;
+    text-decoration: none;
+}
+
+.test-lab-section-nav a:hover,
+.test-lab-section-nav a:focus-visible {
+    border-color: var(--bs-primary);
+    background: color-mix(in srgb, var(--bs-primary) 9%, var(--bs-body-bg));
+    outline: none;
+}
+
+.test-lab-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+}
+
+.test-lab-panel,
+.help-wide {
+    scroll-margin-top: 4.2rem;
+    min-width: 0;
+    border: 1px solid var(--bs-border-color, #d6dce3);
+    border-radius: .72rem;
+    background: var(--bs-body-bg, Canvas);
+    box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .045);
+}
+
+.test-lab-panel > h2,
+.help-wide > h2 {
+    margin-bottom: .2rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--bs-border-color, #d6dce3);
+}
+
+.frontend-api-smoke-panel {
+    grid-column: span 12;
+}
+
+.learnbase-panel,
+.remote-knowledge-panel {
+    grid-column: span 6;
+}
+
+.learnbase-workbench,
+.remote-knowledge-fields,
+.test-lab-actions,
+.test-lab-custom {
+    min-width: 0;
+}
+
+.test-lab-actions ::deep .dxbl-btn,
+.test-lab-custom ::deep .dxbl-btn {
+    min-height: 2.6rem;
+}
+
+.test-result-panel .test-lab-output {
+    min-height: clamp(20rem, 42dvh, 38rem);
+    max-height: 60dvh;
+    overflow: auto;
+    resize: vertical;
+    border-radius: .55rem;
+}
+
+.source-popup {
+    max-height: 86dvh;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+@media (max-width: 1180px) {
+    .learnbase-panel,
+    .remote-knowledge-panel {
+        grid-column: span 12;
+    }
+}
+
+@media (max-width: 760px) {
+    .test-lab-page {
+        padding: .35rem;
+    }
+
+    .test-lab-section-nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+    }
+
+    .test-lab-section-nav a {
+        flex: 0 0 auto;
+    }
+
+    .test-lab-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .frontend-api-smoke-panel,
+    .learnbase-panel,
+    .remote-knowledge-panel {
+        grid-column: auto;
+    }
+}

@@ -34,7 +34,8 @@ def main() -> int:
         ("close action has responsive/fullscreen styling", ".chat-game-console-close" in css and ":fullscreen .chat-game-console-close" in css),
         ("accessible close label is localized in English", '"Text.Close␠ASCII␠game␠console": "Close ASCII game console"' in english),
         ("accessible close label is localized in German", '"Text.Close␠ASCII␠game␠console": "ASCII-Spielkonsole schließen"' in german),
-        ("application version advanced", any(f"<Version>2.3.{minor}</Version>" in project for minor in range(8, 100))),
+        ("application version advanced", (lambda match: bool(match) and tuple(map(int, match.groups())) >= (2, 3, 8))(
+            __import__("re").search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", project))),
     ])
 
     failed = [name for name, ok in checks if not ok]

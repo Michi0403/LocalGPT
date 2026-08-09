@@ -2612,3 +2612,87 @@
         max-height: calc(100dvh - .5rem) !important;
     }
 }
+
+/* v2.5.3: final Chat configuration scroll contract and workbench navigation.
+   The previous height:0 override could collapse the grid body even though overflow-y was enabled. */
+.chat-configuration-ribbon[open] {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-content {
+    align-self: stretch !important;
+    block-size: auto !important;
+    height: auto !important;
+    min-block-size: 0 !important;
+    min-height: 0 !important;
+    max-block-size: none !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable both-edges;
+    scrollbar-width: auto;
+}
+
+.chat-configuration-section-nav {
+    position: sticky !important;
+    inset-block-start: 0 !important;
+    z-index: 8;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    width: 100% !important;
+    min-width: 0;
+    padding: .45rem;
+    border: 1px solid var(--bs-border-color, var(--localgpt-border-color));
+    border-radius: .6rem;
+    background: color-mix(in srgb, var(--bs-body-bg, var(--localgpt-surface-bg)) 95%, transparent);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 .2rem .8rem rgba(0, 0, 0, .06);
+}
+
+.chat-configuration-section-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.2rem;
+    padding: .32rem .62rem;
+    border: 1px solid var(--bs-border-color, var(--localgpt-border-color));
+    border-radius: .45rem;
+    background: var(--bs-body-bg, var(--localgpt-surface-bg));
+    color: var(--bs-body-color);
+    font-size: .82rem;
+    font-weight: 750;
+    text-decoration: none;
+}
+
+.chat-configuration-section-nav a:hover,
+.chat-configuration-section-nav a:focus-visible {
+    border-color: var(--bs-primary);
+    background: color-mix(in srgb, var(--bs-primary) 9%, var(--bs-body-bg));
+    outline: none;
+}
+
+#chat-provider-controls,
+#localgpt-council-controls,
+#localgpt-memory-controls,
+#architecture-options {
+    scroll-margin-top: 4rem;
+}
+
+@media (max-width: 760px) {
+    .chat-configuration-section-nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+    }
+
+    .chat-configuration-section-nav a {
+        flex: 0 0 auto;
+    }
+}

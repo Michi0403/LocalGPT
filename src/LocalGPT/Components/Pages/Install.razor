@@ -18,26 +18,47 @@
 
 <PageTitle>AI Setup</PageTitle>
 
-<div class="main-container">
+<div class="main-container install-page-scroll-owner">
     <ToastWrapper Name="@toastName" />
 
-    <div class="p-4 space-y-6">
-        <div class="top-container">
-            <DxButton Text="@(IsSaving ? "Saving and refreshing..." : "Save setup settings")"
-                      CssClass="provider-save-button"
-                      Enabled="@(!IsSaving)"
-                      RenderStyle="ButtonRenderStyle.Primary"
-                      RenderStyleMode="ButtonRenderStyleMode.Contained"
-                      IconCssClass="save"
-                      Click="Save" />
-            <DxButton Text="Back to Chat"
-                      RenderStyle="ButtonRenderStyle.Primary"
-                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                      IconCssClass="chevron-left"
-                      Click="GoChat" />
-        </div>
+    <div class="install-workbench">
+        <WorkbenchHeader Eyebrow='@T("Install.Workbench.Eyebrow", "Configuration studio")'
+                         Title='@T("Install.Workbench.Title", "LocalGPT setup")'
+                         Subtitle='@T("Install.Workbench.Subtitle", "Configure AI providers, remote access, certificates, toolchains and language catalogs without leaving the application.")'>
+            <Actions>
+                <DxButton Text="@(IsSaving ? "Saving and refreshing..." : "Save setup settings")"
+                          CssClass="provider-save-button"
+                          Enabled="@(!IsSaving)"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          IconCssClass="save"
+                          Click="Save" />
+                <DxButton Text="Back to Chat"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          IconCssClass="chevron-left"
+                          Click="GoChat" />
+            </Actions>
+        </WorkbenchHeader>
 
-        <h2 class="text-xl font-semibold">AI Providers Setup</h2>
+        <nav class="install-section-nav" aria-label="Setup sections">
+            <a href="#provider-studio">@T("Install.Workbench.Nav.Providers", "AI providers")</a>
+            <a href="#network-endpoint">@T("Install.Workbench.Nav.RemoteEndpoint", "Remote endpoint")</a>
+            <a href="#tls-certificate">@T("Install.Workbench.Nav.Certificate", "TLS certificate")</a>
+            <a href="#setup-guide">@T("Install.Workbench.Nav.Guide", "Setup guide")</a>
+            <a href="#toolchains">@T("Install.Workbench.Nav.Toolchains", "Toolchains")</a>
+            <a href="#localization">@T("Install.Workbench.Nav.Languages", "Languages")</a>
+            <a href="#setup-log">@T("Install.Workbench.Nav.Log", "Setup log")</a>
+        </nav>
+
+        <section id="provider-studio" class="install-workbench-region install-provider-studio" aria-labelledby="provider-studio-heading">
+            <header class="install-region-heading">
+                <div>
+                    <span class="install-region-kicker">@T("Install.Workbench.ProviderKicker", "Provider workbench")</span>
+                    <h2 id="provider-studio-heading">@T("Install.Workbench.ProvidersTitle", "AI providers")</h2>
+                    <p>@T("Install.Workbench.ProvidersHelp", "Discover reachable hosts, select the provider family, edit every existing option and verify connectivity before saving.")</p>
+                </div>
+            </header>
 
         <div class="@ConnectivityAlertCss" role="status">
             <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
@@ -320,8 +341,9 @@
 
             </DxFormLayoutTabPages>
         </DxFormLayout>
+        </section>
 
-        <section class="installer-workbench-card" aria-labelledby="network-endpoint-heading">
+        <section id="network-endpoint" class="installer-workbench-card install-workbench-region" aria-labelledby="network-endpoint-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="network-endpoint-heading">Remote web endpoint (LAN / VPN / smartphone)</h3>
@@ -353,7 +375,7 @@
             </DxFormLayout>
         </section>
 
-        <section class="installer-workbench-card" aria-labelledby="certificate-heading">
+        <section id="tls-certificate" class="installer-workbench-card install-workbench-region" aria-labelledby="certificate-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="certificate-heading">Create TLS certificate</h3>
@@ -414,7 +436,7 @@
             </DxFormLayout>
         </section>
 
-        <section class="installer-workbench-card" aria-labelledby="onboarding-heading">
+        <section id="setup-guide" class="installer-workbench-card install-workbench-region" aria-labelledby="onboarding-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="onboarding-heading">@T("Install.Onboarding.Title", "Setup guide, benchmark council and quick starts")</h3>
@@ -471,7 +493,7 @@
             }
         </section>
 
-        <section class="installer-workbench-card" aria-labelledby="toolchain-heading">
+        <section id="toolchains" class="installer-workbench-card install-workbench-region" aria-labelledby="toolchain-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="toolchain-heading">@T("Install.Toolchains.Title", "Compilers and runtime toolchains")</h3>
@@ -527,7 +549,7 @@
             }
         </section>
 
-        <section class="installer-workbench-card" aria-labelledby="localization-heading">
+        <section id="localization" class="installer-workbench-card install-workbench-region" aria-labelledby="localization-heading">
             <div class="installer-card-heading">
                 <div>
                     <h3 id="localization-heading">@T("Install.Localization.Title", "Languages and localization catalogs")</h3>
@@ -570,7 +592,15 @@
             <p class="field-help">@T("Install.Localization.FormatHelp", "Catalog format: a flat JSON object. User catalogs are stored under the current user's LocalGPT application-data directory and survive rebuilds.") <code>{ "Nav.Home": "Accueil", "Nav.Chat": "Discussion IA" }</code></p>
         </section>
 
-        <DxMemo Rows="8" ReadOnly="true" @bind-Text="_log" CssClass="w-full" />
+        <section id="setup-log" class="installer-workbench-card install-workbench-region setup-log-card" aria-labelledby="setup-log-heading">
+            <div class="installer-card-heading">
+                <div>
+                    <h3 id="setup-log-heading">@T("Install.Workbench.LogTitle", "Setup activity")</h3>
+                    <p class="field-help">@T("Install.Workbench.LogHelp", "Operational setup messages stay visible here while technical details continue to use the application logging pipeline.")</p>
+                </div>
+            </div>
+            <DxMemo Rows="8" ReadOnly="true" @bind-Text="_log" CssClass="w-full setup-log-editor" />
+        </section>
     </div>
 </div>
 

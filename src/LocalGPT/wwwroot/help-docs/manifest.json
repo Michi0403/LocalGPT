@@ -72,10 +72,10 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "LocalGPT-2.5.2.pdf",
+      "source_relative_path": "LocalGPT-2.5.3.pdf",
       "output": {
         "resource": {
-          "relative_path": "LocalGPT-2.5.2.pdf"
+          "relative_path": "LocalGPT-2.5.3.pdf"
         }
       },
       "version": ""
@@ -6140,6 +6140,20 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.Components.Shared.ProviderModelPanel",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.WorkbenchHeader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.WorkbenchHeader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.WorkbenchHeader",
       "Summary": null
     },
     {

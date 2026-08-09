@@ -13,16 +13,24 @@
 @inject IRemoteKnowledgeImportService RemoteKnowledgeImporter
 @inject ILearnBaseKnowledgeImporterService LearnBaseImporter
 @inject ICouncilTeamConfigurationService CouncilTeams
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 <PageTitle>Test Lab</PageTitle>
 <main class="test-lab-page">
-    <section class="help-hero">
-        <h1>Test Lab</h1>
-        <p>Run LocalGPT diagnostics, artifact generators, and learn-base imports from inside the frontend.</p>
-    </section>
+    <WorkbenchHeader Eyebrow='@Localization.Get("TestLab.Workbench.Eyebrow", fallback: "Diagnostics studio")'
+                     Title='@Localization.Get("TestLab.Workbench.Title", fallback: "Test Lab")'
+                     Subtitle='@Localization.Get("TestLab.Workbench.Subtitle", fallback: "Run local diagnostics, inspect generated artifacts and manage bounded knowledge imports from one responsive workbench.")' />
+    <nav class="test-lab-section-nav" aria-label="Test Lab sections">
+        <a href="#frontend-smoke">@Localization.Get("TestLab.Workbench.Nav.Frontend", fallback: "Frontend smoke")</a>
+        <a href="#learnbase-import">@Localization.Get("TestLab.Workbench.Nav.LearnBase", fallback: "Learn-Base")</a>
+        <a href="#remote-knowledge">@Localization.Get("TestLab.Workbench.Nav.Remote", fallback: "Remote knowledge")</a>
+        <a href="#custom-route">@Localization.Get("TestLab.Workbench.Nav.Route", fallback: "Custom route")</a>
+        <a href="#generated-workspace">@Localization.Get("TestLab.Workbench.Nav.Workspace", fallback: "Workspace")</a>
+        <a href="#test-result">@Localization.Get("TestLab.Workbench.Nav.Result", fallback: "Result")</a>
+    </nav>
     <ToastWrapper Name="@toastName" />
     <section class="test-lab-grid">
-        <article class="help-panel test-lab-panel frontend-api-smoke-panel">
+        <article id="frontend-smoke" class="help-panel test-lab-panel frontend-api-smoke-panel">
             <h2>Frontend API Smoke</h2>
             <p>These checks stay on the local loopback server and are useful before loading a heavy model.</p>
             <div class="test-lab-actions">
@@ -37,7 +45,7 @@
             </div>
         </article>
 
-        <article class="help-panel test-lab-panel learnbase-panel">
+        <article id="learnbase-import" class="help-panel test-lab-panel learnbase-panel">
             <h2>Learn-Base Import</h2>
             <p>Import compact, bounded source maps into the Council knowledge database. Presets are starting points; the actual file endings and regex policy remain editable for every run.</p>
             <div class="learnbase-primary-grid">
@@ -205,7 +213,7 @@
         </article>
     </section>
 
-    <section class="help-panel help-wide">
+    <section id="custom-route" class="help-panel help-wide test-lab-panel">
         <h2>Custom Local Route</h2>
         <p>Allowed routes are constrained to local diagnostics and artifact paths.</p>
         <div class="test-lab-custom">
@@ -218,7 +226,7 @@
         </div>
     </section>
 
-    <section class="help-panel help-wide">
+    <section id="generated-workspace" class="help-panel help-wide test-lab-panel">
         <h2>Generated Workspace</h2>
         <p>Inspect and edit generated source before refreshing the zip. Starting programs or scripts stays a user-approved action.</p>
         <div class="test-lab-custom">
@@ -265,7 +273,7 @@
         }
     </section>
 
-    <section class="help-panel help-wide">
+    <section id="test-result" class="help-panel help-wide test-lab-panel test-result-panel">
         <h2>Result</h2>
         @if (!string.IsNullOrWhiteSpace(statusText))
         {

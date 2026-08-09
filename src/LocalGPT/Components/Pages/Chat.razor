@@ -35,6 +35,7 @@
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 @inject ISupervisedTaskRunner TaskRunner
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 <PageTitle>AI Chat</PageTitle>
 
@@ -61,7 +62,13 @@
                 <span>Chat configuration</span>
                 <small>@(ChatClientProvider.SelectedSession?.Name ?? "No provider") · @CouncilEditorModelNames.Count council model@(CouncilEditorModelNames.Count == 1 ? string.Empty : "s")</small>
             </summary>
-            <div class="chat-configuration-content">
+            <div class="chat-configuration-content" role="region" aria-label="Chat configuration workspace" tabindex="0">
+        <nav class="chat-configuration-section-nav" aria-label="Chat configuration sections">
+            <a href="#chat-provider-controls">@Localization.Get("Chat.Configuration.Provider", fallback: "Provider")</a>
+            <a href="#localgpt-council-controls">@Localization.Get("Chat.Configuration.Council", fallback: "AI Council")</a>
+            <a href="#localgpt-memory-controls">@Localization.Get("Chat.Configuration.MemoryProjects", fallback: "Memory & projects")</a>
+            <a href="#architecture-options">@Localization.Get("Chat.Configuration.Architecture", fallback: "Architecture")</a>
+        </nav>
         <nav class="chat-session-toolbar chat-navigation-actions" data-testid="chat-session-actions" aria-label="Chat actions">
             <strong>Chat actions</strong>
             <details class="chat-actions-menu">
@@ -81,7 +88,7 @@
             }
         </nav>
 
-        <div class="chat-provider-row" data-testid="chat-top-controls">
+        <div id="chat-provider-controls" class="chat-provider-row" data-testid="chat-top-controls">
             <label class="chat-provider-selector" title="Choose the local or cloud model for the next response.">
                 <span>AI provider</span>
                 <select class="form-select selector-container-combo-editor chat-provider-native-select"
@@ -384,7 +391,7 @@
                 }
             </div>
         }
-        <details class="architecture-poll">
+        <details id="architecture-options" class="architecture-poll">
             <summary>
                 <span>Optional architecture choices</span>
                 <small>Open only when you want to decide now. Otherwise the AI should ask with a runtime poll before coding.</small>

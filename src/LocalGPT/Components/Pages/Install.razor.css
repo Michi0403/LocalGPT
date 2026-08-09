@@ -315,3 +315,225 @@
     .configured-provider-actions { display: grid; grid-template-columns: 1fr; }
     .configured-provider-actions ::deep .dxbl-btn { width: 100%; }
 }
+
+/* v2.5.3: PublisherStudio-inspired setup workbench. The page owns vertical scrolling,
+   while each configuration region stays in normal flow and remains fully reachable. */
+.install-page-scroll-owner {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: clamp(.65rem, 1vw, 1rem);
+}
+
+.install-workbench {
+    display: grid;
+    gap: .85rem;
+    width: min(100%, 118rem);
+    margin-inline: auto;
+    padding-bottom: 1rem;
+}
+
+.install-section-nav {
+    position: sticky;
+    top: 0;
+    z-index: 18;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    min-width: 0;
+    padding: .55rem;
+    border: 1px solid var(--bs-border-color, #d6dce3);
+    border-radius: .65rem;
+    background: color-mix(in srgb, var(--bs-body-bg, Canvas) 96%, transparent);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 .25rem .8rem rgba(0, 0, 0, .06);
+}
+
+.install-section-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: .35rem .65rem;
+    border: 1px solid var(--bs-border-color, #d6dce3);
+    border-radius: .45rem;
+    background: var(--bs-body-bg, Canvas);
+    color: var(--bs-body-color, CanvasText);
+    font-size: .84rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.install-section-nav a:hover,
+.install-section-nav a:focus-visible {
+    border-color: var(--bs-primary, #ff6b00);
+    background: color-mix(in srgb, var(--bs-primary, #ff6b00) 9%, var(--bs-body-bg, Canvas));
+    outline: none;
+}
+
+.install-workbench-region {
+    scroll-margin-top: 4.4rem;
+    min-width: 0;
+}
+
+.install-provider-studio {
+    display: grid;
+    gap: .8rem;
+    padding: clamp(.8rem, 1.2vw, 1.15rem);
+    border: 1px solid var(--bs-border-color, #d6dce3);
+    border-radius: .75rem;
+    background: var(--bs-body-bg, Canvas);
+    box-shadow: 0 .3rem 1.1rem rgba(0, 0, 0, .05);
+}
+
+.install-region-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: .65rem;
+    border-bottom: 1px solid var(--bs-border-color, #d6dce3);
+}
+
+.install-region-heading h2 {
+    margin: .12rem 0 .2rem;
+    font-size: clamp(1.25rem, 1.6vw, 1.6rem);
+}
+
+.install-region-heading p {
+    max-width: 78rem;
+    margin: 0;
+    color: var(--bs-secondary-color, #64748b);
+}
+
+.install-region-kicker {
+    color: var(--bs-primary, #ff6b00);
+    font-size: .76rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.install-provider-studio > .alert {
+    margin: 0;
+    border-radius: .6rem;
+}
+
+.install-provider-studio > .top-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: center;
+    margin: 0;
+}
+
+.install-provider-studio ::deep .dxbl-fl {
+    min-width: 0;
+}
+
+.install-provider-studio ::deep .dxbl-tabs {
+    min-width: 0;
+    border: 1px solid var(--bs-border-color, #d6dce3);
+    border-radius: .55rem;
+    overflow: hidden;
+}
+
+.install-provider-studio ::deep input,
+.install-provider-studio ::deep textarea,
+.install-provider-studio ::deep select,
+.installer-workbench-card ::deep input,
+.installer-workbench-card ::deep textarea,
+.installer-workbench-card ::deep select {
+    min-width: 0;
+}
+
+.installer-workbench-card {
+    border-radius: .75rem;
+    box-shadow: 0 .25rem .9rem rgba(0, 0, 0, .045);
+}
+
+.installer-card-heading {
+    padding-bottom: .55rem;
+    border-bottom: 1px solid var(--bs-border-color, #d6dce3);
+}
+
+.setup-log-card {
+    min-height: 16rem;
+}
+
+.setup-log-card ::deep textarea,
+.setup-log-editor {
+    min-height: 12rem;
+    resize: vertical;
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: .86rem;
+    line-height: 1.45;
+}
+
+@media (min-width: 1180px) {
+    .install-provider-studio > .alert {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ollama-process-panel {
+        display: grid;
+        grid-template-columns: minmax(16rem, .8fr) minmax(24rem, 1.4fr);
+    }
+}
+
+@media (max-width: 760px) {
+    .install-page-scroll-owner {
+        padding: .35rem;
+    }
+
+    .install-section-nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: thin;
+    }
+
+    .install-section-nav a {
+        flex: 0 0 auto;
+    }
+
+    .install-provider-studio,
+    .installer-workbench-card {
+        border-radius: .55rem;
+        padding: .7rem;
+    }
+}
+
+@media (min-width: 1050px) {
+    .install-workbench {
+        grid-template-columns: 15rem minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .install-workbench ::deep .localgpt-workbench-header {
+        grid-column: 1 / -1;
+    }
+
+    .install-section-nav {
+        grid-column: 1;
+        grid-row: 2 / span 20;
+        align-self: start;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        top: .5rem;
+        max-height: calc(100dvh - 6rem);
+        overflow-y: auto;
+    }
+
+    .install-section-nav a {
+        width: 100%;
+    }
+
+    .install-workbench-region {
+        grid-column: 2;
+    }
+}

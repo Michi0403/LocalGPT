@@ -1,0 +1,26 @@
+<header class="localgpt-workbench-header">
+    <div class="localgpt-workbench-heading">
+        @if (!string.IsNullOrWhiteSpace(Eyebrow))
+        {
+            <span class="localgpt-workbench-eyebrow">@Eyebrow</span>
+        }
+        <h1>@Title</h1>
+        @if (!string.IsNullOrWhiteSpace(Subtitle))
+        {
+            <p>@Subtitle</p>
+        }
+    </div>
+    @if (Actions is not null)
+    {
+        <div class="localgpt-workbench-actions">
+            @Actions
+        </div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Subtitle { get; set; } = string.Empty;
+    [Parameter] public string Eyebrow { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? Actions { get; set; }
+}
