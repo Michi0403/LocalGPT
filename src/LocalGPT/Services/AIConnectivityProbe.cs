@@ -6,7 +6,7 @@ namespace LocalGPT.Services;
 public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         AiDiscoveryService aiDiscovery,
         CouncilTextService councilText,
-        Microsoft.Extensions.Options.IOptionsMonitor<ConfigurationRoot> optionsRoot) : IAiConnectivityProbe
+        Microsoft.Extensions.Options.IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot) : IAiConnectivityProbe
 {
     public async Task<(bool ok, string message)> TestAzureAsync(OpenAIServiceCoreOptions options, CancellationToken cancellationToken)
     {

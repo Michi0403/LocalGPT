@@ -105,3 +105,20 @@
     .council-road-fields label.wide { grid-column: auto; }
     .council-road-load-row { grid-template-columns: 1fr; align-items: stretch; }
 }
+
+
+/* v2.4.8: provider-qualified Council roads remain readable without exposing long selection keys. */
+.council-road-identity {
+    display: grid;
+    gap: .15rem;
+    min-width: 0;
+}
+.council-road-identity strong,
+.council-road-identity small {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.council-road-identity small {
+    color: var(--bs-secondary-color);
+    font-weight: 500;
+}

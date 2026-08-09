@@ -21,7 +21,10 @@
                 var load = route.LoadPercentOverride ?? ResourceLoadPercent;
                 <article class="council-road-card" @key="route.ModelName">
                     <header>
-                        <strong title="@route.ModelName">@route.ModelName</strong>
+                        <div class="council-road-identity">
+                            <strong title="@route.ModelName">@GetRouteDisplayName(route)</strong>
+                            <small>@GetRouteEndpointLabel(route)</small>
+                        </div>
                         <label class="inline-dx-check compact">
                             <input type="checkbox" checked="@route.IsEnabled" @onchange="args => SetEnabled(route, args)" />
                             <span>Enabled</span>
@@ -104,6 +107,21 @@
 
     private bool SameRoutes(IReadOnlyList<OneWireCouncilModelRoute> left, IReadOnlyList<OneWireCouncilModelRoute> right) =>
         left.Count == right.Count && left.Select(route => route.ModelName).SequenceEqual(right.Select(route => route.ModelName), StringComparer.OrdinalIgnoreCase);
+
+
+    private static string GetRouteDisplayName(OneWireCouncilModelRoute route)
+    {
+        var model = string.IsNullOrWhiteSpace(route.ProviderModelName) ? route.ModelName : route.ProviderModelName;
+        var provider = string.IsNullOrWhiteSpace(route.ProviderName) ? "AI provider" : route.ProviderName;
+        return $"{model} — {provider}";
+    }
+
+    private static string GetRouteEndpointLabel(OneWireCouncilModelRoute route)
+    {
+        if (string.IsNullOrWhiteSpace(route.ProviderEndpoint))
+            return "Legacy/default provider route";
+        return new ProviderModelIdentity().GetEndpointLabel(route.ProviderEndpoint);
+    }
 
     private async Task NormalizeAndNotify(OneWireCouncilModelRoute route)
     {

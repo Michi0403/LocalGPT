@@ -27,6 +27,7 @@
 @inject IHumanCollaborationService HumanCollaboration
 @inject ICouncilLiveSessionService CouncilLiveSessions
 @inject ICouncilRunConfigurationService CouncilRunConfigurations
+@inject ICouncilHardwareRoadConfigurationService CouncilHardwareRoads
 @inject IServiceScopeFactory ServiceScopeFactory
 @inject ILocalHumanInteractionContext HumanAmbientContext
 @implements IDisposable
@@ -192,15 +193,32 @@
                     <strong>DXAiChat Council Members</strong>
                     <span class="memory-status">Select models from any configured provider. Provider-qualified identities prevent same-name collisions.</span>
                 </div>
-                <div class="council-member-list provider-model-list">
-                    @foreach (var candidate in OllamaCandidates)
+                <div class="council-provider-hosts" data-testid="council-provider-hosts">
+                    @foreach (var host in CouncilProviderHosts)
                     {
-                        <ProviderModelPanel @key="candidate.SelectionKey" Model="candidate.ToReference()"
-                                            Selected="@SelectedCouncilModelNames.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)"
-                                            SelectedChanged="@(selected => ToggleCouncilModel(candidate.SelectionKey, selected))"
-                                            CouncilModels="SelectedCouncilProviderModels"
-                                            BenchmarkApplied="OnChatBenchmarkAppliedAsync"
-                                            BenchmarkStarted="OnBenchmarkStartedAsync" />
+                        <section class="council-provider-host" @key="host.Key">
+                            <header>
+                                <div>
+                                    <strong>@host.ProviderName</strong>
+                                    <small>@host.EndpointLabel · @host.Models.Count model@(host.Models.Count == 1 ? string.Empty : "s")</small>
+                                </div>
+                                <div class="council-host-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => SetCouncilHostSelection(host, true)">Select host</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => SetCouncilHostSelection(host, false)">Clear host</button>
+                                </div>
+                            </header>
+                            <div class="council-member-list provider-model-list">
+                                @foreach (var candidate in host.Models)
+                                {
+                                    <ProviderModelPanel @key="candidate.SelectionKey" Model="candidate.ToReference()"
+                                                        Selected="@SelectedCouncilModelNames.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)"
+                                                        SelectedChanged="@(selected => ToggleCouncilModel(candidate.SelectionKey, selected))"
+                                                        CouncilModels="SelectedCouncilProviderModels"
+                                                        BenchmarkApplied="OnChatBenchmarkAppliedAsync"
+                                                        BenchmarkStarted="OnBenchmarkStartedAsync" />
+                                }
+                            </div>
+                        </section>
                     }
                 </div>
                 <ProviderModelBenchmarkCouncilPanel Models="SelectedCouncilProviderModels"
@@ -684,6 +702,26 @@
         .Where(candidate => SelectedCouncilModelNames.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase))
         .Select(candidate => candidate.ToReference())
         .ToList();
+    IReadOnlyList<CouncilProviderHostGroup> CouncilProviderHosts => OllamaCandidates
+        .GroupBy(candidate => $"{candidate.Provider}|{new ProviderModelIdentity().NormalizeEndpoint(candidate.Endpoint)}", StringComparer.OrdinalIgnoreCase)
+        .Select(group =>
+        {
+            var first = group.First();
+            return new CouncilProviderHostGroup(
+                group.Key,
+                first.Provider,
+                new ProviderModelIdentity().GetEndpointLabel(first.Endpoint),
+                group.OrderBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase).ToList());
+        })
+        .OrderBy(group => group.ProviderName, StringComparer.OrdinalIgnoreCase)
+        .ThenBy(group => group.EndpointLabel, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private sealed record CouncilProviderHostGroup(
+        string Key,
+        string ProviderName,
+        string EndpointLabel,
+        IReadOnlyList<MultiModelCouncilModelCandidate> Models);
     List<string> DiagnosticCouncilModelNames { get; set; } = new();
     List<CouncilModelPreset> ModelPresets { get; set; } = new();
     List<OneWireCouncilModelRoute> CouncilModelRoutes { get; set; } = [];
@@ -1421,6 +1459,7 @@
 
         SelectedCouncilModelNames = NormalizeProviderSelectionKeys(SelectedCouncilModelNames);
         DiagnosticCouncilModelNames = NormalizeProviderSelectionKeys(DiagnosticCouncilModelNames);
+        SynchronizeSelectedCouncilRoutes();
 
         if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0)
         {
@@ -2272,6 +2311,7 @@
         SelectedCouncilModelNames = NormalizeProviderSelectionKeys(
             JsonSerializer.Deserialize<List<string>>(preset.ModelNamesJson) ?? []);
         CouncilModelRoutes = ParseModelRoutes(preset.ModelRoutesJson);
+        SynchronizeSelectedCouncilRoutes();
         var loadOverrides = CouncilModelRoutes.Where(route => route.LoadPercentOverride.HasValue).Select(route => route.LoadPercentOverride!.Value).Distinct().ToList();
         if (loadOverrides.Count == 1) CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(loadOverrides[0] / 5d) * 5, 0, 100);
         CouncilMaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
@@ -2378,6 +2418,7 @@
         SelectedModelPreset = null;
         SelectedCouncilModelNames = NormalizeProviderSelectionKeys(configuration.ModelNames);
         CouncilModelRoutes = configuration.ModelRoutes.Select(CloneRoute).ToList();
+        SynchronizeSelectedCouncilRoutes();
         CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(configuration.ResourceLoadPercent / 5d) * 5, 0, 100);
         CouncilMaxOutputTokens = Math.Clamp(configuration.MaxOutputTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
         CouncilMaxContextTokens = Math.Clamp(configuration.MaxContextTokens, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
@@ -2431,6 +2472,7 @@
         {
             CouncilMaxOutputTokens = value;
             SelectedModelPreset = null;
+            SynchronizeSelectedCouncilRoutes();
             SavePreparationConfiguration();
             modelStatus = $"Future Council sessions will use an output ceiling of {value:N0} tokens.";
         }
@@ -2600,6 +2642,40 @@
     }
 
 
+    private void SynchronizeSelectedCouncilRoutes()
+    {
+        try
+        {
+            var synchronized = CouncilHardwareRoads
+                .Synchronize(SelectedCouncilModelNames, CouncilModelRoutes)
+                .Select(CloneRoute)
+                .ToList();
+
+            foreach (var route in synchronized)
+            {
+                var candidate = OllamaCandidates.FirstOrDefault(item =>
+                    item.SelectionKey.Equals(route.ModelName, StringComparison.OrdinalIgnoreCase));
+                if (candidate is null)
+                    continue;
+
+                route.ModelName = candidate.SelectionKey;
+                route.ProviderKind = candidate.ProviderKind;
+                route.ProviderName = candidate.Provider;
+                route.ProviderEndpoint = candidate.Endpoint;
+                route.ProviderModelName = candidate.ModelName;
+                if (!candidate.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                    route.OllamaNumGpu = null;
+            }
+
+            CouncilModelRoutes = synchronized;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not synchronize provider-qualified Council routes for the current preparation selection.");
+            throw;
+        }
+    }
+
     private List<OneWireCouncilModelRoute> CreateProviderQualifiedCouncilRoutes()
     {
         var routes = CouncilModelRoutes.Select(CloneRoute).ToList();
@@ -2644,6 +2720,33 @@
         MaxConcurrentModelsOnLane = route.MaxConcurrentModelsOnLane
     };
 
+    private void SetCouncilHostSelection(CouncilProviderHostGroup host, bool isSelected)
+    {
+        try
+        {
+            foreach (var candidate in host.Models)
+            {
+                if (isSelected)
+                {
+                    if (!SelectedCouncilModelNames.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                        SelectedCouncilModelNames.Add(candidate.SelectionKey);
+                }
+                else
+                {
+                    SelectedCouncilModelNames.RemoveAll(value => value.Equals(candidate.SelectionKey, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+            SelectedModelPreset = null;
+            SynchronizeSelectedCouncilRoutes();
+            SavePreparationConfiguration();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Provider-host Council selection failed for {Provider} at {Endpoint}.", host.ProviderName, host.EndpointLabel);
+            Notifier.ShowError(toastName, "The provider host selection could not be changed. See local logs for details.", "Selection failed");
+        }
+    }
+
     private void ToggleCouncilModel(string selectionKey, bool isChecked)
     {
         try
@@ -2659,6 +2762,7 @@
             }
 
             SelectedModelPreset = null;
+            SynchronizeSelectedCouncilRoutes();
             SavePreparationConfiguration();
         }
         catch (Exception ex)
