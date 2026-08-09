@@ -1428,7 +1428,11 @@
 
         try
         {
-            await InvokeAsync(() => isModelRefreshBusy = true).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                isModelRefreshBusy = true;
+                StateHasChanged();
+            }).ConfigureAwait(false);
 
             // Discovery runs from the supervised task context. Only the small state-application
             // phase is marshalled back to the renderer, so a slow Ollama probe cannot monopolize
@@ -1437,7 +1441,14 @@
             if (isDisposed || cancellationToken.IsCancellationRequested)
                 return;
 
-            await InvokeAsync(() => ApplyDiscoveredOllamaModels(discovered, showToast)).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                ApplyDiscoveredOllamaModels(discovered, showToast);
+                // This refresh is started outside the Blazor event callback by the supervised task runner.
+                // Explicitly invalidate the component so newly discovered provider sessions are visible
+                // immediately when Chat configuration opens, without requiring a second ribbon/menu click.
+                StateHasChanged();
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
         {
@@ -1458,7 +1469,14 @@
         {
             if (!isDisposed)
             {
-                try { await InvokeAsync(() => isModelRefreshBusy = false).ConfigureAwait(false); }
+                try
+                {
+                    await InvokeAsync(() =>
+                    {
+                        isModelRefreshBusy = false;
+                        StateHasChanged();
+                    }).ConfigureAwait(false);
+                }
                 catch (InvalidOperationException) when (isDisposed) { }
             }
         }

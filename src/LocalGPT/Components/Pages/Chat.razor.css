@@ -2575,3 +2575,40 @@
         inset: .25rem !important;
     }
 }
+
+
+/* v2.5.2: one explicit viewport owner for Chat configuration.
+   The fixed details element is bounded to the browser and its body is the only scroll owner. */
+.chat-configuration-ribbon[open] {
+    inset: 1rem !important;
+    box-sizing: border-box !important;
+    width: calc(100vw - 2rem) !important;
+    height: calc(100dvh - 2rem) !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 2rem) !important;
+    overflow: hidden !important;
+}
+
+.chat-configuration-ribbon[open] > summary {
+    flex: 0 0 auto !important;
+}
+
+.chat-configuration-ribbon[open] .chat-configuration-content {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    height: 0 !important;
+    max-height: none !important;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable both-edges;
+}
+
+@media (max-width: 760px) {
+    .chat-configuration-ribbon[open] {
+        inset: .25rem !important;
+        width: calc(100vw - .5rem) !important;
+        height: calc(100dvh - .5rem) !important;
+        max-height: calc(100dvh - .5rem) !important;
+    }
+}

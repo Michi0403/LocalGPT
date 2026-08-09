@@ -227,7 +227,9 @@ function New-PortableReleaseArchive {
     param(
         [Parameter(Mandatory)][string]$SourceDirectory,
         [Parameter(Mandatory)][string]$DestinationPath,
-        [Parameter(Mandatory)][string]$RootFolderName
+        [Parameter(Mandatory)][string]$RootFolderName,
+        [string[]]$UnixExecutableRelativePaths = @(),
+        [switch]$WriteUnixPermissions
     )
 
     $sourceRoot = [IO.Path]::GetFullPath($SourceDirectory).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
@@ -240,6 +242,16 @@ function New-PortableReleaseArchive {
 
     $files = @(Get-ChildItem -LiteralPath $sourceRoot -File -Recurse | Sort-Object FullName)
     if ($files.Count -eq 0) { throw "Release archive source is empty: $sourceRoot" }
+
+    $unixExecutableSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($unixExecutablePath in @($UnixExecutableRelativePaths)) {
+        if ([string]::IsNullOrWhiteSpace($unixExecutablePath)) { continue }
+        $normalizedExecutablePath = $unixExecutablePath.TrimStart([char[]]"\/").Replace('\', '/')
+        if ($normalizedExecutablePath.Split('/') -contains '..') { throw "Unsafe Unix executable path: $unixExecutablePath" }
+        [void]$unixExecutableSet.Add($normalizedExecutablePath)
+    }
+    $unixRegularFileAttributes = [int]-2119958528 # 0100644 << 16
+    $unixExecutableFileAttributes = [int]-2115174400 # 0100755 << 16
 
     $destination = [IO.Path]::GetFullPath($DestinationPath)
     New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
@@ -262,6 +274,9 @@ function New-PortableReleaseArchive {
 
                 $entry = $archive.CreateEntry($entryName, [IO.Compression.CompressionLevel]::Optimal)
                 $entry.LastWriteTime = [DateTimeOffset]::new(1980, 1, 1, 0, 0, 0, [TimeSpan]::Zero)
+                if ($WriteUnixPermissions) {
+                    $entry.ExternalAttributes = if ($unixExecutableSet.Contains($relative)) { $unixExecutableFileAttributes } else { $unixRegularFileAttributes }
+                }
                 $input = [IO.File]::Open($file.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
                 try {
                     $output = $entry.Open()
@@ -278,6 +293,15 @@ function New-PortableReleaseArchive {
             $entries = @($verification.Entries | Where-Object { -not [string]::IsNullOrWhiteSpace($_.Name) })
             if ($entries.Count -ne $files.Count) {
                 throw "Release archive entry count $($entries.Count) does not match source file count $($files.Count): $temporaryArchive"
+            }
+            if ($WriteUnixPermissions) {
+                foreach ($unixExecutablePath in $unixExecutableSet) {
+                    $expectedEntryName = "$RootFolderName/$unixExecutablePath"
+                    $executableEntry = $entries | Where-Object { $_.FullName -eq $expectedEntryName } | Select-Object -First 1
+                    if ($null -eq $executableEntry) { throw "Unix executable entry is missing from release archive: $expectedEntryName" }
+                    $permissionBits = (($executableEntry.ExternalAttributes -shr 16) -band 511)
+                    if ($permissionBits -ne 493) { throw "Unix executable entry '$expectedEntryName' does not carry mode 0755 (actual permission bits: $permissionBits)." }
+                }
             }
             foreach ($entry in $entries) {
                 if ($entry.FullName.Contains('\')) {
@@ -487,8 +511,8 @@ function Publish-Runtime {
     Assert-LocalGptDocumentationPayload -DocumentationRoot $publishedDocumentationRoot -Version $appVersion
     $appRootFolderName = Split-Path -Leaf $appFolder
     $setupRootFolderName = Split-Path -Leaf $setupFolder
-    New-PortableReleaseArchive -SourceDirectory $appFolder -DestinationPath $appZip -RootFolderName $appRootFolderName
-    New-PortableReleaseArchive -SourceDirectory $setupFolder -DestinationPath $setupZip -RootFolderName $setupRootFolderName
+    New-PortableReleaseArchive -SourceDirectory $appFolder -DestinationPath $appZip -RootFolderName $appRootFolderName -WriteUnixPermissions:(!$Rid.StartsWith("win-")) -UnixExecutableRelativePaths @($appExecutable)
+    New-PortableReleaseArchive -SourceDirectory $setupFolder -DestinationPath $setupZip -RootFolderName $setupRootFolderName -WriteUnixPermissions:(!$Rid.StartsWith("win-")) -UnixExecutableRelativePaths @($setupExecutable)
     $script:releaseZipPaths.Add($appZip)
     $script:releaseZipPaths.Add($setupZip)
     Write-Host "Created portable ZIP $appZip" -ForegroundColor Green
