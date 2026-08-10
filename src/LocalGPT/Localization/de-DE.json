@@ -1477,6 +1477,7 @@
   "Install.Workbench.ProviderKicker": "Anbieter-Workbench",
   "Install.Workbench.ProvidersTitle": "KI-Anbieter",
   "Install.Workbench.ProvidersHelp": "Erreichbare Hosts finden, Anbieterfamilie wählen, alle vorhandenen Optionen bearbeiten und die Verbindung vor dem Speichern prüfen.",
+  "Install.Ollama.AdditiveHostHelp": "Die Felder unten beschreiben den aktuellen primären Ollama-Host. Das Hinzufügen oder Auswählen eines weiteren Endpunkts ist additiv; ein vorhandener Host wird nur durch eine ausdrückliche Entfernen-Aktion gelöscht. Mit Als primär festlegen im Katalog der konfigurierten Hosts ändern Sie den Standardhost.",
   "Install.Workbench.LogTitle": "Einrichtungsaktivität",
   "Install.Workbench.LogHelp": "Betriebliche Einrichtungsmeldungen bleiben hier sichtbar; technische Details laufen weiterhin über das Anwendungslogging.",
   "Chat.Configuration.Provider": "Anbieter",

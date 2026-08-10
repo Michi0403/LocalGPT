@@ -1477,6 +1477,7 @@
   "Install.Workbench.ProviderKicker": "Provider workbench",
   "Install.Workbench.ProvidersTitle": "AI providers",
   "Install.Workbench.ProvidersHelp": "Discover reachable hosts, select the provider family, edit every existing option and verify connectivity before saving.",
+  "Install.Ollama.AdditiveHostHelp": "The fields below describe the current primary Ollama host. Adding or selecting another endpoint is additive; an existing host is removed only by an explicit Remove action. Use Make primary in the configured host catalog to change the default host.",
   "Install.Workbench.LogTitle": "Setup activity",
   "Install.Workbench.LogHelp": "Operational setup messages stay visible here while technical details continue to use the application logging pipeline.",
   "Chat.Configuration.Provider": "Provider",

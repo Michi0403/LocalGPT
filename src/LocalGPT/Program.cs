@@ -285,6 +285,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<ILocalHumanInteractionContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
                 builder.Services.AddSingleton<IHumanApprovalExecutionContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
                 builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
+                builder.Services.AddSingleton<IAiProviderConfigurationRegistryService, AiProviderConfigurationRegistryService>();
                 builder.Services.AddSingleton<INetworkCertificateService, NetworkCertificateService>();
                 builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
                 builder.Services.AddSingleton<IOllamaProcessService, OllamaProcessService>();

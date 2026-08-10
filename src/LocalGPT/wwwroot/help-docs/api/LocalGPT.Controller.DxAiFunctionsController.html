@@ -125,7 +125,7 @@
 
   <h1 id="LocalGPT_Controller_DxAiFunctionsController" data-uid="LocalGPT.Controller.DxAiFunctionsController" class="text-break">
 Class DxAiFunctionsController  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Controller.html">Controller</a></dd></dl>
@@ -721,8 +721,8 @@ public sealed class DxAiFunctionsController : ControllerBase</code></pre>
 
   <a id="LocalGPT_Controller_DxAiFunctionsController__ctor_" data-uid="LocalGPT.Controller.DxAiFunctionsController.#ctor*"></a>
 
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Controller_DxAiFunctionsController__ctor_LocalGPT_Interfaces_IDxAiFunctionServiceClient_LocalGPT_Interfaces_IDxAiFunctionCallRecoveryService_LocalGPT_Interfaces_IDeferredDxAiInvocationService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Controller_DxAiFunctionsController__" data-uid="LocalGPT.Controller.DxAiFunctionsController.#ctor(LocalGPT.Interfaces.IDxAiFunctionServiceClient,LocalGPT.Interfaces.IDxAiFunctionCallRecoveryService,LocalGPT.Interfaces.IDeferredDxAiInvocationService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.DxAiFunctionsController})">
-  DxAiFunctionsController(IDxAiFunctionServiceClient, IDxAiFunctionCallRecoveryService, IDeferredDxAiInvocationService, ILogger&lt;DxAiFunctionsController&gt;)
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Controller_DxAiFunctionsController__ctor_LocalGPT_Interfaces_IDxAiFunctionServiceClient_Microsoft_Extensions_Logging_ILogger_LocalGPT_Controller_DxAiFunctionsController__" data-uid="LocalGPT.Controller.DxAiFunctionsController.#ctor(LocalGPT.Interfaces.IDxAiFunctionServiceClient,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.DxAiFunctionsController})">
+  DxAiFunctionsController(IDxAiFunctionServiceClient, ILogger&lt;DxAiFunctionsController&gt;)
   
   </h3><div class="localgpt-api-member-item-body">
 
@@ -730,16 +730,12 @@ public sealed class DxAiFunctionsController : ControllerBase</code></pre>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public DxAiFunctionsController(IDxAiFunctionServiceClient functionClient, IDxAiFunctionCallRecoveryService recovery, IDeferredDxAiInvocationService deferredInvocations, ILogger&lt;DxAiFunctionsController&gt; logger)</code></pre>
+    <pre><code class="lang-csharp hljs">public DxAiFunctionsController(IDxAiFunctionServiceClient functionClient, ILogger&lt;DxAiFunctionsController&gt; logger)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>functionClient</code> <a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionServiceClient.html">IDxAiFunctionServiceClient</a></dt>
-    <dd></dd>
-    <dt><code>recovery</code> <a class="xref" href="LocalGPT.Interfaces.IDxAiFunctionCallRecoveryService.html">IDxAiFunctionCallRecoveryService</a></dt>
-    <dd></dd>
-    <dt><code>deferredInvocations</code> <a class="xref" href="LocalGPT.Interfaces.IDeferredDxAiInvocationService.html">IDeferredDxAiInvocationService</a></dt>
     <dd></dd>
     <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger-1">ILogger</a>&lt;<a class="xref" href="LocalGPT.Controller.DxAiFunctionsController.html">DxAiFunctionsController</a>&gt;</dt>
     <dd></dd>
@@ -757,51 +753,12 @@ public sealed class DxAiFunctionsController : ControllerBase</code></pre>
 
 
   </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--methods" data-member-kind="Methods" style="--localgpt-api-accent:#3b82f6;" role="region" aria-labelledby="methods"><h2 class="section" id="methods"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2699;&#xFE0F;</span>Methods
-<span class="localgpt-api-member-count" aria-label="4 items">4</span></h2><div class="localgpt-api-member-panel-body">
-
-
-  <a id="LocalGPT_Controller_DxAiFunctionsController_ExecuteApprovedDeferred_" data-uid="LocalGPT.Controller.DxAiFunctionsController.ExecuteApprovedDeferred*"></a>
-
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Controller_DxAiFunctionsController_ExecuteApprovedDeferred_System_Guid_System_Threading_CancellationToken_" data-uid="LocalGPT.Controller.DxAiFunctionsController.ExecuteApprovedDeferred(System.Guid,System.Threading.CancellationToken)">
-  ExecuteApprovedDeferred(Guid, CancellationToken)
-  
-  </h3><div class="localgpt-api-member-item-body">
-
-  <div class="markdown level1 summary"></div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">[HttpPost(&quot;deferred/{approvalRequestId:guid}/execute&quot;)]
-public Task&lt;IResult&gt; ExecuteApprovedDeferred(Guid approvalRequestId, CancellationToken cancellationToken)</code></pre>
-  </div>
-
-  <h4 class="section">Parameters</h4>
-  <dl class="parameters">
-    <dt><code>approvalRequestId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
-    <dd></dd>
-    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
-    <dd></dd>
-  </dl>
-
-  <h4 class="section">Returns</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.http.iresult">IResult</a>&gt;</dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
+<span class="localgpt-api-member-count" aria-label="2 items">2</span></h2><div class="localgpt-api-member-panel-body">
 
 
   <a id="LocalGPT_Controller_DxAiFunctionsController_InvokeFunction_" data-uid="LocalGPT.Controller.DxAiFunctionsController.InvokeFunction*"></a>
 
-  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Controller_DxAiFunctionsController_InvokeFunction_System_String_LocalGPT_BusinessObjects_DxAiFunctionInvocationRequest_System_Threading_CancellationToken_" data-uid="LocalGPT.Controller.DxAiFunctionsController.InvokeFunction(System.String,LocalGPT.BusinessObjects.DxAiFunctionInvocationRequest,System.Threading.CancellationToken)">
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Controller_DxAiFunctionsController_InvokeFunction_System_String_LocalGPT_BusinessObjects_DxAiFunctionInvocationRequest_System_Threading_CancellationToken_" data-uid="LocalGPT.Controller.DxAiFunctionsController.InvokeFunction(System.String,LocalGPT.BusinessObjects.DxAiFunctionInvocationRequest,System.Threading.CancellationToken)">
   InvokeFunction(string, DxAiFunctionInvocationRequest, CancellationToken)
   
   </h3><div class="localgpt-api-member-item-body">
@@ -872,45 +829,6 @@ public IResult ListFunctions()</code></pre>
 
 
 
-  <a id="LocalGPT_Controller_DxAiFunctionsController_RecoverFunctionText_" data-uid="LocalGPT.Controller.DxAiFunctionsController.RecoverFunctionText*"></a>
-
-  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Controller_DxAiFunctionsController_RecoverFunctionText_LocalGPT_BusinessObjects_DxAiFunctionTextRecoveryRequest_System_Threading_CancellationToken_" data-uid="LocalGPT.Controller.DxAiFunctionsController.RecoverFunctionText(LocalGPT.BusinessObjects.DxAiFunctionTextRecoveryRequest,System.Threading.CancellationToken)">
-  RecoverFunctionText(DxAiFunctionTextRecoveryRequest, CancellationToken)
-  
-  </h3><div class="localgpt-api-member-item-body">
-
-  <div class="markdown level1 summary"></div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">[HttpPost(&quot;recover&quot;)]
-public Task&lt;IResult&gt; RecoverFunctionText(DxAiFunctionTextRecoveryRequest request, CancellationToken cancellationToken)</code></pre>
-  </div>
-
-  <h4 class="section">Parameters</h4>
-  <dl class="parameters">
-    <dt><code>request</code> <a class="xref" href="LocalGPT.BusinessObjects.DxAiFunctionTextRecoveryRequest.html">DxAiFunctionTextRecoveryRequest</a></dt>
-    <dd></dd>
-    <dt><code>cancellationToken</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.cancellationtoken">CancellationToken</a></dt>
-    <dd></dd>
-  </dl>
-
-  <h4 class="section">Returns</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.http.iresult">IResult</a>&gt;</dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
-
-
 </div></section>
 </div></section></article>
 
@@ -928,10 +846,10 @@ public Task&lt;IResult&gt; RecoverFunctionText(DxAiFunctionTextRecoveryRequest r
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.5.8 Â· generated documentation
+          LocalGPT 2.3.7 · generated documentation
         </div>
       </div>
     </footer>
-  <script type="module" src="../styles/localgpt-kawaii.js?v=2bac52827196" data-localgpt-kawaii-script="true"></script>
+  <script type="module" src="../styles/localgpt-kawaii.js?v=ef37f5056676" data-localgpt-kawaii-script="true"></script>
 </body>
 </html>
