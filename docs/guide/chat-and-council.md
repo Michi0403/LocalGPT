@@ -34,7 +34,9 @@ Provider — model @ endpoint
 
 A bare model name is accepted only when it resolves to one provider route. Ambiguous or stale selections fail clearly instead of falling back to an arbitrary endpoint.
 
-Mixed-provider Councils can combine Ollama, LM Studio or another OpenAI-compatible endpoint, OpenAI, and Azure OpenAI. The correct client is created immediately before each call. Provider-specific settings—such as Ollama GPU options—stay with the provider that understands them.
+Mixed-provider Councils can combine multiple Ollama hosts, LM Studio or another OpenAI-compatible endpoint, OpenAI, and Azure OpenAI. The correct client is created immediately before each call. Provider-specific settings—such as Ollama GPU options—stay with the provider that understands them.
+
+A provider host is identified by provider kind and normalized endpoint. Adding a second Ollama does not replace the first: the existing primary remains the default and the new endpoint becomes an additional host unless the user explicitly promotes it. On refresh/run preflight, stale provider-qualified selections are deselected or rejected with their exact endpoint; LocalGPT never substitutes a same-name model from another host.
 
 ## Benchmark Council
 

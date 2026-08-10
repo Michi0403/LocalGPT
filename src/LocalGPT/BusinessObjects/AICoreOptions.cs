@@ -5,7 +5,7 @@ namespace LocalGPT.BusinessObjects
         public const string AICore = "AICore";
 
         public OllamaCoreOptions OllamaCore { get; set; } = new();
-        public List<OllamaCoreOptions> OllamaCores { get; set; } = new();
+        public List<OllamaCoreOptions> OllamaCores { get; set; } = new(); // Additional independently reachable Ollama hosts/preferred models
         public OpenAIServiceCoreOptions OpenAIServiceCore { get; set; } = new(); // Azure OpenAI
         public ChatGPTLocalCoreOptions ChatGPTLocalCore { get; set; } = new();   // Primary OpenAI-compatible (LM Studio/vLLM/etc.)
         public List<ChatGPTLocalCoreOptions> ChatGPTLocalCores { get; set; } = new(); // Additional independently reachable OpenAI-compatible hosts/models

@@ -801,6 +801,7 @@
     string memoryStatus = string.Empty;
     string modelStatus = string.Empty;
     string modelSelectionNotice = string.Empty;
+    bool hadUnavailableProviderSelections;
     string feedbackStatus = string.Empty;
     bool isMemoryBusy;
     bool isModelRefreshBusy;
@@ -1574,11 +1575,13 @@
             .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        SelectedCouncilModelNames = NormalizeProviderSelectionKeys(SelectedCouncilModelNames);
-        DiagnosticCouncilModelNames = NormalizeProviderSelectionKeys(DiagnosticCouncilModelNames);
+        modelSelectionNotice = string.Empty;
+        hadUnavailableProviderSelections = false;
+        SelectedCouncilModelNames = ReconcileAvailableProviderSelectionKeys(SelectedCouncilModelNames, "Council");
+        DiagnosticCouncilModelNames = ReconcileAvailableProviderSelectionKeys(DiagnosticCouncilModelNames, "Diagnostic Council");
         SynchronizeSelectedCouncilRoutes();
 
-        if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0)
+        if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0 && !hadUnavailableProviderSelections)
         {
             var preferred = OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled && candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
                 ?? OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled);
@@ -1586,7 +1589,6 @@
                 SelectedCouncilModelNames.Add(preferred.SelectionKey);
         }
 
-        modelSelectionNotice = string.Empty;
         var preferCouncilByDefault = !hasUserSelectedSession
             && DiagnosticCouncilModelNames.Count == 0
             && OllamaCandidates.Count(candidate => candidate.IsInstalled) >= 2;
@@ -1617,7 +1619,7 @@
         }
         modelStatus = OllamaCandidates.Count == 0
             ? "No configured or discovered provider models detected."
-            : $"Detected {OllamaCandidates.Count(candidate => candidate.IsInstalled)} discovered/reachable model(s) and {OllamaCandidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured model(s) awaiting call-time verification across {OllamaCandidates.Select(candidate => candidate.Provider).Distinct(StringComparer.OrdinalIgnoreCase).Count()} provider(s). Provider-qualified entries are available to AI Council without same-name collisions.";
+            : $"Detected {OllamaCandidates.Count(candidate => candidate.IsInstalled)} discovered/reachable model(s) and {OllamaCandidates.Count(candidate => candidate.IsConfigured && !candidate.IsInstalled)} configured model(s) awaiting call-time verification across {OllamaCandidates.Select(candidate => $"{candidate.ProviderKind}|{candidate.Endpoint}").Distinct(StringComparer.OrdinalIgnoreCase).Count()} provider host(s). Provider-qualified entries are available to AI Council without same-name collisions.";
         if (!string.IsNullOrWhiteSpace(modelSelectionNotice))
             modelStatus = $"{modelStatus} {modelSelectionNotice}";
         if (DiagnosticCouncilModelNames.Count > 0)
@@ -2886,6 +2888,64 @@
         {
             Logger.LogError(ex, "Provider-qualified council model selection failed.");
             Notifier.ShowError(toastName, "The council model selection could not be changed. See local logs for details.", "Selection failed");
+        }
+    }
+
+    private List<string> ReconcileAvailableProviderSelectionKeys(IEnumerable<string> values, string selectionScope)
+    {
+        try
+        {
+            var normalized = new List<string>();
+            var unavailable = new List<string>();
+            var identity = new ProviderModelIdentity();
+            foreach (var raw in values.Where(value => !string.IsNullOrWhiteSpace(value)))
+            {
+                var value = raw.Trim();
+                var exact = OllamaCandidates.FirstOrDefault(candidate =>
+                    candidate.SelectionKey.Equals(value, StringComparison.OrdinalIgnoreCase));
+                if (exact is not null)
+                {
+                    if (!normalized.Contains(exact.SelectionKey, StringComparer.OrdinalIgnoreCase))
+                        normalized.Add(exact.SelectionKey);
+                    continue;
+                }
+
+                if (identity.LooksProviderQualified(value))
+                {
+                    unavailable.Add(value);
+                    continue;
+                }
+
+                var byModel = OllamaCandidates
+                    .Where(candidate => candidate.ModelName.Equals(value, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (byModel.Count == 1)
+                {
+                    if (!normalized.Contains(byModel[0].SelectionKey, StringComparer.OrdinalIgnoreCase))
+                        normalized.Add(byModel[0].SelectionKey);
+                    continue;
+                }
+
+                // A bare legacy value is retained when no unique mapping is possible. The runtime
+                // will reject ambiguity rather than substituting a provider host silently.
+                if (!normalized.Contains(value, StringComparer.OrdinalIgnoreCase))
+                    normalized.Add(value);
+            }
+
+            if (unavailable.Count > 0)
+            {
+                hadUnavailableProviderSelections = true;
+                var preview = string.Join("; ", unavailable.Take(3));
+                var remainder = unavailable.Count > 3 ? $"; +{unavailable.Count - 3} more" : string.Empty;
+                modelSelectionNotice = $"{selectionScope}: deselected {unavailable.Count} provider-qualified route(s) that are no longer configured or discoverable ({preview}{remainder}). Refresh/reconfigure the exact host to select them again; no same-name fallback was used.";
+            }
+
+            return normalized;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not reconcile provider-qualified {SelectionScope} selections against the refreshed host catalog.", selectionScope);
+            throw;
         }
     }
 

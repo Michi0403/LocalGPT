@@ -28,6 +28,10 @@ A model route contains:
 
 The route is the identity. Model-name strings alone are insufficient.
 
+Configured provider hosts are keyed by provider kind plus normalized endpoint. A **primary** Ollama or OpenAI-compatible binding is only the default route for ordinary single-model use; it is not a singleton provider registry. Additional hosts of the same provider kind remain independently configured and may participate in the same Council. Selecting a model discovered on a new endpoint adds or updates that endpoint-qualified host binding instead of overwriting a different primary host.
+
+The historical loopback Ollama endpoint (`http://127.0.0.1:11434`) remains a discovery candidate even when a LAN/VPN Ollama is primary. This keeps a local runtime visible beside remote Ollama hosts without silently persisting or replacing provider configuration.
+
 ## Core services
 
 A practical .NET architecture uses contracts similar to:

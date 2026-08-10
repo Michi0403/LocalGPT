@@ -38,6 +38,7 @@ def main() -> int:
     planner = text("src/LocalGPT/Services/Council/Scheduling/CouncilHardwareRoadPlanner.cs")
     program = text("src/LocalGPT/Program.cs")
     adaptive_benchmark = text("src/LocalGPT/Services/AdaptiveOllamaBenchmarkWiring.cs")
+    appsettings = text("src/LocalGPT/appsettings.json")
     provider_text = text("src/LocalGPT/Services/CouncilTextService.ProviderModels.cs")
     project = text("src/LocalGPT/LocalGPT.csproj")
 
@@ -61,6 +62,9 @@ def main() -> int:
     contains("OpenAI compatible client supported", runtime, "global::OpenAI.OpenAIClient")
     contains("Azure OpenAI client supported", runtime, "AzureOpenAIClient")
     contains("multiple Ollama cores discovered", runtime, "options.OllamaCores")
+    contains("loopback Ollama remains a discovery candidate beside remote primary", runtime, 'Add("http://127.0.0.1:11434")')
+    contains("Ollama probes are host-oriented", runtime, "EnumerateOllamaProbeEndpoints(options)")
+    contains("remote Ollama locality is endpoint-derived", runtime, "IsLocal: IsLocalEndpoint(endpoint)")
     contains("multiple OpenAI-compatible cores discovered", runtime, "options.ChatGPTLocalCores")
     contains("configured remote OpenAI-compatible endpoints accepted", runtime, "neither configured nor a loopback provider")
     contains("LM Studio fallback discovered", runtime, "127.0.0.1:1234/v1")
@@ -111,6 +115,19 @@ def main() -> int:
     contains("ModelCouncil uses reusable model panel", model_council, "<ProviderModelPanel")
     contains("ModelCouncil uses Benchmark Council", model_council, "<ProviderModelBenchmarkCouncilPanel")
     contains("Install uses reusable model panel", install, "<ProviderModelPanel")
+    contains("Install discovery upserts endpoint-qualified Ollama hosts", install, "UpsertOllamaHostBinding(host.Endpoint, model.Name)")
+    contains("Install discovery upserts endpoint-qualified OpenAI-compatible hosts", install, "UpsertOpenAiCompatibleHostBinding(host.Provider, host.Endpoint, model.Name)")
+    excludes("Install discovery must not overwrite Ollama primary directly", install, "Model.OllamaCore.Uri = host.Endpoint")
+    excludes("Install discovery must not overwrite OpenAI-compatible primary directly", install, "Model.ChatGPTLocalCore.Endpoint = host.Endpoint")
+    contains("Install can explicitly promote an additional provider host", install, "MakeConfiguredProviderPrimaryAsync")
+    contains("additional Ollama binding participates in configured model badge", install, "Model.OllamaCores?.Any(Matches)")
+    contains("Council preflight validates current provider-qualified routes", council, "currentBySelectionKey")
+    contains("Council preflight distinguishes offline host from missing model", council, "HasReachableProviderEndpoint(currentCandidates, requestedReference)")
+    contains("Council preflight refuses same-name fallback", council, "LocalGPT will not substitute a same-name model from another provider")
+    contains("Chat reconciles unavailable provider-qualified selections", chat, "ReconcileAvailableProviderSelectionKeys")
+    contains("Chat does not silently replace stale qualified selections", chat, "&& !hadUnavailableProviderSelections")
+    contains("default configuration exposes additional Ollama host registry", appsettings, '"OllamaCores": []')
+    contains("adaptive benchmark does not inherit a remote primary endpoint", adaptive_benchmark, "configuredLoopback")
     contains("legacy preset migration avoids qualified misclassification", presets, "!new ProviderModelIdentity().LooksProviderQualified(route.ModelName)")
     contains("hardware planner strips non-Ollama num_gpu", planner, "var isOllamaRoute")
     contains("runtime service registered", program, "AddScoped<IProviderModelRuntimeService, ProviderModelRuntimeService>")
@@ -130,7 +147,7 @@ def main() -> int:
     version_match = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", project)
     checks.append((
         "application patch version advanced",
-        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 4, 5))))
+        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 5, 7))))
 
     failures = [name for name, passed in checks if not passed]
     if failures:

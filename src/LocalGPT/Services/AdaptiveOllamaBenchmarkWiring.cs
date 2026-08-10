@@ -242,8 +242,13 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     {
         try
         {
-            var configured = configuration.CurrentValue.AICore?.OllamaCore?.Uri;
-            var value = string.IsNullOrWhiteSpace(requestedEndpoint) ? configured : requestedEndpoint;
+            var aiCore = configuration.CurrentValue.AICore ?? new AICoreOptions();
+            var configuredLoopback = new[] { aiCore.OllamaCore }
+                .Concat(aiCore.OllamaCores ?? [])
+                .Where(option => option is not null && !string.IsNullOrWhiteSpace(option.Uri))
+                .Select(option => option.Uri.Trim())
+                .FirstOrDefault(value => Uri.TryCreate(value, UriKind.Absolute, out var candidate) && candidate.IsLoopback);
+            var value = string.IsNullOrWhiteSpace(requestedEndpoint) ? configuredLoopback : requestedEndpoint;
             value = string.IsNullOrWhiteSpace(value) ? "http://127.0.0.1:11434" : value.Trim();
             if (!Uri.TryCreate(value.TrimEnd('/') + "/", UriKind.Absolute, out var endpoint))
                 throw new InvalidOperationException("The Ollama endpoint is not a valid absolute URI.");

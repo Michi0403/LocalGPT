@@ -158,6 +158,18 @@
                                 {
                                     <DxButton Text="Test" Click="@(() => TestOpenAiCompatibleHostAsync(configured.OpenAiHost))" />
                                 }
+                                else if (configured.OllamaHost is not null)
+                                {
+                                    <DxButton Text="Test" Click="@(() => TestOllamaHostAsync(configured.OllamaHost))" />
+                                }
+                                @if (!configured.IsPrimary && (configured.OpenAiHost is not null || configured.OllamaHost is not null))
+                                {
+                                    <DxButton Text="Make primary"
+                                              Enabled="@(!IsSaving)"
+                                              RenderStyle="ButtonRenderStyle.Secondary"
+                                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                              Click="@(() => MakeConfiguredProviderPrimaryAsync(configured))" />
+                                }
                                 <DxButton Text="Delete"
                                           Enabled="@(!IsSaving)"
                                           RenderStyle="ButtonRenderStyle.Danger"
@@ -305,8 +317,8 @@
                                   Click="Save" />
                     </div>
 
-                    <DxFormLayoutItem Caption="Additional Ollama Models">
-                        <DxButton Text="Add Ollama Model"
+                    <DxFormLayoutItem Caption="Additional Ollama hosts / preferred models">
+                        <DxButton Text="Add Ollama host"
                                   RenderStyle="ButtonRenderStyle.Secondary"
                                   RenderStyleMode="ButtonRenderStyleMode.Contained"
                                   Click="AddOllamaModel" />
@@ -1457,10 +1469,8 @@
                 (endpointUri.IsLoopback || endpointUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)),
             IsReachable = host.IsReachable,
             IsConfigured = isOllama
-                ? string.Equals(Model.OllamaCore?.ModelName, model.Name, StringComparison.OrdinalIgnoreCase)
-                    && identity.NormalizeEndpoint(Model.OllamaCore?.Uri).Equals(endpoint, StringComparison.OrdinalIgnoreCase)
-                : string.Equals(Model.ChatGPTLocalCore?.ModelName, model.Name, StringComparison.OrdinalIgnoreCase)
-                    && identity.NormalizeOpenAiCompatibleEndpoint(Model.ChatGPTLocalCore?.Endpoint).Equals(endpoint, StringComparison.OrdinalIgnoreCase),
+                ? IsOllamaModelConfigured(endpoint, model.Name)
+                : IsOpenAiCompatibleModelConfigured(endpoint, model.Name),
             IsLoaded = model.IsLoaded,
             SupportsBenchmark = host.IsReachable,
             Details = host.Status
@@ -1480,18 +1490,13 @@
         {
             if (string.Equals(host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
             {
-                Model.OllamaCore.Uri = host.Endpoint;
-                Model.OllamaCore.ModelName = model.Name;
-                await Append($"Selected Ollama model {model.Name} at {host.Endpoint}.").ConfigureAwait(false);
+                var binding = UpsertOllamaHostBinding(host.Endpoint, model.Name);
+                await Append($"Selected Ollama model {model.Name} at {host.Endpoint} as {(binding.IsPrimary ? "the primary" : "an additional")} endpoint-qualified host binding.").ConfigureAwait(false);
             }
             else
             {
-                Model.ChatGPTLocalCore.Endpoint = host.Endpoint;
-                Model.ChatGPTLocalCore.ApiKey = string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore.ApiKey)
-                    ? (string.Equals(host.Provider, "LM Studio", StringComparison.OrdinalIgnoreCase) ? "lm-studio" : "local-key")
-                    : Model.ChatGPTLocalCore.ApiKey;
-                Model.ChatGPTLocalCore.ModelName = model.Name;
-                await Append($"Selected {host.Provider} model {model.Name} at {host.Endpoint}.").ConfigureAwait(false);
+                var binding = UpsertOpenAiCompatibleHostBinding(host.Provider, host.Endpoint, model.Name);
+                await Append($"Selected {host.Provider} model {model.Name} at {host.Endpoint} as {(binding.IsPrimary ? "the primary" : "an additional")} endpoint-qualified host binding.").ConfigureAwait(false);
             }
 
             Notifier.ShowSuccess(toastName, $"{host.Provider}: {model.Name}", "Model Selected");
@@ -1530,6 +1535,229 @@
             ModelName = string.Empty,
             AutoStartServer = false
         });
+    }
+
+    private (bool IsPrimary, OllamaCoreOptions Binding) UpsertOllamaHostBinding(string endpoint, string modelName)
+    {
+        try
+        {
+            var identity = new ProviderModelIdentity();
+            var normalizedEndpoint = identity.NormalizeEndpoint(endpoint);
+            Model.OllamaCores ??= new List<OllamaCoreOptions>();
+
+            if (string.IsNullOrWhiteSpace(Model.OllamaCore?.Uri)
+                || identity.NormalizeEndpoint(Model.OllamaCore.Uri).Equals(normalizedEndpoint, StringComparison.OrdinalIgnoreCase))
+            {
+                Model.OllamaCore ??= new OllamaCoreOptions();
+                Model.OllamaCore.Uri = normalizedEndpoint;
+                Model.OllamaCore.ModelName = modelName.Trim();
+                return (true, Model.OllamaCore);
+            }
+
+            var existing = Model.OllamaCores.FirstOrDefault(item =>
+                !string.IsNullOrWhiteSpace(item.Uri)
+                && identity.NormalizeEndpoint(item.Uri).Equals(normalizedEndpoint, StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                existing = new OllamaCoreOptions
+                {
+                    Uri = normalizedEndpoint,
+                    ModelName = modelName.Trim(),
+                    ResponseProtocol = ChatResponseProtocol.Auto
+                };
+                Model.OllamaCores.Add(existing);
+            }
+            else
+            {
+                existing.Uri = normalizedEndpoint;
+                existing.ModelName = modelName.Trim();
+            }
+
+            return (false, existing);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not upsert the endpoint-qualified Ollama host binding for {EndpointHost}.", GetEndpointHostLabel(endpoint));
+            throw;
+        }
+    }
+
+    private (bool IsPrimary, ChatGPTLocalCoreOptions Binding) UpsertOpenAiCompatibleHostBinding(string providerName, string endpoint, string modelName)
+    {
+        try
+        {
+            var identity = new ProviderModelIdentity();
+            var normalizedEndpoint = identity.NormalizeOpenAiCompatibleEndpoint(endpoint);
+            Model.ChatGPTLocalCores ??= new List<ChatGPTLocalCoreOptions>();
+
+            if (string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore?.Endpoint)
+                || identity.NormalizeOpenAiCompatibleEndpoint(Model.ChatGPTLocalCore.Endpoint).Equals(normalizedEndpoint, StringComparison.OrdinalIgnoreCase))
+            {
+                Model.ChatGPTLocalCore ??= new ChatGPTLocalCoreOptions();
+                Model.ChatGPTLocalCore.Endpoint = normalizedEndpoint;
+                Model.ChatGPTLocalCore.ApiKey = string.IsNullOrWhiteSpace(Model.ChatGPTLocalCore.ApiKey)
+                    ? (string.Equals(providerName, "LM Studio", StringComparison.OrdinalIgnoreCase) ? "lm-studio" : "local-key")
+                    : Model.ChatGPTLocalCore.ApiKey;
+                Model.ChatGPTLocalCore.ModelName = modelName.Trim();
+                return (true, Model.ChatGPTLocalCore);
+            }
+
+            var existing = Model.ChatGPTLocalCores.FirstOrDefault(item =>
+                !string.IsNullOrWhiteSpace(item.Endpoint)
+                && identity.NormalizeOpenAiCompatibleEndpoint(item.Endpoint).Equals(normalizedEndpoint, StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                existing = new ChatGPTLocalCoreOptions
+                {
+                    Endpoint = normalizedEndpoint,
+                    ApiKey = string.Equals(providerName, "LM Studio", StringComparison.OrdinalIgnoreCase) ? "lm-studio" : "local-key",
+                    ModelName = modelName.Trim(),
+                    AutoStartServer = false
+                };
+                Model.ChatGPTLocalCores.Add(existing);
+            }
+            else
+            {
+                existing.Endpoint = normalizedEndpoint;
+                existing.ApiKey = string.IsNullOrWhiteSpace(existing.ApiKey)
+                    ? (string.Equals(providerName, "LM Studio", StringComparison.OrdinalIgnoreCase) ? "lm-studio" : "local-key")
+                    : existing.ApiKey;
+                existing.ModelName = modelName.Trim();
+            }
+
+            return (false, existing);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not upsert the endpoint-qualified OpenAI-compatible host binding for {EndpointHost}.", GetEndpointHostLabel(endpoint));
+            throw;
+        }
+    }
+
+    private bool IsOllamaModelConfigured(string normalizedEndpoint, string modelName)
+    {
+        try
+        {
+            var identity = new ProviderModelIdentity();
+            bool Matches(OllamaCoreOptions? option) => option is not null
+                && !string.IsNullOrWhiteSpace(option.Uri)
+                && !string.IsNullOrWhiteSpace(option.ModelName)
+                && identity.NormalizeEndpoint(option.Uri).Equals(normalizedEndpoint, StringComparison.OrdinalIgnoreCase)
+                && option.ModelName.Equals(modelName, StringComparison.OrdinalIgnoreCase);
+            return Matches(Model.OllamaCore) || (Model.OllamaCores?.Any(Matches) ?? false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not evaluate the configured Ollama model identity.");
+            return false;
+        }
+    }
+
+    private bool IsOpenAiCompatibleModelConfigured(string normalizedEndpoint, string modelName)
+    {
+        try
+        {
+            var identity = new ProviderModelIdentity();
+            bool Matches(ChatGPTLocalCoreOptions? option) => option is not null
+                && !string.IsNullOrWhiteSpace(option.Endpoint)
+                && !string.IsNullOrWhiteSpace(option.ModelName)
+                && identity.NormalizeOpenAiCompatibleEndpoint(option.Endpoint).Equals(normalizedEndpoint, StringComparison.OrdinalIgnoreCase)
+                && option.ModelName.Equals(modelName, StringComparison.OrdinalIgnoreCase);
+            return Matches(Model.ChatGPTLocalCore) || (Model.ChatGPTLocalCores?.Any(Matches) ?? false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not evaluate the configured OpenAI-compatible model identity.");
+            return false;
+        }
+    }
+
+    private async Task MakeConfiguredProviderPrimaryAsync(ConfiguredProviderHostView configured)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(configured);
+            if (configured.IsPrimary)
+                return;
+
+            if (configured.OllamaHost is not null)
+            {
+                var selected = configured.OllamaHost;
+                var previousPrimary = Model.OllamaCore;
+                Model.OllamaCores.Remove(selected);
+                Model.OllamaCore = selected;
+                if (previousPrimary is not null && !string.IsNullOrWhiteSpace(previousPrimary.Uri))
+                    AddDistinctOllamaAdditionalBinding(previousPrimary);
+            }
+            else if (configured.OpenAiHost is not null)
+            {
+                var selected = configured.OpenAiHost;
+                var previousPrimary = Model.ChatGPTLocalCore;
+                Model.ChatGPTLocalCores.Remove(selected);
+                Model.ChatGPTLocalCore = selected;
+                if (previousPrimary is not null && !string.IsNullOrWhiteSpace(previousPrimary.Endpoint))
+                    AddDistinctOpenAiAdditionalBinding(previousPrimary);
+            }
+            else
+            {
+                throw new InvalidOperationException("Only local Ollama and OpenAI-compatible host bindings can be promoted to primary.");
+            }
+
+            await Save().ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, configured.Endpoint, "Primary provider updated");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not promote configured provider {ProviderKey} to primary.", configured.Key);
+            Notifier.ShowError(toastName, "The provider could not be promoted. See local application logs for details.", "Primary provider failed");
+        }
+    }
+
+    private void AddDistinctOllamaAdditionalBinding(OllamaCoreOptions option)
+    {
+        try
+        {
+            var identity = new ProviderModelIdentity();
+            var endpoint = identity.NormalizeEndpoint(option.Uri);
+            Model.OllamaCores ??= new List<OllamaCoreOptions>();
+            if (Model.OllamaCores.Any(item =>
+                identity.NormalizeEndpoint(item.Uri).Equals(endpoint, StringComparison.OrdinalIgnoreCase)
+                && item.ModelName.Equals(option.ModelName, StringComparison.OrdinalIgnoreCase)))
+                return;
+            Model.OllamaCores.Add(option);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not preserve the previous primary Ollama binding as an additional endpoint-qualified host.");
+            throw;
+        }
+    }
+
+    private void AddDistinctOpenAiAdditionalBinding(ChatGPTLocalCoreOptions option)
+    {
+        try
+        {
+            var identity = new ProviderModelIdentity();
+            var endpoint = identity.NormalizeOpenAiCompatibleEndpoint(option.Endpoint);
+            Model.ChatGPTLocalCores ??= new List<ChatGPTLocalCoreOptions>();
+            if (Model.ChatGPTLocalCores.Any(item =>
+                identity.NormalizeOpenAiCompatibleEndpoint(item.Endpoint).Equals(endpoint, StringComparison.OrdinalIgnoreCase)
+                && item.ModelName.Equals(option.ModelName, StringComparison.OrdinalIgnoreCase)))
+                return;
+            Model.ChatGPTLocalCores.Add(option);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not preserve the previous primary OpenAI-compatible binding as an additional endpoint-qualified host.");
+            throw;
+        }
+    }
+
+    private static string GetEndpointHostLabel(string? endpoint)
+    {
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+            return string.IsNullOrWhiteSpace(endpoint) ? "unknown" : "invalid-endpoint";
+        return $"{uri.Host}:{uri.Port}";
     }
 
     private async Task RemoveConfiguredProviderHostAsync(ConfiguredProviderHostView configured)
@@ -1674,33 +1902,45 @@
 
     private bool IsConfiguredHost(LocalAiHostDiscoveryResult host)
     {
-        var endpoint = NormalizeProviderEndpoint(host.Endpoint);
-        if (string.Equals(host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            return string.Equals(NormalizeProviderEndpoint(Model.OllamaCore?.Uri), endpoint, StringComparison.OrdinalIgnoreCase)
-                || Model.OllamaCores.Any(item => string.Equals(NormalizeProviderEndpoint(item.Uri), endpoint, StringComparison.OrdinalIgnoreCase));
-        }
+            var identity = new ProviderModelIdentity();
+            if (string.Equals(host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
+            {
+                var endpoint = identity.NormalizeEndpoint(host.Endpoint);
+                return string.Equals(identity.NormalizeEndpoint(Model.OllamaCore?.Uri), endpoint, StringComparison.OrdinalIgnoreCase)
+                    || Model.OllamaCores.Any(item => string.Equals(identity.NormalizeEndpoint(item.Uri), endpoint, StringComparison.OrdinalIgnoreCase));
+            }
 
-        return string.Equals(NormalizeProviderEndpoint(Model.ChatGPTLocalCore?.Endpoint), endpoint, StringComparison.OrdinalIgnoreCase)
-            || Model.ChatGPTLocalCores.Any(item => string.Equals(NormalizeProviderEndpoint(item.Endpoint), endpoint, StringComparison.OrdinalIgnoreCase));
+            var openAiEndpoint = identity.NormalizeOpenAiCompatibleEndpoint(host.Endpoint);
+            return string.Equals(identity.NormalizeOpenAiCompatibleEndpoint(Model.ChatGPTLocalCore?.Endpoint), openAiEndpoint, StringComparison.OrdinalIgnoreCase)
+                || Model.ChatGPTLocalCores.Any(item => string.Equals(identity.NormalizeOpenAiCompatibleEndpoint(item.Endpoint), openAiEndpoint, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not compare discovered provider host {EndpointHost} with the configured endpoint registry.", GetEndpointHostLabel(host.Endpoint));
+            return false;
+        }
     }
 
     private async Task RemoveConfiguredHostAsync(LocalAiHostDiscoveryResult host)
     {
         try
         {
-            var endpoint = NormalizeProviderEndpoint(host.Endpoint);
+            var identity = new ProviderModelIdentity();
             if (string.Equals(host.Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
             {
-                if (string.Equals(NormalizeProviderEndpoint(Model.OllamaCore?.Uri), endpoint, StringComparison.OrdinalIgnoreCase))
+                var endpoint = identity.NormalizeEndpoint(host.Endpoint);
+                if (string.Equals(identity.NormalizeEndpoint(Model.OllamaCore?.Uri), endpoint, StringComparison.OrdinalIgnoreCase))
                     Model.OllamaCore = new OllamaCoreOptions { Uri = string.Empty, ModelName = string.Empty };
-                Model.OllamaCores.RemoveAll(item => string.Equals(NormalizeProviderEndpoint(item.Uri), endpoint, StringComparison.OrdinalIgnoreCase));
+                Model.OllamaCores.RemoveAll(item => string.Equals(identity.NormalizeEndpoint(item.Uri), endpoint, StringComparison.OrdinalIgnoreCase));
             }
             else
             {
-                if (string.Equals(NormalizeProviderEndpoint(Model.ChatGPTLocalCore?.Endpoint), endpoint, StringComparison.OrdinalIgnoreCase))
+                var endpoint = identity.NormalizeOpenAiCompatibleEndpoint(host.Endpoint);
+                if (string.Equals(identity.NormalizeOpenAiCompatibleEndpoint(Model.ChatGPTLocalCore?.Endpoint), endpoint, StringComparison.OrdinalIgnoreCase))
                     Model.ChatGPTLocalCore = new ChatGPTLocalCoreOptions { Endpoint = string.Empty, ApiKey = string.Empty, ModelName = string.Empty, AutoStartServer = false };
-                Model.ChatGPTLocalCores.RemoveAll(item => string.Equals(NormalizeProviderEndpoint(item.Endpoint), endpoint, StringComparison.OrdinalIgnoreCase));
+                Model.ChatGPTLocalCores.RemoveAll(item => string.Equals(identity.NormalizeOpenAiCompatibleEndpoint(item.Endpoint), endpoint, StringComparison.OrdinalIgnoreCase));
             }
 
             await Save().ConfigureAwait(false);
@@ -1714,7 +1954,9 @@
     }
 
     private static string NormalizeProviderEndpoint(string? endpoint)
-        => string.IsNullOrWhiteSpace(endpoint) ? string.Empty : endpoint.Trim().TrimEnd('/');
+        => string.IsNullOrWhiteSpace(endpoint)
+            ? string.Empty
+            : new ProviderModelIdentity().NormalizeEndpoint(endpoint);
 
     private async Task TestOpenAI()
     {

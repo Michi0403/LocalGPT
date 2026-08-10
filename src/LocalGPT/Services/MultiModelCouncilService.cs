@@ -3106,12 +3106,45 @@ namespace LocalGPT.Services
             {
                 var useLegacyBaseUri = request.ModelSelections.Count == 0
                     && !string.IsNullOrWhiteSpace(request.BaseUri);
-                var references = request.ModelSelections
+                var currentCandidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
+                var currentBySelectionKey = currentCandidates
+                    .GroupBy(candidate => candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+                var staleSelections = new List<string>();
+                var references = new List<ProviderModelReference>();
+
+                foreach (var requestedReference in request.ModelSelections
                     .Where(model => model is not null && !string.IsNullOrWhiteSpace(model.ModelName))
                     .GroupBy(model => model.SelectionKey, StringComparer.OrdinalIgnoreCase)
                     .Select(group => group.First())
-                    .Take(catalog.MaxParticipants)
-                    .ToList();
+                    .Take(catalog.MaxParticipants))
+                {
+                    if (currentBySelectionKey.TryGetValue(requestedReference.SelectionKey, out var currentCandidate))
+                    {
+                        references.Add(currentCandidate.ToReference());
+                        continue;
+                    }
+
+                    if (IsConfiguredProviderEndpoint(requestedReference)
+                        && !HasReachableProviderEndpoint(currentCandidates, requestedReference))
+                    {
+                        // The endpoint remains deliberately configured but the host itself is currently offline.
+                        // Preserve the exact model route and let the real provider call report reachability. If the
+                        // host is reachable and this model is absent, treat the model route as stale instead.
+                        requestedReference.IsConfigured = true;
+                        requestedReference.IsReachable = false;
+                        references.Add(requestedReference);
+                        continue;
+                    }
+
+                    staleSelections.Add(requestedReference.SelectionKey);
+                }
+
+                if (staleSelections.Count > 0)
+                {
+                    throw new KeyNotFoundException(
+                        $"The following provider-qualified Council route(s) are no longer configured or discoverable: {string.Join("; ", staleSelections)}. Refresh provider models and reselect those exact hosts; LocalGPT will not substitute a same-name model from another provider.");
+                }
 
                 foreach (var requested in request.ModelNames
                     .Where(model => !string.IsNullOrWhiteSpace(model))
@@ -3129,8 +3162,19 @@ namespace LocalGPT.Services
                         // repeat their bare provider-native names; do not resolve those names again or guess another endpoint.
                         continue;
                     }
-                    var resolved = useLegacyBaseUri && !new ProviderModelIdentity().LooksProviderQualified(requested)
-                        ? new ProviderModelReference
+                    ProviderModelReference resolved;
+                    if (new ProviderModelIdentity().LooksProviderQualified(requested))
+                    {
+                        if (!currentBySelectionKey.TryGetValue(requested, out var currentCandidate))
+                        {
+                            throw new KeyNotFoundException(
+                                $"The provider-qualified Council model '{requested}' is no longer configured or discoverable. Refresh provider models and reselect that exact host; LocalGPT will not fall back to a same-name model on another endpoint.");
+                        }
+                        resolved = currentCandidate.ToReference();
+                    }
+                    else if (useLegacyBaseUri)
+                    {
+                        resolved = new ProviderModelReference
                         {
                             ProviderKind = ProviderModelKinds.Ollama,
                             ProviderName = "Ollama",
@@ -3141,8 +3185,22 @@ namespace LocalGPT.Services
                             IsReachable = false,
                             SupportsBenchmark = true,
                             Details = "Legacy bare model name bound to the explicitly requested Ollama BaseUri."
+                        };
+                    }
+                    else
+                    {
+                        var bareMatches = currentCandidates
+                            .Where(candidate => candidate.ModelName.Equals(requested, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                        if (bareMatches.Count > 1)
+                        {
+                            throw new InvalidOperationException(
+                                $"Model name '{requested}' is exposed by multiple provider hosts. Select the provider-qualified model entry instead of guessing an endpoint.");
                         }
-                        : await providerModels.ResolveAsync(requested, cancellationToken).ConfigureAwait(false);
+                        resolved = bareMatches.Count == 1
+                            ? bareMatches[0].ToReference()
+                            : await providerModels.ResolveAsync(requested, cancellationToken).ConfigureAwait(false);
+                    }
                     if (!references.Any(model => model.SelectionKey.Equals(resolved.SelectionKey, StringComparison.OrdinalIgnoreCase)))
                         references.Add(resolved);
                 }
@@ -3263,6 +3321,87 @@ namespace LocalGPT.Services
         throw;
     }
 }
+
+
+        private bool HasReachableProviderEndpoint(
+            IReadOnlyList<MultiModelCouncilModelCandidate> candidates,
+            ProviderModelReference model)
+        {
+            try
+            {
+                var identity = new ProviderModelIdentity();
+                var requestedEndpoint = model.ProviderKind.Equals(ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase)
+                    || model.ProviderKind.Equals(ProviderModelKinds.OpenAI, StringComparison.OrdinalIgnoreCase)
+                    ? identity.NormalizeOpenAiCompatibleEndpoint(model.Endpoint)
+                    : identity.NormalizeEndpoint(model.Endpoint);
+                return candidates.Any(candidate =>
+                {
+                    if (!candidate.IsInstalled || !candidate.ProviderKind.Equals(model.ProviderKind, StringComparison.OrdinalIgnoreCase))
+                        return false;
+                    var candidateEndpoint = candidate.ProviderKind.Equals(ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase)
+                        || candidate.ProviderKind.Equals(ProviderModelKinds.OpenAI, StringComparison.OrdinalIgnoreCase)
+                        ? identity.NormalizeOpenAiCompatibleEndpoint(candidate.Endpoint)
+                        : identity.NormalizeEndpoint(candidate.Endpoint);
+                    return candidateEndpoint.Equals(requestedEndpoint, StringComparison.OrdinalIgnoreCase);
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not evaluate provider endpoint reachability during Council route preflight.");
+                throw;
+            }
+        }
+
+        private bool IsConfiguredProviderEndpoint(ProviderModelReference model)
+        {
+            try
+            {
+                var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
+                var identity = new ProviderModelIdentity();
+                if (model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                {
+                    var requestedEndpoint = identity.NormalizeEndpoint(model.Endpoint);
+                    return new[] { options.OllamaCore }
+                        .Concat(options.OllamaCores ?? [])
+                        .Where(option => option is not null && !string.IsNullOrWhiteSpace(option.Uri))
+                        .Any(option => identity.NormalizeEndpoint(option.Uri).Equals(requestedEndpoint, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (model.ProviderKind.Equals(ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase))
+                {
+                    var requestedEndpoint = identity.NormalizeOpenAiCompatibleEndpoint(model.Endpoint);
+                    return new[] { options.ChatGPTLocalCore }
+                        .Concat(options.ChatGPTLocalCores ?? [])
+                        .Where(option => option is not null && !string.IsNullOrWhiteSpace(option.Endpoint))
+                        .Any(option => identity.NormalizeOpenAiCompatibleEndpoint(option.Endpoint).Equals(requestedEndpoint, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (model.ProviderKind.Equals(ProviderModelKinds.OpenAI, StringComparison.OrdinalIgnoreCase))
+                {
+                    var configured = options.OpenAICore;
+                    if (configured is null || string.IsNullOrWhiteSpace(configured.ModelName))
+                        return false;
+                    var configuredEndpoint = identity.NormalizeOpenAiCompatibleEndpoint(
+                        string.IsNullOrWhiteSpace(configured.Endpoint) ? "https://api.openai.com/v1" : configured.Endpoint);
+                    return configuredEndpoint.Equals(identity.NormalizeOpenAiCompatibleEndpoint(model.Endpoint), StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (model.ProviderKind.Equals(ProviderModelKinds.AzureOpenAI, StringComparison.OrdinalIgnoreCase))
+                {
+                    var configured = options.OpenAIServiceCore;
+                    return configured is not null
+                        && !string.IsNullOrWhiteSpace(configured.Endpoint)
+                        && identity.NormalizeEndpoint(configured.Endpoint).Equals(identity.NormalizeEndpoint(model.Endpoint), StringComparison.OrdinalIgnoreCase);
+                }
+
+                return false;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Validating a provider-qualified Council endpoint against configured hosts failed.");
+                throw;
+            }
+        }
 
         private async Task<MultiModelCouncilStep?> RunParticipantAsync(
             string baseUri,

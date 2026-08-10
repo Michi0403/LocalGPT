@@ -44,15 +44,23 @@ public sealed class ProviderModelRuntimeService(
 
             foreach (var ollama in ollamaOptions)
             {
+                if (string.IsNullOrWhiteSpace(ollama.ModelName))
+                    continue;
                 var endpoint = NormalizeOllamaEndpoint(ollama.Uri);
                 AddCandidate(candidates, new MultiModelCouncilModelCandidate(
                     ollama.ModelName.Trim(), "Ollama", endpoint,
                     IsInstalled: false, IsConfigured: true, IsLoaded: false,
-                    Details: "Configured Ollama model.",
+                    Details: "Configured endpoint-qualified Ollama model.",
                     ProviderKind: ProviderModelKinds.Ollama,
-                    IsLocal: true,
+                    IsLocal: IsLocalEndpoint(endpoint),
                     SupportsBenchmark: true));
+            }
 
+            // Discovery is host-oriented, not primary-slot-oriented. Keep the historical loopback
+            // Ollama endpoint discoverable even when the user's primary Ollama binding is remote,
+            // and probe every configured endpoint once regardless of how many preferred models it owns.
+            foreach (var endpoint in EnumerateOllamaProbeEndpoints(options))
+            {
                 foreach (var discovered in await ProbeOllamaAsync(endpoint, cancellationToken).ConfigureAwait(false))
                     AddCandidate(candidates, discovered);
             }
@@ -448,21 +456,57 @@ public sealed class ProviderModelRuntimeService(
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var providers = new List<OllamaCoreOptions>();
-            if (options.OllamaCore is { Uri.Length: > 0, ModelName.Length: > 0 } primary
-                && seen.Add($"{NormalizeOllamaEndpoint(primary.Uri)}|{primary.ModelName.Trim()}"))
+
+            void Add(OllamaCoreOptions? item)
             {
-                providers.Add(primary);
-            }
-            foreach (var item in options.OllamaCores.Where(item => !string.IsNullOrWhiteSpace(item.Uri) && !string.IsNullOrWhiteSpace(item.ModelName)))
-            {
-                if (seen.Add($"{NormalizeOllamaEndpoint(item.Uri)}|{item.ModelName.Trim()}"))
+                if (item is null || string.IsNullOrWhiteSpace(item.Uri))
+                    return;
+                var endpoint = NormalizeOllamaEndpoint(item.Uri);
+                var modelName = item.ModelName?.Trim() ?? string.Empty;
+                if (seen.Add($"{endpoint}|{modelName}"))
                     providers.Add(item);
             }
+
+            Add(options.OllamaCore);
+            foreach (var item in options.OllamaCores ?? [])
+                Add(item);
             return providers;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Enumerating configured Ollama providers failed.");
+            logger.LogError(exception, "Enumerating configured endpoint-qualified Ollama provider bindings failed.");
+            throw;
+        }
+    }
+
+    private IReadOnlyList<string> EnumerateOllamaProbeEndpoints(AICoreOptions options)
+    {
+        try
+        {
+            var endpoints = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void Add(string? endpoint)
+            {
+                if (string.IsNullOrWhiteSpace(endpoint))
+                    return;
+                var normalized = NormalizeOllamaEndpoint(endpoint);
+                if (seen.Add(normalized))
+                    endpoints.Add(normalized);
+            }
+
+            Add(options.OllamaCore?.Uri);
+            foreach (var item in options.OllamaCores ?? [])
+                Add(item.Uri);
+
+            // A local Ollama has always been a LocalGPT discovery convention. It stays a probe
+            // candidate even when a remote host is the configured primary provider.
+            Add("http://127.0.0.1:11434");
+            return endpoints;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Enumerating Ollama discovery endpoints failed.");
             throw;
         }
     }
@@ -513,7 +557,7 @@ public sealed class ProviderModelRuntimeService(
                         IsInstalled: true, IsConfigured: false, IsLoaded: running.Contains(name),
                         Details: details,
                         ProviderKind: ProviderModelKinds.Ollama,
-                        IsLocal: true,
+                        IsLocal: IsLocalEndpoint(endpoint),
                         SupportsBenchmark: true));
                 }
             }
