@@ -2935,9 +2935,7 @@
             if (unavailable.Count > 0)
             {
                 hadUnavailableProviderSelections = true;
-                var preview = string.Join("; ", unavailable.Take(3));
-                var remainder = unavailable.Count > 3 ? $"; +{unavailable.Count - 3} more" : string.Empty;
-                modelSelectionNotice = $"{selectionScope}: deselected {unavailable.Count} provider-qualified route(s) that are no longer configured or discoverable ({preview}{remainder}). Refresh/reconfigure the exact host to select them again; no same-name fallback was used.";
+                modelSelectionNotice = CouncilText.ProviderUnavailableSelectionNotice(unavailable, selectionScope, Logger);
             }
 
             return normalized;

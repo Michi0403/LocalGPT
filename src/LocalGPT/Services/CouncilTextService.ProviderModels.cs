@@ -46,4 +46,27 @@ public sealed partial class CouncilTextService
             return "deterministic checks plus bounded self-review";
         }
     }
+
+    public string ProviderUnavailableSelectionNotice(
+        IReadOnlyCollection<string> unavailable,
+        string selectionScope,
+        ILogger logger)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(unavailable);
+            ArgumentException.ThrowIfNullOrWhiteSpace(selectionScope);
+
+            var preview = string.Join("; ", unavailable.Take(3));
+            var remainder = unavailable.Count > 3
+                ? $"; +{unavailable.Count - 3} more"
+                : string.Empty;
+            return $"{selectionScope}: deselected {unavailable.Count} provider-qualified route(s) that are no longer configured or discoverable ({preview}{remainder}). Refresh/reconfigure the exact host to select them again; no same-name fallback was used.";
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating the unavailable provider-selection notice failed for {SelectionScope}.", selectionScope);
+            return $"{selectionScope}: one or more provider-qualified routes are no longer configured or discoverable. Refresh/reconfigure the exact host to select them again; no same-name fallback was used.";
+        }
+    }
 }
