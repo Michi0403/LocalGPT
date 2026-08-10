@@ -54,6 +54,138 @@ namespace LocalGPT.Services
     }
 }
 
+        private async Task ApplyConfiguredTeamModelBindingsAsync(
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                ArgumentNullException.ThrowIfNull(request);
+                ArgumentNullException.ThrowIfNull(team);
+                request.ModelNames ??= [];
+
+                var hasSavedBindings = team.Roles.Any(role =>
+                        role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
+                        role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels &&
+                        role.AssignedModelKeys is { Count: > 0 }) ||
+                    team.WorkflowSteps.Any(step =>
+                        step.IsEnabled &&
+                        string.Equals(NormalizeConfiguredExecutionMode(step.ExecutionMode), "AssignedModelSingle", StringComparison.Ordinal) &&
+                        !string.IsNullOrWhiteSpace(step.AssignedModelName));
+                if (!hasSavedBindings)
+                    return;
+
+                var candidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
+                foreach (var role in team.Roles.Where(role => role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels))
+                {
+                    role.AssignedModelKeys ??= [];
+                    role.AssignedModelKeys = role.AssignedModelKeys
+                        .Where(value => !string.IsNullOrWhiteSpace(value))
+                        .Select(value => ResolveConfiguredTeamModelBinding(value, candidates, team, role.Role))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+
+                foreach (var step in team.WorkflowSteps.Where(step =>
+                             step.IsEnabled &&
+                             string.Equals(NormalizeConfiguredExecutionMode(step.ExecutionMode), "AssignedModelSingle", StringComparison.Ordinal) &&
+                             !string.IsNullOrWhiteSpace(step.AssignedModelName)))
+                {
+                    step.AssignedModelName = ResolveConfiguredTeamModelBinding(
+                        step.AssignedModelName,
+                        candidates,
+                        team,
+                        $"workflow step {step.DisplayName}");
+                }
+
+                var configuredBindings = team.Roles
+                    .Where(role =>
+                        role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
+                        role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels)
+                    .SelectMany(role => role.AssignedModelKeys)
+                    .Concat(team.WorkflowSteps
+                        .Where(step =>
+                            step.IsEnabled &&
+                            string.Equals(NormalizeConfiguredExecutionMode(step.ExecutionMode), "AssignedModelSingle", StringComparison.Ordinal))
+                        .Select(step => step.AssignedModelName))
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var addedCount = 0;
+                foreach (var modelKey in configuredBindings)
+                {
+                    if (request.ModelNames.Contains(modelKey, StringComparer.OrdinalIgnoreCase))
+                        continue;
+                    request.ModelNames.Add(modelKey);
+                    addedCount++;
+                }
+
+                if (addedCount > 0)
+                {
+                    logger.LogInformation(
+                        "Council team {TeamKey} added {AddedCount} exact provider-bound model identity or identities to run {RunId}; saved team assignments remain authoritative.",
+                        team.Key,
+                        addedCount,
+                        request.RunId);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not apply provider-bound model assignments for council team {TeamKey}.", team.Key);
+                throw;
+            }
+        }
+
+        private string ResolveConfiguredTeamModelBinding(
+            string savedBinding,
+            IReadOnlyList<MultiModelCouncilModelCandidate> candidates,
+            OrganicCouncilTeamDefinition team,
+            string roleOrStep)
+        {
+            try
+            {
+                var normalizedBinding = savedBinding.Trim();
+                var exact = candidates.FirstOrDefault(candidate =>
+                    string.Equals(candidate.SelectionKey, normalizedBinding, StringComparison.OrdinalIgnoreCase));
+                if (exact is not null)
+                    return exact.SelectionKey;
+
+                var legacyMatches = candidates
+                    .Where(candidate => string.Equals(candidate.ModelName, normalizedBinding, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (legacyMatches.Count == 1)
+                {
+                    logger.LogInformation(
+                        "Council team {TeamKey} resolved legacy bare model assignment {LegacyModel} for {RoleOrStep} to provider-qualified identity {SelectionKey} for this run.",
+                        team.Key,
+                        normalizedBinding,
+                        roleOrStep,
+                        legacyMatches[0].SelectionKey);
+                    return legacyMatches[0].SelectionKey;
+                }
+
+                if (legacyMatches.Count > 1)
+                {
+                    throw new InvalidOperationException(
+                        $"Council team '{team.DisplayName}' stores legacy model assignment '{normalizedBinding}' for '{roleOrStep}', but that model exists on multiple connected providers/hosts. Open Council Teams and bind the exact provider-qualified model; LocalGPT will not guess a host.");
+                }
+
+                return normalizedBinding;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Could not resolve saved Council model binding {SavedBinding} for team {TeamKey}, role or step {RoleOrStep}.",
+                    savedBinding,
+                    team.Key,
+                    roleOrStep);
+                throw;
+            }
+        }
+
         public async Task<MultiModelCouncilResult> RunAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)
         {
             Guid? collaborationRunId = null;
@@ -63,6 +195,10 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(request.Prompt))
                     throw new InvalidOperationException("The council needs a prompt.");
 
+                var organicTeam = await organicCouncilBlueprints.FindTeamAsync(request.CouncilTeamKey, cancellationToken).ConfigureAwait(false)
+                    ?? await organicCouncilBlueprints.FindTeamAsync("general", cancellationToken).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("No enabled organic council team is available.");
+                await ApplyConfiguredTeamModelBindingsAsync(request, organicTeam, cancellationToken).ConfigureAwait(false);
                 var baseUri = councilText.MultiModelCouncilServiceNormalizeEndpoint(request.BaseUri ?? optionsRoot.CurrentValue.AICore?.OllamaCore?.Uri ?? catalog.DefaultOllamaUri, logger);
                 var selectedParticipants = await SelectParticipantsAsync(request, baseUri, cancellationToken).ConfigureAwait(false);
                 request.ModelRoutes = QualifyModelRoutes(request.ModelRoutes, request.ModelSelections);
@@ -209,9 +345,6 @@ namespace LocalGPT.Services
                         bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Database-first project architecture", architectureBriefing, logger);
                 }
 
-                var organicTeam = await organicCouncilBlueprints.FindTeamAsync(request.CouncilTeamKey, cancellationToken).ConfigureAwait(false)
-                    ?? await organicCouncilBlueprints.FindTeamAsync("general", cancellationToken).ConfigureAwait(false)
-                    ?? throw new InvalidOperationException("No enabled organic council team is available.");
                 var organicBriefing = await organicCouncilBlueprints.BuildBriefingAsync(request, cancellationToken).ConfigureAwait(false);
                 bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Organic council and 1-Wire workflow", organicBriefing, logger);
 
@@ -790,14 +923,19 @@ namespace LocalGPT.Services
 
                 if (!rolesByName.TryGetValue(normalizedRole, out var definition))
                 {
+                    if (rolesByName.Count > 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Workflow role '{normalizedRole}' has no exact saved role policy in team '{team.DisplayName}'. LocalGPT will not assign unrelated Council models to an undefined role.");
+                    }
+
                     var fallback = new CouncilRoleRuntimeAssignment(normalizedRole, null, participants.ToList());
                     assignments[normalizedRole] = fallback;
                     logger.LogWarning(
-                        "Council run {RunId} workflow role {RoleName} has no exact saved role policy; all selected AI models are assigned for compatibility.",
+                        "Council run {RunId} team {TeamKey} has no saved role policies; workflow role {RoleName} uses all selected AI models for compatibility.",
                         result.RunId,
+                        team.Key,
                         normalizedRole);
-                    request.ProgressMessage?.Invoke(
-                        $"Role assignment '{normalizedRole}': {fallback.AiSelectionDescription}; no exact saved role policy matched, so all selected AIs are used.");
                     return fallback;
                 }
 
@@ -814,6 +952,29 @@ namespace LocalGPT.Services
                     else if (definition.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected)
                     {
                         selectedAiParticipants = participants.ToList();
+                    }
+                    else if (definition.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels)
+                    {
+                        var configuredModelKeys = definition.AssignedModelKeys
+                            .Where(value => !string.IsNullOrWhiteSpace(value))
+                            .Select(value => value.Trim())
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                        if (configuredModelKeys.Count == 0)
+                            throw new InvalidOperationException($"Role '{normalizedRole}' has provider-bound AI assignment enabled but no model identity is saved.");
+
+                        var missingModelKeys = configuredModelKeys
+                            .Where(value => !participants.Contains(value, StringComparer.OrdinalIgnoreCase))
+                            .ToList();
+                        if (missingModelKeys.Count > 0)
+                        {
+                            throw new InvalidOperationException(
+                                $"Role '{normalizedRole}' requires provider-bound model(s) {string.Join(", ", missingModelKeys)}, but they are unavailable in this run. Refresh provider models or update the team assignment; LocalGPT will not substitute another host or model.");
+                        }
+
+                        selectedAiParticipants = configuredModelKeys
+                            .Where(value => participants.Contains(value, StringComparer.OrdinalIgnoreCase))
+                            .ToList();
                     }
                     else
                     {
@@ -1031,6 +1192,7 @@ namespace LocalGPT.Services
         private CouncilRoleRuntimeAssignment GetConfiguredRoleAssignment(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
             string? roleName,
             IReadOnlyList<string> participants,
             IDictionary<string, CouncilRoleRuntimeAssignment> assignments)
@@ -1041,14 +1203,19 @@ namespace LocalGPT.Services
                 if (assignments.TryGetValue(normalizedRole, out var assignment))
                     return assignment;
 
+                if (team.Roles.Count > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Workflow role '{normalizedRole}' is not present in team '{team.DisplayName}'. LocalGPT will not let a configured round escape its saved role structure.");
+                }
+
                 assignment = new CouncilRoleRuntimeAssignment(normalizedRole, null, participants.ToList());
                 assignments[normalizedRole] = assignment;
                 logger.LogWarning(
-                    "Council run {RunId} workflow role {RoleName} was not present in the saved role list; all selected models are used.",
+                    "Council run {RunId} team {TeamKey} has no role definitions; workflow role {RoleName} uses all selected models for compatibility.",
                     result.RunId,
+                    team.Key,
                     normalizedRole);
-                request.ProgressMessage?.Invoke(
-                    $"Role assignment '{normalizedRole}': all selected AIs; no matching saved role policy exists.");
                 return assignment;
             }
             catch (Exception ex)
@@ -1159,6 +1326,8 @@ namespace LocalGPT.Services
                     return "human only; no AI model";
                 if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected)
                     return "all selected council AIs";
+                if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels)
+                    return $"{role.AssignedModelKeys.Count} exact provider-bound AI model(s)";
                 return role.MinimumAiParticipants == role.MaximumAiParticipants
                     ? $"deterministic-random {Math.Max(1, role.MinimumAiParticipants)} AI member(s) per run"
                     : $"deterministic-random {Math.Max(1, role.MinimumAiParticipants)}-{Math.Max(role.MinimumAiParticipants, role.MaximumAiParticipants)} AI member(s) per run";
@@ -1618,7 +1787,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var round = state.Round;
+                var nextAutomaticRound = state.Round;
                 var expandedStepIndex = state.ExpandedStepIndex;
                 var previousStep = state.PreviousStep;
                 var fallbackAnswer = state.FallbackAnswer;
@@ -1628,6 +1797,9 @@ namespace LocalGPT.Services
                 for (var repeatIndex = 0; repeatIndex < repeatCount; repeatIndex++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    var round = definition.LogicalRoundNumber > 0
+                        ? definition.LogicalRoundNumber - 1
+                        : nextAutomaticRound;
                     var basePhase = string.IsNullOrWhiteSpace(definition.Phase) ? definition.DisplayName : definition.Phase;
                     var phaseParts = new List<string> { basePhase };
                     if (!string.IsNullOrWhiteSpace(loopGroup))
@@ -1638,10 +1810,17 @@ namespace LocalGPT.Services
                     var roleAssignment = GetConfiguredRoleAssignment(
                         result,
                         request,
+                        team,
                         definition.Role,
                         participants,
                         roleAssignments);
                     var roleParticipants = roleAssignment.AiParticipants;
+                    var visiblePreviousStep = BuildConfiguredWorkflowPreviousStep(
+                        result,
+                        definition,
+                        roleAssignment,
+                        round,
+                        previousStep);
 
                     if (definition.RequiresHumanCheckpoint)
                     {
@@ -1692,9 +1871,7 @@ namespace LocalGPT.Services
                         {
                             case "AllMembersParallel":
                                 {
-                                    var transcript = definition.IncludePriorTranscript
-                                        ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
-                                        : string.Empty;
+                                    var transcript = BuildConfiguredWorkflowTranscript(result, definition, roleAssignment, round);
                                     await RunPhaseAsync(
                                         result,
                                         baseUri,
@@ -1717,7 +1894,7 @@ namespace LocalGPT.Services
                                             loopIteration,
                                             loopMaximumIterations,
                                             transcript,
-                                            previousStep),
+                                            visiblePreviousStep),
                                         heartbeatBootstrap,
                                         request.MaxOutputTokens,
                                         maxParallelModels,
@@ -1739,9 +1916,7 @@ namespace LocalGPT.Services
                                 {
                                     foreach (var modelName in OrderParticipantsByObservedHealth(result, roleParticipants))
                                     {
-                                        var transcript = definition.IncludePriorTranscript
-                                            ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
-                                            : string.Empty;
+                                        var transcript = BuildConfiguredWorkflowTranscript(result, definition, roleAssignment, round);
                                         await RunConfiguredParticipantAsync(
                                             result,
                                             request,
@@ -1760,7 +1935,7 @@ namespace LocalGPT.Services
                                             loopIteration,
                                             loopMaximumIterations,
                                             transcript,
-                                            previousStep,
+                                            visiblePreviousStep,
                                             heartbeatBootstrap,
                                             modelRoutes,
                                             keepAlive,
@@ -1781,9 +1956,7 @@ namespace LocalGPT.Services
                                         roleParticipants,
                                         leaderModel,
                                         expandedStepIndex);
-                                    var transcript = definition.IncludePriorTranscript
-                                        ? councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger)
-                                        : string.Empty;
+                                    var transcript = BuildConfiguredWorkflowTranscript(result, definition, roleAssignment, round);
                                     await RunConfiguredParticipantAsync(
                                         result,
                                         request,
@@ -1802,7 +1975,7 @@ namespace LocalGPT.Services
                                         loopIteration,
                                         loopMaximumIterations,
                                         transcript,
-                                        previousStep,
+                                        visiblePreviousStep,
                                         heartbeatBootstrap,
                                         modelRoutes,
                                         keepAlive,
@@ -1835,11 +2008,14 @@ namespace LocalGPT.Services
                         result.Warnings.Add($"Configured council round '{definition.DisplayName}' did not produce a usable visible response.");
                     }
 
-                    round++;
+                    if (definition.LogicalRoundNumber <= 0)
+                        nextAutomaticRound = round + 1;
+                    else
+                        nextAutomaticRound = Math.Max(nextAutomaticRound, round + 1);
                     expandedStepIndex++;
                 }
 
-                return new ConfiguredWorkflowExecutionState(round, expandedStepIndex, previousStep, fallbackAnswer, finalAnswer);
+                return new ConfiguredWorkflowExecutionState(nextAutomaticRound, expandedStepIndex, previousStep, fallbackAnswer, finalAnswer);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -1853,6 +2029,86 @@ namespace LocalGPT.Services
                     result.RunId,
                     definition.Key,
                     definition.Role);
+                throw;
+            }
+        }
+
+        private string BuildConfiguredWorkflowPreviousStep(
+            MultiModelCouncilResult result,
+            CouncilWorkflowStepDefinition definition,
+            CouncilRoleRuntimeAssignment roleAssignment,
+            int logicalRound,
+            string fullCouncilPreviousStep)
+        {
+            try
+            {
+                if (definition.TranscriptVisibility == CouncilTranscriptVisibilityMode.FullCouncil)
+                    return fullCouncilPreviousStep;
+                if (definition.TranscriptVisibility == CouncilTranscriptVisibilityMode.None)
+                    return string.Empty;
+
+                IEnumerable<MultiModelCouncilStep> visibleSteps = result.Steps;
+                if (definition.TranscriptVisibility is CouncilTranscriptVisibilityMode.SameRole or CouncilTranscriptVisibilityMode.SameRoleCurrentRound)
+                {
+                    visibleSteps = visibleSteps.Where(step =>
+                        string.Equals(step.Role, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase));
+                }
+                if (definition.TranscriptVisibility is CouncilTranscriptVisibilityMode.CurrentRound or CouncilTranscriptVisibilityMode.SameRoleCurrentRound)
+                    visibleSteps = visibleSteps.Where(step => step.Round == logicalRound);
+
+                return visibleSteps
+                    .Where(step => string.IsNullOrWhiteSpace(step.Error) && !string.IsNullOrWhiteSpace(step.VisibleContent))
+                    .OrderByDescending(step => step.SortOrder)
+                    .Select(step => step.VisibleContent.Trim())
+                    .FirstOrDefault() ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Council run {RunId} could not resolve previous-step visibility {Visibility} for role {RoleName} and logical round {Round}.",
+                    result.RunId,
+                    definition.TranscriptVisibility,
+                    roleAssignment.RoleName,
+                    logicalRound);
+                throw;
+            }
+        }
+
+        private string BuildConfiguredWorkflowTranscript(
+            MultiModelCouncilResult result,
+            CouncilWorkflowStepDefinition definition,
+            CouncilRoleRuntimeAssignment roleAssignment,
+            int logicalRound)
+        {
+            try
+            {
+                if (!definition.IncludePriorTranscript || definition.TranscriptVisibility == CouncilTranscriptVisibilityMode.None)
+                    return string.Empty;
+
+                IEnumerable<MultiModelCouncilStep> visibleSteps = result.Steps;
+                visibleSteps = definition.TranscriptVisibility switch
+                {
+                    CouncilTranscriptVisibilityMode.SameRole => visibleSteps.Where(step =>
+                        string.Equals(step.Role, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase)),
+                    CouncilTranscriptVisibilityMode.CurrentRound => visibleSteps.Where(step => step.Round == logicalRound),
+                    CouncilTranscriptVisibilityMode.SameRoleCurrentRound => visibleSteps.Where(step =>
+                        step.Round == logicalRound &&
+                        string.Equals(step.Role, roleAssignment.RoleName, StringComparison.OrdinalIgnoreCase)),
+                    _ => visibleSteps
+                };
+
+                return councilText.MultiModelCouncilServiceBuildTranscript(visibleSteps.ToList(), logger);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(
+                    ex,
+                    "Council run {RunId} could not build transcript visibility {Visibility} for workflow role {RoleName} and logical round {Round}.",
+                    result.RunId,
+                    definition.TranscriptVisibility,
+                    roleAssignment.RoleName,
+                    logicalRound);
                 throw;
             }
         }
@@ -2005,11 +2261,13 @@ namespace LocalGPT.Services
                 if (executionMode == "AssignedModelSingle")
                 {
                     var assigned = participants.FirstOrDefault(model => string.Equals(model, definition.AssignedModelName, StringComparison.OrdinalIgnoreCase));
-                    if (assigned is not null)
-                        return SelectHealthyParticipant(result, participants, assigned);
+                    if (assigned is null)
+                    {
+                        throw new InvalidOperationException(
+                            $"Configured round '{definition.DisplayName}' requires provider-qualified model '{definition.AssignedModelName}', but that exact model is not assigned to role '{definition.Role}' in this run. LocalGPT will not substitute another model or host.");
+                    }
 
-                    result.Warnings.Add(
-                        $"Configured round '{definition.DisplayName}' requested model '{definition.AssignedModelName}', but that model is not assigned to role '{definition.Role}' for this run. A healthy assigned role member was used instead.");
+                    return SelectHealthyParticipant(result, participants, assigned);
                 }
 
                 var requestedLeader = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));
@@ -2132,6 +2390,7 @@ namespace LocalGPT.Services
                 var assignmentBriefing = new StringBuilder()
                     .AppendLine("Runtime role assignment for this round:")
                     .Append("- Role: ").AppendLine(roleAssignment.RoleName)
+                    .Append("- Executing provider-qualified model: ").AppendLine(modelName)
                     .Append("- Assigned AI role members: ").AppendLine(roleMembers)
                     .Append("- AI selection policy: ").AppendLine(roleAssignment.AiSelectionDescription)
                     .Append("- Human participation mode: ").AppendLine(roleAssignment.HumanParticipationMode.ToString())
@@ -2147,6 +2406,7 @@ namespace LocalGPT.Services
                 if (!string.IsNullOrWhiteSpace(loopGroup))
                     assignmentBriefing.Append("- Loop: ").Append(loopGroup).Append(' ').Append(loopIteration).Append('/').AppendLine(loopMaximumIterations.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 assignmentBriefing.AppendLine("Treat the role assignment as workflow structure, not as proof that any participant's answer is correct.");
+                assignmentBriefing.AppendLine("The executing model-to-role binding is authoritative for this workflow step. Do not switch identity, impersonate another role, or substitute another model/host.");
                 assignmentBriefing.Append("- Performance instruction: ").AppendLine(performanceInstruction);
                 assignmentBriefing.Append("- Boundary instruction: ").AppendLine(boundaryInstruction);
                 assignmentBriefing.Append("- Language instruction: ").AppendLine(languageInstruction);

@@ -5,6 +5,7 @@ using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.AI;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO.Compression;
@@ -27,6 +28,43 @@ namespace LocalGPT.Services
     [DocumentationUpdated("2.1.20")]
     public sealed class CouncilRuntimeService(CouncilTextService text, LocalGptCatalogService catalog, ILogger<CouncilRuntimeService> serviceLogger)
     {
+        private readonly ConcurrentDictionary<string, byte> ollamaModelsWithoutNativeToolMetadata = new(StringComparer.OrdinalIgnoreCase);
+
+        public bool OllamaThinkingChatClientShouldSkipNativeTools(Uri? endpoint, string modelName, ILogger logger)
+        {
+            try
+            {
+                if (endpoint is null || string.IsNullOrWhiteSpace(modelName))
+                    return false;
+                var key = $"{endpoint.GetLeftPart(UriPartial.Authority).TrimEnd('/')}|{modelName.Trim()}";
+                return ollamaModelsWithoutNativeToolMetadata.ContainsKey(key);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not inspect the process-local Ollama native-tool compatibility cache.");
+                return false;
+            }
+        }
+
+        public void OllamaThinkingChatClientRememberNativeToolsRejected(Uri? endpoint, string modelName, ILogger logger)
+        {
+            try
+            {
+                if (endpoint is null || string.IsNullOrWhiteSpace(modelName))
+                    return;
+                var key = $"{endpoint.GetLeftPart(UriPartial.Authority).TrimEnd('/')}|{modelName.Trim()}";
+                ollamaModelsWithoutNativeToolMetadata[key] = 1;
+                logger.LogInformation(
+                    "Remembered for this LocalGPT process that Ollama model {Model} at {Endpoint} rejects native tool metadata; later requests will skip the known-incompatible metadata instead of repeating HTTP 400/501 probing.",
+                    modelName,
+                    endpoint.GetLeftPart(UriPartial.Authority));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not update the process-local Ollama native-tool compatibility cache for model {Model}.", modelName);
+                throw;
+            }
+        }
         /// <summary>Creates Gradle properties for a Paper server plugin workspace.</summary>
         /// <param name="request">Minecraft build request containing target versions and description.</param>
         /// <param name="context">Normalized generated-project context.</param>
@@ -3064,33 +3102,43 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(prompt))
                     return false;
 
-                var markers = new[]
+                var currentUserText = MultiModelCouncilServiceCurrentUserTextForSignalClassification(prompt, logger);
+                var phraseMarkers = new[]
                 {
-                "angry",
-                "mad",
-                "frustrated",
-                "annoyed",
-                "upset",
-                "does not work",
-                "doesn't work",
-                "broken",
-                "stuck",
-                "wtf",
-                "fuck",
-                "shit",
-                "wütend",
-                "wuetend",
-                "sauer",
-                "frustriert",
-                "nervt",
-                "kaputt",
-                "geht nicht",
-                "funktioniert nicht",
-                "scheisse",
-                "scheiße"
-            };
+                    "does not work",
+                    "doesn't work",
+                    "geht nicht",
+                    "funktioniert nicht"
+                };
+                if (phraseMarkers.Any(marker => currentUserText.Contains(marker, StringComparison.OrdinalIgnoreCase)))
+                    return true;
 
-                return markers.Any(marker => prompt.Contains(marker, StringComparison.OrdinalIgnoreCase));
+                var wordMarkers = new[]
+                {
+                    "angry",
+                    "mad",
+                    "frustrated",
+                    "annoyed",
+                    "upset",
+                    "broken",
+                    "stuck",
+                    "wtf",
+                    "fuck",
+                    "shit",
+                    "wütend",
+                    "wuetend",
+                    "sauer",
+                    "frustriert",
+                    "nervt",
+                    "kaputt",
+                    "scheisse",
+                    "scheiße"
+                };
+
+                return wordMarkers.Any(marker => System.Text.RegularExpressions.Regex.IsMatch(
+                    currentUserText,
+                    $@"(?<![\p{{L}}\p{{N}}_]){System.Text.RegularExpressions.Regex.Escape(marker)}(?![\p{{L}}\p{{N}}_])",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant));
             }
             catch (Exception ex)
             {
@@ -3098,6 +3146,28 @@ namespace LocalGPT.Services
                 return false;
             }
 
+        }
+
+        private string MultiModelCouncilServiceCurrentUserTextForSignalClassification(string prompt, ILogger logger)
+        {
+            try
+            {
+                var currentUserText = prompt;
+                var userMarkerIndex = prompt.LastIndexOf("\nUser:", StringComparison.OrdinalIgnoreCase);
+                if (userMarkerIndex >= 0)
+                    currentUserText = prompt[(userMarkerIndex + "\nUser:".Length)..];
+
+                var priorTranscriptIndex = currentUserText.IndexOf("\nPrior transcript:", StringComparison.OrdinalIgnoreCase);
+                if (priorTranscriptIndex >= 0)
+                    currentUserText = currentUserText[..priorTranscriptIndex];
+
+                return currentUserText.Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not isolate the latest user text for council signal classification.");
+                return prompt;
+            }
         }
 
         /// <summary>Executes the multi model council service needs implementation path decision operation.</summary>

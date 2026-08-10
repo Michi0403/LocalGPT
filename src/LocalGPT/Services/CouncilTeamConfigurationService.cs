@@ -21,7 +21,7 @@ public sealed class CouncilTeamConfigurationService(
     IOrganicCouncilBlueprintSeedDataService seedData,
     ILogger<CouncilTeamConfigurationService> logger) : ICouncilTeamConfigurationService
 {
-    private const int CurrentSeedVersion = 16;
+    private const int CurrentSeedVersion = 17;
     private const int MaxRoles = 100;
     private const int MaxWorkflowSteps = 100;
     private const int MaxExpandedWorkflowSteps = 100;
@@ -285,12 +285,21 @@ public sealed class CouncilTeamConfigurationService(
                     .Where(value => value.Length > 0)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
+                role.AssignedModelKeys ??= [];
+                role.AssignedModelKeys = role.AssignedModelKeys
+                    .Select(value => value?.Trim() ?? string.Empty)
+                    .Where(value => value.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
                 role.MinimumAiParticipants = Math.Clamp(role.MinimumAiParticipants, 1, MaxAiParticipantsPerRole);
                 role.MaximumAiParticipants = Math.Clamp(role.MaximumAiParticipants, role.MinimumAiParticipants, MaxAiParticipantsPerRole);
             }
 
             foreach (var step in team.WorkflowSteps)
             {
+                step.LogicalRoundNumber = Math.Clamp(step.LogicalRoundNumber, 0, MaxExpandedWorkflowSteps);
+                if (!Enum.IsDefined(typeof(CouncilTranscriptVisibilityMode), step.TranscriptVisibility))
+                    step.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
                 step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
                 step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
                 step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
@@ -359,6 +368,12 @@ public sealed class CouncilTeamConfigurationService(
                     .Where(value => value.Length > 0)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
+                role.AssignedModelKeys ??= [];
+                role.AssignedModelKeys = role.AssignedModelKeys
+                    .Select(value => value?.Trim() ?? string.Empty)
+                    .Where(value => value.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
                 if (!Enum.IsDefined(typeof(CouncilRoleAiSelectionMode), role.AiSelectionMode))
                     role.AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected;
@@ -378,6 +393,13 @@ public sealed class CouncilTeamConfigurationService(
                 {
                     throw new InvalidOperationException(
                         $"Role '{role.Role}' has a minimum AI participant count greater than its maximum.");
+                }
+                if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels &&
+                    role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
+                    role.AssignedModelKeys.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Role '{role.Role}' uses provider-bound AI assignment but has no provider-qualified model selected.");
                 }
             }
 
@@ -432,6 +454,9 @@ public sealed class CouncilTeamConfigurationService(
                 step.Role = string.IsNullOrWhiteSpace(step.Role) ? "Council participant" : step.Role.Trim();
                 step.PromptTemplate = step.PromptTemplate?.Trim() ?? string.Empty;
                 step.AssignedModelName = step.AssignedModelName?.Trim() ?? string.Empty;
+                step.LogicalRoundNumber = Math.Clamp(step.LogicalRoundNumber, 0, MaxExpandedWorkflowSteps);
+                if (!Enum.IsDefined(typeof(CouncilTranscriptVisibilityMode), step.TranscriptVisibility))
+                    step.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
                 step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
                 step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
                 step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
@@ -446,6 +471,29 @@ public sealed class CouncilTeamConfigurationService(
                     throw new InvalidOperationException($"ASCII frame step '{step.DisplayName}' must use a single-member execution mode so one AI owns the complete frame.");
                 if (string.IsNullOrWhiteSpace(step.LoopGroup) && !string.IsNullOrWhiteSpace(step.LoopCompletionMarker))
                     throw new InvalidOperationException($"Workflow step '{step.DisplayName}' defines a loop completion marker without a loop group.");
+                if (team.Roles.Count > 0 && !rolesByName.ContainsKey(step.Role))
+                    throw new InvalidOperationException($"Workflow step '{step.DisplayName}' references role '{step.Role}', but that role is not defined in the team.");
+                if (step.ExecutionMode == "AssignedModelSingle")
+                {
+                    if (string.IsNullOrWhiteSpace(step.AssignedModelName))
+                        throw new InvalidOperationException($"Workflow step '{step.DisplayName}' uses AssignedModelSingle but has no provider-qualified assigned model.");
+                    if (rolesByName.TryGetValue(step.Role, out var stepRole))
+                    {
+                        if (stepRole.HumanParticipationMode == HumanParticipationMode.HumanOnly)
+                            throw new InvalidOperationException($"Workflow step '{step.DisplayName}' cannot use AssignedModelSingle because role '{step.Role}' is human-only.");
+                        if (stepRole.AiSelectionMode == CouncilRoleAiSelectionMode.RandomRange)
+                        {
+                            throw new InvalidOperationException(
+                                $"Workflow step '{step.DisplayName}' uses AssignedModelSingle, but role '{step.Role}' selects random members. Use provider-bound role models or AllSelected so the exact assigned model is guaranteed to belong to the role.");
+                        }
+                        if (stepRole.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels &&
+                            !stepRole.AssignedModelKeys.Contains(step.AssignedModelName, StringComparer.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidOperationException(
+                                $"Workflow step '{step.DisplayName}' assigns model '{step.AssignedModelName}', but that model is not bound to role '{step.Role}'.");
+                        }
+                    }
+                }
             }
 
             NormalizeLoopGroups(team.WorkflowSteps);

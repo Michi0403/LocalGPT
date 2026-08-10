@@ -42,6 +42,12 @@ def main() -> int:
     provider_text = text("src/LocalGPT/Services/CouncilTextService.ProviderModels.cs")
     provider_registry = text("src/LocalGPT/Services/AiProviderConfigurationRegistryService.cs")
     provider_registry_interface = text("src/LocalGPT/Interfaces/IAiProviderConfigurationRegistryService.cs")
+    team_models = text("src/LocalGPT/BusinessObjects/OrganicCouncilModels.cs")
+    team_config = text("src/LocalGPT/Services/CouncilTeamConfigurationService.cs")
+    teams_page = text("src/LocalGPT/Components/Pages/CouncilTeams.razor")
+    team_seeds = text("src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.cs")
+    council_runtime = text("src/LocalGPT/Services/CouncilRuntimeService.cs")
+    ollama_client = text("src/LocalGPT/Services/OllamaThinkingChatClient.cs")
     project = text("src/LocalGPT/LocalGPT.csproj")
 
     def contains(name: str, haystack: str, needle: str) -> None:
@@ -157,10 +163,34 @@ def main() -> int:
     excludes("Council no longer injects obsolete prompt service", council, "IPromptConfigService promptConfigService")
     contains("failed final recovery marks the Council step", council, "Error = finalAnswerError")
     contains("failed verifier is not presented as peer verification", council, "did not produce a substantive peer-verification answer")
+    contains("team roles support exact provider model binding", team_models, "AssignedModelKeys")
+    contains("team AI selection has assigned-model policy", team_models, "AssignedModels")
+    contains("workflow transcript visibility is persisted", team_models, "CouncilTranscriptVisibilityMode")
+    contains("workflow logical round is persisted", team_models, "LogicalRoundNumber")
+    contains("team editor discovers provider-qualified candidates", teams_page, "CouncilService.GetCandidatesAsync")
+    contains("team editor saves exact selection keys", teams_page, "candidate.SelectionKey")
+    contains("team editor exposes transcript visibility", teams_page, "TranscriptVisibilityModes")
+    contains("team editor exposes logical Council round", teams_page, "Logical Council round (0 = automatic)")
+    contains("team validation rejects assigned-model roles without bindings", team_config, "uses provider-bound AI assignment but has no provider-qualified model selected")
+    contains("team validation rejects workflow role escape", team_config, "references role '{step.Role}', but that role is not defined in the team")
+    contains("team-bound models are injected before participant selection", council, "ApplyConfiguredTeamModelBindingsAsync")
+    contains("legacy bare team model is rejected when host is ambiguous", council, "exists on multiple connected providers/hosts")
+    contains("runtime role assignment refuses undefined role fallback", council, "will not assign unrelated Council models to an undefined role")
+    contains("assigned model execution refuses model substitution", council, "will not substitute another model or host")
+    contains("workflow transcript visibility is enforced", council, "BuildConfiguredWorkflowTranscript")
+    contains("workflow previous-step visibility is enforced", council, "BuildConfiguredWorkflowPreviousStep")
+    contains("workflow logical round is enforced", council, "definition.LogicalRoundNumber > 0")
+    contains("general Council no longer assumes software project", team_seeds, 'DisplayName = "General Council"')
+    contains("project Council remains separately available", team_seeds, 'Key = "general-project"')
+    contains("frustration classifier uses word boundaries", council_runtime, "Regex.IsMatch")
+    contains("frustration classifier isolates latest user text", council_runtime, "MultiModelCouncilServiceCurrentUserTextForSignalClassification")
+    contains("human profile enable pushes trusted local-human context", chat, "phase: activeRun?.Phase ?? \"Enable human Council participation\"")
+    contains("Ollama native-tool rejection is remembered process-locally", council_runtime, "ollamaModelsWithoutNativeToolMetadata")
+    contains("Ollama known-incompatible tool metadata is skipped", ollama_client, "OllamaThinkingChatClientShouldSkipNativeTools")
     version_match = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", project)
     checks.append((
         "application patch version advanced",
-        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 5, 7))))
+        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 6, 0))))
 
     failures = [name for name, passed in checks if not passed]
     if failures:

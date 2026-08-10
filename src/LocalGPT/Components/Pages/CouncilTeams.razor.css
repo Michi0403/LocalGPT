@@ -56,3 +56,74 @@
 .council-runtime-class-preview table {
     color: var(--bs-body-color);
 }
+
+.council-provider-model-picker {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    background: var(--bs-tertiary-bg);
+}
+
+.council-provider-model-picker > summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+
+.council-provider-host-group {
+    margin-top: 0.55rem;
+    padding: 0.55rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.4rem;
+    background: var(--bs-body-bg);
+}
+
+.council-provider-host-group > summary {
+    cursor: pointer;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.council-provider-host-group .council-provider-model-grid {
+    margin-top: 0.55rem;
+}
+.council-provider-model-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: 0.5rem;
+}
+
+.council-provider-model-option {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    margin: 0;
+    padding: 0.6rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.4rem;
+    background: var(--bs-body-bg);
+}
+
+.council-provider-model-option span {
+    display: grid;
+    min-width: 0;
+}
+
+.council-provider-model-option small {
+    color: var(--bs-secondary-color);
+    overflow-wrap: anywhere;
+}
+
+.council-stale-model-binding {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 0.5rem;
+    padding: 0.55rem;
+    border: 1px solid var(--bs-warning-border-subtle);
+    border-radius: 0.4rem;
+    background: var(--bs-warning-bg-subtle);
+    overflow-wrap: anywhere;
+}

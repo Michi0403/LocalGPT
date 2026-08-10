@@ -3748,6 +3748,15 @@
                 UpdatedAtUtc = DateTime.UtcNow,
                 UpdatedBy = string.IsNullOrWhiteSpace(current.DisplayName) ? "Human User" : current.DisplayName
             };
+            var activeRun = ActiveCouncilRun;
+            var activeRunId = activeRun?.RunId ?? ActiveLiveCouncilSession?.RunId;
+            using var humanScope = HumanAmbientContext.PushHumanInteraction(
+                RuntimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId),
+                enabled.DisplayName,
+                nameof(Chat),
+                councilRunId: activeRunId,
+                councilRound: activeRun?.CurrentRound ?? 0,
+                phase: activeRun?.Phase ?? "Enable human Council participation");
             await HumanCollaboration.SaveProfileAsync(enabled).ConfigureAwait(false);
             Notifier.ShowSuccess(toastName, "You can now contribute to the selected running Council heartbeat.", "Human participation enabled");
             await RefreshHumanCollaborationAsync().ConfigureAwait(false);

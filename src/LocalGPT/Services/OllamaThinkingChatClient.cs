@@ -427,6 +427,15 @@ public sealed class OllamaThinkingChatClient : IChatClient
     {
     try
     {
+            if (request.Tools is { Count: > 0 } &&
+                councilRuntime.OllamaThinkingChatClientShouldSkipNativeTools(http.BaseAddress, model, logger))
+            {
+                logger.LogDebug(
+                    "Skipping native tool metadata for Ollama model {Model} because this provider-qualified model rejected it earlier in the current LocalGPT process.",
+                    model);
+                request.Tools = null;
+            }
+
             var response = await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
             if (response.IsSuccessStatusCode || request.Tools is not { Count: > 0 } ||
                 response.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented))
@@ -434,6 +443,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 return response;
             }
 
+            councilRuntime.OllamaThinkingChatClientRememberNativeToolsRejected(http.BaseAddress, model, logger);
             logger.LogInformation(
                 "Ollama model {Model} rejected native tool metadata with HTTP {StatusCode}; retrying the same chat request without automatic tools.",
                 model,

@@ -9,7 +9,9 @@ public enum CouncilRoleAiSelectionMode
     /// <summary>Assigns every selected model to the role.</summary>
     AllSelected,
     /// <summary>Assigns a bounded random participant count within the role limits.</summary>
-    RandomRange
+    RandomRange,
+    /// <summary>Assigns only the exact provider-qualified models saved on the role.</summary>
+    AssignedModels
 }
 
 /// <summary>Defines how a human participant may join a Council role.</summary>
@@ -58,6 +60,22 @@ public enum CouncilRoleBoundaryMode
     Collaborative,
     /// <summary>Requires strict role separation.</summary>
     Strict
+}
+
+/// <summary>Defines which prior Council output a configured workflow step may receive.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilTranscriptVisibilityMode
+{
+    /// <summary>Shares the complete Council transcript accumulated so far.</summary>
+    FullCouncil,
+    /// <summary>Shares only prior output produced for the same configured role.</summary>
+    SameRole,
+    /// <summary>Shares only output from the same logical Council round.</summary>
+    CurrentRound,
+    /// <summary>Shares only same-role output from the same logical Council round.</summary>
+    SameRoleCurrentRound,
+    /// <summary>Shares no accumulated transcript. The separately tracked previous step may still be used.</summary>
+    None
 }
 
 /// <summary>Defines one editable LocalGPT Council team, its roles, workflow and architecture contracts.</summary>
@@ -124,6 +142,8 @@ public sealed class OrganicCouncilRoleDefinition
     public string PairedRole { get; set; } = string.Empty;
     /// <summary>Gets or sets runtime-class keys exposed to participants in this role.</summary>
     public List<string> RuntimeClassKeys { get; set; } = [];
+    /// <summary>Gets or sets exact provider-qualified model identities bound to this role.</summary>
+    public List<string> AssignedModelKeys { get; set; } = [];
 }
 
 /// <summary>Stores project and revision metadata used to route organic Council capabilities.</summary>
@@ -186,8 +206,12 @@ public sealed class CouncilWorkflowStepDefinition
     public string PromptTemplate { get; set; } = string.Empty;
     /// <summary>Gets or sets the supported execution-mode name.</summary>
     public string ExecutionMode { get; set; } = "AllMembersParallel";
-    /// <summary>Gets or sets the explicit model used by assigned-model execution.</summary>
+    /// <summary>Gets or sets the exact provider-qualified model used by assigned-model execution.</summary>
     public string AssignedModelName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the logical one-based Council round. Zero keeps automatic sequential round numbering.</summary>
+    public int LogicalRoundNumber { get; set; }
+    /// <summary>Gets or sets which prior Council output is visible to this step.</summary>
+    public CouncilTranscriptVisibilityMode TranscriptVisibility { get; set; } = CouncilTranscriptVisibilityMode.FullCouncil;
     /// <summary>Gets or sets how many times the step is expanded outside a loop group.</summary>
     public int RepeatCount { get; set; } = 1;
     /// <summary>Gets or sets whether prior step output is included in the prompt.</summary>

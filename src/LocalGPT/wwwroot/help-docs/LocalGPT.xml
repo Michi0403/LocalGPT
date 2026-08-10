@@ -131,6 +131,51 @@
     <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationComment.IsCurrent">
       <summary>Gets or sets whether the comment review version matches the running application version.</summary>
     </member>
+    <member name="T:LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest">
+      <summary>Describes one safe same-origin documentation view requested by the LocalGPT frontend.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Url">
+      <summary>Gets or sets the application-relative documentation URL.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.Title">
+      <summary>Gets or sets the accessible dialog and iframe title.</summary>
+    </member>
+    <member name="T:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState">
+      <summary>Represents the scoped in-application documentation viewer state for one Blazor circuit.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.IsOpen">
+      <summary>Gets or sets whether the native modal dialog is open.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Url">
+      <summary>Gets or sets the application-relative documentation URL.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Title">
+      <summary>Gets or sets the accessible dialog and iframe title.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.Revision">
+      <summary>Gets or sets a monotonic change token used by the viewer host.</summary>
+    </member>
+    <member name="T:LocalGPT.BusinessObjects.LocalGptDocumentationProfile">
+      <summary>Describes the documentation routes and availability exposed to local controllers and 1-Wire peers.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.Status">
+      <summary>Gets or sets the current generated-documentation status.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HelpRoute">
+      <summary>Gets or sets the in-application help route.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.HtmlRoute">
+      <summary>Gets or sets the HTML documentation route.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.ApiRoute">
+      <summary>Gets or sets the API reference route.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.PdfRoute">
+      <summary>Gets or sets the inline PDF controller route.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.LocalGptDocumentationProfile.SupportsAccessibleModalViewer">
+      <summary>Gets or sets whether the frontend uses a focus-managed native modal viewer.</summary>
+    </member>
     <member name="T:LocalGPT.BusinessObjects.DxAiFunctionCatalogEntry">
       <summary>
             Database-backed, user-editable policy and discovery record for a DX function or public application service method. Descriptor metadata is refreshed from the running application while user policy fields are preserved.
@@ -545,6 +590,12 @@
     <member name="T:LocalGPT.BusinessObjects.OneWireWorkItem">
       <summary>Local runtime state for a protocol work item. Transfer contracts live in LocalGPT.WireProtocolVersion.</summary>
     </member>
+    <member name="T:LocalGPT.BusinessObjects.OneWireProtocolProfile">
+      <summary>Describes the active LocalGPT 1-Wire surface and safe runtime settings for local and linked frontends.</summary>
+    </member>
+    <member name="T:LocalGPT.BusinessObjects.OneWirePublicSettings">
+      <summary>Safe LocalGPT 1-Wire settings shown to users and linked clients.</summary>
+    </member>
     <member name="T:LocalGPT.BusinessObjects.OrganicAddonManifest">
       <summary>
             Offline, source-controlled description of an organic add-on. The manifest makes an add-on's controller surface discoverable while its process is offline; invocation still requires a live, trusted 1-Wire peer and the existing user-controlled catalog policy.
@@ -558,6 +609,9 @@
     </member>
     <member name="F:LocalGPT.BusinessObjects.CouncilRoleAiSelectionMode.RandomRange">
       <summary>Assigns a bounded random participant count within the role limits.</summary>
+    </member>
+    <member name="F:LocalGPT.BusinessObjects.CouncilRoleAiSelectionMode.AssignedModels">
+      <summary>Assigns only the exact provider-qualified models saved on the role.</summary>
     </member>
     <member name="T:LocalGPT.BusinessObjects.HumanParticipationMode">
       <summary>Defines how a human participant may join a Council role.</summary>
@@ -606,6 +660,24 @@
     </member>
     <member name="F:LocalGPT.BusinessObjects.CouncilRoleBoundaryMode.Strict">
       <summary>Requires strict role separation.</summary>
+    </member>
+    <member name="T:LocalGPT.BusinessObjects.CouncilTranscriptVisibilityMode">
+      <summary>Defines which prior Council output a configured workflow step may receive.</summary>
+    </member>
+    <member name="F:LocalGPT.BusinessObjects.CouncilTranscriptVisibilityMode.FullCouncil">
+      <summary>Shares the complete Council transcript accumulated so far.</summary>
+    </member>
+    <member name="F:LocalGPT.BusinessObjects.CouncilTranscriptVisibilityMode.SameRole">
+      <summary>Shares only prior output produced for the same configured role.</summary>
+    </member>
+    <member name="F:LocalGPT.BusinessObjects.CouncilTranscriptVisibilityMode.CurrentRound">
+      <summary>Shares only output from the same logical Council round.</summary>
+    </member>
+    <member name="F:LocalGPT.BusinessObjects.CouncilTranscriptVisibilityMode.SameRoleCurrentRound">
+      <summary>Shares only same-role output from the same logical Council round.</summary>
+    </member>
+    <member name="F:LocalGPT.BusinessObjects.CouncilTranscriptVisibilityMode.None">
+      <summary>Shares no accumulated transcript. The separately tracked previous step may still be used.</summary>
     </member>
     <member name="T:LocalGPT.BusinessObjects.OrganicCouncilTeamDefinition">
       <summary>Defines one editable LocalGPT Council team, its roles, workflow and architecture contracts.</summary>
@@ -694,6 +766,9 @@
     <member name="P:LocalGPT.BusinessObjects.OrganicCouncilRoleDefinition.RuntimeClassKeys">
       <summary>Gets or sets runtime-class keys exposed to participants in this role.</summary>
     </member>
+    <member name="P:LocalGPT.BusinessObjects.OrganicCouncilRoleDefinition.AssignedModelKeys">
+      <summary>Gets or sets exact provider-qualified model identities bound to this role.</summary>
+    </member>
     <member name="T:LocalGPT.BusinessObjects.ProjectOrganicContext">
       <summary>Stores project and revision metadata used to route organic Council capabilities.</summary>
     </member>
@@ -770,7 +845,13 @@
       <summary>Gets or sets the supported execution-mode name.</summary>
     </member>
     <member name="P:LocalGPT.BusinessObjects.CouncilWorkflowStepDefinition.AssignedModelName">
-      <summary>Gets or sets the explicit model used by assigned-model execution.</summary>
+      <summary>Gets or sets the exact provider-qualified model used by assigned-model execution.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.CouncilWorkflowStepDefinition.LogicalRoundNumber">
+      <summary>Gets or sets the logical one-based Council round. Zero keeps automatic sequential round numbering.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.CouncilWorkflowStepDefinition.TranscriptVisibility">
+      <summary>Gets or sets which prior Council output is visible to this step.</summary>
     </member>
     <member name="P:LocalGPT.BusinessObjects.CouncilWorkflowStepDefinition.RepeatCount">
       <summary>Gets or sets how many times the step is expanded outside a loop group.</summary>
@@ -944,6 +1025,27 @@
             Provider-qualified model identity. No credential is stored in this object; credentials are resolved from the matching configured provider at execution time.
             </summary>
     </member>
+    <member name="T:LocalGPT.BusinessObjects.LocalGptHostOptions">
+      <summary>Application-host settings. The loopback endpoint remains authoritative while RemoteEndpoint adds optional LAN/VPN access.</summary>
+    </member>
+    <member name="T:LocalGPT.BusinessObjects.RemoteWebEndpointOptions">
+      <summary>Optional second Kestrel endpoint for LAN/VPN/browser access. The historical loopback endpoint remains authoritative.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Enabled">
+      <summary>Explicit opt-in. A command-line/environment/configured remote port also opts in.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Address">
+      <summary>IP address to bind. Use 0.0.0.0 for all IPv4 interfaces or :: for all IPv6 interfaces.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.Port">
+      <summary>Secondary listener port. Zero keeps the endpoint disabled.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePath">
+      <summary>Optional PFX/PKCS#12 certificate path. When set, the secondary endpoint uses HTTPS.</summary>
+    </member>
+    <member name="P:LocalGPT.BusinessObjects.RemoteWebEndpointOptions.CertificatePassword">
+      <summary>Optional PFX password. Prefer an environment variable over persisting a reusable production secret.</summary>
+    </member>
     <member name="T:LocalGPT.BusinessObjects.RuntimeCapabilityDirectorySnapshot">
       <summary>Current dependency-injected function and organic-skill directory persisted for AI context.</summary>
     </member>
@@ -1087,6 +1189,9 @@
     <member name="M:LocalGPT.Controller.DocumentationController.Status">
       <summary>Returns the current generated-documentation and XML-comment availability.</summary>
     </member>
+    <member name="M:LocalGPT.Controller.DocumentationController.Profile">
+      <summary>Returns the documentation routes and accessible viewer features exposed by the running application.</summary>
+    </member>
     <member name="M:LocalGPT.Controller.DocumentationController.Comments(System.String,System.Int32,System.String)">
       <summary>Searches localized compiler-generated XML comments by member id, summary or remarks.</summary>
     </member>
@@ -1094,7 +1199,7 @@
       <summary>Returns one localized XML documentation member by its compiler member id.</summary>
     </member>
     <member name="M:LocalGPT.Controller.DocumentationController.Html(System.String)">
-      <summary>Serves generated DocFX HTML and supporting assets from the recursively resolved installed documentation root.</summary>
+      <summary>Serves generated DocFX HTML and supporting assets from the canonical installed documentation root.</summary>
     </member>
     <member name="M:LocalGPT.Controller.DocumentationController.Pdf">
       <summary>Downloads the versioned LocalGPT PDF generated for the running build.</summary>
@@ -1287,7 +1392,7 @@
             Transport-neutral JSON adapter for small user-built organic clients such as ESP32 firmware. It uses the same envelope, permissions, MFA trust and work spool as the TCP transport.
             </summary>
     </member>
-    <member name="M:LocalGPT.Controller.OneWireHttpController.#ctor(LocalGPT.Interfaces.IOneWireEnvelopeCodec,LocalGPT.Interfaces.IOneWireRuntimeSecurityService,LocalGPT.Interfaces.IOneWireMessageDispatcher,LocalGPT.Interfaces.IOneWireTransportSecurityPolicy,LocalGPT.Interfaces.IOneWireDispatchContextFactory,LocalGPT.Interfaces.IOneWireWorkSpooler,Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.OneWireHttpController})">
+    <member name="M:LocalGPT.Controller.OneWireHttpController.#ctor(LocalGPT.Interfaces.IOneWireEnvelopeCodec,LocalGPT.Interfaces.IOneWireRuntimeSecurityService,LocalGPT.Interfaces.IOneWireMessageDispatcher,LocalGPT.Interfaces.IOneWireTransportSecurityPolicy,LocalGPT.Interfaces.IOneWireDispatchContextFactory,LocalGPT.Interfaces.IOneWireWorkSpooler,LocalGPT.Interfaces.IOneWireCapabilityCatalog,Microsoft.Extensions.Options.IOptions{LocalGPT.BusinessObjects.OneWireOptions},Microsoft.Extensions.Logging.ILogger{LocalGPT.Controller.OneWireHttpController})">
       <summary>
             Transport-neutral JSON adapter for small user-built organic clients such as ESP32 firmware. It uses the same envelope, permissions, MFA trust and work spool as the TCP transport.
             </summary>
@@ -1315,6 +1420,11 @@
     <member name="T:LocalGPT.Diagnostics.ServiceMethodLoggingDispatchProxy">
       <summary>
             Adds bounded operation diagnostics to LocalGPT interface services without logging arguments, return values, prompts, source, database rows, credentials, or other payload content.
+            </summary>
+    </member>
+    <member name="T:LocalGPT.Interfaces.IAiProviderConfigurationRegistryService">
+      <summary>
+            Owns detached editing and durable merge semantics for configured AI provider hosts.
             </summary>
     </member>
     <member name="T:LocalGPT.Interfaces.ILocalHumanInteractionContext">
@@ -1437,6 +1547,21 @@
     </member>
     <member name="M:LocalGPT.Interfaces.IDocumentationTranslationAdapter.Adapt(LocalGPT.BusinessObjects.LocalGptDocumentationComment,System.String)">
       <summary>Returns a localized copy of one documentation comment for the requested culture.</summary>
+    </member>
+    <member name="T:LocalGPT.Interfaces.IDocumentationViewerService">
+      <summary>Coordinates accessible in-application documentation viewing for one LocalGPT circuit.</summary>
+    </member>
+    <member name="E:LocalGPT.Interfaces.IDocumentationViewerService.StateChanged">
+      <summary>Raised when the viewer state changes.</summary>
+    </member>
+    <member name="P:LocalGPT.Interfaces.IDocumentationViewerService.State">
+      <summary>Gets the current scoped viewer state.</summary>
+    </member>
+    <member name="M:LocalGPT.Interfaces.IDocumentationViewerService.Open(LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest)">
+      <summary>Opens one safe same-origin documentation route.</summary>
+    </member>
+    <member name="M:LocalGPT.Interfaces.IDocumentationViewerService.Close">
+      <summary>Closes the current viewer.</summary>
     </member>
     <member name="T:LocalGPT.Interfaces.IFeaturePersistenceService">
       <summary>Provides approval-gated CRUD access to persistent records introduced by LocalGPT feature modules.</summary>
@@ -1777,6 +1902,16 @@
     <member name="M:LocalGPT.Services.AdaptiveOllamaBenchmarkWiring.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{LocalGPT.BusinessObjects.ConfigurationRoot},LocalGPT.Interfaces.IHardwareInventoryService,LocalGPT.Interfaces.IModelPresetService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.AdaptiveOllamaBenchmarkWiring})">
       <summary>
             Runs a bounded, user-approved benchmark against models already installed in the configured local Ollama runtime. It never pulls models, changes global Ollama state, or overwrites an existing preset.
+            </summary>
+    </member>
+    <member name="T:LocalGPT.Services.AiProviderConfigurationRegistryService">
+      <summary>
+            Keeps provider editing transactional. Installer edits operate on detached copies and a normal save is additive for Ollama hosts; an existing endpoint is removed only through an explicit remove action.
+            </summary>
+    </member>
+    <member name="M:LocalGPT.Services.AiProviderConfigurationRegistryService.#ctor(Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.AiProviderConfigurationRegistryService})">
+      <summary>
+            Keeps provider editing transactional. Installer edits operate on detached copies and a normal save is additive for Ollama hosts; an existing endpoint is removed only through an explicit remove action.
             </summary>
     </member>
     <member name="T:LocalGPT.Services.ComponentActivityService">
@@ -3070,6 +3205,34 @@
     <member name="M:LocalGPT.Services.DocumentationTranslationAdapter.Adapt(LocalGPT.BusinessObjects.LocalGptDocumentationComment,System.String)">
       <inheritdoc />
     </member>
+    <member name="T:LocalGPT.Services.DocumentationViewerService">
+      <summary>Coordinates one focus-managed same-origin documentation modal per Blazor circuit.</summary>
+    </member>
+    <member name="M:LocalGPT.Services.DocumentationViewerService.#ctor(Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.DocumentationViewerService})">
+      <summary>Coordinates one focus-managed same-origin documentation modal per Blazor circuit.</summary>
+    </member>
+    <member name="E:LocalGPT.Services.DocumentationViewerService.StateChanged">
+      <inheritdoc />
+    </member>
+    <member name="P:LocalGPT.Services.DocumentationViewerService.State">
+      <inheritdoc />
+    </member>
+    <member name="M:LocalGPT.Services.DocumentationViewerService.Open(LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest)">
+      <inheritdoc />
+    </member>
+    <member name="M:LocalGPT.Services.DocumentationViewerService.Close">
+      <inheritdoc />
+    </member>
+    <member name="T:LocalGPT.Services.DxAiFunctionCallRecoveryService">
+      <summary>
+            Recovers structured DX function calls emitted as assistant text by provider runtimes that do not populate their native tool-call field. Function names are resolved exclusively against the live DI-backed registry; this service never invents or hardcodes callable operations.
+            </summary>
+    </member>
+    <member name="M:LocalGPT.Services.DxAiFunctionCallRecoveryService.#ctor(LocalGPT.Interfaces.IDxAiFunctionRegistry,LocalGPT.Interfaces.ICouncilTextPatternDataService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.DxAiFunctionCallRecoveryService})">
+      <summary>
+            Recovers structured DX function calls emitted as assistant text by provider runtimes that do not populate their native tool-call field. Function names are resolved exclusively against the live DI-backed registry; this service never invents or hardcodes callable operations.
+            </summary>
+    </member>
     <member name="T:LocalGPT.Services.DxAiFunctionCatalogService">
       <summary>
             Keeps the user-facing DX function catalog in the existing SystemVariables table. This deliberately avoids destructive schema replacement: old databases receive missing records, while user-edited exposure and confirmation settings survive descriptor refreshes and application upgrades.
@@ -3496,7 +3659,7 @@
             Builds a database-grounded learning-round snapshot and persists model-suggested facts/regexes as untrusted self-maintenance knowledge. It never promotes model output to user-approved authority.
             </summary>
     </member>
-    <member name="M:LocalGPT.Services.LearningRoundService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext},LocalGPT.Interfaces.IDatabaseInitializationService,LocalGPT.Interfaces.ICouncilKnowledgeService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LearningRoundService})">
+    <member name="M:LocalGPT.Services.LearningRoundService.#ctor(Microsoft.EntityFrameworkCore.IDbContextFactory{LocalGPT.BusinessObjects.EFCore.LocalGptMemoryDbContext},LocalGPT.Interfaces.IDatabaseInitializationService,LocalGPT.Interfaces.ICouncilKnowledgeService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.LearningRoundService})">
       <summary>
             Builds a database-grounded learning-round snapshot and persists model-suggested facts/regexes as untrusted self-maintenance knowledge. It never promotes model output to user-approved authority.
             </summary>
@@ -3719,6 +3882,12 @@
       <param name="toggledSidebar">Current sidebar expansion state.</param>
       <param name="returnUrl">Absolute or application return URL.</param>
       <returns>The normalized return URL with sidebar state.</returns>
+    </member>
+    <member name="T:LocalGPT.Services.NetworkCertificateService">
+      <summary>Creates explicit user-requested self-signed PFX certificates for the optional LocalGPT LAN/VPN Kestrel endpoint.</summary>
+    </member>
+    <member name="M:LocalGPT.Services.NetworkCertificateService.#ctor(Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.NetworkCertificateService})">
+      <summary>Creates explicit user-requested self-signed PFX certificates for the optional LocalGPT LAN/VPN Kestrel endpoint.</summary>
     </member>
     <member name="T:LocalGPT.Services.OneWire.LocalVisionOcrService">
       <summary>
@@ -4066,12 +4235,24 @@
       <param name="cancellationToken">Cancellation token for database work.</param>
       <returns>A task whose result is true when the compiler record was removed.</returns>
     </member>
+    <member name="T:LocalGPT.Services.ListProjectWorkspaceFilesFunction">
+      <summary>Lists readable source/text files inside the project currently linked to /chat.</summary>
+    </member>
+    <member name="M:LocalGPT.Services.ListProjectWorkspaceFilesFunction.#ctor(LocalGPT.Interfaces.IDxAiFunctionJsonService,LocalGPT.Interfaces.ILocalGptProjectService,LocalGPT.Interfaces.IChatSessionContext,LocalGPT.Services.CouncilRuntimeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ListProjectWorkspaceFilesFunction})">
+      <summary>Lists readable source/text files inside the project currently linked to /chat.</summary>
+    </member>
+    <member name="T:LocalGPT.Services.ReadProjectWorkspaceFileFunction">
+      <summary>Reads one harmless source/text file from the project linked to /chat.</summary>
+    </member>
+    <member name="M:LocalGPT.Services.ReadProjectWorkspaceFileFunction.#ctor(LocalGPT.Interfaces.IDxAiFunctionJsonService,LocalGPT.Interfaces.ILocalGptProjectService,LocalGPT.Interfaces.IChatSessionContext,LocalGPT.Interfaces.ISafeTextDocumentService,LocalGPT.Services.CouncilRuntimeService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ReadProjectWorkspaceFileFunction})">
+      <summary>Reads one harmless source/text file from the project linked to /chat.</summary>
+    </member>
     <member name="T:LocalGPT.Services.ProviderModelBenchmarkService">
       <summary>
             Bounded benchmark and council review for provider-qualified models. The service does not download models or alter provider-global settings. Applying a recommendation creates or updates a user-approved LocalGPT model preset whose routes retain provider, endpoint and provider model name.
             </summary>
     </member>
-    <member name="M:LocalGPT.Services.ProviderModelBenchmarkService.#ctor(LocalGPT.Interfaces.IProviderModelRuntimeService,LocalGPT.Interfaces.IModelPresetService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelBenchmarkService})">
+    <member name="M:LocalGPT.Services.ProviderModelBenchmarkService.#ctor(LocalGPT.Interfaces.IProviderModelRuntimeService,LocalGPT.Interfaces.IModelPresetService,LocalGPT.Interfaces.ICouncilLiveSessionService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelBenchmarkService})">
       <summary>
             Bounded benchmark and council review for provider-qualified models. The service does not download models or alter provider-global settings. Applying a recommendation creates or updates a user-approved LocalGPT model preset whose routes retain provider, endpoint and provider model name.
             </summary>
@@ -4081,7 +4262,7 @@
             Discovers and opens provider-qualified model sessions. A model name is never treated as a globally unique address: provider kind and endpoint are always retained with it.
             </summary>
     </member>
-    <member name="M:LocalGPT.Services.ProviderModelRuntimeService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{LocalGPT.BusinessObjects.ConfigurationRoot},Microsoft.Extensions.Logging.ILoggerFactory,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelRuntimeService},LocalGPT.Services.CouncilRuntimeService,LocalGPT.Interfaces.IChatResponseFormatterFactory,LocalGPT.Interfaces.IChatProtocolResolver,LocalGPT.Interfaces.IPromptConfigService,LocalGPT.Interfaces.IDxAiFunctionRegistry)">
+    <member name="M:LocalGPT.Services.ProviderModelRuntimeService.#ctor(Microsoft.Extensions.Options.IOptionsMonitor{LocalGPT.BusinessObjects.ConfigurationRoot},Microsoft.Extensions.Logging.ILoggerFactory,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ProviderModelRuntimeService},LocalGPT.Services.CouncilRuntimeService,LocalGPT.Interfaces.IChatResponseFormatterFactory,LocalGPT.Interfaces.IChatProtocolResolver,LocalGPT.Interfaces.IPromptConfigService,LocalGPT.Interfaces.IDxAiFunctionRegistry,LocalGPT.Interfaces.IDxAiFunctionCallRecoveryService)">
       <summary>
             Discovers and opens provider-qualified model sessions. A model name is never treated as a globally unique address: provider kind and endpoint are always retained with it.
             </summary>
@@ -4101,7 +4282,7 @@
             Database-backed regular-expression functions used by LocalGPT itself and advertised through the same DI/DX-function/1-Wire discovery path as every other council capability.
             </summary>
     </member>
-    <member name="M:LocalGPT.Services.ListRegexPatternsFunction.#ctor(IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ListRegexPatternsFunction})">
+    <member name="M:LocalGPT.Services.ListRegexPatternsFunction.#ctor(LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.ListRegexPatternsFunction})">
       <summary>
             Database-backed regular-expression functions used by LocalGPT itself and advertised through the same DI/DX-function/1-Wire discovery path as every other council capability.
             </summary>
@@ -4111,7 +4292,7 @@
             Downloads a user-selected public GitHub repository or webpage into the same local learn-base style cache used by LocalGPT, lists every returned file, applies a regex file policy, and then delegates database extraction to the existing learn-base importer.
             </summary>
     </member>
-    <member name="M:LocalGPT.Services.RemoteKnowledgeImportService.#ctor(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService,LocalGPT.Interfaces.ICouncilKnowledgeService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.RemoteKnowledgeImportService})">
+    <member name="M:LocalGPT.Services.RemoteKnowledgeImportService.#ctor(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService,LocalGPT.Interfaces.ICouncilKnowledgeService,LocalGPT.Interfaces.IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.RemoteKnowledgeImportService})">
       <summary>
             Downloads a user-selected public GitHub repository or webpage into the same local learn-base style cache used by LocalGPT, lists every returned file, applies a regex file policy, and then delegates database extraction to the existing learn-base importer.
             </summary>

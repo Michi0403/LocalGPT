@@ -45,6 +45,25 @@ public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCounci
         new()
         {
             Key = "general",
+            DisplayName = "General Council",
+            Purpose = "A neutral LocalGPT council for everyday questions, research, creative work, comparisons and simulations without assuming that the task is a software project.",
+            Roles =
+            [
+                new() { Role = "Council participant", Expertise = "independent analysis, creativity and useful alternatives", Responsibility = "answer the actual user request without inventing a software-project requirement", AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected },
+                new() { Role = "Peer reviewer", Expertise = "cross-checking, disagreement and missing-information detection", Responsibility = "review the discussion without changing the user's goal", AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected },
+                new() { Role = "Consensus writer", Expertise = "clear synthesis", Responsibility = "produce the final answer from the Council evidence", AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected }
+            ],
+            WorkflowSteps =
+            [
+                new() { Key = "general-discussion", DisplayName = "General discussion", SortOrder = 10, Phase = "Discussion", Role = "Council participant", ExecutionMode = "AllMembersParallel", LogicalRoundNumber = 1, TranscriptVisibility = CouncilTranscriptVisibilityMode.None, IncludePriorTranscript = false, PromptTemplate = "Answer the user's actual request as {{Role}}. Stay on the requested subject. Do not turn an ordinary or creative request into a coding, project, compiler or artifact workflow unless the user asked for that.\n\nUser request:\n{{UserPrompt}}" },
+                new() { Key = "general-review", DisplayName = "Peer review", SortOrder = 20, Phase = "Review", Role = "Peer reviewer", ExecutionMode = "AllMembersSequential", LogicalRoundNumber = 2, TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil, IncludePriorTranscript = true, PromptTemplate = "Review the Council discussion for factual conflicts, missing information and useful disagreement. Preserve the user's goal and do not introduce unrelated implementation work.\n\nUser request:\n{{UserPrompt}}\n\nCouncil discussion:\n{{Transcript}}" },
+                new() { Key = "general-consensus", DisplayName = "Consensus", SortOrder = 30, Phase = "Consensus", Role = "Consensus writer", ExecutionMode = "LeaderSingle", LogicalRoundNumber = 3, TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil, IncludePriorTranscript = true, ProducesFinalAnswer = true, PromptTemplate = "Produce the concise final Council answer to the user from the discussion and review. Resolve disagreements when evidence permits and state uncertainty when it does not. Do not add a software-project workflow unless requested.\n\nUser request:\n{{UserPrompt}}\n\nCouncil transcript:\n{{Transcript}}" }
+            ],
+            ArchitectureContracts = DefaultArchitectureContracts()
+        },
+        new()
+        {
+            Key = "general-project",
             DisplayName = "Organic Project Team",
             Purpose = "A role-directed LocalGPT council for database-grounded project work with optional external eyes, hands and media organs.",
             Roles =

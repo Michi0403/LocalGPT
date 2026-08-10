@@ -1,6 +1,7 @@
 @rendermode InteractiveServer
 @page "/council-teams"
 @inject ICouncilTeamConfigurationService TeamConfigurations
+@inject IMultiModelCouncilService CouncilService
 @inject ICouncilRuntimeClassService RuntimeClasses
 @inject IDxAiFunctionCatalogService FunctionCatalog
 @inject ILogger<CouncilTeams> Logger
@@ -175,6 +176,47 @@
                                 </select>
                             </label>
                         </div>
+                        @if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels && role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
+                        {
+                            <details class="wide council-provider-model-picker" open>
+                                <summary>Provider-bound role models (@role.AssignedModelKeys.Count selected)</summary>
+                                <p class="hint">The provider, endpoint and model are one identity. These saved members are automatically added to the run and LocalGPT will not substitute a same-name model from another host.</p>
+                                @if (_providerModels.Count == 0)
+                                {
+                                    <div class="alert alert-warning mb-2">No provider model catalog is currently available. Existing saved bindings remain visible below and are not deleted.</div>
+                                }
+                                @foreach (var providerGroup in _providerModels
+                                    .GroupBy(candidate => new { candidate.Provider, candidate.Endpoint })
+                                    .OrderBy(group => group.Key.Provider, StringComparer.OrdinalIgnoreCase)
+                                    .ThenBy(group => group.Key.Endpoint, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    <details class="council-provider-host-group">
+                                        <summary>@providerGroup.Key.Provider · @providerGroup.Key.Endpoint (@providerGroup.Count() models)</summary>
+                                        <div class="council-provider-model-grid">
+                                            @foreach (var candidate in providerGroup.OrderBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase))
+                                            {
+                                                <label class="form-check council-provider-model-option">
+                                                    <input class="form-check-input" type="checkbox"
+                                                           checked="@role.AssignedModelKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase)"
+                                                           @onchange="args => ToggleRoleModel(roleIndex, candidate.SelectionKey, args)" />
+                                                    <span>
+                                                        <strong>@candidate.ModelName</strong>
+                                                        <small>@(candidate.IsInstalled ? "reachable" : candidate.IsConfigured ? "configured" : "discovered")</small>
+                                                    </span>
+                                                </label>
+                                            }
+                                        </div>
+                                    </details>
+                                }
+                                @foreach (var savedModelKey in UnavailableRoleModelKeys(role))
+                                {
+                                    <div class="council-stale-model-binding">
+                                        <span><strong>Saved but unavailable:</strong> @savedModelKey</span>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveRoleModel(roleIndex, savedModelKey)">Remove binding</button>
+                                    </div>
+                                }
+                            </details>
+                        }
                         <div class="wide council-role-coordination-grid">
                             <label>
                                 <span>Distinct AI assignment group</span>
@@ -251,7 +293,7 @@
                 <header>
                     <div>
                         <h2>Rounds and workflow</h2>
-                        <p>Each enabled step is a council round. Its role name links to the matching role policy above. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{RuntimeClasses}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{RolePerformanceMode}}</code>, <code>{{RoleBoundaryMode}}</code>, <code>{{RoleLanguageMode}}</code>, <code>{{RolePerformanceInstruction}}</code>, <code>{{RoleBoundaryInstruction}}</code>, <code>{{RoleLanguageInstruction}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
+                        <p>Each enabled entry is a workflow step. Multiple steps may share one logical Council round, and every role/model binding is authoritative for that run. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{RuntimeClasses}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{RolePerformanceMode}}</code>, <code>{{RoleBoundaryMode}}</code>, <code>{{RoleLanguageMode}}</code>, <code>{{RolePerformanceInstruction}}</code>, <code>{{RoleBoundaryInstruction}}</code>, <code>{{RoleLanguageInstruction}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
                     </div>
                     <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddWorkflowStep">Add round</button>
                 </header>
@@ -289,7 +331,30 @@
                                     }
                                 </select>
                             </label>
-                            <label><span>Assigned model (optional)</span><input class="form-control" @bind="step.AssignedModelName" placeholder="Used by Assigned model only" /></label>
+                            <label>
+                                <span>Exact provider model</span>
+                                <select class="form-select" @bind="step.AssignedModelName" disabled="@(step.ExecutionMode != "AssignedModelSingle")">
+                                    <option value="">Select provider / host / model</option>
+                                    @if (!string.IsNullOrWhiteSpace(step.AssignedModelName) && !IsWorkflowModelAvailable(step.AssignedModelName))
+                                    {
+                                        <option value="@step.AssignedModelName">Saved but unavailable · @step.AssignedModelName</option>
+                                    }
+                                    @foreach (var candidate in WorkflowModelCandidates(step))
+                                    {
+                                        <option value="@candidate.SelectionKey">@candidate.Provider · @candidate.ModelName · @candidate.Endpoint</option>
+                                    }
+                                </select>
+                            </label>
+                            <label><span>Logical Council round (0 = automatic)</span><input class="form-control" type="number" min="0" max="1000" @bind="step.LogicalRoundNumber" /></label>
+                            <label>
+                                <span>Prior transcript visibility</span>
+                                <select class="form-select" @bind="step.TranscriptVisibility" disabled="@(!step.IncludePriorTranscript)">
+                                    @foreach (var visibility in TranscriptVisibilityModes)
+                                    {
+                                        <option value="@visibility.Value">@visibility.Label</option>
+                                    }
+                                </select>
+                            </label>
                             <label><span>Repeat count inside this step</span><input class="form-control" type="number" min="1" max="100" @bind="step.RepeatCount" /></label>
                             <label><span>Sort order</span><input class="form-control" type="number" @bind="step.SortOrder" /></label>
                             <label>
@@ -315,7 +380,7 @@
                         </div>
                         <div class="council-step-options">
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.IsEnabled" /><span>Enabled</span></label>
-                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.IncludePriorTranscript" /><span>Include previous transcript</span></label>
+                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.IncludePriorTranscript" /><span>Include prior transcript according to visibility policy</span></label>
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.ProducesFinalAnswer" /><span>Can become final answer</span></label>
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.RequiresHumanCheckpoint" /><span>Respect human gate before round</span></label>
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.CanUseOrganicFunctions" /><span>Allow DX/organic function requests</span></label>
@@ -362,10 +427,19 @@
         ("RoundRobinSingle", "One rotating role member"),
         ("AssignedModelSingle", "Assigned model only")
     ];
+    private readonly IReadOnlyList<(CouncilTranscriptVisibilityMode Value, string Label)> TranscriptVisibilityModes =
+    [
+        (CouncilTranscriptVisibilityMode.FullCouncil, "Full Council transcript"),
+        (CouncilTranscriptVisibilityMode.SameRole, "Only this role"),
+        (CouncilTranscriptVisibilityMode.CurrentRound, "Only this logical round"),
+        (CouncilTranscriptVisibilityMode.SameRoleCurrentRound, "This role in this logical round"),
+        (CouncilTranscriptVisibilityMode.None, "No accumulated transcript")
+    ];
     private readonly IReadOnlyList<(CouncilRoleAiSelectionMode Value, string Label)> AiSelectionModes =
     [
         (CouncilRoleAiSelectionMode.AllSelected, "All selected council AIs"),
-        (CouncilRoleAiSelectionMode.RandomRange, "Random role members within range")
+        (CouncilRoleAiSelectionMode.RandomRange, "Random role members within range"),
+        (CouncilRoleAiSelectionMode.AssignedModels, "Exact models from connected providers")
     ];
     private readonly IReadOnlyList<(HumanParticipationMode Value, string Label)> HumanParticipationModes =
     [
@@ -394,6 +468,7 @@
     private IReadOnlyList<OrganicCouncilTeamDefinition> _teams = [];
     private IReadOnlyList<CouncilRuntimeClassDefinition> _runtimeClasses = [];
     private IReadOnlyList<DxAiFunctionCatalogEntry> _dxFunctions = [];
+    private IReadOnlyList<MultiModelCouncilModelCandidate> _providerModels = [];
     private OrganicCouncilTeamDefinition _editor = new();
     private string _selectedKey = string.Empty;
     private string _rolesJson = "[]";
@@ -423,6 +498,19 @@
         {
             _runtimeClasses = await RuntimeClasses.GetDefinitionsAsync(includeDisabled: true).ConfigureAwait(false);
             _dxFunctions = await FunctionCatalog.GetEntriesAsync().ConfigureAwait(false);
+            try
+            {
+                _providerModels = (await CouncilService.GetCandidatesAsync().ConfigureAwait(false))
+                    .OrderBy(candidate => candidate.Provider, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception providerEx)
+            {
+                Logger.LogWarning(providerEx, "Could not refresh provider-qualified Council model candidates; team definitions remain editable with saved bindings.");
+                _providerModels = [];
+            }
             _teams = await TeamConfigurations.GetTeamsAsync(includeDisabled: true).ConfigureAwait(false);
             var selected = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
             if (selected is not null)
@@ -516,6 +604,7 @@
         _editor.IsUserModified = true;
         foreach (var step in _editor.WorkflowSteps)
             step.UseBuiltInBehavior = false;
+        EnsureWorkflowRolesDefinedForEditableCopy();
         _selectedKey = string.Empty;
         RefreshAdvancedJson();
         _capabilitiesJson = Serialize(_editor.PreferredCapabilities);
@@ -523,6 +612,25 @@
         _confirmed = false;
         _status = $"Duplicated '{source.DisplayName}' as an unsaved literal workflow. Change the key if it already exists.";
         _hasError = false;
+    }
+
+    private void EnsureWorkflowRolesDefinedForEditableCopy()
+    {
+        foreach (var step in _editor.WorkflowSteps.Where(step => step.IsEnabled && !string.IsNullOrWhiteSpace(step.Role)))
+        {
+            if (_editor.Roles.Any(role => string.Equals(role.Role, step.Role, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            _editor.Roles.Add(new OrganicCouncilRoleDefinition
+            {
+                Role = step.Role.Trim(),
+                Expertise = "Compatibility role from the supplied workflow",
+                Responsibility = "Preserve the supplied workflow role explicitly when the team is converted to a user-owned literal workflow.",
+                AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected,
+                MinimumAiParticipants = 1,
+                MaximumAiParticipants = 1,
+                HumanParticipationMode = HumanParticipationMode.None
+            });
+        }
     }
 
     private void AddRole() => _editor.Roles.Add(new OrganicCouncilRoleDefinition
@@ -618,6 +726,12 @@
                 .Where(value => value.Length > 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            role.AssignedModelKeys ??= [];
+            role.AssignedModelKeys = role.AssignedModelKeys
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         for (var index = 0; index < _editor.WorkflowSteps.Count; index++)
@@ -626,6 +740,9 @@
             if (step.SortOrder == 0)
                 step.SortOrder = (index + 1) * 10;
             step.RepeatCount = Math.Clamp(step.RepeatCount, 1, 100);
+            step.LogicalRoundNumber = Math.Clamp(step.LogicalRoundNumber, 0, 1000);
+            if (!Enum.IsDefined(typeof(CouncilTranscriptVisibilityMode), step.TranscriptVisibility))
+                step.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
             step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
             step.MaximumLoopIterations = string.IsNullOrWhiteSpace(step.LoopGroup)
                 ? 1
@@ -738,6 +855,61 @@
         return separator > 0 ? name[..separator] : entry.Kind;
     }
 
+    private void ToggleRoleModel(int roleIndex, string selectionKey, ChangeEventArgs args)
+    {
+        if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
+            return;
+        var role = _editor.Roles[roleIndex];
+        role.AssignedModelKeys ??= [];
+        var enabled = args.Value is bool value && value;
+        role.AssignedModelKeys.RemoveAll(item => string.Equals(item, selectionKey, StringComparison.OrdinalIgnoreCase));
+        if (enabled)
+            role.AssignedModelKeys.Add(selectionKey);
+        role.AssignedModelKeys = role.AssignedModelKeys
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        _confirmed = false;
+    }
+
+    private void RemoveRoleModel(int roleIndex, string selectionKey)
+    {
+        if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
+            return;
+        var role = _editor.Roles[roleIndex];
+        role.AssignedModelKeys ??= [];
+        role.AssignedModelKeys.RemoveAll(item => string.Equals(item, selectionKey, StringComparison.OrdinalIgnoreCase));
+        _confirmed = false;
+    }
+
+    private IReadOnlyList<string> UnavailableRoleModelKeys(OrganicCouncilRoleDefinition role) =>
+        role.AssignedModelKeys
+            .Where(selectionKey => !_providerModels.Any(candidate =>
+                string.Equals(candidate.SelectionKey, selectionKey, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(selectionKey => selectionKey, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private IReadOnlyList<MultiModelCouncilModelCandidate> WorkflowModelCandidates(CouncilWorkflowStepDefinition step)
+    {
+        var role = FindRolePolicy(step.Role);
+        IEnumerable<MultiModelCouncilModelCandidate> candidates = _providerModels;
+        if (role is not null && role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels && role.AssignedModelKeys.Count > 0)
+        {
+            candidates = candidates.Where(candidate =>
+                role.AssignedModelKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase));
+        }
+
+        return candidates
+            .OrderBy(candidate => candidate.Provider, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private bool IsWorkflowModelAvailable(string selectionKey) =>
+        _providerModels.Any(candidate =>
+            string.Equals(candidate.SelectionKey, selectionKey, StringComparison.OrdinalIgnoreCase));
+
     private void ToggleRuntimeClass(int roleIndex, string key, ChangeEventArgs args)
     {
         if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
@@ -771,7 +943,7 @@
     {
         var role = FindRolePolicy(roleName);
         return role is null
-            ? "no matching role policy; all selected AIs"
+            ? "missing role policy; run will be blocked"
             : $"{RoleAiBadge(role)}; {RoleHumanBadge(role)}";
     }
 
@@ -779,11 +951,13 @@
     {
         if (role.HumanParticipationMode == HumanParticipationMode.HumanOnly)
             return "Human only · 0 AI";
-        return role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected
-            ? "All selected AIs"
-            : role.MinimumAiParticipants == role.MaximumAiParticipants
-                ? $"Random {role.MinimumAiParticipants} AI" + (role.MinimumAiParticipants == 1 ? string.Empty : "s")
-                : $"Random {role.MinimumAiParticipants}–{role.MaximumAiParticipants} AIs";
+        if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected)
+            return "All selected AIs";
+        if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels)
+            return $"{role.AssignedModelKeys.Count} provider-bound AI" + (role.AssignedModelKeys.Count == 1 ? string.Empty : "s");
+        return role.MinimumAiParticipants == role.MaximumAiParticipants
+            ? $"Random {role.MinimumAiParticipants} AI" + (role.MinimumAiParticipants == 1 ? string.Empty : "s")
+            : $"Random {role.MinimumAiParticipants}–{role.MaximumAiParticipants} AIs";
     }
 
     private string RoleHumanBadge(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch

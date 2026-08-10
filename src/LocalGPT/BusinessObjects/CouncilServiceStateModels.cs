@@ -133,7 +133,9 @@ internal sealed record CouncilRoleRuntimeAssignment(
         ? "no AI members (human-only role)"
         : Definition is null || Definition.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected
             ? $"all {AiParticipants.Count} selected AI member(s)"
-            : $"{AiParticipants.Count} deterministic-random AI member(s)";
+            : Definition.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels
+                ? $"{AiParticipants.Count} provider-bound AI member(s)"
+                : $"{AiParticipants.Count} deterministic-random AI member(s)";
 }
 
 internal sealed record CouncilParticipantPairing(
