@@ -2959,6 +2959,7 @@ namespace LocalGPT.Services
             Do not ignore another model's concern; either integrate it, explain why it is out of scope, or ask the user to decide.
             If a council member looks faulty, unavailable, hallucination-prone, stuck, or too slow, propose excluding or retrying that member only through a user-confirmed poll. Do not remove a member on your own authority.
             Prefer buildable, testable answers over impressive wording.
+            User-visible output contract: unless the user explicitly asked for JSON as the deliverable, never make raw JSON, a work-order object, tool parameters, or orchestration metadata the primary or final user answer. Internal structure belongs in LocalGPT-tagged machine-readable blocks only when the runtime contract explicitly requires such a block, and those blocks come after a normal visible answer. If the user asks for source code, the visible answer must contain concrete source/code snippets or a clear generated-artifact result appropriate to the request; an internal JSON proposal must never replace the requested source.
             Separate current implementation facts from proposed future ideas.
             Do not describe a proposed class, table, test, or package step as already implemented unless the prompt, memory, or transcript explicitly says it exists.
             Prefer concise SQLite council knowledge entries, pinned benchmark notes, and selected prior conversations over large pasted documents. Ask for a smaller database entry or a targeted source excerpt when context would become too large.
@@ -3078,6 +3079,7 @@ namespace LocalGPT.Services
                             - Separate final answer, implementation steps, risks, and needs verification.
                             - Separate implemented/current LocalGPT behavior from proposed future improvements.
                             - Keep unsupported claims out of the final answer.
+                            - Unless the user explicitly requested JSON itself, the visible consensus must be normal prose/Markdown rather than a JSON work order. For source/code requests, include concrete source snippets, file paths and implementation content in the visible consensus before any machine-readable block.
                             - When, and only when, the user explicitly requested source, plugin/addon, script, DLL, executable, or solution generation, include one exact machine-readable proposal after the visible consensus using this shape:
                               <localgpt-change-review>
                               {

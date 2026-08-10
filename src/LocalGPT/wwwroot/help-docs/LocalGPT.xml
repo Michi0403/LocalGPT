@@ -584,6 +584,9 @@
     <member name="P:LocalGPT.BusinessObjects.MultiModelCouncilRequest.ModelSelections">
       <summary>Provider-qualified model identities for this run. Bare ModelNames remain supported for legacy presets.</summary>
     </member>
+    <member name="P:LocalGPT.BusinessObjects.MultiModelCouncilRequest.UnavailableModelSelections">
+      <summary>Exact saved provider routes that the current Chat UI cannot match to a configured/discovered candidate.</summary>
+    </member>
     <member name="P:LocalGPT.BusinessObjects.MultiModelCouncilRequest.ResourceLoadPercent">
       <summary>0..100 session position between each model route's independent minimum and maximum.</summary>
     </member>

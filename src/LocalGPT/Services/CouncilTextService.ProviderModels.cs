@@ -61,12 +61,28 @@ public sealed partial class CouncilTextService
             var remainder = unavailable.Count > 3
                 ? $"; +{unavailable.Count - 3} more"
                 : string.Empty;
-            return $"{selectionScope}: deselected {unavailable.Count} provider-qualified route(s) that are no longer configured or discoverable ({preview}{remainder}). Refresh/reconfigure the exact host to select them again; no same-name fallback was used.";
+            return $"{selectionScope}: kept {unavailable.Count} unavailable provider-qualified route(s) visible for review ({preview}{remainder}). Refresh/reconfigure the exact host or remove the red selection; no same-name fallback will be used.";
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Creating the unavailable provider-selection notice failed for {SelectionScope}.", selectionScope);
-            return $"{selectionScope}: one or more provider-qualified routes are no longer configured or discoverable. Refresh/reconfigure the exact host to select them again; no same-name fallback was used.";
+            return $"{selectionScope}: one or more provider-qualified routes are unavailable and remain visible for review. Refresh/reconfigure the exact host or remove the red selection; no same-name fallback will be used.";
+        }
+    }
+
+    public string ProviderUnavailableRunNotice(IReadOnlyCollection<string> unavailable, ILogger logger)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(unavailable);
+            var preview = string.Join("; ", unavailable.Take(3));
+            var remainder = unavailable.Count > 3 ? $"; +{unavailable.Count - 3} more" : string.Empty;
+            return $"AI Council did not start because {unavailable.Count} selected provider-qualified route(s) are unavailable: {preview}{remainder}. They are marked red in Chat configuration. Refresh/reconfigure the exact provider host or remove those selections; LocalGPT will not substitute a same-name model from another endpoint.";
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating the unavailable Council-run notice failed.");
+            return "AI Council did not start because one or more selected provider routes are unavailable. Review the red entries in Chat configuration and refresh/reconfigure or remove them.";
         }
     }
 }

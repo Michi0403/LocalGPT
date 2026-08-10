@@ -197,13 +197,37 @@
                 <span class="memory-status">@modelStatus</span>
             }
         </div>
-        @if (OllamaCandidates.Count > 0)
+        @if (OllamaCandidates.Count > 0 || UnavailableCouncilSelections.Count > 0)
         {
             <div class="council-picker" aria-label="DXAiChat council model picker">
                 <div>
                     <strong>DXAiChat Council Members</strong>
                     <span class="memory-status">Select models from any configured provider. Provider-qualified identities prevent same-name collisions.</span>
                 </div>
+                @if (UnavailableCouncilSelections.Count > 0)
+                {
+                    <section class="council-unavailable-routes" role="alert" aria-live="polite" data-testid="council-unavailable-routes">
+                        <header>
+                            <div>
+                                <strong>@L("Chat.Council.UnavailableRoutes.Title", "Unavailable selected Council routes")</strong>
+                                <small>@L("Chat.Council.UnavailableRoutes.Help", "These exact provider/host/model routes remain selected but are not currently configured or discoverable. LocalGPT will not substitute a same-name model from another host.")</small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="RemoveAllUnavailableCouncilSelections">@L("Chat.Council.UnavailableRoutes.RemoveAll", "Remove all unavailable")</button>
+                        </header>
+                        <div class="council-unavailable-route-list">
+                            @foreach (var selectionKey in UnavailableCouncilSelections)
+                            {
+                                <article class="council-unavailable-route" @key="selectionKey">
+                                    <div>
+                                        <strong>@L("Chat.Council.UnavailableRoutes.Unreachable", "Unavailable")</strong>
+                                        <code>@selectionKey</code>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveUnavailableCouncilSelection(selectionKey)">@L("Common.Remove", "Remove")</button>
+                                </article>
+                            }
+                        </div>
+                    </section>
+                }
                 <div class="council-provider-hosts" data-testid="council-provider-hosts">
                     @foreach (var host in CouncilProviderHosts)
                     {
@@ -737,6 +761,36 @@
         .Where(candidate => SelectedCouncilModelNames.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase))
         .Select(candidate => candidate.ToReference())
         .ToList();
+    IReadOnlyList<string> UnavailableCouncilSelections => SelectedCouncilModelNames
+        .Where(value => new ProviderModelIdentity().LooksProviderQualified(value))
+        .Where(value => !OllamaCandidates.Any(candidate => candidate.SelectionKey.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+    bool IsSelectionEndpointStillConfigured(string selectionKey)
+    {
+        var identity = new ProviderModelIdentity();
+        if (!identity.TryParseSelectionKey(selectionKey, out var reference))
+            return false;
+        var requestedEndpoint = reference.ProviderKind.Equals(ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase)
+            || reference.ProviderKind.Equals(ProviderModelKinds.OpenAI, StringComparison.OrdinalIgnoreCase)
+            ? identity.NormalizeOpenAiCompatibleEndpoint(reference.Endpoint)
+            : identity.NormalizeEndpoint(reference.Endpoint);
+        return OllamaCandidates.Any(candidate =>
+        {
+            if (!candidate.IsConfigured || !candidate.ProviderKind.Equals(reference.ProviderKind, StringComparison.OrdinalIgnoreCase))
+                return false;
+            var candidateEndpoint = candidate.ProviderKind.Equals(ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase)
+                || candidate.ProviderKind.Equals(ProviderModelKinds.OpenAI, StringComparison.OrdinalIgnoreCase)
+                ? identity.NormalizeOpenAiCompatibleEndpoint(candidate.Endpoint)
+                : identity.NormalizeEndpoint(candidate.Endpoint);
+            return candidateEndpoint.Equals(requestedEndpoint, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    IReadOnlyList<string> BlockingUnavailableCouncilSelections => UnavailableCouncilSelections
+        .Where(value => !IsSelectionEndpointStillConfigured(value))
+        .ToList();
     IReadOnlyList<CouncilProviderHostGroup> CouncilProviderHosts => OllamaCandidates
         .GroupBy(candidate => $"{candidate.Provider}|{new ProviderModelIdentity().NormalizeEndpoint(candidate.Endpoint)}", StringComparer.OrdinalIgnoreCase)
         .Select(group =>
@@ -757,6 +811,9 @@
         string ProviderName,
         string EndpointLabel,
         IReadOnlyList<MultiModelCouncilModelCandidate> Models);
+
+    private string L(string key, string fallback) => Localization.Get(key, fallback: fallback);
+
     List<string> DiagnosticCouncilModelNames { get; set; } = new();
     List<CouncilModelPreset> ModelPresets { get; set; } = new();
     List<OneWireCouncilModelRoute> CouncilModelRoutes { get; set; } = [];
@@ -1975,6 +2032,14 @@
             {
                 ModelNames = (CouncilRuntime.OrderCouncilModelsForLoad(selectedModels, Logger) ?? new List<string>()).ToList(),
                 ModelSelections = selectedProviderModels,
+                UnavailableModelSelections = (DiagnosticCouncilModelNames.Count > 0
+                    ? DiagnosticCouncilModelNames
+                        .Where(value => new ProviderModelIdentity().LooksProviderQualified(value))
+                        .Where(value => !selectedProviderModels.Any(model => model.SelectionKey.Equals(value, StringComparison.OrdinalIgnoreCase)))
+                        .Where(value => !IsSelectionEndpointStillConfigured(value))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList()
+                    : BlockingUnavailableCouncilSelections.ToList()),
                 BaseUri = selectedEndpoint,
                 MaxRounds = Math.Clamp(CouncilCritiqueRounds, 0, 3),
                 MaxOutputTokens = ResolveCouncilOutputTokens(),
@@ -2891,6 +2956,43 @@
         }
     }
 
+    private void RemoveUnavailableCouncilSelection(string selectionKey)
+    {
+        try
+        {
+            SelectedCouncilModelNames.RemoveAll(value => value.Equals(selectionKey, StringComparison.OrdinalIgnoreCase));
+            DiagnosticCouncilModelNames.RemoveAll(value => value.Equals(selectionKey, StringComparison.OrdinalIgnoreCase));
+            SelectedModelPreset = null;
+            SynchronizeSelectedCouncilRoutes();
+            SavePreparationConfiguration();
+            modelSelectionNotice = L("Chat.Council.UnavailableRoutes.Removed", "Unavailable Council route removed from the current selection.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Removing unavailable provider-qualified Council selection failed.");
+            Notifier.ShowError(toastName, L("Chat.Council.UnavailableRoutes.RemoveFailed", "The unavailable Council route could not be removed. See local logs."), L("Common.Error", "Error"));
+        }
+    }
+
+    private void RemoveAllUnavailableCouncilSelections()
+    {
+        try
+        {
+            var unavailable = UnavailableCouncilSelections;
+            SelectedCouncilModelNames.RemoveAll(value => unavailable.Contains(value, StringComparer.OrdinalIgnoreCase));
+            DiagnosticCouncilModelNames.RemoveAll(value => unavailable.Contains(value, StringComparer.OrdinalIgnoreCase));
+            SelectedModelPreset = null;
+            SynchronizeSelectedCouncilRoutes();
+            SavePreparationConfiguration();
+            modelSelectionNotice = L("Chat.Council.UnavailableRoutes.RemovedAll", "Unavailable Council routes removed from the current selection.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Removing all unavailable provider-qualified Council selections failed.");
+            Notifier.ShowError(toastName, L("Chat.Council.UnavailableRoutes.RemoveFailed", "The unavailable Council route could not be removed. See local logs."), L("Common.Error", "Error"));
+        }
+    }
+
     private List<string> ReconcileAvailableProviderSelectionKeys(IEnumerable<string> values, string selectionScope)
     {
         try
@@ -2913,6 +3015,8 @@
                 if (identity.LooksProviderQualified(value))
                 {
                     unavailable.Add(value);
+                    if (!normalized.Contains(value, StringComparer.OrdinalIgnoreCase))
+                        normalized.Add(value);
                     continue;
                 }
 

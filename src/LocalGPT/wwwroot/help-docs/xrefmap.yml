@@ -37549,6 +37549,18 @@ references:
   commentId: Overload:LocalGPT.BusinessObjects.MultiModelCouncilRequest.Title
   fullName: LocalGPT.BusinessObjects.MultiModelCouncilRequest.Title
   nameWithType: MultiModelCouncilRequest.Title
+- uid: LocalGPT.BusinessObjects.MultiModelCouncilRequest.UnavailableModelSelections
+  name: UnavailableModelSelections
+  href: api/LocalGPT.BusinessObjects.MultiModelCouncilRequest.html#LocalGPT_BusinessObjects_MultiModelCouncilRequest_UnavailableModelSelections
+  commentId: P:LocalGPT.BusinessObjects.MultiModelCouncilRequest.UnavailableModelSelections
+  fullName: LocalGPT.BusinessObjects.MultiModelCouncilRequest.UnavailableModelSelections
+  nameWithType: MultiModelCouncilRequest.UnavailableModelSelections
+- uid: LocalGPT.BusinessObjects.MultiModelCouncilRequest.UnavailableModelSelections*
+  name: UnavailableModelSelections
+  href: api/LocalGPT.BusinessObjects.MultiModelCouncilRequest.html#LocalGPT_BusinessObjects_MultiModelCouncilRequest_UnavailableModelSelections_
+  commentId: Overload:LocalGPT.BusinessObjects.MultiModelCouncilRequest.UnavailableModelSelections
+  fullName: LocalGPT.BusinessObjects.MultiModelCouncilRequest.UnavailableModelSelections
+  nameWithType: MultiModelCouncilRequest.UnavailableModelSelections
 - uid: LocalGPT.BusinessObjects.MultiModelCouncilRequest.UseChangeReviewWorkflow
   name: UseChangeReviewWorkflow
   href: api/LocalGPT.BusinessObjects.MultiModelCouncilRequest.html#LocalGPT_BusinessObjects_MultiModelCouncilRequest_UseChangeReviewWorkflow
@@ -77918,6 +77930,21 @@ references:
   commentId: Overload:LocalGPT.Services.CouncilTextService.ProviderModelReviewerSummary
   fullName: LocalGPT.Services.CouncilTextService.ProviderModelReviewerSummary
   nameWithType: CouncilTextService.ProviderModelReviewerSummary
+- uid: LocalGPT.Services.CouncilTextService.ProviderUnavailableRunNotice(System.Collections.Generic.IReadOnlyCollection{System.String},Microsoft.Extensions.Logging.ILogger)
+  name: ProviderUnavailableRunNotice(IReadOnlyCollection<string>, ILogger)
+  href: api/LocalGPT.Services.CouncilTextService.html#LocalGPT_Services_CouncilTextService_ProviderUnavailableRunNotice_System_Collections_Generic_IReadOnlyCollection_System_String__Microsoft_Extensions_Logging_ILogger_
+  commentId: M:LocalGPT.Services.CouncilTextService.ProviderUnavailableRunNotice(System.Collections.Generic.IReadOnlyCollection{System.String},Microsoft.Extensions.Logging.ILogger)
+  name.vb: ProviderUnavailableRunNotice(IReadOnlyCollection(Of String), ILogger)
+  fullName: LocalGPT.Services.CouncilTextService.ProviderUnavailableRunNotice(System.Collections.Generic.IReadOnlyCollection<string>, Microsoft.Extensions.Logging.ILogger)
+  fullName.vb: LocalGPT.Services.CouncilTextService.ProviderUnavailableRunNotice(System.Collections.Generic.IReadOnlyCollection(Of String), Microsoft.Extensions.Logging.ILogger)
+  nameWithType: CouncilTextService.ProviderUnavailableRunNotice(IReadOnlyCollection<string>, ILogger)
+  nameWithType.vb: CouncilTextService.ProviderUnavailableRunNotice(IReadOnlyCollection(Of String), ILogger)
+- uid: LocalGPT.Services.CouncilTextService.ProviderUnavailableRunNotice*
+  name: ProviderUnavailableRunNotice
+  href: api/LocalGPT.Services.CouncilTextService.html#LocalGPT_Services_CouncilTextService_ProviderUnavailableRunNotice_
+  commentId: Overload:LocalGPT.Services.CouncilTextService.ProviderUnavailableRunNotice
+  fullName: LocalGPT.Services.CouncilTextService.ProviderUnavailableRunNotice
+  nameWithType: CouncilTextService.ProviderUnavailableRunNotice
 - uid: LocalGPT.Services.CouncilTextService.ProviderUnavailableSelectionNotice(System.Collections.Generic.IReadOnlyCollection{System.String},System.String,Microsoft.Extensions.Logging.ILogger)
   name: ProviderUnavailableSelectionNotice(IReadOnlyCollection<string>, string, ILogger)
   href: api/LocalGPT.Services.CouncilTextService.html#LocalGPT_Services_CouncilTextService_ProviderUnavailableSelectionNotice_System_Collections_Generic_IReadOnlyCollection_System_String__System_String_Microsoft_Extensions_Logging_ILogger_

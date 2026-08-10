@@ -6,7 +6,7 @@
 @inject ILogger<ProviderModelPanel> Logger
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
-<article class="provider-model-panel @(Selected ? "is-selected" : string.Empty)" aria-labelledby="@HeadingId">
+<article class="provider-model-panel @(Selected ? "is-selected" : string.Empty) @(IsUnavailable ? "is-unavailable" : string.Empty)" aria-labelledby="@HeadingId">
     <header class="provider-model-heading">
         @if (ShowSelection)
         {
@@ -24,6 +24,10 @@
             @if (Model.IsReachable)
             {
                 <span class="model-badge">@T("reachable")</span>
+            }
+            else if (IsUnavailable)
+            {
+                <span class="model-badge model-badge-danger">@Localization.Get("ProviderModel.Unreachable", fallback: "unreachable")</span>
             }
             @if (Model.IsLoaded)
             {
@@ -158,6 +162,9 @@
 
 @code {
     string T(string source) => Localization.GetText(source);
+    bool IsUnavailable => Model.IsConfigured && !Model.IsReachable
+        && (Model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+            || Model.ProviderKind.Equals(ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase));
 
     [Parameter, EditorRequired] public ProviderModelReference Model { get; set; } = new();
     [Parameter] public bool ShowSelection { get; set; } = true;

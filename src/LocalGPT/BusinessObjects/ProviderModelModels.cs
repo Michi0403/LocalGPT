@@ -78,6 +78,57 @@ internal readonly struct ProviderModelIdentity
         && value.Contains(" — ", StringComparison.Ordinal)
         && value.Contains(" @ ", StringComparison.Ordinal);
 
+    public bool TryParseSelectionKey(string? value, out ProviderModelReference reference)
+    {
+        reference = new ProviderModelReference();
+        if (!LooksProviderQualified(value))
+            return false;
+
+        var text = value!.Trim();
+        var providerSeparator = text.IndexOf(" — ", StringComparison.Ordinal);
+        var endpointSeparator = text.LastIndexOf(" @ ", StringComparison.Ordinal);
+        if (providerSeparator <= 0 || endpointSeparator <= providerSeparator + 3)
+            return false;
+
+        var providerName = text[..providerSeparator].Trim();
+        var modelName = text[(providerSeparator + 3)..endpointSeparator].Trim();
+        var endpoint = text[(endpointSeparator + 3)..].Trim();
+        if (string.IsNullOrWhiteSpace(providerName) || string.IsNullOrWhiteSpace(modelName) || string.IsNullOrWhiteSpace(endpoint))
+            return false;
+
+        var providerKind = InferProviderKind(providerName);
+        endpoint = providerKind == ProviderModelKinds.OpenAICompatible || providerKind == ProviderModelKinds.OpenAI
+            ? NormalizeOpenAiCompatibleEndpoint(endpoint)
+            : NormalizeEndpoint(endpoint);
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+            return false;
+
+        reference = new ProviderModelReference
+        {
+            ProviderKind = providerKind,
+            ProviderName = providerName,
+            Endpoint = endpoint,
+            ModelName = modelName,
+            IsLocal = uri.IsLoopback,
+            IsConfigured = false,
+            IsReachable = false,
+            SupportsBenchmark = true,
+            Details = "Provider-qualified route reconstructed from the saved Council selection."
+        };
+        return true;
+    }
+
+    private string InferProviderKind(string providerName)
+    {
+        if (providerName.Equals("Ollama", StringComparison.OrdinalIgnoreCase))
+            return ProviderModelKinds.Ollama;
+        if (providerName.Equals("Azure OpenAI", StringComparison.OrdinalIgnoreCase))
+            return ProviderModelKinds.AzureOpenAI;
+        if (providerName.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
+            return ProviderModelKinds.OpenAI;
+        return ProviderModelKinds.OpenAICompatible;
+    }
+
     public string NormalizeOpenAiCompatibleEndpoint(string? endpoint)
     {
         var normalized = NormalizeEndpoint(endpoint);

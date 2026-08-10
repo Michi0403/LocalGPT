@@ -13,6 +13,9 @@ namespace LocalGPT.BusinessObjects
         /// <summary>Provider-qualified model identities for this run. Bare ModelNames remain supported for legacy presets.</summary>
         public List<ProviderModelReference> ModelSelections { get; set; } = [];
 
+        /// <summary>Exact saved provider routes that the current Chat UI cannot match to a configured/discovered candidate.</summary>
+        public List<string> UnavailableModelSelections { get; set; } = [];
+
         public string? BaseUri { get; set; }
 
         public int MaxRounds { get; set; } = 1;

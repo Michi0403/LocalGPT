@@ -128,3 +128,12 @@
     .provider-model-heading { grid-template-columns: auto minmax(0, 1fr); }
     .provider-model-badges { grid-column: 1 / -1; justify-content: start; }
 }
+
+
+/* v2.6.5: configured local providers that are currently unreachable must look unavailable. */
+.provider-model-panel.is-unavailable {
+    border-color: var(--bs-danger, #dc3545);
+    background: color-mix(in srgb, var(--bs-danger, #dc3545) 7%, var(--bs-body-bg, #fff));
+}
+.provider-model-panel.is-unavailable.is-selected { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bs-danger, #dc3545) 35%, transparent); }
+.model-badge-danger { color: var(--bs-danger, #dc3545); font-weight: 700; }

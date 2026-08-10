@@ -40,6 +40,7 @@ def main() -> int:
     adaptive_benchmark = text("src/LocalGPT/Services/AdaptiveOllamaBenchmarkWiring.cs")
     appsettings = text("src/LocalGPT/appsettings.json")
     provider_text = text("src/LocalGPT/Services/CouncilTextService.ProviderModels.cs")
+    council_text = text("src/LocalGPT/Services/CouncilTextService.cs")
     provider_registry = text("src/LocalGPT/Services/AiProviderConfigurationRegistryService.cs")
     provider_registry_interface = text("src/LocalGPT/Interfaces/IAiProviderConfigurationRegistryService.cs")
     ai_connectivity_probe = text("src/LocalGPT/Services/AIConnectivityProbe.cs")
@@ -191,6 +192,13 @@ def main() -> int:
     contains("human profile enable pushes trusted local-human context", chat, "phase: activeRun?.Phase ?? \"Enable human Council participation\"")
     contains("Ollama native-tool rejection is remembered process-locally", council_runtime, "ollamaModelsWithoutNativeToolMetadata")
     contains("Ollama known-incompatible tool metadata is skipped", ollama_client, "OllamaThinkingChatClientShouldSkipNativeTools")
+    excludes("provider runtime must not suppress OpenAI-compatible /v1 by shared Ollama authority", runtime, "ollamaAuthorities")
+    contains("provider runtime documents same-authority protocol coexistence", runtime, "Native Ollama and its OpenAI-compatible /v1 surface are deliberately separate")
+    contains("provider identity parses saved provider-qualified routes", models, "TryParseSelectionKey")
+    contains("Council preserves configured offline provider-qualified ModelNames", council, "TryParseSelectionKey(requested, out var savedReference)")
+    contains("Chat keeps stale selections visible", chat, "council-unavailable-routes")
+    contains("Council output contract rejects raw orchestration JSON as final answer", council_text, "never make raw JSON, a work-order object, tool parameters, or orchestration metadata the primary or final user answer")
+    contains("configured workflow reinforces coding output contract", council, "Coding-output contract: the visible answer must include concrete source/code")
     version_match = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", project)
     checks.append((
         "application patch version advanced",

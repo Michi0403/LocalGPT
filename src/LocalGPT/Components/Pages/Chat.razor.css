@@ -2895,3 +2895,30 @@
         height: calc(100dvh - .4rem) !important;
     }
 }
+
+
+/* v2.6.5: stale provider-qualified Council selections remain visible and fail closed. */
+.council-unavailable-routes {
+    display: grid;
+    gap: .65rem;
+    padding: .75rem;
+    border: 2px solid var(--bs-danger, #dc3545);
+    border-radius: .8rem;
+    background: color-mix(in srgb, var(--bs-danger, #dc3545) 8%, var(--bs-body-bg, #fff));
+}
+
+.council-unavailable-routes > header,
+.council-unavailable-route {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .7rem;
+}
+
+.council-unavailable-routes > header > div,
+.council-unavailable-route > div { display: grid; gap: .2rem; min-width: 0; }
+.council-unavailable-routes small { color: var(--bs-danger-text-emphasis, #842029); }
+.council-unavailable-route-list { display: grid; gap: .45rem; }
+.council-unavailable-route { padding: .55rem; border: 1px solid color-mix(in srgb, var(--bs-danger, #dc3545) 70%, transparent); border-radius: .6rem; }
+.council-unavailable-route code { overflow-wrap: anywhere; white-space: normal; color: inherit; }
+@media (max-width: 640px) { .council-unavailable-routes > header, .council-unavailable-route { flex-direction: column; } }

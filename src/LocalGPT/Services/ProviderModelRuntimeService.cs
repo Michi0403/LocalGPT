@@ -38,9 +38,6 @@ public sealed class ProviderModelRuntimeService(
             var options = optionsRoot.CurrentValue.AICore ?? new AICoreOptions();
             var candidates = new Dictionary<string, MultiModelCouncilModelCandidate>(StringComparer.OrdinalIgnoreCase);
             var ollamaOptions = EnumerateOllama(options).ToList();
-            var ollamaAuthorities = ollamaOptions
-                .Select(item => GetAuthority(NormalizeOllamaEndpoint(item.Uri)))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             foreach (var ollama in ollamaOptions)
             {
@@ -68,9 +65,10 @@ public sealed class ProviderModelRuntimeService(
             foreach (var local in EnumerateOpenAiCompatible(options))
             {
                 var configuredEndpoint = NormalizeOpenAiEndpoint(local.Endpoint);
-                if (ollamaAuthorities.Contains(GetAuthority(configuredEndpoint)))
-                    continue;
-
+                // Native Ollama and its OpenAI-compatible /v1 surface are deliberately separate
+                // provider identities. Do not suppress one merely because both share host/port.
+                // Council selection keys already include provider + endpoint + model, so both can
+                // coexist without same-name ambiguity.
                 var providerName = GetLocalProviderName(configuredEndpoint);
                 var discovered = await ProbeOpenAiCompatibleAsync(
                     providerName,
@@ -678,26 +676,6 @@ public sealed class ProviderModelRuntimeService(
             logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelRuntimeService)}.{nameof(NormalizeOpenAiEndpoint)} was canceled.");
         else
             logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelRuntimeService)}.{nameof(NormalizeOpenAiEndpoint)} failed.");
-        throw;
-    }
-}
-
-    private string GetAuthority(string endpoint)
-    {
-    try
-    {
-            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
-                return endpoint.Trim().TrimEnd('/');
-            var builder = new UriBuilder(uri) { Path = string.Empty, Query = string.Empty, Fragment = string.Empty };
-            return builder.Uri.ToString().TrimEnd('/');
-    
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelRuntimeService)}.{nameof(GetAuthority)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelRuntimeService)}.{nameof(GetAuthority)} failed.");
         throw;
     }
 }

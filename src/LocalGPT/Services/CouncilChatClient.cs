@@ -88,7 +88,14 @@ public sealed partial class CouncilChatClient(
         if (request.ModelNames.Count == 0)
         {
             yield return councilRuntime.CreateUpdate(
-                "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.",
+                "No AI Council members are selected. Select at least one provider model in the DXAiChat council controls.",
+                logger);
+            yield break;
+        }
+        if (request.UnavailableModelSelections.Count > 0)
+        {
+            yield return councilRuntime.CreateUpdate(
+                councilText.ProviderUnavailableRunNotice(request.UnavailableModelSelections, logger),
                 logger);
             yield break;
         }
@@ -254,7 +261,9 @@ public sealed partial class CouncilChatClient(
             var request = CreateRequest(messages);
             ArgumentNullException.ThrowIfNull(request);
             if (request.ModelNames.Count == 0)
-                return "No AI Council members are selected. Select at least one Ollama model in the DXAiChat council controls.";
+                return "No AI Council members are selected. Select at least one provider model in the DXAiChat council controls.";
+            if (request.UnavailableModelSelections.Count > 0)
+                return councilText.ProviderUnavailableRunNotice(request.UnavailableModelSelections, logger);
 
             var scope = serviceScopeFactory.CreateAsyncScope();
             await using (scope.ConfigureAwait(false))

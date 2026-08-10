@@ -104,7 +104,22 @@ $requiredTemplates = @(
     'Install.Workbench.Nav.ProvidersHelp',
     'Install.ConfiguredProviders.SummaryMany',
     'Text.Model<SP>status',
-    'Text.Open<SP>model<SP>actions'
+    'Text.Open<SP>model<SP>actions',
+    'Home.FirstRun.Kicker',
+    'Home.FirstRun.Title',
+    'Home.FirstRun.Intro',
+    'Home.FirstRun.Profile.game-low-b.Name',
+    'Home.FirstRun.Profile.development.Name',
+    'Home.FirstRun.Profile.knowledge-only.Name',
+    'Home.FirstRun.QuickStart.benchmark.Name',
+    'Home.FirstRun.QuickStart.game.Name',
+    'Home.FirstRun.QuickStart.csharp.Name',
+    'Home.FirstRun.QuickStart.powershell.Name',
+    'Home.FirstRun.QuickStart.java.Name',
+    'Home.FirstRun.QuickStart.minecraft.Name',
+    'Chat.Council.UnavailableRoutes.Title',
+    'Chat.Council.UnavailableRoutes.Help',
+    'ProviderModel.Unreachable'
 )
 foreach ($template in $requiredTemplates) {
     $key = Expand-SpaceMarkers $template

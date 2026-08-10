@@ -14,28 +14,28 @@
         <section class="first-run-onboarding" aria-labelledby="first-run-title">
             <header>
                 <div>
-                    <span class="first-run-kicker">LOCALGPT @_onboarding.Version FIRST START</span>
-                    <h1 id="first-run-title">Prepare models, knowledge and a council quick start</h1>
-                    <p>Install only the models and official Git sources you need. LocalGPT has already seeded the benchmark, game and development teams; the links below open them directly in Chat.</p>
+                    <span class="first-run-kicker">LOCALGPT @_onboarding.Version · @L("Home.FirstRun.Kicker", "FIRST START")</span>
+                    <h1 id="first-run-title">@L("Home.FirstRun.Title", "Prepare models, knowledge and a council quick start")</h1>
+                    <p>@L("Home.FirstRun.Intro", "Install only the models and official Git sources you need. LocalGPT has already seeded the benchmark, game and development teams; the links below open them directly in Chat.")</p>
                 </div>
-                <button type="button" class="btn btn-outline-secondary" @onclick="CompleteOnboardingAsync" disabled="@_onboardingBusy">I reviewed this setup</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="CompleteOnboardingAsync" disabled="@_onboardingBusy">@L("Home.FirstRun.Reviewed", "I reviewed this setup")</button>
             </header>
 
             <div class="first-run-status-grid">
                 <article class="first-run-status-card @(_onboarding.LocalAiReachable ? "approved" : "warning")">
-                    <strong>@(_onboarding.LocalAiReachable ? "Local AI detected" : "Local AI setup required")</strong>
-                    <span>@(_onboarding.InstalledModels.Count) installed model(s) discovered</span>
-                    <a href="@NavigationUrls.GetUrl(_onboarding.InstallerRoute, ToggledSidebar)">Open installer and provider setup</a>
+                    <strong>@(_onboarding.LocalAiReachable ? L("Home.FirstRun.LocalAiDetected", "Local AI detected") : L("Home.FirstRun.LocalAiRequired", "Local AI setup required"))</strong>
+                    <span>@_onboarding.InstalledModels.Count @L("Home.FirstRun.InstalledModels", "installed model(s) discovered")</span>
+                    <a href="@NavigationUrls.GetUrl(_onboarding.InstallerRoute, ToggledSidebar)">@L("Home.FirstRun.OpenInstall", "Open installer and provider setup")</a>
                 </article>
                 <article class="first-run-status-card approved">
-                    <strong>@_onboarding.CouncilTeamKeys.Count council team(s) ready</strong>
-                    <span>Includes benchmark, GameDirector and language-specific development workflows.</span>
-                    <a href="@NavigationUrls.GetUrl(_onboarding.CouncilTeamsRoute, ToggledSidebar)">Inspect council teams</a>
+                    <strong>@_onboarding.CouncilTeamKeys.Count @L("Home.FirstRun.CouncilTeamsReady", "council team(s) ready")</strong>
+                    <span>@L("Home.FirstRun.CouncilTeamsHelp", "Includes benchmark, GameDirector and language-specific development workflows.")</span>
+                    <a href="@NavigationUrls.GetUrl(_onboarding.CouncilTeamsRoute, ToggledSidebar)">@L("Home.FirstRun.InspectCouncilTeams", "Inspect council teams")</a>
                 </article>
                 <article class="first-run-status-card approved">
-                    <strong>Generated documentation</strong>
-                    <span>Open the versioned DocFX HTML/API reference and PDF status.</span>
-                    <a href="@NavigationUrls.GetUrl(_onboarding.DocumentationRoute, ToggledSidebar)">Open documentation</a>
+                    <strong>@L("Home.FirstRun.GeneratedDocumentation", "Generated documentation")</strong>
+                    <span>@L("Home.FirstRun.GeneratedDocumentationHelp", "Open the versioned DocFX HTML/API reference and PDF status.")</span>
+                    <a href="@NavigationUrls.GetUrl(_onboarding.DocumentationRoute, ToggledSidebar)">@L("Home.FirstRun.OpenDocumentation", "Open documentation")</a>
                 </article>
             </div>
 
@@ -44,39 +44,39 @@
                 <div class="first-run-warnings">
                     @foreach (var warning in _onboarding.Warnings)
                     {
-                        <span>⚠ @warning</span>
+                        <span>⚠ @T(warning)</span>
                     }
                 </div>
             }
 
             <div class="first-run-section-grid">
                 <section>
-                    <h2>Installer profiles</h2>
+                    <h2>@L("Home.FirstRun.InstallerProfiles", "Installer profiles")</h2>
                     @foreach (var profile in _onboarding.InstallerProfiles)
                     {
                         <details class="first-run-profile">
-                            <summary>@profile.DisplayName</summary>
-                            <p>@profile.Purpose</p>
+                            <summary>@L($"Home.FirstRun.Profile.{profile.Key}.Name", profile.DisplayName)</summary>
+                            <p>@L($"Home.FirstRun.Profile.{profile.Key}.Purpose", profile.Purpose)</p>
                             <code>@profile.Command</code>
                             @if (profile.Models.Count > 0)
                             {
-                                <small>Models: @profile.ModelSummary</small>
+                                <small>@L("Home.FirstRun.Models", "Models"): @profile.ModelSummary</small>
                             }
                             @if (profile.Repositories.Count > 0)
                             {
-                                <small>Knowledge sources: @profile.RepositorySummary</small>
+                                <small>@L("Home.FirstRun.KnowledgeSources", "Knowledge sources"): @profile.RepositorySummary</small>
                             }
                         </details>
                     }
                 </section>
                 <section>
-                    <h2>Council quick starts</h2>
+                    <h2>@L("Home.FirstRun.CouncilQuickStarts", "Council quick starts")</h2>
                     <div class="first-run-quickstarts">
                         @foreach (var quickStart in _onboarding.QuickStarts)
                         {
                             <a class="first-run-quickstart" href="@NavigationUrls.GetUrl(quickStart.Route, ToggledSidebar)" data-enhance-nav="false">
-                                <strong>@quickStart.DisplayName</strong>
-                                <span>@quickStart.Description</span>
+                                <strong>@L($"Home.FirstRun.QuickStart.{quickStart.Key}.Name", quickStart.DisplayName)</strong>
+                                <span>@L($"Home.FirstRun.QuickStart.{quickStart.Key}.Description", quickStart.Description)</span>
                                 <small>@quickStart.CouncilTeamKey · @quickStart.ModelPresetName</small>
                             </a>
                         }
@@ -87,7 +87,7 @@
     }
     else if (_onboardingBusy)
     {
-        <div class="first-run-loading" role="status">Inspecting first-run readiness…</div>
+        <div class="first-run-loading" role="status">@L("Home.FirstRun.Loading", "Inspecting first-run readiness…")</div>
     }
 
     <DxGridLayout CssClass="welcome-gridlayout" RowSpacing="3rem">
@@ -144,6 +144,7 @@
     private FirstRunOnboardingStatus? _onboarding;
 
     private string T(string source) => Localization.GetText(source);
+    private string L(string key, string fallback) => Localization.Get(key, fallback: fallback);
     private bool _onboardingBusy = true;
 
     /// <summary>

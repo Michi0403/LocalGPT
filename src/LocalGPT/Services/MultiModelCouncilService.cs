@@ -2411,6 +2411,10 @@ namespace LocalGPT.Services
                 assignmentBriefing.Append("- Boundary instruction: ").AppendLine(boundaryInstruction);
                 assignmentBriefing.Append("- Language instruction: ").AppendLine(languageInstruction);
                 assignmentBriefing.Append("- Human-turn instruction: ").AppendLine(humanParticipationInstruction);
+                if (definition.ProducesFinalAnswer)
+                    assignmentBriefing.AppendLine("- Final-output contract: answer the human in normal prose/Markdown. Do not make raw JSON, work-order metadata, or tool parameters the final answer unless the human explicitly asked for JSON.");
+                if (councilRuntime.MultiModelCouncilServiceHasExplicitArtifactIntent(request.Prompt, logger))
+                    assignmentBriefing.AppendLine("- Coding-output contract: the visible answer must include concrete source/code, file paths, or an actual approved artifact result appropriate to the request. Internal machine-readable JSON may follow only as LocalGPT metadata and must not replace the requested source.");
 
                 return $"{rendered.Trim()}{Environment.NewLine}{Environment.NewLine}{assignmentBriefing.ToString().Trim()}";
         
@@ -3427,10 +3431,25 @@ namespace LocalGPT.Services
                     {
                         if (!currentBySelectionKey.TryGetValue(requested, out var currentCandidate))
                         {
-                            throw new KeyNotFoundException(
-                                $"The provider-qualified Council model '{requested}' is no longer configured or discoverable. Refresh provider models and reselect that exact host; LocalGPT will not fall back to a same-name model on another endpoint.");
+                            var identity = new ProviderModelIdentity();
+                            if (identity.TryParseSelectionKey(requested, out var savedReference)
+                                && IsConfiguredProviderEndpoint(savedReference)
+                                && !HasReachableProviderEndpoint(currentCandidates, savedReference))
+                            {
+                                savedReference.IsConfigured = true;
+                                savedReference.IsReachable = false;
+                                resolved = savedReference;
+                            }
+                            else
+                            {
+                                throw new KeyNotFoundException(
+                                    $"The provider-qualified Council model '{requested}' is no longer configured or discoverable. Refresh provider models and reselect that exact host; LocalGPT will not fall back to a same-name model on another endpoint.");
+                            }
                         }
-                        resolved = currentCandidate.ToReference();
+                        else
+                        {
+                            resolved = currentCandidate.ToReference();
+                        }
                     }
                     else if (useLegacyBaseUri)
                     {
