@@ -513,10 +513,31 @@ public sealed class LocalGptLocalizationService(
         try
         {
             using var stream = File.OpenRead(path);
-            var data = JsonSerializer.Deserialize<Dictionary<string, string>>(stream);
-            return data is null
-                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, string>(data, StringComparer.OrdinalIgnoreCase);
+            using var document = JsonDocument.Parse(stream);
+            var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                logger.LogWarning(
+                    "Localization catalog {CatalogPath} does not contain a JSON object; the catalog is ignored.",
+                    path);
+                return normalized;
+            }
+
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (string.IsNullOrWhiteSpace(property.Name)) continue;
+                if (normalized.ContainsKey(property.Name))
+                    logger.LogWarning(
+                        "Localization catalog {CatalogPath} contains a case-insensitive duplicate key {LocalizationKey}; the later value is used defensively. Source-controlled catalogs must still pass the localization integrity guard.",
+                        path,
+                        property.Name);
+
+                normalized[property.Name] = property.Value.ValueKind == JsonValueKind.String
+                    ? property.Value.GetString() ?? string.Empty
+                    : property.Value.ToString();
+            }
+
+            return normalized;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {

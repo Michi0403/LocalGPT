@@ -58,6 +58,18 @@ $englishKeys = $englishResult.Keys
 $germanKeys = $germanResult.Keys
 if ($englishKeys.Count -lt 1700) { Fail "English catalog coverage unexpectedly dropped to $($englishKeys.Count) entries." }
 if (($englishKeys -join "`n") -cne ($germanKeys -join "`n")) { Fail 'English and German catalog keys differ.' }
+
+# The 2.6.1 source-text expansion briefly created case-only Archive Preset keys. Keep the semantic
+# SourceText key and reject the obsolete Text key explicitly so overlays cannot silently reintroduce it.
+$obsoleteArchivePresetKey = Expand-SpaceMarkers 'Text.Archive<SP>Preset'
+if ($english.PSObject.Properties[$obsoleteArchivePresetKey] -or $german.PSObject.Properties[$obsoleteArchivePresetKey]) {
+    Fail "Obsolete localization key is still present: $obsoleteArchivePresetKey. Use SourceText.ArchivePreset.SentenceCase / Phrase.Archive<SP>Preset instead."
+}
+foreach ($catalog in @($english, $german)) {
+    if ($null -eq $catalog.PSObject.Properties['SourceText.ArchivePreset.SentenceCase']) {
+        Fail 'Required semantic Archive preset source-text key is missing: SourceText.ArchivePreset.SentenceCase'
+    }
+}
 $requiredTemplates = @(
     'Text.Start<SP>new<SP>chat',
     'Text.Language',
@@ -98,6 +110,21 @@ foreach ($template in $requiredTemplates) {
     $key = Expand-SpaceMarkers $template
     $property = $german.PSObject.Properties[$key]
     if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) { Fail "Required German UI string is missing: $key" }
+}
+
+# Keep the server loader tolerant without ever constructing an OrdinalIgnoreCase dictionary from an
+# already materialized case-sensitive Dictionary. JsonDocument preserves duplicate properties so the
+# service can resolve them deterministically while source-controlled catalogs remain build-fail strict.
+$loaderPath = Join-Path $root 'src\LocalGPT\Services\Localization\LocalGptLocalizationService.cs'
+if (-not (Test-Path -LiteralPath $loaderPath -PathType Leaf)) { Fail "Missing $loaderPath" }
+$loader = Read-StrictUtf8 $loaderPath
+foreach ($requiredLoaderToken in @('JsonDocument.Parse(stream)', 'EnumerateObject()', 'StringComparer.OrdinalIgnoreCase')) {
+    if ($loader.IndexOf($requiredLoaderToken, [System.StringComparison]::Ordinal) -lt 0) {
+        Fail "LocalGPT localization loader is missing required duplicate-safe token: $requiredLoaderToken"
+    }
+}
+if ($loader.IndexOf('JsonSerializer.Deserialize<Dictionary<string, string>>(stream)', [System.StringComparison]::Ordinal) -ge 0) {
+    Fail 'LocalGPT localization loader regressed to Dictionary deserialization before case-insensitive normalization.'
 }
 
 $runtimePath = Join-Path $root 'src\LocalGPT\wwwroot\js\localgpt-localization.js'
