@@ -68,9 +68,9 @@
         <CouncilSpoolerPanel />
         @if (IsInstallPage)
         {
-            <nav class="localgpt-page-scroll-assist" aria-label="@Localization.GetText("Navigation.ScrollAssist")">
-                <a href="#install-scroll-top" data-enhance-nav="false" aria-label="@Localization.GetText("Navigation.ScrollUp")">▲</a>
-                <a href="#install-scroll-bottom" data-enhance-nav="false" aria-label="@Localization.GetText("Navigation.ScrollDown")">▼</a>
+            <nav class="localgpt-page-scroll-assist" aria-label="@(Localization.Get("Navigation.ScrollAssist", fallback: "Page scrolling"))">
+                <a href="#install-scroll-top" data-enhance-nav="false" aria-label="@(Localization.Get("Navigation.ScrollUp", fallback: "Scroll to top"))">▲</a>
+                <a href="#install-scroll-bottom" data-enhance-nav="false" aria-label="@(Localization.Get("Navigation.ScrollDown", fallback: "Scroll to bottom"))">▼</a>
             </nav>
         }
     </aside>

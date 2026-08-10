@@ -72,10 +72,10 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "LocalGPT-2.6.0.pdf",
+      "source_relative_path": "LocalGPT-2.6.1.pdf",
       "output": {
         "resource": {
-          "relative_path": "LocalGPT-2.6.0.pdf"
+          "relative_path": "LocalGPT-2.6.1.pdf"
         }
       },
       "version": ""

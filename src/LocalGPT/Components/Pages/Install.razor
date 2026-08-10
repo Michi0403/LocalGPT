@@ -67,7 +67,7 @@
                     <div>@ConnectivityStatus</div>
                     @if (LastConnectivityCheck is not null)
                     {
-                        <small>Last checked @LastConnectivityCheck.Value.ToLocalTime().ToString("HH:mm:ss").</small>
+                        <small>@LastCheckedLabel</small>
                     }
                 </div>
                 <DxButton Text="Refresh Connectivity"
@@ -131,7 +131,7 @@
             <header>
                 <div>
                     <strong>Configured AI hosts</strong>
-                    <small>@ConfiguredProviderHosts.Count host/model binding@(ConfiguredProviderHosts.Count == 1 ? string.Empty : "s") available to Chat and AI Council.</small>
+                    <small>@ConfiguredProviderSummary</small>
                 </div>
                 <span class="configured-provider-count">@ConfiguredProviderHosts.Count</span>
             </header>
@@ -681,13 +681,13 @@
     private string ActiveInstallSection { get; set; } = "providers";
     private IReadOnlyList<WorkbenchNavItem> InstallSections =>
     [
-        new("providers", T("Install.Workbench.Nav.Providers", "AI providers"), "Hosts, models and provider connection settings", ConfiguredProviderHosts.Count.ToString(CultureInfo.InvariantCulture)),
-        new("remote", T("Install.Workbench.Nav.RemoteEndpoint", "Remote endpoint"), "LAN / VPN / smartphone listener"),
-        new("tls", T("Install.Workbench.Nav.Certificate", "TLS certificate"), "Create and select the HTTPS certificate"),
-        new("guide", T("Install.Workbench.Nav.Guide", "Setup guide"), "First-run status and quick starts"),
-        new("toolchains", T("Install.Workbench.Nav.Toolchains", "Toolchains"), "Compilers and runtime discovery"),
-        new("languages", T("Install.Workbench.Nav.Languages", "Languages"), "Runtime language catalogs"),
-        new("log", T("Install.Workbench.Nav.Log", "Setup log"), "Operational setup messages")
+        new("providers", T("Install.Workbench.Nav.Providers", "AI providers"), T("Install.Workbench.Nav.ProvidersHelp", "Hosts, models and provider connection settings"), ConfiguredProviderHosts.Count.ToString(CultureInfo.InvariantCulture)),
+        new("remote", T("Install.Workbench.Nav.RemoteEndpoint", "Remote endpoint"), T("Install.Workbench.Nav.RemoteEndpointHelp", "LAN / VPN / smartphone listener")),
+        new("tls", T("Install.Workbench.Nav.Certificate", "TLS certificate"), T("Install.Workbench.Nav.CertificateHelp", "Create and select the HTTPS certificate")),
+        new("guide", T("Install.Workbench.Nav.Guide", "Setup guide"), T("Install.Workbench.Nav.GuideHelp", "First-run status and quick starts")),
+        new("toolchains", T("Install.Workbench.Nav.Toolchains", "Toolchains"), T("Install.Workbench.Nav.ToolchainsHelp", "Compilers and runtime discovery")),
+        new("languages", T("Install.Workbench.Nav.Languages", "Languages"), T("Install.Workbench.Nav.LanguagesHelp", "Runtime language catalogs")),
+        new("log", T("Install.Workbench.Nav.Log", "Setup log"), T("Install.Workbench.Nav.LogHelpShort", "Operational setup messages"))
     ];
 
     private Task OnInstallSectionChanged(string key)
@@ -746,6 +746,20 @@
     private string ConnectivityAlertCss => HasReachableAiHost ? "alert alert-success" : "alert alert-warning";
     /// <summary>Resolves one installer UI string with a maintained fallback.</summary>
     private string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
+
+    private string LastCheckedLabel => LastConnectivityCheck is null
+        ? string.Empty
+        : string.Format(
+            CultureInfo.CurrentUICulture,
+            T("Install.Connectivity.LastChecked", "Last checked {0}."),
+            LastConnectivityCheck.Value.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentUICulture));
+
+    private string ConfiguredProviderSummary => string.Format(
+        CultureInfo.CurrentUICulture,
+        ConfiguredProviderHosts.Count == 1
+            ? T("Install.ConfiguredProviders.SummaryOne", "{0} host/model binding available to Chat and AI Council.")
+            : T("Install.ConfiguredProviders.SummaryMany", "{0} host/model bindings available to Chat and AI Council."),
+        ConfiguredProviderHosts.Count);
 
     protected override void OnInitialized()
     {

@@ -50,10 +50,26 @@ public sealed class AiProviderConfigurationRegistryService(
                 DeploymentName = item?.DeploymentName ?? string.Empty
             };
 
+            var providerIdentity = new ProviderModelIdentity();
+            var detachedPrimaryOllama = CloneOllama(source.OllamaCore);
+            detachedPrimaryOllama.Uri = providerIdentity.NormalizeEndpoint(detachedPrimaryOllama.Uri);
+            var detachedAdditionalOllamas = new List<OllamaCoreOptions>();
+            var detachedOllamaEndpoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(detachedPrimaryOllama.Uri))
+                detachedOllamaEndpoints.Add(detachedPrimaryOllama.Uri);
+            foreach (var configured in source.OllamaCores ?? [])
+            {
+                var detached = CloneOllama(configured);
+                detached.Uri = providerIdentity.NormalizeEndpoint(detached.Uri);
+                if (string.IsNullOrWhiteSpace(detached.Uri) || !detachedOllamaEndpoints.Add(detached.Uri))
+                    continue;
+                detachedAdditionalOllamas.Add(detached);
+            }
+
             var draft = new AICoreOptions
             {
-                OllamaCore = CloneOllama(source.OllamaCore),
-                OllamaCores = (source.OllamaCores ?? []).Select(CloneOllama).ToList(),
+                OllamaCore = detachedPrimaryOllama,
+                OllamaCores = detachedAdditionalOllamas,
                 ChatGPTLocalCore = CloneLocalOpenAi(source.ChatGPTLocalCore),
                 ChatGPTLocalCores = (source.ChatGPTLocalCores ?? []).Select(CloneLocalOpenAi).ToList(),
                 OpenAICore = CloneOpenAi(source.OpenAICore),

@@ -68,12 +68,12 @@
     <div id="components-reconnect-modal" class="localgpt-reconnect-modal components-reconnect-hide" data-permanent role="alertdialog" aria-modal="true" aria-live="assertive" aria-labelledby="localgpt-reconnect-title">
         <section class="localgpt-reconnect-card">
             <div>
-                <strong id="localgpt-reconnect-title">LocalGPT UI connection interrupted</strong>
-                <span data-localgpt-reconnect-status>The interactive circuit is reconnecting. Running Council work may continue in the server spooler.</span>
+                <strong id="localgpt-reconnect-title">@Localization.Get("Startup.ReconnectTitle", fallback: "LocalGPT UI connection interrupted")</strong>
+                <span data-localgpt-reconnect-status>@Localization.Get("Startup.Reconnecting", fallback: "The interactive circuit is reconnecting. Running Council work may continue in the server spooler.")</span>
             </div>
             <div class="localgpt-reconnect-actions">
-                <button type="button" data-localgpt-reconnect>Reconnect now</button>
-                <button type="button" data-localgpt-reload>Reload &amp; rejoin</button>
+                <button type="button" data-localgpt-reconnect>@Localization.Get("Startup.ReconnectNow", fallback: "Reconnect now")</button>
+                <button type="button" data-localgpt-reload>@Localization.Get("Startup.ReloadRejoin", fallback: "Reload & rejoin")</button>
             </div>
         </section>
     </div>

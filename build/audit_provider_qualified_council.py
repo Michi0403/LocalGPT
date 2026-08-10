@@ -42,6 +42,7 @@ def main() -> int:
     provider_text = text("src/LocalGPT/Services/CouncilTextService.ProviderModels.cs")
     provider_registry = text("src/LocalGPT/Services/AiProviderConfigurationRegistryService.cs")
     provider_registry_interface = text("src/LocalGPT/Interfaces/IAiProviderConfigurationRegistryService.cs")
+    ai_connectivity_probe = text("src/LocalGPT/Services/AIConnectivityProbe.cs")
     team_models = text("src/LocalGPT/BusinessObjects/OrganicCouncilModels.cs")
     team_config = text("src/LocalGPT/Services/CouncilTeamConfigurationService.cs")
     teams_page = text("src/LocalGPT/Components/Pages/CouncilTeams.razor")
@@ -105,10 +106,10 @@ def main() -> int:
     contains("wire route provider endpoint", wire, "public string ProviderEndpoint")
     contains("wire route provider model", wire, "public string ProviderModelName")
     contains("OneWire routes hydrate provider selections", one_wire_execution, "ModelSelections = wireRequest.ModelRoutes")
-    contains("single-model panel benchmark action", panel, ">Benchmark<")
-    contains("single-model panel properties action", panel, ">Properties<")
+    contains("single-model panel benchmark action", panel, 'T("Benchmark")')
+    contains("single-model panel properties action", panel, 'T("Properties")')
     contains("single-model panel apply action", panel, ">Apply recommendation<")
-    contains("single-model panel cancellation", panel, ">Cancel<")
+    contains("single-model panel cancellation", panel, 'T("Cancel")')
     contains("batch council runs all selected", batch_panel, "Benchmark all selected models")
     contains("batch council exposes live Chat transcript", batch_panel, "Open benchmark transcript in Chat")
     contains("single-model benchmark exposes live Chat transcript", panel, "Open live transcript")
@@ -135,6 +136,9 @@ def main() -> int:
     contains("provider registry preserves persisted Ollama entries unless explicitly removed", provider_registry, "if (!fromDraft && removed.Contains(endpoint))")
     contains("provider registry only changes primary through explicit preference when available", provider_registry, "explicitOllamaPrimaryEndpoint")
     contains("provider registry restores previous primary before draft primary", provider_registry, "persistedPrimaryEndpoint")
+    contains("AI discovery canonicalizes endpoint aliases", ai_connectivity_probe, "new ProviderModelIdentity().NormalizeEndpoint")
+    contains("detached provider draft canonicalizes endpoint aliases", provider_registry, "detachedOllamaEndpoints")
+    contains("detached provider draft normalizes additional Ollama endpoints", provider_registry, "NormalizeEndpoint(detached.Uri)")
     contains("Install discovery upserts endpoint-qualified OpenAI-compatible hosts", install, "UpsertOpenAiCompatibleHostBinding(host.Provider, host.Endpoint, model.Name)")
     excludes("Install discovery must not overwrite Ollama primary directly", install, "Model.OllamaCore.Uri = host.Endpoint")
     excludes("Install discovery must not overwrite OpenAI-compatible primary directly", install, "Model.ChatGPTLocalCore.Endpoint = host.Endpoint")
@@ -190,7 +194,7 @@ def main() -> int:
     version_match = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", project)
     checks.append((
         "application patch version advanced",
-        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 6, 0))))
+        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 6, 1))))
 
     failures = [name for name, passed in checks if not passed]
     if failures:
@@ -199,6 +203,7 @@ def main() -> int:
         print(f"Provider-qualified Council feature audit failed: {len(failures)}/{len(checks)} checks failed.")
         return 1
 
+    
     print(f"Provider-qualified Council feature audit passed: {len(checks)} checks.")
     return 0
 

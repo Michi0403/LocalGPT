@@ -170,7 +170,13 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
                 (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
                 return false;
 
-            var builder = new UriBuilder(uri.Scheme, uri.Host, uri.Port);
+            // Provider identity canonicalization is shared with Chat/Council configuration so aliases such as
+            // localhost and 127.0.0.1 can never become two discovery/provider cards for the same Ollama host.
+            var canonicalEndpoint = new ProviderModelIdentity().NormalizeEndpoint(uri.GetLeftPart(UriPartial.Authority));
+            if (!Uri.TryCreate(canonicalEndpoint, UriKind.Absolute, out var canonicalUri))
+                return false;
+
+            var builder = new UriBuilder(canonicalUri.Scheme, canonicalUri.Host, canonicalUri.Port);
             normalized = builder.Uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
             return true;
         }

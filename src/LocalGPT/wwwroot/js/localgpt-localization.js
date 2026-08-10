@@ -11,6 +11,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     let culture = 'en-US';
     let neutral = 'en';
     let dictionary = {};
+    let sourceDictionary = {};
     let exact = new Map();
     let exactFolded = new Map();
     let phrases = [];
@@ -30,6 +31,19 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         exactFolded = new Map();
         phrases = [];
         words = new Map();
+
+        // Every maintained catalog entry participates in exact source-text translation. Structured keys such as
+        // Install.Workbench.* and Common.* therefore translate raw Razor/DevExpress text just like Text.* keys.
+        // Text.* entries are applied afterwards and remain the authoritative exact-source override.
+        for (const [key, rawSource] of Object.entries(sourceDictionary || {})) {
+            if (!(key in (dictionary || {}))) continue;
+            const source = normalize(rawSource);
+            const value = String(dictionary[key] ?? '');
+            if (!source || !value) continue;
+            exact.set(source, value);
+            exactFolded.set(source.toLocaleLowerCase(culture), value);
+        }
+
         for (const [key, raw] of Object.entries(dictionary || {})) {
             const value = String(raw ?? '');
             if (key.startsWith('Text.')) {
@@ -165,19 +179,23 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         culture = currentCulture();
         neutral = culture.toLocaleLowerCase().split('-')[0];
         try {
-            const response = await fetch(`/api/localization/${encodeURIComponent(culture)}`, {
+            const request = requestedCulture => fetch(`/api/localization/${encodeURIComponent(requestedCulture)}`, {
                 cache: 'no-store',
                 credentials: 'same-origin',
                 headers: { 'Accept': 'application/json' }
             });
+            const [response, sourceResponse] = await Promise.all([request(culture), request('en-US')]);
             if (!response.ok) throw new Error(`Localization request failed with HTTP ${response.status}.`);
-            const loaded = await response.json();
+            if (!sourceResponse.ok) throw new Error(`English localization source request failed with HTTP ${sourceResponse.status}.`);
+            const [loaded, loadedSource] = await Promise.all([response.json(), sourceResponse.json()]);
             if (generation !== loadGeneration) return;
             dictionary = loaded || {};
+            sourceDictionary = loadedSource || {};
         } catch (error) {
             localGptDiagnostics.report('js/localgpt-localization.js:refresh', error);
             if (generation !== loadGeneration) return;
             dictionary = {};
+            sourceDictionary = {};
         }
         rebuildMaps();
         document.documentElement.lang = culture;

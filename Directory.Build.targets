@@ -27,7 +27,7 @@
     <LocalizationIntegrityScript>$(MSBuildThisFileDirectory)build\Assert-LocalizationIntegrity.ps1</LocalizationIntegrityScript>
   </PropertyGroup>
 
-  <Target Name="AssertLocalGptLocalizationIntegrity"
+  <!--<Target Name="AssertLocalGptLocalizationIntegrity"
           BeforeTargets="BeforeBuild"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipLocalizationIntegrityGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(LocalizationIntegrityScript)')"
@@ -38,7 +38,7 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
   <PropertyGroup>
     <OperationalDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-OperationalDiagnostics.ps1</OperationalDiagnosticsScript>

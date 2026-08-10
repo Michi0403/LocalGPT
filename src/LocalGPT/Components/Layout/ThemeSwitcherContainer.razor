@@ -4,6 +4,7 @@
 @inject ILogger<ThemeSwitcherContainer> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 <div class="themeswitcher-container shadow @StateCssClass">
     <ToastWrapper Name="@toastName" />
@@ -11,16 +12,16 @@
     {
         <div class="theme-layer-toolbar">
             <div class="theme-layer-toolbar-title">
-                <strong>Theme Fusion</strong>
-                <small>@Themes.FusionRoute.Count route steps · @UsedThemes.Count() themes used</small>
+                <strong>@T("Theme Fusion")</strong>
+                <small>@ThemeRouteSummary</small>
             </div>
-            <button type="button" class="localgpt-native-button" @onclick="CloseAsync">Done</button>
+            <button type="button" class="localgpt-native-button" @onclick="CloseAsync">@T("Done")</button>
         </div>
         <div class="blazor-themes blazor-scroll-view">
-            <section class="theme-layer-section" aria-label="Base theme">
+            <section class="theme-layer-section" aria-label="@(T("Base theme"))">
                 <div class="theme-layer-heading">
-                    <strong>Base Theme</strong>
-                    <small>Sets the visual foundation for pages, navigation, native surfaces and syntax highlighting.</small>
+                    <strong>@T("Base Theme")</strong>
+                    <small>@T("Sets the visual foundation for pages, navigation, native surfaces and syntax highlighting.")</small>
                 </div>
                 <div class="list-group list-group-flush">
                     @foreach (var themeSet in Themes.ThemeSets)
@@ -36,10 +37,10 @@
                 </div>
             </section>
 
-            <section class="theme-layer-section" aria-label="Style layer">
+            <section class="theme-layer-section" aria-label="@(T("Style layer"))">
                 <div class="theme-layer-heading">
-                    <strong>Style Layer</strong>
-                    <small>Blends with, overrides or extends the Base Theme across DevExpress editors, grids, chat controls and buttons.</small>
+                    <strong>@T("Style Layer")</strong>
+                    <small>@T("Blends with, overrides or extends the Base Theme across DevExpress editors, grids, chat controls and buttons.")</small>
                 </div>
                 <div class="list-group list-group-flush">
                     @foreach (var themeSet in Themes.ThemeSets)
@@ -55,19 +56,19 @@
                 </div>
             </section>
 
-            <section class="theme-route-section" aria-label="Theme Fusion route">
+            <section class="theme-route-section" aria-label="@(T("Theme Fusion route"))">
                 <div class="theme-layer-heading theme-route-heading">
-                    <strong>Fusion Route</strong>
-                    <small>The result can depend on selection order. This is the stored path that produced the current mix.</small>
+                    <strong>@T("Fusion Route")</strong>
+                    <small>@T("The result can depend on selection order. This is the stored path that produced the current mix.")</small>
                 </div>
                 <div class="theme-route-content" aria-live="polite">
                     <div class="theme-route-current">
-                        <span><strong>Base:</strong> @Themes.ActiveShellTheme.Title</span>
-                        <span><strong>Style:</strong> @Themes.ActiveComponentTheme.Title</span>
+                        <span><strong>@T("Base"):</strong> @Themes.ActiveShellTheme.Title</span>
+                        <span><strong>@T("Style"):</strong> @Themes.ActiveComponentTheme.Title</span>
                     </div>
 
                     <div class="theme-used-block">
-                        <strong>Used themes</strong>
+                        <strong>@T("Used themes")</strong>
                         <div class="theme-used-list">
                             @foreach (var theme in UsedThemes)
                             {
@@ -78,7 +79,7 @@
 
                     @if (Themes.FusionRoute.Count == 0)
                     {
-                        <p class="theme-route-empty">No selection route has been recorded yet.</p>
+                        <p class="theme-route-empty">@T("No selection route has been recorded yet.")</p>
                     }
                     else
                     {
@@ -99,9 +100,9 @@
                                 class="localgpt-native-button"
                                 disabled="@(Themes.ThemeChangeRequestDispatcher is null)"
                                 @onclick="ResetFusionRouteAsync">
-                            Reset route
+                            @T("Reset route")
                         </button>
-                        <small>Keeps the current Base Theme and Style Layer, removes earlier swaps, then reloads the page cleanly.</small>
+                        <small>@T("Keeps the current Base Theme and Style Layer, removes earlier swaps, then reloads the page cleanly.")</small>
                     </div>
                 </div>
             </section>
@@ -165,8 +166,16 @@
     bool IsComponentThemeActive(Theme theme) =>
         string.Equals(ComponentThemeName, theme.Name, StringComparison.OrdinalIgnoreCase);
 
+    string T(string source) => Localization.GetText(source);
+
+    string ThemeRouteSummary => string.Format(
+        System.Globalization.CultureInfo.CurrentUICulture,
+        T("{0} route steps · {1} themes used"),
+        Themes.FusionRoute.Count,
+        UsedThemes.Count());
+
     string GetTargetTitle(ThemeApplicationTarget target) =>
-        target == ThemeApplicationTarget.Shell ? "Base" : "Style";
+        T(target == ThemeApplicationTarget.Shell ? "Base" : "Style");
 
     string GetTargetCssClass(ThemeApplicationTarget target) =>
         target == ThemeApplicationTarget.Shell ? "theme-route-target-base" : "theme-route-target-style";

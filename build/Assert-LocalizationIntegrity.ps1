@@ -56,7 +56,7 @@ $english = $englishResult.Catalog
 $german = $germanResult.Catalog
 $englishKeys = $englishResult.Keys
 $germanKeys = $germanResult.Keys
-if ($englishKeys.Count -lt 1200) { Fail "English catalog coverage unexpectedly dropped to $($englishKeys.Count) entries." }
+if ($englishKeys.Count -lt 1700) { Fail "English catalog coverage unexpectedly dropped to $($englishKeys.Count) entries." }
 if (($englishKeys -join "`n") -cne ($germanKeys -join "`n")) { Fail 'English and German catalog keys differ.' }
 $requiredTemplates = @(
     'Text.Start<SP>new<SP>chat',
@@ -78,11 +78,35 @@ $requiredTemplates = @(
     'ProjectMaintenance.SourceChanged',
     'ProjectMaintenance.RunBuildVerification',
     'ProjectMaintenance.ApproveReady',
-    'Common.NotRun'
+    'Common.NotRun',
+    'Text.Configured<SP>AI<SP>hosts',
+    'Text.Save<SP>provider<SP>settings',
+    'Text.Primary<SP>Ollama<SP>host',
+    'Text.Provider-bound<SP>role<SP>models',
+    'Text.Role<SP>boundary',
+    'Text.Response<SP>language',
+    'Text.Theme<SP>Fusion',
+    'Text.Reset<SP>route',
+    'Startup.Connecting',
+    'Startup.ReconnectTitle',
+    'Install.Workbench.Nav.ProvidersHelp',
+    'Install.ConfiguredProviders.SummaryMany',
+    'Text.Model<SP>status',
+    'Text.Open<SP>model<SP>actions'
 )
 foreach ($template in $requiredTemplates) {
     $key = Expand-SpaceMarkers $template
     $property = $german.PSObject.Properties[$key]
     if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) { Fail "Required German UI string is missing: $key" }
 }
+
+$runtimePath = Join-Path $root 'src\LocalGPT\wwwroot\js\localgpt-localization.js'
+if (-not (Test-Path -LiteralPath $runtimePath -PathType Leaf)) { Fail "Missing $runtimePath" }
+$runtime = Read-StrictUtf8 $runtimePath
+foreach ($requiredRuntimeToken in @('request(''en-US'')', 'document.createTreeWalker', 'characterData: true', 'sourceDictionary')) {
+    if ($runtime.IndexOf($requiredRuntimeToken, [System.StringComparison]::Ordinal) -lt 0) {
+        Fail "LocalGPT localization runtime is missing required coverage token: $requiredRuntimeToken"
+    }
+}
+
 Write-Host "Localization integrity validation passed for $($englishKeys.Count) LocalGPT UI strings."

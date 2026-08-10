@@ -4,6 +4,7 @@
 @inject IProviderModelBenchmarkService BenchmarkService
 @inject CouncilTextService CouncilText
 @inject ILogger<ProviderModelPanel> Logger
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
 <article class="provider-model-panel @(Selected ? "is-selected" : string.Empty)" aria-labelledby="@HeadingId">
     <header class="provider-model-heading">
@@ -19,18 +20,18 @@
             <strong id="@HeadingId">@Model.ModelName</strong>
             <small>@Model.ProviderName · @Model.EndpointLabel</small>
         </div>
-        <div class="provider-model-badges" aria-label="Model status">
+        <div class="provider-model-badges" aria-label="@(T("Model status"))">
             @if (Model.IsReachable)
             {
-                <span class="model-badge">reachable</span>
+                <span class="model-badge">@T("reachable")</span>
             }
             @if (Model.IsLoaded)
             {
-                <span class="model-badge">loaded</span>
+                <span class="model-badge">@T("loaded")</span>
             }
             @if (Model.IsConfigured)
             {
-                <span class="model-badge">configured</span>
+                <span class="model-badge">@T("configured")</span>
             }
         </div>
     </header>
@@ -41,7 +42,7 @@
             <button type="button" class="model-action model-action-primary" @onclick="ActivateAsync">@UseActionText</button>
         }
         <details class="provider-model-menu">
-            <summary class="model-action" aria-label="Open model actions">Actions</summary>
+            <summary class="model-action" aria-label="@(T("Open model actions"))">@T("Actions")</summary>
             <div class="provider-model-menu-items" role="menu">
                 @if (showProperties)
                 {
@@ -50,7 +51,7 @@
                             class="btn btn-sm btn-outline-secondary"
                             @onclick="ToggleProperties"
                             aria-expanded="true"
-                            aria-controls="@PropertiesId">Hide properties</button>
+                            aria-controls="@PropertiesId">@T("Hide properties")</button>
                 }
                 else
                 {
@@ -59,7 +60,7 @@
                             class="btn btn-sm btn-outline-secondary"
                             @onclick="ToggleProperties"
                             aria-expanded="false"
-                            aria-controls="@PropertiesId">Properties</button>
+                            aria-controls="@PropertiesId">@T("Properties")</button>
                 }
                 <button type="button"
                         role="menuitem"
@@ -67,35 +68,35 @@
                         disabled="@(!Model.SupportsBenchmark || isBusy)"
                         @onclick="ToggleBenchmark"
                         aria-expanded="@showBenchmark"
-                        aria-controls="@BenchmarkId">@(showBenchmark ? "Hide benchmark" : "Benchmark")</button>
+                        aria-controls="@BenchmarkId">@(showBenchmark ? T("Hide benchmark") : T("Benchmark"))</button>
             </div>
         </details>
         @if (isBusy)
         {
-            <button type="button" class="model-action" @onclick="CancelBenchmark">Cancel</button>
+            <button type="button" class="model-action" @onclick="CancelBenchmark">@T("Cancel")</button>
         }
         @if (activeRunId is Guid)
         {
             <a class="model-action benchmark-live-session-link"
                href="@BenchmarkChatUrl"
                target="_blank"
-               rel="noopener">Open live transcript</a>
+               rel="noopener">@T("Open live transcript")</a>
         }
     </div>
 
     @if (showProperties)
     {
         <dl id="@PropertiesId" class="provider-model-properties">
-            <div><dt>Provider kind</dt><dd>@Model.ProviderKind</dd></div>
-            <div><dt>Endpoint</dt><dd>@Model.Endpoint</dd></div>
-            <div><dt>Provider model</dt><dd>@Model.ModelName</dd></div>
-            <div><dt>Hosting</dt><dd>@(Model.IsLocal ? "local" : "remote")</dd></div>
-            <div><dt>Benchmark</dt><dd>@(Model.SupportsBenchmark ? "available" : "unavailable")</dd></div>
-            <div><dt>Council address</dt><dd>@Model.SelectionKey</dd></div>
-            <div><dt>Stable identity</dt><dd>@Model.StableId</dd></div>
+            <div><dt>@T("Provider kind")</dt><dd>@Model.ProviderKind</dd></div>
+            <div><dt>@T("Endpoint")</dt><dd>@Model.Endpoint</dd></div>
+            <div><dt>@T("Provider model")</dt><dd>@Model.ModelName</dd></div>
+            <div><dt>@T("Hosting")</dt><dd>@(Model.IsLocal ? T("local") : T("remote"))</dd></div>
+            <div><dt>@T("Benchmark")</dt><dd>@(Model.SupportsBenchmark ? T("available") : T("unavailable"))</dd></div>
+            <div><dt>@T("Council address")</dt><dd>@Model.SelectionKey</dd></div>
+            <div><dt>@T("Stable identity")</dt><dd>@Model.StableId</dd></div>
             @if (!string.IsNullOrWhiteSpace(Model.Details))
             {
-                <div><dt>Details</dt><dd>@Model.Details</dd></div>
+                <div><dt>@T("Details")</dt><dd>@Model.Details</dd></div>
             }
         </dl>
     }
@@ -112,10 +113,10 @@
                 <BoundedNumberEditor Label="Stop threshold" Min="0" Max="50" Suffix="%" Value="@improvementThreshold" ValueChanged="@(value => improvementThreshold = value)" />
                 <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="@(value => maximumContext = value)" />
                 <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="@(value => maximumOutput = value)" />
-                <label class="benchmark-check form-check"><input class="form-check-input" type="checkbox" @bind="includeCouncilReview" /> <span>Council review</span></label>
+                <label class="benchmark-check form-check"><input class="form-check-input" type="checkbox" @bind="includeCouncilReview" /> <span>@T("Council review")</span></label>
             </div>
             <p class="benchmark-council-summary">
-                Review council: @ReviewerSummary
+                @T("Review council"):@(" " + ReviewerSummary)
             </p>
             <div class="provider-model-actions">
                 <button type="button" class="model-action model-action-primary" disabled="@isBusy" @onclick="RunBenchmarkAsync">Run bounded benchmark</button>
@@ -156,6 +157,8 @@
 </article>
 
 @code {
+    string T(string source) => Localization.GetText(source);
+
     [Parameter, EditorRequired] public ProviderModelReference Model { get; set; } = new();
     [Parameter] public bool ShowSelection { get; set; } = true;
     [Parameter] public bool Selected { get; set; }
