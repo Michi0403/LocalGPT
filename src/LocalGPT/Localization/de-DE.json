@@ -1491,5 +1491,8 @@
   "TestLab.Workbench.Nav.Remote": "Remote-Wissen",
   "TestLab.Workbench.Nav.Route": "Eigene Route",
   "TestLab.Workbench.Nav.Workspace": "Arbeitsbereich",
-  "TestLab.Workbench.Nav.Result": "Ergebnis"
+  "TestLab.Workbench.Nav.Result": "Ergebnis",
+  "Navigation.ScrollAssist": "Seitennavigation",
+  "Navigation.ScrollUp": "Nach oben scrollen",
+  "Navigation.ScrollDown": "Nach unten scrollen"
 }

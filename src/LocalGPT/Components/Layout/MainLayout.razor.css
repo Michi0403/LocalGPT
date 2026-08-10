@@ -247,3 +247,41 @@
 #current-main-window.chat-main-window {
     box-sizing: border-box !important;
 }
+
+
+/* v2.5.6: compact install-page scroll assist lives in the existing right-side tool rail.
+   Native wheel/touch scrolling remains primary; these are only coarse-pointer/accessibility helpers. */
+.localgpt-page-scroll-assist {
+    display: grid;
+    grid-template-columns: repeat(2, 2.35rem);
+    gap: .4rem;
+    pointer-events: auto;
+}
+
+.localgpt-page-scroll-assist a {
+    display: grid;
+    place-items: center;
+    width: 2.35rem;
+    height: 2.35rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    text-decoration: none;
+    box-shadow: 0 .35rem 1rem rgba(var(--localgpt-body-color-rgb, 33, 37, 41), .18);
+    font-weight: 800;
+    touch-action: manipulation;
+}
+
+.localgpt-page-scroll-assist a:hover,
+.localgpt-page-scroll-assist a:focus-visible {
+    border-color: var(--bs-primary);
+    color: var(--bs-primary);
+    outline: none;
+}
+
+@media (max-width: 780px) {
+    .localgpt-page-scroll-assist {
+        align-self: end;
+    }
+}

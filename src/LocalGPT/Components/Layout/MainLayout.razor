@@ -66,6 +66,13 @@
     <aside class="localgpt-assistant-rail" aria-label="LocalGPT approvals and Council tools">
         <HumanCollaborationInbox />
         <CouncilSpoolerPanel />
+        @if (IsInstallPage)
+        {
+            <nav class="localgpt-page-scroll-assist" aria-label="@Localization.GetText("Navigation.ScrollAssist")">
+                <a href="#install-scroll-top" data-enhance-nav="false" aria-label="@Localization.GetText("Navigation.ScrollUp")">▲</a>
+                <a href="#install-scroll-bottom" data-enhance-nav="false" aria-label="@Localization.GetText("Navigation.ScrollDown")">▼</a>
+            </nav>
+        }
     </aside>
 </div>
 
@@ -75,6 +82,9 @@
 
     private bool IsChatPage =>
         string.Equals(new Uri(NavigationManager.Uri).AbsolutePath, "/Chat", StringComparison.OrdinalIgnoreCase);
+
+    private bool IsInstallPage =>
+        string.Equals(new Uri(NavigationManager.Uri).AbsolutePath, "/install", StringComparison.OrdinalIgnoreCase);
 
     protected override void OnInitialized()
     {

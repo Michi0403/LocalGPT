@@ -695,3 +695,25 @@
         grid-template-columns: 1fr !important;
     }
 }
+
+
+/* v2.5.6: /install delegates vertical page scrolling to the existing drawer viewport.
+   Removing the nested overflow owner restores native mouse-wheel and touch-pan behavior while
+   preserving the visible browser-side scrollbar and all bounded child scrollers. */
+.install-page-scroll-owner {
+    height: auto !important;
+    min-height: calc(100dvh - 4.5rem) !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+    scrollbar-gutter: auto !important;
+    touch-action: pan-y;
+}
+
+.install-scroll-anchor {
+    display: block;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    pointer-events: none;
+}

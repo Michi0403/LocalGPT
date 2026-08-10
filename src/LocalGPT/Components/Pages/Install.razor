@@ -19,6 +19,7 @@
 
 <PageTitle>AI Setup</PageTitle>
 
+<span id="install-scroll-top" class="install-scroll-anchor" aria-hidden="true"></span>
 <div class="main-container install-page-scroll-owner">
     <ToastWrapper Name="@toastName" />
 
@@ -152,25 +153,17 @@
                             </div>
                             <code>@configured.Endpoint</code>
                             <span>@(string.IsNullOrWhiteSpace(configured.ModelName) ? "No preferred model selected" : configured.ModelName)</span>
-                            @if (configured.OpenAiHost is not null)
-                            {
-                                <div class="configured-provider-actions">
+                            <div class="configured-provider-actions">
+                                @if (configured.OpenAiHost is not null)
+                                {
                                     <DxButton Text="Test" Click="@(() => TestOpenAiCompatibleHostAsync(configured.OpenAiHost))" />
-                                    @if (!configured.IsPrimary)
-                                    {
-                                        <DxButton Text="Remove" RenderStyle="ButtonRenderStyle.Danger" RenderStyleMode="ButtonRenderStyleMode.Outline" Click="@(() => RemoveOpenAiCompatibleHostAsync(configured.OpenAiHost))" />
-                                    }
-                                </div>
-                            }
-                            else if (configured.OllamaHost is not null)
-                            {
-                                <div class="configured-provider-actions">
-                                    @if (!configured.IsPrimary)
-                                    {
-                                        <DxButton Text="Remove" RenderStyle="ButtonRenderStyle.Danger" RenderStyleMode="ButtonRenderStyleMode.Outline" Click="@(() => RemoveOllamaModelAsync(configured.OllamaHost))" />
-                                    }
-                                </div>
-                            }
+                                }
+                                <DxButton Text="Delete"
+                                          Enabled="@(!IsSaving)"
+                                          RenderStyle="ButtonRenderStyle.Danger"
+                                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                          Click="@(() => RemoveConfiguredProviderHostAsync(configured))" />
+                            </div>
                         </article>
                     }
                 </div>
@@ -667,6 +660,7 @@
             </div>
         </div>
     </div>
+    <span id="install-scroll-bottom" class="install-scroll-anchor" aria-hidden="true"></span>
 </div>
 
 @code {
@@ -1536,6 +1530,77 @@
             ModelName = string.Empty,
             AutoStartServer = false
         });
+    }
+
+    private async Task RemoveConfiguredProviderHostAsync(ConfiguredProviderHostView configured)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(configured);
+
+            if (string.Equals(configured.Key, "openai-cloud", StringComparison.OrdinalIgnoreCase))
+            {
+                Model.OpenAICore = new OpenAICompatOptions
+                {
+                    Endpoint = string.Empty,
+                    ApiKey = string.Empty,
+                    ModelName = string.Empty
+                };
+            }
+            else if (string.Equals(configured.Key, "azure-openai", StringComparison.OrdinalIgnoreCase))
+            {
+                Model.OpenAIServiceCore = new OpenAIServiceCoreOptions
+                {
+                    Endpoint = string.Empty,
+                    Key = string.Empty,
+                    DeploymentName = string.Empty
+                };
+            }
+            else if (configured.OpenAiHost is not null)
+            {
+                if (configured.IsPrimary)
+                {
+                    Model.ChatGPTLocalCore = new ChatGPTLocalCoreOptions
+                    {
+                        Endpoint = string.Empty,
+                        ApiKey = string.Empty,
+                        ModelName = string.Empty,
+                        AutoStartServer = false
+                    };
+                }
+                else
+                {
+                    Model.ChatGPTLocalCores.Remove(configured.OpenAiHost);
+                }
+            }
+            else if (configured.OllamaHost is not null)
+            {
+                if (configured.IsPrimary)
+                {
+                    Model.OllamaCore = new OllamaCoreOptions
+                    {
+                        Uri = string.Empty,
+                        ModelName = string.Empty
+                    };
+                }
+                else
+                {
+                    Model.OllamaCores.Remove(configured.OllamaHost);
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("The selected configured provider has no removable configuration binding.");
+            }
+
+            await Save().ConfigureAwait(false);
+            Notifier.ShowSuccess(toastName, configured.Provider, "Saved provider removed");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "RemoveConfiguredProviderHostAsync failed for configured provider {ProviderKey}.", configured.Key);
+            Notifier.ShowError(toastName, "The provider could not be removed. See local application logs for details.", "Remove provider failed");
+        }
     }
 
     private async Task RemoveOpenAiCompatibleHostAsync(ChatGPTLocalCoreOptions host)
