@@ -138,6 +138,16 @@
 <li>durable summaries and artifacts where appropriate.</li>
 </ul>
 <p>The spooler represents queued/running work. Runtime classes describe reusable behavior or game actors, but they do not bypass the workflow service.</p>
+<h3 id="workflow-execution-modes">Workflow execution modes</h3>
+<p>Council workflow steps can choose how role members consume the available AI hardware:</p>
+<ul>
+<li><code>AllMembersParallel</code> allows up to the configured model-lane limit on each participating AI host. Separate hosts remain independent compute boundaries.</li>
+<li><code>AllMembersSequentialOnEachAIHostParallel</code> is the default for newly created workflow steps. It creates one deterministic queue per AI host, runs exactly one member at a time inside each queue, and lets the host queues advance concurrently. The phase barrier still waits for every assigned member before the next workflow step starts.</li>
+<li><code>AllMembersSequential</code> is the strict global chain. Only one member runs at a time across every host and later members may observe the earlier completed step output.</li>
+<li>single-member modes (<code>LeaderSingle</code>, <code>RoundRobinSingle</code>, <code>AssignedModelSingle</code>) select one exact participant according to the saved workflow contract.</li>
+</ul>
+<p>The per-host sequential mode intentionally gives every member the transcript that existed when the phase began. It does not merge race-dependent output from another host into an in-flight peer prompt. Use strict global sequential execution when each member must review the immediately preceding member.</p>
+<p><code>AllowParallelHardwareRoads</code> controls additional CPU/GPU-road concurrency inside an AI host; it no longer collapses different physical/provider hosts into one global runtime lane.</p>
 <h2 id="deterministic-completion">Deterministic completion</h2>
 <p>Models are probabilistic; step completion is not. The application evaluates whether a response contains substantive final content, whether required outputs exist, and whether a bounded recovery is allowed.</p>
 <p>A verifier can add confidence or a warning. It cannot retroactively make an invalid primary result valid. Conversely, a failed verifier should not erase a valid result when the workflow contract treats verification as advisory.</p>
@@ -187,7 +197,7 @@
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.6.8 Â· generated documentation
         </div>
       </div>
     </footer>

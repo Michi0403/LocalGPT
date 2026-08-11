@@ -337,9 +337,10 @@ public sealed class CouncilRunConfigurationService(
                     if (!candidate.IsEnabled)
                         return new CouncilModelRequestLease(candidate.Plan, candidate.Revision, isEnabled: false, release: null);
 
+                    var aiHostKey = GetCouncilExecutionHostKey(modelName);
                     var laneKey = state.AllowParallelHardwareRoads
-                        ? candidate.Plan.LaneKey
-                        : "council:single-lane";
+                        ? $"{aiHostKey}|{candidate.Plan.LaneKey}"
+                        : $"{aiHostKey}|council:single-lane";
                     var laneCapacity = state.AllowParallelHardwareRoads
                         ? Math.Max(1, candidate.Plan.MaxConcurrentModelsOnLane)
                         : 1;
@@ -370,6 +371,31 @@ public sealed class CouncilRunConfigurationService(
         throw;
     }
 }
+
+    private string GetCouncilExecutionHostKey(string modelName)
+    {
+        try
+        {
+            var identity = new ProviderModelIdentity();
+            if (identity.TryParseSelectionKey(modelName, out var reference) &&
+                Uri.TryCreate(reference.Endpoint, UriKind.Absolute, out var endpoint))
+            {
+                var host = string.Equals(endpoint.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+                    ? "127.0.0.1"
+                    : endpoint.Host;
+                return string.IsNullOrWhiteSpace(host)
+                    ? "provider:unknown-host"
+                    : host.Trim().ToLowerInvariant();
+            }
+
+            return "legacy-or-unqualified-host";
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not resolve AI host identity for Council member {ModelName}; using the legacy host lane.", modelName);
+            return "legacy-or-unqualified-host";
+        }
+    }
 
     public void Complete(Guid runId)
     {

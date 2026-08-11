@@ -53,6 +53,7 @@ def main() -> int:
     council_chat_client = text("src/LocalGPT/Services/CouncilChatClient.cs")
     upload_functions = text("src/LocalGPT/Services/ChatUploadWorkspaceDxAiFunctions.cs")
     live_sessions = text("src/LocalGPT/Services/CouncilLiveSessionService.cs")
+    run_configuration = text("src/LocalGPT/Services/CouncilRunConfigurationService.cs")
     project = text("src/LocalGPT/LocalGPT.csproj")
 
     def contains(name: str, haystack: str, needle: str) -> None:
@@ -204,10 +205,21 @@ def main() -> int:
     contains("configured workflow reinforces coding output contract", council, "Coding-output contract: the visible answer must include concrete source/code")
     excludes("streaming Council no longer collapses all hosts to one global model", council, "streamUpdate is null ? maxParallelModels : 1")
     contains("Council execution groups concurrency by provider host", council, "GetCouncilExecutionHostKey")
-    contains("Council max-parallel limit is per AI host", council, "up to {maxParallelModels} model request(s) per host")
+    contains("Council max-parallel limit is per AI host", council, "up to {maxParallelModels} model request(s) per AI host")
     contains("Council presentation uses participant channels", council, "Channel.CreateUnbounded<string>")
     contains("Council presentation waits for intact member stream", council, "PumpCouncilParticipantStreamsAsync")
     contains("Council phase retains completion barrier across hosts", council, "logical Council phases still wait for every assigned member before advancing")
+    contains("third execution mode is supported by team configuration", team_config, '"AllMembersSequentialOnEachAIHostParallel"')
+    contains("third execution mode is exposed by team editor", teams_page, '("AllMembersSequentialOnEachAIHostParallel", "One role member per AI host at a time; AI hosts in parallel")')
+    contains("third execution mode has a dedicated runtime branch", council, 'case "AllMembersSequentialOnEachAIHostParallel":')
+    contains("third execution mode uses deterministic per-host queues", council, "Council host-queue scheduler created")
+    contains("third execution mode activates sequential-per-host phase scheduling", council, "sequentialPerHost: true")
+    contains("global sequential mode remains supported", council, 'case "AllMembersSequential":')
+    contains("untouched general peer review uses host-parallel sequential default", team_seeds, 'Key = "general-review"')
+    contains("source-controlled sequential defaults use host-parallel mode", team_seeds, '"AllMembersSequentialOnEachAIHostParallel"')
+    contains("new custom workflow steps default to host-parallel sequential mode", teams_page, 'ExecutionMode = "AllMembersSequentialOnEachAIHostParallel"')
+    contains("AI hosts remain independent when hardware-road parallelism is disabled", run_configuration, '"{aiHostKey}|council:single-lane"')
+    excludes("run configuration no longer collapses every host to one global lane", run_configuration, '? candidate.Plan.LaneKey\n                        : "council:single-lane";')
     contains("provider status is excluded from model answer content", council, "IsLocalGptStreamingStatusUpdate")
     excludes("heartbeat text no longer pollutes streamed transcript", council_chat_client, "Council still running after {elapsed}s")
     contains("heartbeat touches live session state", council_chat_client, "liveSessions.Touch(request.RunId)")
@@ -227,7 +239,7 @@ def main() -> int:
     version_match = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", project)
     checks.append((
         "application patch version advanced",
-        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 6, 7))))
+        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 6, 8))))
 
     failures = [name for name, passed in checks if not passed]
     if failures:

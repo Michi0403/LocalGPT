@@ -297,7 +297,7 @@ namespace LocalGPT.Services
                     .Count();
                 if (participants.Count > maxParallelModels || participatingAiHostCount > 1)
                     result.Warnings.Add(
-                        $"Host-aware load scheduling is active: up to {maxParallelModels} model request(s) may run concurrently on each of {participatingAiHostCount} participating AI host(s); logical Council phases still wait for every assigned member before advancing.");
+                        $"Host-aware load scheduling is active across {participatingAiHostCount} participating AI host(s): AllMembersParallel may use up to {maxParallelModels} concurrent request(s) per host, while sequential-per-host workflow steps use one request per host; logical Council phases still wait for every assigned member before advancing.");
                 if (request.AllowParallelHardwareRoads && modelRoutes.Values.Select(route => route.LaneKey).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
                     result.Warnings.Add("Hardware-road scheduling is active inside each AI host: configured CPU/GPU lanes remain independently bounded so host-level concurrency does not bypass model-road limits.");
                 if (request.MaxOutputTokens > 32768)
@@ -1918,6 +1918,50 @@ namespace LocalGPT.Services
                                         councilMembers: participants).ConfigureAwait(false);
                                     break;
                                 }
+                            case "AllMembersSequentialOnEachAIHostParallel":
+                                {
+                                    var transcript = BuildConfiguredWorkflowTranscript(result, definition, roleAssignment, round);
+                                    await RunPhaseAsync(
+                                        result,
+                                        baseUri,
+                                        roleParticipants,
+                                        round,
+                                        phase,
+                                        definition.Role,
+                                        modelName => RenderConfiguredWorkflowPrompt(
+                                            definition,
+                                            team,
+                                            request,
+                                            modelName,
+                                            participants,
+                                            roleAssignment,
+                                            rolePairings,
+                                            round,
+                                            repeatIndex,
+                                            repeatCount,
+                                            loopGroup,
+                                            loopIteration,
+                                            loopMaximumIterations,
+                                            transcript,
+                                            visiblePreviousStep),
+                                        heartbeatBootstrap,
+                                        request.MaxOutputTokens,
+                                        1,
+                                        keepAlive,
+                                        ollamaNumGpu,
+                                        maxContextTokens,
+                                        modelTimeoutSeconds,
+                                        request.ProgressMessage,
+                                        request.StreamUpdate,
+                                        request.StepCompleted,
+                                        modelRoutes,
+                                        request.AllowParallelHardwareRoads,
+                                        cancellationToken,
+                                        allowDxFunctions: definition.CanUseOrganicFunctions,
+                                        councilMembers: participants,
+                                        sequentialPerHost: true).ConfigureAwait(false);
+                                    break;
+                                }
                             case "AllMembersSequential":
                                 {
                                     foreach (var modelName in OrderParticipantsByObservedHealth(result, roleParticipants))
@@ -2486,15 +2530,19 @@ namespace LocalGPT.Services
     try
     {
                 if (string.IsNullOrWhiteSpace(value))
-                    return "AllMembersParallel";
+                    return "AllMembersSequentialOnEachAIHostParallel";
                 if (value.Equals("AllMembers", StringComparison.OrdinalIgnoreCase) || value.Equals("Parallel", StringComparison.OrdinalIgnoreCase))
                     return "AllMembersParallel";
+                if (value.Equals("SequentialPerHost", StringComparison.OrdinalIgnoreCase) || value.Equals("HostSequential", StringComparison.OrdinalIgnoreCase))
+                    return "AllMembersSequentialOnEachAIHostParallel";
                 if (value.Equals("Sequential", StringComparison.OrdinalIgnoreCase))
                     return "AllMembersSequential";
                 if (value.Equals("Single", StringComparison.OrdinalIgnoreCase))
                     return "LeaderSingle";
                 if (value.Equals("AllMembersParallel", StringComparison.OrdinalIgnoreCase))
                     return "AllMembersParallel";
+                if (value.Equals("AllMembersSequentialOnEachAIHostParallel", StringComparison.OrdinalIgnoreCase))
+                    return "AllMembersSequentialOnEachAIHostParallel";
                 if (value.Equals("AllMembersSequential", StringComparison.OrdinalIgnoreCase))
                     return "AllMembersSequential";
                 if (value.Equals("LeaderSingle", StringComparison.OrdinalIgnoreCase))
@@ -3206,7 +3254,8 @@ namespace LocalGPT.Services
             bool allowParallelHardwareRoads,
             CancellationToken cancellationToken,
             bool allowDxFunctions = true,
-            IReadOnlyList<string>? councilMembers = null)
+            IReadOnlyList<string>? councilMembers = null,
+            bool sequentialPerHost = false)
         {
             try
             {
@@ -3229,17 +3278,23 @@ namespace LocalGPT.Services
                     .Select(GetCouncilExecutionHostKey)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count();
+                var concurrencyDescription = sequentialPerHost
+                    ? "one model at a time on each AI host, with AI hosts running in parallel"
+                    : allowParallelHardwareRoads
+                        ? $"up to {maxParallelModels} model request(s) per AI host"
+                        : "one model request per AI host; additional hardware-road parallelism is disabled";
                 progressMessage?.Invoke(
-                    $"Starting council phase: round {round}, {phase}, role {role}; {phaseParticipants.Count} member(s) across {hostCount} AI host(s), up to {maxParallelModels} model request(s) per host.");
+                    $"Starting council phase: round {round}, {phase}, role {role}; {phaseParticipants.Count} member(s) across {hostCount} AI host(s), {concurrencyDescription}.");
 
-                // Model execution and presentation have different concurrency requirements. Each AI host
-                // represents a separately provisioned machine/runtime and therefore receives its own bounded
-                // MaxParallelModels gate. The DXAIChat response still presents one complete member stream at
-                // a time so provider thinking/tool markup cannot be interleaved into another member's text.
+                // AI hosts are independent compute machines and are never collapsed into one global gate.
+                // AllowParallelHardwareRoads controls additional concurrency inside each host. The dedicated
+                // sequential-per-host workflow mode keeps one deterministic queue per host while all host
+                // queues advance concurrently. DXAIChat still presents one complete member stream at a time
+                // so provider thinking/tool markup cannot be interleaved into another member's text.
                 var hostGates = new Dictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
                 foreach (var modelName in phaseParticipants)
                 {
-                    var hostKey = allowParallelHardwareRoads ? GetCouncilExecutionHostKey(modelName) : "council:single-host-group";
+                    var hostKey = GetCouncilExecutionHostKey(modelName);
                     if (!hostGates.ContainsKey(hostKey))
                     {
                         var capacity = allowParallelHardwareRoads ? maxParallelModels : 1;
@@ -3282,68 +3337,101 @@ namespace LocalGPT.Services
                 var roundSkipToken = runConfigurations.GetRoundCancellationToken(result.RunId, round, phase);
                 try
                 {
-                    var tasks = phaseParticipants
-                        .Select(async modelName =>
+                    async Task<MultiModelCouncilStep> ExecuteParticipantAsync(string modelName, SemaphoreSlim? hostGate)
+                    {
+                        var fallbackPlan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
+                            ? configuredPlan
+                            : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
+                        var gateAcquired = false;
+                        var participantStream = participantStreams is null ? null : participantStreams[modelName];
+                        Action<string>? participantStreamUpdate = participantStream is null
+                            ? null
+                            : text =>
+                            {
+                                if (!string.IsNullOrEmpty(text))
+                                    participantStream.Writer.TryWrite(text);
+                            };
+                        try
                         {
-                            var fallbackPlan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
-                                ? configuredPlan
-                                : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
-                            var hostKey = allowParallelHardwareRoads ? GetCouncilExecutionHostKey(modelName) : "council:single-host-group";
-                            var hostGate = hostGates[hostKey];
-                            var gateAcquired = false;
-                            var participantStream = participantStreams is null ? null : participantStreams[modelName];
-                            Action<string>? participantStreamUpdate = participantStream is null
-                                ? null
-                                : text =>
-                                {
-                                    if (!string.IsNullOrEmpty(text))
-                                        participantStream.Writer.TryWrite(text);
-                                };
-                            try
+                            if (hostGate is not null)
                             {
                                 using var gateCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
                                 await hostGate.WaitAsync(gateCancellation.Token).ConfigureAwait(false);
                                 gateAcquired = true;
+                            }
 
-                                var step = await RunParticipantAsync(
-                                    baseUri, modelName, councilMembers ?? participants, round, phase, role, promptFactory(modelName), participantBootstrap,
-                                    fallbackPlan.EffectiveMaxOutputTokens, keepAlive, fallbackPlan.OllamaNumGpu, fallbackPlan.EffectiveMaxContextTokens,
-                                    modelTimeoutSeconds, participantStreamUpdate, cancellationToken,
-                                    fallbackPlan: fallbackPlan,
-                                    progressMessage: progressMessage).ConfigureAwait(false);
-                                ArgumentNullException.ThrowIfNull(step);
-                                return step;
-                            }
-                            catch (OperationCanceledException) when (
-                                roundSkipToken.IsCancellationRequested &&
-                                !cancellationToken.IsCancellationRequested)
-                            {
-                                return CreateRoundSkippedStep(
-                                    modelName,
-                                    councilMembers ?? participants,
-                                    round,
-                                    phase,
-                                    role,
-                                    fallbackPlan);
-                            }
-                            finally
-                            {
-                                participantStream?.Writer.TryComplete();
-                                if (gateAcquired)
-                                    hostGate.Release();
-                            }
-                        })
-                        .ToList();
+                            var step = await RunParticipantAsync(
+                                baseUri, modelName, councilMembers ?? participants, round, phase, role, promptFactory(modelName), participantBootstrap,
+                                fallbackPlan.EffectiveMaxOutputTokens, keepAlive, fallbackPlan.OllamaNumGpu, fallbackPlan.EffectiveMaxContextTokens,
+                                modelTimeoutSeconds, participantStreamUpdate, cancellationToken,
+                                fallbackPlan: fallbackPlan,
+                                progressMessage: progressMessage).ConfigureAwait(false);
+                            ArgumentNullException.ThrowIfNull(step);
+                            return step;
+                        }
+                        catch (OperationCanceledException) when (
+                            roundSkipToken.IsCancellationRequested &&
+                            !cancellationToken.IsCancellationRequested)
+                        {
+                            return CreateRoundSkippedStep(
+                                modelName,
+                                councilMembers ?? participants,
+                                round,
+                                phase,
+                                role,
+                                fallbackPlan);
+                        }
+                        finally
+                        {
+                            participantStream?.Writer.TryComplete();
+                            if (gateAcquired)
+                                hostGate!.Release();
+                        }
+                    }
 
-                    var pending = tasks.ToList();
                     var steps = new List<MultiModelCouncilStep>();
-                    while (pending.Count > 0)
+                    if (sequentialPerHost)
                     {
-                        var completed = await Task.WhenAny(pending).ConfigureAwait(false);
-                        pending.Remove(completed);
-                        var step = await completed.ConfigureAwait(false);
-                        ArgumentNullException.ThrowIfNull(step);
-                        steps.Add(step);
+                        var hostQueues = phaseParticipants
+                            .GroupBy(GetCouncilExecutionHostKey, StringComparer.OrdinalIgnoreCase)
+                            .Select(group => group.ToList())
+                            .ToList();
+                        progressMessage?.Invoke(
+                            $"Council host-queue scheduler created {hostQueues.Count} parallel AI-host queue(s); every queue executes its assigned members sequentially.");
+
+                        var hostTasks = hostQueues
+                            .Select(async queue =>
+                            {
+                                var hostSteps = new List<MultiModelCouncilStep>();
+                                foreach (var modelName in queue)
+                                    hostSteps.Add(await ExecuteParticipantAsync(modelName, hostGate: null).ConfigureAwait(false));
+                                return hostSteps;
+                            })
+                            .ToList();
+
+                        var hostResults = await Task.WhenAll(hostTasks).ConfigureAwait(false);
+                        foreach (var hostSteps in hostResults)
+                            steps.AddRange(hostSteps);
+                    }
+                    else
+                    {
+                        var tasks = phaseParticipants
+                            .Select(modelName =>
+                            {
+                                var hostKey = GetCouncilExecutionHostKey(modelName);
+                                return ExecuteParticipantAsync(modelName, hostGates[hostKey]);
+                            })
+                            .ToList();
+
+                        var pending = tasks.ToList();
+                        while (pending.Count > 0)
+                        {
+                            var completed = await Task.WhenAny(pending).ConfigureAwait(false);
+                            pending.Remove(completed);
+                            var step = await completed.ConfigureAwait(false);
+                            ArgumentNullException.ThrowIfNull(step);
+                            steps.Add(step);
+                        }
                     }
 
                     await presentationTask.ConfigureAwait(false);

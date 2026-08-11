@@ -445,6 +445,7 @@
   "Text.Allow␠popups": "Allow popups",
   "Text.allow␠trust␠reset": "allow trust reset",
   "Text.All␠role␠members␠in␠parallel": "All role members in parallel",
+  "Text.One␠role␠member␠per␠AI␠host␠at␠a␠time;␠AI␠hosts␠in␠parallel": "One role member per AI host at a time; AI hosts in parallel",
   "Text.All␠role␠members␠sequentially": "All role members sequentially",
   "Text.All␠saved␠chats": "All saved chats",
   "Text.All␠selected␠council␠AIs": "All selected council AIs",

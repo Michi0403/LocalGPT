@@ -21,7 +21,7 @@ public sealed class CouncilTeamConfigurationService(
     IOrganicCouncilBlueprintSeedDataService seedData,
     ILogger<CouncilTeamConfigurationService> logger) : ICouncilTeamConfigurationService
 {
-    private const int CurrentSeedVersion = 17;
+    private const int CurrentSeedVersion = 18;
     private const int MaxRoles = 100;
     private const int MaxWorkflowSteps = 100;
     private const int MaxExpandedWorkflowSteps = 100;
@@ -29,6 +29,7 @@ public sealed class CouncilTeamConfigurationService(
     private readonly IReadOnlyList<string> SupportedExecutionModes =
     [
         "AllMembersParallel",
+        "AllMembersSequentialOnEachAIHostParallel",
         "AllMembersSequential",
         "LeaderSingle",
         "RoundRobinSingle",
@@ -310,7 +311,7 @@ public sealed class CouncilTeamConfigurationService(
                 step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, 20, 240);
                 step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, 8, 120);
                 step.WorldStepScale = Math.Clamp(step.WorldStepScale, 1, 1000);
-                if (step.ProducesAsciiFrame && step.ExecutionMode is "AllMembersParallel" or "AllMembersSequential")
+                if (step.ProducesAsciiFrame && step.ExecutionMode is "AllMembersParallel" or "AllMembersSequentialOnEachAIHostParallel" or "AllMembersSequential")
                     step.ExecutionMode = "LeaderSingle";
             }
             NormalizeLoopGroups(team.WorkflowSteps);
@@ -467,7 +468,7 @@ public sealed class CouncilTeamConfigurationService(
                 step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, 20, 240);
                 step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, 8, 120);
                 step.WorldStepScale = Math.Clamp(step.WorldStepScale, 1, 1000);
-                if (step.ProducesAsciiFrame && step.ExecutionMode is "AllMembersParallel" or "AllMembersSequential")
+                if (step.ProducesAsciiFrame && step.ExecutionMode is "AllMembersParallel" or "AllMembersSequentialOnEachAIHostParallel" or "AllMembersSequential")
                     throw new InvalidOperationException($"ASCII frame step '{step.DisplayName}' must use a single-member execution mode so one AI owns the complete frame.");
                 if (string.IsNullOrWhiteSpace(step.LoopGroup) && !string.IsNullOrWhiteSpace(step.LoopCompletionMarker))
                     throw new InvalidOperationException($"Workflow step '{step.DisplayName}' defines a loop completion marker without a loop group.");
@@ -715,9 +716,11 @@ public sealed class CouncilTeamConfigurationService(
     {
     try
     {
-            var candidate = string.IsNullOrWhiteSpace(value) ? "AllMembersParallel" : value.Trim();
+            var candidate = string.IsNullOrWhiteSpace(value) ? "AllMembersSequentialOnEachAIHostParallel" : value.Trim();
             if (candidate.Equals("AllMembers", StringComparison.OrdinalIgnoreCase) || candidate.Equals("Parallel", StringComparison.OrdinalIgnoreCase))
                 candidate = "AllMembersParallel";
+            else if (candidate.Equals("SequentialPerHost", StringComparison.OrdinalIgnoreCase) || candidate.Equals("HostSequential", StringComparison.OrdinalIgnoreCase))
+                candidate = "AllMembersSequentialOnEachAIHostParallel";
             else if (candidate.Equals("Sequential", StringComparison.OrdinalIgnoreCase))
                 candidate = "AllMembersSequential";
             else if (candidate.Equals("Single", StringComparison.OrdinalIgnoreCase))

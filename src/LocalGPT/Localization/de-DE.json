@@ -445,6 +445,7 @@
   "Text.Allow␠popups": "Pop-ups zulassen",
   "Text.allow␠trust␠reset": "allow trust reset",
   "Text.All␠role␠members␠in␠parallel": "Alle Rollenmitglieder parallel",
+  "Text.One␠role␠member␠per␠AI␠host␠at␠a␠time;␠AI␠hosts␠in␠parallel": "Je KI-Host ein Rollenmitglied nacheinander; KI-Hosts parallel",
   "Text.All␠role␠members␠sequentially": "Alle Rollenmitglieder nacheinander",
   "Text.All␠saved␠chats": "Alle gespeicherten Chats",
   "Text.All␠selected␠council␠AIs": "Alle ausgewählten KI-Rat-KIs",

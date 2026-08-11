@@ -24,6 +24,14 @@ Typical roles include:
 
 The Council spooler and preflight services prepare work, validate routes, and track steps. A model can propose a result, but deterministic application rules still decide whether a step is complete, failed, recoverable, or waiting for a human.
 
+### Choosing an execution mode
+
+For most multi-PC Councils, **one member per AI host with all hosts working in parallel** is the conservative default. In the team editor this is `AllMembersSequentialOnEachAIHostParallel`. It avoids loading several large models on one GPU at once while still using every connected AI PC.
+
+Choose `AllMembersParallel` when each host has enough VRAM/CPU capacity for multiple simultaneous model requests and set the lane limit accordingly. Choose `AllMembersSequential` only when the workflow really needs one global speaking order across every host.
+
+All modes keep the workflow phase barrier: the next round starts only after every member assigned to the current phase has completed, failed, or been explicitly skipped.
+
 ## Provider-qualified routing
 
 The visible address follows this shape:

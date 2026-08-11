@@ -135,8 +135,8 @@
 <li>paw/cat favicon and brand assets.</li>
 </ul>
 <h2 id="github-pages">GitHub Pages</h2>
-<p>The Pages workflow resolves a release tag, downloads release ZIPs, inspects each ZIP safely, and scores complete documentation candidates. It validates theme markers, hashes, index/API pages, status metadata, relative assets, and page counts before uploading one Pages artifact.</p>
-<p>Windows ZIP backslashes and UTF-8 BOMs are accepted. Setup archives that do not contain the full site are ignored.</p>
+<p>The repository keeps one pinned <code>.github/pages/localgpt-kawaii-docs.zip</code> snapshot. A successful Windows Debug or Release build now validates the exact <code>wwwroot/help-docs</code> tree produced by that build and refreshes the pinned ZIP automatically. The snapshot validator requires Python 3 and checks version agreement, theme markers, hashes, <code>index.html</code>, <code>api/index.html</code>, status metadata, relative links, accessibility, page counts, and the tagged PDF.</p>
+<p>The GitHub Pages workflow does not rebuild LocalGPT. It validates and extracts the committed, version-matched ZIP, verifies the root and API index again, and deploys that no-Jekyll static artifact. <code>Update-GitHubPagesSnapshot.cmd</code> remains available for an explicit refresh and selects only generated documentation whose <code>documentation-status.json</code> matches the current project version.</p>
 <h2 id="node-warnings">Node warnings</h2>
 <p>GitHub's official Pages and artifact actions may emit Node or dependency deprecation warnings. These warnings do not mean the static site runs Node. The deployed site is HTML, CSS, browser JavaScript, and assets. The workflow result and Pages deployment status determine success.</p>
 <h2 id="pdf">PDF</h2>
@@ -170,7 +170,7 @@
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.6.8 Â· generated documentation
         </div>
       </div>
     </footer>

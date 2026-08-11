@@ -1,5 +1,5 @@
 {
-  "source_base_path": "C:/Users/micha/AppData/Local/LocalGPT/src/LocalGPT/docs",
+  "source_base_path": "C:/Users/micha/AppData/Local/LocalGPT/src/docs",
   "xrefmap": "xrefmap.yml",
   "files": [
     {
@@ -12,10 +12,70 @@
     },
     {
       "type": "Resource",
-      "source_relative_path": "LocalGPT-2.3.7.pdf",
+      "source_relative_path": "LocalGPT-2.3.2.pdf",
       "output": {
         "resource": {
-          "relative_path": "LocalGPT-2.3.7.pdf"
+          "relative_path": "LocalGPT-2.3.2.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.3.3.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.3.3.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.3.4.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.3.4.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.3.5.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.3.5.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.3.6.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.3.6.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.5.0.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.5.0.pdf"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "LocalGPT-2.6.8.pdf",
+      "output": {
+        "resource": {
+          "relative_path": "LocalGPT-2.6.8.pdf"
         }
       },
       "version": ""
@@ -1422,6 +1482,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.CouncilTranscriptVisibilityMode.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.CouncilTranscriptVisibilityMode.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.CouncilTranscriptVisibilityMode",
+      "Summary": "<p sourcefile=\"api/LocalGPT.BusinessObjects.CouncilTranscriptVisibilityMode.yml\" sourcestartlinenumber=\"1\">Defines which prior Council output a configured workflow step may receive.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.BusinessObjects.CouncilUserPoll.yml",
       "output": {
         ".html": {
@@ -1670,6 +1744,34 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.BusinessObjects.DxAiFunctionParameterBinding<T>",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.DxAiFunctionTextRecoveryRequest.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.DxAiFunctionTextRecoveryRequest.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.DxAiFunctionTextRecoveryRequest",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.DxAiFunctionTextRecoveryResult.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.DxAiFunctionTextRecoveryResult.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.DxAiFunctionTextRecoveryResult",
       "Summary": null
     },
     {
@@ -2766,6 +2868,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.LocalGptDocumentationProfile",
+      "Summary": "<p sourcefile=\"api/LocalGPT.BusinessObjects.LocalGptDocumentationProfile.yml\" sourcestartlinenumber=\"1\">Describes the documentation routes and availability exposed to local controllers and 1-Wire peers.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.BusinessObjects.LocalGptDocumentationStatus.yml",
       "output": {
         ".html": {
@@ -2777,6 +2893,48 @@
       "IsMRef": true,
       "Title": "LocalGPT.BusinessObjects.LocalGptDocumentationStatus",
       "Summary": "<p sourcefile=\"api/LocalGPT.BusinessObjects.LocalGptDocumentationStatus.yml\" sourcestartlinenumber=\"1\">Describes the generated LocalGPT documentation artifacts available to the running application.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest",
+      "Summary": "<p sourcefile=\"api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerRequest.yml\" sourcestartlinenumber=\"1\">Describes one safe same-origin documentation view requested by the LocalGPT frontend.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.LocalGptDocumentationViewerState",
+      "Summary": "<p sourcefile=\"api/LocalGPT.BusinessObjects.LocalGptDocumentationViewerState.yml\" sourcestartlinenumber=\"1\">Represents the scoped in-application documentation viewer state for one Blazor circuit.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.LocalGptHostOptions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.LocalGptHostOptions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.LocalGptHostOptions",
+      "Summary": "<p sourcefile=\"api/LocalGPT.BusinessObjects.LocalGptHostOptions.yml\" sourcestartlinenumber=\"1\">Application-host settings. The loopback endpoint remains authoritative while RemoteEndpoint adds optional LAN/VPN access.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -3116,6 +3274,48 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.LocalPathBrowseRequest.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.LocalPathBrowseRequest.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.LocalPathBrowseRequest",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.LocalPathBrowseResult.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.LocalPathBrowseResult.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.LocalPathBrowseResult",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.LocalPathEntry.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.LocalPathEntry.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.LocalPathEntry",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.BusinessObjects.LocalVisionOcrRequest.yml",
       "output": {
         ".html": {
@@ -3420,6 +3620,62 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.BusinessObjects.NativeCommandOptions",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.NetworkCertificateCreateRequest.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.NetworkCertificateCreateRequest.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.NetworkCertificateCreateRequest",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.NetworkCertificateCreateResult.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.NetworkCertificateCreateResult.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.NetworkCertificateCreateResult",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.NetworkCertificateHash.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.NetworkCertificateHash.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.NetworkCertificateHash",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.NetworkCertificateKeySize.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.NetworkCertificateKeySize.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.NetworkCertificateKeySize",
       "Summary": null
     },
     {
@@ -3771,6 +4027,34 @@
       "IsMRef": true,
       "Title": "LocalGPT.BusinessObjects.OneWirePendingCouncilRequest",
       "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.OneWireProtocolProfile.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.OneWireProtocolProfile.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.OneWireProtocolProfile",
+      "Summary": "<p sourcefile=\"api/LocalGPT.BusinessObjects.OneWireProtocolProfile.yml\" sourcestartlinenumber=\"1\">Describes the active LocalGPT 1-Wire surface and safe runtime settings for local and linked frontends.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.OneWirePublicSettings.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.OneWirePublicSettings.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.OneWirePublicSettings",
+      "Summary": "<p sourcefile=\"api/LocalGPT.BusinessObjects.OneWirePublicSettings.yml\" sourcestartlinenumber=\"1\">Safe LocalGPT 1-Wire settings shown to users and linked clients.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -4474,6 +4758,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.RecoveredDxAiFunctionCall.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.RecoveredDxAiFunctionCall.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.RecoveredDxAiFunctionCall",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.BusinessObjects.RegexPattern.yml",
       "output": {
         ".html": {
@@ -4569,6 +4867,20 @@
       "IsMRef": true,
       "Title": "LocalGPT.BusinessObjects.RemoteKnowledgeImportResult",
       "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.BusinessObjects.RemoteWebEndpointOptions",
+      "Summary": "<p sourcefile=\"api/LocalGPT.BusinessObjects.RemoteWebEndpointOptions.yml\" sourcestartlinenumber=\"1\">Optional second Kestrel endpoint for LAN/VPN/browser access. The historical loopback endpoint remains authoritative.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -5748,6 +6060,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.BoundedNumberEditor.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.BoundedNumberEditor.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.BoundedNumberEditor",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Components.Shared.ChatGameConsole.yml",
       "output": {
         ".html": {
@@ -5762,6 +6088,34 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.ConfigurationWorkbenchNav.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.ConfigurationWorkbenchNav",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.ConfigurationWorkbenchPanel.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.ConfigurationWorkbenchPanel",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Components.Shared.CouncilHardwareRoadEditor.yml",
       "output": {
         ".html": {
@@ -5772,6 +6126,34 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.Components.Shared.CouncilHardwareRoadEditor",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.DocumentationViewerHost.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.DocumentationViewerHost.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.DocumentationViewerHost",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.LocalPathExplorer.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.LocalPathExplorer.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.LocalPathExplorer",
       "Summary": null
     },
     {
@@ -5800,6 +6182,34 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.Components.Shared.ProviderModelPanel",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.WorkbenchHeader.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.WorkbenchHeader.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.WorkbenchHeader",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Components.Shared.WorkbenchNavItem.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Components.Shared.WorkbenchNavItem.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Components.Shared.WorkbenchNavItem",
       "Summary": null
     },
     {
@@ -6066,6 +6476,20 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.Controller.LocalGptProjectsController",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Controller.LocalPathExplorerController.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Controller.LocalPathExplorerController.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Controller.LocalPathExplorerController",
       "Summary": null
     },
     {
@@ -6445,6 +6869,20 @@
       "IsMRef": true,
       "Title": "LocalGPT.Interfaces.IAiFeatureReportService",
       "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Interfaces.IAiProviderConfigurationRegistryService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Interfaces.IAiProviderConfigurationRegistryService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Interfaces.IAiProviderConfigurationRegistryService",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Interfaces.IAiProviderConfigurationRegistryService.yml\" sourcestartlinenumber=\"1\">Owns detached editing and durable merge semantics for configured AI provider hosts.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -7106,6 +7544,34 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Interfaces.IDocumentationViewerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Interfaces.IDocumentationViewerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Interfaces.IDocumentationViewerService",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Interfaces.IDocumentationViewerService.yml\" sourcestartlinenumber=\"1\">Coordinates accessible in-application documentation viewing for one LocalGPT circuit.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Interfaces.IDxAiFunctionCallRecoveryService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Interfaces.IDxAiFunctionCallRecoveryService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Interfaces.IDxAiFunctionCallRecoveryService",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Interfaces.IDxAiFunctionCatalogService.yml",
       "output": {
         ".html": {
@@ -7484,6 +7950,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Interfaces.ILocalPathExplorerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Interfaces.ILocalPathExplorerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Interfaces.ILocalPathExplorerService",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Interfaces.ILocalVisionOcrService.yml",
       "output": {
         ".html": {
@@ -7564,6 +8044,20 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.Interfaces.INativeCommandRunner",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Interfaces.INetworkCertificateService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Interfaces.INetworkCertificateService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Interfaces.INetworkCertificateService",
       "Summary": null
     },
     {
@@ -7998,6 +8492,34 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.Interfaces.IPublisherInteractionDxSupport",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Interfaces.IRegexFunctionParameterService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Interfaces.IRegexFunctionParameterService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Interfaces.IRegexFunctionParameterService",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Interfaces.IRegexPatternService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Interfaces.IRegexPatternService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Interfaces.IRegexPatternService",
       "Summary": null
     },
     {
@@ -8716,6 +9238,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.AiProviderConfigurationRegistryService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.AiProviderConfigurationRegistryService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.AiProviderConfigurationRegistryService",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.AiProviderConfigurationRegistryService.yml\" sourcestartlinenumber=\"1\">Keeps provider editing transactional. Installer edits operate on detached copies and a normal save is additive for Ollama hosts; an existing endpoint is removed only through an explicit remove action.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Services.AmbientLocalGptContext.yml",
       "output": {
         ".html": {
@@ -8782,6 +9318,20 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.Services.AssessProjectWorkspaceEnvironmentFunction",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.BrowseLocalPathFunction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.BrowseLocalPathFunction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.BrowseLocalPathFunction",
       "Summary": null
     },
     {
@@ -9427,6 +9977,34 @@
       "IsMRef": true,
       "Title": "LocalGPT.Services.DocumentationTranslationAdapter",
       "Summary": "<p sourcefile=\"api/LocalGPT.Services.DocumentationTranslationAdapter.yml\" sourcestartlinenumber=\"1\">Bridges compiler-generated XML comments to the existing LocalGPT localization service without changing that service's contract.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.DocumentationViewerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.DocumentationViewerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.DocumentationViewerService",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.DocumentationViewerService.yml\" sourcestartlinenumber=\"1\">Coordinates one focus-managed same-origin documentation modal per Blazor circuit.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.DxAiFunctionCallRecoveryService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.DxAiFunctionCallRecoveryService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.DxAiFunctionCallRecoveryService",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.DxAiFunctionCallRecoveryService.yml\" sourcestartlinenumber=\"1\">Recovers structured DX function calls emitted as assistant text by provider runtimes that do not populate their native tool-call field. Function names are resolved exclusively against the live DI-backed registry; this service never invents or hardcodes callable operations.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -10172,6 +10750,20 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ListChatUploadWorkspaceFilesFunction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ListChatUploadWorkspaceFilesFunction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ListChatUploadWorkspaceFilesFunction",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.ListChatUploadWorkspaceFilesFunction.yml\" sourcestartlinenumber=\"1\">Lists the bounded contents of a DXAiChat native paperclip workspace.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Services.ListCodeGenerationReviewsFunction.yml",
       "output": {
         ".html": {
@@ -10225,6 +10817,34 @@
       "IsMRef": true,
       "Title": "LocalGPT.Services.ListLocalGptProjectsFunction",
       "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ListLocalPathRootsFunction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ListLocalPathRootsFunction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ListLocalPathRootsFunction",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ListProjectWorkspaceFilesFunction",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.ListProjectWorkspaceFilesFunction.yml\" sourcestartlinenumber=\"1\">Lists readable source/text files inside the project currently linked to /chat.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -10308,6 +10928,20 @@
       "Uid": null,
       "IsMRef": true,
       "Title": "LocalGPT.Services.LocalGptRequestFactoryService",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.LocalPathExplorerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.LocalPathExplorerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.LocalPathExplorerService",
       "Summary": null
     },
     {
@@ -10449,6 +11083,20 @@
       "IsMRef": true,
       "Title": "LocalGPT.Services.NavigationUrlService",
       "Summary": "<p sourcefile=\"api/LocalGPT.Services.NavigationUrlService.yml\" sourcestartlinenumber=\"1\">Preserves the shell sidebar state while creating application-relative navigation URLs.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.NetworkCertificateService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.NetworkCertificateService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.NetworkCertificateService",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.NetworkCertificateService.yml\" sourcestartlinenumber=\"1\">Creates explicit user-requested self-signed PFX certificates for the optional LocalGPT LAN/VPN Kestrel endpoint.</p>\n"
     },
     {
       "type": "ManagedReference",
@@ -11320,6 +11968,34 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ProjectWorkspaceListParameters.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ProjectWorkspaceListParameters.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ProjectWorkspaceListParameters",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ProjectWorkspaceReadParameters.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ProjectWorkspaceReadParameters.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ProjectWorkspaceReadParameters",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Services.PromptConfigService.yml",
       "output": {
         ".html": {
@@ -11404,6 +12080,34 @@
     },
     {
       "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ReadChatUploadWorkspaceContextFunction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ReadChatUploadWorkspaceContextFunction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ReadChatUploadWorkspaceContextFunction",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.ReadChatUploadWorkspaceContextFunction.yml\" sourcestartlinenumber=\"1\">Reads the bounded LocalGPT-generated Markdown context for one upload workspace.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ReadChatUploadWorkspaceFileFunction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ReadChatUploadWorkspaceFileFunction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ReadChatUploadWorkspaceFileFunction",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.ReadChatUploadWorkspaceFileFunction.yml\" sourcestartlinenumber=\"1\">Reads one bounded file from a DXAiChat native paperclip workspace.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
       "source_relative_path": "api/LocalGPT.Services.ReadExactSqliteTableFunction.yml",
       "output": {
         ".html": {
@@ -11415,6 +12119,20 @@
       "IsMRef": true,
       "Title": "LocalGPT.Services.ReadExactSqliteTableFunction",
       "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "LocalGPT.Services.ReadProjectWorkspaceFileFunction",
+      "Summary": "<p sourcefile=\"api/LocalGPT.Services.ReadProjectWorkspaceFileFunction.yml\" sourcestartlinenumber=\"1\">Reads one harmless source/text file from the project linked to /chat.</p>\n"
     },
     {
       "type": "ManagedReference",

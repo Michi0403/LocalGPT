@@ -125,7 +125,7 @@
 
   <h1 id="LocalGPT_BusinessObjects_MultiModelCouncilRequest" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilRequest" class="text-break">
 Class MultiModelCouncilRequest  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.BusinessObjects.html">BusinessObjects</a></dd></dl>
@@ -218,7 +218,7 @@ Class MultiModelCouncilRequest
 
 
   </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--properties" data-member-kind="Properties" style="--localgpt-api-accent:#06b6d4;" role="region" aria-labelledby="properties"><h2 class="section" id="properties"><span class="localgpt-api-member-icon" aria-hidden="true">&#x1F43E;</span>Properties
-<span class="localgpt-api-member-count" aria-label="36 items">36</span></h2><div class="localgpt-api-member-panel-body">
+<span class="localgpt-api-member-count" aria-label="37 items">37</span></h2><div class="localgpt-api-member-panel-body">
 
 
   <a id="LocalGPT_BusinessObjects_MultiModelCouncilRequest_AllowParallelHardwareRoads_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilRequest.AllowParallelHardwareRoads*"></a>
@@ -569,7 +569,8 @@ Class MultiModelCouncilRequest
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Maximum concurrently executing model requests per participating AI host/PC. Each logical Council phase still waits for all assigned members before advancing.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -1218,6 +1219,38 @@ public Action&lt;string&gt;? StreamUpdate { get; set; }</code></pre>
 
 
 
+  <a id="LocalGPT_BusinessObjects_MultiModelCouncilRequest_UnavailableModelSelections_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilRequest.UnavailableModelSelections*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilRequest_UnavailableModelSelections" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilRequest.UnavailableModelSelections">
+  UnavailableModelSelections
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Exact saved provider routes that the current Chat UI cannot match to a configured/discovered candidate.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public List&lt;string&gt; UnavailableModelSelections { get; set; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
   <a id="LocalGPT_BusinessObjects_MultiModelCouncilRequest_UseChangeReviewWorkflow_" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilRequest.UseChangeReviewWorkflow*"></a>
 
   </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_MultiModelCouncilRequest_UseChangeReviewWorkflow" data-uid="LocalGPT.BusinessObjects.MultiModelCouncilRequest.UseChangeReviewWorkflow">
@@ -1359,7 +1392,7 @@ public Action&lt;string&gt;? StreamUpdate { get; set; }</code></pre>
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.6.8 Â· generated documentation
         </div>
       </div>
     </footer>

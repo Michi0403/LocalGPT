@@ -205,7 +205,7 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets the literal prompt template.</summary>
     public string PromptTemplate { get; set; } = string.Empty;
     /// <summary>Gets or sets the supported execution-mode name.</summary>
-    public string ExecutionMode { get; set; } = "AllMembersParallel";
+    public string ExecutionMode { get; set; } = "AllMembersSequentialOnEachAIHostParallel";
     /// <summary>Gets or sets the exact provider-qualified model used by assigned-model execution.</summary>
     public string AssignedModelName { get; set; } = string.Empty;
     /// <summary>Gets or sets the logical one-based Council round. Zero keeps automatic sequential round numbering.</summary>

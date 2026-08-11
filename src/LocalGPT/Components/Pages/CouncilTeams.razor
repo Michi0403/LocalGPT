@@ -422,6 +422,7 @@
     private readonly IReadOnlyList<(string Value, string Label)> ExecutionModes =
     [
         ("AllMembersParallel", "All role members in parallel"),
+        ("AllMembersSequentialOnEachAIHostParallel", "One role member per AI host at a time; AI hosts in parallel"),
         ("AllMembersSequential", "All role members sequentially"),
         ("LeaderSingle", "Council leader or one role member"),
         ("RoundRobinSingle", "One rotating role member"),
@@ -665,7 +666,7 @@
         SortOrder = (index + 1) * 10,
         Phase = "Discussion",
         Role = "Participant",
-        ExecutionMode = "AllMembersParallel",
+        ExecutionMode = "AllMembersSequentialOnEachAIHostParallel",
         RepeatCount = 1,
         MaximumLoopIterations = 1,
         IncludePriorTranscript = true,

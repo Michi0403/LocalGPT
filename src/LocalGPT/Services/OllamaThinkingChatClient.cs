@@ -482,21 +482,21 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 return;
 
             var functionDirectory = string.Join(
-                Environment.NewLine,
-                functions.Select(function => $"- {function.Name}: {function.Parameters}"));
+           Environment.NewLine,
+           functions.Select(function => $"- {function.Name}: {function.Parameters}"));
             request.Messages.Insert(0, new OllamaChatMessage
             {
                 Role = "system",
-                Content = $"""
-                {marker}
-                This exact provider-qualified Ollama model does not accept native tool metadata. LocalGPT still supports policy-checked DXFunctions through textual call recovery.
-                If a function is genuinely needed, emit one standalone JSON object with exactly this shape and no invented function name:
-                {{"functionName":"exact.registry.name","arguments":{{}}}}
-                LocalGPT will validate the exact registry name, apply normal automatic/deferred approval policy, execute it when permitted, display the tool activity, return the tool result, and then continue your response.
-                Do not guess a function name. If the capability you want is not in the directory below, report it as a requested capability instead of pretending it exists.
-                Exact automatic/deferred function directory for this request:
-                {functionDirectory}
-                """
+                Content = $$$"""
+                    {{{marker}}}
+                    This exact provider-qualified Ollama model does not accept native tool metadata. LocalGPT still supports policy-checked DXFunctions through textual call recovery.
+                    If a function is genuinely needed, emit one standalone JSON object with exactly this shape and no invented function name:
+                    {"functionName":"exact.registry.name","arguments":{}}
+                    LocalGPT will validate the exact registry name, apply normal automatic/deferred approval policy, execute it when permitted, display the tool activity, return the tool result, and then continue your response.
+                    Do not guess a function name. If the capability you want is not in the directory below, report it as a requested capability instead of pretending it exists.
+                    Exact automatic/deferred function directory for this request:
+                    {{{functionDirectory}}}
+                    """
             });
             logger.LogInformation(
                 "Attached textual DXFunction fallback instructions with {FunctionCount} exact registry name(s) for Ollama model {Model} because native tool metadata is unavailable.",

@@ -56,7 +56,7 @@ public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCounci
             WorkflowSteps =
             [
                 new() { Key = "general-discussion", DisplayName = "General discussion", SortOrder = 10, Phase = "Discussion", Role = "Council participant", ExecutionMode = "AllMembersParallel", LogicalRoundNumber = 1, TranscriptVisibility = CouncilTranscriptVisibilityMode.None, IncludePriorTranscript = false, PromptTemplate = "Answer the user's actual request as {{Role}}. Stay on the requested subject. Do not turn an ordinary or creative request into a coding, project, compiler or artifact workflow unless the user asked for that.\n\nUser request:\n{{UserPrompt}}" },
-                new() { Key = "general-review", DisplayName = "Peer review", SortOrder = 20, Phase = "Review", Role = "Peer reviewer", ExecutionMode = "AllMembersSequential", LogicalRoundNumber = 2, TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil, IncludePriorTranscript = true, PromptTemplate = "Review the Council discussion for factual conflicts, missing information and useful disagreement. Preserve the user's goal and do not introduce unrelated implementation work.\n\nUser request:\n{{UserPrompt}}\n\nCouncil discussion:\n{{Transcript}}" },
+                new() { Key = "general-review", DisplayName = "Peer review", SortOrder = 20, Phase = "Review", Role = "Peer reviewer", ExecutionMode = "AllMembersSequentialOnEachAIHostParallel", LogicalRoundNumber = 2, TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil, IncludePriorTranscript = true, PromptTemplate = "Review the Council discussion for factual conflicts, missing information and useful disagreement. Preserve the user's goal and do not introduce unrelated implementation work.\n\nUser request:\n{{UserPrompt}}\n\nCouncil discussion:\n{{Transcript}}" },
                 new() { Key = "general-consensus", DisplayName = "Consensus", SortOrder = 30, Phase = "Consensus", Role = "Consensus writer", ExecutionMode = "LeaderSingle", LogicalRoundNumber = 3, TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil, IncludePriorTranscript = true, ProducesFinalAnswer = true, PromptTemplate = "Produce the concise final Council answer to the user from the discussion and review. Resolve disagreements when evidence permits and state uncertainty when it does not. Do not add a software-project workflow unless requested.\n\nUser request:\n{{UserPrompt}}\n\nCouncil transcript:\n{{Transcript}}" }
             ],
             ArchitectureContracts = DefaultArchitectureContracts()
@@ -262,7 +262,7 @@ If a current human message clearly supplies a name, style or command for your pa
 All runtime pairings:
 {{RolePairings}}
 """,
-                    ExecutionMode = "AllMembersSequential",
+                    ExecutionMode = "AllMembersSequentialOnEachAIHostParallel",
                     RepeatCount = 1,
                     IncludePriorTranscript = true,
                     ProducesFinalAnswer = false,
@@ -312,7 +312,7 @@ All runtime pairings:
 
 This is battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the judge's latest bracket, scoreboard and ruling. If your pair is in the current legal match and can continue, issue exactly one short tactical command for your paired creature. A current human cue aimed at your pair is optional guidance and takes priority over your own choice; when none exists, choose autonomously and keep the tournament moving. Never ask the user to choose a command, narrate the creature's completed action, assign damage or HP, decide the result, control another pair or request a tool/function call. If your pair is waiting, eliminated or already champion, give one brief sportsmanlike spectator response.
 """,
-                    ExecutionMode = "AllMembersSequential",
+                    ExecutionMode = "AllMembersSequentialOnEachAIHostParallel",
                     RepeatCount = 1,
                     IncludePriorTranscript = true,
                     ProducesFinalAnswer = false,
@@ -337,7 +337,7 @@ This is battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read
 
 This is battle loop {{LoopIteration}} of at most {{LoopMaximumIterations}}. Read the judge's latest bracket and scoreboard plus your paired trainer's latest command, then perform exactly one fair bounded fictional action only when your pair is in the current legal match. State the attempted move, tactical intent and built-in limitation. React like an engaged improvisation player while remaining inside your own creature role. Do not assign damage, HP, status, elimination, victory or the opponent's response; those decisions belong only to the judge after all active creatures have acted. Never request tools/functions or describe gore, cruelty, permanent injury or death. If you are waiting, fainted, eliminated or outside the active match, provide one brief respectful spectator reaction instead of attacking.
 """,
-                    ExecutionMode = "AllMembersSequential",
+                    ExecutionMode = "AllMembersSequentialOnEachAIHostParallel",
                     RepeatCount = 1,
                     IncludePriorTranscript = true,
                     ProducesFinalAnswer = false,
@@ -995,7 +995,7 @@ Inspect the installed-model and hardware evidence. Select only models the user e
 """, "LeaderSingle"),
             Step("benchmark-task-design", "Deterministic task design", 20, "Task design", "Task Curator", """
 Create a compact task matrix covering at least one architecture/code task and one structured reasoning task. Every task needs a checkable acceptance shape and must fit the configured low-risk benchmark budget. Do not include secrets, repositories outside the approved workspace or destructive commands.
-""", "AllMembersSequential"),
+""", "AllMembersSequentialOnEachAIHostParallel"),
             Step("benchmark-execution", "Run installed-model benchmark", 30, "Execution", "Benchmark Director", """
 Use localgpt.models.benchmark.autotune with the exact installed candidate set and reviewed limits. This is the only benchmark execution step. Preserve generated-text privacy in logs and do not save a preset unless the current user explicitly requested it.
 """, "LeaderSingle", canUseOrganicFunctions: true),
@@ -1004,7 +1004,7 @@ Review the returned bounded results independently. Compare correctness, complete
 """, "AllMembersParallel"),
             Step("benchmark-performance", "Performance analysis", 50, "Review", "Performance Analyst", """
 Compare first-token/total latency, throughput, timeout behavior, context/output limits and hardware roads. Penalize incomplete or invalid output even when it is fast. Separate measured facts from inferred hardware explanations.
-""", "AllMembersSequential"),
+""", "AllMembersSequentialOnEachAIHostParallel"),
             Step("benchmark-preset", "Preset recommendation", 60, "Synthesis", "Preset Synthesizer", """
 Synthesize one recommended model/preset configuration plus alternatives for low-latency games and higher-value development. State the evidence and unresolved uncertainty. Existing presets must remain untouched; any new preset save remains a separate user-confirmed action.
 """, "LeaderSingle", producesFinalAnswer: true)
@@ -1055,7 +1055,7 @@ Synthesize one recommended model/preset configuration plus alternatives for low-
         [
             Step("game-intent", "Collect controller intent", 10, "Intent", "Player Controller", "Propose exactly one bounded player action for the current turn. Do not move actors or mutate map state directly.", "LeaderSingle"),
             Step("game-creature-prediction", "Predict creature intents", 20, "Prediction", "Creature Subdirector", "Use creature runtime classes and the latest canonical state to propose bounded intents for each active creature. Do not assign final positions, hits or damage.", "AllMembersParallel"),
-            Step("game-object-reactions", "Predict reactive objects", 30, "Prediction", "Reactive Object Subdirector", "Evaluate doors, switches, hazards, pickups and triggers as factory-created runtime objects. Propose reactions only; do not commit them.", "AllMembersSequential"),
+            Step("game-object-reactions", "Predict reactive objects", 30, "Prediction", "Reactive Object Subdirector", "Evaluate doors, switches, hazards, pickups and triggers as factory-created runtime objects. Propose reactions only; do not commit them.", "AllMembersSequentialOnEachAIHostParallel"),
             Step("game-director-commit", "Validate and commit turn", 40, "Authority", "GameDirector", "Validate every proposal against turn ID, rules, collisions, cooldowns and canonical state. Commit one authoritative next state or explain each rejection. The model is an adviser; deterministic engine rules win.", "LeaderSingle"),
             Step("game-state-verification", "Verify state and frame", 50, "Verification", "Runtime Verifier", "Verify the committed state hash, actor/object identities and frame continuity. Reject stale or contradictory output before the next turn.", "LeaderSingle", producesFinalAnswer: true)
         ],
@@ -1266,7 +1266,7 @@ Inspect the selected project/revision and workspace. Map expected files ({string
             Step("development-architecture", "Current-to-target architecture", 20, "Planning", architectRole, $"""
 Produce a concise current-to-target host and project plan. {architectureInstruction} Identify controllers, DXFunctions, service interfaces, adapters/decorators, persistence boundaries, configuration, logs, tests and versioned documentation. Preserve user-edited contracts.
 """, "LeaderSingle"),
-            Step("development-implementation", "Bounded implementation proposals", 30, "Implementation", implementationRole, "Propose or generate only the approved milestone. Keep each file attributable to the project/revision, follow the selected regex/file policy, add XML/API documentation and do not smuggle execution into generation.", "AllMembersSequential"),
+            Step("development-implementation", "Bounded implementation proposals", 30, "Implementation", implementationRole, "Propose or generate only the approved milestone. Keep each file attributable to the project/revision, follow the selected regex/file policy, add XML/API documentation and do not smuggle execution into generation.", "AllMembersSequentialOnEachAIHostParallel"),
             Step("development-policy-audit", "Regex and architecture policy audit", 40, "Policy", regexRole, "Run the maintained regex tests and repository policy reasoning against the proposed files. Report exact paths and first violations. Generic reusable rules are preferred over product-specific exceptions.", "AllMembersParallel", canUseOrganicFunctions: true),
             Step("development-build", "Build and test evidence", 50, "Verification", buildRole, $"""
 {buildInstruction} Separate restore, compile, test and packaging failures. Report the first root error and treat later errors as possible cascades. Never claim success without current output.

@@ -21,6 +21,19 @@ A Council request is decomposed into explicit workflow steps. The runtime owns:
 
 The spooler represents queued/running work. Runtime classes describe reusable behavior or game actors, but they do not bypass the workflow service.
 
+### Workflow execution modes
+
+Council workflow steps can choose how role members consume the available AI hardware:
+
+- `AllMembersParallel` allows up to the configured model-lane limit on each participating AI host. Separate hosts remain independent compute boundaries.
+- `AllMembersSequentialOnEachAIHostParallel` is the default for newly created workflow steps. It creates one deterministic queue per AI host, runs exactly one member at a time inside each queue, and lets the host queues advance concurrently. The phase barrier still waits for every assigned member before the next workflow step starts.
+- `AllMembersSequential` is the strict global chain. Only one member runs at a time across every host and later members may observe the earlier completed step output.
+- single-member modes (`LeaderSingle`, `RoundRobinSingle`, `AssignedModelSingle`) select one exact participant according to the saved workflow contract.
+
+The per-host sequential mode intentionally gives every member the transcript that existed when the phase began. It does not merge race-dependent output from another host into an in-flight peer prompt. Use strict global sequential execution when each member must review the immediately preceding member.
+
+`AllowParallelHardwareRoads` controls additional CPU/GPU-road concurrency inside an AI host; it no longer collapses different physical/provider hosts into one global runtime lane.
+
 ## Deterministic completion
 
 Models are probabilistic; step completion is not. The application evaluates whether a response contains substantive final content, whether required outputs exist, and whether a bounded recovery is allowed.
