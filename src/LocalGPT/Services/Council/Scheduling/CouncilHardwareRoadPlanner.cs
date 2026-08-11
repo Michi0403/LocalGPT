@@ -3,10 +3,16 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Council.Scheduling;
 
+/// <summary>
+/// Represents a council hardware road planner.
+/// </summary>
 public sealed class CouncilHardwareRoadPlanner(
     ICouncilHardwareRoadConfigurationService configuration,
     ILogger<CouncilHardwareRoadPlanner> logger) : ICouncilHardwareRoadPlanner
 {
+    /// <summary>
+    /// Builds plans.
+    /// </summary>
     public IReadOnlyDictionary<string, CouncilHardwareRoadPlan> BuildPlans(
         IReadOnlyCollection<OneWireCouncilModelRoute>? configuredRoutes,
         IReadOnlyCollection<string> participants,

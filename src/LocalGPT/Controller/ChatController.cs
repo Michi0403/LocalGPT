@@ -5,9 +5,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller
 {
+    /// <summary>
+    /// Provides chat controller operations.
+    /// </summary>
     public class ChatController(IRegexPatternService regexSvc, ILogger<ChatController> logger) : ControllerBase
     {
         // New service-based implementation
+        /// <summary>
+        /// Gets help message.
+        /// </summary>
         [HttpGet("help-message")]
         public async Task<IActionResult> GetHelpMessage()
         {

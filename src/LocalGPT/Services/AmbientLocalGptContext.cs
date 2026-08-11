@@ -3,19 +3,34 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents an ambient local gpt context.
+/// </summary>
 public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary,
     ILogger<AmbientLocalGptContext> logger)
     : IAmbientLocalGptContext, ILocalHumanInteractionContext, IHumanApprovalExecutionContext
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly AsyncLocal<AmbientLocalGptContextHolder?> CurrentHolder = new();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly AmbientLocalGptContextSnapshot Fallback = new(
         "ambient-unset",
         vocabulary.Get().ActorSystem,
         "LocalGPT",
         Source: "AmbientFallback");
 
+    /// <summary>
+    /// Gets or sets current.
+    /// </summary>
     public AmbientLocalGptContextSnapshot Current => CurrentHolder.Value?.Snapshot ?? Fallback;
 
+    /// <summary>
+    /// Runs the push operation.
+    /// </summary>
     private IDisposable Push(AmbientLocalGptContextSnapshot snapshot)
     {
     try
@@ -47,6 +62,9 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
     }
 }
 
+    /// <summary>
+    /// Runs the push system operation.
+    /// </summary>
     public IDisposable PushSystem(string source, string? correlationId = null) {
     try
     {
@@ -66,6 +84,9 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
     }
 }
 
+    /// <summary>
+    /// Runs the push human interaction operation.
+    /// </summary>
     public IDisposable PushHumanInteraction(
         Guid humanProfileId,
         string displayName,
@@ -97,6 +118,9 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
     }
 }
 
+    /// <summary>
+    /// Runs the push human approval operation.
+    /// </summary>
     public IDisposable PushHumanApproval(
         Guid humanProfileId,
         string displayName,
@@ -130,6 +154,9 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
     }
 }
 
+    /// <summary>
+    /// Runs the push council operation.
+    /// </summary>
     public IDisposable PushCouncil(
         Guid councilRunId,
         int councilRound,
@@ -156,6 +183,9 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
     }
 }
 
+    /// <summary>
+    /// Normalizes correlation identifier.
+    /// </summary>
     private string NormalizeCorrelationId(string? value) {
     try
     {
@@ -171,6 +201,9 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
     }
 }
 
+    /// <summary>
+    /// Runs the normalize operation.
+    /// </summary>
     private string Normalize(string? value, int maxLength, string fallback = "")
     {
     try

@@ -11,6 +11,9 @@ public sealed class LocalGptCircuitDiagnosticsHandler(
     ILogger<LocalGptCircuitDiagnosticsHandler> logger,
     IComponentActivityService componentActivity) : CircuitHandler
 {
+    /// <summary>
+    /// Runs the on circuit opened async operation.
+    /// </summary>
     public override Task OnCircuitOpenedAsync(Circuit circuit, CancellationToken cancellationToken)
     {
         logger.LogInformation("Blazor circuit {CircuitId} opened.", circuit.Id);
@@ -18,6 +21,9 @@ public sealed class LocalGptCircuitDiagnosticsHandler(
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Runs the on connection up async operation.
+    /// </summary>
     public override Task OnConnectionUpAsync(Circuit circuit, CancellationToken cancellationToken)
     {
         logger.LogInformation("Blazor circuit {CircuitId} connection is up.", circuit.Id);
@@ -25,6 +31,9 @@ public sealed class LocalGptCircuitDiagnosticsHandler(
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Runs the on connection down async operation.
+    /// </summary>
     public override Task OnConnectionDownAsync(Circuit circuit, CancellationToken cancellationToken)
     {
         logger.LogWarning("Blazor circuit {CircuitId} connection went down.", circuit.Id);
@@ -32,6 +41,9 @@ public sealed class LocalGptCircuitDiagnosticsHandler(
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Runs the on circuit closed async operation.
+    /// </summary>
     public override Task OnCircuitClosedAsync(Circuit circuit, CancellationToken cancellationToken)
     {
         logger.LogInformation("Blazor circuit {CircuitId} closed.", circuit.Id);

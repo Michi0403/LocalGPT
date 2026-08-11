@@ -14,6 +14,9 @@ public sealed class LoggingConfigurationService(
     IConfiguration configuration,
     ILogger logger)
 {
+    /// <summary>
+    /// Runs the configure operation.
+    /// </summary>
     public void Configure(ILoggingBuilder loggingBuilder)
     {
         ArgumentNullException.ThrowIfNull(loggingBuilder);
@@ -48,6 +51,9 @@ public sealed class LoggingConfigurationService(
         }
     }
 
+    /// <summary>
+    /// Adds email logger if configured.
+    /// </summary>
     private void AddEmailLoggerIfConfigured(LoggingCoreOptions loggingOptions)
     {
         try
@@ -64,6 +70,9 @@ public sealed class LoggingConfigurationService(
             }
 
             services.AddSingleton<ILoggerProvider>(provider =>
+                /// <summary>
+                /// Runs the email logger provider operation.
+                /// </summary>
                 new EmailLoggerProvider(provider.GetRequiredService<IOptionsMonitor<EmailLoggerCoreOptions>>()));
             logger.LogInformation("Registered the optional email logger provider.");
         }
@@ -73,6 +82,9 @@ public sealed class LoggingConfigurationService(
         }
     }
 
+    /// <summary>
+    /// Adds file logger if configured.
+    /// </summary>
     private void AddFileLoggerIfConfigured(LoggingCoreOptions loggingOptions)
     {
         try
@@ -85,6 +97,9 @@ public sealed class LoggingConfigurationService(
                 return;
 
             services.AddSingleton<ILoggerProvider>(provider =>
+                /// <summary>
+                /// Runs the file logger provider operation.
+                /// </summary>
                 new FileLoggerProvider(provider.GetRequiredService<IOptionsMonitor<FileLoggerCoreOptions>>()));
             logger.LogInformation("Registered the optional file logger provider.");
         }
@@ -94,6 +109,9 @@ public sealed class LoggingConfigurationService(
         }
     }
 
+    /// <summary>
+    /// Adds database logger if configured.
+    /// </summary>
     private void AddDatabaseLoggerIfConfigured(ILoggingBuilder loggingBuilder, LoggingCoreOptions loggingOptions)
     {
         try

@@ -15,6 +15,9 @@ namespace WebView2_WinUI3_Sample
     {
         private readonly string _baseUrl;
 
+        /// <summary>
+        /// Runs the main window operation.
+        /// </summary>
         public MainWindow(string baseUrl)
         {
             InitializeComponent();
@@ -33,11 +36,17 @@ namespace WebView2_WinUI3_Sample
             SetTitle();
         }
 
+        /// <summary>
+        /// Runs the status update operation.
+        /// </summary>
         private void StatusUpdate(string message)
         {
             Debug.WriteLine(message);
         }
 
+        /// <summary>
+        /// Runs the web view2 core web view2 initialized operation.
+        /// </summary>
         private void WebView2_CoreWebView2Initialized(WebView2 sender, CoreWebView2InitializedEventArgs args)
         {
             if (args.Exception != null)
@@ -65,6 +74,9 @@ namespace WebView2_WinUI3_Sample
         }
 
 
+        /// <summary>
+        /// Runs the core web view2 web message received operation.
+        /// </summary>
         private void CoreWebView2_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
         {
             try
@@ -79,6 +91,9 @@ namespace WebView2_WinUI3_Sample
             }
         }
 
+        /// <summary>
+        /// Runs the web view2 navigation completed operation.
+        /// </summary>
         private void WebView2_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
         {
             StatusUpdate("Navigation complete");
@@ -87,6 +102,9 @@ namespace WebView2_WinUI3_Sample
             //AddressBar.Text = sender.Source.ToString();
         }
 
+        /// <summary>
+        /// Attempts to create URI.
+        /// </summary>
         private bool TryCreateUri(string potentialUri, out Uri? result)
         {
             StatusUpdate("TryCreateUri");
@@ -107,11 +125,17 @@ namespace WebView2_WinUI3_Sample
             }
         }
 
+        /// <summary>
+        /// Sets title.
+        /// </summary>
         private void SetTitle(WebView2? webView2 = null)
         {
             Title = $"LocalGPT by Michi0403";
         }
 
+        /// <summary>
+        /// Gets web view2 version.
+        /// </summary>
         private string GetWebView2Version(WebView2 webView2)
         {
             var runtimeVersion = webView2.CoreWebView2.Environment.BrowserVersionString;

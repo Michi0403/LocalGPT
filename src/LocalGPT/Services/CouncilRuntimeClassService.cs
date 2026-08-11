@@ -6,18 +6,27 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides council runtime class service operations.
+/// </summary>
 public sealed class CouncilRuntimeClassService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<CouncilRuntimeClassService> logger) : ICouncilRuntimeClassService
 {
     private const int CurrentSeedVersion = 4;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = true
     };
 
+    /// <summary>
+    /// Gets definitions async.
+    /// </summary>
     public async Task<IReadOnlyList<CouncilRuntimeClassDefinition>> GetDefinitionsAsync(
         bool includeDisabled = false,
         CancellationToken cancellationToken = default)
@@ -43,6 +52,9 @@ public sealed class CouncilRuntimeClassService(
         }
     }
 
+    /// <summary>
+    /// Finds async.
+    /// </summary>
     public async Task<CouncilRuntimeClassDefinition?> FindAsync(
         string? key,
         CancellationToken cancellationToken = default)
@@ -73,6 +85,9 @@ public sealed class CouncilRuntimeClassService(
         }
     }
 
+    /// <summary>
+    /// Saves async.
+    /// </summary>
     public async Task<CouncilRuntimeClassDefinition> SaveAsync(
         SaveCouncilRuntimeClassRequest request,
         CancellationToken cancellationToken = default)
@@ -121,6 +136,9 @@ public sealed class CouncilRuntimeClassService(
         }
     }
 
+    /// <summary>
+    /// Ensures seed data async.
+    /// </summary>
     private async Task EnsureSeedDataAsync(CancellationToken cancellationToken)
     {
     try
@@ -184,6 +202,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Creates seed definitions.
+    /// </summary>
     private IReadOnlyList<CouncilRuntimeClassDefinition> CreateSeedDefinitions()
     {
     try
@@ -370,6 +391,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Builds definition.
+    /// </summary>
     private CouncilRuntimeClassDefinition BuildDefinition(
         string key,
         string runtimeNamespace,
@@ -408,6 +432,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Runs the field operation.
+    /// </summary>
     private RuntimeClassFieldDefinition Field(
         string name,
         string displayName,
@@ -447,6 +474,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Runs the binding operation.
+    /// </summary>
     private RuntimeInputBindingDefinition Binding(
         string action,
         string displayName,
@@ -472,6 +502,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Runs the deterministic guid operation.
+    /// </summary>
     private Guid DeterministicGuid(string value)
     {
     try
@@ -490,6 +523,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Normalizes and validate.
+    /// </summary>
     private void NormalizeAndValidate(CouncilRuntimeClassDefinition definition)
     {
     try
@@ -557,6 +593,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Normalizes lookup token.
+    /// </summary>
     private string NormalizeLookupToken(string value) {
     try
     {
@@ -577,6 +616,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Runs the lookup rank operation.
+    /// </summary>
     private int LookupRank(CouncilRuntimeClassDefinition definition, string normalized)
     {
     try
@@ -604,6 +646,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Builds aliases.
+    /// </summary>
     private IEnumerable<string> BuildAliases(CouncilRuntimeClassDefinition definition) {
     try
     {
@@ -621,6 +666,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Builds aliases.
+    /// </summary>
     private IEnumerable<string> BuildAliases(string key, string runtimeNamespace, string displayName)
     {
     try
@@ -660,6 +708,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Applies definition.
+    /// </summary>
     private void ApplyDefinition(CouncilRuntimeClassConfiguration row, CouncilRuntimeClassDefinition definition)
     {
     try
@@ -686,6 +737,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Runs the to definition operation.
+    /// </summary>
     private CouncilRuntimeClassDefinition ToDefinition(CouncilRuntimeClassConfiguration row)
     {
     try
@@ -721,6 +775,9 @@ public sealed class CouncilRuntimeClassService(
     }
 }
 
+    /// <summary>
+    /// Runs the deserialize operation.
+    /// </summary>
     private T? Deserialize<T>(string json)
     {
         try

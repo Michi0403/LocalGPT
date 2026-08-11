@@ -14,8 +14,14 @@ public sealed class DatabaseFileHealthService(
 {
     private readonly string[] DatabaseSuffixes = [string.Empty, "-wal", "-shm"];
 
+    /// <summary>
+    /// Gets or sets database path.
+    /// </summary>
     public string DatabasePath => options.DatabasePath;
 
+    /// <summary>
+    /// Ensures healthy or recover async.
+    /// </summary>
     public async Task EnsureHealthyOrRecoverAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -71,6 +77,9 @@ public sealed class DatabaseFileHealthService(
     }
 }
 
+    /// <summary>
+    /// Determines whether sqlite corruption.
+    /// </summary>
     public bool IsSqliteCorruption(Exception exception)
     {
     try
@@ -101,6 +110,9 @@ public sealed class DatabaseFileHealthService(
     }
 }
 
+    /// <summary>
+    /// Runs the recover malformed database async operation.
+    /// </summary>
     public async Task RecoverMalformedDatabaseAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -147,6 +159,9 @@ public sealed class DatabaseFileHealthService(
     }
 }
 
+    /// <summary>
+    /// Runs the run quick check async operation.
+    /// </summary>
     private async Task<DatabaseProbeResult> RunQuickCheckAsync(CancellationToken cancellationToken)
     {
         try
@@ -182,6 +197,9 @@ public sealed class DatabaseFileHealthService(
         }
     }
 
+    /// <summary>
+    /// Runs the run write probe async operation.
+    /// </summary>
     private async Task<DatabaseProbeResult> RunWriteProbeAsync(CancellationToken cancellationToken)
     {
         try
@@ -224,6 +242,9 @@ public sealed class DatabaseFileHealthService(
         }
     }
 
+    /// <summary>
+    /// Runs the contains corruption text operation.
+    /// </summary>
     private bool ContainsCorruptionText(string? message) {
     try
     {
@@ -241,6 +262,9 @@ public sealed class DatabaseFileHealthService(
     }
 }
 
+    /// <summary>
+    /// Attempts to move to backup.
+    /// </summary>
     private bool TryMoveToBackup(string sourcePath, string backupPath)
     {
         try
@@ -255,6 +279,9 @@ public sealed class DatabaseFileHealthService(
         }
     }
 
+    /// <summary>
+    /// Attempts to quarantine or delete.
+    /// </summary>
     private void TryQuarantineOrDelete(string sourcePath, string fallbackPath)
     {
         try
@@ -275,6 +302,9 @@ public sealed class DatabaseFileHealthService(
         }
     }
 
+    /// <summary>
+    /// Gets recovery marker path.
+    /// </summary>
     private string GetRecoveryMarkerPath() {
     try
     {
@@ -290,6 +320,9 @@ public sealed class DatabaseFileHealthService(
     }
 }
 
+    /// <summary>
+    /// Writes recovery marker.
+    /// </summary>
     private void WriteRecoveryMarker()
     {
         try
@@ -302,6 +335,9 @@ public sealed class DatabaseFileHealthService(
         }
     }
 
+    /// <summary>
+    /// Attempts to delete recovery marker.
+    /// </summary>
     private void TryDeleteRecoveryMarker()
     {
         try

@@ -4,9 +4,15 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides council game DevExpress parameter reader operations.
+/// </summary>
 public sealed class CouncilGameDxParameterReader(
     ILogger<CouncilGameDxParameterReader> logger)
 {
+    /// <summary>
+    /// Runs the string operation.
+    /// </summary>
     public string String(JsonElement parameters, string name, string fallback = "")
     {
         try
@@ -24,6 +30,9 @@ public sealed class CouncilGameDxParameterReader(
         }
     }
 
+    /// <summary>
+    /// Runs the boolean operation.
+    /// </summary>
     public bool Boolean(JsonElement parameters, string name, bool fallback = false)
     {
         try
@@ -41,6 +50,9 @@ public sealed class CouncilGameDxParameterReader(
         }
     }
 
+    /// <summary>
+    /// Runs the guid operation.
+    /// </summary>
     public Guid Guid(JsonElement parameters, string name)
     {
         try
@@ -56,6 +68,9 @@ public sealed class CouncilGameDxParameterReader(
         }
     }
 
+    /// <summary>
+    /// Runs the long operation.
+    /// </summary>
     public long Long(JsonElement parameters, string name, long fallback = 0)
     {
         try
@@ -73,6 +88,9 @@ public sealed class CouncilGameDxParameterReader(
         }
     }
 
+    /// <summary>
+    /// Runs the nullable int operation.
+    /// </summary>
     public int? NullableInt(JsonElement parameters, string name)
     {
         try
@@ -90,6 +108,9 @@ public sealed class CouncilGameDxParameterReader(
         }
     }
 
+    /// <summary>
+    /// Runs the integer operation.
+    /// </summary>
     public int Integer(JsonElement parameters, string name, int fallback)
     {
         try
@@ -104,11 +125,17 @@ public sealed class CouncilGameDxParameterReader(
     }
 }
 
+/// <summary>
+/// Represents a start council game function.
+/// </summary>
 public sealed class StartCouncilGameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<StartCouncilGameFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.session.start", "POST", "/api/dxai/functions/localgpt.game.session.start/invoke",
         "Starts a directly playable /Chat ASCII game session. Human and AI players receive the same control contract.",
@@ -120,6 +147,9 @@ public sealed class StartCouncilGameFunction(
         {"type":"object","required":["gameKey"],"properties":{"gameKey":{"type":"string","enum":["ascii-doom","green-dragon"]},"teamKey":{"type":"string"},"conversationId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Ai","Shared"]},"directorMode":{"type":"string","enum":["Deterministic","CouncilModelPreferred"]},"gameDirectorModelName":{"type":"string"},"creatureDirectorCount":{"type":"integer","minimum":1,"maximum":8},"autoplayEnabled":{"type":"boolean"},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -153,11 +183,17 @@ public sealed class StartCouncilGameFunction(
     }
 }
 
+/// <summary>
+/// Represents a get council game function.
+/// </summary>
 public sealed class GetCouncilGameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<GetCouncilGameFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.session.get", "POST", "/api/dxai/functions/localgpt.game.session.get/invoke",
         "Reads the authoritative game frame, turn, shared controls and input gate for one /Chat game session.",
@@ -166,6 +202,9 @@ public sealed class GetCouncilGameFunction(
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sessionId"],"properties":{"sessionId":{"type":"string"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -185,11 +224,17 @@ public sealed class GetCouncilGameFunction(
     }
 }
 
+/// <summary>
+/// Represents a preview council game control function.
+/// </summary>
 public sealed class PreviewCouncilGameControlFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<PreviewCouncilGameControlFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.control.preview", "POST", "/api/dxai/functions/localgpt.game.control.preview/invoke",
         "Asks the authoritative GameDirector and its creature/object subdirectors to review one proposed control without advancing the game.",
@@ -201,6 +246,9 @@ public sealed class PreviewCouncilGameControlFunction(
         {"type":"object","required":["sessionId","action"],"properties":{"sessionId":{"type":"string"},"action":{"type":"string"},"expectedTurn":{"type":"integer"},"aimX":{"type":"integer"},"aimY":{"type":"integer"},"actorName":{"type":"string"},"actorKind":{"type":"string","enum":["Player","Creature","ReactiveObject","Director"]},"runtimeClassKey":{"type":"string"}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -236,11 +284,17 @@ public sealed class PreviewCouncilGameControlFunction(
     }
 }
 
+/// <summary>
+/// Represents a control council game function.
+/// </summary>
 public sealed class ControlCouncilGameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<ControlCouncilGameFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.control", "POST", "/api/dxai/functions/localgpt.game.control/invoke",
         "Lets an AI player use exactly the same move, turn, aim, shoot, duck, use or choice action contract as the human /Chat controls.",
@@ -252,6 +306,9 @@ public sealed class ControlCouncilGameFunction(
         {"type":"object","required":["sessionId","action"],"properties":{"sessionId":{"type":"string"},"action":{"type":"string"},"expectedTurn":{"type":"integer"},"aimX":{"type":"integer"},"aimY":{"type":"integer"},"actorName":{"type":"string"},"actorKind":{"type":"string","enum":["Player","Creature","ReactiveObject","Director"]},"runtimeClassKey":{"type":"string"}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -286,11 +343,17 @@ public sealed class ControlCouncilGameFunction(
     }
 }
 
+/// <summary>
+/// Represents a submit council game frame function.
+/// </summary>
 public sealed class SubmitCouncilGameFrameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<SubmitCouncilGameFrameFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.frame.submit", "POST", "/api/dxai/functions/localgpt.game.frame.submit/invoke",
         "Submits one complete fixed-size ASCII frame. Exactly one renderer name may own a Council turn's frame.",
@@ -302,6 +365,9 @@ public sealed class SubmitCouncilGameFrameFunction(
         {"type":"object","required":["sessionId","turn","rendererName","frameText"],"properties":{"sessionId":{"type":"string"},"turn":{"type":"integer"},"rendererName":{"type":"string"},"frameText":{"type":"string"},"caption":{"type":"string"}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -324,11 +390,17 @@ public sealed class SubmitCouncilGameFrameFunction(
     }
 }
 
+/// <summary>
+/// Represents a set council game control mode function.
+/// </summary>
 public sealed class SetCouncilGameControlModeFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<SetCouncilGameControlModeFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.control-mode.set", "POST", "/api/dxai/functions/localgpt.game.control-mode.set/invoke",
         "Switches a running /Chat game between human, shared and AI autoplay while retaining the same control service.",
@@ -338,6 +410,9 @@ public sealed class SetCouncilGameControlModeFunction(
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sessionId","controlMode"],"properties":{"sessionId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Shared","Ai"]},"autoplayEnabled":{"type":"boolean"},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -363,11 +438,17 @@ public sealed class SetCouncilGameControlModeFunction(
     }
 }
 
+/// <summary>
+/// Represents a set council game input gate function.
+/// </summary>
 public sealed class SetCouncilGameInputGateFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<SetCouncilGameInputGateFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.input-gate.set", "POST", "/api/dxai/functions/localgpt.game.input-gate.set/invoke",
         "Shows or hides the in-chat human control overlay for one game turn without blocking the rest of LocalGPT.",
@@ -377,6 +458,9 @@ public sealed class SetCouncilGameInputGateFunction(
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sessionId","humanInputRequired"],"properties":{"sessionId":{"type":"string"},"humanInputRequired":{"type":"boolean"},"reason":{"type":"string"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try

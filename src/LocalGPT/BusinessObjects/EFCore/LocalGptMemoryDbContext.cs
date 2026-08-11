@@ -4,48 +4,171 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.BusinessObjects.EFCore
 {
+    /// <summary>
+    /// Represents a local gpt memory db context.
+    /// </summary>
     public class LocalGptMemoryDbContext(DbContextOptions<LocalGptMemoryDbContext> options) : DbContext(options)
     {
+        /// <summary>
+        /// Gets or sets conversations.
+        /// </summary>
         public DbSet<ChatMemoryConversation> Conversations => Set<ChatMemoryConversation>();
+        /// <summary>
+        /// Gets or sets messages.
+        /// </summary>
         public DbSet<ChatMemoryMessage> Messages => Set<ChatMemoryMessage>();
+        /// <summary>
+        /// Gets or sets application logs.
+        /// </summary>
         public DbSet<ApplicationLogEntry> ApplicationLogs => Set<ApplicationLogEntry>();
+        /// <summary>
+        /// Gets or sets council knowledge entries.
+        /// </summary>
         public DbSet<CouncilKnowledgeEntry> CouncilKnowledgeEntries => Set<CouncilKnowledgeEntry>();
+        /// <summary>
+        /// Gets or sets native command logs.
+        /// </summary>
         public DbSet<NativeCommandLogEntry> NativeCommandLogs => Set<NativeCommandLogEntry>();
+        /// <summary>
+        /// Gets or sets regex patterns.
+        /// </summary>
         public DbSet<RegexPattern> RegexPatterns { get; set; }
+        /// <summary>
+        /// Gets or sets prompts.
+        /// </summary>
         public DbSet<PromptConfig> Prompts { get; set; }
+        /// <summary>
+        /// Gets or sets system variables.
+        /// </summary>
         public DbSet<SystemVariable> SystemVariables { get; set; }
+        /// <summary>
+        /// Gets or sets local gpt projects.
+        /// </summary>
         public DbSet<LocalGptProject> LocalGptProjects => Set<LocalGptProject>();
+        /// <summary>
+        /// Gets or sets local gpt project topics.
+        /// </summary>
         public DbSet<LocalGptProjectTopic> LocalGptProjectTopics => Set<LocalGptProjectTopic>();
+        /// <summary>
+        /// Gets or sets local gpt project versions.
+        /// </summary>
         public DbSet<LocalGptProjectVersion> LocalGptProjectVersions => Set<LocalGptProjectVersion>();
+        /// <summary>
+        /// Gets or sets local gpt project topic knowledge links.
+        /// </summary>
         public DbSet<LocalGptProjectTopicKnowledgeLink> LocalGptProjectTopicKnowledgeLinks => Set<LocalGptProjectTopicKnowledgeLink>();
+        /// <summary>
+        /// Gets or sets code generation change reviews.
+        /// </summary>
         public DbSet<CodeGenerationChangeReview> CodeGenerationChangeReviews => Set<CodeGenerationChangeReview>();
+        /// <summary>
+        /// Gets or sets human collaboration requests.
+        /// </summary>
         public DbSet<HumanCollaborationRequest> HumanCollaborationRequests => Set<HumanCollaborationRequest>();
+        /// <summary>
+        /// Gets or sets human council participant profiles.
+        /// </summary>
         public DbSet<HumanCouncilParticipantProfile> HumanCouncilParticipantProfiles => Set<HumanCouncilParticipantProfile>();
+        /// <summary>
+        /// Gets or sets human council contributions.
+        /// </summary>
         public DbSet<HumanCouncilContribution> HumanCouncilContributions => Set<HumanCouncilContribution>();
+        /// <summary>
+        /// Gets or sets deferred DevExpress ai invocations.
+        /// </summary>
         public DbSet<DeferredDxAiInvocation> DeferredDxAiInvocations => Set<DeferredDxAiInvocation>();
+        /// <summary>
+        /// Gets or sets local gpt project revisions.
+        /// </summary>
         public DbSet<LocalGptProjectRevision> LocalGptProjectRevisions => Set<LocalGptProjectRevision>();
+        /// <summary>
+        /// Gets or sets local gpt project requirements.
+        /// </summary>
         public DbSet<LocalGptProjectRequirement> LocalGptProjectRequirements => Set<LocalGptProjectRequirement>();
+        /// <summary>
+        /// Gets or sets local gpt project requirement links.
+        /// </summary>
         public DbSet<LocalGptProjectRequirementLink> LocalGptProjectRequirementLinks => Set<LocalGptProjectRequirementLink>();
+        /// <summary>
+        /// Gets or sets local gpt project artifacts.
+        /// </summary>
         public DbSet<LocalGptProjectArtifact> LocalGptProjectArtifacts => Set<LocalGptProjectArtifact>();
+        /// <summary>
+        /// Gets or sets project document imports.
+        /// </summary>
         public DbSet<ProjectDocumentImport> ProjectDocumentImports => Set<ProjectDocumentImport>();
+        /// <summary>
+        /// Gets or sets council model presets.
+        /// </summary>
         public DbSet<CouncilModelPreset> CouncilModelPresets => Set<CouncilModelPreset>();
+        /// <summary>
+        /// Gets or sets sqlite editor field overrides.
+        /// </summary>
         public DbSet<SqliteEditorFieldOverride> SqliteEditorFieldOverrides => Set<SqliteEditorFieldOverride>();
+        /// <summary>
+        /// Gets or sets council knowledge user ratings.
+        /// </summary>
         public DbSet<CouncilKnowledgeUserRating> CouncilKnowledgeUserRatings => Set<CouncilKnowledgeUserRating>();
+        /// <summary>
+        /// Gets or sets organic skills.
+        /// </summary>
         public DbSet<OrganicSkillDefinition> OrganicSkills => Set<OrganicSkillDefinition>();
+        /// <summary>
+        /// Gets or sets project organic skill links.
+        /// </summary>
         public DbSet<ProjectOrganicSkillLink> ProjectOrganicSkillLinks => Set<ProjectOrganicSkillLink>();
+        /// <summary>
+        /// Gets or sets council member organic skill links.
+        /// </summary>
         public DbSet<CouncilMemberOrganicSkillLink> CouncilMemberOrganicSkillLinks => Set<CouncilMemberOrganicSkillLink>();
+        /// <summary>
+        /// Gets or sets council team configurations.
+        /// </summary>
         public DbSet<CouncilTeamConfiguration> CouncilTeamConfigurations => Set<CouncilTeamConfiguration>();
+        /// <summary>
+        /// Gets or sets council runtime class configurations.
+        /// </summary>
         public DbSet<CouncilRuntimeClassConfiguration> CouncilRuntimeClassConfigurations => Set<CouncilRuntimeClassConfiguration>();
+        /// <summary>
+        /// Gets or sets project workspace roots.
+        /// </summary>
         public DbSet<ProjectWorkspaceRoot> ProjectWorkspaceRoots => Set<ProjectWorkspaceRoot>();
+        /// <summary>
+        /// Gets or sets project compiler installations.
+        /// </summary>
         public DbSet<ProjectCompilerInstallation> ProjectCompilerInstallations => Set<ProjectCompilerInstallation>();
+        /// <summary>
+        /// Gets or sets local gpt project tracked files.
+        /// </summary>
         public DbSet<LocalGptProjectTrackedFile> LocalGptProjectTrackedFiles => Set<LocalGptProjectTrackedFile>();
+        /// <summary>
+        /// Gets or sets project build verifications.
+        /// </summary>
         public DbSet<ProjectBuildVerification> ProjectBuildVerifications => Set<ProjectBuildVerification>();
+        /// <summary>
+        /// Gets or sets council prompt starter configurations.
+        /// </summary>
         public DbSet<CouncilPromptStarterConfiguration> CouncilPromptStarterConfigurations => Set<CouncilPromptStarterConfiguration>();
+        /// <summary>
+        /// Gets or sets localization catalog registrations.
+        /// </summary>
         public DbSet<LocalizationCatalogRegistration> LocalizationCatalogRegistrations => Set<LocalizationCatalogRegistration>();
+        /// <summary>
+        /// Gets or sets documentation build records.
+        /// </summary>
         public DbSet<DocumentationBuildRecord> DocumentationBuildRecords => Set<DocumentationBuildRecord>();
+        /// <summary>
+        /// Gets or sets embedded firmware plan records.
+        /// </summary>
         public DbSet<EmbeddedFirmwarePlanRecord> EmbeddedFirmwarePlanRecords => Set<EmbeddedFirmwarePlanRecord>();
+        /// <summary>
+        /// Gets or sets council game session records.
+        /// </summary>
         public DbSet<CouncilGameSessionRecord> CouncilGameSessionRecords => Set<CouncilGameSessionRecord>();
 
+        /// <summary>
+        /// Runs the on model creating operation.
+        /// </summary>
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Configure unique indexes and properties

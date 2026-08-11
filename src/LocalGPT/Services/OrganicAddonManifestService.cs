@@ -17,11 +17,17 @@ public sealed class OrganicAddonManifestService(
     IOneWirePeerRegistry peers,
     ILogger<OrganicAddonManifestService> logger) : IOrganicAddonManifestService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Gets manifests.
+    /// </summary>
     public IReadOnlyList<OrganicAddonManifest> GetManifests()
     {
         var manifests = new Dictionary<string, OrganicAddonManifest>(StringComparer.OrdinalIgnoreCase);
@@ -57,6 +63,9 @@ public sealed class OrganicAddonManifestService(
         return result;
     }
 
+    /// <summary>
+    /// Gets skill descriptors.
+    /// </summary>
     public IReadOnlyList<OneWireSkillDescriptor> GetSkillDescriptors() {
     try
     {
@@ -86,6 +95,9 @@ public sealed class OrganicAddonManifestService(
     }
 }
 
+    /// <summary>
+    /// Gets catalog entries.
+    /// </summary>
     public IReadOnlyList<DxAiFunctionCatalogEntry> GetCatalogEntries()
     {
     try
@@ -153,6 +165,9 @@ public sealed class OrganicAddonManifestService(
     }
 }
 
+    /// <summary>
+    /// Determines whether peer online.
+    /// </summary>
     private bool IsPeerOnline(string sourcePeerId)
     {
     try
@@ -177,6 +192,9 @@ public sealed class OrganicAddonManifestService(
     }
 }
 
+    /// <summary>
+    /// Gets manifest directories.
+    /// </summary>
     private IEnumerable<string> GetManifestDirectories()
     {
         logger.LogTrace("Organic add-on manifest directory enumeration started.");
@@ -195,6 +213,9 @@ public sealed class OrganicAddonManifestService(
         }
     }
 
+    /// <summary>
+    /// Runs the normalize operation.
+    /// </summary>
     private void Normalize(OrganicAddonManifest manifest)
     {
     try
@@ -225,6 +246,9 @@ public sealed class OrganicAddonManifestService(
     }
 }
 
+    /// <summary>
+    /// Normalizes list.
+    /// </summary>
     private List<string> NormalizeList(IEnumerable<string>? values) {
     try
     {
@@ -245,6 +269,9 @@ public sealed class OrganicAddonManifestService(
     }
 }
 
+    /// <summary>
+    /// Normalizes identifier.
+    /// </summary>
     private string NormalizeIdentifier(string value)
     {
     try

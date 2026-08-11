@@ -8,11 +8,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides project architecture service operations.
+/// </summary>
 public sealed class ProjectArchitectureService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<ProjectArchitectureService> logger) : IProjectArchitectureService
 {
+    /// <summary>
+    /// Ensures council run project async.
+    /// </summary>
     public async Task<(LocalGptProject Project, LocalGptProjectRevision Revision)> EnsureCouncilRunProjectAsync(
         Guid councilRunId,
         string? title,
@@ -70,6 +76,9 @@ public sealed class ProjectArchitectureService(
         return (project, revision);
     }
 
+    /// <summary>
+    /// Gets revisions async.
+    /// </summary>
     public async Task<IReadOnlyList<LocalGptProjectRevision>> GetRevisionsAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
     try
@@ -93,6 +102,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Gets requirements async.
+    /// </summary>
     public async Task<IReadOnlyList<LocalGptProjectRequirement>> GetRequirementsAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
     try
@@ -118,6 +130,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Gets artifacts async.
+    /// </summary>
     public async Task<IReadOnlyList<LocalGptProjectArtifact>> GetArtifactsAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
     try
@@ -141,6 +156,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Saves revision async.
+    /// </summary>
     public async Task<LocalGptProjectRevision> SaveRevisionAsync(Guid projectId, SaveProjectRevisionRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -198,6 +216,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Saves requirement async.
+    /// </summary>
     public async Task<LocalGptProjectRequirement> SaveRequirementAsync(Guid projectId, SaveProjectRequirementRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -246,6 +267,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Saves requirement link async.
+    /// </summary>
     public async Task<LocalGptProjectRequirementLink> SaveRequirementLinkAsync(Guid projectId, SaveProjectRequirementLinkRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -291,6 +315,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Saves artifact async.
+    /// </summary>
     public async Task<LocalGptProjectArtifact> SaveArtifactAsync(Guid projectId, SaveProjectArtifactRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -349,6 +376,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Builds architecture briefing async.
+    /// </summary>
     public async Task<string> BuildArchitectureBriefingAsync(Guid projectId, Guid? revisionId, CancellationToken cancellationToken = default)
     {
     try
@@ -384,6 +414,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Builds project name.
+    /// </summary>
     private string BuildProjectName(string? title, string prompt, Guid runId)
     {
     try
@@ -405,6 +438,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Validates structure JSON.
+    /// </summary>
     private void ValidateStructureJson(string? json)
     {
     try
@@ -426,6 +462,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Validates regex.
+    /// </summary>
     private void ValidateRegex(string pattern, string? flags)
     {
     try
@@ -448,6 +487,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Runs the require confirmation operation.
+    /// </summary>
     private void RequireConfirmation(bool confirmed, string operation)
     {
     try
@@ -466,6 +508,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Runs the require text operation.
+    /// </summary>
     private string RequireText(string? value, string parameterName, int maxLength)
     {
     try
@@ -486,6 +531,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Runs the fallback operation.
+    /// </summary>
     private string Fallback(string? value, int maxLength, string fallback)
     {
     try
@@ -504,6 +552,9 @@ public sealed class ProjectArchitectureService(
     }
 }
 
+    /// <summary>
+    /// Runs the trim operation.
+    /// </summary>
     private string Trim(string? value, int maxLength)
     {
     try

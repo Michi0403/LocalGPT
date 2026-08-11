@@ -8,6 +8,9 @@ using System.Text;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides sqlite table editor service operations.
+    /// </summary>
     public sealed class SqliteTableEditorService(
         IDatabaseInitializationService databaseInitializer,
         LocalGptDatabaseOptions databaseOptions,
@@ -16,8 +19,14 @@ namespace LocalGPT.Services
     {
         private const int MaxRows = 500;
 
+        /// <summary>
+        /// Gets or sets database path.
+        /// </summary>
         public string DatabasePath => databaseOptions.DatabasePath;
 
+        /// <summary>
+        /// Gets tables async.
+        /// </summary>
         public async Task<IReadOnlyList<SqliteTableSummary>> GetTablesAsync(CancellationToken cancellationToken = default)
         {
             try
@@ -68,6 +77,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Gets table async.
+        /// </summary>
         public async Task<SqliteTableSnapshot> GetTableAsync(string tableName, int take = 100, CancellationToken cancellationToken = default)
         {
             try
@@ -128,6 +140,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Updates row async.
+        /// </summary>
         public async Task UpdateRowAsync(string tableName, long rowId, IReadOnlyList<SqliteCellUpdate> updates, CancellationToken cancellationToken = default)
         {
             try
@@ -189,6 +204,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the insert row async operation.
+        /// </summary>
         public async Task InsertRowAsync(string tableName, IReadOnlyDictionary<string, string?> values, CancellationToken cancellationToken = default)
         {
             try
@@ -248,6 +266,9 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>
+        /// Deletes row async.
+        /// </summary>
         public async Task DeleteRowAsync(string tableName, long rowId, CancellationToken cancellationToken = default)
         {
             try
@@ -280,6 +301,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Ensures database file async.
+        /// </summary>
         private async Task EnsureDatabaseFileAsync(CancellationToken cancellationToken)
         {
     try
@@ -297,6 +321,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Opens connection async.
+        /// </summary>
         private async Task<SqliteConnection> OpenConnectionAsync(CancellationToken cancellationToken)
         {
             try

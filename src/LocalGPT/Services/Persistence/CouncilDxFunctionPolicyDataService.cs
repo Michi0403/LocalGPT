@@ -6,6 +6,9 @@ using System.Globalization;
 
 namespace LocalGPT.Services.Persistence;
 
+/// <summary>
+/// Provides council DevExpress function policy data service operations.
+/// </summary>
 public sealed class CouncilDxFunctionPolicyDataService(
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -13,6 +16,9 @@ public sealed class CouncilDxFunctionPolicyDataService(
     IPromptConfigService prompts,
     ILogger<CouncilDxFunctionPolicyDataService> logger) : ICouncilDxFunctionPolicyDataService
 {
+    /// <summary>
+    /// Gets policy async.
+    /// </summary>
     public async Task<CouncilDxFunctionPolicy> GetPolicyAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -47,6 +53,9 @@ public sealed class CouncilDxFunctionPolicyDataService(
         }
     }
 
+    /// <summary>
+    /// Parses positive.
+    /// </summary>
     private int ParsePositive(
         IReadOnlyDictionary<string, string> values,
         SystemVariableDefinition<int> definition)

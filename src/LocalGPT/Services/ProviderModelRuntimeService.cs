@@ -29,8 +29,14 @@ public sealed class ProviderModelRuntimeService(
     IDxAiFunctionRegistry functionRegistry,
     IDxAiFunctionCallRecoveryService functionCallRecovery) : IProviderModelRuntimeService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<string, ProviderModelReference> referenceCache = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Gets candidates async.
+    /// </summary>
     public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -141,6 +147,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Resolves async.
+    /// </summary>
     public async Task<ProviderModelReference> ResolveAsync(string selectionOrModelName, CancellationToken cancellationToken = default)
     {
     try
@@ -207,6 +216,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Runs the remember operation.
+    /// </summary>
     public void Remember(ProviderModelReference model)
     {
     try
@@ -229,6 +241,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Runs the from session operation.
+    /// </summary>
     public ProviderModelReference FromSession(ChatClientSession session)
     {
     try
@@ -258,6 +273,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Creates chat client.
+    /// </summary>
     public IChatClient CreateChatClient(
         ProviderModelReference model,
         string keepAlive,
@@ -275,6 +293,9 @@ public sealed class ProviderModelRuntimeService(
             if (model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
             {
                 return new LoggingChatClient(
+                    /// <summary>
+                    /// Runs the ollama thinking chat client operation.
+                    /// </summary>
                     new OllamaThinkingChatClient(
                         new OllamaCoreOptions { Uri = NormalizeOllamaEndpoint(model.Endpoint), ModelName = model.ModelName },
                         logger,
@@ -300,7 +321,13 @@ public sealed class ProviderModelRuntimeService(
                     throw new InvalidOperationException("Azure OpenAI credentials are not configured.");
                 EnsureCredentialEndpointMatch(model.Endpoint, azure.Endpoint, "Azure OpenAI");
                 var client = new AzureOpenAIClient(
+                        /// <summary>
+                        /// Runs the URI operation.
+                        /// </summary>
                         new Uri(new ProviderModelIdentity().NormalizeEndpoint(azure.Endpoint), UriKind.Absolute),
+                        /// <summary>
+                        /// Runs the azure key credential operation.
+                        /// </summary>
                         new AzureKeyCredential(azure.Key),
                         new AzureOpenAIClientOptions
                         {
@@ -347,6 +374,9 @@ public sealed class ProviderModelRuntimeService(
             }
 
             var openAiClient = new global::OpenAI.OpenAIClient(
+                /// <summary>
+                /// Runs the API key credential operation.
+                /// </summary>
                 new ApiKeyCredential(apiKey),
                 new OpenAIClientOptions
                 {
@@ -367,6 +397,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Creates session async.
+    /// </summary>
     public Task<ChatClientSession> CreateSessionAsync(ProviderModelReference model, CancellationToken cancellationToken = default)
     {
     try
@@ -391,6 +424,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Creates logging options.
+    /// </summary>
     private ClientLoggingOptions CreateLoggingOptions() {
     try
     {
@@ -412,6 +448,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Runs the enumerate open ai compatible operation.
+    /// </summary>
     private IReadOnlyList<ChatGPTLocalCoreOptions> EnumerateOpenAiCompatible(AICoreOptions options)
     {
         try
@@ -448,6 +487,9 @@ public sealed class ProviderModelRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Runs the enumerate ollama operation.
+    /// </summary>
     private IReadOnlyList<OllamaCoreOptions> EnumerateOllama(AICoreOptions options)
     {
         try
@@ -477,6 +519,9 @@ public sealed class ProviderModelRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Runs the enumerate ollama probe endpoints operation.
+    /// </summary>
     private IReadOnlyList<string> EnumerateOllamaProbeEndpoints(AICoreOptions options)
     {
         try
@@ -509,6 +554,9 @@ public sealed class ProviderModelRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Runs the probe ollama async operation.
+    /// </summary>
     private async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> ProbeOllamaAsync(string endpoint, CancellationToken cancellationToken)
     {
         try
@@ -568,6 +616,9 @@ public sealed class ProviderModelRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Runs the probe open ai compatible async operation.
+    /// </summary>
     private async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> ProbeOpenAiCompatibleAsync(
         string providerName,
         string endpoint,
@@ -605,6 +656,9 @@ public sealed class ProviderModelRuntimeService(
         }
     }
 
+    /// <summary>
+    /// Adds candidate.
+    /// </summary>
     private void AddCandidate(
         IDictionary<string, MultiModelCouncilModelCandidate> candidates,
         MultiModelCouncilModelCandidate candidate)
@@ -636,6 +690,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Normalizes ollama endpoint.
+    /// </summary>
     private string NormalizeOllamaEndpoint(string endpoint)
     {
     try
@@ -657,6 +714,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Normalizes open ai endpoint.
+    /// </summary>
     private string NormalizeOpenAiEndpoint(string endpoint)
     {
     try
@@ -680,6 +740,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Gets local provider name.
+    /// </summary>
     private string GetLocalProviderName(string endpoint) {
     try
     {
@@ -697,6 +760,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Ensures credential endpoint match.
+    /// </summary>
     private void EnsureCredentialEndpointMatch(string requestedEndpoint, string configuredEndpoint, string providerName)
     {
     try
@@ -721,6 +787,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Determines whether real API key.
+    /// </summary>
     private bool HasRealApiKey(string? apiKey) {
     try
     {
@@ -738,6 +807,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Determines whether local endpoint.
+    /// </summary>
     private bool IsLocalEndpoint(string endpoint) {
     try
     {
@@ -754,6 +826,9 @@ public sealed class ProviderModelRuntimeService(
     }
 }
 
+    /// <summary>
+    /// Runs the infer provider kind operation.
+    /// </summary>
     private string InferProviderKind(string provider, string endpoint)
     {
     try

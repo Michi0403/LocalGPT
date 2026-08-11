@@ -25,10 +25,16 @@ using System.Text;
 namespace LocalGPT.Services
 {
     
+    /// <summary>
+    /// Provides council text service operations.
+    /// </summary>
     public sealed partial class CouncilTextService(ICouncilTextPatternDataService patterns, LocalGptCatalogService catalog, ILogger<CouncilTextService> serviceLogger)
     {
    
 
+        /// <summary>
+        /// Runs the format live council session option operation.
+        /// </summary>
         public string FormatLiveCouncilSessionOption(
             DateTime startedAtUtc,
             string runState,
@@ -47,6 +53,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Normalizes former thought.
+        /// </summary>
         public string NormalizeFormerThought(string? value, ILogger logger)
         {
             try
@@ -79,6 +88,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds role coordination explanation.
+        /// </summary>
         public string BuildRoleCoordinationExplanation(IReadOnlyCollection<string> details, ILogger logger)
         {
             try
@@ -103,6 +115,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds feedback preview.
+        /// </summary>
         public string BuildFeedbackPreview(string? content, ILogger logger)
         {
             try
@@ -119,6 +134,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds architecture poll message.
+        /// </summary>
         public string BuildArchitecturePollMessage(
             string uiStack,
             string solutionShape,
@@ -161,6 +179,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Parses model names.
+        /// </summary>
         public IReadOnlyList<string> ParseModelNames(string? value, ILogger logger)
         {
             try
@@ -180,6 +201,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Normalizes name.
+        /// </summary>
         public string NormalizeName(string value, string fallback)
         {
     try
@@ -198,6 +222,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Normalizes mod identifier.
+        /// </summary>
         public string NormalizeModId(string value, string fallback)
         {
     try
@@ -216,6 +243,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Normalizes package name.
+        /// </summary>
         public string NormalizePackageName(string value)
         {
     try
@@ -238,6 +268,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Normalizes loader.
+        /// </summary>
         public string NormalizeLoader(string? loader, ILogger logger)
         {
             try
@@ -274,6 +307,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the to pascal case operation.
+        /// </summary>
         public string ToPascalCase(string value, ILogger logger)
         {
             try
@@ -289,6 +325,9 @@ namespace LocalGPT.Services
         
         }
 
+        /// <summary>
+        /// Runs the escape JSON operation.
+        /// </summary>
         public string EscapeJson(string value) {
     try
     {
@@ -304,6 +343,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates fabric settings gradle.
+        /// </summary>
         public string CreateFabricSettingsGradle(string projectName) {
     try
     {
@@ -335,6 +377,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Creates neo forge settings gradle.
+        /// </summary>
         public string CreateNeoForgeSettingsGradle(string projectName) {
     try
     {
@@ -366,6 +411,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Creates fabric build gradle.
+        /// </summary>
         public string CreateFabricBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -428,6 +476,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Creates neo forge build gradle.
+        /// </summary>
         public string CreateNeoForgeBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -487,6 +538,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Creates paper settings gradle.
+        /// </summary>
         public string CreatePaperSettingsGradle(string projectName) {
     try
     {
@@ -517,6 +571,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Creates paper build gradle.
+        /// </summary>
         public string CreatePaperBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -576,6 +633,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Normalizes description.
+        /// </summary>
         public string NormalizeDescription(string description)
         {
     try
@@ -596,6 +656,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates fabric main class.
+        /// </summary>
         public string CreateFabricMainClass(WorkspaceContext context) {
     try
     {
@@ -655,6 +718,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates neo forge main class.
+        /// </summary>
         public string CreateNeoForgeMainClass(WorkspaceContext context) {
     try
     {
@@ -727,6 +793,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates paper main class.
+        /// </summary>
         public string CreatePaperMainClass(WorkspaceContext context) {
     try
     {
@@ -771,6 +840,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates fabric empty main class.
+        /// </summary>
         public string CreateFabricEmptyMainClass(WorkspaceContext context) {
     try
     {
@@ -802,6 +874,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates neo forge empty main class.
+        /// </summary>
         public string CreateNeoForgeEmptyMainClass(WorkspaceContext context) {
     try
     {
@@ -834,6 +909,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates living cities report class.
+        /// </summary>
         public string CreateLivingCitiesReportClass(string packageName) {
     try
     {
@@ -859,6 +937,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Creates fabric metadata.
+        /// </summary>
         public string CreateFabricMetadata(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -899,6 +980,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates neo forge metadata.
+        /// </summary>
         public string CreateNeoForgeMetadata(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -939,6 +1023,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates paper plugin yaml.
+        /// </summary>
         public string CreatePaperPluginYaml(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -969,6 +1056,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Creates english lang.
+        /// </summary>
         public string CreateEnglishLang(string modId) {
     try
     {
@@ -989,6 +1079,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates city charter model.
+        /// </summary>
         public string CreateCityCharterModel() {
     try
     {
@@ -1010,6 +1103,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Gets pack format JSON value.
+        /// </summary>
         public string GetPackFormatJsonValue(string minecraftVersion, ILogger logger)
         {
             try
@@ -1026,6 +1122,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Creates function tag.
+        /// </summary>
         public string CreateFunctionTag(string modId, string functionName) {
     try
     {
@@ -1047,6 +1146,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack load function.
+        /// </summary>
         public string CreateDatapackLoadFunction(WorkspaceContext context) {
     try
     {
@@ -1093,6 +1195,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack tick function.
+        /// </summary>
         public string CreateDatapackTickFunction(WorkspaceContext context) {
     try
     {
@@ -1124,6 +1229,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack schedule function.
+        /// </summary>
         public string CreateDatapackScheduleFunction(WorkspaceContext context) {
     try
     {
@@ -1148,6 +1256,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack city create function.
+        /// </summary>
         public string CreateDatapackCityCreateFunction(WorkspaceContext context) {
     try
     {
@@ -1166,6 +1277,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack city check villagers function.
+        /// </summary>
         public string CreateDatapackCityCheckVillagersFunction(WorkspaceContext context) {
     try
     {
@@ -1186,6 +1300,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack city create new function.
+        /// </summary>
         public string CreateDatapackCityCreateNewFunction(WorkspaceContext context) {
     try
     {
@@ -1214,6 +1331,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack city already exists function.
+        /// </summary>
         public string CreateDatapackCityAlreadyExistsFunction() {
     try
     {
@@ -1231,6 +1351,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack register banner function.
+        /// </summary>
         public string CreateDatapackRegisterBannerFunction(WorkspaceContext context) {
     try
     {
@@ -1252,6 +1375,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack update population function.
+        /// </summary>
         public string CreateDatapackUpdatePopulationFunction(WorkspaceContext context) {
     try
     {
@@ -1271,6 +1397,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack citizen register function.
+        /// </summary>
         public string CreateDatapackCitizenRegisterFunction(WorkspaceContext context) {
     try
     {
@@ -1292,6 +1421,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack citizen detect new function.
+        /// </summary>
         public string CreateDatapackCitizenDetectNewFunction() {
     try
     {
@@ -1311,6 +1443,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack citizen aging function.
+        /// </summary>
         public string CreateDatapackCitizenAgingFunction() {
     try
     {
@@ -1329,6 +1464,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack citizen personalities function.
+        /// </summary>
         public string CreateDatapackCitizenPersonalitiesFunction(WorkspaceContext context) {
     try
     {
@@ -1347,6 +1485,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack citizen status function.
+        /// </summary>
         public string CreateDatapackCitizenStatusFunction(WorkspaceContext context) {
     try
     {
@@ -1365,6 +1506,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack food update function.
+        /// </summary>
         public string CreateDatapackFoodUpdateFunction(WorkspaceContext context) {
     try
     {
@@ -1387,6 +1531,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack food production function.
+        /// </summary>
         public string CreateDatapackFoodProductionFunction() {
     try
     {
@@ -1413,6 +1560,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack food consumption function.
+        /// </summary>
         public string CreateDatapackFoodConsumptionFunction() {
     try
     {
@@ -1430,6 +1580,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack security update function.
+        /// </summary>
         public string CreateDatapackSecurityUpdateFunction(WorkspaceContext context) {
     try
     {
@@ -1449,6 +1602,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack security golems function.
+        /// </summary>
         public string CreateDatapackSecurityGolemsFunction() {
     try
     {
@@ -1470,6 +1626,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack security nightwatch function.
+        /// </summary>
         public string CreateDatapackSecurityNightwatchFunction() {
     try
     {
@@ -1487,6 +1646,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack chronicle add event function.
+        /// </summary>
         public string CreateDatapackChronicleAddEventFunction(WorkspaceContext context) {
     try
     {
@@ -1504,6 +1666,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack chronicle update function.
+        /// </summary>
         public string CreateDatapackChronicleUpdateFunction(WorkspaceContext context) {
     try
     {
@@ -1521,6 +1686,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack admin book function.
+        /// </summary>
         public string CreateDatapackAdminBookFunction(WorkspaceContext context)
         {
     try
@@ -1553,6 +1721,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack town hall function.
+        /// </summary>
         public string CreateDatapackTownHallFunction(WorkspaceContext context) {
     try
     {
@@ -1572,6 +1743,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack report function.
+        /// </summary>
         public string CreateDatapackReportFunction(WorkspaceContext context) {
     try
     {
@@ -1597,6 +1771,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack chronicle UI function.
+        /// </summary>
         public string CreateDatapackChronicleUiFunction(WorkspaceContext context) {
     try
     {
@@ -1615,6 +1792,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack quest update function.
+        /// </summary>
         public string CreateDatapackQuestUpdateFunction(WorkspaceContext context) {
     try
     {
@@ -1632,6 +1812,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack quest generate function.
+        /// </summary>
         public string CreateDatapackQuestGenerateFunction(WorkspaceContext context) {
     try
     {
@@ -1651,6 +1834,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack buildings init function.
+        /// </summary>
         public string CreateDatapackBuildingsInitFunction() {
     try
     {
@@ -1669,6 +1855,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack register house function.
+        /// </summary>
         public string CreateDatapackRegisterHouseFunction(WorkspaceContext context) {
     try
     {
@@ -1689,6 +1878,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack building debug list function.
+        /// </summary>
         public string CreateDatapackBuildingDebugListFunction(WorkspaceContext context) {
     try
     {
@@ -1707,6 +1899,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack reset city function.
+        /// </summary>
         public string CreateDatapackResetCityFunction(WorkspaceContext context) {
     try
     {
@@ -1734,6 +1929,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack build script.
+        /// </summary>
         public string CreateDatapackBuildScript(WorkspaceContext context) {
     try
     {
@@ -1874,6 +2072,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack benchmark notes.
+        /// </summary>
         public string CreateDatapackBenchmarkNotes(WorkspaceContext context) {
     try
     {
@@ -1917,6 +2118,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates datapack readme.
+        /// </summary>
         public string CreateDatapackReadme(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -1978,6 +2182,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates workspace readme.
+        /// </summary>
         public string CreateWorkspaceReadme(MinecraftModBuildRequest request, WorkspaceContext context, string loader) {
     try
     {
@@ -2032,6 +2239,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates living cities plan.
+        /// </summary>
         public string CreateLivingCitiesPlan(MinecraftModBuildRequest request) {
     try
     {
@@ -2087,6 +2297,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the looks like missing feature report operation.
+        /// </summary>
         public bool LooksLikeMissingFeatureReport(string text, ILogger<AiFeatureReportService> logger)
         {
             try
@@ -2099,6 +2312,9 @@ namespace LocalGPT.Services
                 return false;
             }
         }
+        /// <summary>
+        /// Runs the sanitize file name operation.
+        /// </summary>
         public string SanitizeFileName(string value, ILogger<BuildDebugInventoryService> logger)
         {
             try
@@ -2117,6 +2333,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Builds import directories.
+        /// </summary>
         public IEnumerable<string> BuildImportDirectories(string rootPath, int maxProjects, ILogger logger)
         {
             try
@@ -2140,6 +2359,9 @@ namespace LocalGPT.Services
                 logger.LogInformation($"Ended BuildImportDirectories rootPath {rootPath?.ToString()} maxProjects {maxProjects.ToString()}");
             }
         }
+        /// <summary>
+        /// Runs the enumerate import directory candidates operation.
+        /// </summary>
         public IEnumerable<string> EnumerateImportDirectoryCandidates(string rootPath, ILogger logger)
         {
             try
@@ -2158,6 +2380,9 @@ namespace LocalGPT.Services
                 logger.LogInformation($"Ended EnumerateImportDirectoryCandidates rootPath {rootPath?.ToString()}");
             }
         }
+        /// <summary>
+        /// Runs the extract target frameworks operation.
+        /// </summary>
         public IEnumerable<string> ExtractTargetFrameworks(string text, ILogger logger)
         {
             try
@@ -2174,6 +2399,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the extract package references operation.
+        /// </summary>
         public IEnumerable<string> ExtractPackageReferences(string text, ILogger logger)
         {
             try
@@ -2189,6 +2417,9 @@ namespace LocalGPT.Services
                 return Array.Empty<string>();
             }
         }
+        /// <summary>
+        /// Determines whether important file.
+        /// </summary>
         public bool IsImportantFile(string fileName, string extension, ILogger logger)
         {
             try
@@ -2210,6 +2441,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Determines whether project root file.
+        /// </summary>
         public bool IsProjectRootFile(string fileName, string extension, ILogger logger)
         {
             try
@@ -2228,6 +2462,9 @@ namespace LocalGPT.Services
                 return false;
             }
         }
+        /// <summary>
+        /// Runs the contains zip entry operation.
+        /// </summary>
         public bool ContainsZipEntry(HashSet<string> zipEntries, string required, ILogger logger)
         {
             try
@@ -2246,6 +2483,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Runs the redact sensitive name operation.
+        /// </summary>
         public string RedactSensitiveName(string value, ILogger logger)
         {
             try
@@ -2260,6 +2500,9 @@ namespace LocalGPT.Services
             }
         }
   
+        /// <summary>
+        /// Builds file policy summary.
+        /// </summary>
         public string BuildFilePolicySummary(ILogger logger)
         {
             try
@@ -2277,6 +2520,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Normalizes task set.
+        /// </summary>
         public string NormalizeTaskSet(string? taskSet, ILogger logger)
         {
             try
@@ -2297,6 +2543,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Builds engineering tasks.
+        /// </summary>
         public IReadOnlyList<BenchmarkTaskDefinition> BuildEngineeringTasks()
         {
     try
@@ -2365,6 +2614,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Builds replacement tasks.
+        /// </summary>
         public IReadOnlyList<BenchmarkTaskDefinition> BuildReplacementTasks()
         {
     try
@@ -2423,6 +2675,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Normalizes open aiendpoint.
+        /// </summary>
         public string NormalizeOpenAIEndpoint(string endpoint, ILogger<AiConnectivityProbe> logger)
         {
             try
@@ -2441,6 +2696,9 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>
+        /// Builds ollama details.
+        /// </summary>
         public string? BuildOllamaDetails(OllamaModelDetails? details, ILogger<AiConnectivityProbe> logger)
         {
             try
@@ -2460,6 +2718,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Runs the trim for display operation.
+        /// </summary>
         public string TrimForDisplay(string text, int maxCharacters, ILogger logger)
         {
             try
@@ -2478,6 +2739,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Runs the looks likely truncated operation.
+        /// </summary>
         public bool LooksLikelyTruncated(string text, ILogger logger)
         {
             try
@@ -2511,6 +2775,9 @@ namespace LocalGPT.Services
                 return false;
             }
         }
+        /// <summary>
+        /// Normalizes recovered prompt.
+        /// </summary>
         public string NormalizeRecoveredPrompt(string prompt, ILogger logger)
         {
             try
@@ -2526,6 +2793,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Attempts to find council prompt section.
+        /// </summary>
         public string? TryFindCouncilPromptSection(string content, ILogger logger)
         {
             try
@@ -2544,6 +2814,9 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>
+        /// Attempts to recover prompt from title.
+        /// </summary>
         public string? TryRecoverPromptFromTitle(string title, ILogger logger)
         {
             try
@@ -2567,6 +2840,9 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>
+        /// Runs the extract thinking operation.
+        /// </summary>
         public string? ExtractThinking(string content, ILogger logger)
         {
             try
@@ -2584,6 +2860,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Runs the strip thinking operation.
+        /// </summary>
         public string StripThinking(string content, ILogger logger)
         {
             try
@@ -2596,6 +2875,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Runs the decode text operation.
+        /// </summary>
         public string DecodeText(byte[] bytes, ILogger logger)
         {
             try
@@ -2620,6 +2902,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the extract printable strings operation.
+        /// </summary>
         public string ExtractPrintableStrings(byte[] bytes, int maxCharacters, ILogger logger)
         {
             try
@@ -2650,6 +2935,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Runs the to forward slash operation.
+        /// </summary>
         public string ToForwardSlash(string path, ILogger logger)
         {
             try
@@ -2662,6 +2950,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Runs the flush current string operation.
+        /// </summary>
         public void FlushCurrentString(StringBuilder builder, StringBuilder current, int maxCharacters, ILogger logger)
         {
             try
@@ -2680,6 +2971,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the extract capability gap summary operation.
+        /// </summary>
         public string ExtractCapabilityGapSummary(string text, ILogger<AiFeatureReportService> logger)
         {
             try
@@ -2730,6 +3024,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Runs the extract helpful sources operation.
+        /// </summary>
         public string ExtractHelpfulSources(string text, ILogger<AiFeatureReportService> logger)
         {
             try
@@ -2759,6 +3056,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Runs the extract field operation.
+        /// </summary>
         public string ExtractField(string body, string name, ILogger<AiFeatureReportService> logger)
         {
             try
@@ -2771,6 +3071,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Builds unique file name.
+        /// </summary>
         public string BuildUniqueFileName(string directory, string fileName, ILogger logger)
         {
             try
@@ -2798,6 +3101,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the sanitize file name operation.
+        /// </summary>
         public string SanitizeFileName(string fileName, ILogger logger)
         {
             try
@@ -2815,6 +3121,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds safe zip relative path.
+        /// </summary>
         public string? BuildSafeZipRelativePath(string fullName, ILogger logger)
         {
             try
@@ -2836,6 +3145,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service build poll markdown operation.
+        /// </summary>
         public string MultiModelCouncilServiceBuildPollMarkdown(CouncilUserPoll poll, ILogger logger)
         {
             try
@@ -2871,6 +3183,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the multi model council service build artifacts markdown operation.
+        /// </summary>
         public string MultiModelCouncilServiceBuildArtifactsMarkdown(IEnumerable<CouncilArtifact> artifacts, ILogger logger)
         {
             try
@@ -2916,6 +3231,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the multi model council service build transcript operation.
+        /// </summary>
         public string MultiModelCouncilServiceBuildTranscript(IEnumerable<MultiModelCouncilStep> steps, ILogger logger)
         {
             try
@@ -2945,6 +3263,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the multi model council service create council system prompt operation.
+        /// </summary>
         public string MultiModelCouncilServiceCreateCouncilSystemPrompt(string modelName, IReadOnlyList<string> councilMembers, ILogger logger)
         {
             try
@@ -3017,6 +3338,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service create proposal prompt operation.
+        /// </summary>
         public string MultiModelCouncilServiceCreateProposalPrompt(string modelName, string userPrompt, ILogger logger)
         {
             try
@@ -3040,6 +3364,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service create critique prompt operation.
+        /// </summary>
         public string MultiModelCouncilServiceCreateCritiquePrompt(string modelName, string userPrompt, string transcript, bool selfReview, ILogger logger)
         {
             try
@@ -3064,6 +3391,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service create consensus prompt operation.
+        /// </summary>
         public string MultiModelCouncilServiceCreateConsensusPrompt(string userPrompt, string transcript, ILogger logger)
         {
             try
@@ -3126,6 +3456,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service create verification prompt operation.
+        /// </summary>
         public string MultiModelCouncilServiceCreateVerificationPrompt(string userPrompt, string transcript, string consensus, ILogger logger)
         {
             try
@@ -3153,6 +3486,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service extract thinking operation.
+        /// </summary>
         public string MultiModelCouncilServiceExtractThinking(string content, ILogger logger)
         {
             try
@@ -3172,6 +3508,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the multi model council service strip thinking operation.
+        /// </summary>
         public string MultiModelCouncilServiceStripThinking(string content, ILogger logger)
         {
             try
@@ -3188,6 +3527,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the multi model council service trim council text operation.
+        /// </summary>
         public string MultiModelCouncilServiceTrimCouncilText(string content, int maxLength, ILogger logger)
         {
             try
@@ -3205,6 +3547,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the multi model council service normalize endpoint operation.
+        /// </summary>
         public string MultiModelCouncilServiceNormalizeEndpoint(string endpoint, ILogger logger)
         {
             try
@@ -3220,6 +3565,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Runs the extract model thinking operation.
+        /// </summary>
         public string ExtractModelThinking(string content, ILogger logger)
         {
             try
@@ -3240,6 +3588,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the strip model thinking operation.
+        /// </summary>
         public string StripModelThinking(string content, ILogger logger)
         {
             try
@@ -3255,6 +3606,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Builds source preview markup.
+        /// </summary>
         public string BuildSourcePreviewMarkup(string relativePath, string source, ILogger logger)
         {
             try
@@ -3276,6 +3630,9 @@ namespace LocalGPT.Services
             }
          
         }
+        /// <summary>
+        /// Determines whether allowed local route.
+        /// </summary>
         public bool IsAllowedLocalRoute(string route, ILogger logger)
         {
             try
@@ -3292,6 +3649,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the pretty print JSON operation.
+        /// </summary>
         public string PrettyPrintJson(string text, ILogger logger)
         {
             try
@@ -3321,6 +3681,9 @@ namespace LocalGPT.Services
 
 
         }
+        /// <summary>
+        /// Runs the trim for prompt operation.
+        /// </summary>
         public string TrimForPrompt(
     string? text,
     int maxCharacters, 
@@ -3383,6 +3746,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Runs the generate archetype page razor operation.
+        /// </summary>
         public string GenerateArchetypePageRazor(
             string route,
             string title,
@@ -3464,6 +3830,9 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>
+        /// Builds archetype next action.
+        /// </summary>
         public string BuildArchetypeNextAction(string area, ILogger logger)
         {
             try
@@ -3486,6 +3855,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the generate solution detail razor operation.
+        /// </summary>
         public string GenerateSolutionDetailRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -3600,6 +3972,9 @@ namespace LocalGPT.Services
         }
         
 
+        /// <summary>
+        /// Runs the generate solution service operation.
+        /// </summary>
         public string GenerateSolutionService(string projectName, bool isAiHostLab, ILogger logger)
         {
             try
@@ -3935,6 +4310,9 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>
+        /// Runs the generate source fidelity service operation.
+        /// </summary>
         public string GenerateSourceFidelityService(string projectName, GeneratedSolutionArchetype archetype, ILogger logger)
         {
             try
@@ -4108,6 +4486,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the generate ai host architecture services operation.
+        /// </summary>
         public string GenerateAiHostArchitectureServices(string projectName,ILogger logger) {
             try
             {
@@ -4592,6 +4973,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the generate solution model operation.
+        /// </summary>
         public string GenerateSolutionModel(string projectName, ILogger logger)
         {
             try
@@ -5168,6 +5552,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Runs the generate navigation icon svgs operation.
+        /// </summary>
         public IReadOnlyList<(string FileName, string Svg)>? GenerateNavigationIconSvgs( ILogger logger)
         {
             try
@@ -5242,6 +5629,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the generate solution readme operation.
+        /// </summary>
         public string GenerateSolutionReadme(
             string projectName,
             MultiModelCouncilRequest request,
@@ -5321,6 +5711,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Runs the generate solution project index operation.
+        /// </summary>
         public string GenerateSolutionProjectIndex(
             string projectName,
             MultiModelCouncilRequest request,
@@ -5457,6 +5850,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the generate solution architecture doc operation.
+        /// </summary>
         public string GenerateSolutionArchitectureDoc(string projectName, bool isAiHostLab, ILogger logger)
         {
             try
@@ -5516,6 +5912,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Runs the generate source fidelity doc operation.
+        /// </summary>
         public string GenerateSourceFidelityDoc(
             string projectName,
             GeneratedSolutionArchetype archetype,
@@ -5583,6 +5982,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the generate promise map doc operation.
+        /// </summary>
         public string GeneratePromiseMapDoc(
             string projectName,
             MultiModelCouncilRequest request,
@@ -5636,6 +6038,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the generate design review doc operation.
+        /// </summary>
         public string GenerateDesignReviewDoc(
             string projectName,
              GeneratedSolutionArchetype archetype,
@@ -5694,6 +6099,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the generate solution build and run doc operation.
+        /// </summary>
         public string GenerateSolutionBuildAndRunDoc(string projectName, bool isAiHostLab, ILogger logger)
         {
             try
@@ -5739,6 +6147,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the generate local gpt generation JSON operation.
+        /// </summary>
         public string GenerateLocalGptGenerationJson(
             string projectName,
             MultiModelCouncilRequest request,
@@ -5853,6 +6264,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the generate solution manifest operation.
+        /// </summary>
         public string GenerateSolutionManifest(
             string projectName,
             string solutionGuid,
@@ -5891,6 +6305,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the generate blazor dev express razor example operation.
+        /// </summary>
         public string GenerateBlazorDevExpressRazorExample(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result, ILogger logger)
@@ -5990,6 +6407,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the generate blazor support code operation.
+        /// </summary>
         public string GenerateBlazorSupportCode(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -6036,6 +6456,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the generate code dom example operation.
+        /// </summary>
         public string GenerateCodeDomExample(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -6126,6 +6549,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Creates constant.
+        /// </summary>
         public CodeMemberField? CreateConstant(string name, string value, ILogger logger)
         {
             try
@@ -6142,6 +6568,9 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>
+        /// Gets discovered model button text.
+        /// </summary>
         public string GetDiscoveredModelButtonText(LocalAiModelInfo model, ILogger logger)
         {
             try
@@ -6158,13 +6587,22 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Runs the append line operation.
+        /// </summary>
         public void AppendLine(CodeMemberMethod method, string line, ILogger logger)
         {
             try
             {
                 method.Statements.Add(new CodeMethodInvokeExpression(
+                 /// <summary>
+                 /// Runs the code variable reference expression operation.
+                 /// </summary>
                  new CodeVariableReferenceExpression("builder"),
                  "AppendLine",
+                 /// <summary>
+                 /// Runs the code primitive expression operation.
+                 /// </summary>
                  new CodePrimitiveExpression(line)));
             }
             catch (Exception ex)
@@ -6173,6 +6611,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Determines whether minecraft datapack artifact target.
+        /// </summary>
         public bool? IsMinecraftDatapackArtifactTarget(string prompt, string finalAnswer, ILogger logger)
         {
             try
@@ -6187,6 +6628,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Determines whether minecraft skeleton matrix artifact target.
+        /// </summary>
         public bool? IsMinecraftSkeletonMatrixArtifactTarget(string prompt, string finalAnswer, ILogger logger)
         {
             try
@@ -6201,6 +6645,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the extract minecraft version operation.
+        /// </summary>
         public string ExtractMinecraftVersion(string text, ILogger logger)
         {
             try
@@ -6217,6 +6664,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds minecraft datapack artifact identity.
+        /// </summary>
         public MinecraftDatapackArtifactIdentity? BuildMinecraftDatapackArtifactIdentity(string text, string timestamp, ILogger logger)
         {
             try
@@ -6241,6 +6691,9 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>
+        /// Runs the extract minecraft project display name operation.
+        /// </summary>
         public string ExtractMinecraftProjectDisplayName(string text, bool? harmonyModel, ILogger logger)
         {
             try
@@ -6271,6 +6724,9 @@ namespace LocalGPT.Services
             }
             
         }
+        /// <summary>
+        /// Runs the clean minecraft project display name operation.
+        /// </summary>
         public string CleanMinecraftProjectDisplayName(string value, ILogger logger)
         {
             try
@@ -6292,6 +6748,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the to minecraft namespace operation.
+        /// </summary>
         public string ToMinecraftNamespace(string value, ILogger logger)
         {
             try
@@ -6306,6 +6765,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the to pascal identifier operation.
+        /// </summary>
         public string ToPascalIdentifier(string value, ILogger logger)
         {
             try
@@ -6323,6 +6785,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the to kebab route operation.
+        /// </summary>
         public string ToKebabRoute(string value, ILogger logger)
         {
             try
@@ -6337,6 +6802,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the generate solution navigation razor operation.
+        /// </summary>
         public string GenerateSolutionNavigationRazor(
              GeneratedSolutionArchetype archetype,
             IReadOnlyList<GeneratedPromiseModule> promiseModules, ILogger logger)
@@ -6536,6 +7004,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds promise navigation links.
+        /// </summary>
         public string BuildPromiseNavigationLinks(IReadOnlyList<GeneratedPromiseModule> promiseModules, ILogger logger)
         {
             try
@@ -6565,6 +7036,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the generate solution index razor operation.
+        /// </summary>
         public string GenerateSolutionIndexRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -6699,6 +7173,9 @@ namespace LocalGPT.Services
             }
            
         }
+        /// <summary>
+        /// Runs the generate solution dashboard razor operation.
+        /// </summary>
         public string GenerateSolutionDashboardRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -6795,6 +7272,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the generate solution knowledge table razor operation.
+        /// </summary>
         public string GenerateSolutionKnowledgeTableRazor(bool isAiHostLab, ILogger logger)
         {
             try
@@ -6863,6 +7343,9 @@ namespace LocalGPT.Services
  
         
 
+        /// <summary>
+        /// Runs the generate solution file operation.
+        /// </summary>
         public string GenerateSolutionFile(string projectName, string projectGuid, ILogger logger)
         {
             try
@@ -6899,6 +7382,9 @@ namespace LocalGPT.Services
 
        
 
+        /// <summary>
+        /// Runs the generate solution app settings operation.
+        /// </summary>
         public string GenerateSolutionAppSettings(bool isAiHostLab,ILogger logger)
         {
             try
@@ -6970,6 +7456,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the generate solution program operation.
+        /// </summary>
         public string GenerateSolutionProgram(string projectName, bool isAiHostLab, ILogger logger)
         {
             try
@@ -7064,6 +7553,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the generate solution imports operation.
+        /// </summary>
         public string GenerateSolutionImports(string projectName, ILogger logger)
         {
             try
@@ -7093,6 +7585,9 @@ namespace LocalGPT.Services
 
         }
        
+        /// <summary>
+        /// Builds data content file name.
+        /// </summary>
         public string BuildDataContentFileName(int index, string? mediaType, ILogger logger)
         {
             try
@@ -7118,6 +7613,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Attempts to get data content file name.
+        /// </summary>
         public string? TryGetDataContentFileName(DataContent content, ILogger logger)
         {
             try
@@ -7147,6 +7645,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the format live council running title operation.
+        /// </summary>
         public string FormatLiveCouncilRunningTitle(string template, string runId, ILogger logger)
         {
             try
@@ -7160,6 +7661,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the format live council elapsed status operation.
+        /// </summary>
         public string FormatLiveCouncilElapsedStatus(string template, string elapsed, string status, ILogger logger)
         {
             try
@@ -7175,6 +7679,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds upload workspace system prompt.
+        /// </summary>
         public string BuildUploadWorkspaceSystemPrompt(ChatUploadWorkspaceResult result, ILogger logger)
         {
             try
@@ -7216,6 +7723,9 @@ namespace LocalGPT.Services
             }
             
         }
+        /// <summary>
+        /// Runs the extract upload files operation.
+        /// </summary>
         public IEnumerable<ChatUploadWorkspaceInputFile>? ExtractUploadFiles(ChatMessage message, ILogger logger)
         {
             try
@@ -7245,6 +7755,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Adds optional system message.
+        /// </summary>
         public void AddOptionalSystemMessage(List<ChatMessage> messages, string? text, ILogger logger)
         {
             try
@@ -7258,6 +7771,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Attempts to parse confidence.
+        /// </summary>
         public int? TryParseConfidence(string value, ILogger logger)
         {
             try
@@ -7274,6 +7790,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the generate promise module razor operation.
+        /// </summary>
         public string GeneratePromiseModuleRazor(GeneratedPromiseModule module, ILogger logger)
         {
             try
@@ -7290,6 +7809,9 @@ namespace LocalGPT.Services
         }
 
       
+        /// <summary>
+        /// Runs the merge tags operation.
+        /// </summary>
         public string MergeTags(string requestedTags, string requiredTags, ILogger logger)
         {
             try
@@ -7305,6 +7827,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds capability gap knowledge content.
+        /// </summary>
         public string BuildCapabilityGapKnowledgeContent(string body, ILogger logger)
         {
             try
@@ -7348,6 +7873,9 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>
+        /// Parses knowledge requests.
+        /// </summary>
         public IEnumerable<CouncilKnowledgeEntry>? ParseKnowledgeRequests(string source, string responseText, ILogger logger)
         {
             try
@@ -7416,6 +7944,9 @@ namespace LocalGPT.Services
                 logger.LogDebug("Finished parsing knowledge requests for source {Source}.", source);
             }
         }
+        /// <summary>
+        /// Runs the extract field operation.
+        /// </summary>
         public string ExtractField(string body, string name,  ILogger logger, string fallback = "")
         {
             try
@@ -7430,6 +7961,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the fallback operation.
+        /// </summary>
         public string Fallback(string value, string fallback, ILogger logger)
         {
             try
@@ -7444,6 +7978,9 @@ namespace LocalGPT.Services
           
         }
 
+        /// <summary>
+        /// Parses nullable guid.
+        /// </summary>
         public Guid? ParseNullableGuid(string value, ILogger logger)
         {
             try
@@ -7461,6 +7998,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the format nullable UTC operation.
+        /// </summary>
         public string FormatNullableUtc(DateTime? value, ILogger logger)
         {
             try
@@ -7473,6 +8013,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Runs the format nullable guid operation.
+        /// </summary>
         public string FormatNullableGuid(Guid? value, ILogger logger)
         {
             try
@@ -7485,6 +8028,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Parses nullable UTC.
+        /// </summary>
         public DateTime? ParseNullableUtc(string value, ILogger logger)
         {
             try
@@ -7508,6 +8054,9 @@ namespace LocalGPT.Services
           
         }
 
+        /// <summary>
+        /// Creates message signature.
+        /// </summary>
         public string CreateMessageSignature(IEnumerable<BlazorChatMessage> messages, ILogger logger)
         {
             try
@@ -7523,6 +8072,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the detect target area operation.
+        /// </summary>
         public string DetectTargetArea(string prompt, string finalAnswer, ILogger logger)
         {
             try
@@ -7551,6 +8103,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the trim for code comment operation.
+        /// </summary>
         public string TrimForCodeComment(string text, int maxLength, ILogger logger)
         {
             try
@@ -7568,6 +8123,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the escape csharp string operation.
+        /// </summary>
         public string EscapeCSharpString(string text, ILogger logger)
         {
             try
@@ -7586,6 +8144,9 @@ namespace LocalGPT.Services
           
         }
 
+        /// <summary>
+        /// Runs the escape JSON string operation.
+        /// </summary>
         public string EscapeJsonString(string text, ILogger logger)
         {
             try
@@ -7599,6 +8160,9 @@ namespace LocalGPT.Services
             }
            
         }
+        /// <summary>
+        /// Normalizes dbnull string value.
+        /// </summary>
         public string? NormalizeDBNullStringValue(string value, ILogger logger)
         {
             try
@@ -7612,6 +8176,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the trim endpoint operation.
+        /// </summary>
         public string TrimEndpoint(string endpoint, ILogger logger)
         {
             try
@@ -7631,6 +8198,9 @@ namespace LocalGPT.Services
             }
            
         }
+        /// <summary>
+        /// Runs the trim for knowledge operation.
+        /// </summary>
         public string TrimForKnowledge(string text, int maxLength, ILogger logger)
         {
             try
@@ -7648,6 +8218,9 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>
+        /// Creates minecraft system prompt.
+        /// </summary>
         public string CreateMinecraftSystemPrompt(string mode, ILogger logger)
         {
             try
@@ -7675,6 +8248,9 @@ namespace LocalGPT.Services
         }
     
 
+        /// <summary>
+        /// Runs the minecraft datapack version info resolve operation.
+        /// </summary>
         public MinecraftDatapackVersionInfo MinecraftDatapackVersionInfoResolve(string? minecraftVersion, ILogger logger)
         {
             try
@@ -7725,6 +8301,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the minecraft datapack version known versions operation.
+        /// </summary>
         public List< MinecraftDatapackVersionInfo> MinecraftDatapackVersionKnownVersions (ILogger logger)
         {
     try
@@ -7761,6 +8340,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the minecraft datapack version info known operation.
+        /// </summary>
         public MinecraftDatapackVersionInfo MinecraftDatapackVersionInfoKnown(string version, string packFormat, string functionRegistryFolder, string notes, ILogger logger) 
         {
             try
@@ -7790,6 +8372,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the enumerate nested architecture roots operation.
+        /// </summary>
         public IEnumerable<string> EnumerateNestedArchitectureRoots(string rootPath, ILogger logger)
         {
             try
@@ -7814,6 +8399,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the safe enumerate directories operation.
+        /// </summary>
         public IEnumerable<string> SafeEnumerateDirectories(string rootPath, ILogger logger)
         {
             try
@@ -7827,6 +8415,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the safe enumerate directory infos operation.
+        /// </summary>
         public IEnumerable<DirectoryInfo> SafeEnumerateDirectoryInfos(string rootPath, ILogger logger)
         {
             try
@@ -7844,6 +8435,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the looks like architecture root operation.
+        /// </summary>
         public bool LooksLikeArchitectureRoot(string rootPath, ILogger logger)
         {
             try
@@ -7881,6 +8475,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the sanitize for prompt operation.
+        /// </summary>
         public string SanitizeForPrompt(string text, ILogger logger)
         {
             try

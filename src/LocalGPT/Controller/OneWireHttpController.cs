@@ -26,6 +26,9 @@ public sealed class OneWireHttpController(
     IOptions<OneWireOptions> configuredOptions,
     ILogger<OneWireHttpController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Runs the profile operation.
+    /// </summary>
     [HttpGet("profile")]
     public async Task<ActionResult<OneWireProtocolProfile>> Profile(CancellationToken cancellationToken)
     {
@@ -62,6 +65,9 @@ public sealed class OneWireHttpController(
         }
     }
 
+    /// <summary>
+    /// Runs the dispatch operation.
+    /// </summary>
     [HttpPost]
     [RequestSizeLimit(OneWireProtocol.MaximumMessageBytes)]
     public async Task<IActionResult> Dispatch([FromBody] JsonElement body, CancellationToken cancellationToken)
@@ -106,6 +112,9 @@ public sealed class OneWireHttpController(
         }
     }
 
+    /// <summary>
+    /// Runs the work operation.
+    /// </summary>
     [HttpGet("work/{correlationId:guid}")]
     public async Task<IActionResult> Work(Guid correlationId, CancellationToken cancellationToken)
     {

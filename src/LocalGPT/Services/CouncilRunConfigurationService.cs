@@ -4,16 +4,31 @@ using System.Collections.Concurrent;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides council run configuration service operations.
+/// </summary>
 public sealed class CouncilRunConfigurationService(
     ICouncilHardwareRoadPlanner hardwareRoadPlanner,
     ILogger<CouncilRunConfigurationService> logger) : ICouncilRunConfigurationService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, CouncilRunState> runs = new();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly object preparationSyncRoot = new();
     private CouncilPreparationConfiguration? preparationConfiguration;
 
+    /// <summary>
+    /// Occurs when changed.
+    /// </summary>
     public event Action<Guid>? Changed;
 
+    /// <summary>
+    /// Runs the ensure operation.
+    /// </summary>
     public CouncilRunConfigurationSnapshot Ensure(
         MultiModelCouncilRequest request,
         IReadOnlyCollection<string> participants)
@@ -61,6 +76,9 @@ public sealed class CouncilRunConfigurationService(
 }
 
 
+    /// <summary>
+    /// Gets preparation.
+    /// </summary>
     public CouncilPreparationConfiguration? GetPreparation()
     {
     try
@@ -79,6 +97,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Saves preparation.
+    /// </summary>
     public CouncilPreparationConfiguration SavePreparation(CouncilPreparationConfiguration configuration)
     {
     try
@@ -104,6 +125,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Runs the get operation.
+    /// </summary>
     public CouncilRunConfigurationSnapshot? Get(Guid runId)
     {
     try
@@ -125,6 +149,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Runs the update operation.
+    /// </summary>
     public bool Update(
         Guid runId,
         IReadOnlyCollection<OneWireCouncilModelRoute> routes,
@@ -174,6 +201,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Runs the begin round operation.
+    /// </summary>
     public void BeginRound(Guid runId, int round, string phase)
     {
         if (!runs.TryGetValue(runId, out var state))
@@ -220,6 +250,9 @@ public sealed class CouncilRunConfigurationService(
         Changed?.Invoke(runId);
     }
 
+    /// <summary>
+    /// Gets round cancellation token.
+    /// </summary>
     public CancellationToken GetRoundCancellationToken(Guid runId, int round, string phase)
     {
     try
@@ -247,6 +280,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Determines whether round skip requested.
+    /// </summary>
     public bool IsRoundSkipRequested(Guid runId, int round, string phase)
     {
     try
@@ -273,6 +309,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Runs the request skip current round operation.
+    /// </summary>
     public bool RequestSkipCurrentRound(Guid runId)
     {
         if (!runs.TryGetValue(runId, out var state))
@@ -311,6 +350,9 @@ public sealed class CouncilRunConfigurationService(
         return true;
     }
 
+    /// <summary>
+    /// Runs the acquire model request async operation.
+    /// </summary>
     public async ValueTask<ICouncilModelRequestLease> AcquireModelRequestAsync(
         Guid runId,
         string modelName,
@@ -372,6 +414,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Gets council execution host key.
+    /// </summary>
     private string GetCouncilExecutionHostKey(string modelName)
     {
         try
@@ -397,6 +442,9 @@ public sealed class CouncilRunConfigurationService(
         }
     }
 
+    /// <summary>
+    /// Runs the complete operation.
+    /// </summary>
     public void Complete(Guid runId)
     {
         if (!runs.TryRemove(runId, out var state))
@@ -421,6 +469,9 @@ public sealed class CouncilRunConfigurationService(
         Changed?.Invoke(runId);
     }
 
+    /// <summary>
+    /// Builds candidate locked.
+    /// </summary>
     private CouncilRunPlanCandidate BuildCandidateLocked(
         CouncilRunState state,
         string modelName,
@@ -454,6 +505,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Runs the release operation.
+    /// </summary>
     private void Release(CouncilRunState state, string laneKey)
     {
     try
@@ -479,6 +533,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Runs the pulse locked operation.
+    /// </summary>
     private void PulseLocked(CouncilRunState state)
     {
     try
@@ -498,6 +555,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Creates signal.
+    /// </summary>
     private TaskCompletionSource<bool> CreateSignal() {
     try
     {
@@ -513,6 +573,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Creates snapshot locked.
+    /// </summary>
     private CouncilRunConfigurationSnapshot CreateSnapshotLocked(CouncilRunState state) {
     try
     {
@@ -542,6 +605,9 @@ public sealed class CouncilRunConfigurationService(
 }
 
 
+    /// <summary>
+    /// Normalizes preparation.
+    /// </summary>
     private CouncilPreparationConfiguration NormalizePreparation(CouncilPreparationConfiguration configuration)
     {
     try
@@ -580,6 +646,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Runs the clone preparation operation.
+    /// </summary>
     private CouncilPreparationConfiguration ClonePreparation(CouncilPreparationConfiguration configuration) {
     try
     {
@@ -607,6 +676,9 @@ public sealed class CouncilRunConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Runs the clone route operation.
+    /// </summary>
     private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) {
     try
     {

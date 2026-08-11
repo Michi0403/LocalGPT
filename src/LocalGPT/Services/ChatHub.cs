@@ -3,15 +3,24 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace LocalGPT.Hubs
 {
+    /// <summary>
+    /// Represents a chat hub.
+    /// </summary>
     public class ChatHub : Hub
     {
         private readonly ILogger<ChatHub> _logger;
 
+        /// <summary>
+        /// Runs the chat hub operation.
+        /// </summary>
         public ChatHub(ILogger<ChatHub> logger)
         {
             _logger = logger;
         }
 
+        /// <summary>
+        /// Runs the on connected async operation.
+        /// </summary>
         public override async Task OnConnectedAsync()
         {
             try
@@ -26,6 +35,9 @@ namespace LocalGPT.Hubs
 
         }
 
+        /// <summary>
+        /// Runs the on disconnected async operation.
+        /// </summary>
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             try
@@ -39,6 +51,9 @@ namespace LocalGPT.Hubs
             }
         }
 
+        /// <summary>
+        /// Runs the notify new chatbot answer operation.
+        /// </summary>
         public async Task NotifyNewChatbotAnswer(string message)
         {
             try

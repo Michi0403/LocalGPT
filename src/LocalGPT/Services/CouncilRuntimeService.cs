@@ -28,8 +28,14 @@ namespace LocalGPT.Services
     [DocumentationUpdated("2.1.20")]
     public sealed class CouncilRuntimeService(CouncilTextService text, LocalGptCatalogService catalog, ILogger<CouncilRuntimeService> serviceLogger)
     {
+        /// <summary>
+        /// Runs the new operation.
+        /// </summary>
         private readonly ConcurrentDictionary<string, byte> ollamaModelsWithoutNativeToolMetadata = new(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Runs the ollama thinking chat client should skip native tools operation.
+        /// </summary>
         public bool OllamaThinkingChatClientShouldSkipNativeTools(Uri? endpoint, string modelName, ILogger logger)
         {
             try
@@ -46,6 +52,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the ollama thinking chat client remember native tools rejected operation.
+        /// </summary>
         public void OllamaThinkingChatClientRememberNativeToolsRejected(Uri? endpoint, string modelName, ILogger logger)
         {
             try
@@ -1969,6 +1978,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Gets search roots.
+        /// </summary>
         public IEnumerable<(string Area, string Path)> GetSearchRoots(ILogger<BuildDebugInventoryService> logger)
         {
             try
@@ -2402,6 +2414,9 @@ namespace LocalGPT.Services
             try
             {
                 return new AnalyzedUploadFile(
+                /// <summary>
+                /// Runs the chat upload workspace file summary operation.
+                /// </summary>
                 new ChatUploadWorkspaceFileSummary(
                     relativePath,
                     kind,
@@ -3148,6 +3163,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the multi model council service current user text for signal classification operation.
+        /// </summary>
         private string MultiModelCouncilServiceCurrentUserTextForSignalClassification(string prompt, ILogger logger)
         {
             try
@@ -3453,6 +3471,9 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>
+        /// Determines whether local gpt streaming status update.
+        /// </summary>
         public bool IsLocalGptStreamingStatusUpdate(string? text, ILogger logger)
         {
             try

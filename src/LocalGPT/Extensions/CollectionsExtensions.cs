@@ -2,8 +2,14 @@ using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 namespace LocalGPT.Extensions
 {
+    /// <summary>
+    /// Represents an observable collection extensions.
+    /// </summary>
     public static class ObservableCollectionExtensions
     {
+        /// <summary>
+        /// Runs the sync with operation.
+        /// </summary>
         public static async Task SyncWith<T, TKey>(
             this IList<T> target,
             IEnumerable<T> updated,

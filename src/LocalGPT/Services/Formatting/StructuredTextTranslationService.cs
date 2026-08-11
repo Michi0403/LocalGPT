@@ -15,10 +15,25 @@ namespace LocalGPT.Services.Formatting;
 /// </summary>
 public sealed class StructuredTextTranslationService : IStructuredTextTranslationService
 {
+    /// <summary>
+    /// Stores JSON fence pattern name.
+    /// </summary>
     public const string JsonFencePatternName = "builtin.json-fence-pattern";
+    /// <summary>
+    /// Stores JSON plain start pattern name.
+    /// </summary>
     public const string JsonPlainStartPatternName = "builtin.json-plain-start-pattern";
+    /// <summary>
+    /// Stores JSON protected block pattern name.
+    /// </summary>
     public const string JsonProtectedBlockPatternName = "builtin.json-protected-block-pattern";
+    /// <summary>
+    /// Stores JSON key token pattern name.
+    /// </summary>
     public const string JsonKeyTokenPatternName = "builtin.json-key-token-pattern";
+    /// <summary>
+    /// Stores JSON scalar pattern name.
+    /// </summary>
     public const string JsonScalarPatternName = "builtin.json-scalar-pattern";
 
     private const int MaximumInputLength = 1_000_000;
@@ -30,6 +45,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     private readonly Regex keyTokenRegex;
     private readonly ILogger<StructuredTextTranslationService> logger;
     private readonly IRegexPatternService regexPatternService;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonDocumentOptions documentOptions = new()
     {
         AllowTrailingCommas = true,
@@ -37,6 +55,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         MaxDepth = MaximumDepth
     };
 
+    /// <summary>
+    /// Runs the structured text translation service operation.
+    /// </summary>
     public StructuredTextTranslationService(
         IInitialDataCatalog initialDataCatalog,
         ILocalGptRuntimePolicyDataService runtimePolicy,
@@ -71,6 +92,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
             runtimePolicy.RegexTimeout);
     }
 
+    /// <summary>
+    /// Runs the translate JSON operation.
+    /// </summary>
     public StructuredJsonTranslationResult TranslateJson(StructuredJsonTranslationRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -162,6 +186,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         return result;
     }
 
+    /// <summary>
+    /// Runs the translate plain JSON blocks to markdown operation.
+    /// </summary>
     public string TranslatePlainJsonBlocksToMarkdown(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -183,6 +210,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         }
     }
 
+    /// <summary>
+    /// Finds JSON candidates.
+    /// </summary>
     private List<StructuredJsonCandidate> FindJsonCandidates(string text, int maximumDocuments)
     {
     try
@@ -222,6 +252,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Determines whether inside excluded range.
+    /// </summary>
     private bool IsInsideExcludedRange(int index, IReadOnlyList<(int Start, int End)> excluded) {
     try
     {
@@ -237,6 +270,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Starts s standalone block.
+    /// </summary>
     private bool StartsStandaloneBlock(string text, int index)
     {
     try
@@ -261,6 +297,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Runs the ends standalone block operation.
+    /// </summary>
     private bool EndsStandaloneBlock(string text, int end)
     {
     try
@@ -283,6 +322,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Attempts to find balanced JSON end.
+    /// </summary>
     private bool TryFindBalancedJsonEnd(string text, int start, out int end)
     {
     try
@@ -349,6 +391,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Runs the render element operation.
+    /// </summary>
     private string RenderElement(JsonElement element, int depth, string? name)
     {
     try
@@ -376,6 +421,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Runs the render object operation.
+    /// </summary>
     private string RenderObject(JsonElement element, int depth, string label)
     {
     try
@@ -406,6 +454,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Runs the render array operation.
+    /// </summary>
     private string RenderArray(JsonElement element, int depth, string label)
     {
     try
@@ -441,6 +492,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Runs the render scalar operation.
+    /// </summary>
     private string RenderScalar(JsonElement element) {
     try
     {
@@ -464,6 +518,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Runs the beautify key operation.
+    /// </summary>
     private string BeautifyKey(string key)
     {
     try
@@ -486,6 +543,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Builds translated block.
+    /// </summary>
     private string BuildTranslatedBlock(string markdown, string normalizedJson, bool includeRawJson)
     {
     try
@@ -519,6 +579,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Creates catalog regex.
+    /// </summary>
     private Regex CreateCatalogRegex(
         IReadOnlyList<RegexPatternDto> patterns,
         string name,
@@ -545,6 +608,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 }
 
+    /// <summary>
+    /// Runs the encode operation.
+    /// </summary>
     private string Encode(string value) {
     try
     {

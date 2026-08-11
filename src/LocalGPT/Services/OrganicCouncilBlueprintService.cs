@@ -4,12 +4,18 @@ using System.Text;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides organic council blueprint service operations.
+/// </summary>
 public sealed class OrganicCouncilBlueprintService(
     IProjectOrganicContextService projectContext,
     ICouncilTeamConfigurationService teamConfigurations,
     IOneWirePeerRegistry peers,
     ILogger<OrganicCouncilBlueprintService> logger) : IOrganicCouncilBlueprintService
 {
+    /// <summary>
+    /// Gets teams async.
+    /// </summary>
     public Task<IReadOnlyList<OrganicCouncilTeamDefinition>> GetTeamsAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -25,6 +31,9 @@ public sealed class OrganicCouncilBlueprintService(
     }
 }
 
+    /// <summary>
+    /// Finds team async.
+    /// </summary>
     public Task<OrganicCouncilTeamDefinition?> FindTeamAsync(string? key, CancellationToken cancellationToken = default) {
     try
     {
@@ -40,6 +49,9 @@ public sealed class OrganicCouncilBlueprintService(
     }
 }
 
+    /// <summary>
+    /// Builds briefing async.
+    /// </summary>
     public async Task<string> BuildBriefingAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -134,6 +146,9 @@ public sealed class OrganicCouncilBlueprintService(
     }
 }
 
+    /// <summary>
+    /// Builds expert preparation prompt.
+    /// </summary>
     public string BuildExpertPreparationPrompt(MultiModelCouncilRequest request, OrganicCouncilTeamDefinition team) {
     try
     {
@@ -149,6 +164,9 @@ public sealed class OrganicCouncilBlueprintService(
     }
 }
 
+    /// <summary>
+    /// Builds leader synthesis prompt.
+    /// </summary>
     public string BuildLeaderSynthesisPrompt(MultiModelCouncilRequest request, OrganicCouncilTeamDefinition team, string preparation) {
     try
     {
@@ -164,6 +182,9 @@ public sealed class OrganicCouncilBlueprintService(
     }
 }
 
+    /// <summary>
+    /// Runs the render template operation.
+    /// </summary>
     private string RenderTemplate(string template, OrganicCouncilTeamDefinition team, MultiModelCouncilRequest request, string preparation)
     {
     try

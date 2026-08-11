@@ -3,13 +3,28 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalGPT.Logging
 {
+    /// <summary>
+    /// Represents a database logger.
+    /// </summary>
     public sealed class DatabaseLogger(string categoryName, DatabaseLoggerProvider provider) : ILogger
     {
+        /// <summary>
+        /// Runs the new operation.
+        /// </summary>
         private readonly LoggerNullScope nullScope = new();
+        /// <summary>
+        /// Runs the begin scope operation.
+        /// </summary>
         public IDisposable BeginScope<TState>(TState state) where TState : notnull => nullScope;
 
+        /// <summary>
+        /// Determines whether enabled.
+        /// </summary>
         public bool IsEnabled(LogLevel logLevel) => provider.IsEnabled(categoryName, logLevel);
 
+        /// <summary>
+        /// Runs the log operation.
+        /// </summary>
         public void Log<TState>(
             LogLevel logLevel,
             EventId eventId,
@@ -40,6 +55,9 @@ namespace LocalGPT.Logging
             });
         }
 
+        /// <summary>
+        /// Runs the trim operation.
+        /// </summary>
         private string Trim(string value, int maxLength)
         {
             if (value.Length <= maxLength)

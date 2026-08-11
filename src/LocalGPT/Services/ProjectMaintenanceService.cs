@@ -11,15 +11,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides project maintenance service operations.
+/// </summary>
 public sealed class ProjectMaintenanceService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ProjectMaintenanceService> logger) : IProjectMaintenanceService
 {
-    private const int MaxCompilerCandidates = 200;
-    private const int MaxCapturedCharacters = 2_000_000;
-
+    /// <summary>
+    /// Gets workspace roots async.
+    /// </summary>
     public async Task<IReadOnlyList<ProjectWorkspaceRoot>> GetWorkspaceRootsAsync(Guid? projectId = null, CancellationToken cancellationToken = default)
     {
     try
@@ -42,6 +45,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Saves workspace root async.
+    /// </summary>
     public async Task<ProjectWorkspaceRoot> SaveWorkspaceRootAsync(SaveProjectWorkspaceRootRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -122,6 +128,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Resolves workspace async.
+    /// </summary>
     public async Task<ProjectWorkspaceResolution> ResolveWorkspaceAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
     try
@@ -173,6 +182,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Runs the assess workspace permissions async operation.
+    /// </summary>
     public async Task<WorkspacePermissionAssessment> AssessWorkspacePermissionsAsync(Guid workspaceRootId, bool userConfirmedWriteProbe, CancellationToken cancellationToken = default)
     {
     try
@@ -284,6 +296,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Gets compiler installations async.
+    /// </summary>
     public async Task<IReadOnlyList<ProjectCompilerInstallation>> GetCompilerInstallationsAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -305,6 +320,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Saves compiler installation async.
+    /// </summary>
     public async Task<ProjectCompilerInstallation> SaveCompilerInstallationAsync(SaveProjectCompilerInstallationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -372,8 +390,9 @@ public sealed class ProjectMaintenanceService(
         try
         {
             var searchRoots = NormalizeCompilerSearchRoots(request);
+            var maximumCompilerCandidates = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ProjectMaintenanceMaximumCompilerCandidates));
             var candidates = await Task.Run(
-                () => DiscoverCompilerCandidates(searchRoots, cancellationToken).Take(MaxCompilerCandidates).ToList(),
+                () => DiscoverCompilerCandidates(searchRoots, cancellationToken).Take(maximumCompilerCandidates).ToList(),
                 cancellationToken).ConfigureAwait(false);
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -487,6 +506,9 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
+    /// <summary>
+    /// Runs the scan project files async operation.
+    /// </summary>
     public async Task<ProjectScanResult> ScanProjectFilesAsync(Guid projectId, ScanProjectFilesRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -507,8 +529,14 @@ public sealed class ProjectMaintenanceService(
             var include = CompileRegex(project.FileIncludePattern, nameof(project.FileIncludePattern), @"(?s).*");
             var exclude = CompileRegex(project.FileExcludePattern, nameof(project.FileExcludePattern), @"(?!)");
             var solutionRegex = CompileRegex(project.SolutionSearchPattern, nameof(project.SolutionSearchPattern), @"(?i)\.(sln|slnx)$");
-            var maximum = Math.Clamp(request.MaximumFiles, 1, 100000);
-            var maxBytes = Math.Clamp(request.MaximumFileBytes, 1024, 4L * 1024 * 1024 * 1024);
+            var configuredMaximumFiles = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles));
+            var maximum = request.MaximumFiles > 0
+                ? Math.Min(request.MaximumFiles, configuredMaximumFiles)
+                : configuredMaximumFiles;
+            var configuredMaximumFileBytes = Math.Max(1L, runtimePolicy.GetLong(LocalGptRuntimeValue.MaxSingleFileBytes));
+            var maxBytes = request.MaximumFileBytes > 0
+                ? Math.Min(request.MaximumFileBytes, configuredMaximumFileBytes)
+                : configuredMaximumFileBytes;
             var now = DateTime.UtcNow;
             var warnings = new List<string>();
             var existing = await db.LocalGptProjectTrackedFiles
@@ -594,6 +622,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Gets tracked files async.
+    /// </summary>
     public async Task<IReadOnlyList<LocalGptProjectTrackedFile>> GetTrackedFilesAsync(Guid projectId, Guid? revisionId = null, CancellationToken cancellationToken = default)
     {
     try
@@ -615,6 +646,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Saves tracked file pattern async.
+    /// </summary>
     public async Task<LocalGptProjectTrackedFile> SaveTrackedFilePatternAsync(Guid trackedFileId, SaveTrackedFilePatternRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -645,6 +679,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Registers revision workspace async.
+    /// </summary>
     public async Task<LocalGptProjectRevision> RegisterRevisionWorkspaceAsync(Guid projectId, Guid revisionId, string sourceRootPath, string solutionPath, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -682,6 +719,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Runs the run build verification async operation.
+    /// </summary>
     public async Task<ProjectBuildVerification> RunBuildVerificationAsync(Guid projectId, RunProjectBuildVerificationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -763,7 +803,9 @@ public sealed class ProjectMaintenanceService(
             }
             var afterState = await CaptureTrackedSourceStateAsync(trackedFiles, requireStoredHashMatch: false, cancellationToken).ConfigureAwait(false);
             var sourceChanged = !string.Equals(beforeState.Hash, afterState.Hash, StringComparison.Ordinal);
-            var output = Limit(combined.ToString(), MaxCapturedCharacters);
+            var output = Limit(
+                combined.ToString(),
+                Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ProjectMaintenanceMaximumCapturedCharacters)));
             await File.WriteAllTextAsync(verification.OutputLogPath, output, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
             var evidence = JsonSerializer.Serialize(new
             {
@@ -819,6 +861,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Runs the record council build review async operation.
+    /// </summary>
     public async Task<ProjectBuildVerification> RecordCouncilBuildReviewAsync(Guid verificationId, RecordCouncilBuildReviewRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -850,6 +895,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Runs the approve revision ready for test async operation.
+    /// </summary>
     public async Task<ProjectBuildVerification> ApproveRevisionReadyForTestAsync(Guid projectId, Guid revisionId, ApproveRevisionReadyForTestRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -923,6 +971,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Runs the discover compiler candidates operation.
+    /// </summary>
     private IEnumerable<(string Name, string Language, string Path, string Source)> DiscoverCompilerCandidates(IEnumerable<string>? customRoots, CancellationToken cancellationToken)
     {
         var approvedCustomRoots = (customRoots ?? [])
@@ -1004,6 +1055,9 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
+    /// <summary>
+    /// Runs the enumerate compiler files operation.
+    /// </summary>
     private IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth, CancellationToken cancellationToken)
     {
         var visitedDirectoryCount = 0;
@@ -1043,6 +1097,9 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
+    /// <summary>
+    /// Gets compiler files.
+    /// </summary>
     private IReadOnlyList<string> GetCompilerFiles(string directory, int searchDepth)
     {
         try
@@ -1056,6 +1113,9 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
+    /// <summary>
+    /// Gets compiler directories.
+    /// </summary>
     private IReadOnlyList<string> GetCompilerDirectories(string directory, int searchDepth)
     {
         try
@@ -1069,6 +1129,9 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
+    /// <summary>
+    /// Normalizes compiler search roots.
+    /// </summary>
     private IReadOnlyList<string> NormalizeCompilerSearchRoots(DiscoverProjectCompilersRequest request)
     {
     try
@@ -1093,6 +1156,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Runs the enumerate files safe operation.
+    /// </summary>
     private IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)
     {
         var pending = new Stack<string>();
@@ -1109,6 +1175,9 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
+    /// <summary>
+    /// Runs the run process async operation.
+    /// </summary>
     private async Task<(int ExitCode, string Output)> RunProcessAsync(string executable, string arguments, string? workingDirectory, string? environmentVariablesJson, int timeoutSeconds, CancellationToken cancellationToken)
     {
         if (!File.Exists(executable)) throw new FileNotFoundException("The configured compiler executable does not exist.", executable);
@@ -1149,10 +1218,15 @@ public sealed class ProjectMaintenanceService(
             try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
             throw;
         }
-        var output = Limit((await stdoutTask.ConfigureAwait(false)) + Environment.NewLine + (await stderrTask.ConfigureAwait(false)), MaxCapturedCharacters);
+        var output = Limit(
+            (await stdoutTask.ConfigureAwait(false)) + Environment.NewLine + (await stderrTask.ConfigureAwait(false)),
+            Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ProjectMaintenanceMaximumCapturedCharacters)));
         return (process.ExitCode, output);
     }
 
+    /// <summary>
+    /// Runs the default build arguments operation.
+    /// </summary>
     private string DefaultBuildArguments(string language, string target, string configuration) {
     try
     {
@@ -1175,6 +1249,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Runs the default validation arguments operation.
+    /// </summary>
     private string DefaultValidationArguments(string language, string executable) {
     try
     {
@@ -1199,6 +1276,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Runs the default patterns for operation.
+    /// </summary>
     private (string Role, string Structure, string Content) DefaultPatternsFor(string extension) => extension.ToLowerInvariant() switch
     {
         ".cs" => ("CSharpSource", @"(?m)^\s*(?:public|internal|private|protected)?\s*(?:sealed\s+|abstract\s+|static\s+|partial\s+)*(?:class|record|interface|enum|struct)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", @"(?s).*"),
@@ -1216,6 +1296,9 @@ public sealed class ProjectMaintenanceService(
         _ => ("Document", string.Empty, @"(?s).*")
     };
 
+    /// <summary>
+    /// Runs the content type for operation.
+    /// </summary>
     private string ContentTypeFor(string extension) {
     try
     {
@@ -1234,6 +1317,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Determines whether text extension.
+    /// </summary>
     private bool IsTextExtension(string extension) {
     try
     {
@@ -1248,6 +1334,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Determines whether generated path.
+    /// </summary>
     private bool IsGeneratedPath(string relative) {
     try
     {
@@ -1262,6 +1351,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Finds nearest project file.
+    /// </summary>
     private string FindNearestProjectFile(string root, string file)
     {
         var directory = Path.GetDirectoryName(file);
@@ -1281,6 +1373,9 @@ public sealed class ProjectMaintenanceService(
         }
         return string.Empty;
     }
+    /// <summary>
+    /// Determines whether h file async.
+    /// </summary>
     private async Task<string> HashFileAsync(string path, CancellationToken cancellationToken)
     {
     try
@@ -1299,6 +1394,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the capture tracked source state async operation.
+    /// </summary>
     private async Task<ProjectTrackedSourceState> CaptureTrackedSourceStateAsync(IReadOnlyList<LocalGptProjectTrackedFile> files, bool requireStoredHashMatch, CancellationToken cancellationToken)
     {
     try
@@ -1330,6 +1428,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Determines whether path inside.
+    /// </summary>
     private bool IsPathInside(string root, string path)
     {
     try
@@ -1350,6 +1451,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Runs the regex matches operation.
+    /// </summary>
     private bool RegexMatches(string pattern, string input) {
     try
     {
@@ -1364,6 +1468,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the compile regex operation.
+    /// </summary>
     private Regex CompileRegex(string? pattern, string parameter, string fallback)
     {
     try
@@ -1381,6 +1488,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Validates regex.
+    /// </summary>
     private void ValidateRegex(string? pattern, string parameter, bool allowEmpty)
     {
     try
@@ -1398,6 +1508,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Validates JSON array.
+    /// </summary>
     private void ValidateJsonArray(string? json, string parameter)
     {
     try
@@ -1416,6 +1529,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Validates workspace access policy JSON.
+    /// </summary>
     private void ValidateWorkspaceAccessPolicyJson(string? json)
     {
     try
@@ -1442,6 +1558,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Parses string array.
+    /// </summary>
     private List<string> ParseStringArray(string? json)
     {
     try
@@ -1459,6 +1578,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Parses access policy.
+    /// </summary>
     private List<WorkspaceAccessPolicyRule> ParseAccessPolicy(string? json)
     {
     try
@@ -1476,6 +1598,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the enumerate relative entries operation.
+    /// </summary>
     private List<string> EnumerateRelativeEntries(string root, int maximum, List<WorkspacePermissionFinding> findings)
     {
     try
@@ -1520,6 +1645,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the evaluate access policy rule operation.
+    /// </summary>
     private void EvaluateAccessPolicyRule(WorkspaceAccessPolicyRule rule, IReadOnlyList<string> entries, string root, bool rootWriteAccess, List<WorkspacePermissionFinding> findings)
     {
     try
@@ -1560,6 +1688,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Determines whether enumerate directory.
+    /// </summary>
     private bool CanEnumerateDirectory(string path)
     {
     try
@@ -1576,6 +1707,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Determines whether open read.
+    /// </summary>
     private bool CanOpenRead(string path)
     {
     try
@@ -1592,6 +1726,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the probe directory write async operation.
+    /// </summary>
     private async Task<bool> ProbeDirectoryWriteAsync(string root, CancellationToken cancellationToken)
     {
     try
@@ -1619,6 +1756,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Determines whether broad or system root.
+    /// </summary>
     private bool IsBroadOrSystemRoot(string path)
     {
     try
@@ -1645,6 +1785,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Normalizes relative policy path.
+    /// </summary>
     private string NormalizeRelativePolicyPath(string value)
     {
     try
@@ -1663,6 +1806,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Validates JSON object.
+    /// </summary>
     private void ValidateJsonObject(string? json, string parameter)
     {
     try
@@ -1681,6 +1827,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the merge environment JSON operation.
+    /// </summary>
     private string MergeEnvironmentJson(string? compilerJson, string? workspaceJson)
     {
     try
@@ -1712,6 +1861,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
 
+    /// <summary>
+    /// Normalizes scope.
+    /// </summary>
     private string NormalizeScope(string? scope) {
     try
     {
@@ -1726,6 +1878,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Normalizes absolute path.
+    /// </summary>
     private string NormalizeAbsolutePath(string? value, string parameter)
     {
     try
@@ -1744,6 +1899,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Normalizes optional path.
+    /// </summary>
     private string NormalizeOptionalPath(string? value) {
     try
     {
@@ -1758,6 +1916,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the require confirmation operation.
+    /// </summary>
     private void RequireConfirmation(bool confirmed, string operation) {
     try
     {
@@ -1772,6 +1933,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the require text operation.
+    /// </summary>
     private string RequireText(string? value, string parameter, int max) {
     try
     {
@@ -1786,6 +1950,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the trim or fallback operation.
+    /// </summary>
     private string TrimOrFallback(string? value, int max, string fallback) {
     try
     {
@@ -1800,6 +1967,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the trim operation.
+    /// </summary>
     private string Trim(string? value, int max) {
     try
     {
@@ -1814,6 +1984,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the limit operation.
+    /// </summary>
     private string Limit(string value, int max) {
     try
     {
@@ -1828,6 +2001,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the first non empty line operation.
+    /// </summary>
     private string FirstNonEmptyLine(string value, int max) {
     try
     {
@@ -1842,6 +2018,9 @@ public sealed class ProjectMaintenanceService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the safe file name operation.
+    /// </summary>
     private string SafeFileName(string value) {
     try
     {

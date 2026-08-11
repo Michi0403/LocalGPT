@@ -9,11 +9,17 @@ namespace LocalGPT.Controller
 {
 
 
+    /// <summary>
+    /// Provides database query controller operations.
+    /// </summary>
     [ApiController]
     [Route("__diag/database/[controller]")]
     public class DatabaseQueryController(LocalGptMemoryDbContext db, ILogger<DatabaseQueryController> logger) : ControllerBase
     {
 
+        /// <summary>
+        /// Runs the query database operation.
+        /// </summary>
         [HttpGet("query")]
         public async Task<IActionResult> QueryDatabase([FromQuery] string table, [FromQuery] int take = 100)
         {
@@ -41,6 +47,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Runs the list configs operation.
+        /// </summary>
         [HttpGet("configs")]
         public async Task<IActionResult> ListConfigs()
         {

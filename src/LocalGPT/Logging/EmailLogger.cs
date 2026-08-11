@@ -8,15 +8,27 @@ using System.Net.Mail;
 
 namespace LocalGPT.Logging;
 
+/// <summary>
+/// Represents an email logger.
+/// </summary>
 public sealed class EmailLogger : ILogger, IDisposable
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly BlockingCollection<(string Message, string? ExceptionType)> logQueue = new(boundedCapacity: 256);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly CancellationTokenSource stop = new();
     private readonly EmailLoggerCoreOptions config;
     private readonly string categoryName;
     private readonly Task backgroundTask;
     private int disposed;
 
+    /// <summary>
+    /// Runs the email logger operation.
+    /// </summary>
     public EmailLogger(string categoryName, IOptionsMonitor<EmailLoggerCoreOptions> optionsSnapshot)
     {
         this.categoryName = categoryName;
@@ -24,6 +36,9 @@ public sealed class EmailLogger : ILogger, IDisposable
         backgroundTask = Task.Run(ProcessLogQueueAsync);
     }
 
+    /// <summary>
+    /// Runs the process log queue async operation.
+    /// </summary>
     private async Task ProcessLogQueueAsync()
     {
         try
@@ -45,6 +60,9 @@ public sealed class EmailLogger : ILogger, IDisposable
         }
     }
 
+    /// <summary>
+    /// Runs the send email async operation.
+    /// </summary>
     private async Task SendEmailAsync(
         string message,
         string? exceptionType,
@@ -97,12 +115,21 @@ public sealed class EmailLogger : ILogger, IDisposable
     }
 
     IDisposable ILogger.BeginScope<TState>(TState state) =>
+        /// <summary>
+        /// Runs the disposable scope operation.
+        /// </summary>
         new DisposableScope(string.Empty);
 
+    /// <summary>
+    /// Determines whether enabled.
+    /// </summary>
     public bool IsEnabled(LogLevel logLevel) =>
         System.Threading.Volatile.Read(ref disposed) == 0 &&
         (int)logLevel >= (int)config.CoreLogLevel;
 
+    /// <summary>
+    /// Runs the log operation.
+    /// </summary>
     public void Log<TState>(
         LogLevel logLevel,
         EventId eventId,
@@ -125,6 +152,9 @@ public sealed class EmailLogger : ILogger, IDisposable
         }
     }
 
+    /// <summary>
+    /// Runs the dispose operation.
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref disposed, 1) != 0)

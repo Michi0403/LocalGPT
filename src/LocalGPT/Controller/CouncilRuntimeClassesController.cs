@@ -5,18 +5,27 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller;
 
+/// <summary>
+/// Provides council runtime classes controller operations.
+/// </summary>
 [ApiController]
 [Route("api/council/runtime-classes")]
 public sealed class CouncilRuntimeClassesController(
     ICouncilRuntimeClassService runtimeClasses,
     ILogger<CouncilRuntimeClassesController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Gets all.
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CouncilRuntimeClassDefinition>>> GetAll(
         [FromQuery] bool includeDisabled,
         CancellationToken cancellationToken) =>
         Ok(await runtimeClasses.GetDefinitionsAsync(includeDisabled, cancellationToken).ConfigureAwait(false));
 
+    /// <summary>
+    /// Runs the get operation.
+    /// </summary>
     [HttpGet("{key}")]
     public async Task<ActionResult<CouncilRuntimeClassDefinition>> Get(
         string key,
@@ -26,6 +35,9 @@ public sealed class CouncilRuntimeClassesController(
         return definition is null ? NotFound() : Ok(definition);
     }
 
+    /// <summary>
+    /// Runs the save operation.
+    /// </summary>
     [HttpPost]
     [HumanApprovalRequired(
         "council.runtime-class.save",

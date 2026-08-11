@@ -6,6 +6,9 @@ using System.Text;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides engineering benchmark service operations.
+    /// </summary>
     public sealed class EngineeringBenchmarkService(
         ICouncilArtifactService artifactService,
         ICouncilKnowledgeService knowledgeService,
@@ -15,6 +18,9 @@ namespace LocalGPT.Services
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText) : IEngineeringBenchmarkService
     {
+        /// <summary>
+        /// Runs the run async operation.
+        /// </summary>
         public async Task<EngineeringBenchmarkResult> RunAsync(
             EngineeringBenchmarkRequest request,
             CancellationToken cancellationToken = default)
@@ -85,6 +91,9 @@ namespace LocalGPT.Services
                 };
             }
         }
+        /// <summary>
+        /// Saves benchmark knowledge async.
+        /// </summary>
         public async Task<Guid?> SaveBenchmarkKnowledgeAsync(EngineeringBenchmarkResult result, CancellationToken cancellationToken)
         {
             try
@@ -126,6 +135,9 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>
+        /// Runs the run local gpt lane async operation.
+        /// </summary>
         private async Task<EngineeringBenchmarkLaneResult?> RunLocalGptLaneAsync(
             BenchmarkTaskDefinition task,
             EngineeringBenchmarkRequest request,
@@ -200,6 +212,9 @@ namespace LocalGPT.Services
          
         }
 
+        /// <summary>
+        /// Validates buildable artifacts async.
+        /// </summary>
         private async Task<IReadOnlyList<EngineeringBenchmarkBuildCheck>> ValidateBuildableArtifactsAsync(
             IReadOnlyList<CouncilArtifact> artifacts,
             int maxBuildArtifacts,
@@ -229,6 +244,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Validates buildable artifact async.
+        /// </summary>
         private async Task<EngineeringBenchmarkBuildCheck> ValidateBuildableArtifactAsync(
             CouncilArtifact artifact,
             bool userConfirmed,

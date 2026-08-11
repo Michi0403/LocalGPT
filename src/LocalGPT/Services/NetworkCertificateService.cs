@@ -9,6 +9,9 @@ namespace LocalGPT.Services;
 /// <summary>Creates explicit user-requested self-signed PFX certificates for the optional LocalGPT LAN/VPN Kestrel endpoint.</summary>
 public sealed class NetworkCertificateService(ILogger<NetworkCertificateService> logger) : INetworkCertificateService
 {
+    /// <summary>
+    /// Creates default request.
+    /// </summary>
     public NetworkCertificateCreateRequest CreateDefaultRequest()
     {
         try
@@ -40,6 +43,9 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
         }
     }
 
+    /// <summary>
+    /// Creates async.
+    /// </summary>
     public async Task<NetworkCertificateCreateResult> CreateAsync(NetworkCertificateCreateRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -119,6 +125,9 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
         }
     }
 
+    /// <summary>
+    /// Parses subject alternative names.
+    /// </summary>
     private IReadOnlyList<string> ParseSubjectAlternativeNames(string? text, string commonName)
     {
         try
@@ -137,6 +146,9 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
         }
     }
 
+    /// <summary>
+    /// Runs the escape distinguished name value operation.
+    /// </summary>
     private string EscapeDistinguishedNameValue(string value)
     {
         try

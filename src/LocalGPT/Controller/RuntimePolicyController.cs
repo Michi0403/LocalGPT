@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller;
 
+/// <summary>
+/// Provides runtime policy controller operations.
+/// </summary>
 [ApiController]
 [Route("api/runtime-policy")]
 public sealed class RuntimePolicyController(
@@ -12,6 +15,9 @@ public sealed class RuntimePolicyController(
     ILocalGptRuntimePolicySeedDataService runtimePolicySeed,
     ILogger<RuntimePolicyController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Runs the get operation.
+    /// </summary>
     [HttpGet]
     public ActionResult<LocalGptRuntimePolicySnapshot> Get()
     {
@@ -28,6 +34,9 @@ public sealed class RuntimePolicyController(
         }
     }
 
+    /// <summary>
+    /// Gets definition.
+    /// </summary>
     [HttpGet("definition")]
     public ActionResult<LocalGptRuntimePolicyDefinition> GetDefinition()
     {
@@ -44,6 +53,9 @@ public sealed class RuntimePolicyController(
         }
     }
 
+    /// <summary>
+    /// Gets seed.
+    /// </summary>
     [HttpGet("seed")]
     public ActionResult<LocalGptRuntimePolicySeedModel> GetSeed()
     {
@@ -60,6 +72,9 @@ public sealed class RuntimePolicyController(
         }
     }
 
+    /// <summary>
+    /// Runs the reload operation.
+    /// </summary>
     [HttpPost("reload")]
     public ActionResult<LocalGptRuntimePolicySnapshot> Reload()
     {

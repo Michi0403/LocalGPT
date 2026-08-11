@@ -4,12 +4,21 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides embedded telemetry bridge service operations.
+/// </summary>
 public sealed class EmbeddedTelemetryBridgeService(
     IEmbeddedHardwareCatalogService catalog,
     ILogger<EmbeddedTelemetryBridgeService> logger) : IEmbeddedTelemetryBridgeService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
+    /// <summary>
+    /// Runs the preview async operation.
+    /// </summary>
     public async Task<EmbeddedTelemetryBridgeResult> PreviewAsync(EmbeddedTelemetryBridgeRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -29,6 +38,9 @@ public sealed class EmbeddedTelemetryBridgeService(
     }
 }
 
+    /// <summary>
+    /// Creates one wire envelope async.
+    /// </summary>
     public async Task<EmbeddedTelemetryBridgeResult> CreateOneWireEnvelopeAsync(EmbeddedTelemetryBridgeRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -48,6 +60,9 @@ public sealed class EmbeddedTelemetryBridgeService(
     }
 }
 
+    /// <summary>
+    /// Builds async.
+    /// </summary>
     private async Task<EmbeddedTelemetryBridgeResult> BuildAsync(EmbeddedTelemetryBridgeRequest request, bool includeOneWireEnvelope, CancellationToken cancellationToken)
     {
     try
@@ -177,6 +192,9 @@ public sealed class EmbeddedTelemetryBridgeService(
     }
 }
 
+    /// <summary>
+    /// Parses metadata.
+    /// </summary>
     private JsonElement ParseMetadata(string? value)
     {
     try
@@ -204,6 +222,9 @@ public sealed class EmbeddedTelemetryBridgeService(
     }
 }
 
+    /// <summary>
+    /// Normalizes token.
+    /// </summary>
     private string NormalizeToken(string? value, int maximum)
     {
     try
@@ -223,6 +244,9 @@ public sealed class EmbeddedTelemetryBridgeService(
     }
 }
 
+    /// <summary>
+    /// Runs the safe device for log operation.
+    /// </summary>
     private string SafeDeviceForLog(string? value) {
     try
     {
@@ -237,6 +261,9 @@ public sealed class EmbeddedTelemetryBridgeService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the severity status operation.
+    /// </summary>
     private string SeverityStatus(IEnumerable<EmbeddedPlanFinding> findings) {
     try
     {

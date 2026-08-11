@@ -3,10 +3,16 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Formatting;
 
+/// <summary>
+/// Provides chat protocol text service operations.
+/// </summary>
 public sealed class ChatProtocolTextService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ChatProtocolTextService> logger) : IChatProtocolTextService
 {
+    /// <summary>
+    /// Runs the contains any operation.
+    /// </summary>
     public bool ContainsAny(string value, LocalGptRuntimeCollection collection)
     {
         try
@@ -24,6 +30,9 @@ public sealed class ChatProtocolTextService(
         }
     }
 
+    /// <summary>
+    /// Runs the replace all operation.
+    /// </summary>
     public string ReplaceAll(string text, LocalGptRuntimeCollection collection)
     {
         try
@@ -42,14 +51,23 @@ public sealed class ChatProtocolTextService(
     }
 }
 
+/// <summary>
+/// Provides chat protocol profile catalog operations.
+/// </summary>
 public sealed class ChatProtocolProfileCatalog(
     IEnumerable<IChatProtocolProfile> profiles,
     ILogger<ChatProtocolProfileCatalog> logger) : IChatProtocolProfileCatalog
 {
+    /// <summary>
+    /// Gets or sets profiles.
+    /// </summary>
     public IReadOnlyList<IChatProtocolProfile> Profiles { get; } = profiles
         .OrderByDescending(profile => profile.Priority)
         .ToArray();
 
+    /// <summary>
+    /// Resolves exact.
+    /// </summary>
     public IChatProtocolProfile ResolveExact(ChatResponseProtocol protocol)
     {
         try
@@ -68,13 +86,25 @@ public sealed class ChatProtocolProfileCatalog(
     }
 }
 
+/// <summary>
+/// Represents a harmony chat protocol profile.
+/// </summary>
 public sealed class HarmonyChatProtocolProfile(
     IChatProtocolTextService text,
     ILogger<HarmonyChatProtocolProfile> logger) : IChatProtocolProfile
 {
+    /// <summary>
+    /// Gets or sets protocol.
+    /// </summary>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.Harmony;
+    /// <summary>
+    /// Gets or sets priority.
+    /// </summary>
     public int Priority => 100;
 
+    /// <summary>
+    /// Runs the matches model operation.
+    /// </summary>
     public bool MatchesModel(string modelName)
     {
         try
@@ -90,6 +120,9 @@ public sealed class HarmonyChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Normalizes thinking.
+    /// </summary>
     public string NormalizeThinking(string value)
     {
         try
@@ -104,6 +137,9 @@ public sealed class HarmonyChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Normalizes content.
+    /// </summary>
     public string NormalizeContent(string value)
     {
         try
@@ -119,13 +155,25 @@ public sealed class HarmonyChatProtocolProfile(
     }
 }
 
+/// <summary>
+/// Represents a deep seek chat protocol profile.
+/// </summary>
 public sealed class DeepSeekChatProtocolProfile(
     IChatProtocolTextService text,
     ILogger<DeepSeekChatProtocolProfile> logger) : IChatProtocolProfile
 {
+    /// <summary>
+    /// Gets or sets protocol.
+    /// </summary>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.DeepSeek;
+    /// <summary>
+    /// Gets or sets priority.
+    /// </summary>
     public int Priority => 90;
 
+    /// <summary>
+    /// Runs the matches model operation.
+    /// </summary>
     public bool MatchesModel(string modelName)
     {
         try
@@ -141,6 +189,9 @@ public sealed class DeepSeekChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Normalizes thinking.
+    /// </summary>
     public string NormalizeThinking(string value) {
         try
         {
@@ -153,6 +204,9 @@ public sealed class DeepSeekChatProtocolProfile(
             throw;
         }
     }
+    /// <summary>
+    /// Normalizes content.
+    /// </summary>
     public string NormalizeContent(string value) {
         try
         {
@@ -166,6 +220,9 @@ public sealed class DeepSeekChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Runs the normalize operation.
+    /// </summary>
     private string Normalize(string value)
     {
         try
@@ -182,13 +239,25 @@ public sealed class DeepSeekChatProtocolProfile(
     }
 }
 
+/// <summary>
+/// Represents a gemma chat protocol profile.
+/// </summary>
 public sealed class GemmaChatProtocolProfile(
     IChatProtocolTextService text,
     ILogger<GemmaChatProtocolProfile> logger) : IChatProtocolProfile
 {
+    /// <summary>
+    /// Gets or sets protocol.
+    /// </summary>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.Gemma;
+    /// <summary>
+    /// Gets or sets priority.
+    /// </summary>
     public int Priority => 80;
 
+    /// <summary>
+    /// Runs the matches model operation.
+    /// </summary>
     public bool MatchesModel(string modelName)
     {
         try
@@ -204,6 +273,9 @@ public sealed class GemmaChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Normalizes thinking.
+    /// </summary>
     public string NormalizeThinking(string value) {
         try
         {
@@ -216,6 +288,9 @@ public sealed class GemmaChatProtocolProfile(
             throw;
         }
     }
+    /// <summary>
+    /// Normalizes content.
+    /// </summary>
     public string NormalizeContent(string value) {
         try
         {
@@ -229,6 +304,9 @@ public sealed class GemmaChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Runs the normalize operation.
+    /// </summary>
     private string Normalize(string value)
     {
         try
@@ -245,13 +323,25 @@ public sealed class GemmaChatProtocolProfile(
     }
 }
 
+/// <summary>
+/// Represents an apple chat protocol profile.
+/// </summary>
 public sealed class AppleChatProtocolProfile(
     IChatProtocolTextService text,
     ILogger<AppleChatProtocolProfile> logger) : IChatProtocolProfile
 {
+    /// <summary>
+    /// Gets or sets protocol.
+    /// </summary>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.Apple;
+    /// <summary>
+    /// Gets or sets priority.
+    /// </summary>
     public int Priority => 70;
 
+    /// <summary>
+    /// Runs the matches model operation.
+    /// </summary>
     public bool MatchesModel(string modelName)
     {
         try
@@ -267,6 +357,9 @@ public sealed class AppleChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Normalizes thinking.
+    /// </summary>
     public string NormalizeThinking(string value) {
         try
         {
@@ -279,6 +372,9 @@ public sealed class AppleChatProtocolProfile(
             throw;
         }
     }
+    /// <summary>
+    /// Normalizes content.
+    /// </summary>
     public string NormalizeContent(string value) {
         try
         {
@@ -292,6 +388,9 @@ public sealed class AppleChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Runs the normalize operation.
+    /// </summary>
     private string Normalize(string value)
     {
         try
@@ -308,13 +407,25 @@ public sealed class AppleChatProtocolProfile(
     }
 }
 
+/// <summary>
+/// Represents a think tags chat protocol profile.
+/// </summary>
 public sealed class ThinkTagsChatProtocolProfile(
     IChatProtocolTextService text,
     ILogger<ThinkTagsChatProtocolProfile> logger) : IChatProtocolProfile
 {
+    /// <summary>
+    /// Gets or sets protocol.
+    /// </summary>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.ThinkTags;
+    /// <summary>
+    /// Gets or sets priority.
+    /// </summary>
     public int Priority => 50;
 
+    /// <summary>
+    /// Runs the matches model operation.
+    /// </summary>
     public bool MatchesModel(string modelName)
     {
         try
@@ -330,6 +441,9 @@ public sealed class ThinkTagsChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Normalizes thinking.
+    /// </summary>
     public string NormalizeThinking(string value)
     {
         try
@@ -344,6 +458,9 @@ public sealed class ThinkTagsChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Normalizes content.
+    /// </summary>
     public string NormalizeContent(string value)
     {
         try
@@ -359,12 +476,24 @@ public sealed class ThinkTagsChatProtocolProfile(
     }
 }
 
+/// <summary>
+/// Represents a plain text chat protocol profile.
+/// </summary>
 public sealed class PlainTextChatProtocolProfile(
     ILogger<PlainTextChatProtocolProfile> logger) : IChatProtocolProfile
 {
+    /// <summary>
+    /// Gets or sets protocol.
+    /// </summary>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.PlainText;
+    /// <summary>
+    /// Gets or sets priority.
+    /// </summary>
     public int Priority => 0;
 
+    /// <summary>
+    /// Runs the matches model operation.
+    /// </summary>
     public bool MatchesModel(string modelName)
     {
         try
@@ -379,6 +508,9 @@ public sealed class PlainTextChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Normalizes thinking.
+    /// </summary>
     public string NormalizeThinking(string value)
     {
         try
@@ -393,6 +525,9 @@ public sealed class PlainTextChatProtocolProfile(
         }
     }
 
+    /// <summary>
+    /// Normalizes content.
+    /// </summary>
     public string NormalizeContent(string value)
     {
         try

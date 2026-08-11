@@ -6,10 +6,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations;
 
+/// <summary>
+/// Represents an add human question flow.
+/// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260731152000_AddHumanQuestionFlow")]
 public partial class AddHumanQuestionFlow : Migration
 {
+    /// <summary>
+    /// Runs the up operation.
+    /// </summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.AddColumn<string>(
@@ -60,6 +66,9 @@ public partial class AddHumanQuestionFlow : Migration
             columns: new[] { "CouncilRunId", "Status", "GateMode" });
     }
 
+    /// <summary>
+    /// Runs the down operation.
+    /// </summary>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropIndex(

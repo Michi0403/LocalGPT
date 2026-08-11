@@ -3,11 +3,17 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Persistence;
 
+/// <summary>
+/// Provides local gpt runtime policy seed data service operations.
+/// </summary>
 public sealed class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolicySeedDataService
 {
     private readonly LocalGptRuntimePolicySeedModel seed;
     private readonly ILogger<LocalGptRuntimePolicySeedDataService> logger;
 
+    /// <summary>
+    /// Runs the local gpt runtime policy seed data service operation.
+    /// </summary>
     public LocalGptRuntimePolicySeedDataService(ILogger<LocalGptRuntimePolicySeedDataService> logger)
     {
         this.logger = logger;
@@ -79,9 +85,9 @@ public sealed class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolic
                     new(LocalGptRuntimeValue.ProtocolMaximumDiscoveryBytes, nameof(LocalGptRuntimeValue.ProtocolMaximumDiscoveryBytes), "32768", "System.Int32"),
                     new(LocalGptRuntimeValue.ArtifactBuildMinimumTimeoutSeconds, nameof(LocalGptRuntimeValue.ArtifactBuildMinimumTimeoutSeconds), "5", "System.Int32"),
                     new(LocalGptRuntimeValue.ArtifactBuildMaximumTimeoutSeconds, nameof(LocalGptRuntimeValue.ArtifactBuildMaximumTimeoutSeconds), "900", "System.Int32"),
-                    new(LocalGptRuntimeValue.CodeGenerationMaximumPayloadCharacters, nameof(LocalGptRuntimeValue.CodeGenerationMaximumPayloadCharacters), "4000000", "System.Int32"),
-                    new(LocalGptRuntimeValue.CodeGenerationMaximumFileCount, nameof(LocalGptRuntimeValue.CodeGenerationMaximumFileCount), "512", "System.Int32"),
-                    new(LocalGptRuntimeValue.CodeGenerationMaximumReviewTake, nameof(LocalGptRuntimeValue.CodeGenerationMaximumReviewTake), "100", "System.Int32"),
+                    new(LocalGptRuntimeValue.CodeGenerationMaximumPayloadCharacters, nameof(LocalGptRuntimeValue.CodeGenerationMaximumPayloadCharacters), "2147483647", "System.Int32"),
+                    new(LocalGptRuntimeValue.CodeGenerationMaximumFileCount, nameof(LocalGptRuntimeValue.CodeGenerationMaximumFileCount), "2147483647", "System.Int32"),
+                    new(LocalGptRuntimeValue.CodeGenerationMaximumReviewTake, nameof(LocalGptRuntimeValue.CodeGenerationMaximumReviewTake), "2147483647", "System.Int32"),
                     new(LocalGptRuntimeValue.ComponentActivityCapacity, nameof(LocalGptRuntimeValue.ComponentActivityCapacity), "192", "System.Int32"),
                     new(LocalGptRuntimeValue.ComponentActivityMaximumSummaryCharacters, nameof(LocalGptRuntimeValue.ComponentActivityMaximumSummaryCharacters), "320", "System.Int32"),
                     new(LocalGptRuntimeValue.RuntimeCapabilityRefreshWarning, nameof(LocalGptRuntimeValue.RuntimeCapabilityRefreshWarning), "The live capability directory is available, but its derived LocalGPT Core project artifacts could not be refreshed. Council execution continues.", "System.String"),
@@ -338,6 +344,9 @@ public sealed class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolic
         }
     }
 
+    /// <summary>
+    /// Gets seed.
+    /// </summary>
     public LocalGptRuntimePolicySeedModel GetSeed()
     {
         try

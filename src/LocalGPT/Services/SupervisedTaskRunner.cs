@@ -11,11 +11,20 @@ public sealed class SupervisedTaskRunner(
     IServiceActivityService serviceActivity,
     ILogger<SupervisedTaskRunner> logger) : ISupervisedTaskRunner
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<long, Task> activeTasks = new();
     private long nextTaskId;
 
+    /// <summary>
+    /// Gets or sets active task count.
+    /// </summary>
     public int ActiveTaskCount => activeTasks.Count;
 
+    /// <summary>
+    /// Runs the run operation.
+    /// </summary>
     public void Run(
         string owner,
         string operation,
@@ -51,6 +60,9 @@ public sealed class SupervisedTaskRunner(
     }
 }
 
+    /// <summary>
+    /// Runs the observe async operation.
+    /// </summary>
     private async Task ObserveAsync(
         long taskId,
         string owner,

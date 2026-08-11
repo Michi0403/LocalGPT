@@ -5,17 +5,26 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides minecraft mod workspace service operations.
+    /// </summary>
     public partial class MinecraftModWorkspaceService(ILogger<MinecraftModWorkspaceService> logger,
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
         LocalGptCatalogService catalog) : IMinecraftModWorkspaceService
     {
     
+        /// <summary>
+        /// Gets or sets workspace root.
+        /// </summary>
         public string WorkspaceRoot { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "MinecraftModWorkspaces");
 
+        /// <summary>
+        /// Creates workspace async.
+        /// </summary>
         public async Task<MinecraftModWorkspace> CreateWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -44,6 +53,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Creates fabric workspace async.
+        /// </summary>
         public async Task<MinecraftModWorkspace> CreateFabricWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -77,6 +89,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Creates paper plugin workspace async.
+        /// </summary>
         public async Task<MinecraftModWorkspace> CreatePaperPluginWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -108,6 +123,9 @@ namespace LocalGPT.Services
           
         }
 
+        /// <summary>
+        /// Creates datapack workspace async.
+        /// </summary>
         public async Task<MinecraftModWorkspace> CreateDatapackWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -174,6 +192,9 @@ namespace LocalGPT.Services
           
         }
 
+        /// <summary>
+        /// Creates neo forge workspace async.
+        /// </summary>
         public async Task<MinecraftModWorkspace> CreateNeoForgeWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -207,6 +228,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Determines whether path inside workspace root.
+        /// </summary>
         public bool IsPathInsideWorkspaceRoot(string path)
         {
             try
@@ -222,6 +246,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Creates workspace layout.
+        /// </summary>
         private WorkspaceLayout CreateWorkspaceLayout(MinecraftModBuildRequest request)
         {
             try
@@ -278,6 +305,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Creates datapack layout.
+        /// </summary>
         private WorkspaceLayout CreateDatapackLayout(MinecraftModBuildRequest request)
         {
             try
@@ -312,6 +342,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Writes common resource files async.
+        /// </summary>
         private async Task WriteCommonResourceFilesAsync(MinecraftModBuildRequest request, WorkspaceContext context, CancellationToken cancellationToken)
         {
             try
@@ -335,6 +368,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Writes build helper async.
+        /// </summary>
         private async Task WriteBuildHelperAsync(MinecraftModBuildRequest request, WorkspaceContext context, CancellationToken cancellationToken)
         {
             try
@@ -353,6 +389,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Gets unique project path.
+        /// </summary>
         private string GetUniqueProjectPath(string projectName)
         {
             try

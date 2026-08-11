@@ -10,6 +10,9 @@ namespace LocalGPT.Services;
 public sealed class AiProviderConfigurationRegistryService(
     ILogger<AiProviderConfigurationRegistryService> logger) : IAiProviderConfigurationRegistryService
 {
+    /// <summary>
+    /// Creates detached draft.
+    /// </summary>
     public AICoreOptions CreateDetachedDraft(AICoreOptions? source)
     {
         try
@@ -89,6 +92,9 @@ public sealed class AiProviderConfigurationRegistryService(
         }
     }
 
+    /// <summary>
+    /// Applies detached draft.
+    /// </summary>
     public void ApplyDetachedDraft(
         AICoreOptions target,
         AICoreOptions draft,

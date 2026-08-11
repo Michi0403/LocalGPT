@@ -5,11 +5,17 @@ using LocalGPT.Services.Helpers;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a get project architecture function.
+/// </summary>
 public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     IProjectArchitectureService architecture,
     ILogger<GetProjectArchitectureFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.architecture.get",
         "POST",
@@ -26,6 +32,9 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
         {"type":"object","properties":{"projectId":{"type":"string","format":"uuid"}},"required":["projectId"],"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -61,10 +70,16 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
 
 }
 
+/// <summary>
+/// Represents a save project revision function.
+/// </summary>
 public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
     IProjectArchitectureService architecture,
     ILogger<SaveProjectRevisionFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.save",
         "POST",
@@ -80,6 +95,9 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
         ApprovalRequiredBeforeCompletion: false,
         Source: "DIHandler");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -106,10 +124,16 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
 
 }
 
+/// <summary>
+/// Represents a save project requirement function.
+/// </summary>
 public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json,
     IProjectArchitectureService architecture,
     ILogger<SaveProjectRequirementFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.requirement.save",
         "POST",
@@ -125,6 +149,9 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
         ApprovalRequiredBeforeCompletion: false,
         Source: "DIHandler");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -151,10 +178,16 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
 
 }
 
+/// <summary>
+/// Represents a save project artifact function.
+/// </summary>
 public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
     IProjectArchitectureService architecture,
     ILogger<SaveProjectArtifactFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.artifact.save",
         "POST",
@@ -170,6 +203,9 @@ public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
         ApprovalRequiredBeforeCompletion: false,
         Source: "DIHandler");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

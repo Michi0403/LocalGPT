@@ -2,9 +2,15 @@ using LocalGPT.BusinessObjects;
 using Microsoft.Extensions.Options;
 namespace LocalGPT.Helper
 {
+    /// <summary>
+    /// Represents a configure email logger options.
+    /// </summary>
     public class ConfigureEmailLoggerOptions(IOptionsMonitor<EmailLoggerCoreOptions> loggingOptions) : IConfigureOptions<EmailLoggerCoreOptions>
     {
 
+        /// <summary>
+        /// Runs the configure operation.
+        /// </summary>
         public void Configure(EmailLoggerCoreOptions options)
         {
             loggingOptions.CurrentValue.SmtpServer = options.SmtpServer;

@@ -5,10 +5,16 @@ using LocalGPT.Services.Helpers;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a list sqlite tables function.
+/// </summary>
 public sealed class ListSqliteTablesFunction(IDxAiFunctionJsonService json,
     ISqliteTableEditorService editor,
     ILogger<ListSqliteTablesFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.sqlite.tables.list",
         "POST",
@@ -22,6 +28,9 @@ public sealed class ListSqliteTablesFunction(IDxAiFunctionJsonService json,
         SupportsAutomaticInvocation: true,
         Source: "DIHandler");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -42,10 +51,16 @@ public sealed class ListSqliteTablesFunction(IDxAiFunctionJsonService json,
 }
 }
 
+/// <summary>
+/// Represents a preview sqlite table function.
+/// </summary>
 public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
     ISqliteTableEditorService editor,
     ILogger<PreviewSqliteTableFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.sqlite.table.preview",
         "POST",
@@ -62,6 +77,9 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
         {"type":"object","properties":{"tableName":{"type":"string"},"take":{"type":"integer","minimum":1,"maximum":100}},"required":["tableName"],"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -94,6 +112,9 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
     }
 }
 
+    /// <summary>
+    /// Determines whether sensitive column.
+    /// </summary>
     private bool IsSensitiveColumn(string name) {
     try
     {
@@ -117,10 +138,16 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
 
 }
 
+/// <summary>
+/// Represents a read exact sqlite table function.
+/// </summary>
 public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
     ISqliteTableEditorService editor,
     ILogger<ReadExactSqliteTableFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.sqlite.table.read_exact",
         "POST",
@@ -139,6 +166,9 @@ public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
         {"type":"object","properties":{"tableName":{"type":"string"},"take":{"type":"integer","minimum":1,"maximum":100}},"required":["tableName"],"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -165,10 +195,16 @@ public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
 
 }
 
+/// <summary>
+/// Represents an upsert sqlite row function.
+/// </summary>
 public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
     ISqliteTableEditorService editor,
     ILogger<UpsertSqliteRowFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.sqlite.row.upsert",
         "POST",
@@ -187,6 +223,9 @@ public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
         {"type":"object","properties":{"tableName":{"type":"string"},"rowId":{"type":["integer","null"]},"values":{"type":"object","additionalProperties":{"type":["string","null"]}}},"required":["tableName","values"],"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -226,10 +265,16 @@ public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
 
 }
 
+/// <summary>
+/// Represents a delete sqlite row function.
+/// </summary>
 public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
     ISqliteTableEditorService editor,
     ILogger<DeleteSqliteRowFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.sqlite.row.delete",
         "POST",
@@ -248,6 +293,9 @@ public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
         {"type":"object","properties":{"tableName":{"type":"string"},"rowId":{"type":"integer"}},"required":["tableName","rowId"],"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -274,10 +322,16 @@ public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
 
 }
 
+/// <summary>
+/// Represents an import project text document function.
+/// </summary>
 public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService json,
     ISafeTextDocumentService documents,
     ILogger<ImportProjectTextDocumentFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.document.import_text",
         "POST",
@@ -296,6 +350,9 @@ public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService j
         {"type":"object","properties":{"projectId":{"type":"string","format":"uuid"},"revisionId":{"type":["string","null"],"format":"uuid"},"filePath":{"type":"string"}},"required":["projectId","filePath"],"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

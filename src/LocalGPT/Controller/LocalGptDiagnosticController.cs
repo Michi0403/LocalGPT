@@ -18,6 +18,9 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Controller
 {
+    /// <summary>
+    /// Provides local gpt diagnostic controller operations.
+    /// </summary>
     [ApiController]
     [Route("")]
     public class LocalGptDiagnosticController(ILogger<LocalGptDiagnosticController> logger,
@@ -27,6 +30,9 @@ namespace LocalGPT.Controller
         IDxAiFunctionRegistry dxAiFunctionRegistry,
         LocalGptCatalogService catalog) : ControllerBase
     {
+        /// <summary>
+        /// Runs the require human confirmation operation.
+        /// </summary>
         private IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
             userConfirmed
                 ? null
@@ -36,6 +42,9 @@ namespace LocalGPT.Controller
                     Operation = operation
                 });
 
+        /// <summary>
+        /// Runs the run ensure create async once operation.
+        /// </summary>
         private async Task RunEnsureCreateAsyncOnce(IChatMemoryService? iChatMemoryService, IApplicationLogReaderService? iApplicationLogReaderService, ICouncilKnowledgeService? iCouncilKnowledgeService  )
         {
             try
@@ -49,6 +58,9 @@ namespace LocalGPT.Controller
             }
 
         }
+        /// <summary>
+        /// Gets root.
+        /// </summary>
         [HttpGet("/__diag")]
         public IResult GetRoot(
             [FromServices] IWebHostEnvironment env)
@@ -71,6 +83,9 @@ namespace LocalGPT.Controller
          
         }
 
+        /// <summary>
+        /// Gets component activity.
+        /// </summary>
         [HttpGet("/__diag/component-activity")]
         public IResult GetComponentActivity(
             [FromServices] IComponentActivityService componentActivity,
@@ -96,6 +111,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets ai smoke.
+        /// </summary>
         [HttpGet("/__diag/ai-smoke")]
         [HumanApprovalRequired("diagnostic.ai.smoke", "Call configured AI client", "Send one exact diagnostic prompt to the configured AI client.", "Medium", "AI connectivity reviewer")]
         public async Task<IResult> GetAiSmoke(
@@ -111,6 +129,9 @@ namespace LocalGPT.Controller
 
                 var response = await chatClient.GetResponseAsync(
                [
+                   /// <summary>
+                   /// Runs the chat message operation.
+                   /// </summary>
                    new Microsoft.Extensions.AI. ChatMessage(ChatRole.User, string.IsNullOrWhiteSpace(prompt)
                         ? "Reply with exactly: LocalGPT DXAiChat backend test passed."
                         : prompt)
@@ -134,6 +155,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets ollama compatible smoke.
+        /// </summary>
         [HttpGet("/__diag/ollama-compatible-smoke")]
         [HumanApprovalRequired("diagnostic.ollama.smoke", "Call Ollama-compatible endpoint", "Send one exact diagnostic request to the selected Ollama-compatible endpoint.", "Medium", "AI connectivity reviewer")]
         public async Task<IResult> GetOllamaCompatibleSmoke(
@@ -171,6 +195,9 @@ namespace LocalGPT.Controller
 
                 var response = await client.GetResponseAsync(
                     [
+                        /// <summary>
+                        /// Runs the chat message operation.
+                        /// </summary>
                         new Microsoft.Extensions.AI. ChatMessage(ChatRole.User, string.IsNullOrWhiteSpace(prompt)
                         ? "Reply with exactly: LocalGPT Ollama-compatible endpoint smoke passed."
                         : prompt)
@@ -201,6 +228,9 @@ namespace LocalGPT.Controller
                         
         }
 
+        /// <summary>
+        /// Runs the post dxaichat smoke operation.
+        /// </summary>
         [HttpPost("/__diag/dxaichat-smoke")]
         [HumanApprovalRequired("diagnostic.dxaichat.smoke", "Run DXAiChat diagnostic", "Call the configured chat client and optionally persist the exact diagnostic exchange.", "Medium", "Chat workflow reviewer")]
         public async Task<IResult> PostDxaichatSmoke(
@@ -247,7 +277,13 @@ namespace LocalGPT.Controller
                     savedConversationId = await memory.SaveConversationAsync(
                         string.IsNullOrWhiteSpace(request.Title) ? "Diagnostic - DXAiChat configured client" : request.Title.Trim(),
                         [
+                            /// <summary>
+                            /// Runs the blazor chat message operation.
+                            /// </summary>
                             new BlazorChatMessage(ChatRole.User, prompt, new List<AIChatUploadFileInfo>()),
+                        /// <summary>
+                        /// Runs the blazor chat message operation.
+                        /// </summary>
                         new BlazorChatMessage(ChatRole.Assistant, response.Text, new List<AIChatUploadFileInfo>())
                         ],
                         cancellationToken: ct).ConfigureAwait(false);
@@ -277,6 +313,9 @@ namespace LocalGPT.Controller
             }           
         }
 
+        /// <summary>
+        /// Gets memory.
+        /// </summary>
         [HttpGet("/__diag/memory")]
         public async Task<IResult> GetMemory(
             [FromServices] IChatMemoryService memory,
@@ -306,6 +345,9 @@ namespace LocalGPT.Controller
            
         }
 
+        /// <summary>
+        /// Gets council file name.
+        /// </summary>
         [HttpGet("/__artifacts/council/{fileName}")]
         public IResult GetCouncilFileName(
             string fileName,
@@ -340,6 +382,9 @@ namespace LocalGPT.Controller
             }    
         }
 
+        /// <summary>
+        /// Gets logs.
+        /// </summary>
         [HttpGet("/__diag/logs")]
         public async Task<IResult> GetLogs(
             [FromServices] IApplicationLogReaderService logs,
@@ -383,6 +428,9 @@ namespace LocalGPT.Controller
             }  
         }
 
+        /// <summary>
+        /// Gets knowledge.
+        /// </summary>
         [HttpGet("/__diag/knowledge")]
         public async Task<IResult> GetKnowledge(
             [FromServices] ICouncilKnowledgeService knowledge,
@@ -410,6 +458,9 @@ namespace LocalGPT.Controller
             }       
         }
 
+        /// <summary>
+        /// Gets sqlite tables.
+        /// </summary>
         [HttpGet("/__diag/sqlite/tables")]
         public async Task<IResult> GetSqliteTables(
             [FromServices] IChatMemoryService memory,
@@ -437,6 +488,9 @@ namespace LocalGPT.Controller
             }         
         }
 
+        /// <summary>
+        /// Gets sqlite table table name.
+        /// </summary>
         [HttpGet("/__diag/sqlite/table/{tableName}")]
         public async Task<IResult> GetSqliteTableTableName(
             string tableName,
@@ -459,6 +513,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets devexpress.
+        /// </summary>
         [HttpGet("/__diag/devexpress")]
         public async Task<IResult> GetDevexpress(
             [FromServices] IProjectLibraryInventoryService inventory,
@@ -479,6 +536,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets build debug files.
+        /// </summary>
         [HttpGet("/__diag/build-debug-files")]
         public async Task<IResult> GetBuildDebugFiles(
             [FromServices] IBuildDebugInventoryService inventory,
@@ -507,6 +567,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets artifact workspaces.
+        /// </summary>
         [HttpGet("/__diag/artifact-workspaces")]
         public IResult GetArtifactWorkspaces(
             [FromServices] ICouncilArtifactService artifacts,
@@ -544,6 +607,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets artifact workspace workspace name files.
+        /// </summary>
         [HttpGet("/__diag/artifact-workspace/{workspaceName}/files")]
         public IResult GetArtifactWorkspaceWorkspaceNameFiles(
             string workspaceName,
@@ -571,6 +637,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets artifact workspace workspace name file.
+        /// </summary>
         [HttpGet("/__diag/artifact-workspace/{workspaceName}/file")]
         public async Task<IResult> GetArtifactWorkspaceWorkspaceNameFile(
             string workspaceName,
@@ -612,6 +681,9 @@ namespace LocalGPT.Controller
         }
 
 
+        /// <summary>
+        /// Runs the post artifact workspace workspace name file operation.
+        /// </summary>
         [HttpPost("/__diag/artifact-workspace/{workspaceName}/file")]
         [HumanApprovalRequired("artifact.workspace.file.write", "Write generated workspace file", "Write the reviewed text content to one bounded file inside a generated artifact workspace.", "High", "Source workspace reviewer")]
         public async Task<IResult> PostArtifactWorkspaceWorkspaceNameFile(
@@ -660,6 +732,9 @@ namespace LocalGPT.Controller
             }       
         }
 
+        /// <summary>
+        /// Gets artifact workspace workspace name zip.
+        /// </summary>
         [HttpGet("/__diag/artifact-workspace/{workspaceName}/zip")]
         [HumanApprovalRequired("artifact.workspace.zip.refresh", "Refresh generated workspace ZIP", "Replace the downloadable ZIP for one bounded generated artifact workspace.", "Medium", "Artifact reviewer")]
         public IResult GetArtifactWorkspaceWorkspaceNameZip(
@@ -701,6 +776,9 @@ namespace LocalGPT.Controller
             }        
         }
 
+        /// <summary>
+        /// Gets chat upload workspaces.
+        /// </summary>
         [HttpGet("/__diag/chat-upload-workspaces")]
         public IResult GetChatUploadWorkspaces(
             [FromServices] IChatUploadWorkspaceService uploads,
@@ -738,6 +816,9 @@ namespace LocalGPT.Controller
             }     
         }
 
+        /// <summary>
+        /// Gets chat upload workspace workspace name files.
+        /// </summary>
         [HttpGet("/__diag/chat-upload-workspace/{workspaceName}/files")]
         public IResult GetChatUploadWorkspaceWorkspaceNameFiles(
             string workspaceName,
@@ -765,6 +846,9 @@ namespace LocalGPT.Controller
             }        
         }
 
+        /// <summary>
+        /// Gets chat upload workspace workspace name context.
+        /// </summary>
         [HttpGet("/__diag/chat-upload-workspace/{workspaceName}/context")]
         public async Task<IResult> GetChatUploadWorkspaceWorkspaceNameContext(
             string workspaceName,
@@ -790,6 +874,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets chat upload workspace workspace name file.
+        /// </summary>
         [HttpGet("/__diag/chat-upload-workspace/{workspaceName}/file")]
         public async Task<IResult> GetChatUploadWorkspaceWorkspaceNameFile(
             string workspaceName,
@@ -817,6 +904,9 @@ namespace LocalGPT.Controller
             }     
         }
 
+        /// <summary>
+        /// Runs the post chat upload workspace smoke operation.
+        /// </summary>
         [HttpPost("/__diag/chat-upload-workspace/smoke")]
         [HumanApprovalRequired("diagnostic.upload.workspace.create", "Create upload workspace", "Create a bounded diagnostic workspace from generated upload fixtures.", "High", "Workspace reviewer")]
         public async Task<IResult> PostChatUploadWorkspaceSmoke(
@@ -839,15 +929,27 @@ namespace LocalGPT.Controller
                         : prompt,
                     new[]
                     {
+                    /// <summary>
+                    /// Runs the chat upload workspace input file operation.
+                    /// </summary>
                     new ChatUploadWorkspaceInputFile(
                         "WeatherHostUpload.zip",
                         "application/zip",
                         zip.Length,
+                        /// <summary>
+                        /// Reads only memory.
+                        /// </summary>
                         new ReadOnlyMemory<byte>(zip)),
+                    /// <summary>
+                    /// Runs the chat upload workspace input file operation.
+                    /// </summary>
                     new ChatUploadWorkspaceInputFile(
                         "WeatherHostUpload.pdb",
                         "application/octet-stream",
                         pdb.Length,
+                        /// <summary>
+                        /// Reads only memory.
+                        /// </summary>
                         new ReadOnlyMemory<byte>(pdb))
                     },
                     ct).ConfigureAwait(false);
@@ -880,6 +982,9 @@ namespace LocalGPT.Controller
             }     
         }
 
+        /// <summary>
+        /// Gets memory smoke.
+        /// </summary>
         [HttpGet("/__diag/memory-smoke")]
         [HumanApprovalRequired("diagnostic.memory.smoke", "Write diagnostic memory", "Persist a bounded diagnostic conversation and call the configured model.", "High", "Memory reviewer")]
         public async Task<IResult> GetMemorySmoke(
@@ -904,6 +1009,9 @@ namespace LocalGPT.Controller
                 var conversationId = await memory.SaveConversationAsync("Diagnostic - gpt-oss:20b", seedMessages, cancellationToken: ct).ConfigureAwait(false);
                 var response = await chatClient.GetResponseAsync(
                     [
+                        /// <summary>
+                        /// Runs the chat message operation.
+                        /// </summary>
                         new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, "Using your LocalGPT bootstrap, saved memory, and AI guidance files, answer in exactly three bullets: project mission, one Minecraft Mod Builder feature you should support, and the humane safety rule for the current user. Mention gpt-oss:20b if you see it in memory.")
                     ],
                     new ChatOptions
@@ -928,6 +1036,9 @@ namespace LocalGPT.Controller
             }    
         }
 
+        /// <summary>
+        /// Runs the post process review operation.
+        /// </summary>
         [HttpPost("/__diag/process-review")]
         [HumanApprovalRequired("diagnostic.process.review", "Run grounded process review", "Run the submitted grounded process review through the configured model and memory workflow.", "Medium", "Process reviewer")]
         public async Task<IResult> PostProcessReview(
@@ -989,6 +1100,9 @@ namespace LocalGPT.Controller
 
                 var response = await chatClient.GetResponseAsync(
                     [
+                        /// <summary>
+                        /// Runs the chat message operation.
+                        /// </summary>
                         new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, prompt)
                     ],
                     new ChatOptions
@@ -1011,6 +1125,9 @@ namespace LocalGPT.Controller
             }           
         }
 
+        /// <summary>
+        /// Gets council models.
+        /// </summary>
         [HttpGet("/__diag/council/models")]
         public async Task<IResult> GetCouncilModels(
             [FromServices] IMultiModelCouncilService council,
@@ -1027,6 +1144,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets council benchmark plan.
+        /// </summary>
         [HttpGet("/__diag/council/benchmark-plan")]
         public async Task<IResult> GetCouncilBenchmarkPlan(
             [FromServices] IMultiModelCouncilService council,
@@ -1126,6 +1246,9 @@ namespace LocalGPT.Controller
             }         
         }
 
+        /// <summary>
+        /// Gets dxaichat functions.
+        /// </summary>
         [HttpGet("/__diag/dxaichat-functions")]
         public IResult GetDxaichatFunctions()
         {
@@ -1141,6 +1264,9 @@ namespace LocalGPT.Controller
         }
 
 
+        /// <summary>
+        /// Runs the invoke DevExpress function operation.
+        /// </summary>
         [HttpPost("/__diag/dxaichat-functions/{functionName}/invoke")]
         public async Task<IResult> InvokeDxFunction(
             string functionName,
@@ -1163,6 +1289,9 @@ namespace LocalGPT.Controller
         }
 
 
+        /// <summary>
+        /// Gets blazor devexpress guidance.
+        /// </summary>
         [HttpGet("/__diag/blazor-devexpress-guidance")]
         public async Task<IResult> GetBlazorDevexpressGuidance(
             [FromServices] IWebHostEnvironment env,
@@ -1191,6 +1320,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets frontend design guidance.
+        /// </summary>
         [HttpGet("/__diag/frontend-design-guidance")]
         public async Task<IResult> GetFrontendDesignGuidance(
             [FromServices] IWebHostEnvironment env,
@@ -1219,6 +1351,9 @@ namespace LocalGPT.Controller
             }   
         }
 
+        /// <summary>
+        /// Gets dotnet sample curriculum.
+        /// </summary>
         [HttpGet("/__diag/dotnet-sample-curriculum")]
         public async Task<IResult> GetDotnetSampleCurriculum(
             [FromServices] IWebHostEnvironment env,
@@ -1247,6 +1382,9 @@ namespace LocalGPT.Controller
             }  
         }
 
+        /// <summary>
+        /// Gets ai host rebuild guidance.
+        /// </summary>
         [HttpGet("/__diag/ai-host-rebuild-guidance")]
         public async Task<IResult> GetAiHostRebuildGuidance(
             [FromServices] IWebHostEnvironment env,
@@ -1279,6 +1417,9 @@ namespace LocalGPT.Controller
                         
         }
 
+        /// <summary>
+        /// Gets frontend test guidance.
+        /// </summary>
         [HttpGet("/__diag/frontend-test-guidance")]
         public async Task<IResult> GetFrontendTestGuidance(
             [FromServices] IWebHostEnvironment env,
@@ -1308,6 +1449,9 @@ namespace LocalGPT.Controller
             }
         }
 
+        /// <summary>
+        /// Gets capability gap contract.
+        /// </summary>
         [HttpGet("/__diag/capability-gap-contract")]
         public async Task<IResult> GetCapabilityGapContract(
             [FromServices] IWebHostEnvironment env,
@@ -1338,6 +1482,9 @@ namespace LocalGPT.Controller
 
         }
 
+        /// <summary>
+        /// Runs the post learn base import operation.
+        /// </summary>
         [HttpPost("/__diag/learn-base/import")]
         [HumanApprovalRequired("learnbase.import", "Import local learn-base", "Read the selected local source tree and optionally persist normalized knowledge entries.", "High", "Knowledge curator")]
         public async Task<IResult> PostLearnBaseImport(
@@ -1361,6 +1508,9 @@ namespace LocalGPT.Controller
                         
         }
 
+        /// <summary>
+        /// Gets learn base import.
+        /// </summary>
         [HttpGet("/__diag/learn-base/import")]
         [HumanApprovalRequired("learnbase.import", "Import local learn-base", "Read the selected local source tree and optionally persist normalized knowledge entries.", "High", "Knowledge curator")]
         public async Task<IResult> GetLearnBaseImport(
@@ -1407,6 +1557,9 @@ namespace LocalGPT.Controller
             }      
         }
 
+        /// <summary>
+        /// Runs the post benchmark engineering operation.
+        /// </summary>
         [HttpPost("/__diag/benchmark/engineering")]
         [HumanApprovalRequired("diagnostic.engineering.benchmark", "Run engineering benchmark", "Run the bounded engineering benchmark and persist its reviewed diagnostic result.", "High", "Engineering benchmark reviewer")]
         public async Task<IResult> PostBenchmarkEngineering(
@@ -1430,6 +1583,9 @@ namespace LocalGPT.Controller
             }         
         }
 
+        /// <summary>
+        /// Gets benchmark engineering.
+        /// </summary>
         [HttpGet("/__diag/benchmark/engineering")]
         [HumanApprovalRequired("diagnostic.engineering.benchmark", "Run engineering benchmark", "Run the bounded engineering benchmark and persist its reviewed diagnostic result.", "High", "Engineering benchmark reviewer")]
         public async Task<IResult> GetBenchmarkEngineering(
@@ -1464,6 +1620,9 @@ namespace LocalGPT.Controller
             }         
         }
 
+        /// <summary>
+        /// Gets council development feedback talk.
+        /// </summary>
         [HttpGet("/__diag/council/development-feedback-talk")]
         [HumanApprovalRequired("diagnostic.council.feedback", "Run council development feedback", "Start the requested local council feedback session and persist its bounded result.", "Medium", "Council facilitator")]
         public async Task<IResult> GetCouncilDevelopmentFeedbackTalk(
@@ -1545,6 +1704,9 @@ namespace LocalGPT.Controller
             }       
         }
 
+        /// <summary>
+        /// Gets council artifact smoke.
+        /// </summary>
         [HttpGet("/__diag/council/artifact-smoke")]
         [HumanApprovalRequired("diagnostic.council.artifact.create", "Create council artifact workspace", "Create one deterministic bounded council artifact workspace for diagnostics.", "High", "Artifact reviewer")]
         public async Task<IResult> GetCouncilArtifactSmoke(
@@ -1631,6 +1793,9 @@ namespace LocalGPT.Controller
             }     
         }
 
+        /// <summary>
+        /// Runs the post council operation.
+        /// </summary>
         [HttpPost("/__diag/council")]
         public async Task<IResult> PostCouncil(
             [FromBody] MultiModelCouncilRequest request,

@@ -7,12 +7,18 @@ using LocalGPT.WireProtocol;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides organic skill registry service operations.
+/// </summary>
 public sealed class OrganicSkillRegistryService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     IOrganicAddonManifestService addonManifests,
     ILogger<OrganicSkillRegistryService> logger) : IOrganicSkillRegistryService
 {
+    /// <summary>
+    /// Gets skills async.
+    /// </summary>
     public async Task<IReadOnlyList<OrganicSkillDefinition>> GetSkillsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)
     {
     try
@@ -34,6 +40,9 @@ public sealed class OrganicSkillRegistryService(
     }
 }
 
+    /// <summary>
+    /// Saves skill async.
+    /// </summary>
     public async Task<OrganicSkillDefinition> SaveSkillAsync(SaveOrganicSkillRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -77,6 +86,9 @@ public sealed class OrganicSkillRegistryService(
     }
 }
 
+    /// <summary>
+    /// Runs the link project async operation.
+    /// </summary>
     public async Task<ProjectOrganicSkillLink> LinkProjectAsync(LinkProjectOrganicSkillRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -111,6 +123,9 @@ public sealed class OrganicSkillRegistryService(
     }
 }
 
+    /// <summary>
+    /// Runs the report member skill async operation.
+    /// </summary>
     public async Task<CouncilMemberOrganicSkillLink> ReportMemberSkillAsync(ReportCouncilMemberSkillRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -150,6 +165,9 @@ public sealed class OrganicSkillRegistryService(
     }
 }
 
+    /// <summary>
+    /// Runs the record untrusted self assessment async operation.
+    /// </summary>
     public async Task RecordUntrustedSelfAssessmentAsync(LocalGPT.WireProtocol.OneWireModelSelfAssessment assessment, CancellationToken cancellationToken = default)
     {
     try
@@ -227,6 +245,9 @@ public sealed class OrganicSkillRegistryService(
     }
 }
 
+    /// <summary>
+    /// Gets wire skills async.
+    /// </summary>
     public async Task<IReadOnlyList<OneWireSkillDescriptor>> GetWireSkillsAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -258,6 +279,9 @@ public sealed class OrganicSkillRegistryService(
     }
 }
 
+    /// <summary>
+    /// Runs the map to wire operation.
+    /// </summary>
     private OneWireSkillDescriptor MapToWire(OrganicSkillDefinition item) {
     try
     {
@@ -285,6 +309,9 @@ public sealed class OrganicSkillRegistryService(
     }
 }
 
+    /// <summary>
+    /// Runs the serialize distinct operation.
+    /// </summary>
     private string SerializeDistinct(IEnumerable<string>? values) {
     try
     {
@@ -299,6 +326,9 @@ public sealed class OrganicSkillRegistryService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the deserialize operation.
+    /// </summary>
     private List<string> Deserialize(string json) {
     try
     {

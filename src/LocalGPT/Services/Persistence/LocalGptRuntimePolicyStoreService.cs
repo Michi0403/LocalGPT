@@ -6,12 +6,18 @@ using System.Text.Json;
 
 namespace LocalGPT.Services.Persistence;
 
+/// <summary>
+/// Provides local gpt runtime policy store service operations.
+/// </summary>
 public sealed class LocalGptRuntimePolicyStoreService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILocalGptRuntimePolicySeedDataService seedData,
     ILogger<LocalGptRuntimePolicyStoreService> logger) : ILocalGptRuntimePolicyStoreService
 {
+    /// <summary>
+    /// Gets definition.
+    /// </summary>
     public LocalGptRuntimePolicyDefinition? GetDefinition()
     {
         try

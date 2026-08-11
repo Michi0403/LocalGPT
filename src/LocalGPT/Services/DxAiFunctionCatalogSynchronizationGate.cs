@@ -5,8 +5,14 @@ namespace LocalGPT.Services;
 /// </summary>
 public sealed class DxAiFunctionCatalogSynchronizationGate
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim gate = new(1, 1);
 
+    /// <summary>
+    /// Runs the wait async operation.
+    /// </summary>
     public Task WaitAsync(CancellationToken cancellationToken) {
     try
     {
@@ -19,6 +25,9 @@ public sealed class DxAiFunctionCatalogSynchronizationGate
     }
 }
 
+    /// <summary>
+    /// Runs the release operation.
+    /// </summary>
     public void Release() {
     try
     {

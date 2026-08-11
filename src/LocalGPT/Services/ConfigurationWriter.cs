@@ -4,8 +4,14 @@ using System.Text.Json.Nodes;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides configuration writer operations.
+    /// </summary>
     public sealed class ConfigurationWriter(ILogger<ConfigurationWriter> logger) : IConfigurationWriter
     {
+        /// <summary>
+        /// Saves async.
+        /// </summary>
         public async Task SaveAsync(BusinessObjects.ConfigurationRoot root, CancellationToken ct = default)
         {
             try
@@ -46,6 +52,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Sets section.
+        /// </summary>
         private void SetSection<T>(
             JsonObject settings,
             string sectionName,

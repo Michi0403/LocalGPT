@@ -3,8 +3,14 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides local gpt request factory service operations.
+/// </summary>
 public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactoryService> logger) : ILocalGptRequestFactoryService
 {
+    /// <summary>
+    /// Creates project request.
+    /// </summary>
     public SaveLocalGptProjectRequest CreateProjectRequest() {
     try
     {
@@ -29,6 +35,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     }
 }
 
+    /// <summary>
+    /// Creates topic request.
+    /// </summary>
     public AddLocalGptProjectTopicRequest CreateTopicRequest() {
     try
     {
@@ -47,6 +56,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     }
 }
 
+    /// <summary>
+    /// Creates version request.
+    /// </summary>
     public AddLocalGptProjectVersionRequest CreateVersionRequest(string path = "") {
     try
     {
@@ -66,6 +78,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     }
 }
 
+    /// <summary>
+    /// Creates revision request.
+    /// </summary>
     public SaveProjectRevisionRequest CreateRevisionRequest() {
     try
     {
@@ -87,6 +102,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     }
 }
 
+    /// <summary>
+    /// Creates requirement request.
+    /// </summary>
     public SaveProjectRequirementRequest CreateRequirementRequest() {
     try
     {
@@ -107,6 +125,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     }
 }
 
+    /// <summary>
+    /// Creates requirement link request.
+    /// </summary>
     public SaveProjectRequirementLinkRequest CreateRequirementLinkRequest() {
     try
     {
@@ -125,6 +146,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     }
 }
 
+    /// <summary>
+    /// Creates artifact request.
+    /// </summary>
     public SaveProjectArtifactRequest CreateArtifactRequest() {
     try
     {
@@ -144,6 +168,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     }
 }
 
+    /// <summary>
+    /// Creates workspace root request.
+    /// </summary>
     public SaveProjectWorkspaceRootRequest CreateWorkspaceRootRequest() {
     try
     {
@@ -169,6 +196,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     }
 }
 
+    /// <summary>
+    /// Creates compiler installation request.
+    /// </summary>
     public SaveProjectCompilerInstallationRequest CreateCompilerInstallationRequest() {
     try
     {
@@ -189,6 +219,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
     }
 }
 
+    /// <summary>
+    /// Creates d.
+    /// </summary>
     private T Created<T>(T request, string operation)
     {
         logger.LogTrace("Created default request model for {Operation}.", operation);

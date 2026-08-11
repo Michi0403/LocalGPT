@@ -7,6 +7,9 @@ using System.Net;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides dev express chat service operations.
+    /// </summary>
     public sealed class DevExpressChatService(
         CouncilTextService text,
         IDxAiFunctionRegistry functionRegistry,
@@ -18,6 +21,9 @@ namespace LocalGPT.Services
         private readonly LocalGptCatalogService _catalog = catalog;
         private readonly ILogger<DevExpressChatService> _logger = logger;
 
+        /// <summary>
+        /// Stores functions.
+        /// </summary>
         public readonly DxaichatFunctionInfo[] Functions =
     [
         new(
@@ -282,6 +288,9 @@ namespace LocalGPT.Services
             false)
     ];
 
+        /// <summary>
+        /// Gets functions.
+        /// </summary>
         public IReadOnlyList<DxaichatFunctionInfo> GetFunctions()
         {
     try
@@ -306,6 +315,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Builds prompt briefing.
+        /// </summary>
         public string BuildPromptBriefing()
         {
     try
@@ -341,6 +353,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Builds title.
+        /// </summary>
         public string BuildTitle(IReadOnlyList<BlazorChatMessage> messages, ILogger logger)
         {
             try
@@ -360,6 +375,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Ensures visible council prompt.
+        /// </summary>
         public List<BlazorChatMessage> EnsureVisibleCouncilPrompt(
     ChatMemoryConversation conversation,
     List<BlazorChatMessage> messages, ILogger logger)
@@ -383,6 +401,9 @@ namespace LocalGPT.Services
                 messages.Insert(0, new BlazorChatMessage(
                     ChatRole.User,
                     prompt,
+                    /// <summary>
+                    /// Runs the list operation.
+                    /// </summary>
                     new List<AIChatUploadFileInfo>()));
                 return messages;
             }
@@ -392,6 +413,9 @@ namespace LocalGPT.Services
                 return new();
             }
         }
+        /// <summary>
+        /// Runs the to role name operation.
+        /// </summary>
         public string ToRoleName(ChatMessageRole role, ILogger logger)
         {
             try
@@ -410,6 +434,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Attempts to extract prompt from assistant messages.
+        /// </summary>
         public string? TryExtractPromptFromAssistantMessages(IReadOnlyList<BlazorChatMessage> messages, ILogger logger)
         {
             try
@@ -438,6 +465,9 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>
+        /// Runs the to blazor chat message operation.
+        /// </summary>
         public BlazorChatMessage? ToBlazorChatMessage(ChatMemoryMessage message, ILogger logger)
         {
             try
@@ -450,6 +480,9 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>
+        /// Determines whether council conversation.
+        /// </summary>
         public bool IsCouncilConversation(
     ChatMemoryConversation conversation,
     IReadOnlyList<BlazorChatMessage> messages, ILogger logger)

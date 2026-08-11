@@ -3,15 +3,33 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a chat session context.
+/// </summary>
 public sealed class ChatSessionContext(
     ICustomVersion version,
     ILogger<ChatSessionContext> logger) : IChatSessionContext
 {
+    /// <summary>
+    /// Gets or sets conversation identifier.
+    /// </summary>
     public Guid? ConversationId { get; private set; }
+    /// <summary>
+    /// Gets or sets project identifier.
+    /// </summary>
     public Guid? ProjectId { get; private set; }
+    /// <summary>
+    /// Gets or sets project version identifier.
+    /// </summary>
     public Guid? ProjectVersionId { get; private set; }
+    /// <summary>
+    /// Gets or sets application version.
+    /// </summary>
     public string ApplicationVersion => version.Version;
 
+    /// <summary>
+    /// Runs the snapshot operation.
+    /// </summary>
     public ChatSessionContextSnapshot Snapshot()
     {
     try
@@ -30,6 +48,9 @@ public sealed class ChatSessionContext(
     }
 }
 
+    /// <summary>
+    /// Sets conversation.
+    /// </summary>
     public void SetConversation(Guid? conversationId)
     {
     try
@@ -48,6 +69,9 @@ public sealed class ChatSessionContext(
     }
 }
 
+    /// <summary>
+    /// Sets project.
+    /// </summary>
     public void SetProject(Guid? projectId, Guid? projectVersionId)
     {
     try
@@ -69,6 +93,9 @@ public sealed class ChatSessionContext(
     }
 }
 
+    /// <summary>
+    /// Runs the restore operation.
+    /// </summary>
     public void Restore(ChatSessionContextSnapshot snapshot)
     {
     try

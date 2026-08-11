@@ -2,8 +2,14 @@ using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides council text service operations.
+/// </summary>
 public sealed partial class CouncilTextService
 {
+    /// <summary>
+    /// Runs the provider model benchmark council signature operation.
+    /// </summary>
     public string ProviderModelBenchmarkCouncilSignature(
         IEnumerable<ProviderModelReference> models,
         ILogger logger)
@@ -22,6 +28,9 @@ public sealed partial class CouncilTextService
         }
     }
 
+    /// <summary>
+    /// Runs the provider model reviewer summary operation.
+    /// </summary>
     public string ProviderModelReviewerSummary(
         ProviderModelReference model,
         IEnumerable<ProviderModelReference> councilModels,
@@ -47,6 +56,9 @@ public sealed partial class CouncilTextService
         }
     }
 
+    /// <summary>
+    /// Runs the provider unavailable selection notice operation.
+    /// </summary>
     public string ProviderUnavailableSelectionNotice(
         IReadOnlyCollection<string> unavailable,
         string selectionScope,
@@ -70,6 +82,9 @@ public sealed partial class CouncilTextService
         }
     }
 
+    /// <summary>
+    /// Runs the provider unavailable run notice operation.
+    /// </summary>
     public string ProviderUnavailableRunNotice(IReadOnlyCollection<string> unavailable, ILogger logger)
     {
         try

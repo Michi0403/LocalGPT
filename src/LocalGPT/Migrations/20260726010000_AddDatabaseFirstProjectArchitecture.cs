@@ -7,10 +7,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations;
 
+/// <summary>
+/// Represents an add database first project architecture.
+/// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260726010000_AddDatabaseFirstProjectArchitecture")]
 public partial class AddDatabaseFirstProjectArchitecture : Migration
 {
+    /// <summary>
+    /// Runs the up operation.
+    /// </summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.Sql("""
@@ -167,6 +173,9 @@ public partial class AddDatabaseFirstProjectArchitecture : Migration
         """);
     }
 
+    /// <summary>
+    /// Runs the down operation.
+    /// </summary>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(name: "CouncilKnowledgeUserRatings");

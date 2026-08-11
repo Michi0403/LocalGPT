@@ -9,6 +9,9 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
     IChatUploadWorkspaceService workspaces,
     ILogger<ListChatUploadWorkspaceFilesFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "chat.upload_workspace_files",
         "POST",
@@ -26,6 +29,9 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
         {"type":"object","properties":{"workspaceName":{"type":"string","maxLength":240},"take":{"type":"integer","minimum":1,"maximum":1000}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -75,6 +81,9 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
         }
     }
 
+    /// <summary>
+    /// Resolves workspace name.
+    /// </summary>
     private string ResolveWorkspaceName(JsonElement parameters)
     {
         try
@@ -96,6 +105,9 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
         }
     }
 
+    /// <summary>
+    /// Reads int.
+    /// </summary>
     private int ReadInt(JsonElement parameters, string name, int fallback, int minimum, int maximum)
     {
         try
@@ -113,6 +125,9 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
         }
     }
 
+    /// <summary>
+    /// Runs the not found operation.
+    /// </summary>
     private DxAiFunctionInvocationResult NotFound(string error)
     {
         try
@@ -137,6 +152,9 @@ public sealed class ReadChatUploadWorkspaceContextFunction(
     IChatUploadWorkspaceService workspaces,
     ILogger<ReadChatUploadWorkspaceContextFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "chat.upload_workspace_context",
         "POST",
@@ -154,6 +172,9 @@ public sealed class ReadChatUploadWorkspaceContextFunction(
         {"type":"object","properties":{"workspaceName":{"type":"string","maxLength":240},"maxCharacters":{"type":"integer","minimum":1000,"maximum":1000000}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -193,6 +214,9 @@ public sealed class ReadChatUploadWorkspaceContextFunction(
         }
     }
 
+    /// <summary>
+    /// Resolves workspace name.
+    /// </summary>
     private string ResolveWorkspaceName(JsonElement parameters)
     {
         try
@@ -213,6 +237,9 @@ public sealed class ReadChatUploadWorkspaceContextFunction(
         }
     }
 
+    /// <summary>
+    /// Reads int.
+    /// </summary>
     private int ReadInt(JsonElement parameters, string name, int fallback, int minimum, int maximum)
     {
         try
@@ -237,6 +264,9 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
     IChatUploadWorkspaceService workspaces,
     ILogger<ReadChatUploadWorkspaceFileFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "chat.upload_workspace_file",
         "POST",
@@ -254,6 +284,9 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
         {"type":"object","required":["relativePath"],"properties":{"workspaceName":{"type":"string","maxLength":240},"relativePath":{"type":"string","maxLength":2048},"maxCharacters":{"type":"integer","minimum":1000,"maximum":1000000}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -295,6 +328,9 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
         }
     }
 
+    /// <summary>
+    /// Resolves workspace name.
+    /// </summary>
     private string ResolveWorkspaceName(JsonElement parameters)
     {
         try
@@ -311,6 +347,9 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
         }
     }
 
+    /// <summary>
+    /// Reads string.
+    /// </summary>
     private string ReadString(JsonElement parameters, string name)
     {
         try
@@ -328,6 +367,9 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
         }
     }
 
+    /// <summary>
+    /// Reads int.
+    /// </summary>
     private int ReadInt(JsonElement parameters, string name, int fallback, int minimum, int maximum)
     {
         try

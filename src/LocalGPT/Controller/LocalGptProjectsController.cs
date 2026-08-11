@@ -4,12 +4,18 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller;
 
+/// <summary>
+/// Provides local gpt projects controller operations.
+/// </summary>
 [ApiController]
 [Route("api/projects")]
 public sealed class LocalGptProjectsController(
     ILocalGptProjectService projects,
     ILogger<LocalGptProjectsController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Gets projects.
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<LocalGptProjectSummary>>> GetProjects(
         [FromQuery] bool includeArchived = false,
@@ -18,6 +24,9 @@ public sealed class LocalGptProjectsController(
         return Ok(await projects.GetProjectsAsync(includeArchived, cancellationToken).ConfigureAwait(false));
     }
 
+    /// <summary>
+    /// Gets project.
+    /// </summary>
     [HttpGet("{projectId:guid}")]
     public async Task<ActionResult<LocalGptProjectDetails>> GetProject(
         Guid projectId,
@@ -27,6 +36,9 @@ public sealed class LocalGptProjectsController(
         return project is null ? NotFound() : Ok(project);
     }
 
+    /// <summary>
+    /// Saves project.
+    /// </summary>
     [HttpPost]
     public async Task<ActionResult<LocalGptProject>> SaveProject(
         [FromBody] SaveLocalGptProjectRequest request,
@@ -44,6 +56,9 @@ public sealed class LocalGptProjectsController(
         }
     }
 
+    /// <summary>
+    /// Adds topic.
+    /// </summary>
     [HttpPost("{projectId:guid}/topics")]
     public async Task<ActionResult<LocalGptProjectTopic>> AddTopic(
         Guid projectId,
@@ -61,6 +76,9 @@ public sealed class LocalGptProjectsController(
         }
     }
 
+    /// <summary>
+    /// Adds version.
+    /// </summary>
     [HttpPost("{projectId:guid}/versions")]
     public async Task<ActionResult<LocalGptProjectVersion>> AddVersion(
         Guid projectId,
@@ -78,6 +96,9 @@ public sealed class LocalGptProjectsController(
         }
     }
 
+    /// <summary>
+    /// Runs the link knowledge operation.
+    /// </summary>
     [HttpPost("topics/{projectTopicId:guid}/knowledge")]
     public async Task<IActionResult> LinkKnowledge(
         Guid projectTopicId,

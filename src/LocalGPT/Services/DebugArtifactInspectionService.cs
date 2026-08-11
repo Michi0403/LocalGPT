@@ -9,6 +9,9 @@ public sealed class DebugArtifactInspectionService(ILogger<DebugArtifactInspecti
 {
     private const long MaximumInspectionBytes = 1024L * 1024L * 1024L;
 
+    /// <summary>
+    /// Runs the inspect async operation.
+    /// </summary>
     public async Task<DebugArtifactInspectionResult> InspectAsync(string filePath, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);

@@ -13,6 +13,9 @@ public sealed class ControllerRequestLoggingFilter(
     ILogger<ControllerRequestLoggingFilter> logger,
     IComponentActivityService componentActivity) : IAsyncActionFilter
 {
+    /// <summary>
+    /// Runs the on action execution async operation.
+    /// </summary>
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -100,6 +103,9 @@ public sealed class ControllerRequestLoggingFilter(
         }
     }
 
+    /// <summary>
+    /// Gets route value.
+    /// </summary>
     private string GetRouteValue(
         IDictionary<string, string?> routeValues,
         string key,

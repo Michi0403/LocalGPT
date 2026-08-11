@@ -6,12 +6,18 @@ using System.Text;
 
 namespace LocalGPT.Services.Persistence;
 
+/// <summary>
+/// Provides initial data catalog operations.
+/// </summary>
 public sealed class InitialDataCatalog(
     IWebHostEnvironment environment,
     ILogger<InitialDataCatalog> logger,
     ISystemVariableDefinitionService systemVariables,
     ILocalGptRuntimePolicySeedDataService runtimePolicySeed) : IInitialDataCatalog
 {
+    /// <summary>
+    /// Gets or sets regex patterns.
+    /// </summary>
     public IReadOnlyList<RegexPatternDto> RegexPatterns { get; } =
     [
         new(nameof(ICouncilTextPatternDataService.FormerThoughtBreakPattern), "<br\\s*/?>", "i,c"),
@@ -108,6 +114,9 @@ public sealed class InitialDataCatalog(
         .. runtimePolicySeed.GetSeed().RegexPatterns.Select(item => new RegexPatternDto(item.Name, item.Pattern, item.Flags))
     ];
 
+    /// <summary>
+    /// Gets or sets prompts.
+    /// </summary>
     public IReadOnlyList<PromptConfigDto> Prompts { get; } =
     [
         new("RuntimeDecisionPolicy", "en", string.Join(" ", new[]
@@ -161,12 +170,18 @@ public sealed class InitialDataCatalog(
             "Services should emit structured operation logs with an operation ID, service/function name, bounded status metadata, and safe identifiers so recent activity can support LocalGPT memory and troubleshooting. Do not log prompts, generated source, secrets, credentials, request bodies, model private reasoning, full database rows, or externally transmitted exception details. Technical exceptions remain in local application logs only.")
     ];
 
+    /// <summary>
+    /// Gets or sets variables.
+    /// </summary>
     public IReadOnlyList<InitialVariable> Variables { get; } =
     [
         .. systemVariables.InitialValues,
         .. runtimePolicySeed.GetSeed().SystemVariables.Select(item => new InitialVariable(item.Name, item.Value, item.DataType))
     ];
 
+    /// <summary>
+    /// Loads knowledge async.
+    /// </summary>
     public async Task<IReadOnlyList<CouncilKnowledgeEntry>> LoadKnowledgeAsync(CancellationToken cancellationToken = default)
     {
         var root = ResolveKnowledgeRoot(environment.ContentRootPath);
@@ -228,6 +243,9 @@ public sealed class InitialDataCatalog(
         return entries;
     }
 
+    /// <summary>
+    /// Determines whether path inside root.
+    /// </summary>
     private bool IsPathInsideRoot(string path, string root)
     {
     try
@@ -248,6 +266,9 @@ public sealed class InitialDataCatalog(
     }
 }
 
+    /// <summary>
+    /// Resolves knowledge root.
+    /// </summary>
     private string ResolveKnowledgeRoot(string contentRoot)
     {
     try
@@ -272,6 +293,9 @@ public sealed class InitialDataCatalog(
     }
 }
 
+    /// <summary>
+    /// Creates deterministic guid.
+    /// </summary>
     private Guid CreateDeterministicGuid(string value)
     {
     try

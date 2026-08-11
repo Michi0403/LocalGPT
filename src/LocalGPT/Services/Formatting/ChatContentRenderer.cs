@@ -18,55 +18,94 @@ public sealed class ChatContentRenderer(
 {
     private const int AutomaticStructuredTranslationLimit = 120_000;
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex HarmonyMarkerRegex = new(
         @"<\|[^>]+\|>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex ThinkingDetailsStartRegex = new(
         "<details\\s+class=\"model-thinking(?:\\s+open)?\"(?:\\s+open)?\\s*>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex CouncilCompletionMarkerRegex = new(
         @"<!--localgpt-council-stream-complete:(?<id>[a-f0-9]{32})-->",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex ListAfterHtmlRegex = new(
         @"(</(?:p|details|pre|div)>)\s*((?:[-*]|\d+\.)\s+)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex ControlledDetailsStartRegex = new(
         "<details\\s+class=\"(?:model-thinking(?:\\s+open)?|council-step(?:\\s+council-live)?|council-prompt)\"[^>]*>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex DetailsEndRegex = new(
         @"</details>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex StablePanelStartRegex = new(
         "<details\\s+class=\"(?<class>model-thinking(?:\\s+open)?|council-step(?:\\s+council-live)?|council-prompt)\"(?<attributes>[^>]*)>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex StreamIdAttributeRegex = new(
         "data-localgpt-stream-id=\"(?<id>[a-f0-9]{32})\"",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex PreStartRegex = new(
         @"<pre(?:\s[^>]*)?>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex PreEndRegex = new(
         @"</pre>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex AsciiFrameRegex = new(
         @"\[\[ASCII_FRAME(?:\s+(?<attributes>[^\]]+))?\]\]\s*(?<frame>.*?)\s*\[\[/ASCII_FRAME\]\]",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.Singleline,
         runtimePolicy.RegexTimeout);
 
+    /// <summary>
+    /// Runs the markdown pipeline builder operation.
+    /// </summary>
     private readonly MarkdownPipeline markdownPipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
         .Build();
 
+    /// <summary>
+    /// Runs the render operation.
+    /// </summary>
     public string Render(string? content)
     {
         try
@@ -87,6 +126,9 @@ public sealed class ChatContentRenderer(
         }
     }
 
+    /// <summary>
+    /// Normalizes for render.
+    /// </summary>
     public string NormalizeForRender(string? content)
     {
         try
@@ -166,6 +208,9 @@ public sealed class ChatContentRenderer(
     }
 
 
+    /// <summary>
+    /// Runs the should translate structured text operation.
+    /// </summary>
     private bool ShouldTranslateStructuredText(string text)
     {
     try
@@ -188,6 +233,9 @@ public sealed class ChatContentRenderer(
     }
 }
 
+    /// <summary>
+    /// Runs the render ascii frames operation.
+    /// </summary>
     private string RenderAsciiFrames(string text)
     {
         try
@@ -213,6 +261,9 @@ public sealed class ChatContentRenderer(
         }
     }
 
+    /// <summary>
+    /// Adds stable panel keys.
+    /// </summary>
     private string AddStablePanelKeys(string text)
     {
         try
@@ -259,6 +310,9 @@ public sealed class ChatContentRenderer(
         }
     }
 
+    /// <summary>
+    /// Runs the sanitize invalid unicode operation.
+    /// </summary>
     private string SanitizeInvalidUnicode(string value)
     {
         try
@@ -321,6 +375,9 @@ public sealed class ChatContentRenderer(
         }
     }
 
+    /// <summary>
+    /// Builds safe fallback.
+    /// </summary>
     private string BuildSafeFallback(string? content)
     {
         try

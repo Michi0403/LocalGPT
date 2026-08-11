@@ -15,6 +15,9 @@ public sealed class ModelCapabilitySelfAssessmentService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ModelCapabilitySelfAssessmentService> logger) : IModelCapabilitySelfAssessmentService
 {
+    /// <summary>
+    /// Runs the capture and strip async operation.
+    /// </summary>
     public async Task<string> CaptureAndStripAsync(string modelName, string visibleContent, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(visibleContent))

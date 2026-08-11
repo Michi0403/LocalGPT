@@ -9,6 +9,9 @@ using System.Collections.Concurrent;
 namespace LocalGPT.Helper
 {
 
+    /// <summary>
+    /// Provides color console logger provider operations.
+    /// </summary>
     [ProviderAlias("ColorConsole")]
     public sealed class ColorConsoleLoggerProvider : ILoggerProvider
     {
@@ -16,17 +19,29 @@ namespace LocalGPT.Helper
         private readonly ConcurrentDictionary<string, ColorConsoleLogger> _loggers =
             new(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Runs the color console logger provider operation.
+        /// </summary>
         public ColorConsoleLoggerProvider(
             ColorConsoleLoggerConfiguration config)
         {
             _currentConfig = config;
         }
 
+        /// <summary>
+        /// Creates logger.
+        /// </summary>
         public ILogger CreateLogger(string categoryName) =>
             _loggers.GetOrAdd(categoryName, name => new ColorConsoleLogger(name, GetCurrentConfig));
 
+        /// <summary>
+        /// Gets current config.
+        /// </summary>
         private ColorConsoleLoggerConfiguration GetCurrentConfig() => _currentConfig;
 
+        /// <summary>
+        /// Runs the dispose operation.
+        /// </summary>
         public void Dispose()
         {
             _loggers.Clear();

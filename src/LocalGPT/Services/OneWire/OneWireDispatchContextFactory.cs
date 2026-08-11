@@ -3,9 +3,15 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.OneWire;
 
+/// <summary>
+/// Provides one wire dispatch context factory operations.
+/// </summary>
 public sealed class OneWireDispatchContextFactory(
     ILogger<OneWireDispatchContextFactory> logger) : IOneWireDispatchContextFactory
 {
+    /// <summary>
+    /// Creates internal.
+    /// </summary>
     public OneWireDispatchContext CreateInternal(string transport = "internal")
     {
         try
@@ -28,6 +34,9 @@ public sealed class OneWireDispatchContextFactory(
         }
     }
 
+    /// <summary>
+    /// Creates external.
+    /// </summary>
     public OneWireDispatchContext CreateExternal(string authenticatedPeerId, Guid connectionId, bool isLoopback, string transport)
     {
         try

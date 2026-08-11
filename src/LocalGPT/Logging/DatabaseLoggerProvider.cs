@@ -9,6 +9,9 @@ using System.Threading.Channels;
 
 namespace LocalGPT.Logging
 {
+    /// <summary>
+    /// Provides database logger provider operations.
+    /// </summary>
     public sealed class DatabaseLoggerProvider : ILoggerProvider
     {
         private readonly string[] ExcludedCategoryPrefixes =
@@ -21,9 +24,15 @@ namespace LocalGPT.Logging
         private readonly IOptionsMonitor<DatabaseLoggerCoreOptions> options;
         private readonly IDatabaseLoggerReadiness databaseLoggerReadiness;
         private readonly Channel<ApplicationLogEntry> channel;
+        /// <summary>
+        /// Runs the new operation.
+        /// </summary>
         private readonly CancellationTokenSource stop = new();
         private readonly Task processingTask;
 
+        /// <summary>
+        /// Runs the database logger provider operation.
+        /// </summary>
         public DatabaseLoggerProvider(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
             IOptionsMonitor<DatabaseLoggerCoreOptions> options,
@@ -42,8 +51,14 @@ namespace LocalGPT.Logging
             processingTask = Task.Run(ProcessQueueAsync);
         }
 
+        /// <summary>
+        /// Creates logger.
+        /// </summary>
         public ILogger CreateLogger(string categoryName) => new DatabaseLogger(categoryName, this);
 
+        /// <summary>
+        /// Determines whether enabled.
+        /// </summary>
         internal bool IsEnabled(string categoryName, LogLevel logLevel)
         {
             var current = options.CurrentValue;
@@ -56,11 +71,17 @@ namespace LocalGPT.Logging
             return (int)logLevel >= (int)current.CoreLogLevel;
         }
 
+        /// <summary>
+        /// Runs the enqueue operation.
+        /// </summary>
         internal void Enqueue(ApplicationLogEntry entry)
         {
             _ = channel.Writer.TryWrite(entry);
         }
 
+        /// <summary>
+        /// Runs the process queue async operation.
+        /// </summary>
         private async Task ProcessQueueAsync()
         {
             try
@@ -121,6 +142,9 @@ namespace LocalGPT.Logging
             }
         }
 
+        /// <summary>
+        /// Runs the drain batch operation.
+        /// </summary>
         private void DrainBatch(List<ApplicationLogEntry> batch, int? maxItems = null)
         {
             var maxBatchSize = maxItems ?? Math.Clamp(options.CurrentValue.BatchSize, 1, 500);
@@ -130,6 +154,9 @@ namespace LocalGPT.Logging
             }
         }
 
+        /// <summary>
+        /// Runs the flush async operation.
+        /// </summary>
         private async Task FlushAsync(List<ApplicationLogEntry> batch, CancellationToken cancellationToken)
         {
             if (batch.Count == 0)
@@ -153,6 +180,9 @@ namespace LocalGPT.Logging
         //        .ExecuteDeleteAsync(cancellationToken);
         //}
 
+        /// <summary>
+        /// Runs the dispose operation.
+        /// </summary>
         public void Dispose()
         {
             channel.Writer.TryComplete();

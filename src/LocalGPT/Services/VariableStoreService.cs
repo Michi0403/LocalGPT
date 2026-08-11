@@ -5,12 +5,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides variable store service operations.
+/// </summary>
 public sealed class VariableStoreService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<VariableStoreService> logger,
     SqliteUtilityService sqliteUtility) : IVariableStoreService
 {
+    /// <summary>
+    /// Gets async.
+    /// </summary>
     public async Task<T> GetAsync<T>(string name, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -22,6 +28,9 @@ public sealed class VariableStoreService(
         return sqliteUtility.ParseValue<T>(variable.ValueString, variable.DataType, logger);
     }
 
+    /// <summary>
+    /// Sets async.
+    /// </summary>
     public async Task SetAsync<T>(string name, T value, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -40,6 +49,9 @@ public sealed class VariableStoreService(
         logger.LogInformation("Stored system variable {VariableName}; value omitted from logs.", name);
     }
 
+    /// <summary>
+    /// Runs the list all async operation.
+    /// </summary>
     public Task<IEnumerable<SystemVariable>> ListAllAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -55,6 +67,9 @@ public sealed class VariableStoreService(
     }
 }
 
+    /// <summary>
+    /// Runs the list all async operation.
+    /// </summary>
     public async Task<IEnumerable<SystemVariable>> ListAllAsync(string filter, CancellationToken cancellationToken = default)
     {
     try

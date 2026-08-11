@@ -69,6 +69,9 @@ public sealed class DocumentationViewerService(ILogger<DocumentationViewerServic
     }
 }
 
+    /// <summary>
+    /// Normalizes URL.
+    /// </summary>
     private string NormalizeUrl(string url)
     {
     try

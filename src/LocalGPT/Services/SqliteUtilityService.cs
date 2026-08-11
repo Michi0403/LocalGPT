@@ -9,6 +9,9 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides sqlite utility service operations.
+    /// </summary>
     public sealed class SqliteUtilityService(
         CouncilTextService text,
         LocalGptCatalogService catalog,
@@ -17,6 +20,9 @@ namespace LocalGPT.Services
         private readonly CouncilTextService _text = text;
         private readonly LocalGptCatalogService _catalog = catalog;
 
+        /// <summary>
+        /// Parses value.
+        /// </summary>
         public T ParseValue<T>(string valueString, string? dataType, ILogger logger)
         {
             try
@@ -44,6 +50,9 @@ namespace LocalGPT.Services
                 throw;
             }
         }
+        /// <summary>
+        /// Determines whether power shell.
+        /// </summary>
         public bool IsPowerShell(string executable, ILogger logger)
         {
             try
@@ -58,6 +67,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Determines whether gradle.
+        /// </summary>
         public bool IsGradle(string executable, ILogger logger)
         {
             try
@@ -74,6 +86,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the classify command profile operation.
+        /// </summary>
         public string ClassifyCommandProfile(string executable, string arguments, ILogger logger)
         {
             try
@@ -104,6 +119,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the contains path segment operation.
+        /// </summary>
         public bool ContainsPathSegment(string fileName, ILogger logger)
         {
             try
@@ -119,6 +137,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the sanitize file name operation.
+        /// </summary>
         public string SanitizeFileName(string value, ILogger logger)
         {
             try
@@ -133,6 +154,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Ensures valid table async.
+        /// </summary>
         public async Task EnsureValidTableAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
     try
@@ -172,6 +196,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Gets columns async.
+        /// </summary>
         public async Task<List<SqliteColumnSummary>> GetColumnsAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
     try
@@ -220,6 +247,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Gets row count async.
+        /// </summary>
         public async Task<long> GetRowCountAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
     try
@@ -249,6 +279,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the to sqlite value operation.
+        /// </summary>
         public object? ToSqliteValue(string? value, ILogger? logger = null)
         {
             try
@@ -271,6 +304,9 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>
+        /// Runs the to sqlite value operation.
+        /// </summary>
         public object ToSqliteValue(string? value, SqliteColumnSummary column)
         {
     try
@@ -321,6 +357,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Creates sqlite edit error.
+        /// </summary>
         public string CreateSqliteEditError(string operation, string tableName, SqliteException exception, ILogger? logger = null)
         {
     try
@@ -350,6 +389,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the quote identifier operation.
+        /// </summary>
         public string QuoteIdentifier(string identifier, ILogger? logger = null)
         {
     try
@@ -383,6 +425,9 @@ namespace LocalGPT.Services
         throw;
     }
 }
+        /// <summary>
+        /// Computes source hash.
+        /// </summary>
         public string ComputeSourceHash(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -1132,6 +1177,9 @@ namespace LocalGPT.Services
 
         //}
 
+        /// <summary>
+        /// Builds council knowledge content.
+        /// </summary>
         public string BuildCouncilKnowledgeContent(MultiModelCouncilResult result, ILogger logger)
         {
             try
@@ -1167,6 +1215,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds topic.
+        /// </summary>
         public string BuildTopic(string prompt, ILogger logger)
         {
             try
@@ -1184,6 +1235,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds tags.
+        /// </summary>
         public string BuildTags(MultiModelCouncilResult result, bool nonSubstantive, ILogger logger)
         {
             try
@@ -1215,6 +1269,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Determines whether non substantive council knowledge.
+        /// </summary>
         public bool IsNonSubstantiveCouncilKnowledge(MultiModelCouncilResult result, ILogger logger)
         {
             try
@@ -1231,6 +1288,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the looks like non substantive content operation.
+        /// </summary>
         public bool LooksLikeNonSubstantiveContent(string content, ILogger logger)
         {
             try
@@ -1249,6 +1309,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the extract helpful sources operation.
+        /// </summary>
         public string ExtractHelpfulSources(string text, ILogger logger)
         {
             try
@@ -1273,6 +1336,9 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>
+        /// Runs the trim or fallback operation.
+        /// </summary>
         public string TrimOrFallback(string value, int maxLength, string fallback, ILogger logger)
         {
             try
@@ -1288,6 +1354,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the trim operation.
+        /// </summary>
         public string Trim(string value, int maxLength, ILogger logger)
         {
             try
@@ -1305,6 +1374,9 @@ namespace LocalGPT.Services
 
     
 
+        /// <summary>
+        /// Runs the normalize operation.
+        /// </summary>
         public void Normalize(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -1334,6 +1406,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds trust label.
+        /// </summary>
         public string BuildTrustLabel(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -1371,6 +1446,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Normalizes verification status.
+        /// </summary>
         public string NormalizeVerificationStatus(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -1400,6 +1478,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Determines whether known verification status.
+        /// </summary>
         public bool IsKnownVerificationStatus(string value, ILogger logger)
         {
             try
@@ -1413,6 +1494,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Normalizes review status.
+        /// </summary>
         public string NormalizeReviewStatus(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -1456,6 +1540,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Determines whether known review status.
+        /// </summary>
         public bool IsKnownReviewStatus(string value, ILogger logger)
         {
             try
@@ -1469,6 +1556,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Determines whether usable for briefing.
+        /// </summary>
         public bool IsUsableForBriefing(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try

@@ -6,10 +6,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations;
 
+/// <summary>
+/// Represents an add council runtime classes.
+/// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260802010000_AddCouncilRuntimeClasses")]
 public partial class AddCouncilRuntimeClasses : Migration
 {
+    /// <summary>
+    /// Runs the up operation.
+    /// </summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.Sql("""
@@ -38,6 +44,9 @@ public partial class AddCouncilRuntimeClasses : Migration
         """);
     }
 
+    /// <summary>
+    /// Runs the down operation.
+    /// </summary>
     protected override void Down(MigrationBuilder migrationBuilder) =>
         migrationBuilder.DropTable(name: "CouncilRuntimeClassConfigurations");
 }

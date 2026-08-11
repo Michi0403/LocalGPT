@@ -17,8 +17,17 @@ public sealed class DocumentationCatalogService(
     IDocumentationTranslationAdapter translation,
     ILogger<DocumentationCatalogService> logger) : IDocumentationCatalogService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly object commentSync = new();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly object documentationRootSync = new();
+    /// <summary>
+    /// Gets full path.
+    /// </summary>
     private readonly string applicationRoot = Path.GetFullPath(AppContext.BaseDirectory);
     private IReadOnlyList<LocalGptDocumentationComment>? commentCache;
     private string? commentCachePath;
@@ -139,6 +148,9 @@ public sealed class DocumentationCatalogService(
         }
     }
 
+    /// <summary>
+    /// Gets comment catalog.
+    /// </summary>
     private IReadOnlyList<LocalGptDocumentationComment> GetCommentCatalog()
     {
     try
@@ -170,6 +182,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Loads comment catalog.
+    /// </summary>
     private IReadOnlyList<LocalGptDocumentationComment> LoadCommentCatalog(string xmlDocumentationPath)
     {
     try
@@ -195,6 +210,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Builds comment.
+    /// </summary>
     private LocalGptDocumentationComment? BuildComment(XElement member, Assembly assembly)
     {
     try
@@ -230,6 +248,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Resolves documentation version.
+    /// </summary>
     private string ResolveDocumentationVersion(Assembly assembly, string memberId)
     {
     try
@@ -249,6 +270,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Resolves declaring type.
+    /// </summary>
     private Type? ResolveDeclaringType(Assembly assembly, string memberId)
     {
     try
@@ -280,6 +304,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Resolves type.
+    /// </summary>
     private Type? ResolveType(Assembly assembly, string identifier)
     {
     try
@@ -310,6 +337,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Reads build manifest.
+    /// </summary>
     private DocumentationBuildManifest? ReadBuildManifest(string? documentationRoot)
     {
         if (documentationRoot is null) return null;
@@ -327,6 +357,9 @@ public sealed class DocumentationCatalogService(
         }
     }
 
+    /// <summary>
+    /// Resolves documentation root.
+    /// </summary>
     private string? ResolveDocumentationRoot()
     {
     try
@@ -370,6 +403,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Runs the enumerate documentation roots operation.
+    /// </summary>
     private IEnumerable<string> EnumerateDocumentationRoots()
     {
     try
@@ -391,6 +427,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Adds documentation root.
+    /// </summary>
     private void AddDocumentationRoot(ISet<string> roots, string path)
     {
     try
@@ -417,6 +456,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Runs the inspect documentation root operation.
+    /// </summary>
     private DocumentationRootCandidate? InspectDocumentationRoot(string path)
     {
         try
@@ -459,6 +501,9 @@ public sealed class DocumentationCatalogService(
         }
     }
 
+    /// <summary>
+    /// Runs the enumerate PDF files operation.
+    /// </summary>
     private IReadOnlyList<string> EnumeratePdfFiles(string documentationRoot)
     {
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -492,6 +537,9 @@ public sealed class DocumentationCatalogService(
         return result.ToArray();
     }
 
+    /// <summary>
+    /// Resolves installed PDF path.
+    /// </summary>
     private string? ResolveInstalledPdfPath(string? documentationRoot, string? manifestVersion)
     {
         try
@@ -527,6 +575,9 @@ public sealed class DocumentationCatalogService(
         }
     }
 
+    /// <summary>
+    /// Adds PDF files.
+    /// </summary>
     private void AddPdfFiles(ISet<string> files, string root)
     {
     try
@@ -546,6 +597,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Resolves XML documentation path.
+    /// </summary>
     private string? ResolveXmlDocumentationPath(string? documentationRoot)
     {
     try
@@ -569,6 +623,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Determines whether within root.
+    /// </summary>
     private bool IsWithinRoot(string root, string candidate)
     {
     try
@@ -589,6 +646,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Parses version.
+    /// </summary>
     private System.Version? ParseVersion(string? value)
         {
     try
@@ -605,6 +665,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Parses version or zero.
+    /// </summary>
     private System.Version ParseVersionOrZero(string? value)
         {
     try
@@ -621,6 +684,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Builds display name.
+    /// </summary>
     private string BuildDisplayName(string memberId)
     {
     try
@@ -639,6 +705,9 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Normalizes comment text.
+    /// </summary>
     private string NormalizeCommentText(string? value) {
     try
     {
@@ -656,12 +725,24 @@ public sealed class DocumentationCatalogService(
     }
 }
 
+    /// <summary>
+    /// Represents a documentation build manifest.
+    /// </summary>
     private sealed class DocumentationBuildManifest
     {
+        /// <summary>
+        /// Gets or sets version.
+        /// </summary>
         public string Version { get; set; } = string.Empty;
+        /// <summary>
+        /// Gets or sets generated at UTC.
+        /// </summary>
         public DateTime? GeneratedAtUtc { get; set; }
     }
 
+    /// <summary>
+    /// Represents a documentation root candidate.
+    /// </summary>
     private sealed record DocumentationRootCandidate(
         string Path,
         System.Version? ParsedVersion,

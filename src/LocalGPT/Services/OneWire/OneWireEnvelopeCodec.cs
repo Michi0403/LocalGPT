@@ -7,19 +7,31 @@ using System.Text.Json.Serialization;
 
 namespace LocalGPT.Services.OneWire;
 
+/// <summary>
+/// Represents an one wire envelope codec.
+/// </summary>
 public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
 {
     private readonly ILogger<OneWireEnvelopeCodec> logger;
     private readonly JsonSerializerOptions serializerOptions;
 
+    /// <summary>
+    /// Runs the one wire envelope codec operation.
+    /// </summary>
     public OneWireEnvelopeCodec(ILogger<OneWireEnvelopeCodec> logger)
     {
         this.logger = logger;
         serializerOptions = CreateOptions();
     }
 
+    /// <summary>
+    /// Gets or sets JSON options.
+    /// </summary>
     public JsonSerializerOptions JsonOptions => serializerOptions;
 
+    /// <summary>
+    /// Runs the serialize operation.
+    /// </summary>
     public string Serialize(OneWireEnvelope envelope, bool seal = true)
     {
     try
@@ -46,6 +58,9 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
     }
 }
 
+    /// <summary>
+    /// Runs the deserialize and validate operation.
+    /// </summary>
     public OneWireEnvelope DeserializeAndValidate(string json)
     {
     try
@@ -70,6 +85,9 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
     }
 }
 
+    /// <summary>
+    /// Runs the validate operation.
+    /// </summary>
     public bool Validate(OneWireEnvelope envelope, out string error)
     {
     try
@@ -114,6 +132,9 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
     }
 }
 
+    /// <summary>
+    /// Validates payload shape.
+    /// </summary>
     private void ValidatePayloadShape(OneWireEnvelope envelope)
     {
     try
@@ -134,6 +155,9 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
     }
 }
 
+    /// <summary>
+    /// Builds integrity bytes.
+    /// </summary>
     private byte[] BuildIntegrityBytes(OneWireEnvelope envelope)
     {
     try
@@ -192,6 +216,9 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
     }
 }
 
+    /// <summary>
+    /// Computes crc32.
+    /// </summary>
     private uint ComputeCrc32(ReadOnlySpan<byte> data)
     {
     try
@@ -216,6 +243,9 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
     }
 }
 
+    /// <summary>
+    /// Creates options.
+    /// </summary>
     private JsonSerializerOptions CreateOptions()
     {
         try

@@ -7,6 +7,9 @@ using System.Text.Json;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides DevExpress ai function registry operations.
+/// </summary>
 public sealed class DxAiFunctionRegistry(
     IServiceProvider serviceProvider,
     IHumanCollaborationService humanCollaboration,
@@ -20,10 +23,16 @@ public sealed class DxAiFunctionRegistry(
     // Resolve handlers only after the scoped registry has been constructed. One handler intentionally
     // references this registry to publish the complete function directory; eager IEnumerable resolution
     // would therefore create a constructor cycle during service-provider validation.
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>> handlersByName = new(
         () => handlerMapService.Build(serviceProvider.GetServices<IDxAiFunctionHandler>()),
         System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
 
+    /// <summary>
+    /// Gets functions.
+    /// </summary>
     public IReadOnlyList<DxaichatFunctionInfo> GetFunctions()
     {
     try
@@ -46,6 +55,9 @@ public sealed class DxAiFunctionRegistry(
     }
 }
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         string functionName,
         DxAiFunctionInvocationRequest request,
@@ -110,6 +122,9 @@ public sealed class DxAiFunctionRegistry(
                 ? $"dxai:{functionName}:{parameterFingerprint}"
                 : $"dxai:{functionName}:{request.ConfirmationSummaryHash.Trim()}";
             var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(
+                /// <summary>
+                /// Runs the human approval request spec operation.
+                /// </summary>
                 new HumanApprovalRequestSpec(
                     correlationId,
                     $"dxai.function.{functionName}",
@@ -234,6 +249,9 @@ public sealed class DxAiFunctionRegistry(
         }
     }
 
+    /// <summary>
+    /// Builds approval description.
+    /// </summary>
     private string BuildApprovalDescription(DxaichatFunctionInfo descriptor, DxAiFunctionInvocationRequest request)
     {
     try
@@ -273,6 +291,9 @@ public sealed class DxAiFunctionRegistry(
     }
 }
 
+    /// <summary>
+    /// Runs the summarize approval value operation.
+    /// </summary>
     private string SummarizeApprovalValue(string name, JsonElement value)
     {
     try
@@ -309,6 +330,9 @@ public sealed class DxAiFunctionRegistry(
     }
 }
 
+    /// <summary>
+    /// Runs the quote and trim operation.
+    /// </summary>
     private string QuoteAndTrim(string? value, int maxLength)
     {
     try
@@ -332,6 +356,9 @@ public sealed class DxAiFunctionRegistry(
     }
 }
 
+    /// <summary>
+    /// Builds invocation fingerprint.
+    /// </summary>
     private string BuildInvocationFingerprint(string functionName, DxAiFunctionInvocationRequest request)
     {
     try
@@ -357,17 +384,23 @@ public sealed class DxAiFunctionRegistry(
 }
 }
 
+/// <summary>
+/// Represents a list code generation reviews function.
+/// </summary>
 public sealed class ListCodeGenerationReviewsFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<ListCodeGenerationReviewsFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.review.list",
         "POST",
         "/api/dxai/functions/codegen.review.list/invoke",
         "List recent user-controlled code-generation change reviews, optionally filtered by LocalGPT project.",
-        "JSON parameters: projectId optional GUID; take optional integer from 1 to 100.",
+        "JSON parameters: projectId optional GUID; take optional positive integer. No artificial review-list ceiling is imposed by the workflow service.",
         "Read-only database metadata. Source payload content is represented by paths, sizes, and hashes rather than returned as executable authority.",
         IsReadOnly: true,
         AvailableToAi: true,
@@ -386,14 +419,16 @@ public sealed class ListCodeGenerationReviewsFunction(
             },
             "take": {
               "type": "integer",
-              "minimum": 1,
-              "maximum": 100
+              "minimum": 1
             }
           },
           "additionalProperties": false
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -420,11 +455,17 @@ public sealed class ListCodeGenerationReviewsFunction(
 
 }
 
+/// <summary>
+/// Represents a get code generation review function.
+/// </summary>
 public sealed class GetCodeGenerationReviewFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<GetCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.review.get",
         "POST",
@@ -454,6 +495,9 @@ public sealed class GetCodeGenerationReviewFunction(
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -485,17 +529,23 @@ public sealed class GetCodeGenerationReviewFunction(
 
 }
 
+/// <summary>
+/// Represents a create code generation review function.
+/// </summary>
 public sealed class CreateCodeGenerationReviewFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<CreateCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.review.create",
         "POST",
         "/api/dxai/functions/codegen.review.create/invoke",
         "Create a database-backed change review containing the exact proposed files, CodeDOM types, output targets, current project-state summary, council summary, safety summary, and immutable review hash.",
-        "JSON parameters follow CreateCodeGenerationReviewRequest. Use goal plus the exact fields currentProjectState, councilSummary, changeSummary, safetySummary, files, codeDomTypes, and outputs. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, and JavaScriptModule.",
+        "JSON parameters follow CreateCodeGenerationReviewRequest. goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, and JavaScriptModule.",
         "Coordination-only review metadata. It does not write a project workspace, build, execute, load, or integrate generated code. The actual codegen.review.execute step remains separately approval-gated.",
         IsReadOnly: false,
         AvailableToAi: true,
@@ -515,6 +565,14 @@ public sealed class CreateCodeGenerationReviewFunction(
                 "null"
               ],
               "format": "uuid"
+            },
+            "projectRevisionId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid",
+              "description": "Optional approved/scanned project revision whose user-approved tracked files are cloned before reviewed changes are applied."
             },
             "projectTopicId": {
               "type": [
@@ -638,6 +696,9 @@ public sealed class CreateCodeGenerationReviewFunction(
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -662,11 +723,17 @@ public sealed class CreateCodeGenerationReviewFunction(
 }
 }
 
+/// <summary>
+/// Represents an execute code generation review function.
+/// </summary>
 public sealed class ExecuteCodeGenerationReviewFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<ExecuteCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.review.execute",
         "POST",
@@ -722,6 +789,9 @@ public sealed class ExecuteCodeGenerationReviewFunction(
         SupportsDeferredApprovalRequest: true,
         ApprovalRequiredBeforeCompletion: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -752,11 +822,17 @@ public sealed class ExecuteCodeGenerationReviewFunction(
 
 }
 
+/// <summary>
+/// Represents a reject code generation review function.
+/// </summary>
 public sealed class RejectCodeGenerationReviewFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<RejectCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.review.reject",
         "POST",
@@ -805,6 +881,9 @@ public sealed class RejectCodeGenerationReviewFunction(
         """,
         SupportsDeferredApprovalRequest: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -833,10 +912,16 @@ public sealed class RejectCodeGenerationReviewFunction(
 
 }
 
+/// <summary>
+/// Represents a list local gpt projects function.
+/// </summary>
 public sealed class ListLocalGptProjectsFunction(
     ILocalGptProjectService projects,
     ILogger<ListLocalGptProjectsFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.projects.list",
         "POST",
@@ -862,6 +947,9 @@ public sealed class ListLocalGptProjectsFunction(
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -884,14 +972,23 @@ public sealed class ListLocalGptProjectsFunction(
     }
 }
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 }
 
+/// <summary>
+/// Represents a get local gpt project function.
+/// </summary>
 public sealed class GetLocalGptProjectFunction(
     IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     ILogger<GetLocalGptProjectFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.project.get",
         "POST",
@@ -921,6 +1018,9 @@ public sealed class GetLocalGptProjectFunction(
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -952,10 +1052,16 @@ public sealed class GetLocalGptProjectFunction(
 
 }
 
+/// <summary>
+/// Represents a list recent application logs function.
+/// </summary>
 public sealed class ListRecentApplicationLogsFunction(
     IApplicationLogReaderService applicationLogs,
     ILogger<ListRecentApplicationLogsFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.logs.recent",
         "POST",
@@ -994,6 +1100,9 @@ public sealed class ListRecentApplicationLogsFunction(
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -1028,7 +1137,13 @@ public sealed class ListRecentApplicationLogsFunction(
     }
 }
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    /// <summary>
+    /// Runs the limit operation.
+    /// </summary>
     private string Limit(string value, int max) {
     try
     {
@@ -1045,10 +1160,16 @@ public sealed class ListRecentApplicationLogsFunction(
 }
 }
 
+/// <summary>
+/// Represents a list council knowledge function.
+/// </summary>
 public sealed class ListCouncilKnowledgeFunction(
     ICouncilKnowledgeService knowledge,
     ILogger<ListCouncilKnowledgeFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.knowledge.list",
         "POST",
@@ -1079,6 +1200,9 @@ public sealed class ListCouncilKnowledgeFunction(
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -1116,7 +1240,13 @@ public sealed class ListCouncilKnowledgeFunction(
     }
 }
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    /// <summary>
+    /// Runs the limit operation.
+    /// </summary>
     private string Limit(string value, int max) {
     try
     {
@@ -1133,10 +1263,16 @@ public sealed class ListCouncilKnowledgeFunction(
 }
 }
 
+/// <summary>
+/// Represents a list chat memory conversations function.
+/// </summary>
 public sealed class ListChatMemoryConversationsFunction(
     IChatMemoryService memory,
     ILogger<ListChatMemoryConversationsFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.memory.conversations",
         "POST",
@@ -1164,6 +1300,9 @@ public sealed class ListChatMemoryConversationsFunction(
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -1186,21 +1325,33 @@ public sealed class ListChatMemoryConversationsFunction(
     }
 }
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 }
 
 
+/// <summary>
+/// Represents a request human collaboration function.
+/// </summary>
 public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService vocabulary,
 
     IHumanCollaborationService collaboration,
     IAmbientLocalGptContext ambientContext,
     ILogger<RequestHumanCollaborationFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "human.collaboration.request",
         "POST",
@@ -1245,6 +1396,9 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
         """,
         IsCoordinationOnly: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -1302,6 +1456,9 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
             }, JsonOptions);
             var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprintSource))).ToLowerInvariant();
             var gate = await collaboration.AuthorizeOrEnqueueAsync(
+                /// <summary>
+                /// Runs the human approval request spec operation.
+                /// </summary>
                 new HumanApprovalRequestSpec(
                     $"human-question:{ambient.CouncilRunId?.ToString("N") ?? "general"}:{fingerprint}",
                     "human.collaboration.request",
@@ -1367,6 +1524,9 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
 }
 
 
+    /// <summary>
+    /// Normalizes question scope.
+    /// </summary>
     private string NormalizeQuestionScope(string? value)
     {
     try
@@ -1388,6 +1548,9 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
     }
 }
 
+    /// <summary>
+    /// Normalizes gate mode.
+    /// </summary>
     private string NormalizeGateMode(string? value, bool requiredBeforeCompletion)
     {
     try

@@ -5,11 +5,17 @@ using LocalGPT.Services.Helpers;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a get project maintenance function.
+/// </summary>
 public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     IProjectMaintenanceService maintenance,
     ILogger<GetProjectMaintenanceFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.maintenance.get", "POST", "/api/dxai/functions/project.maintenance.get/invoke",
         "Read one project's solution path, workspace resolution, tracked file paths and regex metadata, compiler installations, revisions, and build verification state before maintaining source.",
@@ -18,6 +24,9 @@ public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{"projectId":{"type":"string","format":"uuid"},"revisionId":{"type":["string","null"],"format":"uuid"}},"required":["projectId"],"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -52,8 +61,14 @@ public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
     }
 }
 
+/// <summary>
+/// Represents a save project workspace environment function.
+/// </summary>
 public sealed class SaveProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<SaveProjectWorkspaceEnvironmentFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.workspace.environment.save", "POST", "/api/dxai/functions/project.workspace.environment.save/invoke",
         "Save one project/global workspace local-environment definition, preferred compiler, expected subdirectories, structure regex, and Council-maintainable access-policy regex rules.",
@@ -61,6 +76,9 @@ public sealed class SaveProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonSer
         "Metadata-only change after one-use human approval. Paths and regex rules grant no execution authority; assess and validate before build use.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -84,8 +102,14 @@ public sealed class SaveProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonSer
 }
 }
 
+/// <summary>
+/// Represents an assess project workspace environment function.
+/// </summary>
 public sealed class AssessProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<AssessProjectWorkspaceEnvironmentFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.workspace.environment.assess", "POST", "/api/dxai/functions/project.workspace.environment.assess/invoke",
         "Assess whether the current LocalGPT process has too broad or insufficient rights for a configured workspace, verify expected directories/regex rules, and check the assigned compiler state.",
@@ -94,6 +118,9 @@ public sealed class AssessProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonS
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["workspaceRootId"],"properties":{"workspaceRootId":{"type":"string","format":"uuid"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -116,8 +143,14 @@ public sealed class AssessProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonS
 }
 }
 
+/// <summary>
+/// Represents a register project revision workspace function.
+/// </summary>
 public sealed class RegisterProjectRevisionWorkspaceFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<RegisterProjectRevisionWorkspaceFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.workspace.register", "POST", "/api/dxai/functions/project.revision.workspace.register/invoke",
         "Associate one existing isolated source workspace and optional solution path with a selected project revision before scanning or compiling it.",
@@ -125,6 +158,9 @@ public sealed class RegisterProjectRevisionWorkspaceFunction(IDxAiFunctionJsonSe
         "High-impact path registration after one-use human approval. The operation stores helper paths only and never copies, deletes, or edits project files.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -156,14 +192,23 @@ public sealed class RegisterProjectRevisionWorkspaceFunction(IDxAiFunctionJsonSe
 
 }
 
+/// <summary>
+/// Represents a scan project files function.
+/// </summary>
 public sealed class ScanProjectFilesFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<ScanProjectFilesFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.files.scan", "POST", "/api/dxai/functions/project.files.scan/invoke",
         "Scan one explicitly selected project root, detect the solution, and store stable absolute/relative paths, hashes, roles, and per-file structure/content regex metadata.",
-        "JSON parameters: projectId plus optional revisionId, maximumFiles, and maximumTextFileBytes.",
+        "JSON parameters: projectId plus optional revisionId, maximumFiles, maximumFileBytes, and maximumTextFileBytes. Omit maximumFiles/maximumFileBytes (or use non-positive values) to use the database-backed MaxFiles/MaxSingleFileBytes runtime policies instead of hard-coded source limits.",
         "Reads project files only after one-use human approval. Does not modify source, Git, or build outputs.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -189,8 +234,14 @@ public sealed class ScanProjectFilesFunction(IDxAiFunctionJsonService json, IPro
 }
 }
 
+/// <summary>
+/// Represents a save project file patterns function.
+/// </summary>
 public sealed class SaveProjectFilePatternsFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<SaveProjectFilePatternsFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.file.patterns.save", "POST", "/api/dxai/functions/project.file.patterns.save/invoke",
         "Store approved structure and content-format regular expressions plus the file role for one tracked project file.",
@@ -198,6 +249,9 @@ public sealed class SaveProjectFilePatternsFunction(IDxAiFunctionJsonService jso
         "Metadata-only write after one-use human approval. It never edits the project file itself.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -224,14 +278,23 @@ public sealed class SaveProjectFilePatternsFunction(IDxAiFunctionJsonService jso
 
 }
 
+/// <summary>
+/// Represents a verify project revision build function.
+/// </summary>
 public sealed class VerifyProjectRevisionBuildFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<VerifyProjectRevisionBuildFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.build.verify", "POST", "/api/dxai/functions/project.revision.build.verify/invoke",
         "Run the user-selected compiler against one project revision and store bounded build/test evidence for council review.",
         "JSON parameters: projectId plus RunProjectBuildVerificationRequest.",
         "Executes a local compiler only after one-use human approval. It does not approve the revision or write source files.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -257,14 +320,23 @@ public sealed class VerifyProjectRevisionBuildFunction(IDxAiFunctionJsonService 
 }
 }
 
+/// <summary>
+/// Represents a record project council build review function.
+/// </summary>
 public sealed class RecordProjectCouncilBuildReviewFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<RecordProjectCouncilBuildReviewFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.council-review", "POST", "/api/dxai/functions/project.revision.council-review/invoke",
         "Record the council's review of an existing build verification after members inspected the bounded compile/test evidence.",
         "JSON parameters: verificationId plus summary and compileErrorsAbsent.",
         "Stores review metadata only and requires human approval. It cannot mark a revision ready for testing.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -290,14 +362,23 @@ public sealed class RecordProjectCouncilBuildReviewFunction(IDxAiFunctionJsonSer
 }
 }
 
+/// <summary>
+/// Represents an approve project revision ready function.
+/// </summary>
 public sealed class ApproveProjectRevisionReadyFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<ApproveProjectRevisionReadyFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.ready.approve", "POST", "/api/dxai/functions/project.revision.ready.approve/invoke",
         "After successful compile, requested tests, and council review, create a lossless source snapshot and mark the revision ready for human testing.",
         "JSON parameters: projectId, revisionId, verificationId, requireTests, createLosslessSnapshot.",
         "High-impact final gate. Requires one-use human approval and never overwrites the source project.",
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

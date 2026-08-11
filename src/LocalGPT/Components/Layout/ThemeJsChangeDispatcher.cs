@@ -15,9 +15,15 @@ namespace LocalGPT.Components.Layout;
 /// </summary>
 public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequestDispatcher, IAsyncDisposable, IDisposable
 {
+    /// <summary>
+    /// Gets or sets initial shell theme name.
+    /// </summary>
     [Parameter]
     public required string InitialShellThemeName { get; set; }
 
+    /// <summary>
+    /// Gets or sets initial component theme name.
+    /// </summary>
     [Parameter]
     public required string InitialComponentThemeName { get; set; }
 
@@ -45,10 +51,16 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     [Inject]
     private IComponentActivityService ComponentActivity { get; set; } = default!;
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim _changeGate = new(1, 1);
     private IJSObjectReference? _module;
     private bool _disposed;
 
+    /// <summary>
+    /// Runs the on after render async operation.
+    /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
@@ -116,6 +128,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         await base.OnAfterRenderAsync(firstRender).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
     }
 
+    /// <summary>
+    /// Runs the request theme change async operation.
+    /// </summary>
     public async Task RequestThemeChangeAsync(Theme theme, ThemeApplicationTarget target)
     {
         ArgumentNullException.ThrowIfNull(theme);
@@ -185,6 +200,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         }
     }
 
+    /// <summary>
+    /// Runs the reset fusion route async operation.
+    /// </summary>
     public async Task ResetFusionRouteAsync()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -225,6 +243,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         }
     }
 
+    /// <summary>
+    /// Ensures module async.
+    /// </summary>
     private async Task EnsureModuleAsync()
     {
         try
@@ -252,6 +273,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         }
     }
 
+    /// <summary>
+    /// Applies client theme state async.
+    /// </summary>
     private async Task ApplyClientThemeStateAsync()
     {
         try
@@ -276,6 +300,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         }
     }
 
+    /// <summary>
+    /// Runs the persist fusion route async operation.
+    /// </summary>
     private async Task PersistFusionRouteAsync()
     {
         try
@@ -296,6 +323,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         }
     }
 
+    /// <summary>
+    /// Converts browser fusion route.
+    /// </summary>
     private IReadOnlyList<ThemeFusionStep> ConvertBrowserFusionRoute(
         IReadOnlyList<BrowserThemeFusionStep>? browserSteps)
     {
@@ -326,6 +356,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         }
     }
 
+    /// <summary>
+    /// Runs the notify loaded async operation.
+    /// </summary>
     private async Task NotifyLoadedAsync(Theme theme, ThemeApplicationTarget target)
     {
         try
@@ -344,6 +377,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         }
     }
 
+    /// <summary>
+    /// Runs the restore theme layer async operation.
+    /// </summary>
     private async Task RestoreThemeLayerAsync(
         ThemeApplicationTarget target,
         Theme previousShellTheme,
@@ -394,6 +430,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         }
     }
 
+    /// <summary>
+    /// Runs the dispose async operation.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

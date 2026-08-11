@@ -20,6 +20,9 @@ public sealed class CouncilPreflightService(
     ICouncilTeamConfigurationService teams,
     ILogger<CouncilPreflightService> logger) : ICouncilPreflightService
 {
+    /// <summary>
+    /// Runs the prepare async operation.
+    /// </summary>
     public async Task<CouncilPreflightReport> PrepareAsync(
         MultiModelCouncilRequest request,
         IReadOnlyList<string> participants,
@@ -202,6 +205,9 @@ public sealed class CouncilPreflightService(
     }
 }
 
+    /// <summary>
+    /// Builds member readiness prompt.
+    /// </summary>
     public string BuildMemberReadinessPrompt(
         string modelName,
         IReadOnlyList<string> participants,
@@ -258,6 +264,9 @@ public sealed class CouncilPreflightService(
     }
 }
 
+    /// <summary>
+    /// Runs the render introduction template operation.
+    /// </summary>
     private string RenderIntroductionTemplate(string template, string modelName, IReadOnlyList<string> participants, CouncilPreflightReport report)
     {
     try
@@ -282,6 +291,9 @@ public sealed class CouncilPreflightService(
     }
 }
 
+    /// <summary>
+    /// Builds prompt context.
+    /// </summary>
     private string BuildPromptContext(CouncilPreflightReport report, MultiModelCouncilRequest request)
     {
     try
@@ -316,6 +328,9 @@ public sealed class CouncilPreflightService(
     }
 }
 
+    /// <summary>
+    /// Runs the select relevant regexes operation.
+    /// </summary>
     private IReadOnlyList<string> SelectRelevantRegexes(IReadOnlyList<string> names, string prompt)
     {
     try
@@ -344,6 +359,9 @@ public sealed class CouncilPreflightService(
     }
 }
 
+    /// <summary>
+    /// Parses string array.
+    /// </summary>
     private IReadOnlyList<string> ParseStringArray(string? json)
     {
     try

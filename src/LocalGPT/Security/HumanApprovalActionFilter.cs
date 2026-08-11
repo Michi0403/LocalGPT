@@ -11,6 +11,9 @@ using System.Reflection;
 
 namespace LocalGPT.Security;
 
+/// <summary>
+/// Provides human approval action filter operations.
+/// </summary>
 public sealed class HumanApprovalActionFilter(
     string operationKey,
     string title,
@@ -23,23 +26,35 @@ public sealed class HumanApprovalActionFilter(
     IHumanApprovalExecutionContext approvalExecutionContext,
     ILogger<HumanApprovalActionFilter> logger) : IAsyncActionFilter
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions FingerprintJsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = false,
         PropertyNameCaseInsensitive = true
     };
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly HashSet<string> ConfirmationMemberNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "userConfirmed",
         "UserConfirmedBuild"
     };
 
+    /// <summary>
+    /// Runs the on action execution async operation.
+    /// </summary>
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         var fingerprint = BuildFingerprint(context);
         var correlationId = $"controller:{operationKey}:{fingerprint}";
         var ambient = ambientContext.Current;
         var gate = await collaboration.AuthorizeOrEnqueueAsync(
+            /// <summary>
+            /// Runs the human approval request spec operation.
+            /// </summary>
             new HumanApprovalRequestSpec(
                 correlationId,
                 operationKey,
@@ -108,6 +123,9 @@ public sealed class HumanApprovalActionFilter(
         await next().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Builds fingerprint.
+    /// </summary>
     private string BuildFingerprint(ActionExecutingContext context)
     {
         var builder = new StringBuilder()
@@ -136,6 +154,9 @@ public sealed class HumanApprovalActionFilter(
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()))).ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Runs the append fingerprint value operation.
+    /// </summary>
     private void AppendFingerprintValue(StringBuilder builder, object? value)
     {
         try
@@ -152,6 +173,9 @@ public sealed class HumanApprovalActionFilter(
         }
     }
 
+    /// <summary>
+    /// Removes confirmation members.
+    /// </summary>
     private void RemoveConfirmationMembers(JsonNode? node)
     {
         if (node is JsonObject jsonObject)
@@ -175,6 +199,9 @@ public sealed class HumanApprovalActionFilter(
         }
     }
 
+    /// <summary>
+    /// Applies legacy confirmation flags.
+    /// </summary>
     private void ApplyLegacyConfirmationFlags(IDictionary<string, object?> actionArguments)
     {
         foreach (var argumentName in actionArguments.Keys.ToList())
@@ -195,6 +222,9 @@ public sealed class HumanApprovalActionFilter(
         }
     }
 
+    /// <summary>
+    /// Gets boolean property.
+    /// </summary>
     private bool GetBooleanProperty(object instance, string propertyName)
     {
         var property = instance.GetType().GetProperty(
@@ -203,6 +233,9 @@ public sealed class HumanApprovalActionFilter(
         return property?.PropertyType == typeof(bool) && property.GetValue(instance) is true;
     }
 
+    /// <summary>
+    /// Sets boolean property.
+    /// </summary>
     private void SetBooleanProperty(object instance, string propertyName, bool value)
     {
         var property = instance.GetType().GetProperty(

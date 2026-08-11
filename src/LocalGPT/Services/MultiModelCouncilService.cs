@@ -10,6 +10,9 @@ using System.Threading.Channels;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides multi model council service operations.
+    /// </summary>
     public sealed partial class MultiModelCouncilService(ILocalGptVocabularyService vocabulary,
     
         IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot,
@@ -40,6 +43,9 @@ namespace LocalGPT.Services
         LocalGptCatalogService catalog) : IMultiModelCouncilService
     {
 
+        /// <summary>
+        /// Gets candidates async.
+        /// </summary>
         public Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -55,6 +61,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Applies configured team model bindings async.
+        /// </summary>
         private async Task ApplyConfiguredTeamModelBindingsAsync(
             MultiModelCouncilRequest request,
             OrganicCouncilTeamDefinition team,
@@ -139,6 +148,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Resolves configured team model binding.
+        /// </summary>
         private string ResolveConfiguredTeamModelBinding(
             string savedBinding,
             IReadOnlyList<MultiModelCouncilModelCandidate> candidates,
@@ -187,6 +199,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the run async operation.
+        /// </summary>
         public async Task<MultiModelCouncilResult> RunAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)
         {
             Guid? collaborationRunId = null;
@@ -824,6 +839,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the uses built in council workflow operation.
+        /// </summary>
         private bool UsesBuiltInCouncilWorkflow(OrganicCouncilTeamDefinition team)
         {
     try
@@ -865,6 +883,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Builds configured role assignments.
+        /// </summary>
         private Dictionary<string, CouncilRoleRuntimeAssignment> BuildConfiguredRoleAssignments(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -911,6 +932,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Resolves configured role assignment.
+        /// </summary>
         private CouncilRoleRuntimeAssignment ResolveConfiguredRoleAssignment(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1105,6 +1129,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds configured role participant pool.
+        /// </summary>
         private IReadOnlyList<string> BuildConfiguredRoleParticipantPool(
             OrganicCouncilRoleDefinition definition,
             IReadOnlyList<string> participants,
@@ -1136,6 +1163,9 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>
+        /// Gets configured role pairing reservation multiplier.
+        /// </summary>
         private int GetConfiguredRolePairingReservationMultiplier(
             OrganicCouncilRoleDefinition definition,
             IReadOnlyDictionary<string, OrganicCouncilRoleDefinition> rolesByName)
@@ -1171,6 +1201,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the deterministically select configured role participants operation.
+        /// </summary>
         private IReadOnlyList<string> DeterministicallySelectConfiguredRoleParticipants(
             Guid runId,
             string teamKey,
@@ -1195,6 +1228,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Gets configured role assignment.
+        /// </summary>
         private CouncilRoleRuntimeAssignment GetConfiguredRoleAssignment(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1231,6 +1267,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds configured role pairings.
+        /// </summary>
         private IReadOnlyList<CouncilParticipantPairing> BuildConfiguredRolePairings(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1304,6 +1343,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds configured role pairing summary.
+        /// </summary>
         private string BuildConfiguredRolePairingSummary(IReadOnlyList<CouncilParticipantPairing> pairings)
         {
             try
@@ -1324,6 +1366,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the describe configured role ai policy operation.
+        /// </summary>
         private string DescribeConfiguredRoleAiPolicy(OrganicCouncilRoleDefinition role)
         {
     try
@@ -1349,6 +1394,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Builds configured role performance instruction.
+        /// </summary>
         private string BuildConfiguredRolePerformanceInstruction(
             CouncilRolePerformanceMode performanceMode,
             string modelName,
@@ -1375,6 +1423,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Builds configured role boundary instruction.
+        /// </summary>
         private string BuildConfiguredRoleBoundaryInstruction(CouncilRoleBoundaryMode boundaryMode, string roleName) {
     try
     {
@@ -1398,6 +1449,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Builds configured role language instruction.
+        /// </summary>
         private string BuildConfiguredRoleLanguageInstruction(CouncilRoleLanguageMode languageMode) {
     try
     {
@@ -1421,6 +1475,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Builds configured role human participation instruction.
+        /// </summary>
         private string BuildConfiguredRoleHumanParticipationInstruction(HumanParticipationMode mode) {
     try
     {
@@ -1446,6 +1503,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the wait for configured role human participation async operation.
+        /// </summary>
         private async Task WaitForConfiguredRoleHumanParticipationAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1596,6 +1656,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the run configured workflow async operation.
+        /// </summary>
         private async Task<string> RunConfiguredWorkflowAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1768,6 +1831,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the execute configured workflow definition async operation.
+        /// </summary>
         private async Task<ConfiguredWorkflowExecutionState> ExecuteConfiguredWorkflowDefinitionAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2083,6 +2149,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds configured workflow previous step.
+        /// </summary>
         private string BuildConfiguredWorkflowPreviousStep(
             MultiModelCouncilResult result,
             CouncilWorkflowStepDefinition definition,
@@ -2125,6 +2194,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds configured workflow transcript.
+        /// </summary>
         private string BuildConfiguredWorkflowTranscript(
             MultiModelCouncilResult result,
             CouncilWorkflowStepDefinition definition,
@@ -2163,6 +2235,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the contains configured loop completion marker operation.
+        /// </summary>
         private bool ContainsConfiguredLoopCompletionMarker(
             IEnumerable<MultiModelCouncilStep> steps,
             string completionMarker)
@@ -2182,6 +2257,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the run configured participant async operation.
+        /// </summary>
         private async Task RunConfiguredParticipantAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2291,6 +2369,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the select configured workflow participant operation.
+        /// </summary>
         private string SelectConfiguredWorkflowParticipant(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2335,6 +2416,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the render configured workflow prompt operation.
+        /// </summary>
         private string RenderConfiguredWorkflowPrompt(
             CouncilWorkflowStepDefinition definition,
             OrganicCouncilTeamDefinition team,
@@ -2479,6 +2563,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Builds configured workflow stage answer.
+        /// </summary>
         private string BuildConfiguredWorkflowStageAnswer(IReadOnlyList<MultiModelCouncilStep> steps)
         {
     try
@@ -2510,6 +2597,9 @@ namespace LocalGPT.Services
 }
 
 
+        /// <summary>
+        /// Determines whether round skipped step.
+        /// </summary>
         private bool IsRoundSkippedStep(MultiModelCouncilStep step) {
     try
     {
@@ -2525,6 +2615,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Normalizes configured execution mode.
+        /// </summary>
         private string NormalizeConfiguredExecutionMode(string? value)
         {
     try
@@ -2564,6 +2657,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the wait for human boundary async operation.
+        /// </summary>
         private async Task WaitForHumanBoundaryAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2686,6 +2782,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the describe question scope operation.
+        /// </summary>
         private string DescribeQuestionScope(HumanCollaborationRequest request) {
     try
     {
@@ -2706,6 +2805,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the describe question gate operation.
+        /// </summary>
         private string DescribeQuestionGate(HumanCollaborationRequest request) {
     try
     {
@@ -2727,6 +2829,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the prepare human heartbeat async operation.
+        /// </summary>
         private async Task<string> PrepareHumanHeartbeatAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2831,6 +2936,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the prepare live human input async operation.
+        /// </summary>
         private async Task<string> PrepareLiveHumanInputAsync(
             MultiModelCouncilResult result,
             int round,
@@ -2888,6 +2996,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Builds human contribution briefing.
+        /// </summary>
         private string BuildHumanContributionBriefing(IReadOnlyList<HumanCouncilContribution> contributions)
         {
             try
@@ -2932,6 +3043,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds deferred invocation briefing.
+        /// </summary>
         private string BuildDeferredInvocationBriefing(IReadOnlyList<DeferredDxAiExecutionOutcome> outcomes)
         {
     try
@@ -2962,6 +3076,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Builds human contribution evaluation.
+        /// </summary>
         private string BuildHumanContributionEvaluation(MultiModelCouncilResult result)
         {
             try
@@ -3002,6 +3119,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the append human peer review instruction operation.
+        /// </summary>
         private string AppendHumanPeerReviewInstruction(string prompt)
         {
             try
@@ -3026,6 +3146,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Creates council change review async.
+        /// </summary>
         private async Task<CodeGenerationReviewSnapshot> CreateCouncilChangeReviewAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -3153,6 +3276,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Applies hardware plan.
+        /// </summary>
         private void ApplyHardwarePlan(MultiModelCouncilStep step, CouncilHardwareRoadPlan plan)
         {
     try
@@ -3175,6 +3301,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Adds council step and execute DevExpress functions async.
+        /// </summary>
         private async Task<IReadOnlyList<MultiModelCouncilStep>> AddCouncilStepAndExecuteDxFunctionsAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilStep step,
@@ -3203,6 +3332,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Adds council step async.
+        /// </summary>
         private async Task<IReadOnlyList<MultiModelCouncilStep>> AddCouncilStepAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilStep step,
@@ -3232,6 +3364,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the run phase async operation.
+        /// </summary>
         private async Task RunPhaseAsync(
             MultiModelCouncilResult result,
             string baseUri,
@@ -3337,6 +3472,9 @@ namespace LocalGPT.Services
                 var roundSkipToken = runConfigurations.GetRoundCancellationToken(result.RunId, round, phase);
                 try
                 {
+                    /// <summary>
+                    /// Runs the execute participant async operation.
+                    /// </summary>
                     async Task<MultiModelCouncilStep> ExecuteParticipantAsync(string modelName, SemaphoreSlim? hostGate)
                     {
                         var fallbackPlan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
@@ -3478,6 +3616,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Gets council execution host key.
+        /// </summary>
         private string GetCouncilExecutionHostKey(string modelName)
         {
             try
@@ -3501,6 +3642,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the pump council participant streams async operation.
+        /// </summary>
         private async Task PumpCouncilParticipantStreamsAsync(
             IReadOnlyList<string> participantOrder,
             IReadOnlyDictionary<string, Channel<string>> participantStreams,
@@ -3529,6 +3673,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Creates round skipped step.
+        /// </summary>
         private MultiModelCouncilStep CreateRoundSkippedStep(
             string modelName,
             IReadOnlyList<string> councilMembers,
@@ -3567,6 +3714,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the select participants async operation.
+        /// </summary>
         private async Task<List<string>> SelectParticipantsAsync(
             MultiModelCouncilRequest request,
             string normalizedLegacyBaseUri,
@@ -3738,6 +3888,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the qualify model routes operation.
+        /// </summary>
         private List<OneWireCouncilModelRoute> QualifyModelRoutes(
             IEnumerable<OneWireCouncilModelRoute>? routes,
             IReadOnlyList<ProviderModelReference> references)
@@ -3808,6 +3961,9 @@ namespace LocalGPT.Services
 }
 
 
+        /// <summary>
+        /// Determines whether reachable provider endpoint.
+        /// </summary>
         private bool HasReachableProviderEndpoint(
             IReadOnlyList<MultiModelCouncilModelCandidate> candidates,
             ProviderModelReference model)
@@ -3837,6 +3993,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Determines whether configured provider endpoint.
+        /// </summary>
         private bool IsConfiguredProviderEndpoint(ProviderModelReference model)
         {
             try
@@ -3888,6 +4047,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the run participant async operation.
+        /// </summary>
         private async Task<MultiModelCouncilStep?> RunParticipantAsync(
             string baseUri,
             string modelName,
@@ -4337,6 +4499,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the monitor live council input async operation.
+        /// </summary>
         private async Task MonitorLiveCouncilInputAsync(
             Guid councilRunId,
             int currentRound,
@@ -4397,6 +4562,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds live council interruption prompt.
+        /// </summary>
         private string BuildLiveCouncilInterruptionPrompt(IReadOnlyList<HumanCouncilContribution> contributions)
         {
             try
@@ -4429,6 +4597,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the limit live council context operation.
+        /// </summary>
         private string LimitLiveCouncilContext(string value, int maximumCharacters)
         {
     try
@@ -4448,6 +4619,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the retry participant with safe limits async operation.
+        /// </summary>
         private async Task<MultiModelCouncilStep?> RetryParticipantWithSafeLimitsAsync(
             string baseUri,
             string modelName,
@@ -4525,6 +4699,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the select healthy participant operation.
+        /// </summary>
         private string SelectHealthyParticipant(
             MultiModelCouncilResult result,
             IReadOnlyList<string> participants,
@@ -4554,6 +4731,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Applies approved one run model exclusions async.
+        /// </summary>
         private async Task<(List<string> Active, List<string> Excluded)> ApplyApprovedOneRunModelExclusionsAsync(
             List<string> selectedParticipants,
             CancellationToken cancellationToken)
@@ -4587,6 +4767,9 @@ namespace LocalGPT.Services
             return (active, excluded);
         }
 
+        /// <summary>
+        /// Runs the queue model health exclusion review async operation.
+        /// </summary>
         private async Task QueueModelHealthExclusionReviewAsync(
             MultiModelCouncilResult result,
             string modelName,
@@ -4610,6 +4793,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Creates model health exclusion request.
+        /// </summary>
         private HumanApprovalRequestSpec CreateModelHealthExclusionRequest(
             string modelName,
             Guid? councilRunId,
@@ -4648,6 +4834,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the order participants by observed health operation.
+        /// </summary>
         private IEnumerable<string> OrderParticipantsByObservedHealth(
             MultiModelCouncilResult result,
             IEnumerable<string> participants)
@@ -4687,6 +4876,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the append runtime benchmark summary operation.
+        /// </summary>
         private void AppendRuntimeBenchmarkSummary(MultiModelCouncilResult result)
         {
     try
@@ -4721,6 +4913,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the request ollama unload async operation.
+        /// </summary>
         private async Task RequestOllamaUnloadAsync(string baseUri, string modelName, CancellationToken cancellationToken)
         {
             try
@@ -4748,6 +4943,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Gets configured ollama providers.
+        /// </summary>
         private IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders()
         {
             try
@@ -4774,6 +4972,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the probe ollama models async operation.
+        /// </summary>
         private async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> ProbeOllamaModelsAsync(string endpoint, CancellationToken cancellationToken)
         {
             try
@@ -4814,6 +5015,9 @@ namespace LocalGPT.Services
                 return [];
             }
         }
+        /// <summary>
+        /// Runs the multi model council service run final only recovery async operation.
+        /// </summary>
         public async Task<(string Content, string VisibleContent, string? Thinking)> MultiModelCouncilServiceRunFinalOnlyRecoveryAsync(
             IChatClient client,
             string modelName,
@@ -4870,6 +5074,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the multi model council service add ordered step operation.
+        /// </summary>
         public void MultiModelCouncilServiceAddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step, ILogger logger)
         {
             try
@@ -4886,6 +5093,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service select consensus content operation.
+        /// </summary>
         public string MultiModelCouncilServiceSelectConsensusContent(MultiModelCouncilResult result, MultiModelCouncilStep consensusStep , ILogger logger)
         {
             try
@@ -4914,6 +5124,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service is substantive council content operation.
+        /// </summary>
         public bool MultiModelCouncilServiceIsSubstantiveCouncilContent(string content, ILogger logger)
         {
             try
@@ -4936,6 +5149,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service is thinking only council content operation.
+        /// </summary>
         public bool MultiModelCouncilServiceIsThinkingOnlyCouncilContent(string content, ILogger logger)
         {
             try
@@ -4953,6 +5169,9 @@ namespace LocalGPT.Services
                 return false;
             }
         }
+        /// <summary>
+        /// Runs the multi model council service get council keep alive operation.
+        /// </summary>
         public string MultiModelCouncilServiceGetCouncilKeepAlive(MultiModelCouncilRequest request, int participantCount, int maxParallelModels, ILogger logger)
         {
             try
@@ -4971,6 +5190,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service should unload after participant operation.
+        /// </summary>
         public bool MultiModelCouncilServiceShouldUnloadAfterParticipant(string keepAlive, ILogger logger)
         {
             try
@@ -4988,6 +5210,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service resolve participant ollama num gpu operation.
+        /// </summary>
         public int? MultiModelCouncilServiceResolveParticipantOllamaNumGpu(string modelName, int? requestedNumGpu, ILogger logger)
         {
             try
@@ -5005,6 +5230,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the multi model council service is heavy gpu risk model operation.
+        /// </summary>
         public bool MultiModelCouncilServiceIsHeavyGpuRiskModel(string modelName, ILogger logger)
         {
             try
@@ -5021,6 +5249,9 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>
+        /// Runs the multi model council service probe running model names async operation.
+        /// </summary>
         public async Task<HashSet<string>> MultiModelCouncilServiceProbeRunningModelNamesAsync(HttpClient http, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -5039,6 +5270,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Loads continuation conversation async.
+        /// </summary>
         public async Task<ChatMemoryConversationSnapshot?> LoadContinuationConversationAsync(Guid? conversationId, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -5064,6 +5298,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Runs the multi model council service build continuation context operation.
+        /// </summary>
         public string MultiModelCouncilServiceBuildContinuationContext(ChatMemoryConversationSnapshot? conversation, ILogger logger)
         {
             try
@@ -5100,6 +5337,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service append prompt section operation.
+        /// </summary>
         public string MultiModelCouncilServiceAppendPromptSection(string existing, string title, string content, ILogger logger)
         {
             try
@@ -5116,6 +5356,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Saves to memory async.
+        /// </summary>
         public async Task<Guid?> SaveToMemoryAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -5133,11 +5376,17 @@ namespace LocalGPT.Services
                 messages.Add(new BlazorChatMessage(
                     ChatRole.User,
                     MultiModelCouncilServiceBuildCouncilRequestMemoryMessage(request, result, continuedConversation is not null, logger),
+                    /// <summary>
+                    /// Runs the list operation.
+                    /// </summary>
                     new List<AIChatUploadFileInfo>()));
 
                 messages.Add(new BlazorChatMessage(
                     ChatRole.Assistant,
                     $"## Council members for this round{Environment.NewLine}{string.Join(", ", result.ModelNames)}",
+                    /// <summary>
+                    /// Runs the list operation.
+                    /// </summary>
                     new List<AIChatUploadFileInfo>()));
 
                 if (result.ContinuedFromConversationId is Guid continuedFrom)
@@ -5145,6 +5394,9 @@ namespace LocalGPT.Services
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
                         $"Continuing prior council conversation `{continuedFrom}`{(string.IsNullOrWhiteSpace(result.ContinuedFromTitle) ? string.Empty : $" - {result.ContinuedFromTitle}")}.",
+                        /// <summary>
+                        /// Runs the list operation.
+                        /// </summary>
                         new List<AIChatUploadFileInfo>()));
                 }
 
@@ -5153,6 +5405,9 @@ namespace LocalGPT.Services
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
                         MultiModelCouncilServiceBuildMemoryMessage(step, logger),
+                        /// <summary>
+                        /// Runs the list operation.
+                        /// </summary>
                         new List<AIChatUploadFileInfo>()));
                 }
 
@@ -5161,6 +5416,9 @@ namespace LocalGPT.Services
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
                         councilText.MultiModelCouncilServiceBuildPollMarkdown(result.UserPoll, logger),
+                        /// <summary>
+                        /// Runs the list operation.
+                        /// </summary>
                         new List<AIChatUploadFileInfo>()));
                 }
 
@@ -5169,12 +5427,18 @@ namespace LocalGPT.Services
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
                         $"## Council knowledge entry{Environment.NewLine}{knowledgeEntryId}",
+                        /// <summary>
+                        /// Runs the list operation.
+                        /// </summary>
                         new List<AIChatUploadFileInfo>()));
                 }
 
                 messages.Add(new BlazorChatMessage(
                     ChatRole.Assistant,
                     $"## Final council answer{Environment.NewLine}{result.FinalAnswer}",
+                    /// <summary>
+                    /// Runs the list operation.
+                    /// </summary>
                     new List<AIChatUploadFileInfo>()));
 
                 if (result.Artifacts.Count > 0)
@@ -5182,6 +5446,9 @@ namespace LocalGPT.Services
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
                         councilText.MultiModelCouncilServiceBuildArtifactsMarkdown(result.Artifacts, logger),
+                        /// <summary>
+                        /// Runs the list operation.
+                        /// </summary>
                         new List<AIChatUploadFileInfo>()));
                 }
 
@@ -5199,6 +5466,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the multi model council service build council request memory message operation.
+        /// </summary>
         public string MultiModelCouncilServiceBuildCouncilRequestMemoryMessage(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -5221,6 +5491,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the multi model council service build memory message operation.
+        /// </summary>
         public string MultiModelCouncilServiceBuildMemoryMessage(MultiModelCouncilStep step, ILogger logger)
         {
             try
@@ -5262,6 +5535,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Writes log async.
+        /// </summary>
         public async Task<string> WriteLogAsync(MultiModelCouncilResult result, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -5283,6 +5559,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Writes missing feature report async.
+        /// </summary>
         private async Task WriteMissingFeatureReportAsync(
             MultiModelCouncilResult result,
             CancellationToken cancellationToken)

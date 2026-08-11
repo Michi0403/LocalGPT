@@ -3,9 +3,15 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Council.Scheduling;
 
+/// <summary>
+/// Provides council hardware road configuration service operations.
+/// </summary>
 public sealed class CouncilHardwareRoadConfigurationService(
     ILogger<CouncilHardwareRoadConfigurationService> logger) : ICouncilHardwareRoadConfigurationService
 {
+    /// <summary>
+    /// Runs the synchronize operation.
+    /// </summary>
     public IReadOnlyList<OneWireCouncilModelRoute> Synchronize(
         IEnumerable<string> modelNames,
         IEnumerable<OneWireCouncilModelRoute>? existingRoutes)
@@ -54,6 +60,9 @@ public sealed class CouncilHardwareRoadConfigurationService(
         }
     }
 
+    /// <summary>
+    /// Runs the normalize operation.
+    /// </summary>
     public OneWireCouncilModelRoute Normalize(OneWireCouncilModelRoute route)
     {
         try
@@ -92,6 +101,9 @@ public sealed class CouncilHardwareRoadConfigurationService(
         }
     }
 
+    /// <summary>
+    /// Normalizes load percent.
+    /// </summary>
     public int NormalizeLoadPercent(int value)
     {
     try
@@ -111,6 +123,9 @@ public sealed class CouncilHardwareRoadConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Runs the interpolate operation.
+    /// </summary>
     public int Interpolate(int minimum, int maximum, int loadPercent)
     {
     try

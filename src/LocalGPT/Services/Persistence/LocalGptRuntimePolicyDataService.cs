@@ -6,12 +6,18 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services.Persistence;
 
+/// <summary>
+/// Provides local gpt runtime policy data service operations.
+/// </summary>
 public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDataService
 {
     private readonly ILocalGptRuntimePolicyStoreService store;
     private readonly ILogger<LocalGptRuntimePolicyDataService> logger;
     private LocalGptRuntimePolicyState state = null!;
 
+    /// <summary>
+    /// Runs the local gpt runtime policy data service operation.
+    /// </summary>
     public LocalGptRuntimePolicyDataService(ILocalGptRuntimePolicyStoreService store, ILogger<LocalGptRuntimePolicyDataService> logger)
     {
         this.store = store;
@@ -28,13 +34,34 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Gets or sets local gpt core project identifier.
+    /// </summary>
     public Guid LocalGptCoreProjectId => GetGuid(LocalGptRuntimeValue.LocalGptCoreProjectId);
+    /// <summary>
+    /// Gets or sets regex timeout.
+    /// </summary>
     public TimeSpan RegexTimeout => TimeSpan.FromMilliseconds(GetInt(LocalGptRuntimeValue.RegexTimeoutMilliseconds));
+    /// <summary>
+    /// Gets or sets allowed native executables.
+    /// </summary>
     public FrozenSet<string> AllowedNativeExecutables => GetCollection(LocalGptRuntimeCollection.AllowedNativeExecutables);
+    /// <summary>
+    /// Gets or sets power shell inline command pattern.
+    /// </summary>
     public Regex PowerShellInlineCommandPattern => GetPattern(LocalGptRuntimePattern.PowerShellInlineCommand);
+    /// <summary>
+    /// Gets or sets power shell file pattern.
+    /// </summary>
     public Regex PowerShellFilePattern => GetPattern(LocalGptRuntimePattern.PowerShellFile);
+    /// <summary>
+    /// Gets or sets sensitive argument pattern.
+    /// </summary>
     public Regex SensitiveArgumentPattern => GetPattern(LocalGptRuntimePattern.SensitiveArgument);
 
+    /// <summary>
+    /// Gets string.
+    /// </summary>
     public string GetString(LocalGptRuntimeValue key)
     {
         try
@@ -51,6 +78,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Gets int.
+    /// </summary>
     public int GetInt(LocalGptRuntimeValue key)
     {
         try
@@ -67,6 +97,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Gets long.
+    /// </summary>
     public long GetLong(LocalGptRuntimeValue key)
     {
         try
@@ -83,6 +116,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Gets guid.
+    /// </summary>
     public Guid GetGuid(LocalGptRuntimeValue key)
     {
         try
@@ -99,6 +135,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Gets JSON.
+    /// </summary>
     public T GetJson<T>(LocalGptRuntimeValue key)
     {
         try
@@ -116,6 +155,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Gets pattern.
+    /// </summary>
     public Regex GetPattern(LocalGptRuntimePattern key)
     {
         try
@@ -132,6 +174,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Gets collection.
+    /// </summary>
     public FrozenSet<string> GetCollection(LocalGptRuntimeCollection key)
     {
         try
@@ -148,6 +193,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Runs the reload operation.
+    /// </summary>
     public LocalGptRuntimePolicySnapshot Reload()
     {
         try
@@ -188,6 +236,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Gets snapshot.
+    /// </summary>
     public LocalGptRuntimePolicySnapshot GetSnapshot()
     {
         try
@@ -201,6 +252,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Creates snapshot.
+    /// </summary>
     private LocalGptRuntimePolicySnapshot CreateSnapshot(LocalGptRuntimePolicyState current)
     {
         try
@@ -223,6 +277,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
+    /// <summary>
+    /// Parses flags.
+    /// </summary>
     private RegexOptions ParseFlags(LocalGptRuntimeRegexDefinition definition)
     {
         try

@@ -6,6 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides sqlite editor preference service operations.
+/// </summary>
 public sealed class SqliteEditorPreferenceService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -16,6 +19,9 @@ public sealed class SqliteEditorPreferenceService(
         "Automatic", "Text", "LongText", "Number", "Boolean", "DateTime", "Guid", "Json", "Secret"
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Gets overrides async.
+    /// </summary>
     public async Task<IReadOnlyDictionary<string, SqliteEditorFieldOverride>> GetOverridesAsync(string tableName, CancellationToken cancellationToken = default)
     {
     try
@@ -38,6 +44,9 @@ public sealed class SqliteEditorPreferenceService(
     }
 }
 
+    /// <summary>
+    /// Saves override async.
+    /// </summary>
     public async Task<SqliteEditorFieldOverride> SaveOverrideAsync(SqliteEditorFieldOverride preference, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -86,6 +95,9 @@ public sealed class SqliteEditorPreferenceService(
     }
 }
 
+    /// <summary>
+    /// Runs the infer editor kind operation.
+    /// </summary>
     public string InferEditorKind(SqliteColumnSummary column, string? value)
     {
     try

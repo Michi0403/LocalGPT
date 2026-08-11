@@ -7,11 +7,17 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services.Persistence;
 
+/// <summary>
+/// Provides regex pattern service operations.
+/// </summary>
 public sealed class RegexPatternService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<RegexPatternService> logger) : IRegexPatternService
 {
+    /// <summary>
+    /// Adds or update async.
+    /// </summary>
     public async Task AddOrUpdateAsync(RegexPatternDto dto)
     {
         try
@@ -40,6 +46,9 @@ public sealed class RegexPatternService(
         }
     }
 
+    /// <summary>
+    /// Gets regex async.
+    /// </summary>
     public async Task<Regex?> GetRegexAsync(string name)
     {
         try
@@ -58,6 +67,9 @@ public sealed class RegexPatternService(
         }
     }
 
+    /// <summary>
+    /// Runs the compile operation.
+    /// </summary>
     public Regex Compile(string pattern, string? flags = null)
     {
         try
@@ -71,6 +83,9 @@ public sealed class RegexPatternService(
         }
     }
 
+    /// <summary>
+    /// Runs the compile operation.
+    /// </summary>
     public Regex Compile(string pattern, string? flags, TimeSpan timeout)
     {
         try
@@ -90,6 +105,9 @@ public sealed class RegexPatternService(
         }
     }
 
+    /// <summary>
+    /// Runs the list all async operation.
+    /// </summary>
     public async Task<List<RegexPattern>> ListAllAsync()
     {
         try
@@ -103,6 +121,9 @@ public sealed class RegexPatternService(
         }
     }
 
+    /// <summary>
+    /// Runs the list all async operation.
+    /// </summary>
     public async Task<List<RegexPattern>> ListAllAsync(int? take = null)
     {
         try
@@ -121,6 +142,9 @@ public sealed class RegexPatternService(
         }
     }
 
+    /// <summary>
+    /// Deletes async.
+    /// </summary>
     public async Task DeleteAsync(string name)
     {
         try
@@ -134,6 +158,9 @@ public sealed class RegexPatternService(
         }
     }
 
+    /// <summary>
+    /// Deletes async.
+    /// </summary>
     public async Task DeleteAsync(string name, bool confirm = false)
     {
         try
@@ -157,6 +184,9 @@ public sealed class RegexPatternService(
         }
     }
 
+    /// <summary>
+    /// Validates pattern.
+    /// </summary>
     private void ValidatePattern(string pattern, string? flags)
     {
     try
@@ -177,6 +207,9 @@ public sealed class RegexPatternService(
     }
 }
 
+    /// <summary>
+    /// Parses flags.
+    /// </summary>
     private RegexOptions ParseFlags(string? flags)
     {
     try

@@ -11,6 +11,9 @@ namespace LocalGPT.Services;
 public sealed class DxAiFunctionHandlerMapService(
     ILogger<DxAiFunctionHandlerMapService> logger)
 {
+    /// <summary>
+    /// Runs the build operation.
+    /// </summary>
     public IReadOnlyDictionary<string, IDxAiFunctionHandler> Build(
         IEnumerable<IDxAiFunctionHandler> handlers)
     {

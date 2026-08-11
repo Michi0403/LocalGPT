@@ -7,8 +7,14 @@ namespace LocalGPT.Interfaces;
 /// </summary>
 public interface IAiProviderConfigurationRegistryService
 {
+    /// <summary>
+    /// Creates detached draft.
+    /// </summary>
     AICoreOptions CreateDetachedDraft(AICoreOptions? source);
 
+    /// <summary>
+    /// Applies detached draft.
+    /// </summary>
     void ApplyDetachedDraft(
         AICoreOptions target,
         AICoreOptions draft,

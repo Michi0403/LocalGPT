@@ -12,9 +12,21 @@ namespace LocalGPT.Services.Council;
 /// </summary>
 public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, CouncilSpoolerSnapshot> runs = new();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly object mutationGate = new();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim persistenceGate = new(1, 1);
     private readonly ILogger<CouncilSpoolerService> logger;
     private readonly ILocalGptVocabularyService vocabulary;
@@ -26,6 +38,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         "CouncilSpooler",
         "recent-runs.json");
 
+    /// <summary>
+    /// Runs the council spooler service operation.
+    /// </summary>
     public CouncilSpoolerService(ILocalGptVocabularyService vocabulary, ILogger<CouncilSpoolerService> logger)
     {
         this.vocabulary = vocabulary;
@@ -33,8 +48,14 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         LoadCheckpoint();
     }
 
+    /// <summary>
+    /// Occurs when changed.
+    /// </summary>
     public event Action? Changed;
 
+    /// <summary>
+    /// Runs the begin operation.
+    /// </summary>
     public void Begin(MultiModelCouncilResult result)
     {
     try
@@ -66,6 +87,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 }
 
+    /// <summary>
+    /// Runs the update operation.
+    /// </summary>
     public void Update(Guid runId, int round, string phase)
     {
     try
@@ -90,6 +114,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 }
 
+    /// <summary>
+    /// Adds step.
+    /// </summary>
     public void AddStep(Guid runId, MultiModelCouncilStep step)
     {
     try
@@ -122,6 +149,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 }
 
+    /// <summary>
+    /// Runs the complete operation.
+    /// </summary>
     public void Complete(MultiModelCouncilResult result, bool failed = false)
     {
     try
@@ -157,6 +187,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 }
 
+    /// <summary>
+    /// Gets snapshots.
+    /// </summary>
     public IReadOnlyList<CouncilSpoolerSnapshot> GetSnapshots(bool includeCompleted = true, int take = 30)
     {
     try
@@ -183,6 +216,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 }
 
+    /// <summary>
+    /// Gets snapshot.
+    /// </summary>
     public CouncilSpoolerSnapshot? GetSnapshot(Guid runId)
     {
     try
@@ -201,6 +237,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 }
 
+    /// <summary>
+    /// Runs the notify changed operation.
+    /// </summary>
     private void NotifyChanged()
     {
         var listeners = Changed?.GetInvocationList().Cast<Action>().ToArray() ?? [];
@@ -212,6 +251,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         SchedulePersist();
     }
 
+    /// <summary>
+    /// Runs the schedule persist operation.
+    /// </summary>
     private void SchedulePersist()
     {
     try
@@ -234,6 +276,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 }
 
+    /// <summary>
+    /// Runs the persist after delay async operation.
+    /// </summary>
     private async Task PersistAfterDelayAsync(CancellationToken cancellationToken)
     {
         try
@@ -255,6 +300,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         catch (Exception ex) { logger.LogWarning(ex, "Could not persist the bounded Council spooler checkpoint."); }
     }
 
+    /// <summary>
+    /// Loads checkpoint.
+    /// </summary>
     private void LoadCheckpoint()
     {
         try
@@ -278,6 +326,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
         catch (Exception ex) { logger.LogWarning(ex, "Could not load the previous Council spooler checkpoint; active database and chat memory remain unchanged."); }
     }
 
+    /// <summary>
+    /// Runs the clone snapshot operation.
+    /// </summary>
     private CouncilSpoolerSnapshot CloneSnapshot(CouncilSpoolerSnapshot source) {
     try
     {
@@ -308,6 +359,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 }
 
+    /// <summary>
+    /// Runs the clone step operation.
+    /// </summary>
     private MultiModelCouncilStep CloneStep(MultiModelCouncilStep source) {
     try
     {
@@ -344,6 +398,9 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 }
 
+    /// <summary>
+    /// Runs the dispose operation.
+    /// </summary>
     public void Dispose()
     {
     try

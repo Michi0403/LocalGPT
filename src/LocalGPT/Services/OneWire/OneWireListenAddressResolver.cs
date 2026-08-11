@@ -4,9 +4,15 @@ using System.Net;
 
 namespace LocalGPT.Services.OneWire;
 
+/// <summary>
+/// Provides one wire listen address resolver operations.
+/// </summary>
 public sealed class OneWireListenAddressResolver(
     ILogger<OneWireListenAddressResolver> logger) : IOneWireListenAddressResolver
 {
+    /// <summary>
+    /// Runs the resolve operation.
+    /// </summary>
     public IPAddress Resolve(OneWireOptions configured)
     {
         try

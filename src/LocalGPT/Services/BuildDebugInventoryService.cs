@@ -7,17 +7,26 @@ using System.Text;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides build debug inventory service operations.
+    /// </summary>
     public sealed class BuildDebugInventoryService(ILogger<BuildDebugInventoryService> logger,
         CouncilRuntimeService councilRuntime,
         LocalGptCatalogService catalog) : IBuildDebugInventoryService
     {
 
 
+        /// <summary>
+        /// Gets or sets artifact root.
+        /// </summary>
         public string ArtifactRoot { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "BuildDebugFiles");
 
+        /// <summary>
+        /// Runs the capture async operation.
+        /// </summary>
         public async Task<BuildDebugInventory> CaptureAsync(bool copyFiles = false, CancellationToken cancellationToken = default)
         {
             try
@@ -74,6 +83,9 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>
+        /// Builds briefing async.
+        /// </summary>
         public async Task<string> BuildBriefingAsync(CancellationToken cancellationToken = default)
         {
             try
@@ -119,6 +131,9 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>
+        /// Runs the enumerate debug files operation.
+        /// </summary>
         private IEnumerable<(FileInfo File, string SourceArea)> EnumerateDebugFiles()
         {
             try

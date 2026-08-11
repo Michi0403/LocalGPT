@@ -6,10 +6,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations
 {
+    /// <summary>
+    /// Represents an add embedded firmware and workspace environments.
+    /// </summary>
     [DbContext(typeof(LocalGptMemoryDbContext))]
     [Migration("20260802020000_AddEmbeddedFirmwareAndWorkspaceEnvironments")]
     public partial class AddEmbeddedFirmwareAndWorkspaceEnvironments : Migration
     {
+        /// <summary>
+        /// Runs the up operation.
+        /// </summary>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(name: "AccessPolicyJson", table: "ProjectWorkspaceRoots", type: "TEXT", nullable: false, defaultValue: "[]");
@@ -27,6 +33,9 @@ namespace LocalGPT.Migrations
             migrationBuilder.AddColumn<Guid>(name: "PreferredCompilerInstallationId", table: "ProjectWorkspaceRoots", type: "TEXT", nullable: true);
         }
 
+        /// <summary>
+        /// Runs the down operation.
+        /// </summary>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(name: "AccessPolicyJson", table: "ProjectWorkspaceRoots");

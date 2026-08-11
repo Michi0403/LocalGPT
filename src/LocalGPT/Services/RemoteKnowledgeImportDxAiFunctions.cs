@@ -4,9 +4,15 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides remote import DevExpress parameter reader operations.
+/// </summary>
 public sealed class RemoteImportDxParameterReader(
     ILogger<RemoteImportDxParameterReader> logger)
 {
+    /// <summary>
+    /// Runs the string operation.
+    /// </summary>
     public string String(JsonElement parameters, string name, string fallback = "")
     {
         try
@@ -24,6 +30,9 @@ public sealed class RemoteImportDxParameterReader(
         }
     }
 
+    /// <summary>
+    /// Runs the boolean operation.
+    /// </summary>
     public bool Boolean(JsonElement parameters, string name, bool fallback = false)
     {
         try
@@ -41,6 +50,9 @@ public sealed class RemoteImportDxParameterReader(
         }
     }
 
+    /// <summary>
+    /// Runs the integer operation.
+    /// </summary>
     public int Integer(JsonElement parameters, string name, int fallback)
     {
         try
@@ -58,6 +70,9 @@ public sealed class RemoteImportDxParameterReader(
         }
     }
 
+    /// <summary>
+    /// Runs the strings operation.
+    /// </summary>
     public List<string> Strings(JsonElement parameters, string name)
     {
         try
@@ -79,6 +94,9 @@ public sealed class RemoteImportDxParameterReader(
         }
     }
 
+    /// <summary>
+    /// Runs the build operation.
+    /// </summary>
     public RemoteKnowledgeImportRequest Build(JsonElement parameters, bool preview, bool confirmed)
     {
         try
@@ -106,11 +124,17 @@ public sealed class RemoteImportDxParameterReader(
     }
 }
 
+/// <summary>
+/// Represents an inspect remote knowledge function.
+/// </summary>
 public sealed class InspectRemoteKnowledgeFunction(
     IRemoteKnowledgeImportService importer,
     RemoteImportDxParameterReader parameters,
     ILogger<InspectRemoteKnowledgeFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.knowledge.remote.inspect", "POST", "/api/dxai/functions/localgpt.knowledge.remote.inspect/invoke",
         "Downloads a user-selected public GitHub repository or webpage into the bounded cache and returns the exact file list plus regex matches without saving knowledge.",
@@ -120,6 +144,9 @@ public sealed class InspectRemoteKnowledgeFunction(
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sourceUrl"],"properties":{"sourceUrl":{"type":"string"},"sourceKind":{"type":"string"},"branch":{"type":"string"},"fileIncludeRegex":{"type":"string"},"maxFiles":{"type":"integer"},"maxLinkedPages":{"type":"integer"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -135,11 +162,17 @@ public sealed class InspectRemoteKnowledgeFunction(
     }
 }
 
+/// <summary>
+/// Represents an import remote knowledge function.
+/// </summary>
 public sealed class ImportRemoteKnowledgeFunction(
     IRemoteKnowledgeImportService importer,
     RemoteImportDxParameterReader parameters,
     ILogger<ImportRemoteKnowledgeFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.knowledge.remote.import", "POST", "/api/dxai/functions/localgpt.knowledge.remote.import/invoke",
         "Imports a reviewed public GitHub repository or webpage through the existing learn-base service and associates resulting knowledge with role/topic tags.",
@@ -149,6 +182,9 @@ public sealed class ImportRemoteKnowledgeFunction(
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sourceUrl"],"properties":{"sourceUrl":{"type":"string"},"sourceKind":{"type":"string"},"branch":{"type":"string"},"fileIncludeRegex":{"type":"string"},"maxFiles":{"type":"integer"},"maxLinkedPages":{"type":"integer"},"roleKeys":{"type":"array","items":{"type":"string"}},"topics":{"type":"array","items":{"type":"string"}},"saveToKnowledge":{"type":"boolean"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try

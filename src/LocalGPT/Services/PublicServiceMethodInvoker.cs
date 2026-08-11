@@ -15,8 +15,14 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
     IDxAiFunctionCatalogService catalog,
     ILogger<PublicServiceMethodInvoker> logger) : IPublicServiceMethodInvoker
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<object?> InvokeAsync(PublicServiceMethodInvocationRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -56,6 +62,9 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
         }
     }
 
+    /// <summary>
+    /// Runs the bind arguments operation.
+    /// </summary>
     private object?[] BindArguments(MethodInfo method, JsonElement parameters, CancellationToken cancellationToken)
     {
     try
@@ -84,6 +93,9 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Runs the await result async operation.
+    /// </summary>
     private async Task<object?> AwaitResultAsync(object? value, Type returnType)
     {
     try
@@ -118,6 +130,9 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Resolves type.
+    /// </summary>
     private Type? ResolveType(string typeName, Assembly assembly) {
     try
     {
@@ -134,10 +149,16 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
 }
 }
 
+/// <summary>
+/// Represents an invoke configured public service method function.
+/// </summary>
 public sealed class InvokeConfiguredPublicServiceMethodFunction(
     IPublicServiceMethodInvoker invoker,
     ILogger<InvokeConfiguredPublicServiceMethodFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.public_service.invoke",
         "POST",
@@ -153,6 +174,9 @@ public sealed class InvokeConfiguredPublicServiceMethodFunction(
         Source: "PublicServiceMethodInvoker",
         ParameterSchemaJson: "{\"type\":\"object\",\"required\":[\"catalogKey\"],\"properties\":{\"catalogKey\":{\"type\":\"string\"},\"parameters\":{\"type\":\"object\"}}}");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

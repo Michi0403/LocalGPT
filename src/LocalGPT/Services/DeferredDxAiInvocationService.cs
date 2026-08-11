@@ -6,6 +6,9 @@ using System.Text.Json;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides deferred DevExpress ai invocation service operations.
+/// </summary>
 public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService vocabulary,
     
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -13,8 +16,14 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     ILogger<DeferredDxAiInvocationService> logger) : IDeferredDxAiInvocationService
 {
     private const int MaxResultCharacters = 8_000;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim databaseGate = new(1, 1);
 
+    /// <summary>
+    /// Runs the queue async operation.
+    /// </summary>
     public async Task QueueAsync(
         string functionName,
         DxAiFunctionInvocationRequest request,
@@ -84,6 +93,9 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     }
 }
 
+    /// <summary>
+    /// Runs the execute approved for heartbeat async operation.
+    /// </summary>
     public async Task<IReadOnlyList<DeferredDxAiExecutionOutcome>> ExecuteApprovedForHeartbeatAsync(
         Guid councilRunId,
         int councilRound,
@@ -114,6 +126,9 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     }
 }
 
+    /// <summary>
+    /// Runs the execute approved for approval request async operation.
+    /// </summary>
     public async Task<IReadOnlyList<DeferredDxAiExecutionOutcome>> ExecuteApprovedForApprovalRequestAsync(
         Guid approvalRequestId,
         int councilRound = 0,
@@ -140,6 +155,9 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     }
 }
 
+    /// <summary>
+    /// Runs the claim candidates for approval request async operation.
+    /// </summary>
     private async Task<List<DeferredDxAiInvocation>> ClaimCandidatesForApprovalRequestAsync(
         Guid approvalRequestId,
         CancellationToken cancellationToken)
@@ -206,6 +224,9 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     }
 }
 
+    /// <summary>
+    /// Runs the claim candidates async operation.
+    /// </summary>
     private async Task<List<DeferredDxAiInvocation>> ClaimCandidatesAsync(
         Guid councilRunId,
         CancellationToken cancellationToken)
@@ -283,6 +304,9 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     }
 }
 
+    /// <summary>
+    /// Runs the execute candidate async operation.
+    /// </summary>
     private async Task<DeferredDxAiExecutionOutcome> ExecuteCandidateAsync(
         DeferredDxAiInvocation candidate,
         int councilRound,
@@ -341,6 +365,9 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
             summary);
     }
 
+    /// <summary>
+    /// Runs the complete async operation.
+    /// </summary>
     private async Task CompleteAsync(
         Guid deferredInvocationId,
         DxAiFunctionInvocationResult result,
@@ -387,6 +414,9 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     }
 }
 
+    /// <summary>
+    /// Builds result summary.
+    /// </summary>
     private string BuildResultSummary(DxAiFunctionInvocationResult result)
     {
     try
@@ -442,6 +472,9 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     }
 }
 
+    /// <summary>
+    /// Runs the clone operation.
+    /// </summary>
     private DeferredDxAiInvocation Clone(DeferredDxAiInvocation value) {
     try
     {
@@ -477,6 +510,9 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     }
 }
 
+    /// <summary>
+    /// Runs the limit operation.
+    /// </summary>
     private string Limit(string? value, int maxLength)
     {
     try

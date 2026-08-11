@@ -12,10 +12,16 @@ namespace LocalGPT.Services;
 /// </summary>
 public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> logger) : IHardwareInventoryService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim gate = new(1, 1);
     private IReadOnlyList<OneWireHardwareDescriptor>? cached;
     private DateTimeOffset cacheUtc;
 
+    /// <summary>
+    /// Gets hardware async.
+    /// </summary>
     public async Task<IReadOnlyList<OneWireHardwareDescriptor>> GetHardwareAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -73,6 +79,9 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
     }
 }
 
+    /// <summary>
+    /// Runs the probe nvidia async operation.
+    /// </summary>
     private async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeNvidiaAsync(CancellationToken cancellationToken)
     {
     try
@@ -113,6 +122,9 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
     }
 }
 
+    /// <summary>
+    /// Runs the probe windows video controllers async operation.
+    /// </summary>
     private async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeWindowsVideoControllersAsync(CancellationToken cancellationToken)
     {
     try
@@ -149,6 +161,9 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
     }
 }
 
+    /// <summary>
+    /// Runs the run probe async operation.
+    /// </summary>
     private async Task<IReadOnlyList<string>> RunProbeAsync(string fileName, string arguments, CancellationToken cancellationToken)
     {
         try
@@ -181,6 +196,9 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
         }
     }
 
+    /// <summary>
+    /// Runs the infer vendor operation.
+    /// </summary>
     private string InferVendor(string name)
     {
     try
@@ -201,6 +219,9 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
     }
 }
 
+    /// <summary>
+    /// Runs the clone operation.
+    /// </summary>
     private OneWireHardwareDescriptor Clone(OneWireHardwareDescriptor item) {
     try
     {

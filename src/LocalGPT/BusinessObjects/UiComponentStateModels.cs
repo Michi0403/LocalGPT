@@ -10,9 +10,21 @@ public sealed class HumanCollaborationRequestEditor(
     HumanApprovalReuseScope reuseScope = HumanApprovalReuseScope.ExactRequestOnce,
     bool consumeApproval = true)
 {
+    /// <summary>
+    /// Gets or sets response.
+    /// </summary>
     public string Response { get; set; } = response;
+    /// <summary>
+    /// Gets or sets reason.
+    /// </summary>
     public string Reason { get; set; } = reason;
+    /// <summary>
+    /// Gets or sets reuse scope.
+    /// </summary>
     public HumanApprovalReuseScope ReuseScope { get; set; } = reuseScope;
+    /// <summary>
+    /// Gets or sets consume approval.
+    /// </summary>
     public bool ConsumeApproval { get; set; } = consumeApproval;
 }
 

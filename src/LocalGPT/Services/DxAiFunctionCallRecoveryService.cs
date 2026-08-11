@@ -16,6 +16,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     ICouncilTextPatternDataService textPatterns,
     ILogger<DxAiFunctionCallRecoveryService> logger) : IDxAiFunctionCallRecoveryService
 {
+    /// <summary>
+    /// Runs the recover operation.
+    /// </summary>
     public DxAiFunctionTextRecoveryResult Recover(string content, bool automaticInvocation = true)
     {
     try
@@ -67,6 +70,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     }
 }
 
+    /// <summary>
+    /// Runs the looks like structured function call operation.
+    /// </summary>
     public bool LooksLikeStructuredFunctionCall(string content)
     {
     try
@@ -96,6 +102,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     }
 }
 
+    /// <summary>
+    /// Parses candidate.
+    /// </summary>
     private List<RecoveredDxAiFunctionCall> ParseCandidate(string json, string format, bool automaticInvocation)
     {
     try
@@ -123,6 +132,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     }
 }
 
+    /// <summary>
+    /// Reads element.
+    /// </summary>
     private void ReadElement(JsonElement element, string format, bool automaticInvocation, List<RecoveredDxAiFunctionCall> calls)
     {
     try
@@ -160,6 +172,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     }
 }
 
+    /// <summary>
+    /// Reads named call.
+    /// </summary>
     private void ReadNamedCall(JsonElement element, string format, bool automaticInvocation, List<RecoveredDxAiFunctionCall> calls)
     {
     try
@@ -192,6 +207,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     }
 }
 
+    /// <summary>
+    /// Resolves registry name.
+    /// </summary>
     private string? ResolveRegistryName(string suppliedName, bool automaticInvocation)
     {
     try
@@ -219,6 +237,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     }
 }
 
+    /// <summary>
+    /// Reads arguments.
+    /// </summary>
     private JsonElement ReadArguments(JsonElement element)
     {
     try
@@ -250,6 +271,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     }
 }
 
+    /// <summary>
+    /// Reads string.
+    /// </summary>
     private string? ReadString(JsonElement element, string propertyName) {
     try
     {
@@ -267,6 +291,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     }
 }
 
+    /// <summary>
+    /// Attempts to unwrap fence.
+    /// </summary>
     private string? TryUnwrapFence(string content)
     {
     try
@@ -290,6 +317,9 @@ public sealed class DxAiFunctionCallRecoveryService(
     }
 }
 
+    /// <summary>
+    /// Runs the to transport name operation.
+    /// </summary>
     private string ToTransportName(string registryName)
     {
     try

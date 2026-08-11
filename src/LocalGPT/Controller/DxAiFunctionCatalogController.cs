@@ -14,6 +14,9 @@ public sealed class DxAiFunctionCatalogController(
     IDxAiFunctionCatalogService catalog,
     ILogger<DxAiFunctionCatalogController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Gets async.
+    /// </summary>
     [HttpGet]
     public async Task<IResult> GetAsync(CancellationToken cancellationToken)
     {
@@ -28,6 +31,9 @@ public sealed class DxAiFunctionCatalogController(
         }
     }
 
+    /// <summary>
+    /// Runs the synchronize async operation.
+    /// </summary>
     [HttpPost("synchronize")]
     public async Task<IResult> SynchronizeAsync(CancellationToken cancellationToken)
     {
@@ -42,6 +48,9 @@ public sealed class DxAiFunctionCatalogController(
         }
     }
 
+    /// <summary>
+    /// Saves policy async.
+    /// </summary>
     [HttpPut("policy")]
     public async Task<IResult> SavePolicyAsync([FromBody] DxAiFunctionCatalogSaveRequest request, CancellationToken cancellationToken)
     {

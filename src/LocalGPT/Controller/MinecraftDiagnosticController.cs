@@ -9,6 +9,9 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Endpoints
 {
+    /// <summary>
+    /// Provides minecraft diagnostic controller operations.
+    /// </summary>
     [ApiController]
     [Route("")]
     public class MinecraftDiagnosticController(ILogger<MinecraftDiagnosticController> logger,
@@ -16,6 +19,9 @@ namespace LocalGPT.Endpoints
         CouncilTextService councilText,
         LocalGptCatalogService catalog) : ControllerBase
     {
+        /// <summary>
+        /// Runs the require human confirmation operation.
+        /// </summary>
         private IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
             userConfirmed
                 ? null
@@ -25,6 +31,9 @@ namespace LocalGPT.Endpoints
                     Operation = operation
                 });
 
+        /// <summary>
+        /// Gets minecraft project name file name.
+        /// </summary>
         [HttpGet("/__artifacts/minecraft/{projectName}/{fileName}")]
         public IResult GetMinecraftProjectNameFileName(
             string projectName,
@@ -60,6 +69,9 @@ namespace LocalGPT.Endpoints
             }
         }
 
+        /// <summary>
+        /// Gets minecraft datapack version.
+        /// </summary>
         [HttpGet("/__diag/minecraft/datapack-version")]
         public IResult GetMinecraftDatapackVersion(
             string? minecraftVersion)
@@ -75,6 +87,9 @@ namespace LocalGPT.Endpoints
             }         
         }
 
+        /// <summary>
+        /// Gets minecraft dependency version.
+        /// </summary>
         [HttpGet("/__diag/minecraft/dependency-version")]
         public IResult GetMinecraftDependencyVersion(
             string? loader,
@@ -93,6 +108,9 @@ namespace LocalGPT.Endpoints
             }          
         }
 
+        /// <summary>
+        /// Gets minecraft workspace smoke.
+        /// </summary>
         [HttpGet("/__diag/minecraft/workspace-smoke")]
         [HumanApprovalRequired("diagnostic.minecraft.workspace.create", "Create Minecraft diagnostic workspace", "Create one bounded Minecraft diagnostic workspace from the exact selected loader and versions.", "High", "Minecraft workspace reviewer")]
         public async Task<IResult> GetMinecraftWorkspaceSmoke(
@@ -140,6 +158,9 @@ namespace LocalGPT.Endpoints
             }          
         }
 
+        /// <summary>
+        /// Gets minecraft datapack benchmark.
+        /// </summary>
         [HttpGet("/__diag/minecraft/datapack-benchmark")]
         [HumanApprovalRequired("diagnostic.minecraft.datapack.benchmark", "Build Minecraft datapack benchmark", "Create, validate, build, and persist the exact Minecraft datapack benchmark request.", "High", "Minecraft build reviewer", requiredBeforeCompletion: true)]
         public async Task<IResult> GetMinecraftDatapackBenchmark(

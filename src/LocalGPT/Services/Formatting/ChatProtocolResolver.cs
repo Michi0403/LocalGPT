@@ -3,10 +3,16 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Formatting;
 
+/// <summary>
+/// Provides chat protocol resolver operations.
+/// </summary>
 public sealed class ChatProtocolResolver(
     IChatProtocolProfileCatalog catalog,
     ILogger<ChatProtocolResolver> logger) : IChatProtocolResolver
 {
+    /// <summary>
+    /// Runs the resolve operation.
+    /// </summary>
     public ChatResponseProtocol Resolve(OllamaCoreOptions options)
     {
         try

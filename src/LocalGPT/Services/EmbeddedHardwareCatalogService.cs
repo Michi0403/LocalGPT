@@ -4,15 +4,24 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides embedded hardware catalog service operations.
+/// </summary>
 public sealed class EmbeddedHardwareCatalogService(
     IWebHostEnvironment environment,
     ILogger<EmbeddedHardwareCatalogService> logger) : IEmbeddedHardwareCatalogService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Gets catalog async.
+    /// </summary>
     public async Task<EmbeddedBoardCatalog> GetCatalogAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -33,6 +42,9 @@ public sealed class EmbeddedHardwareCatalogService(
     }
 }
 
+    /// <summary>
+    /// Gets board profiles async.
+    /// </summary>
     public async Task<IReadOnlyList<EmbeddedBoardProfile>> GetBoardProfilesAsync(CancellationToken cancellationToken = default)
     {
         var profiles = new Dictionary<string, EmbeddedBoardProfile>(StringComparer.OrdinalIgnoreCase);
@@ -75,6 +87,9 @@ public sealed class EmbeddedHardwareCatalogService(
         return result;
     }
 
+    /// <summary>
+    /// Gets board profile async.
+    /// </summary>
     public async Task<EmbeddedBoardProfile?> GetBoardProfileAsync(string boardProfileKey, CancellationToken cancellationToken = default)
     {
     try
@@ -95,6 +110,9 @@ public sealed class EmbeddedHardwareCatalogService(
     }
 }
 
+    /// <summary>
+    /// Gets protocol descriptors async.
+    /// </summary>
     public Task<IReadOnlyList<EmbeddedProtocolDescriptor>> GetProtocolDescriptorsAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -131,6 +149,9 @@ public sealed class EmbeddedHardwareCatalogService(
     }
 }
 
+    /// <summary>
+    /// Gets publisher workbench contract.
+    /// </summary>
     public EmbeddedPublisherWorkbenchContract GetPublisherWorkbenchContract() {
     try
     {
@@ -146,6 +167,9 @@ public sealed class EmbeddedHardwareCatalogService(
     }
 }
 
+    /// <summary>
+    /// Gets profile directories.
+    /// </summary>
     private IReadOnlyList<string> GetProfileDirectories()
     {
     try
@@ -168,6 +192,9 @@ public sealed class EmbeddedHardwareCatalogService(
     }
 }
 
+    /// <summary>
+    /// Runs the normalize operation.
+    /// </summary>
     private void Normalize(EmbeddedBoardProfile profile)
     {
     try
@@ -208,6 +235,9 @@ public sealed class EmbeddedHardwareCatalogService(
     }
 }
 
+    /// <summary>
+    /// Normalizes list.
+    /// </summary>
     private List<string> NormalizeList(IEnumerable<string>? values) {
     try
     {
@@ -228,6 +258,9 @@ public sealed class EmbeddedHardwareCatalogService(
     }
 }
 
+    /// <summary>
+    /// Runs the protocol operation.
+    /// </summary>
     private EmbeddedProtocolDescriptor Protocol(
         string key,
         string displayName,
@@ -265,6 +298,9 @@ public sealed class EmbeddedHardwareCatalogService(
     }
 }
 
+    /// <summary>
+    /// Creates fallback profiles.
+    /// </summary>
     private IReadOnlyList<EmbeddedBoardProfile> CreateFallbackProfiles()
     {
     try

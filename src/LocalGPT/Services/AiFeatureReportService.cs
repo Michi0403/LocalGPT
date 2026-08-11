@@ -7,14 +7,23 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides ai feature report service operations.
+    /// </summary>
     public partial class AiFeatureReportService(ILogger<AiFeatureReportService> logger,
         CouncilTextService councilText) : IAiFeatureReportService
     {
+        /// <summary>
+        /// Gets or sets report root.
+        /// </summary>
         public string ReportRoot { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "AIReports");
 
+        /// <summary>
+        /// Writes if missing feature report async.
+        /// </summary>
         public async Task<string?> WriteIfMissingFeatureReportAsync(string source, string responseText, CancellationToken cancellationToken = default)
         {
             try

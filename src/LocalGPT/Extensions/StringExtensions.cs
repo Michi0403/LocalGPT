@@ -3,9 +3,15 @@ using System.Text.Json.Serialization;
 
 namespace LocalGPT.Extensions
 {
+    /// <summary>
+    /// Represents a string extensions.
+    /// </summary>
     public static class StringExtensions
     {
 
+        /// <summary>
+        /// Runs the to JSON string operation.
+        /// </summary>
         public static string ToJsonString(this object obj, JsonSerializerOptions? jsonOptions = null)
         {
             try

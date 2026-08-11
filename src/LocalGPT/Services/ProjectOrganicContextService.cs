@@ -5,14 +5,23 @@ using System.Text.Json;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides project organic context service operations.
+/// </summary>
 public sealed class ProjectOrganicContextService(
     IProjectArchitectureService projectArchitecture,
     ILogger<ProjectOrganicContextService> logger) : IProjectOrganicContextService
 {
     private const string ArtifactKind = "OrganicProjectContext";
     private const string ArtifactName = "LocalGPT organic project wiring";
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
 
+    /// <summary>
+    /// Gets async.
+    /// </summary>
     public async Task<ProjectOrganicContext> GetAsync(Guid projectId, Guid? revisionId, CancellationToken cancellationToken = default)
     {
         var artifacts = await projectArchitecture.GetArtifactsAsync(projectId, cancellationToken).ConfigureAwait(false);
@@ -39,6 +48,9 @@ public sealed class ProjectOrganicContextService(
         }
     }
 
+    /// <summary>
+    /// Saves async.
+    /// </summary>
     public async Task<ProjectOrganicContext> SaveAsync(Guid projectId, SaveProjectOrganicContextRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -81,6 +93,9 @@ public sealed class ProjectOrganicContextService(
     }
 }
 
+    /// <summary>
+    /// Builds briefing async.
+    /// </summary>
     public async Task<string> BuildBriefingAsync(Guid projectId, Guid? revisionId, CancellationToken cancellationToken = default)
     {
     try
@@ -112,6 +127,9 @@ public sealed class ProjectOrganicContextService(
     }
 }
 
+    /// <summary>
+    /// Runs the join operation.
+    /// </summary>
     private string Join(IEnumerable<string> values)
     {
     try
@@ -130,6 +148,9 @@ public sealed class ProjectOrganicContextService(
     }
 }
 
+    /// <summary>
+    /// Runs the value or unknown operation.
+    /// </summary>
     private string ValueOrUnknown(string value) {
     try
     {

@@ -16,8 +16,14 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
 {
     private const int Capacity = 192;
     private const int MaxSummaryCharacters = 320;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentQueue<ComponentActivitySnapshot> entries = new();
 
+    /// <summary>
+    /// Runs the record navigation operation.
+    /// </summary>
     public void RecordNavigation(string route) {
     try
     {
@@ -33,6 +39,9 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     }
 }
 
+    /// <summary>
+    /// Runs the record information operation.
+    /// </summary>
     public void RecordInformation(string component, string operation, string summary, string? route = null) {
     try
     {
@@ -48,6 +57,9 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     }
 }
 
+    /// <summary>
+    /// Runs the record warning operation.
+    /// </summary>
     public void RecordWarning(string component, string operation, string summary, string? route = null) {
     try
     {
@@ -63,6 +75,9 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     }
 }
 
+    /// <summary>
+    /// Runs the record failure operation.
+    /// </summary>
     public void RecordFailure(string component, string operation, Exception exception, string? route = null)
     {
     try
@@ -86,6 +101,9 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     }
 }
 
+    /// <summary>
+    /// Runs the run async operation.
+    /// </summary>
     public async Task RunAsync(
         string serviceName,
         string operation,
@@ -126,6 +144,9 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
         }
     }
 
+    /// <summary>
+    /// Runs the run async operation.
+    /// </summary>
     public async Task<T> RunAsync<T>(
         string serviceName,
         string operation,
@@ -167,6 +188,9 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
         }
     }
 
+    /// <summary>
+    /// Gets recent.
+    /// </summary>
     public IReadOnlyList<ComponentActivitySnapshot> GetRecent(int take = 20) {
     try
     {
@@ -182,6 +206,9 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     }
 }
 
+    /// <summary>
+    /// Builds briefing.
+    /// </summary>
     public string BuildBriefing(int take = 12)
     {
     try
@@ -219,6 +246,9 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     }
 }
 
+    /// <summary>
+    /// Runs the enqueue operation.
+    /// </summary>
     private void Enqueue(string component, string operation, string status, string summary, string? route)
     {
     try
@@ -251,6 +281,9 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     }
 }
 
+    /// <summary>
+    /// Runs the normalize operation.
+    /// </summary>
     private string Normalize(string? value, string fallback)
     {
     try
@@ -271,6 +304,9 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     }
 }
 
+    /// <summary>
+    /// Normalizes route.
+    /// </summary>
     private string? NormalizeRoute(string? route)
     {
     try

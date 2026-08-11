@@ -17,8 +17,14 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     IModelPresetService modelPresets,
     ILogger<AdaptiveOllamaBenchmarkWiring> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web);
 
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.models.benchmark.autotune", "POST", "/api/dxai/functions/localgpt.models.benchmark.autotune/invoke",
         "Benchmarks already-installed local Ollama models with bounded peer-authored and deterministic tasks, stops tuning a model when the next profile improves by less than the configured threshold, and optionally saves a new user-approved model preset.",
@@ -50,6 +56,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         SupportsDeferredApprovalRequest: true,
         ApprovalRequiredBeforeCompletion: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -97,6 +106,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Runs the bind options operation.
+    /// </summary>
     private AdaptiveOllamaBenchmarkOptions BindOptions(JsonElement parameters)
     {
         try
@@ -136,6 +148,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Runs the run empirical benchmark async operation.
+    /// </summary>
     private async Task<AdaptiveOllamaBenchmarkReport> RunEmpiricalBenchmarkAsync(
         AdaptiveOllamaBenchmarkOptions options,
         bool userConfirmed,
@@ -238,6 +253,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Resolves loopback endpoint.
+    /// </summary>
     private Uri ResolveLoopbackEndpoint(string requestedEndpoint)
     {
         try
@@ -266,6 +284,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Reads installed models async.
+    /// </summary>
     private async Task<List<OllamaBenchmarkModelInfo>> ReadInstalledModelsAsync(
         HttpClient http,
         CancellationToken cancellationToken)
@@ -295,6 +316,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Runs the select models operation.
+    /// </summary>
     private List<OllamaBenchmarkModelInfo> SelectModels(
         IReadOnlyList<OllamaBenchmarkModelInfo> installed,
         AdaptiveOllamaBenchmarkOptions options)
@@ -321,6 +345,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Builds deterministic tasks.
+    /// </summary>
     private List<AdaptiveOllamaBenchmarkTask> BuildDeterministicTasks(int maximumTasks)
     {
         try
@@ -358,6 +385,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Creates peer authored task async.
+    /// </summary>
     private async Task<string> CreatePeerAuthoredTaskAsync(
         HttpClient http,
         OllamaBenchmarkModelInfo author,
@@ -397,6 +427,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Builds profiles.
+    /// </summary>
     private List<AdaptiveOllamaTuningProfile> BuildProfiles(
         IReadOnlyList<OneWireHardwareDescriptor> hardware,
         AdaptiveOllamaBenchmarkOptions options)
@@ -463,6 +496,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Runs the benchmark model async operation.
+    /// </summary>
     private async Task<AdaptiveOllamaBenchmarkModelResult> BenchmarkModelAsync(
         HttpClient http,
         OllamaBenchmarkModelInfo model,
@@ -524,6 +560,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Runs the benchmark profile async operation.
+    /// </summary>
     private async Task<AdaptiveOllamaBenchmarkProfileResult> BenchmarkProfileAsync(
         HttpClient http,
         string modelName,
@@ -575,6 +614,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Runs the benchmark task async operation.
+    /// </summary>
     private async Task<AdaptiveOllamaBenchmarkTaskResult> BenchmarkTaskAsync(
         HttpClient http,
         string modelName,
@@ -621,6 +663,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Runs the generate async operation.
+    /// </summary>
     private async Task<OllamaBenchmarkGenerateResponse> GenerateAsync(
         HttpClient http,
         string modelName,
@@ -673,6 +718,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Runs the score quality operation.
+    /// </summary>
     private double ScoreQuality(string response, AdaptiveOllamaBenchmarkTask task)
     {
         try
@@ -703,6 +751,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Determines whether JSON response.
+    /// </summary>
     private bool IsJsonResponse(string response)
     {
         try
@@ -729,6 +780,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Saves benchmark preset async.
+    /// </summary>
     private async Task<CouncilModelPreset> SaveBenchmarkPresetAsync(
         AdaptiveOllamaBenchmarkReport report,
         IReadOnlyList<OneWireHardwareDescriptor> hardware,
@@ -804,6 +858,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Builds hardware summary.
+    /// </summary>
     private string BuildHardwareSummary(IReadOnlyList<OneWireHardwareDescriptor> hardware)
     {
         try
@@ -822,6 +879,9 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         }
     }
 
+    /// <summary>
+    /// Runs the display model name operation.
+    /// </summary>
     private string DisplayModelName(OllamaBenchmarkModelInfo model)
     {
         try

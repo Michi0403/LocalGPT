@@ -42,6 +42,9 @@ public sealed class DocumentationTranslationAdapter(
         }
     }
 
+    /// <summary>
+    /// Builds localization key.
+    /// </summary>
     private string BuildLocalizationKey(string memberId)
     {
     try
@@ -62,6 +65,9 @@ public sealed class DocumentationTranslationAdapter(
     }
 }
 
+    /// <summary>
+    /// Normalizes culture.
+    /// </summary>
     private string NormalizeCulture(string? culture)
     {
     try

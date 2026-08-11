@@ -7,10 +7,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations;
 
+/// <summary>
+/// Represents an add code generation change reviews.
+/// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260725030000_AddCodeGenerationChangeReviews")]
 public partial class AddCodeGenerationChangeReviews : Migration
 {
+    /// <summary>
+    /// Runs the up operation.
+    /// </summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.CreateTable(
@@ -66,6 +72,9 @@ public partial class AddCodeGenerationChangeReviews : Migration
             column: "UpdatedAtUtc");
     }
 
+    /// <summary>
+    /// Runs the down operation.
+    /// </summary>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(name: "CodeGenerationChangeReviews");

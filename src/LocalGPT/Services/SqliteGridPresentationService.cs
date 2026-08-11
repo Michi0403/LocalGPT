@@ -3,8 +3,14 @@ using System.Dynamic;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides sqlite grid presentation service operations.
+    /// </summary>
     public sealed class SqliteGridPresentationService(ILogger<SqliteGridPresentationService> serviceLogger)
     {
+        /// <summary>
+        /// Determines whether long text column.
+        /// </summary>
         public bool IsLongTextColumn(string columnName, string value, ILogger logger)
         {
             try
@@ -23,6 +29,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds column title.
+        /// </summary>
         public string BuildColumnTitle(SqliteColumnSummary column, ILogger logger)
         {
             try
@@ -39,6 +48,9 @@ namespace LocalGPT.Services
             }
 
         }
+        /// <summary>
+        /// Builds cell preview.
+        /// </summary>
         public object? BuildCellPreview(string columnName, object? value)
         {
             try
@@ -61,6 +73,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the to grid row operation.
+        /// </summary>
         public ExpandoObject? ToGridRow(SqliteRowSnapshot row, ILogger logger)
         {
             try

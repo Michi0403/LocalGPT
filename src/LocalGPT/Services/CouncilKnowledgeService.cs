@@ -7,6 +7,9 @@ using System.Text;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides council knowledge service operations.
+    /// </summary>
     public partial class CouncilKnowledgeService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
@@ -15,8 +18,14 @@ namespace LocalGPT.Services
         CouncilTextService councilText,
         SqliteUtilityService sqliteUtility) : ICouncilKnowledgeService
     {
+        /// <summary>
+        /// Gets or sets database path.
+        /// </summary>
         public string DatabasePath => databaseFileHealth.DatabasePath;
 
+        /// <summary>
+        /// Ensures created async.
+        /// </summary>
         public async Task EnsureCreatedAsync(CancellationToken cancellationToken = default)
         {
             try
@@ -29,6 +38,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Gets entries async.
+        /// </summary>
         public async Task<IReadOnlyList<CouncilKnowledgeEntry>> GetEntriesAsync(bool includeArchived = false, int take = 100, CancellationToken cancellationToken = default)
         {
             try
@@ -62,6 +74,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Saves entry async.
+        /// </summary>
         public async Task<CouncilKnowledgeEntry> SaveEntryAsync(CouncilKnowledgeEntry entry, CancellationToken cancellationToken = default)
         {
             try
@@ -117,6 +132,9 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>
+        /// Deletes entry async.
+        /// </summary>
         public async Task DeleteEntryAsync(Guid id, CancellationToken cancellationToken = default)
         {
             try
@@ -137,6 +155,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Saves from council run async.
+        /// </summary>
         public async Task<Guid> SaveFromCouncilRunAsync(MultiModelCouncilResult result, CancellationToken cancellationToken = default)
         {
             try
@@ -171,6 +192,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Builds knowledge briefing async.
+        /// </summary>
         public async Task<string> BuildKnowledgeBriefingAsync( int take = 8, CancellationToken cancellationToken = default)
         {
             try
@@ -222,6 +246,9 @@ namespace LocalGPT.Services
                 return string.Empty;
             }
         }
+        /// <summary>
+        /// Runs the mark entries used async operation.
+        /// </summary>
         public async Task MarkEntriesUsedAsync(IEnumerable<Guid> entryIds, CancellationToken cancellationToken, ILogger logger)
         {
             try

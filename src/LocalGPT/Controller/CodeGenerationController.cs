@@ -5,12 +5,18 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller;
 
+/// <summary>
+/// Provides code generation controller operations.
+/// </summary>
 [ApiController]
 [Route("api/code-generation/reviews")]
 public sealed class CodeGenerationController(
     ICodeGenerationWorkflowService workflow,
     ILogger<CodeGenerationController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Runs the list reviews operation.
+    /// </summary>
     [HttpGet]
     public async Task<IResult> ListReviews(
         [FromQuery] Guid? projectId,
@@ -28,6 +34,9 @@ public sealed class CodeGenerationController(
         }
     }
 
+    /// <summary>
+    /// Gets review.
+    /// </summary>
     [HttpGet("{reviewId:guid}")]
     public async Task<IResult> GetReview(Guid reviewId, CancellationToken cancellationToken)
     {
@@ -43,6 +52,9 @@ public sealed class CodeGenerationController(
         }
     }
 
+    /// <summary>
+    /// Creates review.
+    /// </summary>
     [HttpPost]
     [HumanApprovalRequired(
         "code-generation.review.create",
@@ -75,6 +87,9 @@ public sealed class CodeGenerationController(
         }
     }
 
+    /// <summary>
+    /// Runs the execute review operation.
+    /// </summary>
     [HttpPost("{reviewId:guid}/execute")]
     [HumanApprovalRequired(
         "code-generation.review.execute",
@@ -110,6 +125,9 @@ public sealed class CodeGenerationController(
         }
     }
 
+    /// <summary>
+    /// Runs the reject review operation.
+    /// </summary>
     [HttpPost("{reviewId:guid}/reject")]
     public async Task<IResult> RejectReview(
         Guid reviewId,

@@ -6,11 +6,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides prompt config service operations.
+/// </summary>
 public sealed class PromptConfigService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<PromptConfigService> logger) : IPromptConfigService
 {
+    /// <summary>
+    /// Gets prompt async.
+    /// </summary>
     public async Task<string> GetPromptAsync(string key, string language = "en", CancellationToken cancellationToken = default)
     {
     try
@@ -37,6 +43,9 @@ public sealed class PromptConfigService(
     }
 }
 
+    /// <summary>
+    /// Gets prompt async.
+    /// </summary>
     public Task<string> GetPromptAsync(PromptConfigDto dto, CancellationToken cancellationToken = default)
     {
     try
@@ -55,6 +64,9 @@ public sealed class PromptConfigService(
     }
 }
 
+    /// <summary>
+    /// Updates prompt async.
+    /// </summary>
     public async Task UpdatePromptAsync(PromptConfigDto dto, CancellationToken cancellationToken = default)
     {
     try
@@ -87,6 +99,9 @@ public sealed class PromptConfigService(
     }
 }
 
+    /// <summary>
+    /// Runs the list prompts async operation.
+    /// </summary>
     public async Task<IEnumerable<PromptConfig>> ListPromptsAsync(string? language = null, CancellationToken cancellationToken = default)
     {
     try

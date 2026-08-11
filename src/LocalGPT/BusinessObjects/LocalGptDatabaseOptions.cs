@@ -7,5 +7,8 @@ public sealed record LocalGptDatabaseOptions(
     string DatabasePath,
     int ProbeCommandTimeoutSeconds = 5)
 {
+    /// <summary>
+    /// Stores section name.
+    /// </summary>
     public const string SectionName = "LocalGptDatabase";
 }

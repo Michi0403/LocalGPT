@@ -5,12 +5,18 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller;
 
+/// <summary>
+/// Provides remote knowledge import controller operations.
+/// </summary>
 [ApiController]
 [Route("api/knowledge/remote-import")]
 public sealed class RemoteKnowledgeImportController(
     IRemoteKnowledgeImportService importer,
     ILogger<RemoteKnowledgeImportController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Runs the preview operation.
+    /// </summary>
     [HttpPost("preview")]
     public async Task<ActionResult<RemoteKnowledgeImportResult>> Preview(
         [FromBody] RemoteKnowledgeImportRequest request,
@@ -41,6 +47,9 @@ public sealed class RemoteKnowledgeImportController(
         }
     }
 
+    /// <summary>
+    /// Runs the import operation.
+    /// </summary>
     [HttpPost]
     [HumanApprovalRequired(
         "knowledge.remote.import",

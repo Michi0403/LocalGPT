@@ -7,10 +7,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations;
 
+/// <summary>
+/// Represents an add project collaboration.
+/// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260725000000_AddProjectCollaboration")]
 public partial class AddProjectCollaboration : Migration
 {
+    /// <summary>
+    /// Runs the up operation.
+    /// </summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.CreateTable(
@@ -153,6 +159,9 @@ public partial class AddProjectCollaboration : Migration
             column: "LinkedAtUtc");
     }
 
+    /// <summary>
+    /// Runs the down operation.
+    /// </summary>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(name: "LocalGptProjectTopicKnowledgeLinks");

@@ -10,17 +10,26 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides chat upload workspace service operations.
+    /// </summary>
     public sealed class ChatUploadWorkspaceService(
         ILogger<ChatUploadWorkspaceService> logger,
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
         LocalGptCatalogService catalog) : IChatUploadWorkspaceService
     {
+        /// <summary>
+        /// Gets or sets workspace root.
+        /// </summary>
         public string WorkspaceRoot { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "ChatUploadWorkspaces");
 
+        /// <summary>
+        /// Creates workspace async.
+        /// </summary>
         public async Task<ChatUploadWorkspaceResult> CreateWorkspaceAsync(
             string prompt,
             IEnumerable<ChatUploadWorkspaceInputFile> files,
@@ -149,6 +158,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the list workspaces operation.
+        /// </summary>
         public IReadOnlyList<ChatUploadWorkspaceSummary> ListWorkspaces(int take = 20)
         {
             try
@@ -172,6 +184,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Gets latest workspace.
+        /// </summary>
         public ChatUploadWorkspaceSummary? GetLatestWorkspace(TimeSpan? maxAge = null)
         {
             try
@@ -191,6 +206,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Gets latest context markdown.
+        /// </summary>
         public string GetLatestContextMarkdown(int maxCharacters, TimeSpan? maxAge = null)
         {
             try
@@ -218,6 +236,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Reads context markdown async.
+        /// </summary>
         public async Task<string> ReadContextMarkdownAsync(
             string workspaceName,
             int maxCharacters,
@@ -243,6 +264,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the list files operation.
+        /// </summary>
         public IReadOnlyList<ChatUploadWorkspaceFileSummary> ListFiles(string workspaceName, int take = 250)
         {
             try
@@ -277,6 +301,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Reads file async.
+        /// </summary>
         public async Task<ChatUploadWorkspaceFileReadResult?> ReadFileAsync(
             string workspaceName,
             string relativePath,
@@ -321,6 +348,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Resolves workspace path.
+        /// </summary>
         public string? ResolveWorkspacePath(string workspaceName)
         {
             try
@@ -346,6 +376,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds workspace summary.
+        /// </summary>
         private ChatUploadWorkspaceSummary? BuildWorkspaceSummary(string path)
         {
             try
@@ -363,6 +396,9 @@ namespace LocalGPT.Services
                 return new ChatUploadWorkspaceSummary(
                     directory.Name,
                     directory.FullName,
+                    /// <summary>
+                    /// Runs the date time offset operation.
+                    /// </summary>
                     new DateTimeOffset(createdAtUtc, TimeSpan.Zero),
                     directory.LastWriteTimeUtc,
                     fileCount,
@@ -375,6 +411,9 @@ namespace LocalGPT.Services
                 return null;
             }
         }
+        /// <summary>
+        /// Runs the extract zip async operation.
+        /// </summary>
         private async Task ExtractZipAsync(
             string workspaceRoot,
             string extractedRoot,

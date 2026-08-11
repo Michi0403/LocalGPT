@@ -7,6 +7,9 @@ using System.Text;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides human collaboration service operations.
+/// </summary>
 public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabulary,
     
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -16,13 +19,31 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     ILogger<HumanCollaborationService> logger) : IHumanCollaborationService
 {
     private const int MaxTextLength = 1_000_000;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim databaseGate = new(1, 1);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, HumanCouncilRunSnapshot> activeRuns = new();
+    /// <summary>
+    /// Runs the new guid operation.
+    /// </summary>
     private readonly Guid approvalSessionId = Guid.NewGuid();
 
+    /// <summary>
+    /// Occurs when changed.
+    /// </summary>
     public event Action? Changed;
+    /// <summary>
+    /// Occurs when direct user message queued.
+    /// </summary>
     public event Action<HumanCouncilContribution>? DirectUserMessageQueued;
 
+    /// <summary>
+    /// Gets snapshot async.
+    /// </summary>
     public async Task<HumanCollaborationSnapshot> GetSnapshotAsync(
         bool includeResolved = true,
         int take = 80,
@@ -69,6 +90,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the authorize or enqueue async operation.
+    /// </summary>
     public async Task<HumanApprovalGateResult> AuthorizeOrEnqueueAsync(
         HumanApprovalRequestSpec request,
         bool directHumanConfirmation = false,
@@ -273,6 +297,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Resolves request async.
+    /// </summary>
     public async Task<HumanCollaborationRequest?> ResolveRequestAsync(
         Guid requestId,
         HumanDecisionSubmission submission,
@@ -384,6 +411,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Gets profile async.
+    /// </summary>
     public async Task<HumanCouncilParticipantProfile> GetProfileAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -405,6 +435,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Saves profile async.
+    /// </summary>
     public async Task<HumanCouncilParticipantProfile> SaveProfileAsync(
         HumanCouncilParticipantProfile profile,
         CancellationToken cancellationToken = default)
@@ -461,6 +494,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the queue contribution async operation.
+    /// </summary>
     public Task<HumanCouncilContribution> QueueContributionAsync(
         Guid councilRunId,
         string content,
@@ -484,6 +520,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the queue user message async operation.
+    /// </summary>
     public Task<HumanCouncilContribution> QueueUserMessageAsync(
         Guid councilRunId,
         string content,
@@ -507,6 +546,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the queue contribution core async operation.
+    /// </summary>
     private async Task<HumanCouncilContribution> QueueContributionCoreAsync(
         Guid councilRunId,
         string content,
@@ -577,6 +619,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Reads queued contributions async.
+    /// </summary>
     public async Task<IReadOnlyList<HumanCouncilContribution>> ReadQueuedContributionsAsync(
         Guid councilRunId,
         int currentRound,
@@ -612,6 +657,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the drain contributions async operation.
+    /// </summary>
     public async Task<IReadOnlyList<HumanCouncilContribution>> DrainContributionsAsync(
         Guid councilRunId,
         int currentRound,
@@ -657,6 +705,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the mark contributions evaluated async operation.
+    /// </summary>
     public async Task MarkContributionsEvaluatedAsync(
         Guid councilRunId,
         int afterRound,
@@ -705,6 +756,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Builds council briefing async.
+    /// </summary>
     public async Task<string> BuildCouncilBriefingAsync(
         Guid councilRunId,
         int currentRound,
@@ -785,6 +839,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Gets gate status async.
+    /// </summary>
     public async Task<HumanCollaborationGateStatus> GetGateStatusAsync(
         Guid councilRunId,
         int upcomingRound,
@@ -824,6 +881,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Determines whether required pending input async.
+    /// </summary>
     public async Task<bool> HasRequiredPendingInputAsync(Guid councilRunId, CancellationToken cancellationToken = default)
     {
     try
@@ -848,6 +908,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
 
+    /// <summary>
+    /// Runs the synchronize active human membership operation.
+    /// </summary>
     private void SynchronizeActiveHumanMembership(HumanCouncilParticipantProfile profile)
     {
     try
@@ -879,6 +942,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the begin council run operation.
+    /// </summary>
     public void BeginCouncilRun(Guid runId, IReadOnlyList<string> members)
     {
     try
@@ -897,6 +963,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Updates council run.
+    /// </summary>
     public void UpdateCouncilRun(Guid runId, int currentRound, string phase, bool isWaitingForFinalHumanInput = false)
     {
     try
@@ -922,6 +991,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the end council run operation.
+    /// </summary>
     public void EndCouncilRun(Guid runId)
     {
     try
@@ -940,6 +1012,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Ensures trusted human interaction.
+    /// </summary>
     private void EnsureTrustedHumanInteraction(string operation)
     {
     try
@@ -958,6 +1033,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the notify direct user message queued operation.
+    /// </summary>
     private void NotifyDirectUserMessageQueued(HumanCouncilContribution contribution)
     {
         var listeners = DirectUserMessageQueued?.GetInvocationList()
@@ -976,6 +1054,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         }
     }
 
+    /// <summary>
+    /// Runs the notify changed operation.
+    /// </summary>
     private void NotifyChanged()
     {
         var listeners = Changed?.GetInvocationList().Cast<Action>().ToArray() ?? [];
@@ -992,6 +1073,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         }
     }
 
+    /// <summary>
+    /// Runs the determine evaluation verdict operation.
+    /// </summary>
     private string DetermineEvaluationVerdict(string evaluation)
     {
     try
@@ -1015,6 +1099,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the blocks boundary operation.
+    /// </summary>
     private bool BlocksBoundary(
         HumanCollaborationRequest request,
         int upcomingRound,
@@ -1055,6 +1142,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Determines whether reusable decision.
+    /// </summary>
     private bool IsReusableDecision(HumanCollaborationRequest request)
     {
     try
@@ -1087,6 +1177,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Gets default reuse scope.
+    /// </summary>
     private HumanApprovalReuseScope GetDefaultReuseScope(string requestKind, string? riskLevel)
     {
     try
@@ -1108,6 +1201,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Gets default consume approval.
+    /// </summary>
     private bool GetDefaultConsumeApproval(string requestKind, string? riskLevel) {
     try
     {
@@ -1123,6 +1219,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Determines whether high impact risk.
+    /// </summary>
     private bool IsHighImpactRisk(string? riskLevel) {
     try
     {
@@ -1139,6 +1238,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Normalizes question scope.
+    /// </summary>
     private string NormalizeQuestionScope(string? value)
     {
     try
@@ -1160,6 +1262,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Normalizes gate mode.
+    /// </summary>
     private string NormalizeGateMode(string? value, bool requiredBeforeCompletion)
     {
     try
@@ -1183,6 +1288,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Normalizes request kind.
+    /// </summary>
     private string NormalizeRequestKind(string? value)
     {
     try
@@ -1204,6 +1312,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Runs the normalize operation.
+    /// </summary>
     private string Normalize(string? value, int maxLength, string fallback = "")
     {
     try
@@ -1224,6 +1335,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Normalizes multiline.
+    /// </summary>
     private string NormalizeMultiline(string? value, int maxLength)
     {
     try

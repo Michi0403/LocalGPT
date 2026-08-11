@@ -5,6 +5,9 @@ using System.Text.Json;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides ai context bootstrap service operations.
+    /// </summary>
     public class AiContextBootstrapService(
         IChatMemoryService chatMemory,
         ICouncilKnowledgeService councilKnowledge,
@@ -23,6 +26,9 @@ namespace LocalGPT.Services
     {
        
 
+        /// <summary>
+        /// Builds bootstrap prompt async.
+        /// </summary>
         public async Task<string> BuildBootstrapPromptAsync(CancellationToken cancellationToken = default)
         {
             try
@@ -114,6 +120,9 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>
+        /// Builds runtime identity briefing.
+        /// </summary>
         private string BuildRuntimeIdentityBriefing()
         {
             try
@@ -194,6 +203,9 @@ namespace LocalGPT.Services
 
  
 
+        /// <summary>
+        /// Finds latest artifact workspace.
+        /// </summary>
         private DirectoryInfo? FindLatestArtifactWorkspace()
         {
             try
@@ -214,6 +226,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Reads project knowledge index async.
+        /// </summary>
         private async Task<string> ReadProjectKnowledgeIndexAsync(CancellationToken cancellationToken)
         {
             try

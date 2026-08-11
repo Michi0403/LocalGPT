@@ -14,9 +14,15 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     private readonly IDatabaseFileHealthService databaseFileHealth;
     private readonly IServiceActivityService serviceActivity;
     private readonly ILogger<DatabaseMigrationCompatibilityService> logger;
+    /// <summary>
+    /// Runs the from minutes operation.
+    /// </summary>
     private readonly TimeSpan abandonedMigrationLockAge = TimeSpan.FromMinutes(10);
     private readonly DatabaseMigrationSignature[] legacyMigrationSignatures;
 
+    /// <summary>
+    /// Runs the database migration compatibility service operation.
+    /// </summary>
     public DatabaseMigrationCompatibilityService(
         IDatabaseFileHealthService databaseFileHealth,
         IServiceActivityService serviceActivity,
@@ -28,6 +34,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         legacyMigrationSignatures = CreateLegacyMigrationSignatures();
     }
 
+    /// <summary>
+    /// Runs the prepare async operation.
+    /// </summary>
     public Task PrepareAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -48,6 +57,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Creates legacy migration signatures.
+    /// </summary>
     private DatabaseMigrationSignature[] CreateLegacyMigrationSignatures() {
     try
     {
@@ -238,6 +250,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Runs the prepare core async operation.
+    /// </summary>
     private async Task PrepareCoreAsync(CancellationToken cancellationToken)
     {
     try
@@ -351,6 +366,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Attempts to repair known migration async.
+    /// </summary>
     private async Task<bool> TryRepairKnownMigrationAsync(
         SqliteConnection connection,
         string migrationId,
@@ -407,6 +425,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Ensures organic skill columns async.
+    /// </summary>
     private async Task EnsureOrganicSkillColumnsAsync(
         SqliteConnection connection,
         IReadOnlyDictionary<string, HashSet<string>> schema,
@@ -457,6 +478,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Ensures council team columns async.
+    /// </summary>
     private async Task EnsureCouncilTeamColumnsAsync(
         SqliteConnection connection,
         IReadOnlyDictionary<string, HashSet<string>> schema,
@@ -489,6 +513,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Runs the archive malformed identity table async operation.
+    /// </summary>
     private async Task<string?> ArchiveMalformedIdentityTableAsync(
         SqliteConnection connection,
         IReadOnlyDictionary<string, HashSet<string>> schema,
@@ -521,6 +548,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Attempts to copy compatibility rows async.
+    /// </summary>
     private async Task TryCopyCompatibilityRowsAsync(
         SqliteConnection connection,
         string archive,
@@ -557,6 +587,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     private const string SqliteGuidExpression =
         "lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1,1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))";
 
+    /// <summary>
+    /// Adds column if missing async.
+    /// </summary>
     private async Task AddColumnIfMissingAsync(
         SqliteConnection connection,
         IReadOnlyDictionary<string, HashSet<string>> schema,
@@ -585,6 +618,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Runs the execute sql async operation.
+    /// </summary>
     private async Task ExecuteSqlAsync(SqliteConnection connection, string sql, CancellationToken cancellationToken)
     {
     try
@@ -654,6 +690,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     CREATE INDEX IF NOT EXISTS "IX_CouncilTeamConfigurations_IsEnabled_UpdatedAtUtc" ON "CouncilTeamConfigurations" ("IsEnabled", "UpdatedAtUtc");
     """;
 
+    /// <summary>
+    /// Determines whether application table.
+    /// </summary>
     private bool IsApplicationTable(string tableName) {
     try
     {
@@ -671,6 +710,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Runs the evaluate signature operation.
+    /// </summary>
     private DatabaseMigrationSignatureState EvaluateSignature(
         DatabaseMigrationSignature signature,
         IReadOnlyDictionary<string, HashSet<string>> schema)
@@ -695,6 +737,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Runs the requirement exists operation.
+    /// </summary>
     private bool RequirementExists(
         DatabaseSchemaRequirement requirement,
         IReadOnlyDictionary<string, HashSet<string>> schema)
@@ -716,6 +761,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Determines whether supported application logs bootstrap.
+    /// </summary>
     private bool IsSupportedApplicationLogsBootstrap(
         DatabaseMigrationSignature signature,
         IReadOnlyDictionary<string, HashSet<string>> schema)
@@ -746,6 +794,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Creates compatibility backup async.
+    /// </summary>
     private async Task<string> CreateCompatibilityBackupAsync(
         SqliteConnection sourceConnection,
         CancellationToken cancellationToken)
@@ -785,6 +836,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
 
+    /// <summary>
+    /// Runs the clear abandoned migration lock async operation.
+    /// </summary>
     private async Task ClearAbandonedMigrationLockAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
@@ -847,6 +901,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Ensures migration history table async.
+    /// </summary>
     private async Task EnsureMigrationHistoryTableAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
@@ -874,6 +931,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Reads applied migrations async.
+    /// </summary>
     private async Task<HashSet<string>> ReadAppliedMigrationsAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
@@ -899,6 +959,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Reads schema async.
+    /// </summary>
     private async Task<Dictionary<string, HashSet<string>>> ReadSchemaAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
@@ -941,6 +1004,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Runs the insert migration history async operation.
+    /// </summary>
     private async Task InsertMigrationHistoryAsync(
         SqliteConnection connection,
         DatabaseMigrationSignature signature,
@@ -967,6 +1033,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Runs the quote sqlite identifier operation.
+    /// </summary>
     private string QuoteSqliteIdentifier(string identifier) {
     try
     {
@@ -982,6 +1051,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Runs the table operation.
+    /// </summary>
     private DatabaseSchemaRequirement Table(string tableName) {
     try
     {
@@ -996,6 +1068,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         throw;
     }
 }
+    /// <summary>
+    /// Runs the column operation.
+    /// </summary>
     private DatabaseSchemaRequirement Column(string tableName, string columnName) {
     try
     {

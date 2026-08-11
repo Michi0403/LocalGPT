@@ -6,10 +6,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations;
 
+/// <summary>
+/// Represents an add organic skills and hardware routes.
+/// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260726133000_AddOrganicSkillsAndHardwareRoutes")]
 public partial class AddOrganicSkillsAndHardwareRoutes : Migration
 {
+    /// <summary>
+    /// Runs the up operation.
+    /// </summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.AddColumn<string>(
@@ -80,6 +86,9 @@ public partial class AddOrganicSkillsAndHardwareRoutes : Migration
         """);
     }
 
+    /// <summary>
+    /// Runs the down operation.
+    /// </summary>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(name: "CouncilMemberOrganicSkillLinks");

@@ -5,12 +5,21 @@ using System.Runtime.InteropServices;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides ollama process service operations.
+/// </summary>
 public sealed class OllamaProcessService(
     ILogger<OllamaProcessService> logger) : IOllamaProcessService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim processGate = new(1, 1);
     private readonly string[] ollamaProcessNames = ["ollama", "ollamaapp"];
 
+    /// <summary>
+    /// Gets status async.
+    /// </summary>
     public async Task<OllamaProcessStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -29,6 +38,9 @@ public sealed class OllamaProcessService(
     }
 }
 
+    /// <summary>
+    /// Starts async.
+    /// </summary>
     public async Task<OllamaProcessStatus> StartAsync(CancellationToken cancellationToken = default)
     {
         await processGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -80,6 +92,9 @@ public sealed class OllamaProcessService(
         }
     }
 
+    /// <summary>
+    /// Stops async.
+    /// </summary>
     public async Task<OllamaProcessStatus> StopAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -114,6 +129,9 @@ public sealed class OllamaProcessService(
     }
 }
 
+    /// <summary>
+    /// Runs the restart async operation.
+    /// </summary>
     public async Task<OllamaProcessStatus> RestartAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -164,6 +182,9 @@ public sealed class OllamaProcessService(
     }
 }
 
+    /// <summary>
+    /// Builds status.
+    /// </summary>
     private OllamaProcessStatus BuildStatus()
     {
     try
@@ -211,6 +232,9 @@ public sealed class OllamaProcessService(
     }
 }
 
+    /// <summary>
+    /// Gets ollama processes.
+    /// </summary>
     private List<Process> GetOllamaProcesses()
     {
     try
@@ -243,6 +267,9 @@ public sealed class OllamaProcessService(
     }
 }
 
+    /// <summary>
+    /// Normalizes process name.
+    /// </summary>
     private string NormalizeProcessName(string value) {
     try
     {
@@ -258,6 +285,9 @@ public sealed class OllamaProcessService(
     }
 }
 
+    /// <summary>
+    /// Determines whether ollama app executable.
+    /// </summary>
     private bool IsOllamaAppExecutable(string executable) {
     try
     {
@@ -273,6 +303,9 @@ public sealed class OllamaProcessService(
     }
 }
 
+    /// <summary>
+    /// Resolves ollama executable.
+    /// </summary>
     private string? ResolveOllamaExecutable()
     {
     try
@@ -317,6 +350,9 @@ public sealed class OllamaProcessService(
     }
 }
 
+    /// <summary>
+    /// Runs the terminate all ollama processes async operation.
+    /// </summary>
     private async Task<int> TerminateAllOllamaProcessesAsync(CancellationToken cancellationToken)
     {
         var terminatedProcessIds = new HashSet<int>();
@@ -357,6 +393,9 @@ public sealed class OllamaProcessService(
         return terminatedProcessIds.Count;
     }
 
+    /// <summary>
+    /// Runs the wait for process state async operation.
+    /// </summary>
     private async Task WaitForProcessStateAsync(bool expectedRunning, CancellationToken cancellationToken)
     {
     try

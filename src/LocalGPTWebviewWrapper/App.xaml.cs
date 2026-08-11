@@ -72,6 +72,9 @@ namespace WebView2_WinUI3_Sample
             }
         }
 
+        /// <summary>
+        /// Opens main window.
+        /// </summary>
         private void OpenMainWindow(string baseUrl)
         {
             _window = new MainWindow(baseUrl)
@@ -87,6 +90,9 @@ namespace WebView2_WinUI3_Sample
             _window.Activate();
         }
 
+        /// <summary>
+        /// Opens startup failure window.
+        /// </summary>
         private void OpenStartupFailureWindow(Exception exception)
         {
             var message = $"LocalGPT could not start.\n\n{exception.GetType().Name}: {exception.Message}\n\n" +
@@ -110,6 +116,9 @@ namespace WebView2_WinUI3_Sample
             _window.Activate();
         }
 
+        /// <summary>
+        /// Runs the dispose owned host async operation.
+        /// </summary>
         private async Task DisposeOwnedHostAsync()
         {
             if (!_ownsWebHost || _webApp is null)
@@ -127,6 +136,9 @@ namespace WebView2_WinUI3_Sample
             }
         }
 
+        /// <summary>
+        /// Determines whether existing local gpt reachable async.
+        /// </summary>
         private static async Task<bool> IsExistingLocalGptReachableAsync(string baseUrl)
         {
             try

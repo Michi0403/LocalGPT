@@ -11,6 +11,9 @@ public sealed class ListProjectWorkspaceFilesFunction(
     CouncilRuntimeService councilRuntime,
     ILogger<ListProjectWorkspaceFilesFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.workspace.files.list", "POST", "/api/dxai/functions/project.workspace.files.list/invoke",
         "List readable source/text files in the project linked to the current chat session. Use this before reading a filename such as Program.cs when its exact relative path is unknown.",
@@ -19,6 +22,9 @@ public sealed class ListProjectWorkspaceFilesFunction(
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{"projectId":{"type":["string","null"],"format":"uuid"},"take":{"type":["integer","null"],"minimum":1,"maximum":1000}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -57,6 +63,9 @@ public sealed class ReadProjectWorkspaceFileFunction(
     CouncilRuntimeService councilRuntime,
     ILogger<ReadProjectWorkspaceFileFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.workspace.file.read", "POST", "/api/dxai/functions/project.workspace.file.read/invoke",
         "Read one source/text file from the project linked to the current chat. Use this for C#, Razor, solution/project files, Markdown, JSON, XML and scripts; do not route ordinary source files through localgpt.text.json.inspect.",
@@ -65,6 +74,9 @@ public sealed class ReadProjectWorkspaceFileFunction(
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{"projectId":{"type":["string","null"],"format":"uuid"},"relativePath":{"type":"string","minLength":1},"maxCharacters":{"type":["integer","null"],"minimum":1000,"maximum":2000000}},"required":["relativePath"],"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -108,15 +120,36 @@ public sealed class ReadProjectWorkspaceFileFunction(
     }
 }
 
+/// <summary>
+/// Represents a project workspace list parameters.
+/// </summary>
 public sealed class ProjectWorkspaceListParameters
 {
+    /// <summary>
+    /// Gets or sets project identifier.
+    /// </summary>
     public Guid? ProjectId { get; set; }
+    /// <summary>
+    /// Gets or sets take.
+    /// </summary>
     public int? Take { get; set; }
 }
 
+/// <summary>
+/// Represents a project workspace read parameters.
+/// </summary>
 public sealed class ProjectWorkspaceReadParameters
 {
+    /// <summary>
+    /// Gets or sets project identifier.
+    /// </summary>
     public Guid? ProjectId { get; set; }
+    /// <summary>
+    /// Gets or sets relative path.
+    /// </summary>
     public string RelativePath { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets max characters.
+    /// </summary>
     public int? MaxCharacters { get; set; }
 }

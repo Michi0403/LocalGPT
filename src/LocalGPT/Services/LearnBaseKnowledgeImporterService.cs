@@ -8,6 +8,9 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides learn base knowledge importer service operations.
+    /// </summary>
     public sealed partial class LearnBaseKnowledgeImporterService(
         ICouncilKnowledgeService knowledgeService,
         ILogger<LearnBaseKnowledgeImporterService> logger,
@@ -19,6 +22,9 @@ namespace LocalGPT.Services
     {
 
 
+        /// <summary>
+        /// Imports async.
+        /// </summary>
         public async Task<LearnBaseImportResult> ImportAsync(
             LearnBaseImportRequest request,
             CancellationToken cancellationToken = default)
@@ -125,6 +131,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Imports learning source manifests async.
+        /// </summary>
         private async Task ImportLearningSourceManifestsAsync(
             string rootPath,
             LearnBaseImportRequest request,
@@ -275,6 +284,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the deterministic guid operation.
+        /// </summary>
         private Guid DeterministicGuid(string hexadecimalHash)
         {
     try
@@ -293,6 +305,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the compile manifest regex operation.
+        /// </summary>
         private Regex CompileManifestRegex(string? pattern, string fallback)
         {
     try
@@ -311,6 +326,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the representative rank operation.
+        /// </summary>
         private int RepresentativeRank(string extension) {
     try
     {
@@ -334,6 +352,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the extract manifest file signature async operation.
+        /// </summary>
         private async Task<string> ExtractManifestFileSignatureAsync(string root, FileInfo file, CancellationToken cancellationToken)
         {
     try
@@ -363,21 +384,60 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Represents a learning source manifest.
+        /// </summary>
         private sealed class LearningSourceManifest
         {
+            /// <summary>
+            /// Gets or sets schema version.
+            /// </summary>
             public int SchemaVersion { get; set; } = 1;
+            /// <summary>
+            /// Gets or sets repository.
+            /// </summary>
             public string Repository { get; set; } = string.Empty;
+            /// <summary>
+            /// Gets or sets source URL.
+            /// </summary>
             public string SourceUrl { get; set; } = string.Empty;
+            /// <summary>
+            /// Gets or sets revision.
+            /// </summary>
             public string Revision { get; set; } = string.Empty;
+            /// <summary>
+            /// Gets or sets include regex.
+            /// </summary>
             public string IncludeRegex { get; set; } = string.Empty;
+            /// <summary>
+            /// Gets or sets exclude regex.
+            /// </summary>
             public string ExcludeRegex { get; set; } = string.Empty;
+            /// <summary>
+            /// Gets or sets maximum files.
+            /// </summary>
             public int MaximumFiles { get; set; } = 12000;
+            /// <summary>
+            /// Gets or sets maximum file bytes.
+            /// </summary>
             public int MaximumFileBytes { get; set; } = 2 * 1024 * 1024;
+            /// <summary>
+            /// Gets or sets topics.
+            /// </summary>
             public List<string> Topics { get; set; } = [];
+            /// <summary>
+            /// Gets or sets role keys.
+            /// </summary>
             public List<string> RoleKeys { get; set; } = [];
+            /// <summary>
+            /// Gets or sets import mode.
+            /// </summary>
             public string ImportMode { get; set; } = "CompactManifestCorpus";
         }
 
+        /// <summary>
+        /// Imports known documentation corpora async.
+        /// </summary>
         private async Task ImportKnownDocumentationCorporaAsync(
             string rootPath,
             LearnBaseImportRequest request,
@@ -403,6 +463,9 @@ namespace LocalGPT.Services
 
             }
         }
+        /// <summary>
+        /// Imports dot net docs corpus async.
+        /// </summary>
         private async Task ImportDotNetDocsCorpusAsync(
             string rootPath,
             LearnBaseImportRequest request,
@@ -450,6 +513,9 @@ namespace LocalGPT.Services
 
             }
         }
+        /// <summary>
+        /// Imports windows dev docs corpus async.
+        /// </summary>
         private async Task ImportWindowsDevDocsCorpusAsync(
             string rootPath,
             LearnBaseImportRequest request,
@@ -498,6 +564,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds selection policy.
+        /// </summary>
         private LearnBaseSelectionPolicy BuildSelectionPolicy(LearnBaseImportRequest request)
         {
     try
@@ -534,6 +603,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Adds extension.
+        /// </summary>
         private void AddExtension(HashSet<string> extensions, string? value)
         {
     try
@@ -558,6 +630,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Builds file policy description.
+        /// </summary>
         private string BuildFilePolicyDescription(LearnBaseSelectionPolicy selection)
         {
     try
@@ -578,6 +653,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Finds selected files.
+        /// </summary>
         private IReadOnlyList<FileInfo> FindSelectedFiles(
             string rootPath,
             LearnBaseSelectionPolicy selection,
@@ -625,6 +703,9 @@ namespace LocalGPT.Services
             return files;
         }
 
+        /// <summary>
+        /// Represents a learn base selection policy.
+        /// </summary>
         private sealed class LearnBaseSelectionPolicy(
             IReadOnlySet<string> extensions,
             Regex includeRegex,
@@ -633,13 +714,34 @@ namespace LocalGPT.Services
             IReadOnlySet<string> excludedDirectoryNames,
             IReadOnlySet<string> binaryExtensions)
         {
+            /// <summary>
+            /// Gets or sets extensions.
+            /// </summary>
             public IReadOnlySet<string> Extensions { get; } = extensions;
+            /// <summary>
+            /// Gets or sets include regex.
+            /// </summary>
             public Regex IncludeRegex { get; } = includeRegex;
+            /// <summary>
+            /// Gets or sets exclude regex.
+            /// </summary>
             public Regex ExcludeRegex { get; } = excludeRegex;
+            /// <summary>
+            /// Gets or sets maximum file bytes.
+            /// </summary>
             public int MaximumFileBytes { get; } = maximumFileBytes;
+            /// <summary>
+            /// Gets or sets excluded directory names.
+            /// </summary>
             public IReadOnlySet<string> ExcludedDirectoryNames { get; } = excludedDirectoryNames;
+            /// <summary>
+            /// Gets or sets binary extensions.
+            /// </summary>
             public IReadOnlySet<string> BinaryExtensions { get; } = binaryExtensions;
 
+            /// <summary>
+            /// Runs the matches operation.
+            /// </summary>
             public bool Matches(string relativePath, long length)
             {
     try

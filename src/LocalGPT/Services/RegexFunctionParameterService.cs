@@ -3,8 +3,14 @@ using System.Text.Json;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides regex function parameter service operations.
+/// </summary>
 public sealed class RegexFunctionParameterService(ILogger<RegexFunctionParameterService> logger) : IRegexFunctionParameterService
 {
+    /// <summary>
+    /// Gets required string.
+    /// </summary>
     public string GetRequiredString(JsonElement element, string propertyName)
     {
         try

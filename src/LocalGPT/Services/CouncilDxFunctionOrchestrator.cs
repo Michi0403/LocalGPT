@@ -18,6 +18,9 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
     IDxAiFunctionServiceClient functionClient,
     ILogger<CouncilDxFunctionOrchestrator> logger) : ICouncilDxFunctionOrchestrator
 {
+    /// <summary>
+    /// Runs the execute requested calls async operation.
+    /// </summary>
     public async Task<IReadOnlyList<MultiModelCouncilStep>> ExecuteRequestedCallsAsync(
         MultiModelCouncilResult result,
         MultiModelCouncilStep sourceStep,
@@ -185,6 +188,9 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
         }
     }
 
+    /// <summary>
+    /// Creates gateway step.
+    /// </summary>
     private MultiModelCouncilStep CreateGatewayStep(
         MultiModelCouncilStep sourceStep,
         string title,
@@ -220,6 +226,9 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
     }
 }
 
+    /// <summary>
+    /// Runs the truncate operation.
+    /// </summary>
     private string Truncate(string value, int maximumCharacters) {
     try
     {

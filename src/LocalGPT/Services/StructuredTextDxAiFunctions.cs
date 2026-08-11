@@ -4,10 +4,16 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a translate JSON text function.
+/// </summary>
 public sealed class TranslateJsonTextFunction(
     IStructuredTextTranslationService translator,
     ILogger<TranslateJsonTextFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.text.json.translate",
         "POST",
@@ -34,6 +40,9 @@ public sealed class TranslateJsonTextFunction(
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -78,16 +87,25 @@ public sealed class TranslateJsonTextFunction(
         }
     }
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
 }
 
+/// <summary>
+/// Represents an inspect JSON text function.
+/// </summary>
 public sealed class InspectJsonTextFunction(
     IStructuredTextTranslationService translator,
     ILogger<InspectJsonTextFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.text.json.inspect",
         "POST",
@@ -113,6 +131,9 @@ public sealed class InspectJsonTextFunction(
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)

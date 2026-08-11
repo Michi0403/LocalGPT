@@ -6,10 +6,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations;
 
+/// <summary>
+/// Represents a fix project tracked file revision identity.
+/// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260727193000_FixProjectTrackedFileRevisionIdentity")]
 public partial class FixProjectTrackedFileRevisionIdentity : Migration
 {
+    /// <summary>
+    /// Runs the up operation.
+    /// </summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropIndex(
@@ -23,6 +29,9 @@ public partial class FixProjectTrackedFileRevisionIdentity : Migration
             unique: true);
     }
 
+    /// <summary>
+    /// Runs the down operation.
+    /// </summary>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropIndex(

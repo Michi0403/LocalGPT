@@ -3,11 +3,17 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents an ai connectivity probe.
+/// </summary>
 public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         AiDiscoveryService aiDiscovery,
         CouncilTextService councilText,
         Microsoft.Extensions.Options.IOptionsMonitor<global::LocalGPT.BusinessObjects.ConfigurationRoot> optionsRoot) : IAiConnectivityProbe
 {
+    /// <summary>
+    /// Runs the test azure async operation.
+    /// </summary>
     public async Task<(bool ok, string message)> TestAzureAsync(OpenAIServiceCoreOptions options, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(options.Endpoint) || string.IsNullOrWhiteSpace(options.Key))
@@ -30,6 +36,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         }
     }
 
+    /// <summary>
+    /// Runs the test open aiasync operation.
+    /// </summary>
     public async Task<(bool ok, string message)> TestOpenAIAsync(OpenAICompatOptions options, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(options.ApiKey))
@@ -39,6 +48,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         {
             using var http = new HttpClient { BaseAddress = new Uri("https://api.openai.com/v1/") };
             http.DefaultRequestHeaders.Authorization =
+                /// <summary>
+                /// Runs the authentication header value operation.
+                /// </summary>
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
             return await aiDiscovery.GetAsync(http, "models", cancellationToken, logger).ConfigureAwait(false);
         }
@@ -53,6 +65,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         }
     }
 
+    /// <summary>
+    /// Runs the test ollama async operation.
+    /// </summary>
     public async Task<(bool ok, string message)> TestOllamaAsync(OllamaCoreOptions options, CancellationToken cancellationToken)
     {
         try
@@ -71,6 +86,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         }
     }
 
+    /// <summary>
+    /// Runs the test local open aicompat async operation.
+    /// </summary>
     public async Task<(bool ok, string message)> TestLocalOpenAICompatAsync(ChatGPTLocalCoreOptions options, CancellationToken cancellationToken)
     {
         try
@@ -80,6 +98,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
             if (!string.IsNullOrWhiteSpace(options.ApiKey))
             {
                 http.DefaultRequestHeaders.Authorization =
+                    /// <summary>
+                    /// Runs the authentication header value operation.
+                    /// </summary>
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
             }
 
@@ -96,6 +117,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         }
     }
 
+    /// <summary>
+    /// Attempts to start local async.
+    /// </summary>
     public Task<(bool ok, string message)> TryStartLocalAsync(ChatGPTLocalCoreOptions options, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -110,6 +134,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
             "Automatic shell launch is disabled. Start the local provider manually; unrestricted StartCommand execution is no longer permitted."));
     }
 
+    /// <summary>
+    /// Runs the discover local hosts async operation.
+    /// </summary>
     public async Task<IReadOnlyList<LocalAiHostDiscoveryResult>> DiscoverLocalHostsAsync(CancellationToken cancellationToken)
     {
         try
@@ -161,6 +188,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         }
     }
 
+    /// <summary>
+    /// Attempts to normalize authority.
+    /// </summary>
     private bool TryNormalizeAuthority(string? endpoint, out string normalized)
     {
         try
@@ -188,6 +218,9 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         }
     }
 
+    /// <summary>
+    /// Gets endpoint host.
+    /// </summary>
     private string GetEndpointHost(string? endpoint) {
     try
     {

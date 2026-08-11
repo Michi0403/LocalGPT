@@ -6,11 +6,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides model preset service operations.
+/// </summary>
 public sealed class ModelPresetService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<ModelPresetService> logger) : IModelPresetService
 {
+    /// <summary>
+    /// Gets presets async.
+    /// </summary>
     public async Task<IReadOnlyList<CouncilModelPreset>> GetPresetsAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
     {
     try
@@ -41,6 +47,9 @@ public sealed class ModelPresetService(
     }
 }
 
+    /// <summary>
+    /// Saves preset async.
+    /// </summary>
     public async Task<CouncilModelPreset> SavePresetAsync(CouncilModelPreset preset, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         if (!userConfirmed)
@@ -111,6 +120,9 @@ public sealed class ModelPresetService(
         return entity;
     }
 
+    /// <summary>
+    /// Normalizes loaded preset.
+    /// </summary>
     private void NormalizeLoadedPreset(CouncilModelPreset preset)
     {
         try
@@ -132,6 +144,9 @@ public sealed class ModelPresetService(
         preset.OllamaNumGpu = preset.OllamaNumGpu is < 0 ? 0 : preset.OllamaNumGpu;
     }
 
+    /// <summary>
+    /// Normalizes route.
+    /// </summary>
     private OneWireCouncilModelRoute NormalizeRoute(OneWireCouncilModelRoute route)
     {
     try
@@ -187,6 +202,9 @@ public sealed class ModelPresetService(
     }
 }
 
+    /// <summary>
+    /// Normalizes values.
+    /// </summary>
     private List<string> NormalizeValues(IEnumerable<string>? values) {
     try
     {
@@ -207,6 +225,9 @@ public sealed class ModelPresetService(
     }
 }
 
+    /// <summary>
+    /// Runs the archive preset async operation.
+    /// </summary>
     public async Task ArchivePresetAsync(Guid presetId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try

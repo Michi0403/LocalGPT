@@ -4,8 +4,14 @@ using System.Net;
 
 namespace LocalGPT.Services.OneWire;
 
+/// <summary>
+/// Represents an one wire transport security policy.
+/// </summary>
 public sealed class OneWireTransportSecurityPolicy(ILogger<OneWireTransportSecurityPolicy> logger) : IOneWireTransportSecurityPolicy
 {
+    /// <summary>
+    /// Runs the requires protected transport operation.
+    /// </summary>
     public bool RequiresProtectedTransport(OneWireMessageType messageType)
     {
         try
@@ -34,6 +40,9 @@ public sealed class OneWireTransportSecurityPolicy(ILogger<OneWireTransportSecur
         }
     }
 
+    /// <summary>
+    /// Determines whether protected.
+    /// </summary>
     public bool IsProtected(OneWireEnvelope envelope)
     {
         try
@@ -50,6 +59,9 @@ public sealed class OneWireTransportSecurityPolicy(ILogger<OneWireTransportSecur
         }
     }
 
+    /// <summary>
+    /// Determines whether loopback.
+    /// </summary>
     public bool IsLoopback(IPAddress? address)
     {
         try

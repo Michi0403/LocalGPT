@@ -19,12 +19,21 @@ public sealed class RuntimeCapabilityDirectoryService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<RuntimeCapabilityDirectoryService> logger) : IRuntimeCapabilityDirectoryService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     // The service itself is scoped because its function/catalog dependencies are scoped. Boot synchronization
     // and Council preflight may nevertheless overlap, so their derived database writes need one process-wide gate.
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim SynchronizationGate = new(1, 1);
 
+    /// <summary>
+    /// Runs the synchronize async operation.
+    /// </summary>
     public async Task<RuntimeCapabilityDirectorySnapshot> SynchronizeAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -70,6 +79,9 @@ public sealed class RuntimeCapabilityDirectoryService(
     }
 }
 
+    /// <summary>
+    /// Runs the persist snapshot with retry async operation.
+    /// </summary>
     private async Task PersistSnapshotWithRetryAsync(
         RuntimeCapabilityDirectorySnapshot snapshot,
         CancellationToken cancellationToken)
@@ -116,6 +128,9 @@ public sealed class RuntimeCapabilityDirectoryService(
         }
     }
 
+    /// <summary>
+    /// Runs the persist snapshot async operation.
+    /// </summary>
     private async Task<bool> PersistSnapshotAsync(
         RuntimeCapabilityDirectorySnapshot snapshot,
         CancellationToken cancellationToken)
@@ -173,6 +188,9 @@ public sealed class RuntimeCapabilityDirectoryService(
     }
 }
 
+    /// <summary>
+    /// Runs the upsert artifact async operation.
+    /// </summary>
     private async Task UpsertArtifactAsync(
         LocalGptMemoryDbContext db,
         string name,
@@ -223,6 +241,9 @@ public sealed class RuntimeCapabilityDirectoryHostedService(
     IServiceScopeFactory scopeFactory,
     ILogger<RuntimeCapabilityDirectoryHostedService> logger) : IHostedService
 {
+    /// <summary>
+    /// Starts async.
+    /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
@@ -238,6 +259,9 @@ public sealed class RuntimeCapabilityDirectoryHostedService(
         }
     }
 
+    /// <summary>
+    /// Stops async.
+    /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) {
     try
     {

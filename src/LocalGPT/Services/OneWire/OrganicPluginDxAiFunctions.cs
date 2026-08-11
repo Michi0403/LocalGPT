@@ -15,6 +15,9 @@ public sealed class InvokeOrganicPluginFunction(
     IOneWireWorkSpooler spooler,
     ILogger<InvokeOrganicPluginFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         Name: "organic.plugin.invoke",
         Method: "POST",
@@ -35,6 +38,9 @@ public sealed class InvokeOrganicPluginFunction(
         SupportsDeferredApprovalRequest: true,
         ApprovalRequiredBeforeCompletion: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -80,6 +86,9 @@ public sealed class InvokeOrganicPluginFunction(
     }
 }
 
+    /// <summary>
+    /// Runs the queue and send async operation.
+    /// </summary>
     private async Task<DxAiFunctionInvocationResult> QueueAndSendAsync(OneWireEnvelope envelope, CancellationToken cancellationToken)
     {
     try
@@ -118,6 +127,9 @@ public sealed class InspectPublisherSpreadsheetFunction(
 {
     private const string CapabilityKey = "publisher.spreadsheet.inspect";
 
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         Name: "publisher.spreadsheet.inspect",
         Method: "POST",
@@ -138,6 +150,9 @@ public sealed class InspectPublisherSpreadsheetFunction(
         SupportsDeferredApprovalRequest: true,
         ApprovalRequiredBeforeCompletion: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -208,6 +223,9 @@ public sealed class ProposePublisherTextFunction(
 {
     private const string CapabilityKey = "publisher.text.insert.propose";
 
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         Name: "publisher.text.proposal.request",
         Method: "POST",
@@ -228,6 +246,9 @@ public sealed class ProposePublisherTextFunction(
         SupportsDeferredApprovalRequest: true,
         ApprovalRequiredBeforeCompletion: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -290,6 +311,9 @@ public sealed class ProposePublisherTextFunction(
 /// <summary>Reads the eventual result of a queued organic operation without reissuing it.</summary>
 public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spooler, IOrganicDxFunctionSupport organicSupport, ILogger<ReadOrganicPluginWorkResultFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         Name: "organic.plugin.work.read",
         Method: "GET",
@@ -308,6 +332,9 @@ public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spoo
         SupportsDeferredApprovalRequest: false,
         ApprovalRequiredBeforeCompletion: false);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -338,8 +365,14 @@ public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spoo
 }
 }
 
+/// <summary>
+/// Represents an organic DevExpress function support.
+/// </summary>
 public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> logger) : IOrganicDxFunctionSupport
 {
+    /// <summary>
+    /// Gets string.
+    /// </summary>
     public string GetString(JsonElement element, string name, string fallback = "")
     {
     try
@@ -360,6 +393,9 @@ public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> l
     }
 }
 
+    /// <summary>
+    /// Finds capability.
+    /// </summary>
     public OneWireCapabilityDescriptor? FindCapability(OneWirePeerAdvertisement peer, string key) {
     try
     {
@@ -375,6 +411,9 @@ public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> l
     }
 }
 
+    /// <summary>
+    /// Creates invoke envelope.
+    /// </summary>
     public OneWireEnvelope CreateInvokeEnvelope(
         string peerId,
         OneWireCapabilityDescriptor capability,
@@ -422,6 +461,9 @@ public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> l
     }
 }
 
+    /// <summary>
+    /// Runs the queued operation.
+    /// </summary>
     public DxAiFunctionInvocationResult Queued(OneWireWorkItem work, string peerId, string capabilityKey) {
     try
     {
@@ -442,6 +484,9 @@ public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> l
     }
 }
 
+    /// <summary>
+    /// Runs the invalid operation.
+    /// </summary>
     public DxAiFunctionInvocationResult Invalid(string error) {
     try
     {
@@ -469,6 +514,9 @@ public sealed class RequestPublisherReviewedTextFunction(
 {
     private const string CapabilityKey = "publisher.text.edit.request";
 
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         Name: "publisher.text.feedback.request",
         Method: "POST",
@@ -487,6 +535,9 @@ public sealed class RequestPublisherReviewedTextFunction(
         SupportsDeferredApprovalRequest: true,
         ApprovalRequiredBeforeCompletion: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -525,6 +576,9 @@ public sealed class RequestPublisherScreenCaptureFunction(
     ILogger<RequestPublisherScreenCaptureFunction> logger) : IDxAiFunctionHandler
 {
     private const string CapabilityKey = "publisher.screen.capture";
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         Name: "publisher.screen.capture.request", Method: "POST", Route: "/api/onewire/peers/connected/screen/capture",
         Purpose: "Requests one user-selected PublisherStudio/browser screenshot for visual Council evidence.",
@@ -534,6 +588,9 @@ public sealed class RequestPublisherScreenCaptureFunction(
         Source: "OneWire", ParameterSchemaJson: """{"type":"object","properties":{"reason":{"type":"string"},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -561,6 +618,9 @@ public sealed class RequestPublisherScreenRecordFunction(
     ILogger<RequestPublisherScreenRecordFunction> logger) : IDxAiFunctionHandler
 {
     private const string CapabilityKey = "publisher.screen.record";
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         Name: "publisher.screen.record.request", Method: "POST", Route: "/api/onewire/peers/connected/screen/record",
         Purpose: "Requests a short user-selected PublisherStudio/browser screen recording for temporal Council evidence.",
@@ -570,6 +630,9 @@ public sealed class RequestPublisherScreenRecordFunction(
         Source: "OneWire", ParameterSchemaJson: """{"type":"object","properties":{"reason":{"type":"string"},"maximumSeconds":{"type":"integer","minimum":1,"maximum":15},"includeAudio":{"type":"boolean"},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -602,6 +665,9 @@ public sealed class RequestPublisherWebsiteContentFunction(
     ILogger<RequestPublisherWebsiteContentFunction> logger) : IDxAiFunctionHandler
 {
     private const string CapabilityKey = "publisher.website.content.request";
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         Name: "publisher.website.content.request", Method: "POST", Route: "/api/onewire/peers/connected/web-content/request",
         Purpose: "Asks PublisherStudio for bounded user-approved HTML, DIV or document content that can be shown in LocalGPT chat or reused by another organic add-on.",
@@ -611,6 +677,9 @@ public sealed class RequestPublisherWebsiteContentFunction(
         Source: "OneWire", ParameterSchemaJson: """{"type":"object","required":["question"],"properties":{"question":{"type":"string"},"initialContent":{"type":"string"},"format":{"type":"string","enum":["html","div","text","document"]},"sourceUrl":{"type":"string"},"maximumCharacters":{"type":"integer","minimum":1000,"maximum":200000},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -653,6 +722,9 @@ public sealed class RequestPublisherEmbeddedWiringEditorFunction(
 {
     private const string CapabilityKey = "publisher.embedded.wiring.edit.request";
 
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         Name: "publisher.embedded.wiring.edit.request",
         Method: "POST",
@@ -664,6 +736,9 @@ public sealed class RequestPublisherEmbeddedWiringEditorFunction(
         Source: "OneWire", ParameterSchemaJson: """{"type":"object","properties":{"boardProfileKey":{"type":"string"},"draft":{"type":"object"},"reason":{"type":"string"},"peerId":{"type":"string"},"workOrderKey":{"type":"string"}},"additionalProperties":false}""",
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -689,10 +764,16 @@ public sealed class RequestPublisherEmbeddedWiringEditorFunction(
 }
 }
 
+/// <summary>
+/// Represents a publisher interaction DevExpress support.
+/// </summary>
 public sealed class PublisherInteractionDxSupport(
     IOrganicDxFunctionSupport organicSupport,
     ILogger<PublisherInteractionDxSupport> serviceLogger) : IPublisherInteractionDxSupport
 {
+    /// <summary>
+    /// Runs the queue async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> QueueAsync<TLogger>(
         DxAiFunctionInvocationRequest request,
         string capabilityKey,

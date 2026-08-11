@@ -7,13 +7,34 @@ using System.Text;
 using System.Text.RegularExpressions;
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a composite chat client.
+/// </summary>
 public class CompositeChatClient : IChatClient
 {
+      /// <summary>
+      /// Gets or sets available chat clients.
+      /// </summary>
       public List<ChatClientSession> AvailableChatClients { get; }
+    /// <summary>
+    /// Gets or sets selected session.
+    /// </summary>
     public ChatClientSession? SelectedSession { get; set; }
+    /// <summary>
+    /// Gets or sets locked session name.
+    /// </summary>
     public string? LockedSessionName { get; set; }
+    /// <summary>
+    /// Gets or sets forced max output tokens.
+    /// </summary>
     public int? ForcedMaxOutputTokens { get; set; }
+    /// <summary>
+    /// Gets or sets forced max prompt characters.
+    /// </summary>
     public int? ForcedMaxPromptCharacters { get; set; }
+    /// <summary>
+    /// Gets or sets suppress bootstrap context.
+    /// </summary>
     public bool SuppressBootstrapContext { get; set; }
     private readonly ILogger _logger;
     private readonly IAiFeatureReportService? _featureReportService;
@@ -26,6 +47,9 @@ public class CompositeChatClient : IChatClient
     private readonly CouncilRuntimeService _councilRuntime;
     private readonly CouncilTextService _councilText;
 
+    /// <summary>
+    /// Runs the composite chat client operation.
+    /// </summary>
     public CompositeChatClient(
         ILogger logger,
         IAiFeatureReportService? featureReportService,
@@ -54,6 +78,9 @@ public class CompositeChatClient : IChatClient
         _councilText = councilText ?? throw new ArgumentNullException(nameof(councilText));
     }
 
+    /// <summary>
+    /// Gets response async.
+    /// </summary>
     public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         CancellationToken cancellationToken = new CancellationToken())
     {
@@ -79,6 +106,9 @@ public class CompositeChatClient : IChatClient
         }
     }
 
+    /// <summary>
+    /// Gets streaming response async.
+    /// </summary>
     public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         CancellationToken cancellationToken = new CancellationToken())
     {
@@ -98,6 +128,9 @@ public class CompositeChatClient : IChatClient
         }
     }
 
+    /// <summary>
+    /// Creates failure response.
+    /// </summary>
     private ChatResponse CreateFailureResponse(string message) {
     try
     {
@@ -113,12 +146,18 @@ public class CompositeChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Creates failure updates.
+    /// </summary>
     private async IAsyncEnumerable<ChatResponseUpdate> CreateFailureUpdates(string message)
     {
         yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(message)]);
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Determines whether connection refused.
+    /// </summary>
     private bool IsConnectionRefused(Exception exception)
     {
     try
@@ -145,6 +184,9 @@ public class CompositeChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the dispose operation.
+    /// </summary>
     public void Dispose()
     {
         try
@@ -170,6 +212,9 @@ public class CompositeChatClient : IChatClient
         }
 
     }
+    /// <summary>
+    /// Gets service.
+    /// </summary>
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
     try
@@ -191,6 +236,9 @@ public class CompositeChatClient : IChatClient
 }
 
 
+    /// <summary>
+    /// Applies default options async.
+    /// </summary>
     private async Task<ChatOptions> ApplyDefaultOptionsAsync(
         ChatOptions? options,
         CancellationToken cancellationToken)
@@ -228,6 +276,9 @@ public class CompositeChatClient : IChatClient
         return options;
     }
 
+    /// <summary>
+    /// Resolves selected session.
+    /// </summary>
     private ChatClientSession? ResolveSelectedSession()
     {
     try
@@ -261,6 +312,9 @@ public class CompositeChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Gets response and report async.
+    /// </summary>
     private async Task<ChatResponse> GetResponseAndReportAsync(
         ChatClientSession session,
         IEnumerable<ChatMessage> messages,
@@ -290,6 +344,9 @@ public class CompositeChatClient : IChatClient
         
     }
 
+    /// <summary>
+    /// Gets streaming response and report async.
+    /// </summary>
     private async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAndReportAsync(
         ChatClientSession session,
         IEnumerable<ChatMessage> messages,
@@ -421,6 +478,9 @@ public class CompositeChatClient : IChatClient
         }
     }
 
+    /// <summary>
+    /// Writes missing feature report if needed async.
+    /// </summary>
     private async Task WriteMissingFeatureReportIfNeededAsync(string source, string responseText, CancellationToken cancellationToken)
     {
         try
@@ -443,6 +503,9 @@ public class CompositeChatClient : IChatClient
 
     }
 
+    /// <summary>
+    /// Writes knowledge requests if needed async.
+    /// </summary>
     private async Task WriteKnowledgeRequestsIfNeededAsync(string source, string responseText, CancellationToken cancellationToken)
     {
         try
@@ -469,6 +532,9 @@ public class CompositeChatClient : IChatClient
 
 
 
+    /// <summary>
+    /// Adds bootstrap context async.
+    /// </summary>
     private async Task<IReadOnlyList<ChatMessage>> AddBootstrapContextAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
     {
         try
@@ -526,6 +592,9 @@ public class CompositeChatClient : IChatClient
     }
 
 
+    /// <summary>
+    /// Saves uploaded message content async.
+    /// </summary>
     private async Task<string> SaveUploadedMessageContentAsync(
         IReadOnlyList<ChatMessage> messages,
         CancellationToken cancellationToken)

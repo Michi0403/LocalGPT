@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller;
 
+/// <summary>
+/// Provides DevExpress ai functions controller operations.
+/// </summary>
 [ApiController]
 [Route("api/dxai/functions")]
 public sealed class DxAiFunctionsController(
@@ -12,6 +15,9 @@ public sealed class DxAiFunctionsController(
     IDeferredDxAiInvocationService deferredInvocations,
     ILogger<DxAiFunctionsController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Runs the list functions operation.
+    /// </summary>
     [HttpGet]
     public IResult ListFunctions()
     {
@@ -28,6 +34,9 @@ public sealed class DxAiFunctionsController(
         }
     }
 
+    /// <summary>
+    /// Runs the recover function text operation.
+    /// </summary>
     [HttpPost("recover")]
     public async Task<IResult> RecoverFunctionText(
         [FromBody] DxAiFunctionTextRecoveryRequest request,
@@ -58,10 +67,16 @@ public sealed class DxAiFunctionsController(
         return Results.Ok(result);
     }
 
+    /// <summary>
+    /// Runs the execute approved deferred operation.
+    /// </summary>
     [HttpPost("deferred/{approvalRequestId:guid}/execute")]
     public async Task<IResult> ExecuteApprovedDeferred(Guid approvalRequestId, CancellationToken cancellationToken) =>
         Results.Ok(await deferredInvocations.ExecuteApprovedForApprovalRequestAsync(approvalRequestId, cancellationToken: cancellationToken).ConfigureAwait(false));
 
+    /// <summary>
+    /// Runs the invoke function operation.
+    /// </summary>
     [HttpPost("{functionName}/invoke")]
     public async Task<IResult> InvokeFunction(
         string functionName,

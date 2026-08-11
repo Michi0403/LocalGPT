@@ -3,9 +3,15 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Persistence;
 
+/// <summary>
+/// Provides one wire replay policy data service operations.
+/// </summary>
 public sealed class OneWireReplayPolicyDataService(
     ILogger<OneWireReplayPolicyDataService> logger) : IOneWireReplayPolicyDataService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly OneWireReplayPolicySnapshot snapshot = new()
     {
         Retention = TimeSpan.FromMinutes(15),
@@ -14,6 +20,9 @@ public sealed class OneWireReplayPolicyDataService(
         MaximumTrackedMessages = 4096
     };
 
+    /// <summary>
+    /// Gets snapshot.
+    /// </summary>
     public OneWireReplayPolicySnapshot GetSnapshot()
     {
         try

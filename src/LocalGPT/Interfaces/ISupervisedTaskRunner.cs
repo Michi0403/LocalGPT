@@ -8,6 +8,9 @@ public interface ISupervisedTaskRunner
 {
     int ActiveTaskCount { get; }
 
+    /// <summary>
+    /// Runs the run operation.
+    /// </summary>
     void Run(
         string owner,
         string operation,

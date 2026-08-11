@@ -5,9 +5,15 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides project library inventory service operations.
+    /// </summary>
     public partial class ProjectLibraryInventoryService(ILogger<ProjectLibraryInventoryService> logger,
         CouncilRuntimeService councilRuntime) : IProjectLibraryInventoryService
     {
+        /// <summary>
+        /// Builds dev express briefing async.
+        /// </summary>
         public async Task<string> BuildDevExpressBriefingAsync(CancellationToken cancellationToken = default)
         {
     try
@@ -45,6 +51,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Runs the append project package references async operation.
+        /// </summary>
         private async Task<bool> AppendProjectPackageReferencesAsync(StringBuilder builder, string root, CancellationToken cancellationToken, ILogger logger)
         {
             var projectPath = Path.Combine(root, "src", "LocalGPT", "LocalGPT.csproj");

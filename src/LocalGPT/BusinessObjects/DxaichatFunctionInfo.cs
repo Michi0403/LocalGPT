@@ -1,5 +1,8 @@
 namespace LocalGPT.BusinessObjects;
 
+/// <summary>
+/// Represents a dxaichat function info.
+/// </summary>
 public sealed record DxaichatFunctionInfo(
     string Name,
     string Method,

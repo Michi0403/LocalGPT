@@ -15,6 +15,8 @@ try {
     & ./build/Assert-LocalizationIntegrity.ps1
     & ./build/Assert-OperationalDiagnostics.ps1
     & ./build/Assert-InteractiveServerRenderModes.ps1
+    & ./build/Assert-CodeGenerationDxFunctionWiring.ps1
+    & ./build/Assert-XmlDocumentationCoverage.ps1
     & ./build/Assert-AsyncContinuationPolicy.ps1
     & ./build/Assert-MethodDiagnostics.ps1
     & ./build/Assert-ApplicationStaticPolicy.ps1

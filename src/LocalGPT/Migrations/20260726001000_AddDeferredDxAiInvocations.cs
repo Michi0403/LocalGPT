@@ -7,10 +7,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations;
 
+/// <summary>
+/// Represents an add deferred DevExpress ai invocations.
+/// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260726001000_AddDeferredDxAiInvocations")]
 public partial class AddDeferredDxAiInvocations : Migration
 {
+    /// <summary>
+    /// Runs the up operation.
+    /// </summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.CreateTable(
@@ -56,6 +62,9 @@ public partial class AddDeferredDxAiInvocations : Migration
             columns: new[] { "CouncilRunId", "Status", "CreatedAtUtc" });
     }
 
+    /// <summary>
+    /// Runs the down operation.
+    /// </summary>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(name: "DeferredDxAiInvocations");

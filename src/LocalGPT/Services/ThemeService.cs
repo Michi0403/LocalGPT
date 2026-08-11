@@ -12,11 +12,29 @@ namespace LocalGPT.Services;
 /// </summary>
 public sealed class ThemeService
 {
+    /// <summary>
+    /// Stores default theme name.
+    /// </summary>
     public const string DEFAULT_THEME_NAME = "office-white";
+    /// <summary>
+    /// Stores legacy theme cookie name.
+    /// </summary>
     public const string LegacyThemeCookieName = "ActiveTheme";
+    /// <summary>
+    /// Stores shell theme cookie name.
+    /// </summary>
     public const string ShellThemeCookieName = "ActiveShellTheme";
+    /// <summary>
+    /// Stores component theme cookie name.
+    /// </summary>
     public const string ComponentThemeCookieName = "ActiveComponentTheme";
+    /// <summary>
+    /// Stores local theme contract path.
+    /// </summary>
     public const string LocalThemeContractPath = "css/localgpt-theme-contract.css";
+    /// <summary>
+    /// Stores max fusion route steps.
+    /// </summary>
     public const int MaxFusionRouteSteps = 256;
 
     private readonly ILogger<ThemeService> logger;
@@ -29,6 +47,9 @@ public sealed class ThemeService
     private Theme activeComponentTheme;
     private int nextFusionRouteSequence = 1;
 
+    /// <summary>
+    /// Runs the theme service operation.
+    /// </summary>
     public ThemeService(
         ILogger<ThemeService> logger,
         IServiceActivityService serviceActivity)
@@ -46,7 +67,13 @@ public sealed class ThemeService
         activeComponentTheme = defaultTheme;
     }
 
+    /// <summary>
+    /// Gets or sets active shell theme.
+    /// </summary>
     public Theme ActiveShellTheme => activeShellTheme;
+    /// <summary>
+    /// Gets or sets active component theme.
+    /// </summary>
     public Theme ActiveComponentTheme => activeComponentTheme;
 
     /// <summary>
@@ -55,15 +82,42 @@ public sealed class ThemeService
     /// </summary>
     public Theme ActiveTheme => ActiveComponentTheme;
 
+    /// <summary>
+    /// Gets or sets is initialized.
+    /// </summary>
     public bool IsInitialized { get; private set; }
+    /// <summary>
+    /// Gets or sets theme sets.
+    /// </summary>
     public List<ThemeSet> ThemeSets { get; }
+    /// <summary>
+    /// Gets or sets fusion route.
+    /// </summary>
     public IReadOnlyList<ThemeFusionStep> FusionRoute => fusionRoute;
+    /// <summary>
+    /// Gets or sets theme change request dispatcher.
+    /// </summary>
     public IThemeChangeRequestDispatcher? ThemeChangeRequestDispatcher { get; set; }
+    /// <summary>
+    /// Gets or sets theme load notifier.
+    /// </summary>
     public IThemeLoadNotifier? ThemeLoadNotifier { get; set; }
+    /// <summary>
+    /// Occurs when active shell theme changed.
+    /// </summary>
     public event Action<Theme>? ActiveShellThemeChanged;
+    /// <summary>
+    /// Occurs when active component theme changed.
+    /// </summary>
     public event Action<Theme>? ActiveComponentThemeChanged;
+    /// <summary>
+    /// Occurs when active theme changed.
+    /// </summary>
     public event Action<Theme>? ActiveThemeChanged;
 
+    /// <summary>
+    /// Gets theme or default.
+    /// </summary>
     public Theme GetThemeOrDefault(string? themeName) {
     try
     {
@@ -79,6 +133,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Gets theme title.
+    /// </summary>
     public string GetThemeTitle(string? themeName) {
     try
     {
@@ -95,6 +152,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Runs the replace fusion route operation.
+    /// </summary>
     public void ReplaceFusionRoute(IEnumerable<ThemeFusionStep>? steps)
     {
         try
@@ -133,6 +193,9 @@ public sealed class ThemeService
         }
     }
 
+    /// <summary>
+    /// Ensures fusion route seeded.
+    /// </summary>
     public void EnsureFusionRouteSeeded()
     {
         try
@@ -151,6 +214,9 @@ public sealed class ThemeService
         }
     }
 
+    /// <summary>
+    /// Runs the record fusion step operation.
+    /// </summary>
     public ThemeFusionStep RecordFusionStep(ThemeApplicationTarget target, Theme theme)
     {
         ArgumentNullException.ThrowIfNull(theme);
@@ -188,6 +254,9 @@ public sealed class ThemeService
         }
     }
 
+    /// <summary>
+    /// Runs the reset fusion route to current selection operation.
+    /// </summary>
     public void ResetFusionRouteToCurrentSelection()
     {
         try
@@ -209,6 +278,9 @@ public sealed class ThemeService
         }
     }
 
+    /// <summary>
+    /// Gets theme layer CSS class.
+    /// </summary>
     public string GetThemeLayerCssClass(string? shellThemeName, string? componentThemeName)
     {
         try
@@ -225,6 +297,9 @@ public sealed class ThemeService
         }
     }
 
+    /// <summary>
+    /// Gets theme CSS token.
+    /// </summary>
     private string GetThemeCssToken(string? themeName)
     {
         try
@@ -240,6 +315,9 @@ public sealed class ThemeService
         }
     }
 
+    /// <summary>
+    /// Finds theme by name.
+    /// </summary>
     public Theme? FindThemeByName(string? themeName)
     {
         try
@@ -257,6 +335,9 @@ public sealed class ThemeService
         }
     }
 
+    /// <summary>
+    /// Runs the initialize themes operation.
+    /// </summary>
     public void InitializeThemes(string? shellThemeName, string? componentThemeName)
     {
         try
@@ -287,6 +368,9 @@ public sealed class ThemeService
         }
     }
 
+    /// <summary>
+    /// Sets active shell theme by name.
+    /// </summary>
     public void SetActiveShellThemeByName(string? themeName) {
     try
     {
@@ -301,6 +385,9 @@ public sealed class ThemeService
         throw;
     }
 }
+    /// <summary>
+    /// Sets active component theme by name.
+    /// </summary>
     public void SetActiveComponentThemeByName(string? themeName) {
     try
     {
@@ -316,6 +403,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Sets active shell theme.
+    /// </summary>
     public void SetActiveShellTheme(Theme theme) {
     try
     {
@@ -335,6 +425,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Sets active component theme.
+    /// </summary>
     public void SetActiveComponentTheme(Theme theme) {
     try
     {
@@ -372,6 +465,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Sets active theme.
+    /// </summary>
     public void SetActiveTheme(Theme theme)
     {
         ArgumentNullException.ThrowIfNull(theme);
@@ -393,6 +489,9 @@ public sealed class ThemeService
         }
     }
 
+    /// <summary>
+    /// Sets active theme core.
+    /// </summary>
     private void SetActiveThemeCore(
         Theme theme,
         ThemeApplicationTarget target,
@@ -496,6 +595,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Gets highlight jstheme CSS URL.
+    /// </summary>
     public string GetHighlightJSThemeCssUrl(Theme theme)
     {
     try
@@ -515,6 +617,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Creates highlight JavaScript theme names.
+    /// </summary>
     private IReadOnlyDictionary<string, string> CreateHighlightJsThemeNames() {
     try
     {
@@ -541,6 +646,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Creates sets.
+    /// </summary>
     private List<ThemeSet> CreateSets()
     {
     try
@@ -588,6 +696,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Creates classic.
+    /// </summary>
     private Theme CreateClassic(string name, string title, DxTheme sourceTheme, string bootstrapMode = "light")
     {
     try
@@ -610,6 +721,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Creates fluent.
+    /// </summary>
     private Theme CreateFluent(string name, string title, ThemeMode mode)
     {
     try
@@ -635,6 +749,9 @@ public sealed class ThemeService
     }
 }
 
+    /// <summary>
+    /// Creates bootstrap.
+    /// </summary>
     private Theme CreateBootstrap(
         string name,
         string? title = null,

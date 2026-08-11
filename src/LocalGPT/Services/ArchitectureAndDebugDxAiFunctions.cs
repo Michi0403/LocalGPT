@@ -7,10 +7,16 @@ using System.Reflection;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a get public architecture directory function.
+/// </summary>
 public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonService json,
     IDxAiFunctionRegistry registry,
     ILogger<GetPublicArchitectureDirectoryFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.architecture.public_methods",
         "GET",
@@ -24,6 +30,9 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
         SupportsAutomaticInvocation: true,
         Source: "ReflectionDirectory");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -63,6 +72,9 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
     }
 }
 
+    /// <summary>
+    /// Runs the friendly name operation.
+    /// </summary>
     private string FriendlyName(Type type) {
     try
     {
@@ -78,6 +90,9 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
     }
 }
 
+    /// <summary>
+    /// Resolves route.
+    /// </summary>
     private string ResolveRoute(Type type, MethodInfo method)
     {
     try
@@ -101,11 +116,17 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
 }
 }
 
+/// <summary>
+/// Represents an inspect debug artifact function.
+/// </summary>
 public sealed class InspectDebugArtifactFunction(
     IDxAiFunctionJsonService json,
     IDebugArtifactInspectionService inspector,
     ILogger<InspectDebugArtifactFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.debug.inspect",
         "POST",
@@ -121,6 +142,9 @@ public sealed class InspectDebugArtifactFunction(
         Source: "DebugArtifactInspectionService",
         ParameterSchemaJson: "{\"type\":\"object\",\"required\":[\"filePath\"],\"properties\":{\"filePath\":{\"type\":\"string\"}}}");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

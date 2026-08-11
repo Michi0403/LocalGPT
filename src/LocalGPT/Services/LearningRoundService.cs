@@ -19,6 +19,9 @@ public sealed class LearningRoundService(
     IRegexPatternService regexPatternService,
     ILogger<LearningRoundService> logger) : ILearningRoundService
 {
+    /// <summary>
+    /// Builds snapshot async.
+    /// </summary>
     public async Task<LearningRoundSnapshot> BuildSnapshotAsync(int takePerSource = 200, CancellationToken cancellationToken = default)
     {
     try
@@ -164,6 +167,9 @@ public sealed class LearningRoundService(
     }
 }
 
+    /// <summary>
+    /// Runs the maintain async operation.
+    /// </summary>
     public async Task<LearningMaintenanceResult> MaintainAsync(LearningMaintenanceRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -228,6 +234,9 @@ public sealed class LearningRoundService(
     }
 }
 
+    /// <summary>
+    /// Runs the truncate operation.
+    /// </summary>
     private string Truncate(string? value, int maximumCharacters)
     {
     try
@@ -247,6 +256,9 @@ public sealed class LearningRoundService(
     }
 }
 
+    /// <summary>
+    /// Runs the truncate nullable operation.
+    /// </summary>
     private string? TruncateNullable(string? value, int maximumCharacters) {
     try
     {
@@ -262,6 +274,9 @@ public sealed class LearningRoundService(
     }
 }
 
+    /// <summary>
+    /// Creates deterministic guid.
+    /// </summary>
     private Guid CreateDeterministicGuid(string value)
     {
     try

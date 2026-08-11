@@ -4,6 +4,9 @@ using System.IO.Compression;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides council artifact service operations.
+    /// </summary>
     public partial class CouncilArtifactService(
         ILogger<CouncilArtifactService> logger,
         IMinecraftModWorkspaceService minecraftWorkspaceService,
@@ -12,11 +15,17 @@ namespace LocalGPT.Services
         CouncilTextService councilText,
         LocalGptCatalogService catalog) : ICouncilArtifactService
     {
+        /// <summary>
+        /// Gets or sets artifact root.
+        /// </summary>
         public string ArtifactRoot { get; } = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "CouncilArtifacts");
 
+        /// <summary>
+        /// Creates implementation artifacts async.
+        /// </summary>
         public async Task<IReadOnlyList<CouncilArtifact>> CreateImplementationArtifactsAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -122,6 +131,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Creates minecraft datapack artifacts async.
+        /// </summary>
         public async Task<IReadOnlyList<CouncilArtifact>> CreateMinecraftDatapackArtifactsAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -189,6 +201,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Creates minecraft skeleton matrix artifacts async.
+        /// </summary>
         public async Task<IReadOnlyList<CouncilArtifact>> CreateMinecraftSkeletonMatrixArtifactsAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -281,6 +296,9 @@ namespace LocalGPT.Services
             
         }
 
+        /// <summary>
+        /// Creates solution zip artifact async.
+        /// </summary>
         public async Task<CouncilArtifact> CreateSolutionZipArtifactAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -411,6 +429,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Attempts to create dll artifact async.
+        /// </summary>
         public async Task<CouncilArtifact?> TryCreateDllArtifactAsync(
             string sourceFileName,
             string source,

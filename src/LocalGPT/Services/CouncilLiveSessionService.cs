@@ -5,14 +5,26 @@ using System.Text;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides council live session service operations.
+/// </summary>
 public sealed class CouncilLiveSessionService(
     ILogger<CouncilLiveSessionService> logger) : ICouncilLiveSessionService
 {
     private const int MaxTranscriptCharacters = 2_000_000;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, CouncilLiveSessionState> sessions = new();
 
+    /// <summary>
+    /// Occurs when changed.
+    /// </summary>
     public event Action<Guid>? Changed;
 
+    /// <summary>
+    /// Runs the begin operation.
+    /// </summary>
     public CancellationToken Begin(
         Guid runId,
         IReadOnlyList<string> councilMembers,
@@ -40,6 +52,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the append operation.
+    /// </summary>
     public void Append(Guid runId, string text)
     {
     try
@@ -67,6 +82,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Sets status.
+    /// </summary>
     public void SetStatus(Guid runId, string statusMessage)
     {
         try
@@ -95,6 +113,9 @@ public sealed class CouncilLiveSessionService(
         }
     }
 
+    /// <summary>
+    /// Runs the touch operation.
+    /// </summary>
     public void Touch(Guid runId)
     {
         try
@@ -116,6 +137,9 @@ public sealed class CouncilLiveSessionService(
         }
     }
 
+    /// <summary>
+    /// Runs the append user message operation.
+    /// </summary>
     public void AppendUserMessage(Guid runId, string text)
     {
     try
@@ -141,6 +165,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the complete operation.
+    /// </summary>
     public void Complete(Guid runId)
     {
     try
@@ -167,6 +194,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Determines whether cel.
+    /// </summary>
     public bool Cancel(Guid runId)
     {
     try
@@ -196,6 +226,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the get operation.
+    /// </summary>
     public CouncilLiveSessionSnapshot? Get(Guid runId) {
     try
     {
@@ -211,6 +244,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Gets summary.
+    /// </summary>
     public CouncilLiveSessionSummary? GetSummary(Guid runId) {
     try
     {
@@ -226,6 +262,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Gets active.
+    /// </summary>
     public IReadOnlyList<CouncilLiveSessionSnapshot> GetActive() {
     try
     {
@@ -245,6 +284,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Gets active summaries.
+    /// </summary>
     public IReadOnlyList<CouncilLiveSessionSummary> GetActiveSummaries() {
     try
     {
@@ -264,6 +306,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Creates snapshot.
+    /// </summary>
     private CouncilLiveSessionSnapshot CreateSnapshot(CouncilLiveSessionState state)
     {
     try
@@ -293,6 +338,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Creates summary.
+    /// </summary>
     private CouncilLiveSessionSummary CreateSummary(CouncilLiveSessionState state)
     {
     try
@@ -319,6 +367,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the append with block boundary operation.
+    /// </summary>
     private void AppendWithBlockBoundary(StringBuilder transcript, string text)
     {
     try
@@ -338,6 +389,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the ends visible block operation.
+    /// </summary>
     private bool EndsVisibleBlock(StringBuilder transcript)
     {
     try
@@ -362,6 +416,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Starts s visible block.
+    /// </summary>
     private bool StartsVisibleBlock(string text)
     {
     try
@@ -385,6 +442,9 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the schedule changed operation.
+    /// </summary>
     private void ScheduleChanged(CouncilLiveSessionState state)
     {
         if (Interlocked.Exchange(ref state.NotificationScheduled, 1) != 0)

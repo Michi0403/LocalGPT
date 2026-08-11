@@ -24,6 +24,9 @@ public sealed class RemoteKnowledgeImportService(
     private const long MaximumExtractedBytes = 2L * 1024L * 1024L * 1024L;
     private const int MaximumZipEntries = 60_000;
     private int disposeState;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly HttpClient http = new(new HttpClientHandler
     {
         AllowAutoRedirect = false,
@@ -35,6 +38,9 @@ public sealed class RemoteKnowledgeImportService(
     };
 
 
+    /// <summary>
+    /// Parses labels.
+    /// </summary>
     public List<string> ParseLabels(params string?[] values)
     {
         try
@@ -63,6 +69,9 @@ public sealed class RemoteKnowledgeImportService(
         }
     }
 
+    /// <summary>
+    /// Imports async.
+    /// </summary>
     public async Task<RemoteKnowledgeImportResult> ImportAsync(
         RemoteKnowledgeImportRequest request,
         CancellationToken cancellationToken = default)
@@ -152,6 +161,9 @@ public sealed class RemoteKnowledgeImportService(
         }
     }
 
+    /// <summary>
+    /// Runs the download git hub async operation.
+    /// </summary>
     private async Task DownloadGitHubAsync(
         Uri sourceUri,
         RemoteKnowledgeImportRequest request,
@@ -207,6 +219,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the download web async operation.
+    /// </summary>
     private async Task DownloadWebAsync(
         Uri sourceUri,
         RemoteKnowledgeImportRequest request,
@@ -294,6 +309,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Saves limited response async.
+    /// </summary>
     private async Task SaveLimitedResponseAsync(HttpResponseMessage response, string path, CancellationToken cancellationToken)
     {
     try
@@ -324,6 +342,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the extract zip safely operation.
+    /// </summary>
     private void ExtractZipSafely(string zipPath, string targetRoot)
     {
     try
@@ -361,6 +382,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Builds file result list.
+    /// </summary>
     private void BuildFileResultList(string root, Uri sourceUri, RemoteKnowledgeImportResult result, Regex includeRegex, int maxFiles)
     {
     try
@@ -390,6 +414,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the prepare matched import root operation.
+    /// </summary>
     private string PrepareMatchedImportRoot(RemoteKnowledgeImportResult result)
     {
     try
@@ -426,6 +453,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Applies role and topic tags async.
+    /// </summary>
     private async Task ApplyRoleAndTopicTagsAsync(RemoteKnowledgeImportResult result, CancellationToken cancellationToken)
     {
     try
@@ -462,6 +492,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Builds tags.
+    /// </summary>
     private List<string> BuildTags(RemoteKnowledgeImportRequest request) {
     try
     {
@@ -481,6 +514,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Resolves kind.
+    /// </summary>
     private string ResolveKind(string? requested, Uri sourceUri)
     {
     try
@@ -500,6 +536,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Resolves branch.
+    /// </summary>
     private string ResolveBranch(string[] segments, string? requested)
     {
     try
@@ -519,6 +558,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Builds include regex.
+    /// </summary>
     private Regex BuildIncludeRegex(string? pattern)
     {
     try
@@ -539,6 +581,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Builds cache root.
+    /// </summary>
     private string BuildCacheRoot(Uri sourceUri)
     {
     try
@@ -558,6 +603,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the safe segment operation.
+    /// </summary>
     private string SafeSegment(string value)
     {
     try
@@ -577,6 +625,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the sanitize segment operation.
+    /// </summary>
     private string SanitizeSegment(string? value, bool allowLeadingDot)
     {
     try
@@ -602,6 +653,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the clear directory operation.
+    /// </summary>
     private void ClearDirectory(string directory)
     {
     try
@@ -621,6 +675,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the extension for operation.
+    /// </summary>
     private string ExtensionFor(Uri uri, string mediaType)
     {
     try
@@ -648,6 +705,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the HTML to text operation.
+    /// </summary>
     private string HtmlToText(string html)
     {
     try
@@ -668,6 +728,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the extract href values operation.
+    /// </summary>
     private IReadOnlyList<string> ExtractHrefValues(string html)
     {
         try
@@ -713,6 +776,9 @@ public sealed class RemoteKnowledgeImportService(
         }
     }
 
+    /// <summary>
+    /// Removes element blocks.
+    /// </summary>
     private string RemoveElementBlocks(string html, string elementName)
     {
     try
@@ -748,6 +814,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Removes tags.
+    /// </summary>
     private string RemoveTags(string html)
     {
     try
@@ -784,6 +853,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the collapse whitespace operation.
+    /// </summary>
     private string CollapseWhitespace(string value)
     {
     try
@@ -816,6 +888,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the send public async operation.
+    /// </summary>
     private async Task<HttpResponseMessage> SendPublicAsync(Uri initialUri, CancellationToken cancellationToken)
     {
     try
@@ -850,6 +925,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Ensures public host async.
+    /// </summary>
     private async Task EnsurePublicHostAsync(Uri uri, CancellationToken cancellationToken)
     {
     try
@@ -871,6 +949,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Determines whether private address.
+    /// </summary>
     private bool IsPrivateAddress(IPAddress address)
     {
     try
@@ -898,6 +979,9 @@ public sealed class RemoteKnowledgeImportService(
 }
 
 
+    /// <summary>
+    /// Runs the throw if disposed operation.
+    /// </summary>
     private void ThrowIfDisposed()
     {
     try
@@ -916,6 +1000,9 @@ public sealed class RemoteKnowledgeImportService(
     }
 }
 
+    /// <summary>
+    /// Runs the dispose operation.
+    /// </summary>
     public void Dispose()
     {
         try

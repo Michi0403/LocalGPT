@@ -7,6 +7,9 @@ using System.Text.Json;
 
 namespace LocalGPT.Controller;
 
+/// <summary>
+/// Provides one wire controller operations.
+/// </summary>
 [ApiController]
 [Route("api/onewire")]
 public sealed class OneWireController(
@@ -23,6 +26,9 @@ public sealed class OneWireController(
     ICouncilTeamConfigurationService teamConfigurations,
     ILogger<OneWireController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Runs the status operation.
+    /// </summary>
     [HttpGet("status")]
     public IActionResult Status() => Ok(new
     {
@@ -36,6 +42,9 @@ public sealed class OneWireController(
     });
 
 
+    /// <summary>
+    /// Runs the transport policy operation.
+    /// </summary>
     [HttpGet("transport-policy")]
     public IActionResult TransportPolicy()
     {
@@ -59,6 +68,9 @@ public sealed class OneWireController(
     }
 
 
+    /// <summary>
+    /// Runs the replay policy operation.
+    /// </summary>
     [HttpGet("replay-policy")]
     public ActionResult<OneWireReplayPolicySnapshot> ReplayPolicy()
     {
@@ -75,23 +87,41 @@ public sealed class OneWireController(
         }
     }
 
+    /// <summary>
+    /// Runs the capabilities operation.
+    /// </summary>
     [HttpGet("capabilities")]
     public async Task<ActionResult<IReadOnlyList<OneWireCapabilityDescriptor>>> Capabilities(CancellationToken cancellationToken) =>
         Ok(await capabilities.GetLocalCapabilitiesAsync(cancellationToken).ConfigureAwait(false));
 
+    /// <summary>
+    /// Runs the peers operation.
+    /// </summary>
     [HttpGet("peers")]
     public ActionResult<IReadOnlyList<OneWirePeerAdvertisement>> Peers() => Ok(peers.GetPeers());
 
+    /// <summary>
+    /// Runs the work operation.
+    /// </summary>
     [HttpGet("work")]
     public ActionResult<IReadOnlyList<OneWireWorkItem>> Work() => Ok(work.GetSnapshot());
 
+    /// <summary>
+    /// Runs the work operation.
+    /// </summary>
     [HttpGet("work/{id:guid}")]
     public ActionResult<OneWireWorkItem> Work(Guid id) => work.Get(id) is { } item ? Ok(item) : NotFound();
 
+    /// <summary>
+    /// Runs the council teams operation.
+    /// </summary>
     [HttpGet("council/teams")]
     public async Task<ActionResult<IReadOnlyList<OrganicCouncilTeamDefinition>>> CouncilTeams(CancellationToken cancellationToken) =>
         Ok(await teams.GetTeamsAsync(cancellationToken).ConfigureAwait(false));
 
+    /// <summary>
+    /// Saves council team.
+    /// </summary>
     [HttpPost("council/teams")]
     [HumanApprovalRequired(
         "onewire.council-team.save",
@@ -116,6 +146,9 @@ public sealed class OneWireController(
         }
     }
 
+    /// <summary>
+    /// Runs the dispatch operation.
+    /// </summary>
     [HttpPost("dispatch")]
     public async Task<IActionResult> Dispatch([FromBody] OneWireEnvelope envelope, CancellationToken cancellationToken)
     {
@@ -127,6 +160,9 @@ public sealed class OneWireController(
         return response is null ? Accepted() : Ok(response);
     }
 
+    /// <summary>
+    /// Runs the invoke peer operation.
+    /// </summary>
     [HttpPost("peers/{peerId}/invoke")]
     [HumanApprovalRequired(
         "onewire.peer.invoke",
@@ -152,22 +188,34 @@ public sealed class OneWireController(
         return Accepted(new { WorkItemId = queued.Id, queued.CorrelationId });
     }
 
+    /// <summary>
+    /// Runs the validate operation.
+    /// </summary>
     [HttpPost("validate")]
     public IActionResult Validate([FromBody] OneWireEnvelope envelope) => codec.Validate(envelope, out var error)
         ? Ok(new { valid = true })
         : BadRequest(new { valid = false, error });
 }
 
+/// <summary>
+/// Provides project organic context controller operations.
+/// </summary>
 [ApiController]
 [Route("api/projects/{projectId:guid}/organic-context")]
 public sealed class ProjectOrganicContextController(
     IProjectOrganicContextService context,
     ILogger<ProjectOrganicContextController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Runs the get operation.
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult<ProjectOrganicContext>> Get(Guid projectId, [FromQuery] Guid? revisionId, CancellationToken cancellationToken) =>
         Ok(await context.GetAsync(projectId, revisionId, cancellationToken).ConfigureAwait(false));
 
+    /// <summary>
+    /// Runs the save operation.
+    /// </summary>
     [HttpPost]
     [HumanApprovalRequired(
         "project.organic-context.save",

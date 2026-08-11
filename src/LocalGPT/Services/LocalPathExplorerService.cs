@@ -3,8 +3,14 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides local path explorer service operations.
+/// </summary>
 public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> logger) : ILocalPathExplorerService
 {
+    /// <summary>
+    /// Gets suggested roots.
+    /// </summary>
     public IReadOnlyList<string> GetSuggestedRoots()
     {
         var roots = new List<string>();
@@ -35,6 +41,9 @@ public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> l
         }
     }
 
+    /// <summary>
+    /// Runs the format warnings operation.
+    /// </summary>
     public string FormatWarnings(IEnumerable<string> warnings)
     {
         try
@@ -49,6 +58,9 @@ public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> l
         }
     }
 
+    /// <summary>
+    /// Runs the browse operation.
+    /// </summary>
     public LocalPathBrowseResult Browse(LocalPathBrowseRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

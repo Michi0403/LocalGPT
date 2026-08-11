@@ -10,6 +10,9 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a native command runner.
+/// </summary>
 public sealed class NativeCommandRunner(
     ILogger<NativeCommandRunner> logger,
     IMinecraftModWorkspaceService workspaceService,
@@ -18,6 +21,9 @@ public sealed class NativeCommandRunner(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     SqliteUtilityService sqliteUtility) : INativeCommandRunner
 {
+    /// <summary>
+    /// Runs the run async operation.
+    /// </summary>
     public async Task<CommandExecutionResult?> RunAsync(
         string fileName,
         string arguments,
@@ -210,6 +216,9 @@ public sealed class NativeCommandRunner(
         }
     }
 
+    /// <summary>
+    /// Validates policy.
+    /// </summary>
     private CommandPolicyDecision ValidatePolicy(string fileName, string arguments, string workingDirectory)
     {
     try
@@ -259,6 +268,9 @@ public sealed class NativeCommandRunner(
     }
 }
 
+    /// <summary>
+    /// Validates power shell policy.
+    /// </summary>
     private CommandPolicyDecision ValidatePowerShellPolicy(string arguments, string workingDirectory)
     {
     try
@@ -295,6 +307,9 @@ public sealed class NativeCommandRunner(
     }
 }
 
+    /// <summary>
+    /// Writes command output async.
+    /// </summary>
     private async Task<(string StdoutPath, string StderrPath)> WriteCommandOutputAsync(
         string workingDirectory,
         string fileName,
@@ -332,6 +347,9 @@ public sealed class NativeCommandRunner(
         }
     }
 
+    /// <summary>
+    /// Saves command log async.
+    /// </summary>
     private async Task SaveCommandLogAsync(
         string fileName,
         string redactedArguments,
@@ -379,6 +397,9 @@ public sealed class NativeCommandRunner(
         }
     }
 
+    /// <summary>
+    /// Runs the kill process tree operation.
+    /// </summary>
     private void KillProcessTree(Process process)
     {
     try
@@ -404,6 +425,9 @@ public sealed class NativeCommandRunner(
     }
 }
 
+    /// <summary>
+    /// Runs the redact arguments operation.
+    /// </summary>
     private string RedactArguments(string arguments)
     {
     try
@@ -424,6 +448,9 @@ public sealed class NativeCommandRunner(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the allow decision operation.
+    /// </summary>
     private CommandPolicyDecision AllowDecision(string profile, string reason)
     {
         try
@@ -443,6 +470,9 @@ public sealed class NativeCommandRunner(
         }
     }
 
+    /// <summary>
+    /// Runs the deny decision operation.
+    /// </summary>
     private CommandPolicyDecision DenyDecision(string reason)
     {
         try

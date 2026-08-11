@@ -3,10 +3,16 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a get embedded hardware catalog function.
+/// </summary>
 public sealed class GetEmbeddedHardwareCatalogFunction(
     IEmbeddedHardwareCatalogService catalog,
     IDxAiFunctionJsonService json) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "embedded.catalog.get", "GET", "/api/dxai/functions/embedded.catalog.get/invoke",
         "Returns installed ESP32/Arduino board profiles, pin capabilities, transport descriptors, and the PublisherStudio wiring-canvas contract.",
@@ -15,6 +21,9 @@ public sealed class GetEmbeddedHardwareCatalogFunction(
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -28,10 +37,16 @@ public sealed class GetEmbeddedHardwareCatalogFunction(
 }
 }
 
+/// <summary>
+/// Represents a create embedded wiring draft function.
+/// </summary>
 public sealed class CreateEmbeddedWiringDraftFunction(
     IDxAiFunctionJsonService json,
     IEmbeddedWiringService wiring) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "embedded.wiring.draft.create", "POST", "/api/dxai/functions/embedded.wiring.draft.create/invoke",
         "Creates a canvas-neutral board and pin draft that Chat can review now and PublisherStudio can later render as clickable pins, wires, OpenSCAD-linked parts, and animated signal arrows.",
@@ -40,6 +55,9 @@ public sealed class CreateEmbeddedWiringDraftFunction(
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{"boardProfileKey":{"type":"string"},"name":{"type":"string"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -57,10 +75,16 @@ public sealed class CreateEmbeddedWiringDraftFunction(
 }
 }
 
+/// <summary>
+/// Represents a validate embedded wiring function.
+/// </summary>
 public sealed class ValidateEmbeddedWiringFunction(
     IDxAiFunctionJsonService json,
     IEmbeddedWiringService wiring) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "embedded.wiring.validate", "POST", "/api/dxai/functions/embedded.wiring.validate/invoke",
         "Validates a transport-neutral wiring graph against board pin roles, voltage, direction, shared-bus, ground-path, and PublisherStudio canvas constraints.",
@@ -69,6 +93,9 @@ public sealed class ValidateEmbeddedWiringFunction(
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["draft"],"properties":{"draft":{"type":"object"},"requireGroundPath":{"type":"boolean"},"requireBoardPinProfileMatch":{"type":"boolean"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -86,11 +113,17 @@ public sealed class ValidateEmbeddedWiringFunction(
 }
 }
 
+/// <summary>
+/// Represents a plan embedded firmware function.
+/// </summary>
 public sealed class PlanEmbeddedFirmwareFunction(
     IDxAiFunctionJsonService json,
     IEmbeddedFirmwarePlanningService planning,
     ILogger<PlanEmbeddedFirmwareFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "embedded.firmware.plan", "POST", "/api/dxai/functions/embedded.firmware.plan/invoke",
         "Creates a deterministic, reviewable ESP32 or Arduino GPIO, sensor, protocol, wiring, firmware, and LocalGPT telemetry plan from user requirements or a Council-selected pin layout.",
@@ -99,6 +132,9 @@ public sealed class PlanEmbeddedFirmwareFunction(
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{"deviceName":{"type":"string"},"boardFamily":{"type":"string"},"boardName":{"type":"string"},"boardProfileKey":{"type":"string"},"framework":{"type":"string"},"telemetryTransport":{"type":"string"},"baudRate":{"type":"integer"},"telemetryIntervalMilliseconds":{"type":"integer"},"pins":{"type":"array"},"sensors":{"type":"array"},"protocolBindings":{"type":"array"},"wiringDraft":{"type":["object","null"]},"additionalRequirements":{"type":"string"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -121,11 +157,17 @@ public sealed class PlanEmbeddedFirmwareFunction(
 }
 }
 
+/// <summary>
+/// Represents a create embedded firmware artifacts function.
+/// </summary>
 public sealed class CreateEmbeddedFirmwareArtifactsFunction(
     IDxAiFunctionJsonService json,
     IEmbeddedFirmwarePlanningService planning,
     ILogger<CreateEmbeddedFirmwareArtifactsFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "embedded.firmware.artifacts.create", "POST", "/api/dxai/functions/embedded.firmware.artifacts.create/invoke",
         "Writes an approved firmware plan as source, PlatformIO configuration, wiring review, protocol contracts, plan JSON and ZIP in LocalGPT's per-user artifact directory.",
@@ -134,6 +176,9 @@ public sealed class CreateEmbeddedFirmwareArtifactsFunction(
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{"deviceName":{"type":"string"},"boardFamily":{"type":"string"},"boardName":{"type":"string"},"boardProfileKey":{"type":"string"},"framework":{"type":"string"},"telemetryTransport":{"type":"string"},"baudRate":{"type":"integer"},"telemetryIntervalMilliseconds":{"type":"integer"},"pins":{"type":"array"},"sensors":{"type":"array"},"protocolBindings":{"type":"array"},"wiringDraft":{"type":["object","null"]},"additionalRequirements":{"type":"string"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -156,10 +201,16 @@ public sealed class CreateEmbeddedFirmwareArtifactsFunction(
 }
 }
 
+/// <summary>
+/// Represents a preview embedded telemetry function.
+/// </summary>
 public sealed class PreviewEmbeddedTelemetryFunction(
     IDxAiFunctionJsonService json,
     IEmbeddedTelemetryBridgeService bridge) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "embedded.telemetry.preview", "POST", "/api/dxai/functions/embedded.telemetry.preview/invoke",
         "Normalizes bounded ESP32/Arduino sensor readings into the untrusted edge telemetry packet expected by a LocalGPT gateway.",
@@ -168,6 +219,9 @@ public sealed class PreviewEmbeddedTelemetryFunction(
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["deviceId","readings"],"properties":{"deviceId":{"type":"string"},"boardProfileKey":{"type":"string"},"transportKey":{"type":"string"},"sequence":{"type":"integer"},"deviceTimestampMilliseconds":{"type":"integer"},"readings":{"type":"array"},"targetPeerId":{"type":"string"},"metadataJson":{"type":"string"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -185,10 +239,16 @@ public sealed class PreviewEmbeddedTelemetryFunction(
 }
 }
 
+/// <summary>
+/// Represents a preview embedded one wire envelope function.
+/// </summary>
 public sealed class PreviewEmbeddedOneWireEnvelopeFunction(
     IDxAiFunctionJsonService json,
     IEmbeddedTelemetryBridgeService bridge) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "embedded.telemetry.onewire-envelope.preview", "POST", "/api/dxai/functions/embedded.telemetry.onewire-envelope.preview/invoke",
         "Creates a non-dispatched preview showing how a validated embedded edge packet maps into LocalGPT's protected logical 1-Wire work envelope.",
@@ -197,6 +257,9 @@ public sealed class PreviewEmbeddedOneWireEnvelopeFunction(
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["deviceId","readings"],"properties":{"deviceId":{"type":"string"},"boardProfileKey":{"type":"string"},"transportKey":{"type":"string"},"sequence":{"type":"integer"},"deviceTimestampMilliseconds":{"type":"integer"},"readings":{"type":"array"},"targetPeerId":{"type":"string"},"metadataJson":{"type":"string"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -214,10 +277,16 @@ public sealed class PreviewEmbeddedOneWireEnvelopeFunction(
 }
 }
 
+/// <summary>
+/// Represents a publish embedded telemetry function.
+/// </summary>
 public sealed class PublishEmbeddedTelemetryFunction(
     IDxAiFunctionJsonService json,
     IEmbeddedTelemetryIngressService ingress) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "embedded.sensor.telemetry.publish", "POST", "/api/dxai/functions/embedded.sensor.telemetry.publish/invoke",
         "Accepts one validated, bounded embedded sensor batch from Chat, a local gateway, or an approved logical 1-Wire peer and records it in the recent in-memory telemetry window.",
@@ -226,6 +295,9 @@ public sealed class PublishEmbeddedTelemetryFunction(
         IsReadOnly: false, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: false, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["deviceId","readings"],"properties":{"deviceId":{"type":"string"},"boardProfileKey":{"type":"string"},"transportKey":{"type":"string"},"sequence":{"type":"integer"},"deviceTimestampMilliseconds":{"type":"integer"},"readings":{"type":"array"},"targetPeerId":{"type":"string"},"metadataJson":{"type":"string"}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

@@ -15,8 +15,14 @@ public sealed class LocalVisionOcrService(
     ILogger<LocalVisionOcrService> logger) : ILocalVisionOcrService
 {
     private const int MaximumImageBytes = 6 * 1024 * 1024;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    /// <summary>
+    /// Runs the recognize async operation.
+    /// </summary>
     public async Task<LocalVisionOcrResult> RecognizeAsync(LocalVisionOcrRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -80,6 +86,9 @@ public sealed class LocalVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Resolves provider.
+    /// </summary>
     private OllamaCoreOptions ResolveProvider(string? requestedModel)
     {
     try
@@ -112,6 +121,9 @@ public sealed class LocalVisionOcrService(
     }
 }
 
+    /// <summary>
+    /// Reads image base64.
+    /// </summary>
     private string ReadImageBase64(string dataUrl, out string mediaType)
     {
     try
@@ -138,6 +150,9 @@ public sealed class LocalVisionOcrService(
     }
 }
 
+    /// <summary>
+    /// Runs the trim operation.
+    /// </summary>
     private string Trim(string value, int maximum) {
     try
     {

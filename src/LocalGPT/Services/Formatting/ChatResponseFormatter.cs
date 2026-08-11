@@ -80,10 +80,19 @@ internal sealed class ChatResponseFormatter(
     /// <summary>Gets the number of trailing characters retained while a streamed tag may be incomplete.</summary>
     private int TagLookbehindLength => runtimePolicy.GetInt(LocalGptRuntimeValue.FormattingTagLookbehindLength);
 
+    /// <summary>
+    /// Determines whether null or white space.
+    /// </summary>
     private readonly string missingFinalAnswerNotice = string.IsNullOrWhiteSpace(configuredMissingFinalAnswerNotice)
         ? runtimePolicy.GetString(LocalGptRuntimeValue.FormattingMissingFinalAnswerNotice)
         : configuredMissingFinalAnswerNotice.Trim();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly StringBuilder contentBuffer = new();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly StringBuilder harmonyBuffer = new();
     private ChatResponseProtocol activeProtocol = protocol;
     private IChatProtocolProfile activeProfile = protocolProfile;

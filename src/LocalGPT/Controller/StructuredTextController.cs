@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller;
 
+/// <summary>
+/// Provides structured text controller operations.
+/// </summary>
 [ApiController]
 [Route("api/text/structured")]
 public sealed class StructuredTextController(
@@ -11,6 +14,9 @@ public sealed class StructuredTextController(
     IRegexPatternService regexPatterns,
     ILogger<StructuredTextController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Runs the translate JSON operation.
+    /// </summary>
     [HttpPost("json/translate")]
     public IResult TranslateJson([FromBody] StructuredJsonTranslationRequest request)
     {
@@ -26,6 +32,9 @@ public sealed class StructuredTextController(
         }
     }
 
+    /// <summary>
+    /// Runs the inspect JSON operation.
+    /// </summary>
     [HttpPost("json/inspect")]
     public IResult InspectJson([FromBody] StructuredJsonTranslationRequest request)
     {
@@ -49,6 +58,9 @@ public sealed class StructuredTextController(
         }
     }
 
+    /// <summary>
+    /// Runs the list JSON regexes operation.
+    /// </summary>
     [HttpGet("json/regexes")]
     public async Task<IResult> ListJsonRegexes(CancellationToken cancellationToken)
     {

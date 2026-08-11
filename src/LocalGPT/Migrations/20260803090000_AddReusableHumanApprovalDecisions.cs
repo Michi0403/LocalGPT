@@ -6,10 +6,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations;
 
+/// <summary>
+/// Represents an add reusable human approval decisions.
+/// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260803090000_AddReusableHumanApprovalDecisions")]
 public partial class AddReusableHumanApprovalDecisions : Migration
 {
+    /// <summary>
+    /// Runs the up operation.
+    /// </summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.AddColumn<int>(
@@ -45,6 +51,9 @@ public partial class AddReusableHumanApprovalDecisions : Migration
             columns: new[] { "OperationKey", "ParameterFingerprint", "Status", "UpdatedAtUtc" });
     }
 
+    /// <summary>
+    /// Runs the down operation.
+    /// </summary>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropIndex(

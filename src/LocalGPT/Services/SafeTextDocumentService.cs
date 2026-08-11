@@ -8,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides safe text document service operations.
+/// </summary>
 public sealed class SafeTextDocumentService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -21,6 +24,9 @@ public sealed class SafeTextDocumentService(
         ".java", ".kt", ".kts", ".py", ".go", ".rs", ".cpp", ".c", ".h", ".hpp", ".gradle", ".properties", ".mcfunction"
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Reads async.
+    /// </summary>
     public async Task<SafeTextDocument> ReadAsync(string filePath, int maxCharacters = 500_000, CancellationToken cancellationToken = default)
     {
     try
@@ -70,6 +76,9 @@ public sealed class SafeTextDocumentService(
     }
 }
 
+    /// <summary>
+    /// Imports async.
+    /// </summary>
     public async Task<ProjectDocumentImport> ImportAsync(Guid projectId, Guid? revisionId, string filePath, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -122,6 +131,9 @@ public sealed class SafeTextDocumentService(
     }
 }
 
+    /// <summary>
+    /// Runs the looks binary operation.
+    /// </summary>
     private bool LooksBinary(byte[] bytes)
     {
     try
@@ -151,6 +163,9 @@ public sealed class SafeTextDocumentService(
     }
 }
 
+    /// <summary>
+    /// Runs the detect encoding operation.
+    /// </summary>
     private (Encoding Encoding, int BomLength) DetectEncoding(byte[] bytes)
     {
         if (bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }))
@@ -170,6 +185,9 @@ public sealed class SafeTextDocumentService(
         }
     }
 
+    /// <summary>
+    /// Normalizes text.
+    /// </summary>
     private string NormalizeText(string input, int maxCharacters, out bool truncated, out int removedControls)
     {
     try
@@ -199,6 +217,9 @@ public sealed class SafeTextDocumentService(
     }
 }
 
+    /// <summary>
+    /// Runs the guess content type operation.
+    /// </summary>
     private string GuessContentType(string extension) {
     try
     {

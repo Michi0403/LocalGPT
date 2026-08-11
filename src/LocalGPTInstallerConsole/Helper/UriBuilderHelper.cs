@@ -1,7 +1,10 @@
-﻿using System;
+using System;
 using System.Text;
 namespace LocalGPT.Helper
 {
+    /// <summary>
+    /// Represents an URI builder helper.
+    /// </summary>
     public static class UriBuilderHelper
     {
         /// <summary>
@@ -30,6 +33,9 @@ namespace LocalGPT.Helper
 
             return new Uri(combined, UriKind.Absolute);
         }
+        /// <summary>
+        /// Builds odata query.
+        /// </summary>
         public static string BuildODataQuery(params (string Key, string? Value)[] parts)
         {
             var sb = new StringBuilder();

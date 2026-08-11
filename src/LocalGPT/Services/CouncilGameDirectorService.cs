@@ -76,9 +76,18 @@ public sealed class CouncilGameDirectorService(
 public sealed class CreatureCouncilGameSubdirector(
     ICouncilGameActorRuntimeFactory actorFactory) : ICouncilGameSubdirector
 {
+    /// <summary>
+    /// Gets or sets key.
+    /// </summary>
     public string Key => "creature-council";
+    /// <summary>
+    /// Gets or sets actor kind.
+    /// </summary>
     public CouncilGameActorKind ActorKind => CouncilGameActorKind.Creature;
 
+    /// <summary>
+    /// Runs the predict async operation.
+    /// </summary>
     public Task<CouncilGameSubdirectorPrediction> PredictAsync(
         CouncilGameDirectorContext context,
         CancellationToken cancellationToken = default)
@@ -113,9 +122,18 @@ public sealed class CreatureCouncilGameSubdirector(
 public sealed class ReactiveObjectCouncilGameSubdirector(
     ICouncilGameActorRuntimeFactory actorFactory) : ICouncilGameSubdirector
 {
+    /// <summary>
+    /// Gets or sets key.
+    /// </summary>
     public string Key => "reactive-object-council";
+    /// <summary>
+    /// Gets or sets actor kind.
+    /// </summary>
     public CouncilGameActorKind ActorKind => CouncilGameActorKind.ReactiveObject;
 
+    /// <summary>
+    /// Runs the predict async operation.
+    /// </summary>
     public Task<CouncilGameSubdirectorPrediction> PredictAsync(
         CouncilGameDirectorContext context,
         CancellationToken cancellationToken = default)

@@ -5,6 +5,9 @@ using System.Diagnostics;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents an artifact build executor.
+/// </summary>
 public sealed class ArtifactBuildExecutor(
     IOptionsMonitor<ArtifactBuildOptions> options,
     ILogger<ArtifactBuildExecutor> logger) : IArtifactBuildExecutor
@@ -12,6 +15,9 @@ public sealed class ArtifactBuildExecutor(
     private const int MinimumTimeoutSeconds = 5;
     private const int MaximumTimeoutSeconds = 900;
 
+    /// <summary>
+    /// Builds async.
+    /// </summary>
     public async Task<ArtifactBuildExecutionResult> BuildAsync(
         string targetPath,
         string allowedRoot,
@@ -117,6 +123,9 @@ public sealed class ArtifactBuildExecutor(
         }
     }
 
+    /// <summary>
+    /// Normalizes directory.
+    /// </summary>
     private string NormalizeDirectory(string path)
     {
     try
@@ -136,6 +145,9 @@ public sealed class ArtifactBuildExecutor(
     }
 }
 
+    /// <summary>
+    /// Determines whether inside root.
+    /// </summary>
     private bool IsInsideRoot(string path, string root)
     {
     try
@@ -154,6 +166,9 @@ public sealed class ArtifactBuildExecutor(
     }
 }
 
+    /// <summary>
+    /// Runs the kill process tree operation.
+    /// </summary>
     private void KillProcessTree(Process process)
     {
     try
@@ -178,6 +193,9 @@ public sealed class ArtifactBuildExecutor(
     }
 }
 
+    /// <summary>
+    /// Runs the result operation.
+    /// </summary>
     private ArtifactBuildExecutionResult Result(
         string status,
         int? exitCode,

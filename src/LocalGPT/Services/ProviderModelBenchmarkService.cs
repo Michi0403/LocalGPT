@@ -17,6 +17,9 @@ public sealed class ProviderModelBenchmarkService(
     ICouncilLiveSessionService liveSessions,
     ILogger<ProviderModelBenchmarkService> logger) : IProviderModelBenchmarkService
 {
+    /// <summary>
+    /// Runs the run async operation.
+    /// </summary>
     public async Task<ProviderModelBenchmarkReport> RunAsync(
         ProviderModelBenchmarkRequest request,
         CancellationToken cancellationToken = default)
@@ -277,6 +280,9 @@ public sealed class ProviderModelBenchmarkService(
         }
     }
 
+    /// <summary>
+    /// Applies recommendations async.
+    /// </summary>
     public async Task<IReadOnlyList<CouncilModelPreset>> ApplyRecommendationsAsync(
         ProviderModelBenchmarkReport report,
         string presetName,
@@ -353,6 +359,9 @@ public sealed class ProviderModelBenchmarkService(
     }
 }
 
+    /// <summary>
+    /// Runs the run profile async operation.
+    /// </summary>
     private async Task<ProviderModelBenchmarkProfileResult> RunProfileAsync(
         ProviderModelReference model,
         BenchmarkProfile profile,
@@ -389,6 +398,9 @@ public sealed class ProviderModelBenchmarkService(
                 var stopwatch = Stopwatch.StartNew();
                 var response = await client.GetResponseAsync(
                     [new ChatMessage(ChatRole.System, "You are running a bounded LocalGPT benchmark. Return only the requested final answer."),
+                     /// <summary>
+                     /// Runs the chat message operation.
+                     /// </summary>
                      new ChatMessage(ChatRole.User, task.Prompt)],
                     new ChatOptions { MaxOutputTokens = profile.OutputTokens, Temperature = 0f },
                     timeout.Token).ConfigureAwait(false);
@@ -434,6 +446,9 @@ public sealed class ProviderModelBenchmarkService(
         return result;
     }
 
+    /// <summary>
+    /// Runs the review recommendation async operation.
+    /// </summary>
     private async Task<ProviderModelCouncilReview> ReviewRecommendationAsync(
         ProviderModelReference reviewer,
         ProviderModelReference target,
@@ -484,6 +499,9 @@ public sealed class ProviderModelBenchmarkService(
                 """;
             var response = await client.GetResponseAsync(
                 [new ChatMessage(ChatRole.System, "You are one bounded reviewer in a model benchmark council. Use only the supplied evidence."),
+                 /// <summary>
+                 /// Runs the chat message operation.
+                 /// </summary>
                  new ChatMessage(ChatRole.User, prompt)],
                 new ChatOptions { MaxOutputTokens = Math.Min(512, maximumOutput), Temperature = 0f },
                 timeout.Token).ConfigureAwait(false);
@@ -511,6 +529,9 @@ public sealed class ProviderModelBenchmarkService(
         return review;
     }
 
+    /// <summary>
+    /// Builds tasks.
+    /// </summary>
     private IReadOnlyList<BenchmarkTask> BuildTasks() {
     try
     {
@@ -531,6 +552,9 @@ public sealed class ProviderModelBenchmarkService(
     }
 }
 
+    /// <summary>
+    /// Builds profiles.
+    /// </summary>
     private IReadOnlyList<BenchmarkProfile> BuildProfiles(
         ProviderModelReference model,
         int maximumContext,
@@ -570,6 +594,9 @@ public sealed class ProviderModelBenchmarkService(
     }
 }
 
+    /// <summary>
+    /// Runs the score quality operation.
+    /// </summary>
     private double ScoreQuality(string response, BenchmarkTask task)
     {
     try
@@ -607,6 +634,9 @@ public sealed class ProviderModelBenchmarkService(
     }
 }
 
+    /// <summary>
+    /// Parses first JSON object.
+    /// </summary>
     private JsonDocument ParseFirstJsonObject(string value)
     {
     try
@@ -628,6 +658,9 @@ public sealed class ProviderModelBenchmarkService(
     }
 }
 
+    /// <summary>
+    /// Runs the estimate tokens operation.
+    /// </summary>
     private int EstimateTokens(string value) {
     try
     {
@@ -642,6 +675,9 @@ public sealed class ProviderModelBenchmarkService(
         throw;
     }
 }
+    /// <summary>
+    /// Reads double.
+    /// </summary>
     private double ReadDouble(JsonElement root, string property, double fallback) {
     try
     {
@@ -658,6 +694,9 @@ public sealed class ProviderModelBenchmarkService(
         throw;
     }
 }
+    /// <summary>
+    /// Reads int.
+    /// </summary>
     private int ReadInt(JsonElement root, string property, int fallback) {
     try
     {
@@ -672,6 +711,9 @@ public sealed class ProviderModelBenchmarkService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the clamp to supported step operation.
+    /// </summary>
     private int ClampToSupportedStep(int value, int minimum, int maximum)
     {
     try
@@ -691,6 +733,12 @@ public sealed class ProviderModelBenchmarkService(
     }
 }
 
+    /// <summary>
+    /// Represents a benchmark task.
+    /// </summary>
     private sealed record BenchmarkTask(string Name, string Prompt, IReadOnlyList<string> ExpectedTokens, bool ExpectJson = false);
+    /// <summary>
+    /// Represents a benchmark profile.
+    /// </summary>
     private sealed record BenchmarkProfile(string Name, int ContextTokens, int OutputTokens, int? OllamaNumGpu);
 }

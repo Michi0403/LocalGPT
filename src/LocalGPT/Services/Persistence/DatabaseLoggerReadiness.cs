@@ -7,10 +7,19 @@ namespace LocalGPT.Services.Persistence;
 /// </summary>
 public sealed class DatabaseLoggerReadiness : IDatabaseLoggerReadiness
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly TaskCompletionSource<bool> ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+    /// <summary>
+    /// Gets or sets is ready.
+    /// </summary>
     public bool IsReady => ready.Task.IsCompletedSuccessfully;
 
+    /// <summary>
+    /// Runs the wait until ready async operation.
+    /// </summary>
     public Task WaitUntilReadyAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -28,6 +37,9 @@ public sealed class DatabaseLoggerReadiness : IDatabaseLoggerReadiness
     }
 }
 
+    /// <summary>
+    /// Runs the mark ready operation.
+    /// </summary>
     public void MarkReady() {
     try
     {

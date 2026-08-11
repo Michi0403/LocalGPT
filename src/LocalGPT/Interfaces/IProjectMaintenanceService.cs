@@ -2,11 +2,26 @@ using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Interfaces;
 
+/// <summary>
+/// Defines the project maintenance service contract.
+/// </summary>
 public interface IProjectMaintenanceService
 {
+    /// <summary>
+    /// Gets workspace roots async.
+    /// </summary>
     Task<IReadOnlyList<ProjectWorkspaceRoot>> GetWorkspaceRootsAsync(Guid? projectId = null, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Saves workspace root async.
+    /// </summary>
     Task<ProjectWorkspaceRoot> SaveWorkspaceRootAsync(SaveProjectWorkspaceRootRequest request, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Resolves workspace async.
+    /// </summary>
     Task<ProjectWorkspaceResolution> ResolveWorkspaceAsync(Guid projectId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Runs the assess workspace permissions async operation.
+    /// </summary>
     Task<WorkspacePermissionAssessment> AssessWorkspacePermissionsAsync(Guid workspaceRootId, bool userConfirmedWriteProbe, CancellationToken cancellationToken = default);
 
     /// <summary>Lists stored compiler and runtime toolchain profiles.</summary>
@@ -39,12 +54,33 @@ public interface IProjectMaintenanceService
     /// <returns>A task that returns true when the profile was removed.</returns>
     Task<bool> DeleteCompilerInstallationAsync(Guid compilerId, bool userConfirmed, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Runs the scan project files async operation.
+    /// </summary>
     Task<ProjectScanResult> ScanProjectFilesAsync(Guid projectId, ScanProjectFilesRequest request, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Gets tracked files async.
+    /// </summary>
     Task<IReadOnlyList<LocalGptProjectTrackedFile>> GetTrackedFilesAsync(Guid projectId, Guid? revisionId = null, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Saves tracked file pattern async.
+    /// </summary>
     Task<LocalGptProjectTrackedFile> SaveTrackedFilePatternAsync(Guid trackedFileId, SaveTrackedFilePatternRequest request, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Registers revision workspace async.
+    /// </summary>
     Task<LocalGptProjectRevision> RegisterRevisionWorkspaceAsync(Guid projectId, Guid revisionId, string sourceRootPath, string solutionPath, bool userConfirmed, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Runs the run build verification async operation.
+    /// </summary>
     Task<ProjectBuildVerification> RunBuildVerificationAsync(Guid projectId, RunProjectBuildVerificationRequest request, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Runs the record council build review async operation.
+    /// </summary>
     Task<ProjectBuildVerification> RecordCouncilBuildReviewAsync(Guid verificationId, RecordCouncilBuildReviewRequest request, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Runs the approve revision ready for test async operation.
+    /// </summary>
     Task<ProjectBuildVerification> ApproveRevisionReadyForTestAsync(Guid projectId, Guid revisionId, ApproveRevisionReadyForTestRequest request, CancellationToken cancellationToken = default);
 }

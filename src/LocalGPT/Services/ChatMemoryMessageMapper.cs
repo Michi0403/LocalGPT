@@ -6,11 +6,17 @@ using System.Net;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a chat memory message mapper.
+/// </summary>
 public sealed class ChatMemoryMessageMapper(
     CouncilTextService text,
     LocalGptCatalogService catalog,
     ILogger<ChatMemoryMessageMapper> logger) : IChatMemoryMessageMapper
 {
+    /// <summary>
+    /// Builds title.
+    /// </summary>
     public string BuildTitle(IReadOnlyList<BlazorChatMessage> messages)
     {
         try
@@ -34,6 +40,9 @@ public sealed class ChatMemoryMessageMapper(
         }
     }
 
+    /// <summary>
+    /// Ensures visible council prompt.
+    /// </summary>
     public List<BlazorChatMessage> EnsureVisibleCouncilPrompt(
         ChatMemoryConversation conversation,
         List<BlazorChatMessage> messages)
@@ -57,6 +66,9 @@ public sealed class ChatMemoryMessageMapper(
             messages.Insert(0, new BlazorChatMessage(
                 ChatRole.User,
                 prompt,
+                /// <summary>
+                /// Runs the list operation.
+                /// </summary>
                 new List<AIChatUploadFileInfo>()));
             return messages;
         }
@@ -67,6 +79,9 @@ public sealed class ChatMemoryMessageMapper(
         }
     }
 
+    /// <summary>
+    /// Runs the to role name operation.
+    /// </summary>
     public string ToRoleName(ChatMessageRole role) {
     try
     {
@@ -88,13 +103,22 @@ public sealed class ChatMemoryMessageMapper(
     }
 }
 
+    /// <summary>
+    /// Runs the to blazor chat message operation.
+    /// </summary>
     public BlazorChatMessage ToBlazorChatMessage(ChatMemoryMessage message)
     {
         try
         {
             return new BlazorChatMessage(
+                /// <summary>
+                /// Runs the chat role operation.
+                /// </summary>
                 new ChatRole(message.Role),
                 message.Content,
+                /// <summary>
+                /// Runs the list operation.
+                /// </summary>
                 new List<AIChatUploadFileInfo>());
         }
         catch (Exception ex)
@@ -103,10 +127,16 @@ public sealed class ChatMemoryMessageMapper(
             return new BlazorChatMessage(
                 ChatRole.Assistant,
                 message.Content ?? string.Empty,
+                /// <summary>
+                /// Runs the list operation.
+                /// </summary>
                 new List<AIChatUploadFileInfo>());
         }
     }
 
+    /// <summary>
+    /// Attempts to extract prompt from assistant messages.
+    /// </summary>
     private string? TryExtractPromptFromAssistantMessages(IReadOnlyList<BlazorChatMessage> messages)
     {
     try
@@ -140,6 +170,9 @@ public sealed class ChatMemoryMessageMapper(
     }
 }
 
+    /// <summary>
+    /// Determines whether council conversation.
+    /// </summary>
     private bool IsCouncilConversation(
         ChatMemoryConversation conversation,
         IReadOnlyList<BlazorChatMessage> messages)

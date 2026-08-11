@@ -11,6 +11,9 @@ namespace LocalGPT.Services;
 /// </summary>
 public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns, ILogger<ListRegexPatternsFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.list",
         "POST",
@@ -35,6 +38,9 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -65,10 +71,19 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
     }
 }
 
+    /// <summary>
+    /// Runs the deserialize operation.
+    /// </summary>
     private T Deserialize<T>(JsonElement element) where T : new() => element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
         ? new T()
         : element.Deserialize<T>(JsonOptions) ?? new T();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+    /// <summary>
+    /// Runs the completed operation.
+    /// </summary>
     private DxAiFunctionInvocationResult Completed(object value) {
     try
     {
@@ -85,8 +100,14 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
 }
 }
 
+/// <summary>
+/// Represents a get regex pattern function.
+/// </summary>
 public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<GetRegexPatternFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.get",
         "POST",
@@ -104,6 +125,9 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, 
         {"type":"object","required":["name"],"properties":{"name":{"type":"string","minLength":1,"maxLength":128}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -135,8 +159,14 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, 
 
 }
 
+/// <summary>
+/// Represents an upsert regex pattern function.
+/// </summary>
 public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<UpsertRegexPatternFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.upsert",
         "POST",
@@ -164,6 +194,9 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
         """,
         IsCoordinationOnly: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -195,8 +228,14 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
     }
 }
 
+/// <summary>
+/// Represents a test regex pattern function.
+/// </summary>
 public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<TestRegexPatternFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.test",
         "POST",
@@ -223,6 +262,9 @@ public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns,
         }
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try

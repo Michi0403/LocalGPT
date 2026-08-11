@@ -17,48 +17,171 @@ public sealed class CouncilTextPatternDataService(
     ISystemVariableDefinitionService systemVariables,
     ILogger<CouncilTextPatternDataService> logger) : ICouncilTextPatternDataService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly object _sync = new();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Dictionary<string, CouncilTextCachedPattern> _cache = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Gets or sets former thought break pattern.
+    /// </summary>
     public Regex FormerThoughtBreakPattern => GetRequired(nameof(FormerThoughtBreakPattern));
+    /// <summary>
+    /// Gets or sets former thought code wrapper pattern.
+    /// </summary>
     public Regex FormerThoughtCodeWrapperPattern => GetRequired(nameof(FormerThoughtCodeWrapperPattern));
+    /// <summary>
+    /// Gets or sets former thought opening fence pattern.
+    /// </summary>
     public Regex FormerThoughtOpeningFencePattern => GetRequired(nameof(FormerThoughtOpeningFencePattern));
+    /// <summary>
+    /// Gets or sets former thought closing fence pattern.
+    /// </summary>
     public Regex FormerThoughtClosingFencePattern => GetRequired(nameof(FormerThoughtClosingFencePattern));
+    /// <summary>
+    /// Gets or sets former thought presentation wrapper pattern.
+    /// </summary>
     public Regex FormerThoughtPresentationWrapperPattern => GetRequired(nameof(FormerThoughtPresentationWrapperPattern));
+    /// <summary>
+    /// Gets or sets former thought excess line break pattern.
+    /// </summary>
     public Regex FormerThoughtExcessLineBreakPattern => GetRequired(nameof(FormerThoughtExcessLineBreakPattern));
+    /// <summary>
+    /// Gets or sets whitespace pattern.
+    /// </summary>
     public Regex WhitespacePattern => GetRequired("builtin.whitespace-pattern");
+    /// <summary>
+    /// Gets or sets name cleaner pattern.
+    /// </summary>
     public Regex NameCleanerPattern => GetRequired("builtin.name-cleaner");
+    /// <summary>
+    /// Gets or sets mod identifier cleaner pattern.
+    /// </summary>
     public Regex ModIdCleanerPattern => GetRequired("builtin.mod-id-cleaner");
+    /// <summary>
+    /// Gets or sets package part cleaner pattern.
+    /// </summary>
     public Regex PackagePartCleanerPattern => GetRequired("builtin.package-part-cleaner");
+    /// <summary>
+    /// Gets or sets structured field pattern.
+    /// </summary>
     public Regex StructuredFieldPattern => GetRequired(nameof(StructuredFieldPattern));
+    /// <summary>
+    /// Gets or sets knowledge block pattern.
+    /// </summary>
     public Regex KnowledgeBlockPattern => GetRequired("builtin.localgpt-knowledge-block");
+    /// <summary>
+    /// Gets or sets minecraft quoted project name pattern.
+    /// </summary>
     public Regex MinecraftQuotedProjectNamePattern => GetRequired(nameof(MinecraftQuotedProjectNamePattern));
+    /// <summary>
+    /// Gets or sets minecraft explicit project name pattern.
+    /// </summary>
     public Regex MinecraftExplicitProjectNamePattern => GetRequired(nameof(MinecraftExplicitProjectNamePattern));
+    /// <summary>
+    /// Gets or sets minecraft named project pattern.
+    /// </summary>
     public Regex MinecraftNamedProjectPattern => GetRequired(nameof(MinecraftNamedProjectPattern));
+    /// <summary>
+    /// Gets or sets markdown heading project name pattern.
+    /// </summary>
     public Regex MarkdownHeadingProjectNamePattern => GetRequired(nameof(MarkdownHeadingProjectNamePattern));
+    /// <summary>
+    /// Gets or sets identifier separator pattern.
+    /// </summary>
     public Regex IdentifierSeparatorPattern => GetRequired(nameof(IdentifierSeparatorPattern));
+    /// <summary>
+    /// Gets or sets alpha numeric word pattern.
+    /// </summary>
     public Regex AlphaNumericWordPattern => GetRequired(nameof(AlphaNumericWordPattern));
+    /// <summary>
+    /// Gets or sets integer pattern.
+    /// </summary>
     public Regex IntegerPattern => GetRequired(nameof(IntegerPattern));
+    /// <summary>
+    /// Gets or sets council DevExpress function call pattern.
+    /// </summary>
     public Regex CouncilDxFunctionCallPattern => GetRequired(nameof(CouncilDxFunctionCallPattern));
+    /// <summary>
+    /// Gets or sets missing feature pattern.
+    /// </summary>
     public Regex MissingFeaturePattern => GetRequired("builtin.missing-feature-pattern");
+    /// <summary>
+    /// Gets or sets sensitive name pattern.
+    /// </summary>
     public Regex SensitiveNamePattern => GetRequired("builtin.sensitive-name-pattern");
+    /// <summary>
+    /// Gets or sets truncated tail pattern.
+    /// </summary>
     public Regex TruncatedTailPattern => GetRequired("builtin.truncated-tail-pattern");
+    /// <summary>
+    /// Gets or sets target framework pattern.
+    /// </summary>
     public Regex TargetFrameworkPattern => GetRequired("builtin.target-framework-pattern");
+    /// <summary>
+    /// Gets or sets package reference pattern.
+    /// </summary>
     public Regex PackageReferencePattern => GetRequired("builtin.package-reference-pattern");
+    /// <summary>
+    /// Gets or sets thinking block pattern.
+    /// </summary>
     public Regex ThinkingBlockPattern => GetRequired("builtin.thinking-block-pattern");
+    /// <summary>
+    /// Gets or sets capability gap block pattern.
+    /// </summary>
     public Regex CapabilityGapBlockPattern => GetRequired("builtin.capability-gap-block-pattern");
+    /// <summary>
+    /// Gets or sets helpful source line pattern.
+    /// </summary>
     public Regex HelpfulSourceLinePattern => GetRequired("builtin.helpful-source-line-pattern");
+    /// <summary>
+    /// Gets or sets stream status pattern.
+    /// </summary>
     public Regex StreamStatusPattern => GetRequired("builtin.stream-status-pattern");
+    /// <summary>
+    /// Gets or sets minecraft pattern.
+    /// </summary>
     public Regex MinecraftPattern => GetRequired("builtin.minecraft-pattern");
+    /// <summary>
+    /// Gets or sets datapack pattern.
+    /// </summary>
     public Regex DatapackPattern => GetRequired("builtin.datapack-pattern");
+    /// <summary>
+    /// Gets or sets minecraft skeleton matrix pattern.
+    /// </summary>
     public Regex MinecraftSkeletonMatrixPattern => GetRequired("builtin.minecraft-skeleton-matrix-pattern");
+    /// <summary>
+    /// Gets or sets minecraft version pattern.
+    /// </summary>
     public Regex MinecraftVersionPattern => GetRequired("builtin.minecraft-version-pattern");
+    /// <summary>
+    /// Gets or sets dev express document pattern.
+    /// </summary>
     public Regex DevExpressDocumentPattern => GetRequired("builtin.dev-express-document-pattern");
+    /// <summary>
+    /// Gets or sets blazor frontend pattern.
+    /// </summary>
     public Regex BlazorFrontendPattern => GetRequired("builtin.blazor-frontend-pattern");
+    /// <summary>
+    /// Gets or sets dot net pattern.
+    /// </summary>
     public Regex DotNetPattern => GetRequired("builtin.dot-net-pattern");
+    /// <summary>
+    /// Gets or sets frontend pattern.
+    /// </summary>
     public Regex FrontendPattern => GetRequired("builtin.frontend-pattern");
+    /// <summary>
+    /// Gets or sets logging pattern.
+    /// </summary>
     public Regex LoggingPattern => GetRequired("builtin.logging-pattern");
 
+    /// <summary>
+    /// Runs the extract structured field operation.
+    /// </summary>
     public string? ExtractStructuredField(string body, string name)
     {
         try
@@ -82,6 +205,9 @@ public sealed class CouncilTextPatternDataService(
         }
     }
 
+    /// <summary>
+    /// Gets required.
+    /// </summary>
     private Regex GetRequired(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -119,6 +245,9 @@ public sealed class CouncilTextPatternDataService(
         }
     }
 
+    /// <summary>
+    /// Reads timeout milliseconds.
+    /// </summary>
     private int ReadTimeoutMilliseconds(LocalGptMemoryDbContext db)
     {
         try
@@ -141,6 +270,9 @@ public sealed class CouncilTextPatternDataService(
         }
     }
 
+    /// <summary>
+    /// Parses flags.
+    /// </summary>
     private RegexOptions ParseFlags(string? flags)
     {
         try

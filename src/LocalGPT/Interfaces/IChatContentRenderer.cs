@@ -7,7 +7,13 @@ namespace LocalGPT.Interfaces;
 /// </summary>
 public interface IChatContentRenderer
 {
+    /// <summary>
+    /// Runs the render operation.
+    /// </summary>
     string Render(string? content);
 
+    /// <summary>
+    /// Normalizes for render.
+    /// </summary>
     string NormalizeForRender(string? content);
 }

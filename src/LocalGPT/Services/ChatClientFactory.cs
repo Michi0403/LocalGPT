@@ -13,6 +13,9 @@ using System.Text.Json;
 namespace LocalGPT.Services
 {
 
+    /// <summary>
+    /// Provides chat client factory operations.
+    /// </summary>
     public class ChatClientFactory(
           ILogger<ChatClientFactory> logger,
           ILoggerFactory loggerFactory,
@@ -32,6 +35,9 @@ namespace LocalGPT.Services
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText) : IChatClientFactory
     {
+        /// <summary>
+        /// Runs the build operation.
+        /// </summary>
         public CompositeChatClient Build()
         {
             try
@@ -63,7 +69,13 @@ namespace LocalGPT.Services
                         functionCallRecovery: functionCallRecovery);
 
                     sessions.Add(new ChatClientSession(
+                        /// <summary>
+                        /// Runs the logging chat client operation.
+                        /// </summary>
                         new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),
+                        /// <summary>
+                        /// Runs the provider model identity operation.
+                        /// </summary>
                         new ProviderModelIdentity().CreateSelectionKey("Ollama", ollama.Uri, ollama.ModelName), "Ollama", ollama.ModelName, ollama.Uri
                     ));
                 }
@@ -89,7 +101,13 @@ namespace LocalGPT.Services
                         .AsIChatClient();
 
                     sessions.Add(new ChatClientSession(
+                        /// <summary>
+                        /// Runs the logging chat client operation.
+                        /// </summary>
                         new LoggingChatClient(azureClient, loggerFactory.CreateLogger("AI.AzureOpenAI")),
+                        /// <summary>
+                        /// Runs the provider model identity operation.
+                        /// </summary>
                         new ProviderModelIdentity().CreateSelectionKey("Azure OpenAI", az.Endpoint, az.DeploymentName), "Azure OpenAI", az.DeploymentName, az.Endpoint
                     ));
                 }
@@ -106,6 +124,9 @@ namespace LocalGPT.Services
                         : NormalizeOpenAiCompatibleEndpoint(configString);
 
                     var oai = new OpenAIClient(
+                        /// <summary>
+                        /// Runs the API key credential operation.
+                        /// </summary>
                         new ApiKeyCredential(openai.ApiKey),
                         new OpenAIClientOptions
                         {
@@ -122,7 +143,13 @@ namespace LocalGPT.Services
                     var modelChat = oai.GetChatClient(openai.ModelName).AsIChatClient();
 
                     sessions.Add(new ChatClientSession(
+                        /// <summary>
+                        /// Runs the logging chat client operation.
+                        /// </summary>
                         new LoggingChatClient(modelChat, loggerFactory.CreateLogger("AI.OpenAI")),
+                        /// <summary>
+                        /// Runs the provider model identity operation.
+                        /// </summary>
                         new ProviderModelIdentity().CreateSelectionKey("OpenAI", endpoint, openai.ModelName), "OpenAI", openai.ModelName, endpoint
                     ));
                 }
@@ -151,6 +178,9 @@ namespace LocalGPT.Services
 
                     var runtimeApiKey = !string.IsNullOrWhiteSpace(loc.ApiKey) ? loc.ApiKey : "local-no-key";
                     var localClient = new OpenAIClient(
+                        /// <summary>
+                        /// Runs the API key credential operation.
+                        /// </summary>
                         new ApiKeyCredential(runtimeApiKey),
                         new OpenAIClientOptions
                         {
@@ -167,7 +197,13 @@ namespace LocalGPT.Services
                     var localChat = localClient.GetChatClient(resolvedModel).AsIChatClient();
                     var providerName = GetLocalProviderName(configuredEndpoint);
                     sessions.Add(new ChatClientSession(
+                        /// <summary>
+                        /// Runs the logging chat client operation.
+                        /// </summary>
                         new LoggingChatClient(localChat, loggerFactory.CreateLogger("AI.LocalOpenAI")),
+                        /// <summary>
+                        /// Runs the provider model identity operation.
+                        /// </summary>
                         new ProviderModelIdentity().CreateSelectionKey(providerName, configuredEndpoint, resolvedModel),
                         providerName, resolvedModel, configuredEndpoint));
                 }
@@ -195,6 +231,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the enumerate open ai compatible providers operation.
+        /// </summary>
         private IReadOnlyList<ChatGPTLocalCoreOptions> EnumerateOpenAiCompatibleProviders(AICoreOptions options)
         {
             try
@@ -232,6 +271,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Resolves open ai compatible model.
+        /// </summary>
         private string? ResolveOpenAiCompatibleModel(string endpoint, string? configuredModel, string? apiKey, ILogger logger)
         {
             try
@@ -262,6 +304,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Gets local provider name.
+        /// </summary>
         private string GetLocalProviderName(string endpoint) {
     try
     {
@@ -279,6 +324,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Normalizes provider identity.
+        /// </summary>
         private string NormalizeProviderIdentity(string value)
         {
     try
@@ -299,6 +347,9 @@ namespace LocalGPT.Services
     }
 }
 
+        /// <summary>
+        /// Normalizes open ai compatible endpoint.
+        /// </summary>
         private string NormalizeOpenAiCompatibleEndpoint(string value)
         {
     try

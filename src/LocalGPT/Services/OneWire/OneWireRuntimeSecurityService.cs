@@ -17,7 +17,13 @@ public sealed class OneWireRuntimeSecurityService(
 {
     private const int SchemaVersion = 1;
     private const int TotpPeriodSeconds = 30;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim gate = new(1, 1);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -28,6 +34,9 @@ public sealed class OneWireRuntimeSecurityService(
     private OneWireRuntimeSecretFile? cached;
     private string? resolvedPath;
 
+    /// <summary>
+    /// Gets status async.
+    /// </summary>
     public async Task<OneWireRuntimeSecurityStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -51,6 +60,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Ensures created async.
+    /// </summary>
     public async Task EnsureCreatedAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -66,6 +78,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Runs the regenerate async operation.
+    /// </summary>
     public async Task RegenerateAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -85,6 +100,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Deletes async.
+    /// </summary>
     public async Task DeleteAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -103,6 +121,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Gets public descriptor async.
+    /// </summary>
     public async Task<OneWireSecurityDescriptor> GetPublicDescriptorAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -119,6 +140,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Creates pairing ticket async.
+    /// </summary>
     public async Task<OneWirePairingTicket> CreatePairingTicketAsync(TimeSpan lifetime, CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -155,6 +179,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Gets otp auth URI async.
+    /// </summary>
     public async Task<string> GetOtpAuthUriAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -174,6 +201,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Runs the establish trust async operation.
+    /// </summary>
     public async Task<bool> EstablishTrustAsync(OneWireTrustEstablishmentRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -217,6 +247,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Runs the revoke trust async operation.
+    /// </summary>
     public async Task<bool> RevokeTrustAsync(string peerId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
@@ -242,6 +275,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Gets trusted peers async.
+    /// </summary>
     public async Task<IReadOnlyList<OneWireTrustedPeerDescriptor>> GetTrustedPeersAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -258,6 +294,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Runs the protect outgoing async operation.
+    /// </summary>
     public async Task ProtectOutgoingAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(envelope);
@@ -303,6 +342,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Runs the unprotect incoming async operation.
+    /// </summary>
     public async Task UnprotectIncomingAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(envelope);
@@ -342,6 +384,9 @@ public sealed class OneWireRuntimeSecurityService(
         finally { gate.Release(); }
     }
 
+    /// <summary>
+    /// Loads core async.
+    /// </summary>
     private async Task<OneWireRuntimeSecretFile?> LoadCoreAsync(bool createWhenMissing, CancellationToken cancellationToken)
     {
     try
@@ -375,6 +420,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Runs the persist core async operation.
+    /// </summary>
     private async Task PersistCoreAsync(OneWireRuntimeSecretFile file, CancellationToken cancellationToken)
     {
     try
@@ -399,6 +447,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Attempts to restrict secret permissions.
+    /// </summary>
     private void TryRestrictSecretPermissions(string path)
     {
         if (OperatingSystem.IsWindows()) return;
@@ -414,6 +465,9 @@ public sealed class OneWireRuntimeSecurityService(
         }
     }
 
+    /// <summary>
+    /// Resolves secret path.
+    /// </summary>
     private string ResolveSecretPath()
     {
     try
@@ -437,6 +491,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Determines whether write directory.
+    /// </summary>
     private bool CanWriteDirectory(string directory)
     {
         try
@@ -454,6 +511,9 @@ public sealed class OneWireRuntimeSecurityService(
         }
     }
 
+    /// <summary>
+    /// Creates secret.
+    /// </summary>
     private OneWireRuntimeSecretFile CreateSecret(DateTimeOffset createdUtc, DateTimeOffset? rotatedUtc)
     {
     try
@@ -490,6 +550,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Validates secret.
+    /// </summary>
     private void ValidateSecret(OneWireRuntimeSecretFile file)
     {
     try
@@ -510,6 +573,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Creates status.
+    /// </summary>
     private OneWireRuntimeSecurityStatus CreateStatus(OneWireRuntimeSecretFile file) {
     try
     {
@@ -535,6 +601,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Creates public descriptor.
+    /// </summary>
     private OneWireSecurityDescriptor CreatePublicDescriptor(OneWireRuntimeSecretFile file) {
     try
     {
@@ -557,6 +626,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Validates pairing ticket.
+    /// </summary>
     private void ValidatePairingTicket(OneWirePairingTicket ticket)
     {
     try
@@ -587,6 +659,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Builds ticket bytes.
+    /// </summary>
     private byte[] BuildTicketBytes(OneWirePairingTicket ticket) {
     try
     {
@@ -606,6 +681,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Builds signature bytes.
+    /// </summary>
     private byte[] BuildSignatureBytes(OneWireEnvelope envelope) {
     try
     {
@@ -631,6 +709,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Builds associated data.
+    /// </summary>
     private byte[] BuildAssociatedData(OneWireEnvelope envelope) {
     try
     {
@@ -647,6 +728,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Runs the derive peer key operation.
+    /// </summary>
     private byte[] DerivePeerKey(OneWireRuntimeSecretFile file, OneWireTrustedPeerDescriptor peer, string sourcePeerId, string targetPeerId)
     {
     try
@@ -677,6 +761,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Runs the hkdf sha256 operation.
+    /// </summary>
     private byte[] HkdfSha256(ReadOnlySpan<byte> inputKeyMaterial, ReadOnlySpan<byte> salt, ReadOnlySpan<byte> info, int outputLength)
     {
     try
@@ -717,6 +804,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Runs the verify totp operation.
+    /// </summary>
     private bool VerifyTotp(string seedBase64, string code)
     {
     try
@@ -749,6 +839,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Runs the base32 encode operation.
+    /// </summary>
     private string Base32Encode(ReadOnlySpan<byte> data)
     {
     try
@@ -781,6 +874,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Determines whether current trust.
+    /// </summary>
     private bool IsCurrentTrust(OneWireTrustedPeerDescriptor peer, string peerId) {
     try
     {
@@ -799,6 +895,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Determines whether security bootstrap.
+    /// </summary>
     private bool IsSecurityBootstrap(OneWireMessageType type) {
     try
     {
@@ -817,6 +916,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Runs the clamp operation.
+    /// </summary>
     private TimeSpan Clamp(TimeSpan value, TimeSpan minimum, TimeSpan maximum) {
     try
     {
@@ -832,6 +934,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 }
 
+    /// <summary>
+    /// Runs the clone trusted peer operation.
+    /// </summary>
     private OneWireTrustedPeerDescriptor CloneTrustedPeer(OneWireTrustedPeerDescriptor peer) {
     try
     {

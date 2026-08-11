@@ -6,15 +6,27 @@ using System.Text;
 
 namespace LocalGPT.Logging
 {
+    /// <summary>
+    /// Represents a file logger.
+    /// </summary>
     public class FileLogger : ILogger, IDisposable
     {
         private readonly string _realPath;
         private readonly FileLoggerCoreOptions _options;
+        /// <summary>
+        /// Runs the new operation.
+        /// </summary>
         private readonly BlockingCollection<string> _logQueue = new();
         private readonly Thread _loggingThread;
         private bool _disposed = false;
+        /// <summary>
+        /// Runs the new operation.
+        /// </summary>
         private readonly LoggerNullScope nullScope = new();
 
+        /// <summary>
+        /// Runs the file logger operation.
+        /// </summary>
         public FileLogger(string categoryName, IOptionsMonitor<FileLoggerCoreOptions> optionsSnapshot)
         {
             _options = optionsSnapshot.CurrentValue;
@@ -37,11 +49,17 @@ namespace LocalGPT.Logging
             return nullScope;
         }
 
+        /// <summary>
+        /// Determines whether enabled.
+        /// </summary>
         public bool IsEnabled(LogLevel logLevel)
         {
             return (int)logLevel >= (int)_options.CoreLogLevel;
         }
 
+        /// <summary>
+        /// Runs the log operation.
+        /// </summary>
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             if (!IsEnabled(logLevel) || formatter == null)
@@ -76,6 +94,9 @@ namespace LocalGPT.Logging
             }
         }
 
+        /// <summary>
+        /// Runs the process log queue operation.
+        /// </summary>
         private void ProcessLogQueue()
         {
             try
@@ -111,6 +132,9 @@ namespace LocalGPT.Logging
             }
         }
 
+        /// <summary>
+        /// Runs the dispose operation.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed) return;

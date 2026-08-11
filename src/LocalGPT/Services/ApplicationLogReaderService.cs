@@ -8,6 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides application log reader service operations.
+    /// </summary>
     public partial class ApplicationLogReaderService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
@@ -15,7 +18,13 @@ namespace LocalGPT.Services
         ILogger<ApplicationLogReaderService> logger,
         CouncilTextService councilText) : IApplicationLogReaderService
     {
+        /// <summary>
+        /// Gets or sets database path.
+        /// </summary>
         public string DatabasePath => databaseOptions.DatabasePath;
+        /// <summary>
+        /// Gets recent async.
+        /// </summary>
         public async Task<IReadOnlyList<ApplicationLogSummary>> GetRecentAsync(LogLevel minimumLevel = LogLevel.Warning, int take = 20, CancellationToken cancellationToken = default)
         {
             try
@@ -48,6 +57,9 @@ namespace LocalGPT.Services
            
         }
 
+        /// <summary>
+        /// Builds ai log briefing async.
+        /// </summary>
         public async Task<string> BuildAiLogBriefingAsync(LogLevel minimumLevel = LogLevel.Warning, int take = 8, CancellationToken cancellationToken = default)
         {
             try

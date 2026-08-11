@@ -17,12 +17,24 @@ public sealed class CouncilGameSessionService(
     private const int DefaultFrameWidth = 80;
     private const int DefaultFrameHeight = 25;
     private const double FieldOfView = Math.PI / 3d;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, CouncilGameSessionState> sessions = new();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> autoplayLoops = new();
     private int disposed;
 
+    /// <summary>
+    /// Occurs when changed.
+    /// </summary>
     public event Action<Guid>? Changed;
 
+    /// <summary>
+    /// Starts async.
+    /// </summary>
     public Task<CouncilGameSessionSnapshot> StartAsync(
         StartCouncilGameRequest request,
         CancellationToken cancellationToken = default)
@@ -86,6 +98,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Gets async.
+    /// </summary>
     public Task<CouncilGameSessionSnapshot?> GetAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         try
@@ -106,6 +121,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Gets active async.
+    /// </summary>
     public Task<CouncilGameSessionSnapshot?> GetActiveAsync(Guid? conversationId, CancellationToken cancellationToken = default)
     {
         try
@@ -130,6 +148,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Runs the list async operation.
+    /// </summary>
     public Task<IReadOnlyList<CouncilGameSessionSnapshot>> ListAsync(bool includeCompleted = false, CancellationToken cancellationToken = default)
     {
         try
@@ -155,6 +176,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Runs the preview control async operation.
+    /// </summary>
     public async Task<CouncilGameDirectorDecision> PreviewControlAsync(
         CouncilGameControlRequest request,
         CancellationToken cancellationToken = default)
@@ -200,6 +224,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Applies control async.
+    /// </summary>
     public async Task<CouncilGameSessionSnapshot> ApplyControlAsync(
         CouncilGameControlRequest request,
         CancellationToken cancellationToken = default)
@@ -271,6 +298,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Runs the submit frame async operation.
+    /// </summary>
     public Task<CouncilGameSessionSnapshot> SubmitFrameAsync(
         SubmitCouncilGameFrameRequest request,
         CancellationToken cancellationToken = default)
@@ -325,6 +355,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Sets input gate async.
+    /// </summary>
     public Task<CouncilGameSessionSnapshot> SetInputGateAsync(
         SetCouncilGameInputGateRequest request,
         CancellationToken cancellationToken = default)
@@ -363,6 +396,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Sets control mode async.
+    /// </summary>
     public Task<CouncilGameSessionSnapshot> SetControlModeAsync(
         Guid sessionId,
         CouncilGameControlMode mode,
@@ -404,6 +440,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Ensures autoplay loop.
+    /// </summary>
     private void EnsureAutoplayLoop(CouncilGameSessionState session)
     {
     try
@@ -437,6 +476,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the run autoplay loop async operation.
+    /// </summary>
     private async Task RunAutoplayLoopAsync(Guid sessionId, CancellationToken cancellationToken)
     {
         try
@@ -486,6 +528,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Runs the select autoplay action operation.
+    /// </summary>
     private string SelectAutoplayAction(CouncilGameSessionSnapshot snapshot)
     {
     try
@@ -517,6 +562,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Stops autoplay loop.
+    /// </summary>
     private void StopAutoplayLoop(Guid sessionId)
     {
     try
@@ -538,6 +586,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Normalizes autoplay delay.
+    /// </summary>
     private int NormalizeAutoplayDelay(int value) {
     try
     {
@@ -553,6 +604,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the throw if disposed operation.
+    /// </summary>
     private void ThrowIfDisposed()
     {
     try
@@ -571,6 +625,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the dispose operation.
+    /// </summary>
     public void Dispose()
     {
         try
@@ -588,6 +645,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Normalizes game key.
+    /// </summary>
     private string NormalizeGameKey(string? gameKey)
     {
     try
@@ -611,6 +671,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the default team for operation.
+    /// </summary>
     private string DefaultTeamFor(string gameKey) {
     try
     {
@@ -626,6 +689,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Builds legal actions.
+    /// </summary>
     private List<string> BuildLegalActions(string gameKey) {
     try
     {
@@ -643,6 +709,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Builds input bindings.
+    /// </summary>
     private List<RuntimeInputBindingDefinition> BuildInputBindings(string gameKey) {
     try
     {
@@ -681,6 +750,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the binding operation.
+    /// </summary>
     private RuntimeInputBindingDefinition Binding(string action, string display, string keyboard, string gamepad) {
     try
     {
@@ -703,6 +775,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Normalizes action.
+    /// </summary>
     private string NormalizeAction(string? action, double? axisX, double? axisY)
     {
     try
@@ -743,6 +818,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Applies action.
+    /// </summary>
     private void ApplyAction(CouncilGameSessionState session, string action, int? aimX, int? aimY)
     {
     try
@@ -814,6 +892,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Attempts to move.
+    /// </summary>
     private void TryMove(CouncilGameSessionState session, double dx, double dy)
     {
     try
@@ -837,6 +918,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the render operation.
+    /// </summary>
     private string Render(CouncilGameSessionState session) {
     try
     {
@@ -854,6 +938,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the render doom like operation.
+    /// </summary>
     private string RenderDoomLike(CouncilGameSessionState session)
     {
     try
@@ -902,6 +989,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the render green dragon operation.
+    /// </summary>
     private string RenderGreenDragon(CouncilGameSessionState session)
     {
     try
@@ -948,6 +1038,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the cast ray operation.
+    /// </summary>
     private double CastRay(double x, double y, double angle)
     {
     try
@@ -973,6 +1066,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the wall glyph operation.
+    /// </summary>
     private char WallGlyph(double distance, int x, int y) {
     try
     {
@@ -994,6 +1090,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the floor glyph operation.
+    /// </summary>
     private char FloorGlyph(int x, int y) {
     try
     {
@@ -1009,6 +1108,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the put operation.
+    /// </summary>
     private void Put(char[][] lines, int row, int column, string text)
     {
     try
@@ -1028,6 +1130,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the fit operation.
+    /// </summary>
     private string Fit(string text, int width)
     {
     try
@@ -1047,6 +1152,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Normalizes frame.
+    /// </summary>
     private string NormalizeFrame(string frame, int width, int height)
     {
     try
@@ -1074,6 +1182,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Builds caption.
+    /// </summary>
     private string BuildCaption(CouncilGameSessionState session) {
     try
     {
@@ -1089,6 +1200,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the compass operation.
+    /// </summary>
     private string Compass(double radians)
     {
     try
@@ -1117,6 +1231,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Normalizes radians.
+    /// </summary>
     private double NormalizeRadians(double value)
     {
     try
@@ -1136,6 +1253,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the to snapshot operation.
+    /// </summary>
     private CouncilGameSessionSnapshot ToSnapshot(CouncilGameSessionState session)
     {
     try
@@ -1154,6 +1274,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the to snapshot unsafe operation.
+    /// </summary>
     private CouncilGameSessionSnapshot ToSnapshotUnsafe(CouncilGameSessionState session) {
     try
     {
@@ -1207,6 +1330,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the clone binding operation.
+    /// </summary>
     private RuntimeInputBindingDefinition CloneBinding(RuntimeInputBindingDefinition binding) {
     try
     {
@@ -1229,6 +1355,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the clone prediction operation.
+    /// </summary>
     private CouncilGameSubdirectorPrediction ClonePrediction(CouncilGameSubdirectorPrediction prediction) {
     try
     {
@@ -1252,6 +1381,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the clone actor runtime operation.
+    /// </summary>
     private CouncilGameActorRuntimeDescriptor CloneActorRuntime(CouncilGameActorRuntimeDescriptor actor) {
     try
     {
@@ -1276,6 +1408,9 @@ public sealed class CouncilGameSessionService(
     }
 }
 
+    /// <summary>
+    /// Runs the notify operation.
+    /// </summary>
     private void Notify(Guid sessionId)
     {
         var listeners = Changed?.GetInvocationList().Cast<Action<Guid>>().ToArray() ?? [];

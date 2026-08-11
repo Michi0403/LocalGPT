@@ -1,5 +1,8 @@
 namespace LocalGPT.BusinessObjects;
 
+/// <summary>
+/// Represents a council preparation configuration.
+/// </summary>
 public sealed record CouncilPreparationConfiguration(
     IReadOnlyList<string> ModelNames,
     IReadOnlyList<OneWireCouncilModelRoute> ModelRoutes,
@@ -14,6 +17,9 @@ public sealed record CouncilPreparationConfiguration(
     bool CreateProjectPerRun,
     string CouncilTeamKey);
 
+/// <summary>
+/// Represents a council run configuration snapshot.
+/// </summary>
 public sealed record CouncilRunConfigurationSnapshot(
     Guid RunId,
     long Revision,

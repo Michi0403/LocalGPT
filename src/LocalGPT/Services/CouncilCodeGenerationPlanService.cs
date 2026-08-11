@@ -5,26 +5,41 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides council code generation plan service operations.
+/// </summary>
 public sealed class CouncilCodeGenerationPlanService(
     ILogger<CouncilCodeGenerationPlanService> logger) : ICouncilCodeGenerationPlanService
 {
     private const int MaxEmbeddedPlanCharacters = 4_000_000;
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex taggedPlanPattern = new(
         @"<localgpt-change-review>\s*(?<json>.*?)\s*</localgpt-change-review>",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(2));
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly Regex fencedPlanPattern = new(
         @"```(?:localgpt-change-review|json\s+localgpt-change-review)\s*(?<json>.*?)\s*```",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(2));
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Runs the parse operation.
+    /// </summary>
     public CouncilCodeGenerationPlanResult Parse(string councilAnswer)
     {
         var operationId = Guid.NewGuid();

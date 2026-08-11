@@ -5,13 +5,22 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Helpers;
 
+/// <summary>
+/// Provides DevExpress ai function JSON service operations.
+/// </summary>
 internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> logger) : IDxAiFunctionJsonService
 {
+    /// <summary>
+    /// Gets or sets options.
+    /// </summary>
     public JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Runs the deserialize operation.
+    /// </summary>
     public T Deserialize<T>(JsonElement element) where T : new()
     {
         var binding = Bind<T>(element);
@@ -21,6 +30,9 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
         throw new JsonException(binding.Error);
     }
 
+    /// <summary>
+    /// Runs the bind operation.
+    /// </summary>
     public DxAiFunctionParameterBinding<T> Bind<T>(JsonElement element) where T : new()
     {
         try
@@ -61,6 +73,9 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
         }
     }
 
+    /// <summary>
+    /// Runs the invalid parameters operation.
+    /// </summary>
     public DxAiFunctionInvocationResult InvalidParameters(string error)
     {
     try
@@ -87,6 +102,9 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
     }
 }
 
+    /// <summary>
+    /// Runs the success operation.
+    /// </summary>
     public DxAiFunctionInvocationResult Success(object? value = null, string status = "Completed")
     {
         try
@@ -101,6 +119,9 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
         }
     }
 
+    /// <summary>
+    /// Runs the failed operation.
+    /// </summary>
     private DxAiFunctionParameterBinding<T> Failed<T>(string error) where T : new() =>
         new()
         {
@@ -109,6 +130,9 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
             Error = error
         };
 
+    /// <summary>
+    /// Builds parameter error.
+    /// </summary>
     private string BuildParameterError(JsonException exception)
     {
     try

@@ -8,6 +8,9 @@ using System.Text.Json;
 
 namespace LocalGPT.Services.OneWire;
 
+/// <summary>
+/// Provides one wire TCP hosted service operations.
+/// </summary>
 public sealed class OneWireTcpHostedService(
     IOptions<OneWireOptions> options,
     IOneWireEnvelopeCodec codec,
@@ -21,6 +24,9 @@ public sealed class OneWireTcpHostedService(
     ISupervisedTaskRunner taskRunner,
     ILogger<OneWireTcpHostedService> logger) : BackgroundService
 {
+    /// <summary>
+    /// Runs the execute async operation.
+    /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!options.Value.Enabled)
@@ -51,6 +57,9 @@ public sealed class OneWireTcpHostedService(
         finally { listener?.Stop(); }
     }
 
+    /// <summary>
+    /// Handles client async.
+    /// </summary>
     private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
     {
         string peerId = string.Empty;
@@ -66,6 +75,9 @@ public sealed class OneWireTcpHostedService(
             using (var reader = new StreamReader(stream, Encoding.UTF8, false, 8192, leaveOpen: true))
             using (var writer = new StreamWriter(stream, new UTF8Encoding(false), 8192, leaveOpen: true) { AutoFlush = true })
             {
+                /// <summary>
+                /// Runs the sender operation.
+                /// </summary>
                 async Task Sender(OneWireEnvelope message, CancellationToken token)
                 {
                     await security.ProtectOutgoingAsync(message, token).ConfigureAwait(false);
@@ -127,12 +139,18 @@ public sealed class OneWireTcpHostedService(
 
 }
 
+/// <summary>
+/// Provides one wire discovery hosted service operations.
+/// </summary>
 public sealed class OneWireDiscoveryHostedService(
     IOptions<OneWireOptions> options,
     IOneWireRuntimeSecurityService security,
     IOneWireEnvelopeCodec codec,
     ILogger<OneWireDiscoveryHostedService> logger) : BackgroundService
 {
+    /// <summary>
+    /// Runs the execute async operation.
+    /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!options.Value.Enabled || !options.Value.EnableDiscovery)

@@ -5,6 +5,9 @@ using System.Text.Json;
 
 namespace LocalGPT.Services.OneWire;
 
+/// <summary>
+/// Represents an one wire operation executor.
+/// </summary>
 public sealed class OneWireOperationExecutor(
     IServiceScopeFactory scopeFactory,
     IOneWireEnvelopeCodec codec,
@@ -12,6 +15,9 @@ public sealed class OneWireOperationExecutor(
     ILogger<OneWireOperationExecutor> logger) : IOneWireOperationExecutor
 {
 
+    /// <summary>
+    /// Runs the execute async operation.
+    /// </summary>
     public async Task<string> ExecuteAsync(OneWireWorkItem item, CancellationToken cancellationToken = default)
     {
     try
@@ -188,6 +194,9 @@ public sealed class OneWireOperationExecutor(
     }
 }
 
+    /// <summary>
+    /// Gets string.
+    /// </summary>
     private string GetString(JsonElement element, string name, string fallback) {
     try
     {
@@ -205,6 +214,9 @@ public sealed class OneWireOperationExecutor(
     }
 }
 
+    /// <summary>
+    /// Gets boolean.
+    /// </summary>
     private bool GetBoolean(JsonElement element, string name) {
     try
     {
@@ -220,6 +232,9 @@ public sealed class OneWireOperationExecutor(
     }
 }
 
+    /// <summary>
+    /// Gets int.
+    /// </summary>
     private int GetInt(JsonElement element, string name, int fallback) {
     try
     {
@@ -235,6 +250,9 @@ public sealed class OneWireOperationExecutor(
     }
 }
 
+    /// <summary>
+    /// Reads payload.
+    /// </summary>
     private T ReadPayload<T>(OneWireEnvelope envelope, string propertyName)
     {
         if (envelope.Properties is null || !envelope.Properties.TryGetValue(propertyName, out var element))
@@ -243,6 +261,9 @@ public sealed class OneWireOperationExecutor(
     }
 }
 
+/// <summary>
+/// Represents an one wire message dispatcher.
+/// </summary>
 public sealed class OneWireMessageDispatcher(
     IOneWireEnvelopeCodec codec,
     IOneWireCapabilityCatalog capabilities,
@@ -257,6 +278,9 @@ public sealed class OneWireMessageDispatcher(
     IOneWireTargetApprovalPolicy targetApprovalPolicy,
     ILogger<OneWireMessageDispatcher> logger) : IOneWireMessageDispatcher
 {
+    /// <summary>
+    /// Runs the dispatch async operation.
+    /// </summary>
     public Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default) {
     try
     {
@@ -272,6 +296,9 @@ public sealed class OneWireMessageDispatcher(
     }
 }
 
+    /// <summary>
+    /// Runs the dispatch async operation.
+    /// </summary>
     public async Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, OneWireDispatchContext context, CancellationToken cancellationToken = default)
     {
     try
@@ -440,6 +467,9 @@ public sealed class OneWireMessageDispatcher(
     }
 }
 
+    /// <summary>
+    /// Runs the authorize target and queue async operation.
+    /// </summary>
     private async Task<OneWireEnvelope> AuthorizeTargetAndQueueAsync(
         OneWireEnvelope envelope,
         bool alwaysRequireHuman,
@@ -482,6 +512,9 @@ public sealed class OneWireMessageDispatcher(
     }
 }
 
+    /// <summary>
+    /// Applies human response.
+    /// </summary>
     public void ApplyHumanResponse(OneWireEnvelope envelope, string? userResponse)
     {
     try
@@ -506,6 +539,9 @@ public sealed class OneWireMessageDispatcher(
     }
 }
 
+    /// <summary>
+    /// Runs the accepted operation.
+    /// </summary>
     private OneWireEnvelope Accepted(OneWireEnvelope request, OneWireWorkItem item) {
     try
     {
@@ -521,6 +557,9 @@ public sealed class OneWireMessageDispatcher(
     }
 }
 
+    /// <summary>
+    /// Runs the error operation.
+    /// </summary>
     private OneWireEnvelope Error(OneWireEnvelope request, string error) {
     try
     {
@@ -544,6 +583,9 @@ public sealed class OneWireMessageDispatcher(
     }
 }
 
+    /// <summary>
+    /// Runs the reply operation.
+    /// </summary>
     private OneWireEnvelope Reply(OneWireEnvelope request, OneWireMessageType type, Dictionary<string, object?> values)
     {
     try
@@ -570,6 +612,9 @@ public sealed class OneWireMessageDispatcher(
     }
 }
 
+    /// <summary>
+    /// Attempts to read.
+    /// </summary>
     private bool TryRead<T>(OneWireEnvelope envelope, string propertyName, out T? value)
     {
         value = default;
@@ -586,6 +631,9 @@ public sealed class OneWireMessageDispatcher(
         }
     }
 
+    /// <summary>
+    /// Gets local advertisement.
+    /// </summary>
     public OneWirePeerAdvertisement GetLocalAdvertisement() {
     try
     {
@@ -616,10 +664,16 @@ public sealed class OneWireMessageDispatcher(
 }
 }
 
+/// <summary>
+/// Represents an one wire target approval policy.
+/// </summary>
 public sealed class OneWireTargetApprovalPolicy(
     ILocalGptVocabularyService vocabulary,
     ILogger<OneWireTargetApprovalPolicy> logger) : IOneWireTargetApprovalPolicy
 {
+    /// <summary>
+    /// Runs the create operation.
+    /// </summary>
     public HumanApprovalRequestSpec Create(OneWireEnvelope envelope)
     {
     try
@@ -685,6 +739,9 @@ public sealed class OneWireTargetApprovalPolicy(
     }
 }
 
+    /// <summary>
+    /// Reads editor.
+    /// </summary>
     public OneWireInteractionEditor ReadEditor(OneWireEnvelope envelope)
     {
     try
@@ -714,6 +771,9 @@ public sealed class OneWireTargetApprovalPolicy(
 }
 }
 
+/// <summary>
+/// Provides one wire council approval processor hosted service operations.
+/// </summary>
 public sealed class OneWireCouncilApprovalProcessorHostedService(
     IOneWirePendingCouncilStore pendingCouncils,
     IHumanCollaborationService humanCollaboration,
@@ -726,6 +786,9 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
     IOneWireEnvelopeCodec codec,
     ILogger<OneWireCouncilApprovalProcessorHostedService> logger) : BackgroundService
 {
+    /// <summary>
+    /// Runs the execute async operation.
+    /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -806,6 +869,9 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
         } while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false));
     }
 
+    /// <summary>
+    /// Runs the send error async operation.
+    /// </summary>
     private Task SendErrorAsync(OneWireEnvelope request, string error, CancellationToken cancellationToken) {
     try
     {
@@ -829,6 +895,9 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
     }
 }
 
+    /// <summary>
+    /// Creates reply.
+    /// </summary>
     private OneWireEnvelope CreateReply(OneWireEnvelope request, OneWireMessageType type, Dictionary<string, object?> values) {
     try
     {
@@ -856,12 +925,18 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
 }
 }
 
+/// <summary>
+/// Provides one wire work processor hosted service operations.
+/// </summary>
 public sealed class OneWireWorkProcessorHostedService(
     IOneWireWorkSpooler spooler,
     IOneWireOperationExecutor executor,
     IOneWireConnectionRegistry connections,
     ILogger<OneWireWorkProcessorHostedService> logger) : BackgroundService
 {
+    /// <summary>
+    /// Runs the execute async operation.
+    /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -893,6 +968,9 @@ public sealed class OneWireWorkProcessorHostedService(
         }
     }
 
+    /// <summary>
+    /// Runs the send result async operation.
+    /// </summary>
     private async Task SendResultAsync(
         OneWireWorkItem item,
         OneWireWorkStatus status,

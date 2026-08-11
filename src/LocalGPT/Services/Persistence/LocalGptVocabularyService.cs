@@ -3,10 +3,16 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Persistence;
 
+/// <summary>
+/// Provides local gpt vocabulary service operations.
+/// </summary>
 public sealed class LocalGptVocabularyService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalGptVocabularyService> logger) : ILocalGptVocabularyService
 {
+    /// <summary>
+    /// Runs the get operation.
+    /// </summary>
     public LocalGptVocabularySnapshot Get()
     {
         try

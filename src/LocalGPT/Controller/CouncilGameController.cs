@@ -4,12 +4,18 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller;
 
+/// <summary>
+/// Provides council game controller operations.
+/// </summary>
 [ApiController]
 [Route("api/council/games")]
 public sealed class CouncilGameController(
     ICouncilGameSessionService games,
     ILogger<CouncilGameController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Runs the start operation.
+    /// </summary>
     [HttpPost("start")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> Start(
         [FromBody] StartCouncilGameRequest request,
@@ -36,6 +42,9 @@ public sealed class CouncilGameController(
         }
     }
 
+    /// <summary>
+    /// Runs the list operation.
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CouncilGameSessionSnapshot>>> List(
         [FromQuery] bool includeCompleted,
@@ -57,6 +66,9 @@ public sealed class CouncilGameController(
         }
     }
 
+    /// <summary>
+    /// Runs the get operation.
+    /// </summary>
     [HttpGet("{sessionId:guid}")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> Get(
         Guid sessionId,
@@ -79,6 +91,9 @@ public sealed class CouncilGameController(
         }
     }
 
+    /// <summary>
+    /// Runs the preview control operation.
+    /// </summary>
     [HttpPost("control/preview")]
     public async Task<ActionResult<CouncilGameDirectorDecision>> PreviewControl(
         [FromBody] CouncilGameControlRequest request,
@@ -105,6 +120,9 @@ public sealed class CouncilGameController(
         }
     }
 
+    /// <summary>
+    /// Runs the control operation.
+    /// </summary>
     [HttpPost("control")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> Control(
         [FromBody] CouncilGameControlRequest request,
@@ -131,6 +149,9 @@ public sealed class CouncilGameController(
         }
     }
 
+    /// <summary>
+    /// Runs the frame operation.
+    /// </summary>
     [HttpPost("frame")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> Frame(
         [FromBody] SubmitCouncilGameFrameRequest request,
@@ -157,6 +178,9 @@ public sealed class CouncilGameController(
         }
     }
 
+    /// <summary>
+    /// Runs the control mode operation.
+    /// </summary>
     [HttpPost("control-mode")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> ControlMode(
         [FromBody] SetCouncilGameControlModeRequest request,
@@ -188,6 +212,9 @@ public sealed class CouncilGameController(
         }
     }
 
+    /// <summary>
+    /// Runs the input gate operation.
+    /// </summary>
     [HttpPost("input-gate")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> InputGate(
         [FromBody] SetCouncilGameInputGateRequest request,

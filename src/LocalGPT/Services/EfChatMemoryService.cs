@@ -14,6 +14,9 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides ef chat memory service operations.
+    /// </summary>
     public partial class EfChatMemoryService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
@@ -23,10 +26,19 @@ namespace LocalGPT.Services
         IChatMemoryMessageMapper messageMapper,
         IChatSessionContext sessionContext) : IChatMemoryService
     {
+        /// <summary>
+        /// Runs the new operation.
+        /// </summary>
         private readonly SemaphoreSlim saveGate = new(1, 1);
 
+        /// <summary>
+        /// Gets or sets database path.
+        /// </summary>
         public string DatabasePath => databaseOptions.DatabasePath;
 
+        /// <summary>
+        /// Gets conversations async.
+        /// </summary>
         public async Task<IReadOnlyList<ChatMemoryConversationSummary>> GetConversationsAsync(int take = 50, CancellationToken cancellationToken = default)
         {
             try
@@ -58,6 +70,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Loads conversation async.
+        /// </summary>
         public async Task<ChatMemoryConversationSnapshot?> LoadConversationAsync(Guid conversationId, CancellationToken cancellationToken = default)
         {
             try
@@ -98,6 +113,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Saves conversation async.
+        /// </summary>
         public async Task<Guid?> SaveConversationAsync(
             string providerName,
             IReadOnlyList<BlazorChatMessage> messages,
@@ -210,6 +228,9 @@ namespace LocalGPT.Services
         }
 
 
+        /// <summary>
+        /// Gets message feedback async.
+        /// </summary>
         public async Task<IReadOnlyList<ChatMessageFeedbackSnapshot>> GetMessageFeedbackAsync(
             Guid conversationId,
             CancellationToken cancellationToken = default)
@@ -253,6 +274,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Runs the record message feedback async operation.
+        /// </summary>
         public async Task<bool> RecordMessageFeedbackAsync(
             Guid conversationId,
             int sortOrder,
@@ -290,6 +314,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Gets recent thoughts async.
+        /// </summary>
         public async Task<IReadOnlyList<ChatMemoryThought>> GetRecentThoughtsAsync(int take = 12, CancellationToken cancellationToken = default)
         {
             try
@@ -315,6 +342,9 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>
+        /// Builds memory briefing async.
+        /// </summary>
         public async Task<string> BuildMemoryBriefingAsync(int conversationTake = 5, int thoughtTake = 5, CancellationToken cancellationToken = default)
         {
             try
@@ -354,6 +384,9 @@ namespace LocalGPT.Services
             
         }
         //Todo get rid of it centralize
+        /// <summary>
+        /// Creates db context async.
+        /// </summary>
         private async Task<LocalGptMemoryDbContext> CreateDbContextAsync(CancellationToken cancellationToken)
         {
             try

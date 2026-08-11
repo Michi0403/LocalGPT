@@ -3,10 +3,16 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides embedded wiring service operations.
+/// </summary>
 public sealed class EmbeddedWiringService(
     IEmbeddedHardwareCatalogService catalog,
     ILogger<EmbeddedWiringService> logger) : IEmbeddedWiringService
 {
+    /// <summary>
+    /// Creates draft async.
+    /// </summary>
     public async Task<EmbeddedWiringDraft> CreateDraftAsync(string boardProfileKey, string name, CancellationToken cancellationToken = default)
     {
     try
@@ -63,6 +69,9 @@ public sealed class EmbeddedWiringService(
     }
 }
 
+    /// <summary>
+    /// Validates async.
+    /// </summary>
     public async Task<EmbeddedWiringValidationResult> ValidateAsync(EmbeddedWiringValidationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -178,6 +187,9 @@ public sealed class EmbeddedWiringService(
     }
 }
 
+    /// <summary>
+    /// Runs the evaluate electrical connection operation.
+    /// </summary>
     private void EvaluateElectricalConnection(
         EmbeddedWiringConnection connection,
         EmbeddedWiringNode source,
@@ -208,6 +220,9 @@ public sealed class EmbeddedWiringService(
     }
 }
 
+    /// <summary>
+    /// Runs the evaluate board endpoint operation.
+    /// </summary>
     private void EvaluateBoardEndpoint(
         EmbeddedBoardProfile? profile,
         bool requireProfileMatch,
@@ -259,6 +274,9 @@ public sealed class EmbeddedWiringService(
     }
 }
 
+    /// <summary>
+    /// Builds council review prompt.
+    /// </summary>
     private string BuildCouncilReviewPrompt(
         EmbeddedWiringDraft draft,
         EmbeddedBoardProfile? profile,
@@ -286,6 +304,9 @@ Resolve every danger finding, verify the exact board documentation, describe vol
     }
 }
 
+    /// <summary>
+    /// Normalizes protocol.
+    /// </summary>
     private string NormalizeProtocol(string? value) {
     try
     {
@@ -300,6 +321,9 @@ Resolve every danger finding, verify the exact board documentation, describe vol
         throw;
     }
 }
+    /// <summary>
+    /// Normalizes identifier.
+    /// </summary>
     private string NormalizeId(string? value) {
     try
     {
@@ -314,6 +338,9 @@ Resolve every danger finding, verify the exact board documentation, describe vol
         throw;
     }
 }
+    /// <summary>
+    /// Determines whether ground.
+    /// </summary>
     private bool IsGround(EmbeddedWiringNode node) {
     try
     {
@@ -328,6 +355,9 @@ Resolve every danger finding, verify the exact board documentation, describe vol
         throw;
     }
 }
+    /// <summary>
+    /// Determines whether power.
+    /// </summary>
     private bool IsPower(EmbeddedWiringNode node) {
     try
     {
@@ -342,6 +372,9 @@ Resolve every danger finding, verify the exact board documentation, describe vol
         throw;
     }
 }
+    /// <summary>
+    /// Determines whether output.
+    /// </summary>
     private bool IsOutput(EmbeddedWiringNode node) {
     try
     {
@@ -356,6 +389,9 @@ Resolve every danger finding, verify the exact board documentation, describe vol
         throw;
     }
 }
+    /// <summary>
+    /// Runs the severity status operation.
+    /// </summary>
     private string SeverityStatus(IEnumerable<EmbeddedPlanFinding> findings) {
     try
     {

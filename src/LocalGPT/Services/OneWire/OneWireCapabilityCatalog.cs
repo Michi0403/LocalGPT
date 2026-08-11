@@ -5,6 +5,9 @@ using System.Text.Json;
 
 namespace LocalGPT.Services.OneWire;
 
+/// <summary>
+/// Provides one wire capability catalog operations.
+/// </summary>
 public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabulary,
     
     IServiceScopeFactory scopeFactory,
@@ -13,6 +16,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     IHardwareInventoryService hardwareInventory,
     ILogger<OneWireCapabilityCatalog> logger) : IOneWireCapabilityCatalog
 {
+    /// <summary>
+    /// Gets local capabilities async.
+    /// </summary>
     public Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -40,6 +46,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     Task<IReadOnlyList<OneWireHardwareDescriptor>> IOneWireCapabilityProvider.GetHardwareAsync(CancellationToken cancellationToken) =>
         GetLocalHardwareAsync(cancellationToken);
 
+    /// <summary>
+    /// Gets local capabilities for peer async.
+    /// </summary>
     public Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesForPeerAsync(string peerId, CancellationToken cancellationToken = default)
     {
     try
@@ -58,6 +67,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Builds capabilities async.
+    /// </summary>
     private async Task<IReadOnlyList<OneWireCapabilityDescriptor>> BuildCapabilitiesAsync(string? peerId, CancellationToken cancellationToken)
     {
     try
@@ -212,6 +224,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Gets local skills async.
+    /// </summary>
     public async Task<IReadOnlyList<OneWireSkillDescriptor>> GetLocalSkillsAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -252,6 +267,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Gets local hardware async.
+    /// </summary>
     public Task<IReadOnlyList<OneWireHardwareDescriptor>> GetLocalHardwareAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -267,6 +285,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Gets local UI features async.
+    /// </summary>
     public async Task<IReadOnlyList<OneWireUiFeatureDescriptor>> GetLocalUiFeaturesAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -296,6 +317,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Creates feature.
+    /// </summary>
     private OneWireUiFeatureDescriptor CreateFeature(string key, string name, bool enabled, string disabledReason) {
     try
     {
@@ -317,6 +341,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Creates capability feature.
+    /// </summary>
     private OneWireUiFeatureDescriptor CreateCapabilityFeature(
         string key,
         string name,
@@ -353,6 +380,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Runs the built in skills operation.
+    /// </summary>
     private IReadOnlyList<OneWireSkillDescriptor> BuiltInSkills() {
     try
     {
@@ -398,6 +428,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Parses list.
+    /// </summary>
     private List<string> ParseList(string? json)
     {
     try
@@ -416,6 +449,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Runs the infer organs operation.
+    /// </summary>
     private List<string> InferOrgans(string name, string purpose)
     {
     try
@@ -437,6 +473,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Runs the infer skills operation.
+    /// </summary>
     private List<string> InferSkills(string name, string purpose)
     {
     try
@@ -455,6 +494,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Runs the populate teaching operation.
+    /// </summary>
     private void PopulateTeaching(OneWireCapabilityDescriptor capability)
     {
     try

@@ -6,11 +6,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides local gpt project service operations.
+/// </summary>
 public sealed class LocalGptProjectService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<LocalGptProjectService> logger) : ILocalGptProjectService
 {
+    /// <summary>
+    /// Gets projects async.
+    /// </summary>
     public async Task<IReadOnlyList<LocalGptProjectSummary>> GetProjectsAsync(
         bool includeArchived = false,
         CancellationToken cancellationToken = default)
@@ -54,6 +60,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Gets project async.
+    /// </summary>
     public async Task<LocalGptProjectDetails?> GetProjectAsync(
         Guid projectId,
         CancellationToken cancellationToken = default)
@@ -157,6 +166,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Saves project async.
+    /// </summary>
     public async Task<LocalGptProject> SaveProjectAsync(
         SaveLocalGptProjectRequest request,
         CancellationToken cancellationToken = default)
@@ -218,6 +230,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Adds topic async.
+    /// </summary>
     public async Task<LocalGptProjectTopic> AddTopicAsync(
         Guid projectId,
         AddLocalGptProjectTopicRequest request,
@@ -260,6 +275,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Adds version async.
+    /// </summary>
     public async Task<LocalGptProjectVersion> AddVersionAsync(
         Guid projectId,
         AddLocalGptProjectVersionRequest request,
@@ -317,6 +335,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Runs the link knowledge async operation.
+    /// </summary>
     public async Task LinkKnowledgeAsync(
         Guid projectTopicId,
         LinkProjectTopicKnowledgeRequest request,
@@ -375,6 +396,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Builds project briefing async.
+    /// </summary>
     public async Task<string> BuildProjectBriefingAsync(
         Guid? projectId,
         Guid? projectTopicId,
@@ -456,6 +480,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Runs the require human confirmation operation.
+    /// </summary>
     private void RequireHumanConfirmation(bool userConfirmed, string operation)
     {
     try
@@ -474,6 +501,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Runs the require text operation.
+    /// </summary>
     private string RequireText(string? value, string parameterName, int maxLength)
     {
     try
@@ -494,6 +524,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Runs the trim or fallback operation.
+    /// </summary>
     private string TrimOrFallback(string? value, int maxLength, string fallback)
     {
     try
@@ -512,6 +545,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Runs the trim operation.
+    /// </summary>
     private string Trim(string? value, int maxLength)
     {
     try
@@ -530,6 +566,9 @@ public sealed class LocalGptProjectService(
     }
 }
 
+    /// <summary>
+    /// Normalizes stored path.
+    /// </summary>
     private string NormalizeStoredPath(string? value)
     {
     try
@@ -553,6 +592,9 @@ public sealed class LocalGptProjectService(
         throw;
     }
 }
+    /// <summary>
+    /// Validates regex.
+    /// </summary>
     private void ValidateRegex(string? pattern, string parameterName)
     {
     try

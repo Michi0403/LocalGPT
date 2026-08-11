@@ -21,9 +21,15 @@ public sealed class DatabaseInitializationService(
     IHostEnvironment hostEnvironment,
     ILogger<DatabaseInitializationService> logger) : IDatabaseInitializationService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim gate = new(1, 1);
     private volatile bool initialized;
 
+    /// <summary>
+    /// Runs the initialize async operation.
+    /// </summary>
     public Task InitializeAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -44,6 +50,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Runs the initialize core async operation.
+    /// </summary>
     private async Task InitializeCoreAsync(CancellationToken cancellationToken)
     {
     try
@@ -90,6 +99,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Runs the run migration async operation.
+    /// </summary>
     private async Task RunMigrationAsync(CancellationToken cancellationToken)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -109,6 +121,9 @@ public sealed class DatabaseInitializationService(
         }
     }
 
+    /// <summary>
+    /// Runs the run seed stage async operation.
+    /// </summary>
     private async Task RunSeedStageAsync(
         string stageName,
         Func<LocalGptMemoryDbContext, CancellationToken, Task> seed,
@@ -164,6 +179,9 @@ public sealed class DatabaseInitializationService(
 
     }
 
+    /// <summary>
+    /// Attempts to reconcile seed concurrency async.
+    /// </summary>
     private async Task<bool> TryReconcileSeedConcurrencyAsync(
         LocalGptMemoryDbContext db,
         string stageName,
@@ -209,6 +227,9 @@ public sealed class DatabaseInitializationService(
         }
     }
 
+    /// <summary>
+    /// Determines whether initialized store present.
+    /// </summary>
     private bool IsInitializedStorePresent() {
     try
     {
@@ -224,6 +245,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Runs the seed regex async operation.
+    /// </summary>
     private async Task SeedRegexAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -262,6 +286,9 @@ public sealed class DatabaseInitializationService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the seed prompts async operation.
+    /// </summary>
     private async Task SeedPromptsAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -296,6 +323,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Runs the seed variables async operation.
+    /// </summary>
     private async Task SeedVariablesAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -355,6 +385,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Determines whether JSON string array.
+    /// </summary>
     private bool IsJsonStringArray(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -375,6 +408,9 @@ public sealed class DatabaseInitializationService(
         }
     }
 
+    /// <summary>
+    /// Runs the seed knowledge async operation.
+    /// </summary>
     private async Task SeedKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -430,6 +466,9 @@ public sealed class DatabaseInitializationService(
 }
 
 
+    /// <summary>
+    /// Runs the seed core projects async operation.
+    /// </summary>
     private async Task SeedCoreProjectsAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -496,75 +535,150 @@ public sealed class DatabaseInitializationService(
             EnsureVersion(core, "2.1.9", repositoryRoot, "Compile-fix release that restores the AdaptiveOllamaBenchmarkWiring interface import while retaining the explicit unimplemented benchmark boundary.");
             EnsureRevision(core, "main", "seed-v2.1.9", repositoryRoot,
                 "Adds the missing LocalGPT.Interfaces namespace import required by AdaptiveOllamaBenchmarkWiring and advances the application patch version without changing the separately versioned 1-Wire protocol package.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.10", repositoryRoot, "Scoped-lifetime diagnostics and adaptive Ollama benchmark release with zero explicit true-context continuation captures.");
             EnsureRevision(core, "main", "seed-v2.1.10", repositoryRoot,
+                /// <summary>
+                /// Runs the configure await operation.
+                /// </summary>
                 "Prevents diagnostics decorators from resolving scoped services through the root provider, implements the bounded local Ollama autotuner, and restores the asynchronous policy: renderer-context continuations remain implicit while context-free service continuations use ConfigureAwait(false).");
+            /// <summary>
+            /// Runs the configure await operation.
+            /// </summary>
             EnsureVersion(core, "2.1.11", repositoryRoot, "Fine-grained asynchronous continuation release with explicit ConfigureAwait(false) on context-free awaits and narrowly scoped ConfigureAwait(true) inside OnAfterRenderAsync lifecycle continuations.");
             EnsureRevision(core, "main", "seed-v2.1.11", repositoryRoot,
                 "Corrects the 2.1.10 continuation policy by making every await expression explicit, retaining renderer affinity only in OnAfterRenderAsync, and keeping service, controller, persistence, diagnostics, background and non-lifecycle component continuations context-free.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.12", repositoryRoot, "Compiler and continuation-policy correction release with fully qualified configuration types, restored DXFunction parameter binding, exact Razor await auditing, and reviewed renderer-affine loading continuations.");
             EnsureRevision(core, "main", "seed-v2.1.12", repositoryRoot,
                 "Fixes the Adaptive Ollama configuration type ambiguity, restores request.Parameters binding for project architecture and maintenance DXFunctions, repairs the PowerShell async audit, and preserves renderer context only for lifecycle or explicitly reviewed UI-loading continuations while services and controllers remain context-free.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.13", repositoryRoot, "Compile recovery and database-logger startup isolation release that awaits configured UI actions and defers ApplicationLogs persistence until migration and deterministic seeding complete.");
             EnsureRevision(core, "main", "seed-v2.1.13", repositoryRoot,
                 "Repairs RunRemoteKnowledgeAsync so LocalGPT compiles and adds a one-way database-logger readiness gate so startup diagnostics cannot race migration or seed SaveChangesAsync operations. The adaptive Ollama benchmark implementation and independently versioned wire protocol remain unchanged.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.14", repositoryRoot, "Embedded firmware and workspace-environment preparation release with transport-neutral ESP32/Arduino planning, board/pin catalogs, PublisherStudio wiring contracts, official learning-source manifests and permission-aware compiler workspaces.");
             EnsureRevision(core, "main", "seed-v2.1.14", repositoryRoot,
                 "Adds Chat-level embedded catalog, wiring, firmware and telemetry DXFunctions; protected logical 1-Wire telemetry ingress; PublisherStudio organic wiring-editor contracts; Arduino/Espressif/PlatformIO installer learning sources; and workspace environment, compiler, structure-regex and access-policy assessment wiring. Legacy embedded sources remain architectural evidence and are not copied into the product.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.15", repositoryRoot, "Build-correction release for the embedded workbench that removes two unapproved iterator helpers and replaces malformed interpolated raw-string artifact generators with explicit StringBuilder output.");
             EnsureRevision(core, "main", "seed-v2.1.15", repositoryRoot,
                 "Corrects the EmbeddedHardwareCatalogService iterator-policy failures and the EmbeddedFirmwarePlanningService C# syntax failures while preserving the transport-neutral ESP32/Arduino, workspace-environment, DXFunction and organic capability contracts introduced in 2.1.14.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.16", repositoryRoot, "Build-correction release for workspace access-policy evaluation that resolves the Regex.IsMatch method-group ambiguity on .NET 10 without changing policy behavior.");
             EnsureRevision(core, "main", "seed-v2.1.16", repositoryRoot,
                 "Resolves the .NET 10 LINQ overload ambiguity in workspace access-policy matching by wrapping Regex.IsMatch in an explicit single-argument lambda while preserving the existing bounded policy behavior.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.17", repositoryRoot, "Responsive workbench and customizable LearnBase release with the final workspace path-overload correction, full-width operational pages, optional ASCII sessions and selectable fullscreen scaling.");
             EnsureRevision(core, "main", "seed-v2.1.17", repositoryRoot,
                 "Applies the string-based EndsWith workspace policy fix, adds editable LearnBase endings/regex/import modes with embedded source profiles, expands OneWire/Projects/Project Maintenance layouts, and makes the original ASCII corridor optional with side-by-side controls and Fit/Width/Native fullscreen modes.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.18", repositoryRoot, "Authoritative GameDirector, generated XML-comment documentation, startup seed-concurrency correction and large responsive Chat configuration release.");
             EnsureRevision(core, "main", "seed-v2.1.18", repositoryRoot,
                 "Routes every game control proposal through the GameDirector and bounded creature/object subdirectors, adds DocFX HTML/PDF output with version-enriched XML-comment APIs, seeds existing projects through additive no-tracking inserts, and expands Chat configuration surfaces for 4K and 100-percent zoom use.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.19", repositoryRoot, "Documentation-build invocation correction release that preserves generated DocFX HTML/PDF output while making Windows PowerShell parameter passing deterministic.");
             EnsureRevision(core, "main", "seed-v2.1.19", repositoryRoot,
                 "Prevents the trailing repository-root backslash from absorbing DocFX build arguments, normalizes all documentation input paths, and retains the 2.1.18 GameDirector, startup, translator and responsive Chat behavior.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.20", repositoryRoot, "First-run councils, recursive-prompt cleanup, canonical Harmony/Markdown rendering and resilient DocFX/XML-documentation release.");
             EnsureRevision(core, "main", "seed-v2.1.20", repositoryRoot,
                 "Adds visible benchmark, GameDirector and language-specific development teams; introduces installer/documentation quick starts; prevents full Council transcripts and model-owned HTML from being recursively reinjected; and makes DocFX restore failures non-fatal for diagnostic builds while maintaining XML-commented changed APIs.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.22", repositoryRoot, "Open localization catalogs, persistent installer onboarding access and resilient DocFX metadata fallback.");
             EnsureRevision(core, "main", "seed-v2.1.22", repositoryRoot,
                 "Keeps onboarding and benchmark quick starts accessible from Install, supports validated user language JSON catalogs and prevents DocFX metadata failures from breaking Debug builds.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.1.23", repositoryRoot, "Release-safe documentation fallback, direct Council autostart, compiler discovery UI and durable feature records.");
             EnsureRevision(core, "main", "seed-v2.1.23", repositoryRoot,
                 "Added static HTML/PDF documentation fallback, fixed Council starter dispatch, restored normal quick prompts, exposed toolchains, and persisted newer feature records with CRUD APIs.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.2.1", repositoryRoot, "Maintenance release with reliable localization, installed-documentation discovery, grouped responsive Test Lab panels, stable AI-provider selection and GitHub Pages API navigation.");
             EnsureRevision(core, "main", "seed-v2.2.1", repositoryRoot,
                 "Restores end-to-end language switching after interactive Blazor attachment, removes forbidden service statics, replaces the clipped Council/provider combo, keeps recursive installed documentation discovery and fixes the generated API reference link.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.2.2", repositoryRoot, "Patch release preserving the published 2.2.1 history while completing culture switching, installed PDF discovery, centered ASCII-game guide behavior, resilient DX catalog synchronization and generated API navigation.");
             EnsureRevision(core, "main", "seed-v2.2.2", repositoryRoot,
                 "Advances the application package after 2.2.1 was published. Retains all frontend features and applies the follow-up localization, game-layout, documentation, persistence and build-policy corrections without changing the separately versioned 1-Wire protocol package.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.2.4", repositoryRoot, "Kawaii DocFX website-shell and release-routing patch with complete light/dark theming, validated generated links and shipped GitHub Pages output.");
             EnsureRevision(core, "main", "seed-v2.2.4", repositoryRoot,
                 "Carries the post-2.2.2 documentation website corrections under a new application version. Preserves working localization and frontend behavior while applying the full Kawaii HTML shell, cat branding, light/dark mode support, generated-link validation and release-payload GitHub Pages publishing.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.2.5", repositoryRoot, "GitHub Pages deployment reliability patch that publishes the exact shipped Kawaii DocFX tree, verifies theme assets and automatically refreshes Pages after workflow changes.");
             EnsureRevision(core, "main", "seed-v2.2.5", repositoryRoot,
                 "Added automatic latest-release Pages deployment, strict Kawaii asset selection, deployment diagnostics and a clear legacy-source guard without changing application features.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.2.6", repositoryRoot, "GitHub Actions Node.js 24 maintenance release that updates the Pages checkout action while preserving the shipped Kawaii DocFX deployment pipeline.");
             EnsureRevision(core, "main", "seed-v2.2.6", repositoryRoot,
                 "Updates actions/checkout from v4 to the Node.js 24-based v6 release. The generated documentation payload, Kawaii theme, Pages extraction rules and application functionality remain unchanged.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.2.7", repositoryRoot, "GitHub Pages ZIP path-normalization release that correctly extracts PowerShell-created Windows archive members while preserving the shipped Kawaii DocFX site.");
             EnsureRevision(core, "main", "seed-v2.2.7", repositoryRoot,
                 "Fixes release documentation extraction by retaining the exact stored ZIP member names after portable slash normalization. Windows backslash paths now publish correctly without weakening theme, API, PDF or path-safety validation.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.2.8", repositoryRoot, "Provider-qualified multi-provider Council and dynamic Benchmark Council release with reusable accessible model panels.");
             EnsureRevision(core, "main", "seed-v2.2.8", repositoryRoot,
                 "Adds provider-and-endpoint-safe model identities, cross-provider Council execution, per-model benchmark/property controls in Chat, Install and Council, all-selected Benchmark Council runs, and user-approved provider-qualified recommendation presets.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.2.9", repositoryRoot, "Build-policy compliance and Council final-answer accounting patch for provider-qualified benchmarking.");
             EnsureRevision(core, "main", "seed-v2.2.9", repositoryRoot,
                 "Moves provider-panel text composition into the text service, materializes configured-provider enumeration, fixes configuration type ambiguity and benchmark route initialization, removes obsolete Council dependencies, and records failed final-answer recovery honestly without attaching it as peer verification.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.3.2", repositoryRoot, "Chat ASCII-console close-action release with fullscreen-safe removal in every display scale mode.");
             EnsureRevision(core, "main", "seed-v2.3.2", repositoryRoot,
                 "Adds an always-visible in-console close action, exits browser fullscreen before unmounting the interactive panel, and restores the Chat conversation without requiring a page refresh or session rejoin.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.3.3", repositoryRoot, "Documentation viewer and normalized source-layout maintenance release.");
             EnsureRevision(core, "main", "seed-v2.3.3", repositoryRoot,
                 "Opens generated documentation in a contained in-app viewer, corrects the canonical src/LocalGPT documentation output path, and aligns active maintenance scripts with the normalized repository layout.");
+           /// <summary>
+           /// Ensures version.
+           /// </summary>
             EnsureVersion(core, "2.3.6", repositoryRoot, "Responsive Chat and joinable live benchmark-session release.");
             EnsureRevision(core, "main", "seed-v2.3.6", repositoryRoot,
                 "Keeps benchmark work inside the maintained live Council-session path, restores reliable join and transcript visibility in Chat, and makes configuration controls responsive at high display scaling without changing provider-qualified execution boundaries.");
@@ -680,6 +794,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Runs the track missing project seed records operation.
+    /// </summary>
     private void TrackMissingProjectSeedRecords(
         LocalGptMemoryDbContext db,
         LocalGptProject project,
@@ -715,6 +832,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Runs the seed council model presets async operation.
+    /// </summary>
     private async Task SeedCouncilModelPresetsAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -826,6 +946,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Builds preset.
+    /// </summary>
     private CouncilModelPreset BuildPreset(
         string name,
         string description,
@@ -866,6 +989,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Runs the route operation.
+    /// </summary>
     private OneWireCouncilModelRoute Route(
         string model,
         OneWireHardwareKind kind,
@@ -903,6 +1029,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Ensures topic.
+    /// </summary>
     private void EnsureTopic(LocalGptProject project, string name, string description)
     {
     try
@@ -930,6 +1059,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Ensures version.
+    /// </summary>
     private void EnsureVersion(LocalGptProject project, string version, string path, string notes)
     {
     try
@@ -958,6 +1090,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Ensures revision.
+    /// </summary>
     private void EnsureRevision(LocalGptProject project, string branch, string revision, string root, string summary)
     {
     try
@@ -989,6 +1124,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Ensures requirement.
+    /// </summary>
     private void EnsureRequirement(LocalGptProject project, string name, string description, string capability, string priority)
     {
     try
@@ -1021,6 +1159,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Ensures artifact.
+    /// </summary>
     private void EnsureArtifact(LocalGptProject project, string name, string kind, string value, string dataType, string description)
     {
     try
@@ -1051,6 +1192,9 @@ public sealed class DatabaseInitializationService(
     }
 }
 
+    /// <summary>
+    /// Resolves repository root.
+    /// </summary>
     private string ResolveRepositoryRoot(string contentRoot)
     {
     try
@@ -1078,10 +1222,16 @@ public sealed class DatabaseInitializationService(
 
 }
 
+/// <summary>
+/// Provides database initialization hosted service operations.
+/// </summary>
 public sealed class DatabaseInitializationHostedService(
     IDatabaseInitializationService initializer,
     ILogger<DatabaseInitializationHostedService> logger) : IHostedService
 {
+    /// <summary>
+    /// Starts async.
+    /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
@@ -1095,6 +1245,9 @@ public sealed class DatabaseInitializationHostedService(
         }
     }
 
+    /// <summary>
+    /// Stops async.
+    /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) {
     try
     {

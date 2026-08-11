@@ -7,7 +7,13 @@ public interface IDatabaseLoggerReadiness
 {
     bool IsReady { get; }
 
+    /// <summary>
+    /// Runs the wait until ready async operation.
+    /// </summary>
     Task WaitUntilReadyAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Runs the mark ready operation.
+    /// </summary>
     void MarkReady();
 }

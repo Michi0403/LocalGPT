@@ -9,6 +9,9 @@ namespace LocalGPT.Interfaces;
 /// </summary>
 public interface ICouncilHardwareRoadPlanner
 {
+    /// <summary>
+    /// Builds plans.
+    /// </summary>
     IReadOnlyDictionary<string, CouncilHardwareRoadPlan> BuildPlans(
         IReadOnlyCollection<OneWireCouncilModelRoute>? configuredRoutes,
         IReadOnlyCollection<string> participants,

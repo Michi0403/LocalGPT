@@ -6,5 +6,8 @@ namespace LocalGPT.Interfaces;
 /// </summary>
 public interface IDatabaseMigrationCompatibilityService
 {
+    /// <summary>
+    /// Runs the prepare async operation.
+    /// </summary>
     Task PrepareAsync(CancellationToken cancellationToken = default);
 }

@@ -35,6 +35,9 @@ public sealed class CouncilTeamConfigurationService(
         "RoundRobinSingle",
         "AssignedModelSingle"
     ];
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     /// <inheritdoc />

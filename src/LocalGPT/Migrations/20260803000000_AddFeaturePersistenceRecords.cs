@@ -6,10 +6,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations;
 
+/// <summary>
+/// Represents an add feature persistence records.
+/// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260803000000_AddFeaturePersistenceRecords")]
 public partial class AddFeaturePersistenceRecords : Migration
 {
+    /// <summary>
+    /// Runs the up operation.
+    /// </summary>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.CreateTable(
@@ -116,6 +122,9 @@ public partial class AddFeaturePersistenceRecords : Migration
         migrationBuilder.CreateIndex("IX_CouncilGameSessionRecords_ConversationId", "CouncilGameSessionRecords", "ConversationId");
     }
 
+    /// <summary>
+    /// Runs the down operation.
+    /// </summary>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable("CouncilGameSessionRecords");

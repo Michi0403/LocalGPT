@@ -6,12 +6,18 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller
 {
  
+    /// <summary>
+    /// Provides database knowledge controller operations.
+    /// </summary>
     [ApiController]
     [Route("__diag/knowledge/[controller]")]
     public class DatabaseKnowledgeController(LocalGptMemoryDbContext db, ILogger<DatabaseKnowledgeController> logger) : ControllerBase
     {
 
         // GET /__diag/knowledge/database-configs?take=100
+        /// <summary>
+        /// Runs the list configs operation.
+        /// </summary>
         [HttpGet("configs")]
         public async Task<IActionResult> ListConfigs([FromQuery] int take = 100)
         {
@@ -33,6 +39,9 @@ namespace LocalGPT.Controller
         }
 
         // GET /__diag/knowledge/database-configs/{id}
+        /// <summary>
+        /// Gets config by identifier.
+        /// </summary>
         [HttpGet("configs/{id:int}")]
         public async Task<IActionResult> GetConfigById(int id)
         {

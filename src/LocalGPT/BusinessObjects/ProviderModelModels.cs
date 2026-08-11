@@ -3,12 +3,30 @@ using System.Text;
 
 namespace LocalGPT.BusinessObjects;
 
+/// <summary>
+/// Represents a provider model kinds.
+/// </summary>
 internal sealed class ProviderModelKinds
 {
+    /// <summary>
+    /// Runs the provider model kinds operation.
+    /// </summary>
     private ProviderModelKinds() { }
+    /// <summary>
+    /// Stores ollama.
+    /// </summary>
     public const string Ollama = "ollama";
+    /// <summary>
+    /// Stores open aicompatible.
+    /// </summary>
     public const string OpenAICompatible = "openai-compatible";
+    /// <summary>
+    /// Stores open ai.
+    /// </summary>
     public const string OpenAI = "openai";
+    /// <summary>
+    /// Stores azure open ai.
+    /// </summary>
     public const string AzureOpenAI = "azure-openai";
 }
 
@@ -18,25 +36,73 @@ internal sealed class ProviderModelKinds
 /// </summary>
 public sealed class ProviderModelReference
 {
+    /// <summary>
+    /// Gets or sets provider kind.
+    /// </summary>
     public string ProviderKind { get; set; } = ProviderModelKinds.Ollama;
+    /// <summary>
+    /// Gets or sets provider name.
+    /// </summary>
     public string ProviderName { get; set; } = "Ollama";
+    /// <summary>
+    /// Gets or sets endpoint.
+    /// </summary>
     public string Endpoint { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets model name.
+    /// </summary>
     public string ModelName { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets is local.
+    /// </summary>
     public bool IsLocal { get; set; } = true;
+    /// <summary>
+    /// Gets or sets is reachable.
+    /// </summary>
     public bool IsReachable { get; set; }
+    /// <summary>
+    /// Gets or sets is configured.
+    /// </summary>
     public bool IsConfigured { get; set; }
+    /// <summary>
+    /// Gets or sets is loaded.
+    /// </summary>
     public bool IsLoaded { get; set; }
+    /// <summary>
+    /// Gets or sets supports benchmark.
+    /// </summary>
     public bool SupportsBenchmark { get; set; } = true;
+    /// <summary>
+    /// Gets or sets details.
+    /// </summary>
     public string Details { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Gets or sets selection key.
+    /// </summary>
     public string SelectionKey => new ProviderModelIdentity().CreateSelectionKey(ProviderName, Endpoint, ModelName);
+    /// <summary>
+    /// Gets or sets display name.
+    /// </summary>
     public string DisplayName => $"{ModelName} — {ProviderName}";
+    /// <summary>
+    /// Gets or sets endpoint label.
+    /// </summary>
     public string EndpointLabel => new ProviderModelIdentity().GetEndpointLabel(Endpoint);
+    /// <summary>
+    /// Gets or sets stable identifier.
+    /// </summary>
     public string StableId => new ProviderModelIdentity().CreateStableId(ProviderKind, Endpoint, ModelName);
 }
 
+/// <summary>
+/// Represents a provider model identity.
+/// </summary>
 internal readonly struct ProviderModelIdentity
 {
+    /// <summary>
+    /// Creates selection key.
+    /// </summary>
     public string CreateSelectionKey(string providerName, string endpoint, string modelName)
     {
         var provider = string.IsNullOrWhiteSpace(providerName) ? "AI provider" : providerName.Trim();
@@ -47,6 +113,9 @@ internal readonly struct ProviderModelIdentity
             : $"{provider} — {model} @ {normalizedEndpoint}";
     }
 
+    /// <summary>
+    /// Gets endpoint label.
+    /// </summary>
     public string GetEndpointLabel(string? endpoint)
     {
         if (string.IsNullOrWhiteSpace(endpoint))
@@ -66,6 +135,9 @@ internal readonly struct ProviderModelIdentity
             : authority + path;
     }
 
+    /// <summary>
+    /// Creates stable identifier.
+    /// </summary>
     public string CreateStableId(string? providerKind, string? endpoint, string? modelName)
     {
         var value = $"{providerKind?.Trim().ToLowerInvariant() ?? string.Empty}|{NormalizeEndpoint(endpoint)}|{modelName?.Trim() ?? string.Empty}";
@@ -73,11 +145,17 @@ internal readonly struct ProviderModelIdentity
     }
 
 
+    /// <summary>
+    /// Runs the looks provider qualified operation.
+    /// </summary>
     public bool LooksProviderQualified(string? value) =>
         !string.IsNullOrWhiteSpace(value)
         && value.Contains(" — ", StringComparison.Ordinal)
         && value.Contains(" @ ", StringComparison.Ordinal);
 
+    /// <summary>
+    /// Attempts to parse selection key.
+    /// </summary>
     public bool TryParseSelectionKey(string? value, out ProviderModelReference reference)
     {
         reference = new ProviderModelReference();
@@ -118,6 +196,9 @@ internal readonly struct ProviderModelIdentity
         return true;
     }
 
+    /// <summary>
+    /// Runs the infer provider kind operation.
+    /// </summary>
     private string InferProviderKind(string providerName)
     {
         if (providerName.Equals("Ollama", StringComparison.OrdinalIgnoreCase))
@@ -129,6 +210,9 @@ internal readonly struct ProviderModelIdentity
         return ProviderModelKinds.OpenAICompatible;
     }
 
+    /// <summary>
+    /// Normalizes open ai compatible endpoint.
+    /// </summary>
     public string NormalizeOpenAiCompatibleEndpoint(string? endpoint)
     {
         var normalized = NormalizeEndpoint(endpoint);
@@ -140,6 +224,9 @@ internal readonly struct ProviderModelIdentity
         return builder.Uri.ToString().TrimEnd('/');
     }
 
+    /// <summary>
+    /// Normalizes endpoint.
+    /// </summary>
     public string NormalizeEndpoint(string? endpoint)
     {
         var value = endpoint?.Trim().TrimEnd('/') ?? string.Empty;

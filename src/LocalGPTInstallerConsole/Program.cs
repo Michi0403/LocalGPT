@@ -17,11 +17,17 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
+/// <summary>
+/// Represents a program.
+/// </summary>
 internal static class Program
 {
     private const string LocalGptRepo = "Michi0403/LocalGPT";
     private const string LocalGptZipName = "LocalGPTByMichi0403.zip";
     private const string LocalGptSetupZipName = "LocalGPTSetupByMichi0403.zip";
+    /// <summary>
+    /// Creates HTTP client.
+    /// </summary>
     private static readonly HttpClient Http = CreateHttpClient();
 
     private static readonly string[] SlimModels =
@@ -112,6 +118,9 @@ internal static class Program
         "platformio/platformio-core"
     ];
 
+    /// <summary>
+    /// Runs the main operation.
+    /// </summary>
     public static async Task<int> Main(string[] args)
     {
         var launchedByDoubleClick = args.Length == 0 && Environment.UserInteractive;
@@ -146,6 +155,9 @@ internal static class Program
         }
         
     }
+    /// <summary>
+    /// Runs the args to string operation.
+    /// </summary>
     private static string ArgsToString(string[]? args)
     {
         if (args is null)
@@ -162,6 +174,9 @@ internal static class Program
 
         return builder.ToString().TrimEnd();
     }
+    /// <summary>
+    /// Runs the run async operation.
+    /// </summary>
     private static async Task<int> RunAsync(string[] args, CliOptions options)
     {
         try
@@ -295,6 +310,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Runs the install ollama async operation.
+    /// </summary>
     private static async Task InstallOllamaAsync(CliOptions options, ILogger logger)
     {
         try
@@ -329,6 +347,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Ensures ollama available.
+    /// </summary>
     private static string EnsureOllamaAvailable(CliOptions options, ILogger logger)
     {
         try
@@ -351,6 +372,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Finds ollama executable.
+    /// </summary>
     private static string? FindOllamaExecutable(CliOptions options, ILogger logger)
     {
         try
@@ -391,6 +415,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Adds directory to user path if missing.
+    /// </summary>
     private static void AddDirectoryToUserPathIfMissing(string directory, ILogger logger)
     {
         try
@@ -420,6 +447,9 @@ internal static class Program
 
     }
 
+    /// <summary>
+    /// Starts ollama server.
+    /// </summary>
     private static void StartOllamaServer(string ollamaExe, ILogger logger)
     {
         try
@@ -448,6 +478,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Runs the pull models async operation.
+    /// </summary>
     private static async Task PullModelsAsync(string ollamaExe, string[] models, ILogger logger)
     {
         try
@@ -466,6 +499,9 @@ internal static class Program
 
     }
 
+    /// <summary>
+    /// Runs the install local gpt async operation.
+    /// </summary>
     private static async Task InstallLocalGptAsync(CliOptions options, ILogger logger)
     {
         try
@@ -514,6 +550,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Runs the uninstall local gpt windows operation.
+    /// </summary>
     private static void UninstallLocalGptWindows(CliOptions options, ILogger logger)
     {
         try
@@ -552,6 +591,9 @@ internal static class Program
             logger.LogError(ex, $"Error in UninstallLocalGptWindows. options {options.ToString()}");
         }
     }
+    /// <summary>
+    /// Gets local gpt uninstall targets.
+    /// </summary>
     private static List<string> GetLocalGptUninstallTargets(CliOptions options, ILogger logger)
     {
         try
@@ -588,6 +630,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Runs the provision windows shortcuts operation.
+    /// </summary>
     private static void ProvisionWindowsShortcuts(CliOptions options, ILogger logger)
     {
         try
@@ -634,6 +679,9 @@ internal static class Program
             throw;
         }
     }
+    /// <summary>
+    /// Gets shortcut targets.
+    /// </summary>
     private static List<ShortcutDefinition> GetShortcutTargets(string localGptRoot, ILogger logger)
     {
         try
@@ -710,6 +758,9 @@ internal static class Program
             return new List<ShortcutDefinition>();
         }
     }
+    /// <summary>
+    /// Creates shortcut set.
+    /// </summary>
     private static void CreateShortcutSet(
     List<ShortcutDefinition> shortcuts,
     string targetDirectory,
@@ -857,6 +908,9 @@ internal static class Program
             || normalizedCandidate.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Creates windows URL shortcut.
+    /// </summary>
     private static void CreateWindowsUrlShortcut(
     string shortcutPath,
     string targetPath,
@@ -909,6 +963,9 @@ internal static class Program
             throw;
         }
     }
+    /// <summary>
+    /// Runs the enumerate files safe operation.
+    /// </summary>
     private static IEnumerable<string> EnumerateFilesSafe(
     string root,
     string searchPattern,
@@ -935,6 +992,9 @@ internal static class Program
             return Enumerable.Empty<string>();
         }
     }
+    /// <summary>
+    /// Finds local gpt icon.
+    /// </summary>
     private static string? FindLocalGptIcon(ILogger logger)
     {
         try
@@ -999,6 +1059,9 @@ internal static class Program
             return null;
         }
     }
+    /// <summary>
+    /// Finds local gpt file.
+    /// </summary>
     private static string? FindLocalGptFile(
     string localGptRoot,
     string fileName,
@@ -1044,6 +1107,9 @@ internal static class Program
             return null;
         }
     }
+    /// <summary>
+    /// Finds local gpt executable.
+    /// </summary>
     private static string? FindLocalGptExecutable(CliOptions options, ILogger logger)
     {
         try
@@ -1107,6 +1173,9 @@ internal static class Program
             return null;
         }
     }
+    /// <summary>
+    /// Gets relative path depth.
+    /// </summary>
     private static int GetRelativePathDepth(string root, string path)
     {
         try
@@ -1119,6 +1188,9 @@ internal static class Program
             return int.MaxValue;
         }
     }
+    /// <summary>
+    /// Adds cmd shortcut if exists.
+    /// </summary>
     private static void AddCmdShortcutIfExists(
     List<ShortcutDefinition> shortcuts,
     string localGptRoot,
@@ -1154,6 +1226,9 @@ internal static class Program
             logger.LogError(ex, $"Error in AddCmdShortcutIfExists. cmdFileName {cmdFileName}");
         }
     }
+    /// <summary>
+    /// Ensures windows only.
+    /// </summary>
     private static void EnsureWindowsOnly(string featureName, ILogger logger)
     {
         try
@@ -1167,6 +1242,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Gets local gpt install root.
+    /// </summary>
     private static string GetLocalGptInstallRoot( ILogger logger)
     {
         try
@@ -1186,6 +1264,9 @@ internal static class Program
 
     }
 
+    /// <summary>
+    /// Gets start menu folder.
+    /// </summary>
     private static string GetStartMenuFolder(CliOptions options, ILogger logger)
     {
         try
@@ -1208,6 +1289,9 @@ internal static class Program
             return string.Empty;
         }
     }
+    /// <summary>
+    /// Runs the sanitize shortcut group name operation.
+    /// </summary>
     private static string SanitizeShortcutGroupName(string value, ILogger logger)
     {
         try
@@ -1228,6 +1312,9 @@ internal static class Program
             return "LocalGPT by Michi0403";
         }
     }
+    /// <summary>
+    /// Gets desktop folder.
+    /// </summary>
     private static string GetDesktopFolder(ILogger logger)
     {
         try
@@ -1245,6 +1332,9 @@ internal static class Program
             return string.Empty;
         }
     }
+    /// <summary>
+    /// Imports git hub source to learning base async.
+    /// </summary>
     private static async Task ImportGitHubSourceToLearningBaseAsync(
         string repo,
         CliOptions options,
@@ -1322,6 +1412,9 @@ internal static class Program
 
             WriteGitHubSourceCacheManifest(
                 manifestPath,
+                /// <summary>
+                /// Runs the git hub source cache manifest operation.
+                /// </summary>
                 new GitHubSourceCacheManifest(
                     Repo: repo,
                     CommitSha: remoteSha,
@@ -1340,6 +1433,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Writes local gpt learning source manifest.
+    /// </summary>
     private static void WriteLocalGptLearningSourceManifest(string targetPath, string repo, string commitSha, ILogger logger)
     {
         try
@@ -1378,6 +1474,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Starts local gpt.
+    /// </summary>
     private static void StartLocalGpt(CliOptions options, ILogger logger)
     {
         try
@@ -1416,6 +1515,9 @@ internal static class Program
             logger.LogError(ex, $"Error in StartLocalGpt. options {options}");
         }
     }
+    /// <summary>
+    /// Opens default browser.
+    /// </summary>
     private static void OpenDefaultBrowser(string url, ILogger logger)
     {
         try
@@ -1433,6 +1535,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Runs the download latest release asset async operation.
+    /// </summary>
     private static async Task DownloadLatestReleaseAssetAsync(
     string repo,
     string outFile,
@@ -1524,6 +1629,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Runs the download git hub source zip async operation.
+    /// </summary>
     private static async Task DownloadGitHubSourceZipAsync(string repo, string outFile, ILogger logger, CliOptions options)
     {
         try
@@ -1537,6 +1645,9 @@ internal static class Program
             logger.LogError(ex, $"Error in DownloadGitHubSourceZipAsync. repo {repo.ToString()} outFile {outFile.ToString()}");
         }
     }
+    /// <summary>
+    /// Gets git hub default branch commit sha async.
+    /// </summary>
     private static async Task<string?> GetGitHubDefaultBranchCommitShaAsync(
     string repo,
     ILogger logger)
@@ -1584,6 +1695,9 @@ internal static class Program
         }
        
     }
+    /// <summary>
+    /// Reads git hub source cache manifest.
+    /// </summary>
     private static GitHubSourceCacheManifest? ReadGitHubSourceCacheManifest(
     string manifestPath,
     ILogger logger)
@@ -1603,6 +1717,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Writes git hub source cache manifest.
+    /// </summary>
     private static void WriteGitHubSourceCacheManifest(
         string manifestPath,
         GitHubSourceCacheManifest manifest,
@@ -1626,6 +1743,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Runs the directory has files operation.
+    /// </summary>
     private static bool DirectoryHasFiles(string path, ILogger logger)
     {
         try
@@ -1640,6 +1760,9 @@ internal static class Program
         }
        
     }
+    /// <summary>
+    /// Runs the download file async operation.
+    /// </summary>
     private static async Task DownloadFileAsync(string url, string outFile, ILogger logger, CliOptions options)
     {
         try
@@ -1779,6 +1902,9 @@ internal static class Program
 
 
     }
+    /// <summary>
+    /// Runs the move file with retry async operation.
+    /// </summary>
     private static async Task MoveFileWithRetryAsync(string source, string destination, ILogger logger, CliOptions options)
     {
         try
@@ -1828,6 +1954,9 @@ internal static class Program
         }
 
     }
+    /// <summary>
+    /// Runs the format bytes operation.
+    /// </summary>
     private static string FormatBytes(long bytes, ILogger logger)
     {
         try
@@ -1852,6 +1981,9 @@ internal static class Program
       
     }
 
+    /// <summary>
+    /// Deletes if exists.
+    /// </summary>
     private static void DeleteIfExists(string path, ILogger logger)
     {
         try
@@ -1872,6 +2004,9 @@ internal static class Program
             logger.LogError(ex, $"Error in DeleteIfExists. path {path.ToString()}");
         }
     }
+    /// <summary>
+    /// Runs the extract zip with fallback operation.
+    /// </summary>
     private static void ExtractZipWithFallback(string zipPath, string targetPath, ILogger logger)
     {
         try
@@ -1900,6 +2035,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Runs the run process async operation.
+    /// </summary>
     private static async Task RunProcessAsync(string fileName, string arguments, ILogger logger)
     {
         try
@@ -1936,6 +2074,9 @@ internal static class Program
 
     }
 
+    /// <summary>
+    /// Finds command on path.
+    /// </summary>
     private static string? FindCommandOnPath(string command, ILogger logger)
     {
         try
@@ -1968,6 +2109,9 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Gets model set.
+    /// </summary>
     private static string[] GetModelSet(ModelRange range) => range switch
     {
 
@@ -1977,6 +2121,9 @@ internal static class Program
         _ => SlimModels
     };
 
+    /// <summary>
+    /// Gets platform token.
+    /// </summary>
     private static string GetPlatformToken()
     {
 
@@ -1986,6 +2133,9 @@ internal static class Program
         return "";
     }
 
+    /// <summary>
+    /// Gets architecture token.
+    /// </summary>
     private static string GetArchitectureToken() => RuntimeInformation.OSArchitecture switch
     {
         Architecture.X64 => "x64",
@@ -1995,6 +2145,9 @@ internal static class Program
         _ => ""
     };
 
+    /// <summary>
+    /// Runs the sanitize file name operation.
+    /// </summary>
     private static string SanitizeFileName(string value, ILogger logger)
     {
         try
@@ -2012,6 +2165,9 @@ internal static class Program
 
     }
 
+    /// <summary>
+    /// Validates repo.
+    /// </summary>
     private static void ValidateRepo(string repo, ILogger logger)
     {
         try
@@ -2027,6 +2183,9 @@ internal static class Program
 
     }
 
+    /// <summary>
+    /// Creates HTTP client.
+    /// </summary>
     private static HttpClient CreateHttpClient()
     {
         try
@@ -2045,6 +2204,9 @@ internal static class Program
 }
 
 
+/// <summary>
+/// Lists supported model range values.
+/// </summary>
 internal enum ModelRange
 {
     Slim,
@@ -2052,6 +2214,9 @@ internal enum ModelRange
     Full
 }
 //To not download already downloaded again and again and again and again and get banned by githubs rate limit
+/// <summary>
+/// Represents a shortcut definition.
+/// </summary>
 internal sealed record ShortcutDefinition(
     string ShortcutName,
     string TargetPath,
@@ -2059,6 +2224,9 @@ internal sealed record ShortcutDefinition(
     string WorkingDirectory
 );
 
+/// <summary>
+/// Represents a git hub source cache manifest.
+/// </summary>
 internal sealed record GitHubSourceCacheManifest(
     string Repo,
     string CommitSha,
@@ -2066,31 +2234,106 @@ internal sealed record GitHubSourceCacheManifest(
     string TargetPath,
     DateTimeOffset CachedAtUtc
 );
+/// <summary>
+/// Represents a cli options.
+/// </summary>
 internal sealed class CliOptions
 {
+    /// <summary>
+    /// Gets or sets show help.
+    /// </summary>
     public bool ShowHelp { get; private set; }
+    /// <summary>
+    /// Gets or sets install ollama.
+    /// </summary>
     public bool InstallOllama { get; private set; }
+    /// <summary>
+    /// Gets or sets pull ollama models.
+    /// </summary>
     public bool PullOllamaModels { get; private set; }
+    /// <summary>
+    /// Gets or sets install local gpt win.
+    /// </summary>
     public bool InstallLocalGptWin { get; private set; }
+    /// <summary>
+    /// Gets or sets setup learning base.
+    /// </summary>
     public bool SetupLearningBase { get; private set; }
+    /// <summary>
+    /// Gets or sets import recommended.
+    /// </summary>
     public bool ImportRecommended { get; private set; }
+    /// <summary>
+    /// Gets or sets start local gpt.
+    /// </summary>
     public bool StartLocalGpt { get; private set; }
+    /// <summary>
+    /// Gets or sets force.
+    /// </summary>
     public bool Force { get; private set; }
+    /// <summary>
+    /// Gets or sets verbose.
+    /// </summary>
     public bool Verbose { get; private set; }
+    /// <summary>
+    /// Gets or sets range.
+    /// </summary>
     public ModelRange Range { get; private set; } = ModelRange.Slim;
+    /// <summary>
+    /// Gets or sets learning base path.
+    /// </summary>
     public string LearningBasePath { get; private set; } = @"C:\learnbaseforlocalgpt";
+    /// <summary>
+    /// Gets or sets local gpt zip path.
+    /// </summary>
     public string? LocalGptZipPath { get; private set; }
+    /// <summary>
+    /// Gets or sets local gpt exe path.
+    /// </summary>
     public string? LocalGptExePath { get; private set; }
+    /// <summary>
+    /// Gets or sets ollama exe path.
+    /// </summary>
     public string? OllamaExePath { get; private set; }
+    /// <summary>
+    /// Gets or sets extra repos.
+    /// </summary>
     public List<string> ExtraRepos { get; } = [];
+    /// <summary>
+    /// Gets or sets local gpt port.
+    /// </summary>
     public int LocalGptPort { get; private set; } = 5000;
+    /// <summary>
+    /// Gets or sets open browser.
+    /// </summary>
     public bool OpenBrowser { get; private set; } = true;
+    /// <summary>
+    /// Gets or sets force delete.
+    /// </summary>
     public bool ForceDelete { get; private set; }
+    /// <summary>
+    /// Gets or sets wait on exit.
+    /// </summary>
     public bool WaitOnExit { get; private set; }
+    /// <summary>
+    /// Gets or sets uninstall.
+    /// </summary>
     public bool Uninstall { get; private set; }
+    /// <summary>
+    /// Gets or sets desktop shortcuts.
+    /// </summary>
     public bool DesktopShortcuts { get; private set; }
+    /// <summary>
+    /// Gets or sets start menu shortcuts.
+    /// </summary>
     public bool StartMenuShortcuts { get; private set; }
+    /// <summary>
+    /// Gets or sets shortcut group name.
+    /// </summary>
     public string ShortcutGroupName { get; private set; } = "LocalGPT by Michi0403";
+    /// <summary>
+    /// Runs the parse operation.
+    /// </summary>
     public static CliOptions Parse(string[] args)
     {
         List<string> argsList = args.ToList();
@@ -2210,6 +2453,9 @@ internal sealed class CliOptions
 
         return options;
     }
+    /// <summary>
+    /// Runs the to string operation.
+    /// </summary>
     public override string ToString()
     {
         return string.Join(Environment.NewLine,
@@ -2238,6 +2484,9 @@ internal sealed class CliOptions
         $"{nameof(ExtraRepos)}=[{string.Join(", ", ExtraRepos.Select(x => $"{x}"))}]"
         ]);
     }
+    /// <summary>
+    /// Runs the print help operation.
+    /// </summary>
     public static void PrintHelp(ILogger logger)
     {
         logger.LogInformation("""
@@ -2286,6 +2535,9 @@ Options:
 """);
     }
 
+    /// <summary>
+    /// Runs the next value operation.
+    /// </summary>
     private static string NextValue(List<string> args, ref int index, string optionName)
     {
         if (index + 1 >= args.Count)
@@ -2293,6 +2545,9 @@ Options:
         return args[++index];
     }
 
+    /// <summary>
+    /// Parses enum.
+    /// </summary>
     private static T ParseEnum<T>(string value) where T : struct
     {
         if (Enum.TryParse<T>(value, ignoreCase: true, out var result))

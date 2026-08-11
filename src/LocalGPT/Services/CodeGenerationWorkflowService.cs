@@ -13,6 +13,9 @@ using Microsoft.CSharp;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides code generation workflow service operations.
+/// </summary>
 public sealed class CodeGenerationWorkflowService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     ICouncilArtifactService councilArtifacts,
@@ -21,16 +24,19 @@ public sealed class CodeGenerationWorkflowService(
     IRegexPatternService regexPatterns,
     ILogger<CodeGenerationWorkflowService> logger) : ICodeGenerationWorkflowService
 {
-    private const int MaxPayloadCharacters = 4_000_000;
-    private const int MaxFileCount = 512;
-    private const int MaxReviewTake = 100;
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = false
     };
 
+    /// <summary>
+    /// Creates review async.
+    /// </summary>
     public async Task<CodeGenerationReviewSnapshot> CreateReviewAsync(
         CreateCodeGenerationReviewRequest request,
         CancellationToken cancellationToken = default)
@@ -62,8 +68,6 @@ public sealed class CodeGenerationWorkflowService(
                     : request.Outputs.Select(NormalizeOutput).ToList()
             };
             var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
-            if (payloadJson.Length > MaxPayloadCharacters)
-                throw new InvalidOperationException($"The proposed generation payload exceeds the {MaxPayloadCharacters:n0}-character review limit.");
 
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await ValidateProjectReferencesAsync(db, request.ProjectId, request.ProjectRevisionId, request.ProjectTopicId, cancellationToken).ConfigureAwait(false);
@@ -74,12 +78,12 @@ public sealed class CodeGenerationWorkflowService(
                 ProjectRevisionId = request.ProjectRevisionId,
                 ProjectTopicId = request.ProjectTopicId,
                 CouncilRunId = request.CouncilRunId,
-                Title = Limit(request.Title, 240, "Code generation change review"),
-                Goal = Limit(request.Goal, 12_000, "Generate a reviewed LocalGPT artifact."),
-                CurrentProjectState = Limit(request.CurrentProjectState, 20_000, "Current project state was not supplied."),
-                CouncilSummary = Limit(request.CouncilSummary, 24_000, "Council summary was not supplied."),
-                ChangeSummary = Limit(request.ChangeSummary, 20_000, BuildDefaultChangeSummary(payload)),
-                SafetySummary = Limit(request.SafetySummary, 8_000,
+                Title = ValueOrFallback(request.Title, "Code generation change review"),
+                Goal = ValueOrFallback(request.Goal, "Generate a reviewed LocalGPT artifact."),
+                CurrentProjectState = ValueOrFallback(request.CurrentProjectState, "Current project state was not supplied."),
+                CouncilSummary = ValueOrFallback(request.CouncilSummary, "Council summary was not supplied."),
+                ChangeSummary = ValueOrFallback(request.ChangeSummary, BuildDefaultChangeSummary(payload)),
+                SafetySummary = ValueOrFallback(request.SafetySummary,
                     "Generation is restricted to an isolated LocalGPT workspace. When a project revision is selected, approved tracked files are cloned byte-for-byte before reviewed changes are applied. No generated program or script is executed automatically. Builds require a separate current human confirmation."),
                 PayloadJson = payloadJson,
                 Status = CodeGenerationReviewStatuses.AwaitingUserDecision,
@@ -112,6 +116,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Gets review async.
+    /// </summary>
     public async Task<CodeGenerationReviewSnapshot?> GetReviewAsync(
         Guid reviewId,
         CancellationToken cancellationToken = default)
@@ -144,6 +151,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the list reviews async operation.
+    /// </summary>
     public async Task<IReadOnlyList<CodeGenerationReviewSnapshot>> ListReviewsAsync(
         Guid? projectId = null,
         int take = 20,
@@ -166,7 +176,7 @@ public sealed class CodeGenerationWorkflowService(
 
             var entities = await query
                 .OrderByDescending(review => review.UpdatedAtUtc)
-                .Take(Math.Clamp(take, 1, MaxReviewTake))
+                .Take(Math.Max(1, take))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
@@ -184,6 +194,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the execute review async operation.
+    /// </summary>
     public async Task<CodeGenerationExecutionResult> ExecuteReviewAsync(
         Guid reviewId,
         ExecuteCodeGenerationReviewRequest request,
@@ -215,7 +228,7 @@ public sealed class CodeGenerationWorkflowService(
             throw new InvalidOperationException("A separate current human confirmation is required before invoking the bounded .NET build.");
 
         entity.Status = CodeGenerationReviewStatuses.Generating;
-        entity.DecisionNote = Limit(request.DecisionNote, 2_000, "Approved by the current user.");
+        entity.DecisionNote = ValueOrFallback(request.DecisionNote, "Approved by the current user.");
         entity.DecidedAtUtc = DateTime.UtcNow;
         entity.UpdatedAtUtc = DateTime.UtcNow;
         entity.ApprovalConsumed = true;
@@ -298,8 +311,6 @@ public sealed class CodeGenerationWorkflowService(
                     new ScanProjectFilesRequest
                     {
                         RevisionId = registeredRevisionId,
-                        MaximumFiles = 100000,
-                        MaximumFileBytes = 4L * 1024 * 1024 * 1024,
                         UserConfirmed = true
                     },
                     cancellationToken).ConfigureAwait(false);
@@ -375,7 +386,7 @@ public sealed class CodeGenerationWorkflowService(
         catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
         {
             entity.Status = CodeGenerationReviewStatuses.Failed;
-            entity.DecisionNote = Limit($"{entity.DecisionNote} Generation was cancelled.", 2_000, "Generation was cancelled.");
+            entity.DecisionNote = ValueOrFallback($"{entity.DecisionNote} Generation was cancelled.", "Generation was cancelled.");
             entity.UpdatedAtUtc = DateTime.UtcNow;
             entity.CompletedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
@@ -394,6 +405,9 @@ public sealed class CodeGenerationWorkflowService(
         }
     }
 
+    /// <summary>
+    /// Runs the reject review async operation.
+    /// </summary>
     public async Task<CodeGenerationReviewSnapshot> RejectReviewAsync(
         Guid reviewId,
         RejectCodeGenerationReviewRequest request,
@@ -417,7 +431,7 @@ public sealed class CodeGenerationWorkflowService(
                 throw new InvalidOperationException("The review hash does not match the review currently stored in LocalGPT.");
 
             entity.Status = CodeGenerationReviewStatuses.Rejected;
-            entity.DecisionNote = Limit(request.DecisionNote, 2_000, "Rejected by the current user.");
+            entity.DecisionNote = ValueOrFallback(request.DecisionNote, "Rejected by the current user.");
             entity.DecidedAtUtc = DateTime.UtcNow;
             entity.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -436,6 +450,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the begin review scope operation.
+    /// </summary>
     private IDisposable? BeginReviewScope(string operation, Guid reviewId) {
     try
     {
@@ -456,6 +473,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the enrich output intent async operation.
+    /// </summary>
     private async Task EnrichOutputIntentAsync(CreateCodeGenerationReviewRequest request)
     {
     try
@@ -506,6 +526,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the extract quoted literal async operation.
+    /// </summary>
     private async Task<string?> ExtractQuotedLiteralAsync(string text)
     {
         try
@@ -522,6 +545,9 @@ public sealed class CodeGenerationWorkflowService(
         }
     }
 
+    /// <summary>
+    /// Runs the match intent async operation.
+    /// </summary>
     private async Task<bool> MatchIntentAsync(string patternName, string text)
     {
         try
@@ -536,6 +562,9 @@ public sealed class CodeGenerationWorkflowService(
         }
     }
 
+    /// <summary>
+    /// Builds generated output name.
+    /// </summary>
     private string BuildGeneratedOutputName(string? title, string? goal)
     {
     try
@@ -570,16 +599,15 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Validates review request.
+    /// </summary>
     private void ValidateReviewRequest(CreateCodeGenerationReviewRequest request)
     {
     try
     {
             if (string.IsNullOrWhiteSpace(request.Goal))
                 throw new ArgumentException("A concrete generation goal is required.", nameof(request));
-            if (request.Files.Count > MaxFileCount)
-                throw new ArgumentException($"A review may contain at most {MaxFileCount} explicit source files.", nameof(request));
-            if (request.CodeDomTypes.Count > MaxFileCount)
-                throw new ArgumentException($"A review may contain at most {MaxFileCount} CodeDOM source types.", nameof(request));
             if (request.Files.Count == 0 && request.CodeDomTypes.Count == 0 && request.Outputs.Count == 0)
                 throw new ArgumentException("The generation request needs reviewed files, CodeDOM types, or a concrete output target. LocalGPT could not infer one from the current database-backed code-generation regex catalog.", nameof(request));
             foreach (var file in request.Files)
@@ -600,6 +628,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Validates project references async.
+    /// </summary>
     private async Task ValidateProjectReferencesAsync(
         LocalGptMemoryDbContext db,
         Guid? projectId,
@@ -650,6 +681,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Normalizes file.
+    /// </summary>
     private CodeGenerationFileSpec NormalizeFile(CodeGenerationFileSpec file) {
     try
     {
@@ -657,7 +691,7 @@ public sealed class CodeGenerationWorkflowService(
     {
         RelativePath = NormalizeRelativePath(file.RelativePath),
         Content = file.Content ?? string.Empty,
-        Purpose = Limit(file.Purpose, 1_000, "Reviewed source file")
+        Purpose = ValueOrFallback(file.Purpose, "Reviewed source file")
     };
     }
     catch (Exception __serviceMethodException)
@@ -670,6 +704,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Normalizes code dom type.
+    /// </summary>
     private CodeDomTypeSpec NormalizeCodeDomType(CodeDomTypeSpec type) {
     try
     {
@@ -679,8 +716,8 @@ public sealed class CodeGenerationWorkflowService(
         Namespace = NormalizeIdentifierPath(type.Namespace, "LocalGPT.Generated"),
         TypeName = NormalizeIdentifier(type.TypeName, "GeneratedFeature"),
         MethodName = NormalizeIdentifier(type.MethodName, "Describe"),
-        MethodResult = Limit(type.MethodResult, 8_000, "Generated with LocalGPT after human review."),
-        Summary = Limit(type.Summary, 2_000, "Reviewed CodeDOM source type")
+        MethodResult = ValueOrFallback(type.MethodResult, "Generated with LocalGPT after human review."),
+        Summary = ValueOrFallback(type.Summary, "Reviewed CodeDOM source type")
     };
     }
     catch (Exception __serviceMethodException)
@@ -693,6 +730,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Normalizes output.
+    /// </summary>
     private CodeGenerationOutputSpec NormalizeOutput(CodeGenerationOutputSpec output) {
     try
     {
@@ -703,7 +743,7 @@ public sealed class CodeGenerationWorkflowService(
         RelativeDirectory = NormalizeRelativePath(string.IsNullOrWhiteSpace(output.RelativeDirectory) ? "." : output.RelativeDirectory),
         TargetFramework = NormalizeTargetFramework(output.TargetFramework),
         RootNamespace = NormalizeIdentifierPath(output.RootNamespace, "LocalGPT.Generated"),
-        Description = Limit(output.Description, 2_000, "Reviewed LocalGPT output")
+        Description = ValueOrFallback(output.Description, "Reviewed LocalGPT output")
     };
     }
     catch (Exception __serviceMethodException)
@@ -716,6 +756,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Normalizes output kind.
+    /// </summary>
     private string NormalizeOutputKind(string? kind)
     {
     try
@@ -747,6 +790,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Normalizes target framework.
+    /// </summary>
     private string NormalizeTargetFramework(string? value)
     {
     try
@@ -767,6 +813,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Builds default change summary.
+    /// </summary>
     private string BuildDefaultChangeSummary(CodeGenerationReviewPayload payload) {
     try
     {
@@ -782,6 +831,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Computes review hash.
+    /// </summary>
     private string ComputeReviewHash(CodeGenerationChangeReview entity)
     {
     try
@@ -811,6 +863,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the deserialize payload operation.
+    /// </summary>
     private CodeGenerationReviewPayload DeserializePayload(string payloadJson)
     {
     try
@@ -832,6 +887,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the to snapshot operation.
+    /// </summary>
     private CodeGenerationReviewSnapshot ToSnapshot(
         CodeGenerationChangeReview entity,
         CodeGenerationReviewPayload payload) {
@@ -882,6 +940,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Writes review document async.
+    /// </summary>
     private async Task WriteReviewDocumentAsync(
         string workspaceRoot,
         CodeGenerationChangeReview review,
@@ -942,6 +1003,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the copy tracked project into workspace async operation.
+    /// </summary>
     private async Task<string> CopyTrackedProjectIntoWorkspaceAsync(
         string workspaceRoot,
         Guid projectId,
@@ -960,7 +1024,6 @@ public sealed class CodeGenerationWorkflowService(
             }
 
             string solutionPath = string.Empty;
-            var recorded = 0;
             foreach (var file in approved)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -981,13 +1044,10 @@ public sealed class CodeGenerationWorkflowService(
                 var destinationHash = await ComputeFileHashAsync(destination, cancellationToken).ConfigureAwait(false);
                 if (!string.Equals(sourceHash, destinationHash, StringComparison.Ordinal))
                     throw new IOException($"The isolated copy of '{file.ProjectRelativePath}' did not preserve the approved file bytes.");
-                if (recorded++ < 5000)
-                    result.WrittenFiles.Add(relativePath.Replace('\\', '/'));
+                result.WrittenFiles.Add(relativePath.Replace('\\', '/'));
                 if (Path.GetExtension(relativePath).Equals(".sln", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(relativePath).Equals(".slnx", StringComparison.OrdinalIgnoreCase))
                     solutionPath = destination;
             }
-            if (approved.Count > 5000)
-                result.Warnings.Add($"The complete approved project tree with {approved.Count:n0} files was cloned; the response lists only the first 5,000 paths.");
             logger.LogInformation("Cloned {FileCount} approved tracked file(s) into isolated maintenance workspace for project {ProjectId} revision {RevisionId}; paths omitted from logs.", approved.Count, projectId, revisionId);
             return solutionPath;
     
@@ -1003,6 +1063,9 @@ public sealed class CodeGenerationWorkflowService(
 }
 
 
+    /// <summary>
+    /// Computes file hash async.
+    /// </summary>
     private async Task<string> ComputeFileHashAsync(string path, CancellationToken cancellationToken)
     {
     try
@@ -1021,6 +1084,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Finds preferred solution path.
+    /// </summary>
     private string FindPreferredSolutionPath(string workspaceRoot, string clonedSolutionPath)
     {
         if (!string.IsNullOrWhiteSpace(clonedSolutionPath) && File.Exists(clonedSolutionPath))
@@ -1040,6 +1106,9 @@ public sealed class CodeGenerationWorkflowService(
         }
     }
 
+    /// <summary>
+    /// Runs the generate code dom source operation.
+    /// </summary>
     private string GenerateCodeDomSource(CodeDomTypeSpec spec)
     {
     try
@@ -1091,6 +1160,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the scaffold output async operation.
+    /// </summary>
     private async Task ScaffoldOutputAsync(
         string workspaceRoot,
         CodeGenerationOutputSpec output,
@@ -1250,6 +1322,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the copy reviewed sources async operation.
+    /// </summary>
     private async Task<bool> CopyReviewedSourcesAsync(
         string workspaceRoot,
         string destinationRoot,
@@ -1302,6 +1377,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Builds library source.
+    /// </summary>
     private string BuildLibrarySource(CodeGenerationOutputSpec output) {
     try
     {
@@ -1324,6 +1402,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Builds addon source.
+    /// </summary>
     private string BuildAddonSource(CodeGenerationOutputSpec output) {
     try
     {
@@ -1353,6 +1434,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Builds solution file.
+    /// </summary>
     private string BuildSolutionFile(string name, string relativeProjectPath)
     {
     try
@@ -1396,6 +1480,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Builds completed successfully.
+    /// </summary>
     private bool BuildCompletedSuccessfully(string buildStatus)
     {
     try
@@ -1414,6 +1501,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Determines whether inside directory.
+    /// </summary>
     private bool IsInsideDirectory(string path, string directory)
     {
     try
@@ -1435,6 +1525,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Resolves inside root.
+    /// </summary>
     private string ResolveInsideRoot(string root, string relativePath)
     {
     try
@@ -1460,6 +1553,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Normalizes relative path.
+    /// </summary>
     private string NormalizeRelativePath(string? value)
     {
     try
@@ -1497,6 +1593,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Determines whether windows reserved name.
+    /// </summary>
     private bool IsWindowsReservedName(string name)
     {
     try
@@ -1521,6 +1620,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Normalizes identifier.
+    /// </summary>
     private string NormalizeIdentifier(string? value, string fallback)
     {
     try
@@ -1549,6 +1651,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Normalizes identifier path.
+    /// </summary>
     private string NormalizeIdentifierPath(string? value, string fallback) {
     try
     {
@@ -1566,6 +1671,9 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
+    /// <summary>
+    /// Runs the escape csharp operation.
+    /// </summary>
     private string EscapeCSharp(string? value) {
     try
     {
@@ -1581,24 +1689,29 @@ public sealed class CodeGenerationWorkflowService(
     }
 }
 
-    private string Limit(string? value, int maxLength, string fallback)
+    /// <summary>
+    /// Runs the value or fallback operation.
+    /// </summary>
+    private string ValueOrFallback(string? value, string fallback)
     {
     try
     {
-            var text = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
-            return text.Length <= maxLength ? text : text[..maxLength];
+            return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
     
     }
     catch (Exception __serviceMethodException)
     {
         if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CodeGenerationWorkflowService)}.{nameof(Limit)} was canceled.");
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(CodeGenerationWorkflowService)}.{nameof(ValueOrFallback)} was canceled.");
         else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(CodeGenerationWorkflowService)}.{nameof(Limit)} failed.");
+            logger.LogError(__serviceMethodException, $"Service method {nameof(CodeGenerationWorkflowService)}.{nameof(ValueOrFallback)} failed.");
         throw;
     }
 }
 
+    /// <summary>
+    /// Determines whether h prefix.
+    /// </summary>
     private string HashPrefix(string hash) {
     try
     {

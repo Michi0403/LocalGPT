@@ -5,11 +5,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides knowledge rating service operations.
+/// </summary>
 public sealed class KnowledgeRatingService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<KnowledgeRatingService> logger) : IKnowledgeRatingService
 {
+    /// <summary>
+    /// Saves rating async.
+    /// </summary>
     public async Task<CouncilKnowledgeUserRating> SaveRatingAsync(CouncilKnowledgeUserRating rating, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -50,6 +56,9 @@ public sealed class KnowledgeRatingService(
     }
 }
 
+    /// <summary>
+    /// Gets ratings async.
+    /// </summary>
     public async Task<IReadOnlyList<CouncilKnowledgeUserRating>> GetRatingsAsync(Guid knowledgeEntryId, CancellationToken cancellationToken = default)
     {
     try

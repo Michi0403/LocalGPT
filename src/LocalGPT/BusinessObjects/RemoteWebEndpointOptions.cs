@@ -3,13 +3,22 @@ namespace LocalGPT.BusinessObjects;
 /// <summary>Application-host settings. The loopback endpoint remains authoritative while RemoteEndpoint adds optional LAN/VPN access.</summary>
 public sealed class LocalGptHostOptions
 {
+    /// <summary>
+    /// Gets or sets port.
+    /// </summary>
     public int Port { get; set; } = 5000;
+    /// <summary>
+    /// Gets or sets remote endpoint.
+    /// </summary>
     public RemoteWebEndpointOptions RemoteEndpoint { get; set; } = new();
 }
 
 /// <summary>Optional second Kestrel endpoint for LAN/VPN/browser access. The historical loopback endpoint remains authoritative.</summary>
 public sealed class RemoteWebEndpointOptions
 {
+    /// <summary>
+    /// Stores section name.
+    /// </summary>
     public const string SectionName = "LocalGPT:RemoteEndpoint";
 
     /// <summary>Explicit opt-in. A command-line/environment/configured remote port also opts in.</summary>

@@ -2,12 +2,18 @@ using DevExpress.Blazor;
 using LocalGPT.Interfaces;
 namespace TacosPortal.Services
 {
+    /// <summary>
+    /// Provides notification service operations.
+    /// </summary>
     public class NotificationService(
         IToastNotificationService toastService,
         IComponentActivityService componentActivity,
         ILogger<NotificationService> logger) : INotificationService
     {
 
+        /// <summary>
+        /// Runs the show operation.
+        /// </summary>
         public void Show(string providerName, string title, string message, ToastRenderStyle renderStyle)
         {
             var safeProvider = NormalizeText(providerName, "ComponentSafetyToasts", 120);
@@ -46,6 +52,9 @@ namespace TacosPortal.Services
 
         }
 
+        /// <summary>
+        /// Normalizes text.
+        /// </summary>
         private string NormalizeText(string? value, string fallback, int maxLength)
         {
     try
@@ -66,6 +75,9 @@ namespace TacosPortal.Services
     }
 }
 
+        /// <summary>
+        /// Runs the show info operation.
+        /// </summary>
         public void ShowInfo(string providerName, string message, string title = "Info") {
     try
     {
@@ -80,6 +92,9 @@ namespace TacosPortal.Services
         throw;
     }
 }
+        /// <summary>
+        /// Runs the show success operation.
+        /// </summary>
         public void ShowSuccess(string providerName, string message, string title = "Success") {
     try
     {
@@ -94,6 +109,9 @@ namespace TacosPortal.Services
         throw;
     }
 }
+        /// <summary>
+        /// Runs the show warning operation.
+        /// </summary>
         public void ShowWarning(string providerName, string message, string title = "Warning") {
     try
     {
@@ -108,6 +126,9 @@ namespace TacosPortal.Services
         throw;
     }
 }
+        /// <summary>
+        /// Runs the show error operation.
+        /// </summary>
         public void ShowError(string providerName, string message, string title = "Error") {
     try
     {
@@ -122,6 +143,9 @@ namespace TacosPortal.Services
         throw;
     }
 }
+        /// <summary>
+        /// Runs the show regular operation.
+        /// </summary>
         public void ShowRegular(string providerName, string message, string title = "Error") {
     try
     {

@@ -4,10 +4,16 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a list council runtime classes function.
+/// </summary>
 public sealed class ListCouncilRuntimeClassesFunction(
     ICouncilRuntimeClassService runtimeClasses,
     ILogger<ListCouncilRuntimeClassesFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.runtime-class.list",
         "POST",
@@ -25,6 +31,9 @@ public sealed class ListCouncilRuntimeClassesFunction(
         {"type":"object","properties":{"namespace":{"type":"string"},"kind":{"type":"string"},"includeDisabled":{"type":"boolean"}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -68,6 +77,9 @@ public sealed class ListCouncilRuntimeClassesFunction(
         }
     }
 
+    /// <summary>
+    /// Gets string.
+    /// </summary>
     private string GetString(JsonElement parameters, string name) {
     try
     {
@@ -86,10 +98,16 @@ public sealed class ListCouncilRuntimeClassesFunction(
 }
 }
 
+/// <summary>
+/// Represents a resolve council runtime class function.
+/// </summary>
 public sealed class ResolveCouncilRuntimeClassFunction(
     ICouncilRuntimeClassService runtimeClasses,
     ILogger<ResolveCouncilRuntimeClassFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.runtime-class.resolve",
         "POST",
@@ -105,6 +123,9 @@ public sealed class ResolveCouncilRuntimeClassFunction(
         Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["query"],"properties":{"query":{"type":"string","maxLength":240}},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -143,10 +164,16 @@ public sealed class ResolveCouncilRuntimeClassFunction(
     }
 }
 
+/// <summary>
+/// Represents a get council runtime class function.
+/// </summary>
 public sealed class GetCouncilRuntimeClassFunction(
     ICouncilRuntimeClassService runtimeClasses,
     ILogger<GetCouncilRuntimeClassFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.runtime-class.get",
         "POST",
@@ -164,6 +191,9 @@ public sealed class GetCouncilRuntimeClassFunction(
         {"type":"object","required":["key"],"properties":{"key":{"type":"string","maxLength":240}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)

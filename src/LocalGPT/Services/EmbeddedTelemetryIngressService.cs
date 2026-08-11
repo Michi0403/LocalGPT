@@ -4,13 +4,22 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides embedded telemetry ingress service operations.
+/// </summary>
 public sealed class EmbeddedTelemetryIngressService(
     IEmbeddedTelemetryBridgeService bridge,
     ILogger<EmbeddedTelemetryIngressService> logger) : IEmbeddedTelemetryIngressService
 {
     private const int MaximumSnapshots = 500;
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentQueue<EmbeddedTelemetrySnapshot> snapshots = new();
 
+    /// <summary>
+    /// Publishes async.
+    /// </summary>
     public async Task<EmbeddedTelemetryIngressResult> PublishAsync(EmbeddedTelemetryBridgeRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -67,6 +76,9 @@ public sealed class EmbeddedTelemetryIngressService(
     }
 }
 
+    /// <summary>
+    /// Gets recent.
+    /// </summary>
     public IReadOnlyList<EmbeddedTelemetrySnapshot> GetRecent(string? deviceId = null, int maximum = 100)
     {
     try
@@ -90,6 +102,9 @@ public sealed class EmbeddedTelemetryIngressService(
 }
 
 
+    /// <summary>
+    /// Runs the clone reading operation.
+    /// </summary>
     private EmbeddedTelemetryReading CloneReading(EmbeddedTelemetryReading source) {
     try
     {
@@ -114,6 +129,9 @@ public sealed class EmbeddedTelemetryIngressService(
     }
 }
 
+    /// <summary>
+    /// Runs the clone snapshot operation.
+    /// </summary>
     private EmbeddedTelemetrySnapshot CloneSnapshot(EmbeddedTelemetrySnapshot source) {
     try
     {

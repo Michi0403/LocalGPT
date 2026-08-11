@@ -10,11 +10,17 @@ using System.Text.Json.Serialization;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents an ollama thinking chat client.
+/// </summary>
 public sealed class OllamaThinkingChatClient : IChatClient
 {
     private const int MaxAutomaticToolRounds = 3;
     private const int MaxToolResultCharacters = 16_000;
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -37,6 +43,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     private readonly bool throwOnFailure;
     private readonly CouncilRuntimeService councilRuntime;
 
+    /// <summary>
+    /// Runs the ollama thinking chat client operation.
+    /// </summary>
     public OllamaThinkingChatClient(
         OllamaCoreOptions options,
         ILogger logger,
@@ -89,6 +98,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
         };
     }
 
+    /// <summary>
+    /// Gets response async.
+    /// </summary>
     public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -157,6 +169,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }
     }
 
+    /// <summary>
+    /// Gets streaming response async.
+    /// </summary>
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -344,6 +359,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }
     }
 
+    /// <summary>
+    /// Creates failure response.
+    /// </summary>
     private ChatResponse CreateFailureResponse(string message) {
     try
     {
@@ -359,6 +377,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Gets service.
+    /// </summary>
     public object? GetService(Type serviceType, object? serviceKey = null) {
     try
     {
@@ -374,6 +395,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the dispose operation.
+    /// </summary>
     public void Dispose() {
     try
     {
@@ -389,6 +413,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the send async operation.
+    /// </summary>
     private async Task<OllamaChatResponse?> SendAsync(
         IReadOnlyList<OllamaChatMessage> messages,
         ChatOptions? options,
@@ -420,6 +447,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }
     }
 
+    /// <summary>
+    /// Runs the send request with tool fallback async operation.
+    /// </summary>
     private async Task<HttpResponseMessage> SendRequestWithToolFallbackAsync(
         OllamaChatRequest request,
         HttpCompletionOption completionOption,
@@ -465,6 +495,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Ensures textual DevExpress function fallback prompt.
+    /// </summary>
     private void EnsureTextualDxFunctionFallbackPrompt(OllamaChatRequest request)
     {
         try
@@ -482,21 +515,21 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 return;
 
             var functionDirectory = string.Join(
-           Environment.NewLine,
-           functions.Select(function => $"- {function.Name}: {function.Parameters}"));
+                Environment.NewLine,
+                functions.Select(function => $"- {function.Name}: {function.Parameters}"));
             request.Messages.Insert(0, new OllamaChatMessage
             {
                 Role = "system",
                 Content = $$$"""
-                    {{{marker}}}
-                    This exact provider-qualified Ollama model does not accept native tool metadata. LocalGPT still supports policy-checked DXFunctions through textual call recovery.
-                    If a function is genuinely needed, emit one standalone JSON object with exactly this shape and no invented function name:
-                    {"functionName":"exact.registry.name","arguments":{}}
-                    LocalGPT will validate the exact registry name, apply normal automatic/deferred approval policy, execute it when permitted, display the tool activity, return the tool result, and then continue your response.
-                    Do not guess a function name. If the capability you want is not in the directory below, report it as a requested capability instead of pretending it exists.
-                    Exact automatic/deferred function directory for this request:
-                    {{{functionDirectory}}}
-                    """
+                {{{marker}}}
+                This exact provider-qualified Ollama model does not accept native tool metadata. LocalGPT still supports policy-checked DXFunctions through textual call recovery.
+                If a function is genuinely needed, emit one standalone JSON object with exactly this shape and no invented function name:
+                {"functionName":"exact.registry.name","arguments":{}}
+                LocalGPT will validate the exact registry name, apply normal automatic/deferred approval policy, execute it when permitted, display the tool activity, return the tool result, and then continue your response.
+                Do not guess a function name. If the capability you want is not in the directory below, report it as a requested capability instead of pretending it exists.
+                Exact automatic/deferred function directory for this request:
+                {{{functionDirectory}}}
+                """
             });
             logger.LogInformation(
                 "Attached textual DXFunction fallback instructions with {FunctionCount} exact registry name(s) for Ollama model {Model} because native tool metadata is unavailable.",
@@ -510,6 +543,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }
     }
 
+    /// <summary>
+    /// Runs the send request once async operation.
+    /// </summary>
     private async Task<HttpResponseMessage> SendRequestOnceAsync(
         OllamaChatRequest request,
         HttpCompletionOption completionOption,
@@ -534,6 +570,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Creates conversation async.
+    /// </summary>
     private async Task<List<OllamaChatMessage>> CreateConversationAsync(
         IEnumerable<ChatMessage> messages,
         CancellationToken cancellationToken)
@@ -567,6 +606,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Creates request async.
+    /// </summary>
     private Task<OllamaChatRequest> CreateRequestAsync(
         IReadOnlyList<OllamaChatMessage> messages,
         ChatOptions? options,
@@ -604,6 +646,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Builds automatic tools.
+    /// </summary>
     private List<OllamaToolDefinition>? BuildAutomaticTools()
     {
     try
@@ -646,6 +691,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Gets automatic functions.
+    /// </summary>
     private IReadOnlyList<DxaichatFunctionInfo> GetAutomaticFunctions() {
     try
     {
@@ -670,6 +718,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the to ollama tool calls operation.
+    /// </summary>
     private List<OllamaToolCall> ToOllamaToolCalls(IEnumerable<RecoveredDxAiFunctionCall> calls) {
     try
     {
@@ -692,6 +743,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the to transport tool name operation.
+    /// </summary>
     private string ToTransportToolName(string registryName)
     {
     try
@@ -712,6 +766,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the deduplicate tool calls operation.
+    /// </summary>
     private List<OllamaToolCall> DeduplicateToolCalls(IEnumerable<OllamaToolCall> toolCalls)
     {
     try
@@ -737,6 +794,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the append automatic tool results async operation.
+    /// </summary>
     private async Task AppendAutomaticToolResultsAsync(
         List<OllamaChatMessage> conversation,
         IReadOnlyList<OllamaToolCall> toolCalls,
@@ -793,6 +853,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Resolves registry function name.
+    /// </summary>
     private string? ResolveRegistryFunctionName(string toolName) {
     try
     {
@@ -810,6 +873,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the to ollama tool name operation.
+    /// </summary>
     private string ToOllamaToolName(string registryName)
     {
     try
@@ -830,6 +896,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Builds parameters schema.
+    /// </summary>
     private JsonElement BuildParametersSchema(DxaichatFunctionInfo function)
     {
         try
@@ -847,6 +916,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }
     }
 
+    /// <summary>
+    /// Normalizes arguments.
+    /// </summary>
     private JsonElement NormalizeArguments(JsonElement arguments) {
     try
     {
@@ -864,6 +936,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the serialize tool result operation.
+    /// </summary>
     private string SerializeToolResult(DxAiFunctionInvocationResult result)
     {
     try
@@ -884,6 +959,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Creates contents async.
+    /// </summary>
     private async Task<List<AIContent>> CreateContentsAsync(
         OllamaChatResponse response,
         CancellationToken cancellationToken)
@@ -922,6 +1000,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Gets prompt async.
+    /// </summary>
     private async Task<string> GetPromptAsync(string key, CancellationToken cancellationToken)
     {
     try
@@ -942,6 +1023,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the clone message operation.
+    /// </summary>
     private OllamaChatMessage CloneMessage(OllamaChatMessage message) {
     try
     {
@@ -971,6 +1055,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Runs the to ollama message operation.
+    /// </summary>
     private OllamaChatMessage ToOllamaMessage(ChatMessage message) {
     try
     {
@@ -994,6 +1081,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Adds system prompt.
+    /// </summary>
     private void AddSystemPrompt(List<OllamaChatMessage> messages, string prompt)
     {
     try
@@ -1022,6 +1112,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 }
 
+    /// <summary>
+    /// Creates streaming update.
+    /// </summary>
     private ChatResponseUpdate CreateStreamingUpdate(string text)
     {
     try

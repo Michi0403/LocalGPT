@@ -18,6 +18,9 @@ public sealed class GetTimeAndStateNowFunction(
     IHardwareInventoryService hardwareInventory,
     ILogger<GetTimeAndStateNowFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.time_state.now",
         "POST",
@@ -33,6 +36,9 @@ public sealed class GetTimeAndStateNowFunction(
         Source: "TimeAndStateDxAiFunction",
         ParameterSchemaJson: "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -131,6 +137,9 @@ public sealed class GetTimeAndStateNowFunction(
     }
 }
 
+    /// <summary>
+    /// Runs the limit operation.
+    /// </summary>
     private string Limit(string value, int maximum) {
     try
     {

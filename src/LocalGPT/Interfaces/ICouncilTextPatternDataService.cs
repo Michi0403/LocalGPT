@@ -47,5 +47,8 @@ public interface ICouncilTextPatternDataService
     Regex DotNetPattern { get; }
     Regex FrontendPattern { get; }
     Regex LoggingPattern { get; }
+    /// <summary>
+    /// Runs the extract structured field operation.
+    /// </summary>
     string? ExtractStructuredField(string body, string name);
 }

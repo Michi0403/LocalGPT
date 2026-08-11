@@ -15,14 +15,26 @@ public sealed class DxAiFunctionServiceClient(
     IChatSessionContext sessionContext,
     ILogger<DxAiFunctionServiceClient> logger) : IDxAiFunctionServiceClient, IDisposable
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim callGate = new(1, 1);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly object stateGate = new();
     private CancellationTokenSource? activeCall;
     private string? cancellationReason;
     private bool disposed;
 
+    /// <summary>
+    /// Gets or sets current operation identifier.
+    /// </summary>
     public Guid? CurrentOperationId { get; private set; }
 
+    /// <summary>
+    /// Gets functions.
+    /// </summary>
     public IReadOnlyList<DxaichatFunctionInfo> GetFunctions() {
     try
     {
@@ -38,6 +50,9 @@ public sealed class DxAiFunctionServiceClient(
     }
 }
 
+    /// <summary>
+    /// Runs the call async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> CallAsync(
         string functionName,
         object? parameters = null,
@@ -70,6 +85,9 @@ public sealed class DxAiFunctionServiceClient(
     }
 }
 
+    /// <summary>
+    /// Runs the call async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> CallAsync(
         string functionName,
         DxAiFunctionInvocationRequest request,
@@ -137,6 +155,9 @@ public sealed class DxAiFunctionServiceClient(
         }
     }
 
+    /// <summary>
+    /// Determines whether cel.
+    /// </summary>
     public void Cancel() {
     try
     {
@@ -152,6 +173,9 @@ public sealed class DxAiFunctionServiceClient(
     }
 }
 
+    /// <summary>
+    /// Determines whether cel with reason.
+    /// </summary>
     public void CancelWithReason(string reason)
     {
     try
@@ -175,6 +199,9 @@ public sealed class DxAiFunctionServiceClient(
     }
 }
 
+    /// <summary>
+    /// Runs the dispose operation.
+    /// </summary>
     public void Dispose()
     {
     try

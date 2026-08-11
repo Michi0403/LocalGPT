@@ -4,8 +4,14 @@ using System.Text.Json;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a get learning round snapshot function.
+/// </summary>
 public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learning, ILogger<GetLearningRoundSnapshotFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.learning.snapshot",
         "POST",
@@ -23,6 +29,9 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
         {"type":"object","properties":{"takePerSource":{"type":"integer","minimum":1,"maximum":10000}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -52,10 +61,19 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
 }
 }
 
+/// <summary>
+/// Represents a maintain learning round knowledge function.
+/// </summary>
 public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService learning, ILogger<MaintainLearningRoundKnowledgeFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.learning.maintain",
         "POST",
@@ -81,6 +99,9 @@ public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService
         """,
         IsCoordinationOnly: true);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

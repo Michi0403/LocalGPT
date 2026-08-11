@@ -6,14 +6,23 @@ using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Provides embedded firmware planning service operations.
+/// </summary>
 public sealed class EmbeddedFirmwarePlanningService(
     IEmbeddedHardwareCatalogService catalog,
     IEmbeddedWiringService wiring,
     IEmbeddedTelemetryBridgeService telemetryBridge,
     ILogger<EmbeddedFirmwarePlanningService> logger) : IEmbeddedFirmwarePlanningService
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions artifactJsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
+    /// <summary>
+    /// Creates plan async.
+    /// </summary>
     public async Task<EmbeddedFirmwarePlan> CreatePlanAsync(EmbeddedFirmwarePlanRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -41,6 +50,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Creates artifacts async.
+    /// </summary>
     public async Task<EmbeddedFirmwareArtifactResult> CreateArtifactsAsync(EmbeddedFirmwarePlanRequest request, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -98,6 +110,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Builds plan async.
+    /// </summary>
     private async Task<EmbeddedFirmwarePlan> BuildPlanAsync(EmbeddedFirmwarePlanRequest request, CancellationToken cancellationToken)
     {
     try
@@ -175,6 +190,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Normalizes assignments.
+    /// </summary>
     private List<EmbeddedPinAssignment> NormalizeAssignments(EmbeddedFirmwarePlanRequest request, EmbeddedBoardProfile? profile)
     {
     try
@@ -235,6 +253,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Normalizes bindings.
+    /// </summary>
     private List<EmbeddedProtocolBinding> NormalizeBindings(EmbeddedFirmwarePlanRequest request, IReadOnlyList<EmbeddedPinAssignment> assignments, string transport)
     {
     try
@@ -290,6 +311,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Runs the review assignments operation.
+    /// </summary>
     private List<EmbeddedPlanFinding> ReviewAssignments(
         EmbeddedBoardProfile? profile,
         string boardFamily,
@@ -366,6 +390,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Builds transport contracts async.
+    /// </summary>
     private async Task<List<EmbeddedTransportContract>> BuildTransportContractsAsync(EmbeddedFirmwarePlan plan, CancellationToken cancellationToken)
     {
     try
@@ -437,6 +464,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Builds one wire contract.
+    /// </summary>
     private EmbeddedOneWireContract BuildOneWireContract(IReadOnlyList<EmbeddedTransportContract> contracts)
     {
     try
@@ -464,6 +494,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Builds wiring steps.
+    /// </summary>
     private List<string> BuildWiringSteps(EmbeddedFirmwarePlan plan, EmbeddedBoardProfile? profile)
     {
     try
@@ -493,6 +526,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Builds arduino sketch.
+    /// </summary>
     private string BuildArduinoSketch(EmbeddedFirmwarePlan plan)
     {
     try
@@ -595,6 +631,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Builds platform io configuration.
+    /// </summary>
     private string BuildPlatformIoConfiguration(EmbeddedFirmwarePlan plan, EmbeddedBoardProfile? profile)
     {
     try
@@ -633,6 +672,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Builds wiring markdown.
+    /// </summary>
     private string BuildWiringMarkdown(EmbeddedFirmwarePlan plan, EmbeddedBoardProfile? profile, string additionalRequirements)
     {
     try
@@ -701,6 +743,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Normalizes mode.
+    /// </summary>
     private string NormalizeMode(string? mode, string protocolKey)
     {
     try
@@ -723,6 +768,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Normalizes protocol.
+    /// </summary>
     private string NormalizeProtocol(string? protocolKey, string? hint)
     {
     try
@@ -753,6 +801,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Normalizes transport.
+    /// </summary>
     private string NormalizeTransport(string? value)
     {
     try
@@ -778,6 +829,9 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
 
+    /// <summary>
+    /// Resolves pin key.
+    /// </summary>
     private string ResolvePinKey(EmbeddedBoardProfile? profile, int gpio) {
     try
     {
@@ -792,6 +846,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the infer metric operation.
+    /// </summary>
     private string InferMetric(string? sensorType) {
     try
     {
@@ -806,6 +863,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the default unit operation.
+    /// </summary>
     private string DefaultUnit(string? sensorType) {
     try
     {
@@ -820,6 +880,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Determines whether esp32 adc2 pin.
+    /// </summary>
     private bool IsEsp32Adc2Pin(int gpio) {
     try
     {
@@ -834,6 +897,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Determines whether output mode.
+    /// </summary>
     private bool IsOutputMode(string? mode) {
     try
     {
@@ -848,6 +914,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the arduino pin mode operation.
+    /// </summary>
     private string ArduinoPinMode(string mode) {
     try
     {
@@ -862,6 +931,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the matches pin operation.
+    /// </summary>
     private bool MatchesPin(EmbeddedPlanFinding finding, EmbeddedPinAssignment assignment) {
     try
     {
@@ -876,6 +948,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the severity status operation.
+    /// </summary>
     private string SeverityStatus(IEnumerable<EmbeddedPlanFinding> findings) {
     try
     {
@@ -890,6 +965,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the sanitize identifier operation.
+    /// </summary>
     private string SanitizeIdentifier(string value, int index)
     {
     try
@@ -908,6 +986,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the escape cpp operation.
+    /// </summary>
     private string EscapeCpp(string value) {
     try
     {
@@ -922,6 +1003,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the escape ini operation.
+    /// </summary>
     private string EscapeIni(string value) {
     try
     {
@@ -936,6 +1020,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Normalizes JSON.
+    /// </summary>
     private string NormalizeJson(string? value)
     {
     try
@@ -954,6 +1041,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the text operation.
+    /// </summary>
     private string Text(string? value, string fallback, int maximum)
     {
     try
@@ -971,6 +1061,9 @@ public sealed class EmbeddedFirmwarePlanningService(
         throw;
     }
 }
+    /// <summary>
+    /// Runs the safe file name operation.
+    /// </summary>
     private string SafeFileName(string value)
     {
     try

@@ -27,8 +27,14 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 {
     private const string DataType = "DxAiFunctionCatalogEntry";
     private const string StorageNamePrefix = "DxFunctionCatalog.";
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
+    /// <summary>
+    /// Runs the synchronize async operation.
+    /// </summary>
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> SynchronizeAsync(CancellationToken cancellationToken = default)
     {
         await databaseInitialization.InitializeAsync(cancellationToken).ConfigureAwait(false);
@@ -58,6 +64,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
         }
     }
 
+    /// <summary>
+    /// Runs the synchronize core async operation.
+    /// </summary>
     private async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> SynchronizeCoreAsync(CancellationToken cancellationToken)
     {
     try
@@ -211,6 +220,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Determines whether system variable name conflict.
+    /// </summary>
     private bool IsSystemVariableNameConflict(DbUpdateException exception)
     {
     try
@@ -240,6 +252,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Gets entries async.
+    /// </summary>
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> GetEntriesAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -260,6 +275,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Gets entry async.
+    /// </summary>
     public async Task<DxAiFunctionCatalogEntry?> GetEntryAsync(string catalogKey, CancellationToken cancellationToken = default)
     {
     try
@@ -279,6 +297,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Gets by function name async.
+    /// </summary>
     public async Task<DxAiFunctionCatalogEntry?> GetByFunctionNameAsync(string functionName, CancellationToken cancellationToken = default)
     {
     try
@@ -298,6 +319,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Saves policy async.
+    /// </summary>
     public async Task<DxAiFunctionCatalogEntry> SavePolicyAsync(DxAiFunctionCatalogSaveRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -359,6 +383,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Gets exposed to peer async.
+    /// </summary>
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> GetExposedToPeerAsync(string peerId, CancellationToken cancellationToken = default)
     {
     try
@@ -380,6 +407,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Runs the discover entries operation.
+    /// </summary>
     private IReadOnlyList<DxAiFunctionCatalogEntry> DiscoverEntries()
     {
     try
@@ -409,6 +439,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Creates DevExpress entry.
+    /// </summary>
     private DxAiFunctionCatalogEntry CreateDxEntry(DxaichatFunctionInfo function)
     {
     try
@@ -448,6 +481,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Runs the discover public service methods operation.
+    /// </summary>
     private IEnumerable<DxAiFunctionCatalogEntry> DiscoverPublicServiceMethods()
     {
         var assembly = typeof(Program).Assembly;
@@ -497,6 +533,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
         }
     }
 
+    /// <summary>
+    /// Determines whether supported public method.
+    /// </summary>
     private bool IsSupportedPublicMethod(MethodInfo method) {
     try
     {
@@ -514,6 +553,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Resolves contract.
+    /// </summary>
     private Type ResolveContract(Type implementation, MethodInfo method)
     {
     try
@@ -536,6 +578,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Runs the same signature operation.
+    /// </summary>
     private bool SameSignature(MethodInfo left, MethodInfo right)
     {
     try
@@ -556,6 +601,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Builds parameter schema.
+    /// </summary>
     private string BuildParameterSchema(MethodInfo method)
     {
     try
@@ -587,6 +635,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Runs the JSON type operation.
+    /// </summary>
     private string JsonType(Type type)
     {
     try
@@ -608,6 +659,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Runs the infer read only operation.
+    /// </summary>
     private bool InferReadOnly(MethodInfo method)
     {
     try
@@ -630,6 +684,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Runs the infer editor operation.
+    /// </summary>
     private OneWireInteractionEditor InferEditor(string name, string schema, bool requiresConfirmation)
     {
     try
@@ -649,6 +706,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Runs the preserve policy and refresh descriptor operation.
+    /// </summary>
     private void PreservePolicyAndRefreshDescriptor(DxAiFunctionCatalogEntry stored, DxAiFunctionCatalogEntry current)
     {
     try
@@ -705,6 +765,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Reads entries async.
+    /// </summary>
     private async Task<List<DxAiFunctionCatalogEntry>> ReadEntriesAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
     {
     try
@@ -735,6 +798,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Runs the select canonical catalog row operation.
+    /// </summary>
     private (SystemVariable Variable, DxAiFunctionCatalogEntry Entry) SelectCanonicalCatalogRow(
         IEnumerable<(SystemVariable Variable, DxAiFunctionCatalogEntry Entry)> rows)
     {
@@ -750,6 +816,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 
 
+    /// <summary>
+    /// Gets semantic identity.
+    /// </summary>
     private string GetSemanticIdentity(DxAiFunctionCatalogEntry entry)
     {
     try
@@ -778,6 +847,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Gets stored type name.
+    /// </summary>
     private string GetStoredTypeName(string? assemblyQualifiedTypeName)
     {
     try
@@ -798,6 +870,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Gets stable type identity.
+    /// </summary>
     private string GetStableTypeIdentity(Type type)
     {
     try
@@ -828,6 +903,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Runs the deserialize operation.
+    /// </summary>
     private DxAiFunctionCatalogEntry? Deserialize(string value)
     {
     try
@@ -846,6 +924,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Normalizes peers JSON.
+    /// </summary>
     private string NormalizePeersJson(string json)
     {
     try
@@ -869,6 +950,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Builds storage name.
+    /// </summary>
     private string BuildStorageName(string catalogKey)
     {
     try
@@ -887,6 +971,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 }
 
+    /// <summary>
+    /// Computes descriptor hash.
+    /// </summary>
     private string ComputeDescriptorHash(DxAiFunctionCatalogEntry entry)
     {
     try
@@ -907,10 +994,16 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 }
 
+/// <summary>
+/// Provides DevExpress ai function catalog hosted service operations.
+/// </summary>
 public sealed class DxAiFunctionCatalogHostedService(
     IServiceScopeFactory scopeFactory,
     ILogger<DxAiFunctionCatalogHostedService> logger) : IHostedService
 {
+    /// <summary>
+    /// Starts async.
+    /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
@@ -926,6 +1019,9 @@ public sealed class DxAiFunctionCatalogHostedService(
         }
     }
 
+    /// <summary>
+    /// Stops async.
+    /// </summary>
     public Task StopAsync(CancellationToken cancellationToken) {
     try
     {

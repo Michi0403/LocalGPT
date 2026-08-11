@@ -4,10 +4,19 @@ using System.Collections.Concurrent;
 
 namespace LocalGPT.Services.OneWire;
 
+/// <summary>
+/// Provides one wire peer registry operations.
+/// </summary>
 public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : IOneWirePeerRegistry
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<string, OneWirePeerAdvertisement> peers = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Gets peers.
+    /// </summary>
     public IReadOnlyList<OneWirePeerAdvertisement> GetPeers() {
     try
     {
@@ -27,6 +36,9 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
     }
 }
 
+    /// <summary>
+    /// Gets peer.
+    /// </summary>
     public OneWirePeerAdvertisement? GetPeer(string peerId) {
     try
     {
@@ -42,6 +54,9 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
     }
 }
 
+    /// <summary>
+    /// Runs the upsert operation.
+    /// </summary>
     public void Upsert(OneWirePeerAdvertisement peer)
     {
     try
@@ -69,6 +84,9 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
     }
 }
 
+    /// <summary>
+    /// Sets connected.
+    /// </summary>
     public void SetConnected(string peerId, bool connected)
     {
     try
@@ -90,6 +108,9 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
     }
 }
 
+    /// <summary>
+    /// Removes expired.
+    /// </summary>
     public void RemoveExpired(TimeSpan maximumAge)
     {
     try
@@ -109,6 +130,9 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
     }
 }
 
+    /// <summary>
+    /// Runs the clone operation.
+    /// </summary>
     private OneWirePeerAdvertisement Clone(OneWirePeerAdvertisement peer) {
     try
     {
@@ -156,12 +180,24 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
 }
 }
 
+/// <summary>
+/// Provides one wire connection registry operations.
+/// </summary>
 public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry> logger) : IOneWireConnectionRegistry
 {
 
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<string, OneWireConnectionRegistration> senders = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly object registrationGate = new();
 
+    /// <summary>
+    /// Runs the register operation.
+    /// </summary>
     public void Register(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender) {
     try
     {
@@ -177,6 +213,9 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
     }
 }
 
+    /// <summary>
+    /// Registers owned.
+    /// </summary>
     public Guid RegisterOwned(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender)
     {
     try
@@ -200,6 +239,9 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
     }
 }
 
+    /// <summary>
+    /// Runs the unregister operation.
+    /// </summary>
     public void Unregister(string peerId)
     {
     try
@@ -221,6 +263,9 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
     }
 }
 
+    /// <summary>
+    /// Runs the unregister operation.
+    /// </summary>
     public bool Unregister(string peerId, Guid registrationId)
     {
     try
@@ -247,6 +292,9 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
     }
 }
 
+    /// <summary>
+    /// Determines whether connected.
+    /// </summary>
     public bool IsConnected(string peerId) {
     try
     {
@@ -262,6 +310,9 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
     }
 }
 
+    /// <summary>
+    /// Runs the send async operation.
+    /// </summary>
     public async Task<bool> SendAsync(string peerId, OneWireEnvelope envelope, CancellationToken cancellationToken = default)
     {
         if (!senders.TryGetValue(peerId, out var registration))
@@ -280,13 +331,22 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
     }
 }
 
+/// <summary>
+/// Represents an one wire replay guard.
+/// </summary>
 public sealed class OneWireReplayGuard(
     IOneWireReplayPolicyDataService policyData,
     ILogger<OneWireReplayGuard> logger) : IOneWireReplayGuard
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<string, DateTimeOffset> accepted = new(StringComparer.OrdinalIgnoreCase);
     private int cleanupCounter;
 
+    /// <summary>
+    /// Attempts to accept.
+    /// </summary>
     public bool TryAccept(string peerId, Guid messageId, DateTimeOffset createdUtc)
     {
     try
@@ -328,12 +388,27 @@ public sealed class OneWireReplayGuard(
 }
 }
 
+/// <summary>
+/// Represents an one wire work spooler.
+/// </summary>
 public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOneWireWorkSpooler
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, OneWireWorkItem> workItems = new();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentQueue<Guid> queue = new();
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly SemaphoreSlim signal = new(0);
 
+    /// <summary>
+    /// Runs the enqueue operation.
+    /// </summary>
     public OneWireWorkItem Enqueue(OneWireEnvelope envelope)
     {
     try
@@ -366,6 +441,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Runs the dequeue async operation.
+    /// </summary>
     public async Task<OneWireWorkItem> DequeueAsync(CancellationToken cancellationToken)
     {
     try
@@ -395,6 +473,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Gets snapshot.
+    /// </summary>
     public IReadOnlyList<OneWireWorkItem> GetSnapshot() {
     try
     {
@@ -413,6 +494,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Runs the get operation.
+    /// </summary>
     public OneWireWorkItem? Get(Guid id) {
     try
     {
@@ -428,6 +512,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Runs the mark running operation.
+    /// </summary>
     public void MarkRunning(Guid id) {
     try
     {
@@ -443,6 +530,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Runs the mark pending approval operation.
+    /// </summary>
     public void MarkPendingApproval(Guid correlationId, string resultJson)
     {
     try
@@ -467,6 +557,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Runs the complete operation.
+    /// </summary>
     public void Complete(Guid id, string resultJson) {
     try
     {
@@ -487,6 +580,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Runs the fail operation.
+    /// </summary>
     public void Fail(Guid id, string error) {
     try
     {
@@ -506,6 +602,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Applies external result.
+    /// </summary>
     public void ApplyExternalResult(Guid correlationId, string resultJson, string error, OneWireWorkStatus? status = null)
     {
     try
@@ -549,6 +648,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Finds by correlation.
+    /// </summary>
     private OneWireWorkItem? FindByCorrelation(Guid correlationId) {
     try
     {
@@ -566,6 +668,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 
+    /// <summary>
+    /// Runs the mutate operation.
+    /// </summary>
     private void Mutate(Guid id, Action<OneWireWorkItem> mutation)
     {
     try
@@ -586,11 +691,20 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
     }
 }
 }
+/// <summary>
+/// Provides one wire pending council store operations.
+/// </summary>
 public sealed class OneWirePendingCouncilStore(
     ILogger<OneWirePendingCouncilStore> logger) : IOneWirePendingCouncilStore
 {
+    /// <summary>
+    /// Runs the new operation.
+    /// </summary>
     private readonly ConcurrentDictionary<Guid, OneWirePendingCouncilRequest> pending = new();
 
+    /// <summary>
+    /// Runs the upsert operation.
+    /// </summary>
     public void Upsert(OneWireEnvelope envelope, Guid? approvalRequestId)
     {
     try
@@ -623,6 +737,9 @@ public sealed class OneWirePendingCouncilStore(
     }
 }
 
+    /// <summary>
+    /// Gets snapshot.
+    /// </summary>
     public IReadOnlyList<OneWirePendingCouncilRequest> GetSnapshot()
     {
     try
@@ -644,6 +761,9 @@ public sealed class OneWirePendingCouncilStore(
     }
 }
 
+    /// <summary>
+    /// Runs the remove operation.
+    /// </summary>
     public bool Remove(Guid correlationId, out OneWirePendingCouncilRequest? request)
     {
     try
@@ -663,6 +783,9 @@ public sealed class OneWirePendingCouncilStore(
     }
 }
 
+    /// <summary>
+    /// Runs the mark checked operation.
+    /// </summary>
     public void MarkChecked(Guid correlationId)
     {
     try

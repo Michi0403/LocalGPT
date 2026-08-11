@@ -3,6 +3,9 @@ using System.Text.Json;
 
 namespace LocalGPT.Services
 {
+    /// <summary>
+    /// Provides ai discovery service operations.
+    /// </summary>
     public sealed class AiDiscoveryService(
         CouncilRuntimeService runtime,
         CouncilTextService text,
@@ -13,6 +16,9 @@ namespace LocalGPT.Services
         private readonly CouncilTextService _text = text;
         private readonly LocalGptCatalogService _catalog = catalog;
 
+        /// <summary>
+        /// Gets async.
+        /// </summary>
         public async Task<(bool ok, string msg)> GetAsync(HttpClient http, string path, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
         {
             try
@@ -48,6 +54,9 @@ namespace LocalGPT.Services
                 return (false, ex.Message);
             }
         }
+        /// <summary>
+        /// Creates discovery client.
+        /// </summary>
         public HttpClient CreateDiscoveryClient(string endpoint, ILogger<AiConnectivityProbe> logger)
         {
             try
@@ -64,6 +73,9 @@ namespace LocalGPT.Services
                 throw new InvalidOperationException("The configured AI endpoint is not a valid absolute URI.", ex);
             }
         }
+        /// <summary>
+        /// Runs the probe open aicompatible async operation.
+        /// </summary>
         public async Task<LocalAiHostDiscoveryResult> ProbeOpenAICompatibleAsync(string provider, string endpoint, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
         {
             var result = new LocalAiHostDiscoveryResult
@@ -138,6 +150,9 @@ namespace LocalGPT.Services
 
         }
 
+        /// <summary>
+        /// Runs the probe ollama async operation.
+        /// </summary>
         public async Task<LocalAiHostDiscoveryResult> ProbeOllamaAsync(string endpoint, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
         {
             var result = new LocalAiHostDiscoveryResult
@@ -241,6 +256,9 @@ namespace LocalGPT.Services
             return result;
         }
 
+        /// <summary>
+        /// Gets endpoint host.
+        /// </summary>
         private string GetEndpointHost(string endpoint) {
     try
     {

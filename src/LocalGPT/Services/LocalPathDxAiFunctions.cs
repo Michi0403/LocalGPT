@@ -4,8 +4,14 @@ using System.Text.Json;
 
 namespace LocalGPT.Services;
 
+/// <summary>
+/// Represents a browse local path function.
+/// </summary>
 public sealed class BrowseLocalPathFunction(ILocalPathExplorerService paths) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.path.browse", "POST", "/api/dxai/functions/localgpt.path.browse/invoke",
         "Browses one local folder so Chat or Council can present real filesystem choices instead of guessing paths.",
@@ -17,6 +23,9 @@ public sealed class BrowseLocalPathFunction(ILocalPathExplorerService paths) : I
         {"type":"object","properties":{"path":{"type":"string","maxLength":2048},"includeFiles":{"type":"boolean"},"maxEntries":{"type":"integer","minimum":1,"maximum":1000}},"additionalProperties":false}
         """);
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -35,8 +44,14 @@ public sealed class BrowseLocalPathFunction(ILocalPathExplorerService paths) : I
 }
 }
 
+/// <summary>
+/// Represents a list local path roots function.
+/// </summary>
 public sealed class ListLocalPathRootsFunction(ILocalPathExplorerService paths) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Gets or sets descriptor.
+    /// </summary>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.path.roots", "POST", "/api/dxai/functions/localgpt.path.roots/invoke",
         "Lists platform-appropriate local root suggestions for path selection.", "No parameters.",
@@ -45,6 +60,9 @@ public sealed class ListLocalPathRootsFunction(ILocalPathExplorerService paths) 
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{},"additionalProperties":false}""");
 
+    /// <summary>
+    /// Runs the invoke async operation.
+    /// </summary>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {

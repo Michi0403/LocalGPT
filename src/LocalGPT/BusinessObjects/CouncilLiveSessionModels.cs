@@ -1,5 +1,8 @@
 namespace LocalGPT.BusinessObjects;
 
+/// <summary>
+/// Represents a council live session snapshot.
+/// </summary>
 public sealed record CouncilLiveSessionSnapshot(
     Guid RunId,
     bool IsRunning,
@@ -11,6 +14,9 @@ public sealed record CouncilLiveSessionSnapshot(
     string Transcript,
     string StatusMessage);
 
+/// <summary>
+/// Represents a council live session summary.
+/// </summary>
 public sealed record CouncilLiveSessionSummary(
     Guid RunId,
     bool IsRunning,

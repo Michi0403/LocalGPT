@@ -1,4 +1,4 @@
-﻿using Azure;
+using Azure;
 using Azure.AI.OpenAI;
 using DevExpress.AIIntegration.Blazor.Chat;
 using DevExpress.CodeParser;
@@ -41,11 +41,23 @@ using TacosPortal.Services;
 using LocalGPT.Services.Helpers;
 namespace LocalGPT
 {
+    /// <summary>
+    /// Represents a program.
+    /// </summary>
     public static class Program
     {
         // Installer/WebView compatibility contract. Do not remove or silently change these defaults.
+        /// <summary>
+        /// Stores default port.
+        /// </summary>
         public const int DefaultPort = 5000;
+        /// <summary>
+        /// Stores default one wire port.
+        /// </summary>
         public const int DefaultOneWirePort = OneWireProtocol.DefaultServicePort;
+        /// <summary>
+        /// Stores default one wire discovery port.
+        /// </summary>
         public const int DefaultOneWireDiscoveryPort = OneWireProtocol.DefaultDiscoveryPort;
 
         private static int runtimePort = DefaultPort;
@@ -54,9 +66,21 @@ namespace LocalGPT
 
         // Public read-only compatibility surface consumed by the WinUI wrapper and installer wiring.
         // Startup updates the private snapshot atomically; callers cannot mutate it.
+        /// <summary>
+        /// Gets or sets port.
+        /// </summary>
         public static System.Int32 Port => System.Threading.Volatile.Read(ref runtimePort);
+        /// <summary>
+        /// Gets or sets one wire port.
+        /// </summary>
         public static System.Int32 OneWirePort => System.Threading.Volatile.Read(ref runtimeOneWirePort);
+        /// <summary>
+        /// Gets or sets one wire discovery port.
+        /// </summary>
         public static System.Int32 OneWireDiscoveryPort => System.Threading.Volatile.Read(ref runtimeOneWireDiscoveryPort);
+        /// <summary>
+        /// Gets or sets base URL.
+        /// </summary>
         public static string BaseUrl => $"http://127.0.0.1:{Port}";
         /// <summary>
         /// The main entry point for the application.
@@ -68,6 +92,9 @@ namespace LocalGPT
             app.Run();
         }
 
+        /// <summary>
+        /// Builds web app.
+        /// </summary>
         public static WebApplication BuildWebApp(string[]? args = null)
         {
             var exeDir = Path.GetDirectoryName(typeof(Program).Assembly.Location)!;
@@ -105,6 +132,9 @@ namespace LocalGPT
             logger.LogInformation("Configured JSON options.");
             ConfigureForwardedHeaders(builder.Services, logger);
             logger.LogInformation("Configured forwarded headers.");
+            /// <summary>
+            /// Runs the service method diagnostics registration operation.
+            /// </summary>
             new ServiceMethodDiagnosticsRegistration(logger).Apply(builder.Services, builder.Environment.IsDevelopment());
             logger.LogInformation("Configured bounded service method diagnostics.");
 
@@ -165,6 +195,9 @@ namespace LocalGPT
         //    }
         //}
 
+        /// <summary>
+        /// Gets runtime trace directories.
+        /// </summary>
         private static IEnumerable<string> GetRuntimeTraceDirectories()
         {
             var directories = new[]
@@ -184,6 +217,9 @@ namespace LocalGPT
                 .Distinct(StringComparer.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Creates web application options.
+        /// </summary>
         private static WebApplicationOptions CreateWebApplicationOptions( string[]? args)
         {
             return new WebApplicationOptions
@@ -195,6 +231,9 @@ namespace LocalGPT
             };
         }
 
+        /// <summary>
+        /// Runs the configure app configuration operation.
+        /// </summary>
         private static void ConfigureAppConfiguration(WebApplicationBuilder builder, ILogger logger)
         {
             try
@@ -235,6 +274,9 @@ namespace LocalGPT
                     builder.Logging.AddFilter((category, level) => level >= LogLevel.Warning);
 
                 builder.Services.AddLogging(logging =>
+                    /// <summary>
+                    /// Runs the logging configuration service operation.
+                    /// </summary>
                     new LoggingConfigurationService(builder.Services, builder.Configuration, logger).Configure(logging));
             }
             catch (Exception ex)
@@ -244,6 +286,9 @@ namespace LocalGPT
             }
            
         }
+        /// <summary>
+        /// Runs the configure options and services operation.
+        /// </summary>
         private static void ConfigureOptionsAndServices(WebApplicationBuilder builder, ILogger logger)
         {
             try
@@ -484,6 +529,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Runs the configure signal r operation.
+        /// </summary>
         private static void ConfigureSignalR(IServiceCollection services, ILogger logger)
         {
             services.AddSignalR(options =>
@@ -506,6 +554,9 @@ namespace LocalGPT
                 });
         }
 
+        /// <summary>
+        /// Runs the configure kestrel operation.
+        /// </summary>
         private static int ConfigureKestrel(WebApplicationBuilder builder, int requestedPort, string[]? args, ILogger logger)
         {
             try
@@ -567,6 +618,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Resolves remote web endpoint.
+        /// </summary>
         private static RemoteWebEndpointOptions? ResolveRemoteWebEndpoint(
             string[]? args,
             IConfiguration configuration,
@@ -639,6 +693,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Gets command line value.
+        /// </summary>
         private static string? GetCommandLineValue(string[] args, string switchName)
         {
             for (var index = 0; index < args.Length; index++)
@@ -652,9 +709,15 @@ namespace LocalGPT
             return null;
         }
 
+        /// <summary>
+        /// Runs the first non empty operation.
+        /// </summary>
         private static string? FirstNonEmpty(params string?[] values) =>
             values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
+        /// <summary>
+        /// Resolves requested port.
+        /// </summary>
         private static int ResolveRequestedPort(string[]? args, IConfiguration configuration, ILogger logger)
         {
             // The installer historically starts LocalGPT.exe with a positional numeric port.
@@ -677,6 +740,9 @@ namespace LocalGPT
                 logger);
         }
 
+        /// <summary>
+        /// Resolves configured port.
+        /// </summary>
         private static int ResolveConfiguredPort(
             string[]? args,
             IConfiguration configuration,
@@ -712,6 +778,9 @@ namespace LocalGPT
             return fallback;
         }
 
+        /// <summary>
+        /// Validates port contracts.
+        /// </summary>
         private static void ValidatePortContracts(ILogger logger)
         {
             // The installer-selected web port is authoritative. Optional organic wiring must adapt
@@ -747,6 +816,9 @@ namespace LocalGPT
                 Port, OneWirePort, OneWireDiscoveryPort);
         }
 
+        /// <summary>
+        /// Gets free port excluding.
+        /// </summary>
         private static int GetFreePortExcluding(ILogger logger, params int[] excludedPorts)
         {
             var excluded = excludedPorts.ToHashSet();
@@ -759,6 +831,9 @@ namespace LocalGPT
             return 0;
         }
 
+        /// <summary>
+        /// Runs the configure response compression operation.
+        /// </summary>
         private static void ConfigureResponseCompression(IServiceCollection services, ILogger logger)
         {
             try
@@ -780,6 +855,9 @@ namespace LocalGPT
 
         }
 
+        /// <summary>
+        /// Runs the configure blazor and mvc operation.
+        /// </summary>
         private static void ConfigureBlazorAndMvc(WebApplicationBuilder builder, ILogger logger)
         {
             try
@@ -809,6 +887,9 @@ namespace LocalGPT
                             QueryStringKey = "culture",
                             UIQueryStringKey = "ui-culture"
                         },
+                        /// <summary>
+                        /// Runs the cookie request culture provider operation.
+                        /// </summary>
                         new CookieRequestCultureProvider()
                     ];
                 });
@@ -827,6 +908,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Runs the configure JSON options operation.
+        /// </summary>
         private static void ConfigureJsonOptions(IServiceCollection services, ILogger logger)
         {
             try
@@ -844,6 +928,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Runs the configure shared JSON serializer options operation.
+        /// </summary>
         private static void ConfigureSharedJsonSerializerOptions(JsonSerializerOptions options, ILogger logger)
         {
             try
@@ -867,6 +954,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Runs the configure forwarded headers operation.
+        /// </summary>
         private static void ConfigureForwardedHeaders(IServiceCollection services, ILogger logger)
         {
             try
@@ -885,6 +975,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Runs the configure middleware and endpoints operation.
+        /// </summary>
         private static void ConfigureMiddlewareAndEndpoints(WebApplication app, ILogger logger)
         {
             try
@@ -932,6 +1025,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Determines whether generated static web asset root.
+        /// </summary>
         private static bool IsGeneratedStaticWebAssetRoot(string path, ILogger logger)
         {
             try
@@ -957,6 +1053,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Writes runtime endpoint file.
+        /// </summary>
         private static void WriteRuntimeEndpointFile(int port, ILogger logger)
         {
             try
@@ -990,6 +1089,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Deletes runtime endpoint file.
+        /// </summary>
         private static void DeleteRuntimeEndpointFile(ILogger logger)
         {
             try
@@ -1016,6 +1118,9 @@ namespace LocalGPT
             }
         }
 
+        /// <summary>
+        /// Gets free port.
+        /// </summary>
         private static int GetFreePort(ILogger logger)
         {
             try
