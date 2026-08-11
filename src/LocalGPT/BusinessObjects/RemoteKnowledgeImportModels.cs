@@ -24,11 +24,11 @@ public sealed class RemoteKnowledgeImportRequest
     /// <summary>
     /// Gets or sets max files.
     /// </summary>
-    public int MaxFiles { get; set; } = 5000;
+    public int MaxFiles { get; set; }
     /// <summary>
-    /// Gets or sets max linked pages.
+    /// Gets or sets an optional caller-requested linked-page count; non-positive values use the database-backed MaxFiles policy.
     /// </summary>
-    public int MaxLinkedPages { get; set; } = 20;
+    public int MaxLinkedPages { get; set; }
     /// <summary>
     /// Gets or sets save to knowledge.
     /// </summary>

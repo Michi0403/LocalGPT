@@ -13,6 +13,11 @@ REGISTRY = (ROOT / "src/LocalGPT/Services/DxAiFunctionRegistry.cs").read_text(en
 WORKFLOW = (ROOT / "src/LocalGPT/Services/CodeGenerationWorkflowService.cs").read_text(encoding="utf-8-sig")
 PROJECT_MAINTENANCE = (ROOT / "src/LocalGPT/Services/ProjectMaintenanceService.cs").read_text(encoding="utf-8-sig")
 PROJECT_MODELS = (ROOT / "src/LocalGPT/BusinessObjects/ProjectMaintenanceModels.cs").read_text(encoding="utf-8-sig")
+OUTPUT_MODELS = (ROOT / "src/LocalGPT/BusinessObjects/CodeGenerationWorkflowModels.cs").read_text(encoding="utf-8-sig")
+ARTIFACT_FUNCTIONS = (ROOT / "src/LocalGPT/Services/ArtifactWorkspaceDxAiFunctions.cs").read_text(encoding="utf-8-sig")
+CAPABILITY_FUNCTION = (ROOT / "src/LocalGPT/Services/CodeGenerationCapabilitiesDxAiFunction.cs").read_text(encoding="utf-8-sig")
+REMOTE_IMPORT = (ROOT / "src/LocalGPT/Services/RemoteKnowledgeImportService.cs").read_text(encoding="utf-8-sig")
+CHAT_UPLOADS = (ROOT / "src/LocalGPT/Services/ChatUploadWorkspaceService.cs").read_text(encoding="utf-8-sig")
 RUNTIME_SEEDS = (ROOT / "src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs").read_text(encoding="utf-8-sig")
 OLLAMA = (ROOT / "src/LocalGPT/Services/OllamaThinkingChatClient.cs").read_text(encoding="utf-8-sig")
 
@@ -47,7 +52,7 @@ require(REGISTRY, '"required": [\n            "goal"\n          ]', "goal requir
 
 output_kinds = [
     "SourceFiles", "ClassLibrary", "ConsoleApplication", "Solution",
-    "LocalGptAddon", "CSharpScript", "JavaScriptModule",
+    "LocalGptAddon", "CSharpScript", "PowerShellScript", "JavaScriptModule",
 ]
 for kind in output_kinds:
     require(REGISTRY, f'"{kind}"', f"create-review output kind {kind}")
@@ -56,6 +61,7 @@ for kind in output_kinds:
 for marker in [
     "case CodeGenerationOutputKinds.SourceFiles:",
     "case CodeGenerationOutputKinds.CSharpScript:",
+    "case CodeGenerationOutputKinds.PowerShellScript:",
     "case CodeGenerationOutputKinds.JavaScriptModule:",
     "case CodeGenerationOutputKinds.ClassLibrary:",
     "case CodeGenerationOutputKinds.ConsoleApplication:",
@@ -89,6 +95,11 @@ forbid(PROJECT_MAINTENANCE, "Math.Clamp(request.MaximumFileBytes", "hard-coded p
 require(PROJECT_MAINTENANCE, "runtimePolicy.GetLong(LocalGptRuntimeValue.MaxSingleFileBytes)", "database-backed project scan file-size policy")
 require(PROJECT_MAINTENANCE, "request.MaximumFileBytes > 0", "optional caller-requested project scan file-size cap")
 require(PROJECT_MODELS, "public long MaximumFileBytes { get; set; }", "policy-backed zero-default project scan file-size request")
+forbid(PROJECT_MAINTENANCE, "EnumerateRelativeEntries(root, 5000", "fixed workspace permission-assessment entry ceiling")
+require(PROJECT_MAINTENANCE, "var maximumAssessmentEntries = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles));", "database-backed workspace permission-assessment entry policy")
+forbid(CHAT_UPLOADS, ".Take(Math.Clamp(take, 1, 1000))", "fixed 1k chat-upload workspace file listing ceiling")
+forbid(CHAT_UPLOADS, ".Take(Math.Clamp(take, 1, 100))", "fixed chat-upload workspace history listing ceiling")
+require(CHAT_UPLOADS, "Math.Max(1, catalog.MaxFiles)", "database-backed chat-upload listing policy")
 
 # Project-maintenance limits that already have runtime-policy keys must not be duplicated as
 # source constants. This protects the provisioning architecture from future drift.
@@ -110,6 +121,36 @@ for policy_name in [
         f"effectively-unbounded compatibility seed {policy_name}",
     )
 
+
+# Generated workspace source iteration must be executable through DI-backed tools, not merely
+# advertised as controller routes. This is the plain-file path used for PowerShell and for any
+# reviewed source extension when CodeDOM is not wanted.
+for name in [
+    "council.artifact_workspaces",
+    "council.artifact_workspace_files",
+    "council.artifact_workspace_file.read",
+    "council.artifact_workspace_file.write",
+    "council.artifact_workspace_zip",
+]:
+    require(ARTIFACT_FUNCTIONS, f'"{name}"', f"DI-backed generated-workspace function {name}")
+require(ARTIFACT_FUNCTIONS, "SupportsDeferredApprovalRequest: true", "deferred approval for generated workspace writes")
+require(ARTIFACT_FUNCTIONS, "catalog.MaxSingleFileBytes", "database-backed generated-workspace file-size policy")
+require(ARTIFACT_FUNCTIONS, "runtime.ResolveWorkspaceTextFile", "generated-workspace path containment")
+require(RUNTIME_SEEDS, '".ps1"', "PowerShell artifact text extension")
+require(CAPABILITY_FUNCTION, '"codegen.capabilities"', "AI-visible code-generation capability directory")
+require(CAPABILITY_FUNCTION, "CodeGenerationOutputKinds.PowerShellScript", "PowerShell capability declaration")
+require(WORKFLOW, "GeneratePlainCSharpFallbackSource", "plain C# fallback when CodeDOM generation fails")
+require(OUTPUT_MODELS, 'public const string PowerShellScript = "PowerShellScript";', "PowerShell output-kind identifier")
+
+# The remote-import log demonstrated the old fixed 60,000-entry ceiling. It must now come from
+# the same data-provisioning mechanism as the rest of LocalGPT scale policy.
+forbid(REMOTE_IMPORT, "60000", "fixed 60k remote archive entry ceiling")
+require(REMOTE_IMPORT, "catalog.MaxZipEntries", "database-backed remote archive entry policy")
+require(REMOTE_IMPORT, "catalog.MaxFiles", "database-backed remote import file policy")
+require(REMOTE_IMPORT, "catalog.MaxExtractedBytes", "database-backed remote extracted-byte policy")
+require(REMOTE_IMPORT, "request.MaxLinkedPages > 0", "optional caller-requested linked-page policy")
+forbid(REMOTE_IMPORT, "Math.Clamp(request.MaxLinkedPages, 1, 50)", "fixed 50-page remote crawl ceiling")
+
 require(OLLAMA, 'Content = $$$"""', "three-dollar raw interpolated fallback literal")
 require(OLLAMA, '{{{marker}}}', "fallback marker interpolation")
 require(OLLAMA, '{"functionName":"exact.registry.name","arguments":{}}', "literal textual DXFunction JSON example")
@@ -123,6 +164,7 @@ if failures:
 
 print(
     "Code-generation/DXFunction source audit passed: DI discovery, five review functions, "
-    "seven output kinds, projectRevisionId schema, Ollama textual fallback, approval gates, "
-    "removal of former arbitrary payload/file/report ceilings, and policy-backed project scanning are present."
+    "eight output kinds including PowerShell, projectRevisionId schema, Ollama textual fallback, "
+    "approval-gated plain workspace file writes, CodeDOM fallback, removal of former arbitrary "
+    "payload/file/report ceilings, policy-backed remote imports, project scanning/assessment, and upload-workspace listings are present."
 )

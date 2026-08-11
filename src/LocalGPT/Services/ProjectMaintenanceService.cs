@@ -238,7 +238,8 @@ public sealed class ProjectMaintenanceService(
                         findings.Add(new("Warning", "SUBDIRECTORY_MISSING", "An expected workspace subdirectory is missing.", safeRelative));
                 }
 
-                var relativeEntries = EnumerateRelativeEntries(root, 5000, findings);
+                var maximumAssessmentEntries = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles));
+                var relativeEntries = EnumerateRelativeEntries(root, maximumAssessmentEntries, findings);
                 if (!string.IsNullOrWhiteSpace(workspace.ExpectedStructureRegex))
                 {
                     var structure = string.Join("\n", relativeEntries);

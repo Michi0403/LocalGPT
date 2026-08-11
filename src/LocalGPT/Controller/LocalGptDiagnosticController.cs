@@ -658,8 +658,8 @@ namespace LocalGPT.Controller
                     return Results.BadRequest(new { Error = "Invalid, unsupported, or missing source file path." });
 
                 var info = new FileInfo(file);
-                if (info.Length > catalog.MaxArtifactTextFileBytes)
-                    return Results.BadRequest(new { Error = "File is too large for inline source editing.", info.Length });
+                if (catalog.MaxSingleFileBytes > 0 && info.Length > catalog.MaxSingleFileBytes)
+                    return Results.BadRequest(new { Error = $"File exceeds the database-backed MaxSingleFileBytes policy ({catalog.MaxSingleFileBytes:n0} bytes).", info.Length });
 
                 return Results.Ok(new
                 {
@@ -703,8 +703,8 @@ namespace LocalGPT.Controller
                     return Results.NotFound(new { Error = "Artifact workspace not found." });
 
                 var content = request.Content ?? string.Empty;
-                if (Encoding.UTF8.GetByteCount(content) > catalog.MaxArtifactTextFileBytes)
-                    return Results.BadRequest(new { Error = "File content is too large for inline source editing." });
+                if (catalog.MaxSingleFileBytes > 0 && Encoding.UTF8.GetByteCount(content) > catalog.MaxSingleFileBytes)
+                    return Results.BadRequest(new { Error = $"File content exceeds the database-backed MaxSingleFileBytes policy ({catalog.MaxSingleFileBytes:n0} bytes)." });
 
                 var file = councilRuntime.ResolveWorkspaceTextFile(workspace, request.RelativePath, allowMissing: true, logger);
                 if (file is null)

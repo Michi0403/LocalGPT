@@ -3775,7 +3775,7 @@ namespace LocalGPT.Services
                     .Where(summary => summary is not null)
                     .Cast<ArtifactWorkspaceSummary>()
                     .OrderByDescending(summary => summary.LastWriteTimeUtc)
-                    .Take(Math.Clamp(take, 1, 100))
+                    .Take(ResolveArtifactEnumerationTake(take))
                     .ToList();
             }
             catch (Exception ex)
@@ -3993,7 +3993,7 @@ namespace LocalGPT.Services
             try
             {
                 var directory = new DirectoryInfo(workspacePath);
-                var files = EnumerateWorkspaceTextFiles(workspacePath, 500,logger);
+                var files = EnumerateWorkspaceTextFiles(workspacePath, catalog.MaxFiles, logger);
                 var zipNames = Directory
                     .EnumerateFiles(artifactRoot, "*.zip", SearchOption.TopDirectoryOnly)
                     .Select(Path.GetFileName)
@@ -4043,7 +4043,7 @@ namespace LocalGPT.Services
                         info.LastWriteTimeUtc);
                 })
                 .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
-                .Take(Math.Clamp(take, 1, 1000))
+                .Take(ResolveArtifactEnumerationTake(take))
                 .ToList();
             }
             catch (Exception ex)
@@ -4053,6 +4053,25 @@ namespace LocalGPT.Services
             }
            
         }
+        /// <summary>
+        /// Resolves an artifact enumeration take value against the database-backed MaxFiles policy instead of source-code list ceilings.
+        /// </summary>
+        /// <param name="take">Caller-requested maximum; non-positive values use the configured policy.</param>
+        /// <returns>The effective enumeration count.</returns>
+        private int ResolveArtifactEnumerationTake(int take)
+        {
+            try
+            {
+                var configuredMaximum = Math.Max(1, catalog.MaxFiles);
+                return take > 0 ? Math.Min(take, configuredMaximum) : configuredMaximum;
+            }
+            catch (Exception ex)
+            {
+                serviceLogger.LogError(ex, "Resolving the artifact enumeration policy failed.");
+                throw;
+            }
+        }
+
         /// <summary>Executes the resolve artifact workspace operation.</summary>
         /// <param name="artifactRoot">Input value for artifactRoot.</param>
         /// <param name="workspaceName">Input value for workspaceName.</param>

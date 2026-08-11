@@ -12,8 +12,51 @@ namespace LocalGPT.Controller;
 [Route("api/code-generation/reviews")]
 public sealed class CodeGenerationController(
     ICodeGenerationWorkflowService workflow,
+    LocalGptCatalogService catalog,
     ILogger<CodeGenerationController> logger) : ControllerBase
 {
+    /// <summary>
+    /// Gets the source-generation capability map used by DXAiChat and the AI Council.
+    /// </summary>
+    [HttpGet("/api/code-generation/capabilities")]
+    public IResult GetCapabilities()
+    {
+        try
+        {
+            return Results.Ok(new
+            {
+                ReviewWorkflow = new
+                {
+                    Create = "codegen.review.create",
+                    Inspect = "codegen.review.get",
+                    Execute = "codegen.review.execute",
+                    Reject = "codegen.review.reject"
+                },
+                OutputKinds = new[]
+                {
+                    CodeGenerationOutputKinds.SourceFiles,
+                    CodeGenerationOutputKinds.ClassLibrary,
+                    CodeGenerationOutputKinds.ConsoleApplication,
+                    CodeGenerationOutputKinds.Solution,
+                    CodeGenerationOutputKinds.LocalGptAddon,
+                    CodeGenerationOutputKinds.CSharpScript,
+                    CodeGenerationOutputKinds.PowerShellScript,
+                    CodeGenerationOutputKinds.JavaScriptModule
+                },
+                ExactFileGeneration = "Submit files[] with relativePath/content. CodeDOM is optional and has a plain C# fallback; .ps1 can be written directly.",
+                WorkspaceWriteDxFunction = "council.artifact_workspace_file.write",
+                catalog.MaxFiles,
+                catalog.MaxSingleFileBytes,
+                ArtifactTextExtensions = catalog.ArtifactTextExtensions.Order(StringComparer.OrdinalIgnoreCase).ToArray()
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not return the code-generation capability map.");
+            return Results.InternalServerError("Could not return code-generation capabilities. Review LocalGPT application logs.");
+        }
+    }
+
     /// <summary>
     /// Runs the list reviews operation.
     /// </summary>

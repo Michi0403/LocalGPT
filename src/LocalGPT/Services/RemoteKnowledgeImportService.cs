@@ -18,11 +18,9 @@ public sealed class RemoteKnowledgeImportService(
     ILearnBaseKnowledgeImporterService learnBaseImporter,
     ICouncilKnowledgeService knowledge,
     IRegexPatternService regexPatterns,
+    LocalGptCatalogService catalog,
     ILogger<RemoteKnowledgeImportService> logger) : IRemoteKnowledgeImportService, IDisposable
 {
-    private const long MaximumDownloadBytes = 512L * 1024L * 1024L;
-    private const long MaximumExtractedBytes = 2L * 1024L * 1024L * 1024L;
-    private const int MaximumZipEntries = 60_000;
     private int disposeState;
     /// <summary>
     /// Runs the new operation.
@@ -90,7 +88,7 @@ public sealed class RemoteKnowledgeImportService(
 
             await EnsurePublicHostAsync(sourceUri, cancellationToken).ConfigureAwait(false);
             var includeRegex = BuildIncludeRegex(request.FileIncludeRegex);
-            var maxFiles = Math.Clamp(request.MaxFiles, 1, 20_000);
+            var maxFiles = request.MaxFiles > 0 ? Math.Min(request.MaxFiles, catalog.MaxFiles) : catalog.MaxFiles;
             var sourceKind = ResolveKind(request.SourceKind, sourceUri);
             var cacheRoot = BuildCacheRoot(sourceUri);
             Directory.CreateDirectory(cacheRoot);
@@ -237,7 +235,7 @@ public sealed class RemoteKnowledgeImportService(
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var pending = new Queue<Uri>();
             pending.Enqueue(sourceUri);
-            var maxPages = Math.Clamp(request.MaxLinkedPages, 1, 50);
+            var maxPages = request.MaxLinkedPages > 0 ? Math.Min(request.MaxLinkedPages, catalog.MaxFiles) : catalog.MaxFiles;
             var index = 0;
 
             while (pending.Count > 0 && index < maxPages && result.Files.Count < maxFiles)
@@ -316,8 +314,9 @@ public sealed class RemoteKnowledgeImportService(
     {
     try
     {
-            if (response.Content.Headers.ContentLength is long length && length > MaximumDownloadBytes)
-                throw new InvalidDataException($"Remote content is larger than the {MaximumDownloadBytes / 1024 / 1024} MB safety limit.");
+            var maximumDownloadBytes = Math.Max(1L, catalog.MaxTotalFileBytes);
+            if (response.Content.Headers.ContentLength is long length && length > maximumDownloadBytes)
+                throw new InvalidDataException($"Remote content is larger than the database-backed MaxTotalFileBytes policy ({maximumDownloadBytes:n0} bytes).");
             await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             await using var destination = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
             var buffer = new byte[81920];
@@ -326,8 +325,8 @@ public sealed class RemoteKnowledgeImportService(
             while ((read = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
             {
                 total += read;
-                if (total > MaximumDownloadBytes)
-                    throw new InvalidDataException($"Remote content exceeded the {MaximumDownloadBytes / 1024 / 1024} MB safety limit.");
+                if (total > maximumDownloadBytes)
+                    throw new InvalidDataException($"Remote content exceeded the database-backed MaxTotalFileBytes policy ({maximumDownloadBytes:n0} bytes).");
                 await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
             }
     
@@ -350,15 +349,20 @@ public sealed class RemoteKnowledgeImportService(
     try
     {
             using var archive = ZipFile.OpenRead(zipPath);
-            if (archive.Entries.Count > MaximumZipEntries)
-                throw new InvalidDataException($"Archive has more than {MaximumZipEntries} entries.");
+            var maximumZipEntries = Math.Max(1, catalog.MaxZipEntries);
+            var maximumExtractedBytes = Math.Max(1L, catalog.MaxExtractedBytes);
+            var maximumZipEntryBytes = Math.Max(1L, catalog.MaxZipEntryBytes);
+            if (archive.Entries.Count > maximumZipEntries)
+                throw new InvalidDataException($"Archive has more entries than the database-backed MaxZipEntries policy ({maximumZipEntries:n0}).");
             var normalizedRoot = Path.GetFullPath(targetRoot) + Path.DirectorySeparatorChar;
             long total = 0;
             foreach (var entry in archive.Entries)
             {
+                if (entry.Length > maximumZipEntryBytes)
+                    throw new InvalidDataException($"Archive entry exceeds the database-backed MaxZipEntryBytes policy ({maximumZipEntryBytes:n0} bytes).");
                 total += Math.Max(0, entry.Length);
-                if (total > MaximumExtractedBytes)
-                    throw new InvalidDataException("Archive exceeds the extracted-size safety limit.");
+                if (total > maximumExtractedBytes)
+                    throw new InvalidDataException($"Archive exceeds the database-backed MaxExtractedBytes policy ({maximumExtractedBytes:n0} bytes).");
                 var destination = Path.GetFullPath(Path.Combine(targetRoot, entry.FullName));
                 if (!destination.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("Archive contains an unsafe traversal path.");

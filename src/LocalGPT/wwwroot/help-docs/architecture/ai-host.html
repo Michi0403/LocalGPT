@@ -144,8 +144,6 @@
 <li>capabilities and provider-specific options.</li>
 </ul>
 <p>The route is the identity. Model-name strings alone are insufficient.</p>
-<p>Configured provider hosts are keyed by provider kind plus normalized endpoint. A <strong>primary</strong> Ollama or OpenAI-compatible binding is only the default route for ordinary single-model use; it is not a singleton provider registry. Additional hosts of the same provider kind remain independently configured and may participate in the same Council. Selecting a model discovered on a new endpoint adds or updates that endpoint-qualified host binding instead of overwriting a different primary host.</p>
-<p>The historical loopback Ollama endpoint (<code>http://127.0.0.1:11434</code>) remains a discovery candidate even when a LAN/VPN Ollama is primary. This keeps a local runtime visible beside remote Ollama hosts without silently persisting or replacing provider configuration.</p>
 <h2 id="core-services">Core services</h2>
 <p>A practical .NET architecture uses contracts similar to:</p>
 <table>
@@ -224,7 +222,7 @@
 <li>the model enters the catalog;</li>
 <li>load/unload remains explicit and observable.</li>
 </ol>
-<p>A benchmark may recommend context/output bounds or an Ollama GPU profile. It does not pull a model or rewrite provider-global settings automatically. The benchmark service owns a live-session transcript and cancellation token, so the run remains observable and stoppable from Chat even when its initiating panel is no longer in view.</p>
+<p>A benchmark may recommend context/output bounds or an Ollama GPU profile. It does not pull a model or rewrite provider-global settings automatically.</p>
 <h2 id="blazor-and-devexpress-surfaces">Blazor and DevExpress surfaces</h2>
 <p>A useful host UI can include:</p>
 <ul>
@@ -272,7 +270,7 @@
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.6.9 Â· generated documentation
+          LocalGPT 2.3.7 · generated documentation
         </div>
       </div>
     </footer>

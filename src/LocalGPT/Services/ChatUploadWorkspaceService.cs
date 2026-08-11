@@ -174,7 +174,7 @@ namespace LocalGPT.Services
                     .Where(summary => summary is not null)
                     .Cast<ChatUploadWorkspaceSummary>()
                     .OrderByDescending(summary => summary.LastWriteTimeUtc)
-                    .Take(Math.Clamp(take, 1, 100))
+                    .Take(take > 0 ? Math.Min(take, Math.Max(1, catalog.MaxFiles)) : Math.Max(1, catalog.MaxFiles))
                     .ToList();
             }
             catch (Exception ex)
@@ -291,7 +291,7 @@ namespace LocalGPT.Services
                                 : "Uploaded or extracted workspace file.");
                     })
                     .OrderBy(file => file.RelativePath, StringComparer.OrdinalIgnoreCase)
-                    .Take(Math.Clamp(take, 1, 1000))
+                    .Take(take > 0 ? Math.Min(take, Math.Max(1, catalog.MaxFiles)) : Math.Max(1, catalog.MaxFiles))
                     .ToList();
             }
             catch (Exception ex)

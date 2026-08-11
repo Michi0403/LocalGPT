@@ -75,6 +75,10 @@ public sealed class CodeGenerationOutputKinds
     /// </summary>
     public const string CSharpScript = "CSharpScript";
     /// <summary>
+    /// Stores PowerShell script output. Explicit reviewed .ps1 files are copied verbatim; when none are supplied LocalGPT creates a non-executed starter script.
+    /// </summary>
+    public const string PowerShellScript = "PowerShellScript";
+    /// <summary>
     /// Stores java script module.
     /// </summary>
     public const string JavaScriptModule = "JavaScriptModule";

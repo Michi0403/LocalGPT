@@ -545,7 +545,7 @@ public sealed class CreateCodeGenerationReviewFunction(
         "POST",
         "/api/dxai/functions/codegen.review.create/invoke",
         "Create a database-backed change review containing the exact proposed files, CodeDOM types, output targets, current project-state summary, council summary, safety summary, and immutable review hash.",
-        "JSON parameters follow CreateCodeGenerationReviewRequest. goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, and JavaScriptModule.",
+        "JSON parameters follow CreateCodeGenerationReviewRequest. goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, PowerShellScript, and JavaScriptModule. Any reviewed text/source extension, including .ps1, can also be supplied directly in files; CodeDOM is optional and has a plain C# fallback.",
         "Coordination-only review metadata. It does not write a project workspace, build, execute, load, or integrate generated code. The actual codegen.review.execute step remains separately approval-gated.",
         IsReadOnly: false,
         AvailableToAi: true,
@@ -667,6 +667,7 @@ public sealed class CreateCodeGenerationReviewFunction(
                       "Solution",
                       "LocalGptAddon",
                       "CSharpScript",
+                      "PowerShellScript",
                       "JavaScriptModule"
                     ]
                   },

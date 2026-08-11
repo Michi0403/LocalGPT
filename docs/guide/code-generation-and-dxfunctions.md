@@ -2,10 +2,11 @@
 
 LocalGPT code generation is a review-first workflow. The AI can prepare an exact change review, but writing files and building them are separate actions with human approval. The workflow is local and does not require GitHub or another remote source host.
 
-## The five DXFunctions
+## The six core code-generation DXFunctions
 
 The code-generation surface is exposed through these exact registry names:
 
+- `codegen.capabilities` returns the source-backed generation contract, output kinds, direct-file route, generated-workspace functions, database-backed file policies, and CodeDOM fallback behavior. It is read-only and safe for automatic Council discovery.
 - `codegen.review.list` lists recent change reviews. `projectId` is optional and `take` is any positive integer the caller chooses; the workflow no longer imposes an arbitrary 100-item ceiling.
 - `codegen.review.get` reads one review by `reviewId` so the exact review hash and proposed content can be inspected.
 - `codegen.review.create` creates the database-backed review. It does **not** write, build, execute, load, or integrate generated code.
@@ -46,6 +47,10 @@ An output can additionally provide `name`, `relativeDirectory`, `targetFramework
 
 Supply one or more reviewed `.csx` files and choose `CSharpScript`. If no `.csx` source was supplied, LocalGPT scaffolds the reviewed script output rather than executing it. Scripts are never run automatically.
 
+### PowerShell script
+
+Supply reviewed `.ps1` files and choose `PowerShellScript`. PowerShell is treated as source text: LocalGPT can write it into the approved generated workspace but does not execute it automatically. This is the direct route for a Council request such as “write this as PowerShell, as a file in the workspace.” `.ps1` is accepted through the database-provisioned `ArtifactTextExtensions` collection rather than a special hard-coded bypass.
+
 ### JavaScript module
 
 Supply reviewed `.js` files and choose `JavaScriptModule`. If no `.js` source was supplied, LocalGPT scaffolds a module file. JavaScript is written only; it is not automatically executed or loaded.
@@ -74,6 +79,20 @@ At execution time LocalGPT re-reads every approved tracked source file, verifies
 
 `codeDomTypes` is optional. A CodeDOM item can provide `relativePath`, `namespace`, `typeName`, `methodName`, `methodResult`, and `summary`. Use it when structured C# generation is more convenient than supplying exact text. For exact source reproduction, `files` is the preferred representation.
 
+CodeDOM is not a single point of failure. If CodeDOM generation fails for a reviewed type, LocalGPT preserves an explicit reviewed source file at the same path when one exists; otherwise it writes a plain C# fallback for that reviewed type and records a warning. The fallback is source generation only and is not automatically built or executed.
+
+## Continuing a generated workspace from the Council
+
+Generated artifacts are also exposed through DI-backed DXFunctions, not only private helpers or diagnostic routes:
+
+- `council.artifact_workspaces` lists generated workspaces.
+- `council.artifact_workspace_files` lists supported source/text files.
+- `council.artifact_workspace_file.read` reads one supported source/text file.
+- `council.artifact_workspace_file.write` writes or replaces one supported source/text file after the normal human-approval gate. This is the plain-file fallback for C#, JavaScript, Razor, SQL, PowerShell, documentation, or another database-provisioned text extension. It never executes the content.
+- `council.artifact_workspace_zip` refreshes the workspace ZIP through an approval-gated operation.
+
+The HTTP surface mirrors the capability map at `/api/code-generation/capabilities`; existing review endpoints remain under `/api/code-generation/reviews`. The diagnostic artifact-workspace controller routes remain available for a human/operator, while the Council uses the registry-backed functions above.
+
 ## Approval and build sequence
 
 A safe generation sequence is:
@@ -84,7 +103,7 @@ A safe generation sequence is:
 4. Set `buildAfterGeneration: true` only when a .NET build is wanted. The workflow requires the separate current build confirmation before invoking the bounded build executor.
 5. Generated programs and scripts are not executed or loaded automatically.
 
-The review hash, one-use approval flag, isolated path validation, tracked-file hashes, and separate build confirmation are intentional safety boundaries; they are not repository-size limits.
+The review hash, one-use approval flag, isolated path validation, tracked-file hashes, and separate build confirmation are intentional safety boundaries; they are not repository-size limits. Remote knowledge ZIP extraction, project permission assessment, upload-workspace listings, and generated-workspace enumeration likewise use database-backed `MaxFiles`, `MaxZipEntries`, `MaxSingleFileBytes`, and related runtime policy values rather than the former fixed 60,000-entry/50-linked-page or small source-list ceilings. Administrators can provision a smaller policy intentionally; the source code does not assume that enterprise repositories are small.
 
 ## Ollama models without native tool metadata
 

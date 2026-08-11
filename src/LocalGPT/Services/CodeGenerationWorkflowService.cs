@@ -284,11 +284,32 @@ public sealed class CodeGenerationWorkflowService(
                 var relativePath = NormalizeRelativePath(typeSpec.RelativePath);
                 var fullPath = ResolveInsideRoot(workspaceRoot, relativePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(fullPath) ?? workspaceRoot);
-                var source = GenerateCodeDomSource(typeSpec);
-                await File.WriteAllTextAsync(fullPath, source, cancellationToken).ConfigureAwait(false);
-                result.WrittenFiles.Add(relativePath.Replace('\\', '/'));
-                reviewedSources.Add(new ReviewedSourceArtifact(relativePath, fullPath));
-                logger.LogDebug("Generated reviewed CodeDOM source file {RelativePath} for review {ReviewId}.", relativePath, entity.Id);
+                try
+                {
+                    var source = GenerateCodeDomSource(typeSpec);
+                    await File.WriteAllTextAsync(fullPath, source, cancellationToken).ConfigureAwait(false);
+                    if (!result.WrittenFiles.Contains(relativePath.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase))
+                        result.WrittenFiles.Add(relativePath.Replace('\\', '/'));
+                    if (!reviewedSources.Any(sourceArtifact => string.Equals(sourceArtifact.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase)))
+                        reviewedSources.Add(new ReviewedSourceArtifact(relativePath, fullPath));
+                    logger.LogDebug("Generated reviewed CodeDOM source file {RelativePath} for review {ReviewId}.", relativePath, entity.Id);
+                }
+                catch (Exception codeDomException) when (codeDomException is not OperationCanceledException)
+                {
+                    // CodeDOM is optional. A reviewed explicit source file with the same path wins; otherwise
+                    // generate the equivalent minimal C# source with the plain-text fallback writer.
+                    if (!File.Exists(fullPath))
+                    {
+                        var fallbackSource = GeneratePlainCSharpFallbackSource(typeSpec);
+                        await File.WriteAllTextAsync(fullPath, fallbackSource, cancellationToken).ConfigureAwait(false);
+                    }
+                    if (!result.WrittenFiles.Contains(relativePath.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase))
+                        result.WrittenFiles.Add(relativePath.Replace('\\', '/'));
+                    if (!reviewedSources.Any(sourceArtifact => string.Equals(sourceArtifact.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase)))
+                        reviewedSources.Add(new ReviewedSourceArtifact(relativePath, fullPath));
+                    result.Warnings.Add($"CodeDOM generation failed for {relativePath}; LocalGPT used the reviewed/plain-file fallback route instead. Review application logs for the CodeDOM exception.");
+                    logger.LogWarning(codeDomException, "CodeDOM generation failed for reviewed file {RelativePath}; plain-file fallback was used.", relativePath);
+                }
             }
 
             var buildTargets = new List<string>();
@@ -484,9 +505,11 @@ public sealed class CodeGenerationWorkflowService(
                 return;
 
             var evidence = string.Join(" ", new[] { request.Title, request.Goal, request.ChangeSummary }.Where(value => !string.IsNullOrWhiteSpace(value)));
-            var kind = await MatchIntentAsync("builtin.codegen-addon-pattern", evidence).ConfigureAwait(false)
-                ? CodeGenerationOutputKinds.LocalGptAddon
-                : await MatchIntentAsync("builtin.codegen-solution-pattern", evidence).ConfigureAwait(false)
+            var kind = await MatchIntentAsync("builtin.codegen-powershell-script-pattern", evidence).ConfigureAwait(false)
+                ? CodeGenerationOutputKinds.PowerShellScript
+                : await MatchIntentAsync("builtin.codegen-addon-pattern", evidence).ConfigureAwait(false)
+                    ? CodeGenerationOutputKinds.LocalGptAddon
+                    : await MatchIntentAsync("builtin.codegen-solution-pattern", evidence).ConfigureAwait(false)
                     ? CodeGenerationOutputKinds.Solution
                     : await MatchIntentAsync("builtin.codegen-console-application-pattern", evidence).ConfigureAwait(false)
                         ? CodeGenerationOutputKinds.ConsoleApplication
@@ -775,6 +798,7 @@ public sealed class CodeGenerationWorkflowService(
                 CodeGenerationOutputKinds.Solution => CodeGenerationOutputKinds.Solution,
                 CodeGenerationOutputKinds.LocalGptAddon => CodeGenerationOutputKinds.LocalGptAddon,
                 CodeGenerationOutputKinds.CSharpScript => CodeGenerationOutputKinds.CSharpScript,
+                CodeGenerationOutputKinds.PowerShellScript => CodeGenerationOutputKinds.PowerShellScript,
                 CodeGenerationOutputKinds.JavaScriptModule => CodeGenerationOutputKinds.JavaScriptModule,
                 _ => throw new ArgumentException($"Unsupported reviewed output kind '{value}'.")
             };
@@ -1161,6 +1185,32 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
+    /// Generates the deterministic plain-text C# fallback used when the platform CodeDOM provider is unavailable.
+    /// </summary>
+    private string GeneratePlainCSharpFallbackSource(CodeDomTypeSpec spec)
+    {
+        try
+        {
+            var summary = System.Security.SecurityElement.Escape(ValueOrFallback(spec.Summary, "Reviewed generated type")) ?? "Reviewed generated type";
+            return $$"""
+            namespace {{spec.Namespace}};
+
+            /// <summary>{{summary}}</summary>
+            public sealed class {{spec.TypeName}}
+            {
+                /// <summary>Returns the reviewed generated result.</summary>
+                public string {{spec.MethodName}}() => "{{EscapeCSharp(spec.MethodResult)}}";
+            }
+            """;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Plain C# fallback generation failed; reviewed source content was omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Runs the scaffold output async operation.
     /// </summary>
     private async Task ScaffoldOutputAsync(
@@ -1199,6 +1249,29 @@ public sealed class CodeGenerationWorkflowService(
                                 $"// Reviewed C# script source. LocalGPT does not execute this file automatically.{Environment.NewLine}Console.WriteLine(\"{EscapeCSharp(output.Description)}\");{Environment.NewLine}",
                                 cancellationToken).ConfigureAwait(false);
                             writtenFiles.Add(Path.GetRelativePath(workspaceRoot, path).Replace('\\', '/'));
+                        }
+                    }
+                    return;
+                }
+
+                case CodeGenerationOutputKinds.PowerShellScript:
+                {
+                    var copied = await CopyReviewedSourcesAsync(
+                        workspaceRoot,
+                        outputRoot,
+                        reviewedSources.Where(source => Path.GetExtension(source.RelativePath).Equals(".ps1", StringComparison.OrdinalIgnoreCase)),
+                        writtenFiles,
+                        cancellationToken).ConfigureAwait(false);
+                    if (!copied)
+                    {
+                        var fileName = $"{output.Name}.ps1";
+                        var path = Path.Combine(outputRoot, fileName);
+                        if (!File.Exists(path))
+                        {
+                            await File.WriteAllTextAsync(path,
+                                $"# Reviewed PowerShell source. LocalGPT writes this file but never executes it automatically.{Environment.NewLine}Write-Output {JsonSerializer.Serialize(output.Description)}{Environment.NewLine}",
+                                cancellationToken).ConfigureAwait(false);
+                            writtenFiles.Add(Path.GetRelativePath(workspaceRoot, path).Replace('\', '/'));
                         }
                     }
                     return;
