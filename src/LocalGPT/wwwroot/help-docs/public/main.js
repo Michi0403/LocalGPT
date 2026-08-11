@@ -312,6 +312,48 @@ function decorateBrand() {
   }
 }
 
+let lastKawaiiHoverTarget = null;
+let lastKawaiiHoverAt = 0;
+
+function addKawaiiHoverSprinkle(event) {
+  try {
+      if (!supportsFinePointer() || prefersReducedMotion()) return;
+      const target = event.target instanceof Element ? event.target.closest("a, button, summary, .nav-link") : null;
+      if (!target) return;
+      if (event.relatedTarget instanceof Node && target.contains(event.relatedTarget)) return;
+
+      const now = Date.now();
+      if (target === lastKawaiiHoverTarget && now - lastKawaiiHoverAt < 650) return;
+      lastKawaiiHoverTarget = target;
+      lastKawaiiHoverAt = now;
+
+      const rect = target.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const icons = ["✦", "⋆", "🐾"];
+      const placements = [
+        [0.18, 0.16, -5, -10],
+        [0.82, 0.18, 6, -13],
+        [0.68, 0.84, 4, -8]
+      ];
+      placements.forEach((placement, index) => {
+        const sparkle = document.createElement("span");
+        sparkle.className = "localgpt-hover-sparkle";
+        sparkle.setAttribute("aria-hidden", "true");
+        sparkle.textContent = icons[index % icons.length];
+        sparkle.style.left = `${rect.left + rect.width * placement[0]}px`;
+        sparkle.style.top = `${rect.top + rect.height * placement[1]}px`;
+        sparkle.style.setProperty("--localgpt-hover-dx", `${placement[2]}px`);
+        sparkle.style.setProperty("--localgpt-hover-dy", `${placement[3]}px`);
+        sparkle.style.setProperty("--localgpt-hover-size", `${0.62 + index * 0.08}rem`);
+        document.body.appendChild(sparkle);
+        window.setTimeout(() => sparkle.remove(), 900);
+      });
+  } catch (error) {
+    reportDocumentationError('addKawaiiHoverSprinkle', error);
+    throw error;
+  }
+}
+
 function addKawaiiClick(event) {
   try {
       const target = event.target instanceof Element ? event.target.closest("a, button, .nav-link") : null;
@@ -382,6 +424,7 @@ function startKawaiiDocumentation() {
       if (document.documentElement.dataset.localgptKawaiiStarted !== "true") {
         document.documentElement.dataset.localgptKawaiiStarted = "true";
         document.addEventListener("click", addKawaiiClick, { passive: true });
+        document.addEventListener("pointerover", addKawaiiHoverSprinkle, { passive: true });
       }
 
       mountThemeControl();

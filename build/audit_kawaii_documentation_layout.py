@@ -46,6 +46,9 @@ def main() -> int:
         'grid-column: 3',
         'max-width: none !important',
         'overflow: visible !important',
+        '--localgpt-dark-contrast-ring:',
+        'localgpt-kawaii-star-drift',
+        'localgpt-hover-sprinkle',
     )
     for marker in required:
         if marker not in text:
