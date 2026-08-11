@@ -22,6 +22,7 @@ namespace LocalGPT.BusinessObjects
 
         public int MaxOutputTokens { get; set; } = 1024;
 
+        /// <summary>Maximum concurrently executing model requests per participating AI host/PC. Each logical Council phase still waits for all assigned members before advancing.</summary>
         public int MaxParallelModels { get; set; } = 1;
 
         public bool AllowParallelHardwareRoads { get; set; } = true;

@@ -12,6 +12,8 @@ public interface ICouncilLiveSessionService
         string userMessage,
         string initialTranscript);
     void Append(Guid runId, string text);
+    void SetStatus(Guid runId, string statusMessage);
+    void Touch(Guid runId);
     void AppendUserMessage(Guid runId, string text);
     void Complete(Guid runId);
     bool Cancel(Guid runId);

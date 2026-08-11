@@ -545,7 +545,10 @@
                             <div class="localgpt-message-utility-row localgpt-live-update-footer">
                                 <span class="localgpt-rejoined-live-status" role="status" aria-live="polite">
                                     <span class="localgpt-rejoined-live-spinner" aria-hidden="true"></span>
-                                    Council @ShortCouncilRunId(liveCouncilMessage.RunId) is still running. Waiting for the next streamed update…
+                                    <span>
+                                        <strong>@LiveCouncilRunningTitle(liveCouncilMessage)</strong><br />
+                                        <small>@LiveCouncilRunningDetail(liveCouncilMessage)</small>
+                                    </span>
                                 </span>
                             </div>
                         }
@@ -4270,6 +4273,32 @@
         }
 
         return Task.CompletedTask;
+    }
+
+    private string LiveCouncilRunningTitle(CouncilLiveSessionSummary session)
+    {
+        return CouncilText.FormatLiveCouncilRunningTitle(
+            L("Chat.LiveCouncil.Running", "Council {id} is still running. Waiting for the next streamed update…"),
+            ShortCouncilRunId(session.RunId),
+            Logger);
+    }
+
+    private string LiveCouncilRunningDetail(CouncilLiveSessionSummary session)
+    {
+        var elapsed = DateTime.UtcNow - session.StartedAtUtc;
+        if (elapsed < TimeSpan.Zero)
+            elapsed = TimeSpan.Zero;
+        var elapsedText = elapsed.TotalHours >= 1
+            ? $"{(int)elapsed.TotalHours}h {elapsed.Minutes:00}m {elapsed.Seconds:00}s"
+            : $"{elapsed.Minutes:00}m {elapsed.Seconds:00}s";
+        var status = string.IsNullOrWhiteSpace(session.StatusMessage)
+            ? L("Chat.LiveCouncil.DefaultStatus", "Waiting for local model or tool output; heartbeat updates stay outside member text.")
+            : session.StatusMessage;
+        return CouncilText.FormatLiveCouncilElapsedStatus(
+            L("Chat.LiveCouncil.ElapsedStatus", "Running for {elapsed} · {status}"),
+            elapsedText,
+            status,
+            Logger);
     }
 
     private static string ShortCouncilRunId(Guid runId) => runId.ToString("N")[..8];

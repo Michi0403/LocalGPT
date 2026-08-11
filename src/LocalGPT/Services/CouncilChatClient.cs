@@ -100,7 +100,7 @@ public sealed partial class CouncilChatClient(
             yield break;
         }
 
-        var introduction = $"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Thinking and answer text are streamed to this panel as soon as each local model emits them._\n\n";
+        var introduction = $"_AI Council started with {request.ModelNames.Count} member(s): {string.Join(", ", request.ModelNames)}. Provider thinking, tool activity and answer text remain visible; model execution is host-aware while each member stream is presented as an intact readable block._\n\n";
         var liveMessageMarker = $"<!-- localgpt-live-council:{request.RunId:N} -->\n";
         var initiatingUserMessage = requestMessages
             .LastOrDefault(message => message.Role == ChatRole.User)
@@ -111,6 +111,7 @@ public sealed partial class CouncilChatClient(
             request.ModelNames,
             initiatingUserMessage,
             introduction);
+        liveSessions.SetStatus(request.RunId, "Preparing Council preflight and host-aware execution lanes.");
 
         void Publish(string text)
         {
@@ -121,7 +122,7 @@ public sealed partial class CouncilChatClient(
                 updates.Writer.TryWrite(text);
         }
 
-        request.ProgressMessage = message => Publish($"_Council status: {message}_\n\n");
+        request.ProgressMessage = message => liveSessions.SetStatus(request.RunId, message);
         request.StreamUpdate = Publish;
         request.StepCompleted = step => Publish(councilRuntime.FormatStepProgress(step, logger));
 
@@ -148,11 +149,11 @@ public sealed partial class CouncilChatClient(
 
                 if (completed == heartbeat && DateTimeOffset.UtcNow >= nextHeartbeatAt)
                 {
-                    var elapsed = (int)(DateTimeOffset.UtcNow - startedAt).TotalSeconds;
-                    var heartbeatText = $"_Council still running after {elapsed}s. Waiting for local model output; intermediate heartbeat updates are batched._\n\n";
-                    liveSessions.Append(request.RunId, heartbeatText);
-                    yield return councilRuntime.CreateUpdate(heartbeatText, logger);
-                    nextHeartbeatAt = DateTimeOffset.UtcNow.AddSeconds(60);
+                    // Heartbeats are live-session state, not model transcript content. Touching the
+                    // session refreshes the visual running indicator without injecting status text
+                    // into a member's thinking, answer, saved transcript, or missing-feature report.
+                    liveSessions.Touch(request.RunId);
+                    nextHeartbeatAt = DateTimeOffset.UtcNow.AddSeconds(10);
                 }
             }
 

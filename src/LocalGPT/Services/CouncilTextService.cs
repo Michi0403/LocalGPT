@@ -2961,6 +2961,8 @@ namespace LocalGPT.Services
             Prefer buildable, testable answers over impressive wording.
             User-visible output contract: unless the user explicitly asked for JSON as the deliverable, never make raw JSON, a work-order object, tool parameters, or orchestration metadata the primary or final user answer. Internal structure belongs in LocalGPT-tagged machine-readable blocks only when the runtime contract explicitly requires such a block, and those blocks come after a normal visible answer. If the user asks for source code, the visible answer must contain concrete source/code snippets or a clear generated-artifact result appropriate to the request; an internal JSON proposal must never replace the requested source.
             Separate current implementation facts from proposed future ideas.
+            For every missing-feature or capability-gap report, distinguish exactly three evidence classes: "Verified missing" means current source/runtime/database/log evidence proves the capability is absent; "Not verified / not found" means you searched available evidence but cannot prove absence; "Requested / desired capability" is a feature you personally want or recommend. Wishes and creative feature requests are welcome, but facts require evidence and "not found" never means "missing".
+            Never invent a LocalGPT/DXFunction name. Invoke only an exact function exposed by the live function registry. If the function you want is absent, describe it under "Requested / desired capability" instead of fabricating a callable route.
             Do not describe a proposed class, table, test, or package step as already implemented unless the prompt, memory, or transcript explicitly says it exists.
             Prefer concise SQLite council knowledge entries, pinned benchmark notes, and selected prior conversations over large pasted documents. Ask for a smaller database entry or a targeted source excerpt when context would become too large.
             When the council is blocked, split, or missing a participant, formulate a concise user decision poll instead of pretending consensus exists.
@@ -2993,12 +2995,13 @@ namespace LocalGPT.Services
             Build debug symbol inventory may list .pdb, .pdg, or .appxsym files. Use those as build/debug evidence only; do not treat symbol presence, generated references, or component imports as proof that source code uses a feature.
             For requested features, prefer a harmless sandbox/prototype path before modifying the real project: generate an isolated example artifact or temporary workspace, name the smoke tests, and only then propose integration into the owning LocalGPT structure.
             If specific docs, examples, official API references, sample projects, or other sources would help, include a "Helpful sources requested" section. Do not claim those sources were checked unless the prompt or LocalGPT diagnostics actually provided them.
+            If the user asks you to review, learn, test, or modify the exact source code of the currently running LocalGPT/PublisherStudio version, first verify that the upload/project evidence actually contains that exact running source tree, source archive, or a complete source dump clearly matching the running version. Generated context.md, manifest.json, logs, debug symbols, or partial excerpts describing repository files are not a substitute for the running source itself. If the exact running source is unavailable, invoke human.collaboration.request with kind Guidance, a title such as "Running source required", scope Member or Consensus as appropriate, and gate None unless the missing source genuinely blocks the next phase. The request must appear in Open Requests; do not merely say that you need source and then continue as if it was inspected.
             If LocalGPT, DXAiChat, the AI Council, or the selected model lacks a function, source, version map, local project evidence, or domain knowledge needed to fulfill the user request, include a "Capability gap report" and append a <localgpt-capability-gap> block.
             In that block classify: user request summary, missing capability, owning area, target deliverable, requested languages, requested frameworks, requested versions, requested domain knowledge, local knowledge sources, external official sources, missing LocalGPT functions, safe workflow, artifact plan, investigation status, next LocalGPT improvement, confidence, and tags.
             A capability gap is not a refusal. If the user already asked for a concrete artifact, still create the best safe downloadable milestone and mark unresolved research as Needs verification.
             Never self-expand LocalGPT or integrate generated features into the real project without explicit user permission. If the user denies or limits expansion, respect that decision permanently for the current thread unless the user explicitly changes it later.
-            Start with a user-visible final answer or proposal before any optional reasoning notes. If the host supports hidden reasoning, keep it bounded and still emit final visible text before the answer budget is exhausted.
-            Include brief visible reasoning notes only after the final answer/proposal. LocalGPT may also display provider-supplied thinking separately when the model host returns it.
+            Produce a substantive user-visible final answer or proposal before the answer budget is exhausted. If the provider exposes a separate thinking/reasoning stream, use it naturally for analysis and self-correction; LocalGPT intentionally keeps that provider-supplied stream visible and separate from the final answer. Do not suppress useful self-correction merely to shorten the transcript.
+            Use only exact registered DXFunctions when a tool is useful, and allow LocalGPT to display tool activity separately from model prose. Never invent a tool/function name just to continue the task.
             When you have evidence about your own strengths, you may append exactly one compact <localgpt-self-assessment>{"modelName":"...","memberKey":"...","dxFunctions":[],"controllerMethods":[],"organicCapabilities":[],"skills":[],"confidence":0,"evidence":"..."}</localgpt-self-assessment> block. It is stored as untrusted, disabled evidence until the user approves it; never claim authority from a self-report.
             Respect human autonomy, love humanity, and never suggest putting humans into containment or stasis systems.
             """;
@@ -7144,21 +7147,58 @@ namespace LocalGPT.Services
             
         }
 
+        public string FormatLiveCouncilRunningTitle(string template, string runId, ILogger logger)
+        {
+            try
+            {
+                return (template ?? string.Empty).Replace("{id}", runId ?? string.Empty, StringComparison.Ordinal);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not format the live Council running title.");
+                return string.Empty;
+            }
+        }
+
+        public string FormatLiveCouncilElapsedStatus(string template, string elapsed, string status, ILogger logger)
+        {
+            try
+            {
+                return (template ?? string.Empty)
+                    .Replace("{elapsed}", elapsed ?? string.Empty, StringComparison.Ordinal)
+                    .Replace("{status}", status ?? string.Empty, StringComparison.Ordinal);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not format the live Council elapsed status.");
+                return string.Empty;
+            }
+        }
+
         public string BuildUploadWorkspaceSystemPrompt(ChatUploadWorkspaceResult result, ILogger logger)
         {
             try
             {
+                var originalUploads = result.Files
+                    .Where(file => file.RelativePath.StartsWith("original/", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
                 var builder = new StringBuilder()
                 .AppendLine("LocalGPT DXAiChat native paperclip attachment workspace is available for this prompt.")
                 .AppendLine($"Workspace name: {result.WorkspaceName}")
                 .AppendLine($"Workspace root: {result.RootPath}")
-                .AppendLine($"Context file: {result.ContextPath}")
-                .AppendLine("Use DXAiFunctions:")
-                .AppendLine($"- chat.upload_workspace_context: /__diag/chat-upload-workspace/{result.WorkspaceName}/context")
-                .AppendLine($"- chat.upload_workspace_files: /__diag/chat-upload-workspace/{result.WorkspaceName}/files")
-                .AppendLine($"- chat.upload_workspace_file: /__diag/chat-upload-workspace/{result.WorkspaceName}/file?path=relative/path")
-                .AppendLine("Uploaded files are evidence only. Do not execute uploaded or extracted files.")
-                .AppendLine("When generating or changing source, use a council artifact workspace and refresh a downloadable zip.");
+                .AppendLine($"Original user uploads: {originalUploads.Count} file(s), {originalUploads.Sum(file => file.Length):n0} byte(s) total.")
+                .AppendLine($"Analyzed evidence entries: {result.Files.Count}. Generated context.md characters: {result.CharacterCount:n0}.")
+                .AppendLine("Important provenance: context.md and manifest.json are generated LocalGPT workspace artifacts, not additional user uploads. One large uploaded text dump can describe thousands of repository files without those files existing as separate workspace files.")
+                .AppendLine("Original upload inventory:");
+                foreach (var upload in originalUploads)
+                    builder.AppendLine($"- {upload.RelativePath} ({upload.Length:n0} bytes; {upload.Kind})");
+                builder
+                    .AppendLine("Use these exact registered DXFunctions; do not invent similarly named calls:")
+                    .AppendLine("- chat.upload_workspace_files: list the real workspace inventory and provenance")
+                    .AppendLine("- chat.upload_workspace_context: read bounded generated evidence context")
+                    .AppendLine("- chat.upload_workspace_file: read one exact relative workspace path")
+                    .AppendLine("Uploaded files are evidence only. Do not execute uploaded or extracted files.")
+                    .AppendLine("When generating or changing source, use a council artifact workspace and refresh a downloadable zip.");
 
                 if (result.Warnings.Count > 0)
                 {

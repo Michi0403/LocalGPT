@@ -125,7 +125,7 @@
 
   <h1 id="LocalGPT_Controller_DocumentationController" data-uid="LocalGPT.Controller.DocumentationController" class="text-break">
 Class DocumentationController  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Controller.html">Controller</a></dd></dl>
@@ -139,7 +139,7 @@ Class DocumentationController
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">[ApiController]
 [Route(&quot;api/documentation&quot;)]
-[DocumentationUpdated(&quot;2.3.6&quot;)]
+[DocumentationUpdated(&quot;2.2.8&quot;)]
 public sealed class DocumentationController : ControllerBase</code></pre>
   </div>
 
@@ -756,7 +756,7 @@ public sealed class DocumentationController : ControllerBase</code></pre>
 
 
   </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--methods" data-member-kind="Methods" style="--localgpt-api-accent:#3b82f6;" role="region" aria-labelledby="methods"><h2 class="section" id="methods"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2699;&#xFE0F;</span>Methods
-<span class="localgpt-api-member-count" aria-label="6 items">6</span></h2><div class="localgpt-api-member-panel-body">
+<span class="localgpt-api-member-count" aria-label="5 items">5</span></h2><div class="localgpt-api-member-panel-body">
 
 
   <a id="LocalGPT_Controller_DocumentationController_Comment_" data-uid="LocalGPT.Controller.DocumentationController.Comment*"></a>
@@ -848,7 +848,7 @@ public ActionResult&lt;IReadOnlyList&lt;LocalGptDocumentationComment&gt;&gt; Com
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"><p>Serves generated DocFX HTML and supporting assets from the canonical installed documentation root.</p>
+  <div class="markdown level1 summary"><p>Serves generated DocFX HTML and supporting assets from the recursively resolved installed documentation root.</p>
 </div>
   <div class="markdown level1 conceptual"></div>
 
@@ -913,39 +913,6 @@ public IActionResult Pdf()</code></pre>
 
 
 
-  <a id="LocalGPT_Controller_DocumentationController_Profile_" data-uid="LocalGPT.Controller.DocumentationController.Profile*"></a>
-
-  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Controller_DocumentationController_Profile" data-uid="LocalGPT.Controller.DocumentationController.Profile">
-  Profile()
-  
-  </h3><div class="localgpt-api-member-item-body">
-
-  <div class="markdown level1 summary"><p>Returns the documentation routes and accessible viewer features exposed by the running application.</p>
-</div>
-  <div class="markdown level1 conceptual"></div>
-
-  <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">[HttpGet(&quot;profile&quot;)]
-public ActionResult&lt;LocalGptDocumentationProfile&gt; Profile()</code></pre>
-  </div>
-
-
-  <h4 class="section">Returns</h4>
-  <dl class="parameters">
-    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.mvc.actionresult-1">ActionResult</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.LocalGptDocumentationProfile.html">LocalGptDocumentationProfile</a>&gt;</dt>
-    <dd></dd>
-  </dl>
-
-
-
-
-
-
-
-
-
-
-
   <a id="LocalGPT_Controller_DocumentationController_Status_" data-uid="LocalGPT.Controller.DocumentationController.Status*"></a>
 
   </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Controller_DocumentationController_Status" data-uid="LocalGPT.Controller.DocumentationController.Status">
@@ -996,7 +963,7 @@ public ActionResult&lt;LocalGptDocumentationStatus&gt; Status()</code></pre>
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.6.6 Â· generated documentation
+          LocalGPT 2.3.7 · generated documentation
         </div>
       </div>
     </footer>

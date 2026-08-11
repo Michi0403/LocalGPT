@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
+using System.Threading.Channels;
 
 namespace LocalGPT.Services
 {
@@ -290,10 +291,15 @@ namespace LocalGPT.Services
                 }
                 if (participants.Count < 2)
                     result.Warnings.Add("Only one council model is selected. Add another provider-qualified model on Install or Chat for real cross-model negotiation.");
-                if (participants.Count > maxParallelModels)
-                    result.Warnings.Add($"Load-friendly scheduling is active: {participants.Count} selected models will run in batches of {maxParallelModels} to reduce VRAM pressure.");
+                var participatingAiHostCount = participants
+                    .Select(GetCouncilExecutionHostKey)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count();
+                if (participants.Count > maxParallelModels || participatingAiHostCount > 1)
+                    result.Warnings.Add(
+                        $"Host-aware load scheduling is active: up to {maxParallelModels} model request(s) may run concurrently on each of {participatingAiHostCount} participating AI host(s); logical Council phases still wait for every assigned member before advancing.");
                 if (request.AllowParallelHardwareRoads && modelRoutes.Values.Select(route => route.LaneKey).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
-                    result.Warnings.Add("Hardware-road scheduling is active: council members on different CPU/GPU lanes may contribute concurrently; each lane remains single-flight to prevent model races.");
+                    result.Warnings.Add("Hardware-road scheduling is active inside each AI host: configured CPU/GPU lanes remain independently bounded so host-level concurrency does not bypass model-road limits.");
                 if (request.MaxOutputTokens > 32768)
                     result.Warnings.Add("Very large output budgets can keep 20B/30B models busy and memory-heavy for a long time. Lower Max output tokens if the system becomes sluggish.");
                 if (maxContextTokens < 64000)
@@ -310,7 +316,7 @@ namespace LocalGPT.Services
                 result.Warnings.AddRange(preflight.Warnings);
                 result.Warnings.AddRange(preflight.MissingRequirements.Select(requirement => "Preflight question/requirement: " + requirement));
 
-                request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models: {maxParallelModels}. Preflight checked {preflight.RegexPatternCount} regexes, {preflight.KnowledgeEntryCount} knowledge entries, {preflight.ProjectCount} projects and {preflight.DxFunctionCount} DXFunctions.");
+                request.ProgressMessage?.Invoke($"Council selected {participants.Count} member(s): {string.Join(", ", participants)}. Max output tokens: {request.MaxOutputTokens}; context cap: {maxContextTokens:n0}; parallel models per AI host: {maxParallelModels}; participating AI hosts: {participatingAiHostCount}. Preflight checked {preflight.RegexPatternCount} regexes, {preflight.KnowledgeEntryCount} knowledge entries, {preflight.ProjectCount} projects and {preflight.DxFunctionCount} DXFunctions.");
 
                 var bootstrap = request.IncludeMemory
                     ? await bootstrapService.BuildBootstrapPromptAsync(cancellationToken).ConfigureAwait(false)
@@ -3219,86 +3225,147 @@ namespace LocalGPT.Services
                     var excluded = participants.Where(model => !phaseParticipants.Contains(model, StringComparer.OrdinalIgnoreCase));
                     progressMessage?.Invoke($"Council health guard excluded {string.Join(", ", excluded)} from {phase} after recovery failed earlier in this run.");
                 }
-                progressMessage?.Invoke($"Starting council phase: round {round}, {phase}, role {role}.");
-                // A single append-only DXAIChat response cannot safely interleave nested
-                // HTML from multiple model streams. Keep streamed presentation ordered;
-                // non-streaming council runs still honor configured model parallelism.
-                var effectiveMaxParallelModels = streamUpdate is null ? maxParallelModels : 1;
-                using var globalGate = new SemaphoreSlim(effectiveMaxParallelModels, effectiveMaxParallelModels);
-                var roundSkipToken = runConfigurations.GetRoundCancellationToken(result.RunId, round, phase);
+                var hostCount = phaseParticipants
+                    .Select(GetCouncilExecutionHostKey)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count();
+                progressMessage?.Invoke(
+                    $"Starting council phase: round {round}, {phase}, role {role}; {phaseParticipants.Count} member(s) across {hostCount} AI host(s), up to {maxParallelModels} model request(s) per host.");
 
-                var tasks = phaseParticipants
-                    .Select(async modelName =>
-                    {
-                        var fallbackPlan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
-                            ? configuredPlan
-                            : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
-                        var gateAcquired = false;
-                        try
-                        {
-                            using var gateCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
-                            await globalGate.WaitAsync(gateCancellation.Token).ConfigureAwait(false);
-                            gateAcquired = true;
-                            var participantBootstrap = bootstrap;
-                            if (streamUpdate is not null)
-                            {
-                                participantBootstrap = await PrepareLiveHumanInputAsync(
-                                    result,
-                                    round,
-                                    phase,
-                                    participantBootstrap,
-                                    progressMessage,
-                                    stepCompleted,
-                                    cancellationToken).ConfigureAwait(false);
-                            }
-
-                            var step = await RunParticipantAsync(
-                                baseUri, modelName, councilMembers ?? participants, round, phase, role, promptFactory(modelName), participantBootstrap,
-                                fallbackPlan.EffectiveMaxOutputTokens, keepAlive, fallbackPlan.OllamaNumGpu, fallbackPlan.EffectiveMaxContextTokens,
-                                modelTimeoutSeconds, streamUpdate, cancellationToken,
-                                fallbackPlan: fallbackPlan,
-                                progressMessage: progressMessage).ConfigureAwait(false);
-                            ArgumentNullException.ThrowIfNull(step);
-                            return step;
-                        }
-                        catch (OperationCanceledException) when (
-                            roundSkipToken.IsCancellationRequested &&
-                            !cancellationToken.IsCancellationRequested)
-                        {
-                            return CreateRoundSkippedStep(
-                                modelName,
-                                councilMembers ?? participants,
-                                round,
-                                phase,
-                                role,
-                                fallbackPlan);
-                        }
-                        finally
-                        {
-                            if (gateAcquired)
-                                globalGate.Release();
-                        }
-                    })
-                    .ToList();
-
-                var pending = tasks.ToList();
-                var steps = new List<MultiModelCouncilStep>();
-                while (pending.Count > 0)
+                // Model execution and presentation have different concurrency requirements. Each AI host
+                // represents a separately provisioned machine/runtime and therefore receives its own bounded
+                // MaxParallelModels gate. The DXAIChat response still presents one complete member stream at
+                // a time so provider thinking/tool markup cannot be interleaved into another member's text.
+                var hostGates = new Dictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
+                foreach (var modelName in phaseParticipants)
                 {
-                    var completed = await Task.WhenAny(pending).ConfigureAwait(false);
-                    pending.Remove(completed);
-                    var step = await completed.ConfigureAwait(false);
-                    ArgumentNullException.ThrowIfNull(step);
-                    steps.Add(step);
+                    var hostKey = allowParallelHardwareRoads ? GetCouncilExecutionHostKey(modelName) : "council:single-host-group";
+                    if (!hostGates.ContainsKey(hostKey))
+                    {
+                        var capacity = allowParallelHardwareRoads ? maxParallelModels : 1;
+                        hostGates[hostKey] = new SemaphoreSlim(capacity, capacity);
+                    }
                 }
 
-                var participantOrder = phaseParticipants
-                    .Select((modelName, index) => new { modelName, index })
-                    .ToDictionary(item => item.modelName, item => item.index, StringComparer.OrdinalIgnoreCase);
+                var participantStreams = streamUpdate is null
+                    ? null
+                    : phaseParticipants.ToDictionary(
+                        modelName => modelName,
+                        _ => Channel.CreateUnbounded<string>(new UnboundedChannelOptions
+                        {
+                            SingleReader = true,
+                            SingleWriter = true,
+                            AllowSynchronousContinuations = false
+                        }),
+                        StringComparer.OrdinalIgnoreCase);
+                var presentationTask = participantStreams is null
+                    ? Task.CompletedTask
+                    : PumpCouncilParticipantStreamsAsync(
+                        phaseParticipants,
+                        participantStreams,
+                        streamUpdate!,
+                        cancellationToken);
 
-                foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue(step.ModelName, out var index) ? index : int.MaxValue))
+                var participantBootstrap = bootstrap;
+                if (streamUpdate is not null)
                 {
-                    await AddCouncilStepAsync(result, step, stepCompleted, progressMessage, allowDxFunctions, cancellationToken).ConfigureAwait(false);
+                    participantBootstrap = await PrepareLiveHumanInputAsync(
+                        result,
+                        round,
+                        phase,
+                        participantBootstrap,
+                        progressMessage,
+                        stepCompleted,
+                        cancellationToken).ConfigureAwait(false);
+                }
+
+                var roundSkipToken = runConfigurations.GetRoundCancellationToken(result.RunId, round, phase);
+                try
+                {
+                    var tasks = phaseParticipants
+                        .Select(async modelName =>
+                        {
+                            var fallbackPlan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
+                                ? configuredPlan
+                                : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
+                            var hostKey = allowParallelHardwareRoads ? GetCouncilExecutionHostKey(modelName) : "council:single-host-group";
+                            var hostGate = hostGates[hostKey];
+                            var gateAcquired = false;
+                            var participantStream = participantStreams is null ? null : participantStreams[modelName];
+                            Action<string>? participantStreamUpdate = participantStream is null
+                                ? null
+                                : text =>
+                                {
+                                    if (!string.IsNullOrEmpty(text))
+                                        participantStream.Writer.TryWrite(text);
+                                };
+                            try
+                            {
+                                using var gateCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
+                                await hostGate.WaitAsync(gateCancellation.Token).ConfigureAwait(false);
+                                gateAcquired = true;
+
+                                var step = await RunParticipantAsync(
+                                    baseUri, modelName, councilMembers ?? participants, round, phase, role, promptFactory(modelName), participantBootstrap,
+                                    fallbackPlan.EffectiveMaxOutputTokens, keepAlive, fallbackPlan.OllamaNumGpu, fallbackPlan.EffectiveMaxContextTokens,
+                                    modelTimeoutSeconds, participantStreamUpdate, cancellationToken,
+                                    fallbackPlan: fallbackPlan,
+                                    progressMessage: progressMessage).ConfigureAwait(false);
+                                ArgumentNullException.ThrowIfNull(step);
+                                return step;
+                            }
+                            catch (OperationCanceledException) when (
+                                roundSkipToken.IsCancellationRequested &&
+                                !cancellationToken.IsCancellationRequested)
+                            {
+                                return CreateRoundSkippedStep(
+                                    modelName,
+                                    councilMembers ?? participants,
+                                    round,
+                                    phase,
+                                    role,
+                                    fallbackPlan);
+                            }
+                            finally
+                            {
+                                participantStream?.Writer.TryComplete();
+                                if (gateAcquired)
+                                    hostGate.Release();
+                            }
+                        })
+                        .ToList();
+
+                    var pending = tasks.ToList();
+                    var steps = new List<MultiModelCouncilStep>();
+                    while (pending.Count > 0)
+                    {
+                        var completed = await Task.WhenAny(pending).ConfigureAwait(false);
+                        pending.Remove(completed);
+                        var step = await completed.ConfigureAwait(false);
+                        ArgumentNullException.ThrowIfNull(step);
+                        steps.Add(step);
+                    }
+
+                    await presentationTask.ConfigureAwait(false);
+
+                    var participantOrder = phaseParticipants
+                        .Select((modelName, index) => new { modelName, index })
+                        .ToDictionary(item => item.modelName, item => item.index, StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var step in steps.OrderBy(step => participantOrder.TryGetValue(step.ModelName, out var index) ? index : int.MaxValue))
+                    {
+                        await AddCouncilStepAsync(result, step, stepCompleted, progressMessage, allowDxFunctions, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    if (participantStreams is not null)
+                    {
+                        foreach (var stream in participantStreams.Values)
+                            stream.Writer.TryComplete();
+                    }
+                    foreach (var gate in hostGates.Values)
+                        gate.Dispose();
                 }
 
 
@@ -3320,6 +3387,57 @@ namespace LocalGPT.Services
                     maxParallelModels,
                     maxContextTokens,
                     modelTimeoutSeconds);
+            }
+        }
+
+        private string GetCouncilExecutionHostKey(string modelName)
+        {
+            try
+            {
+                var identity = new ProviderModelIdentity();
+                if (identity.TryParseSelectionKey(modelName, out var reference) &&
+                    Uri.TryCreate(reference.Endpoint, UriKind.Absolute, out var endpoint))
+                {
+                    var host = string.Equals(endpoint.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+                        ? "127.0.0.1"
+                        : endpoint.Host;
+                    return string.IsNullOrWhiteSpace(host) ? "provider:unknown-host" : host.Trim().ToLowerInvariant();
+                }
+
+                return "legacy-or-unqualified-host";
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not resolve AI host identity for Council member {ModelName}; using the legacy host gate.", modelName);
+                return "legacy-or-unqualified-host";
+            }
+        }
+
+        private async Task PumpCouncilParticipantStreamsAsync(
+            IReadOnlyList<string> participantOrder,
+            IReadOnlyDictionary<string, Channel<string>> participantStreams,
+            Action<string> streamUpdate,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                foreach (var modelName in participantOrder)
+                {
+                    if (!participantStreams.TryGetValue(modelName, out var stream))
+                        continue;
+
+                    await foreach (var text in stream.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                        streamUpdate(text);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Council participant stream presentation failed; model execution may still have completed in its host lane.");
+                throw;
             }
         }
 
@@ -3835,9 +3953,12 @@ namespace LocalGPT.Services
                                 },
                                 streamCts.Token).WithCancellation(streamCts.Token).ConfigureAwait(false))
                             {
-                                attemptBuilder.Append(update.Text);
-                                allContent.Append(update.Text);
                                 streamUpdate?.Invoke(update.Text);
+                                if (!councilRuntime.IsLocalGptStreamingStatusUpdate(update.Text, logger))
+                                {
+                                    attemptBuilder.Append(update.Text);
+                                    allContent.Append(update.Text);
+                                }
                             }
 
                             // A user message can arrive after Ollama emitted its last token but before
@@ -4618,10 +4739,10 @@ namespace LocalGPT.Services
             {
                 var messages = originalMessages.ToList();
                 messages.Add(new ChatMessage(ChatRole.User, $"""
-                Your previous {phase} response for LocalGPT produced model thinking/status but no user-visible final answer.
-                Do not analyze again. Do not emit hidden reasoning. Do not use tool calls.
-                Emit only the final visible answer now in concise Markdown bullets.
-                Start with: Final answer:
+                Your previous {phase} response for LocalGPT produced provider thinking/status but no substantive user-visible final answer.
+                Preserve normal provider-supplied thinking/self-correction if your runtime emits it, and use an exact registered DXFunction only when genuinely needed. LocalGPT keeps provider thinking and tool activity visibly separated from the final answer.
+                Focus on finishing the task rather than restarting the analysis from scratch. You must emit a substantive final visible answer now in concise Markdown.
+                Start the visible answer with: Final answer:
                 """));
 
                 var builder = new StringBuilder();

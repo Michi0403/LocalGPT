@@ -3453,6 +3453,20 @@ namespace LocalGPT.Services
         }
 
 
+        public bool IsLocalGptStreamingStatusUpdate(string? text, ILogger logger)
+        {
+            try
+            {
+                return !string.IsNullOrWhiteSpace(text)
+                    && text.Contains("class=\"localgpt-stream-status\"", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not classify a LocalGPT streaming status update.");
+                return false;
+            }
+        }
+
         /// <summary>Executes the ollama thinking chat client create streaming status update operation.</summary>
         /// <param name="text">Input value for text.</param>
         /// <param name="logger">Input value for logger.</param>

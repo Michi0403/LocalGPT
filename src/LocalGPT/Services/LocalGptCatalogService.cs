@@ -569,7 +569,7 @@ namespace LocalGPT.Services
                         <span>@Budget.TargetGpuLoadPercent% sustained</span>
                     </article>
                     <article>
-                        <strong>Parallel models</strong>
+                        <strong>Parallel models per AI host</strong>
                         <span>@Budget.MaxParallelModels</span>
                     </article>
                 </div>

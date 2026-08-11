@@ -366,6 +366,13 @@ html, body {
     overflow-wrap: anywhere;
 }
 
+.localgpt-rejoined-live-status small {
+    display: inline-block;
+    margin-top: .08rem;
+    font-weight: 500;
+    opacity: .86;
+}
+
 .localgpt-rejoined-live-spinner {
     display: inline-block;
     flex: 0 0 auto;

@@ -144,11 +144,9 @@
 <pre><code class="lang-text">Provider — model @ endpoint
 </code></pre>
 <p>A bare model name is accepted only when it resolves to one provider route. Ambiguous or stale selections fail clearly instead of falling back to an arbitrary endpoint.</p>
-<p>Mixed-provider Councils can combine multiple Ollama hosts, LM Studio or another OpenAI-compatible endpoint, OpenAI, and Azure OpenAI. The correct client is created immediately before each call. Provider-specific settings—such as Ollama GPU options—stay with the provider that understands them.</p>
-<p>A provider host is identified by provider kind and normalized endpoint. Adding a second Ollama does not replace the first: the existing primary remains the default and the new endpoint becomes an additional host unless the user explicitly promotes it. On refresh/run preflight, stale provider-qualified selections are deselected or rejected with their exact endpoint; LocalGPT never substitutes a same-name model from another host.</p>
+<p>Mixed-provider Councils can combine Ollama, LM Studio or another OpenAI-compatible endpoint, OpenAI, and Azure OpenAI. The correct client is created immediately before each call. Provider-specific settings—such as Ollama GPU options—stay with the provider that understands them.</p>
 <h2 id="benchmark-council">Benchmark Council</h2>
 <p>A bounded benchmark measures one or more selected routes using deterministic tasks and explicit limits for context, output, count, and timeout. Other selected models can review the recommendation; when no independent reviewer is available, a bounded self-review may be used.</p>
-<p>Every benchmark run is registered as a detachable live Council session. Its current target, profile, task, timeout, review, and recommendation progress can be opened from the benchmark panel or rejoined from <strong>Chat → Running session tools</strong>. Stopping that live session cancels the owned benchmark run. Automatic DXFunctions are disabled during benchmark calls so tool negotiation does not distort the measured route.</p>
 <p>Recommendations are never applied automatically. The user chooses whether to save or apply a preset. Applying a preset changes future LocalGPT routing; it does not rewrite provider-global server configuration.</p>
 <h2 id="result-integrity">Result integrity</h2>
 <p>A step that produces thinking but no substantive final answer receives at most one bounded final-only recovery request. If the result is still empty, the step is failed rather than counted as success.</p>
@@ -179,7 +177,7 @@
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.6.6 Â· generated documentation
+          LocalGPT 2.3.7 · generated documentation
         </div>
       </div>
     </footer>

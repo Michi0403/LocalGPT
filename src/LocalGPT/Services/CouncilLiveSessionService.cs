@@ -67,6 +67,55 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    public void SetStatus(Guid runId, string statusMessage)
+    {
+        try
+        {
+            if (!sessions.TryGetValue(runId, out var state))
+                return;
+
+            lock (state.SyncRoot)
+            {
+                state.StatusMessage = string.IsNullOrWhiteSpace(statusMessage)
+                    ? "Council is running."
+                    : statusMessage.Trim().Length <= 800
+                        ? statusMessage.Trim()
+                        : statusMessage.Trim()[..800] + "…";
+                state.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            ScheduleChanged(state);
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(SetStatus)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(SetStatus)} failed.");
+            throw;
+        }
+    }
+
+    public void Touch(Guid runId)
+    {
+        try
+        {
+            if (!sessions.TryGetValue(runId, out var state))
+                return;
+
+            lock (state.SyncRoot)
+                state.UpdatedAtUtc = DateTime.UtcNow;
+            ScheduleChanged(state);
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Touch)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(CouncilLiveSessionService)}.{nameof(Touch)} failed.");
+            throw;
+        }
+    }
+
     public void AppendUserMessage(Guid runId, string text)
     {
     try
@@ -101,6 +150,7 @@ public sealed class CouncilLiveSessionService(
             lock (state.SyncRoot)
             {
                 state.IsRunning = false;
+                state.StatusMessage = "Council completed.";
                 state.UpdatedAtUtc = DateTime.UtcNow;
             }
             ScheduleChanged(state);
@@ -128,6 +178,7 @@ public sealed class CouncilLiveSessionService(
             lock (state.SyncRoot)
             {
                 state.IsRunning = false;
+                state.StatusMessage = "Council cancellation requested.";
                 state.UpdatedAtUtc = DateTime.UtcNow;
             }
             ScheduleChanged(state);
@@ -227,7 +278,8 @@ public sealed class CouncilLiveSessionService(
                     state.CouncilMembers,
                     state.UserMessage,
                     state.AdditionalUserMessages.ToArray(),
-                    state.Transcript.ToString());
+                    state.Transcript.ToString(),
+                    state.StatusMessage);
             }
     
     }
@@ -252,7 +304,8 @@ public sealed class CouncilLiveSessionService(
                     state.IsRunning,
                     state.StartedAtUtc,
                     state.UpdatedAtUtc,
-                    state.CouncilMembers);
+                    state.CouncilMembers,
+                    state.StatusMessage);
             }
     
     }

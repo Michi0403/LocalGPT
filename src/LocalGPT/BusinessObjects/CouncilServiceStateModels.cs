@@ -54,6 +54,7 @@ internal sealed class CouncilLiveSessionState : IDisposable
     public DateTime StartedAtUtc { get; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public bool IsRunning { get; set; } = true;
+    public string StatusMessage { get; set; } = "Preparing Council run.";
     public int NotificationScheduled;
 
     public void Dispose() => Cancellation.Dispose();

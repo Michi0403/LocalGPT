@@ -1391,6 +1391,13 @@
     font-weight: 650;
 }
 
+.demo-chat ::deep .localgpt-rejoined-live-status small {
+    display: inline-block;
+    margin-top: .08rem;
+    font-weight: 500;
+    opacity: .86;
+}
+
 .demo-chat ::deep .localgpt-rejoined-live-spinner {
     width: 1rem;
     height: 1rem;

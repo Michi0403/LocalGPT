@@ -433,6 +433,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 logger.LogDebug(
                     "Skipping native tool metadata for Ollama model {Model} because this provider-qualified model rejected it earlier in the current LocalGPT process.",
                     model);
+                EnsureTextualDxFunctionFallbackPrompt(request);
                 request.Tools = null;
             }
 
@@ -449,6 +450,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 model,
                 (int)response.StatusCode);
             response.Dispose();
+            EnsureTextualDxFunctionFallbackPrompt(request);
             request.Tools = null;
             return await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
     
@@ -462,6 +464,51 @@ public sealed class OllamaThinkingChatClient : IChatClient
         throw;
     }
 }
+
+    private void EnsureTextualDxFunctionFallbackPrompt(OllamaChatRequest request)
+    {
+        try
+        {
+            const string marker = "[LOCALGPT_TEXTUAL_DXFUNCTION_FALLBACK]";
+            if (request.Messages.Any(message =>
+                    message.Role.Equals("system", StringComparison.OrdinalIgnoreCase) &&
+                    message.Content.Contains(marker, StringComparison.Ordinal)))
+            {
+                return;
+            }
+
+            var functions = GetAutomaticFunctions();
+            if (functions.Count == 0)
+                return;
+
+            var functionDirectory = string.Join(
+                Environment.NewLine,
+                functions.Select(function => $"- {function.Name}: {function.Parameters}"));
+            request.Messages.Insert(0, new OllamaChatMessage
+            {
+                Role = "system",
+                Content = $"""
+                {marker}
+                This exact provider-qualified Ollama model does not accept native tool metadata. LocalGPT still supports policy-checked DXFunctions through textual call recovery.
+                If a function is genuinely needed, emit one standalone JSON object with exactly this shape and no invented function name:
+                {{"functionName":"exact.registry.name","arguments":{{}}}}
+                LocalGPT will validate the exact registry name, apply normal automatic/deferred approval policy, execute it when permitted, display the tool activity, return the tool result, and then continue your response.
+                Do not guess a function name. If the capability you want is not in the directory below, report it as a requested capability instead of pretending it exists.
+                Exact automatic/deferred function directory for this request:
+                {functionDirectory}
+                """
+            });
+            logger.LogInformation(
+                "Attached textual DXFunction fallback instructions with {FunctionCount} exact registry name(s) for Ollama model {Model} because native tool metadata is unavailable.",
+                functions.Count,
+                model);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not attach textual DXFunction fallback instructions for Ollama model {Model}.", model);
+            throw;
+        }
+    }
 
     private async Task<HttpResponseMessage> SendRequestOnceAsync(
         OllamaChatRequest request,

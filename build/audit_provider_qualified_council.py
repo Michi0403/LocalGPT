@@ -50,6 +50,9 @@ def main() -> int:
     team_seeds = text("src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.cs")
     council_runtime = text("src/LocalGPT/Services/CouncilRuntimeService.cs")
     ollama_client = text("src/LocalGPT/Services/OllamaThinkingChatClient.cs")
+    council_chat_client = text("src/LocalGPT/Services/CouncilChatClient.cs")
+    upload_functions = text("src/LocalGPT/Services/ChatUploadWorkspaceDxAiFunctions.cs")
+    live_sessions = text("src/LocalGPT/Services/CouncilLiveSessionService.cs")
     project = text("src/LocalGPT/LocalGPT.csproj")
 
     def contains(name: str, haystack: str, needle: str) -> None:
@@ -199,10 +202,32 @@ def main() -> int:
     contains("Chat keeps stale selections visible", chat, "council-unavailable-routes")
     contains("Council output contract rejects raw orchestration JSON as final answer", council_text, "never make raw JSON, a work-order object, tool parameters, or orchestration metadata the primary or final user answer")
     contains("configured workflow reinforces coding output contract", council, "Coding-output contract: the visible answer must include concrete source/code")
+    excludes("streaming Council no longer collapses all hosts to one global model", council, "streamUpdate is null ? maxParallelModels : 1")
+    contains("Council execution groups concurrency by provider host", council, "GetCouncilExecutionHostKey")
+    contains("Council max-parallel limit is per AI host", council, "up to {maxParallelModels} model request(s) per host")
+    contains("Council presentation uses participant channels", council, "Channel.CreateUnbounded<string>")
+    contains("Council presentation waits for intact member stream", council, "PumpCouncilParticipantStreamsAsync")
+    contains("Council phase retains completion barrier across hosts", council, "logical Council phases still wait for every assigned member before advancing")
+    contains("provider status is excluded from model answer content", council, "IsLocalGptStreamingStatusUpdate")
+    excludes("heartbeat text no longer pollutes streamed transcript", council_chat_client, "Council still running after {elapsed}s")
+    contains("heartbeat touches live session state", council_chat_client, "liveSessions.Touch(request.RunId)")
+    contains("live Council status is state-owned", live_sessions, "public void SetStatus")
+    contains("chat upload file list is a real DI DXFunction", upload_functions, '"chat.upload_workspace_files"')
+    contains("chat upload context is a real DI DXFunction", upload_functions, '"chat.upload_workspace_context"')
+    contains("chat upload file read is a real DI DXFunction", upload_functions, '"chat.upload_workspace_file"')
+    contains("upload provenance distinguishes generated context", upload_functions, "not additional user uploads")
+    contains("native-tool incompatible models receive textual DXFunction fallback", ollama_client, "LOCALGPT_TEXTUAL_DXFUNCTION_FALLBACK")
+    contains("textual fallback forbids invented tool names", ollama_client, "Do not guess a function name")
+    contains("final answer recovery preserves provider thinking", council, "Preserve normal provider-supplied thinking/self-correction")
+    contains("Council base prompt preserves provider thinking and self-correction", council_text, "LocalGPT intentionally keeps that provider-supplied stream visible and separate from the final answer")
+    contains("Council base prompt preserves exact registered tool use", council_text, "Use only exact registered DXFunctions when a tool is useful")
+    contains("missing feature reports distinguish verified absence", council_text, '"Verified missing"')
+    contains("missing feature reports preserve desired capabilities", council_text, '"Requested / desired capability"')
+    contains("Council asks for exact running source through human collaboration", council_text, 'title such as "Running source required"')
     version_match = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", project)
     checks.append((
         "application patch version advanced",
-        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 6, 1))))
+        bool(version_match and tuple(map(int, version_match.groups())) >= (2, 6, 7))))
 
     failures = [name for name, passed in checks if not passed]
     if failures:

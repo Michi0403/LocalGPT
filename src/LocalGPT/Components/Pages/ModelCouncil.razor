@@ -75,8 +75,9 @@
                     <input type="number" min="0" max="3" @bind="Request.MaxRounds" />
                 </label>
                 <label>
-                    Parallel models
+                    Parallel models per AI host
                     <input type="number" min="1" max="4" @bind="Request.MaxParallelModels" />
+                    <small>Each participating Ollama/AI PC gets this concurrency budget; the next Council phase still waits for every assigned member.</small>
                 </label>
                 <label>
                     Max output tokens
