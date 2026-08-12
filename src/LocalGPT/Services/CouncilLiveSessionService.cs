@@ -83,6 +83,110 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
+    /// Starts or refreshes one provider-qualified participant activity stream.
+    /// </summary>
+    public void BeginParticipantActivity(Guid runId, string activityKey, string modelName, string phase, string role, string routeLabel)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(activityKey) || !sessions.TryGetValue(runId, out var state))
+                return;
+            lock (state.SyncRoot)
+            {
+                state.ParticipantActivities[activityKey] = new CouncilLiveParticipantActivityState(
+                    activityKey, modelName, phase, role, routeLabel);
+                state.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            ScheduleChanged(state);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not begin live Council participant activity {ActivityKey} for run {RunId}.", activityKey, runId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Appends live provider output to one participant activity independently from ordered transcript presentation.
+    /// </summary>
+    public void AppendParticipantActivity(Guid runId, string activityKey, string text)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(text) || !sessions.TryGetValue(runId, out var state))
+                return;
+            lock (state.SyncRoot)
+            {
+                if (!state.ParticipantActivities.TryGetValue(activityKey, out var activity))
+                    return;
+                AppendWithBlockBoundary(activity.Content, text);
+                activity.StatusMessage = "Streaming live from the model runtime.";
+                activity.UpdatedAtUtc = DateTime.UtcNow;
+                state.UpdatedAtUtc = activity.UpdatedAtUtc;
+            }
+            ScheduleChanged(state);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not append live Council participant activity {ActivityKey} for run {RunId}.", activityKey, runId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Updates one participant activity status while a host queue is running.
+    /// </summary>
+    public void SetParticipantActivityStatus(Guid runId, string activityKey, string statusMessage)
+    {
+        try
+        {
+            if (!sessions.TryGetValue(runId, out var state))
+                return;
+            lock (state.SyncRoot)
+            {
+                if (!state.ParticipantActivities.TryGetValue(activityKey, out var activity))
+                    return;
+                activity.StatusMessage = string.IsNullOrWhiteSpace(statusMessage) ? "Council participant is running." : statusMessage.Trim();
+                activity.UpdatedAtUtc = DateTime.UtcNow;
+                state.UpdatedAtUtc = activity.UpdatedAtUtc;
+            }
+            ScheduleChanged(state);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not update live Council participant activity {ActivityKey} for run {RunId}.", activityKey, runId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Marks one participant stream complete while leaving the final ordered transcript unchanged.
+    /// </summary>
+    public void CompleteParticipantActivity(Guid runId, string activityKey, string statusMessage)
+    {
+        try
+        {
+            if (!sessions.TryGetValue(runId, out var state))
+                return;
+            lock (state.SyncRoot)
+            {
+                if (!state.ParticipantActivities.TryGetValue(activityKey, out var activity))
+                    return;
+                activity.IsRunning = false;
+                activity.StatusMessage = string.IsNullOrWhiteSpace(statusMessage) ? "Participant completed; ordered transcript integration is pending." : statusMessage.Trim();
+                activity.UpdatedAtUtc = DateTime.UtcNow;
+                state.UpdatedAtUtc = activity.UpdatedAtUtc;
+            }
+            ScheduleChanged(state);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not complete live Council participant activity {ActivityKey} for run {RunId}.", activityKey, runId);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Sets status.
     /// </summary>
     public void SetStatus(Guid runId, string statusMessage)
@@ -324,7 +428,21 @@ public sealed class CouncilLiveSessionService(
                     state.UserMessage,
                     state.AdditionalUserMessages.ToArray(),
                     state.Transcript.ToString(),
-                    state.StatusMessage);
+                    state.StatusMessage,
+                    state.ParticipantActivities.Values
+                        .OrderBy(activity => activity.StartedAtUtc)
+                        .Select(activity => new CouncilLiveParticipantActivitySnapshot(
+                            activity.ActivityKey,
+                            activity.ModelName,
+                            activity.Phase,
+                            activity.Role,
+                            activity.RouteLabel,
+                            activity.StatusMessage,
+                            activity.Content.ToString(),
+                            activity.IsRunning,
+                            activity.StartedAtUtc,
+                            activity.UpdatedAtUtc))
+                        .ToArray());
             }
     
     }

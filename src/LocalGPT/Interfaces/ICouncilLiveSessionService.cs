@@ -22,6 +22,22 @@ public interface ICouncilLiveSessionService
     /// </summary>
     void Append(Guid runId, string text);
     /// <summary>
+    /// Starts or refreshes a live participant activity stream without changing ordered transcript presentation.
+    /// </summary>
+    void BeginParticipantActivity(Guid runId, string activityKey, string modelName, string phase, string role, string routeLabel);
+    /// <summary>
+    /// Appends provider thinking, status markup, function-call notices, or response text to one live participant stream.
+    /// </summary>
+    void AppendParticipantActivity(Guid runId, string activityKey, string text);
+    /// <summary>
+    /// Updates the status of one live participant stream.
+    /// </summary>
+    void SetParticipantActivityStatus(Guid runId, string activityKey, string statusMessage);
+    /// <summary>
+    /// Marks one live participant stream complete while retaining it until the overall Council run finishes.
+    /// </summary>
+    void CompleteParticipantActivity(Guid runId, string activityKey, string statusMessage);
+    /// <summary>
     /// Sets status.
     /// </summary>
     void SetStatus(Guid runId, string statusMessage);

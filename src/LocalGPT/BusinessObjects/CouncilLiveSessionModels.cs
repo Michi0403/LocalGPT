@@ -12,7 +12,23 @@ public sealed record CouncilLiveSessionSnapshot(
     string UserMessage,
     IReadOnlyList<string> AdditionalUserMessages,
     string Transcript,
-    string StatusMessage);
+    string StatusMessage,
+    IReadOnlyList<CouncilLiveParticipantActivitySnapshot> ParticipantActivities);
+
+/// <summary>
+/// Represents the live, independently updating stream for one Council participant while host queues run in parallel.
+/// </summary>
+public sealed record CouncilLiveParticipantActivitySnapshot(
+    string ActivityKey,
+    string ModelName,
+    string Phase,
+    string Role,
+    string RouteLabel,
+    string StatusMessage,
+    string Content,
+    bool IsRunning,
+    DateTime StartedAtUtc,
+    DateTime UpdatedAtUtc);
 
 /// <summary>
 /// Represents a council live session summary.

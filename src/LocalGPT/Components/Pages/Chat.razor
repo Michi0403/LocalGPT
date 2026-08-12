@@ -8,6 +8,7 @@
 @inject CouncilTextService CouncilText
 @inject LocalGptCatalogService Catalog
 @inject IChatMemoryService ChatMemory
+@inject IChatUploadWorkspaceService ChatUploadWorkspaces
 @inject IMultiModelCouncilService CouncilService
 @inject IProviderModelRuntimeService ProviderModels
 @inject NavigationManager NavigationManager
@@ -191,6 +192,14 @@
                 <span>Hardware load</span>
                 <input class="form-range" type="range" min="0" max="100" step="5" value="@CouncilEditorResourceLoadPercent" @oninput="OnCouncilResourceLoadChanged" />
                 <output>@CouncilEditorResourceLoadPercent%</output>
+            </label>
+            <label class="council-scheduling-setting" title="Choose the simple scheduling policy. Host-balanced keeps each AI host single-flight while allowing different machines to work in parallel. Hardware-road parallel additionally uses the configured CPU/GPU lanes within a host.">
+                <span>Load balancing</span>
+                <select class="form-select" value="@CouncilEditorSchedulingMode" @onchange="OnCouncilSchedulingModeChanged">
+                    <option value="host-balanced">Host-balanced · different AI hosts parallel</option>
+                    <option value="road-parallel">Hardware-road parallel · use configured lanes</option>
+                </select>
+                <small>@CouncilSchedulingSummary</small>
             </label>
             @if (!string.IsNullOrWhiteSpace(modelStatus))
             {
@@ -431,7 +440,16 @@
                 <small>Open only when you want to decide now. Otherwise the AI should ask with a runtime poll before coding.</small>
             </summary>
             <div class="architecture-poll-grid">
-                <label title="Choose whether generated UI should use DevExpress components, plain Blazor, another UI stack, or ask at runtime.">
+                <label title="Choose the target language and toolchain. The options are database-provisioned and do not force .NET when the repository or request uses another ecosystem.">
+                    <span>Language / toolchain</span>
+                    <select @bind="ArchitectureLanguageToolchain">
+                        @foreach (var option in Catalog.ArchitectureLanguageToolchainOptions)
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    </select>
+                </label>
+                <label title="Choose whether generated UI should use DevExpress components, plain web/native UI, another target-specific stack, or ask at runtime.">
                     <span>UI stack</span>
                     <select @bind="ArchitectureUiStack">
                         @foreach (var option in Catalog.ArchitectureUiStackOptions)
@@ -542,6 +560,39 @@
                         @(new MarkupString(ChatContentRenderer.Render(context.Content)))
                         @if (liveCouncilMessage?.IsRunning == true)
                         {
+                            var participantActivities = LiveCouncilParticipantActivities(liveCouncilMessage.RunId);
+                            @if (participantActivities.Count > 0)
+                            {
+                                <section class="localgpt-live-participant-board" aria-label="Live parallel Council activity">
+                                    <header>
+                                        <strong>Live Council lanes</strong>
+                                        <small>Each AI host/model updates independently; the final transcript remains ordered.</small>
+                                    </header>
+                                    @foreach (var activity in participantActivities)
+                                    {
+                                        <details class="localgpt-live-participant-card" open="@activity.IsRunning" @key="activity.ActivityKey">
+                                            <summary>
+                                                <span class="localgpt-live-participant-state @(activity.IsRunning ? "is-running" : "is-complete")" aria-hidden="true"></span>
+                                                <span>
+                                                    <strong>@activity.ModelName</strong>
+                                                    <small>@activity.Phase · @activity.Role · @activity.RouteLabel</small>
+                                                </span>
+                                                <em>@activity.StatusMessage</em>
+                                            </summary>
+                                            @if (!string.IsNullOrWhiteSpace(activity.Content))
+                                            {
+                                                <div class="localgpt-live-participant-content" data-localgpt-details-host>
+                                                    @(new MarkupString(ChatContentRenderer.Render(activity.Content)))
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <p class="localgpt-live-participant-waiting">Waiting for streamed model output…</p>
+                                            }
+                                        </details>
+                                    }
+                                </section>
+                            }
                             <div class="localgpt-message-utility-row localgpt-live-update-footer">
                                 <span class="localgpt-rejoined-live-status" role="status" aria-live="polite">
                                     <span class="localgpt-rejoined-live-spinner" aria-hidden="true"></span>
@@ -741,8 +792,23 @@
     int CouncilResourceLoadPercent { get; set; } = 100;
     int CouncilCritiqueRounds { get; set; } = 1;
     bool CouncilAllowParallelHardwareRoads { get; set; } = true;
+
+    /// <summary>
+    /// Gets the simple scheduling mode shown to the user for the preparation or currently edited Council run.
+    /// </summary>
+    string CouncilEditorSchedulingMode => (EditingRunningCouncilConfiguration ? ActiveCouncilAllowParallelHardwareRoads : CouncilAllowParallelHardwareRoads)
+        ? "road-parallel"
+        : "host-balanced";
+
+    /// <summary>
+    /// Gets a compact explanation of the currently selected Council scheduling policy.
+    /// </summary>
+    string CouncilSchedulingSummary => CouncilEditorSchedulingMode == "road-parallel"
+        ? "Configured CPU/GPU lanes may run concurrently on the same host; different hosts can also run in parallel."
+        : "Each AI host stays single-flight while separate machines/providers may run concurrently.";
     int CouncilMaxParallelModels { get; set; } = 1;
 
+    string ArchitectureLanguageToolchain { get; set; } = string.Empty;
     string ArchitectureUiStack { get; set; } = string.Empty;
     string ArchitectureSolutionShape { get; set; } = string.Empty;
     string ArchitectureRenderMode { get; set; } = string.Empty;
@@ -904,6 +970,22 @@
     DateTime lastAttachedLiveCouncilUpdatedAtUtc;
     const string LiveCouncilMessageMarkerPrefix = "<!-- localgpt-live-council:";
     string SelectedCouncilRunValue => SelectedCouncilRunId?.ToString() ?? string.Empty;
+    /// <summary>
+    /// Returns the current independently streamed participant lanes for a live Council run.
+    /// </summary>
+    IReadOnlyList<CouncilLiveParticipantActivitySnapshot> LiveCouncilParticipantActivities(Guid runId)
+    {
+        try
+        {
+            return CouncilLiveSessions.Get(runId)?.ParticipantActivities ?? [];
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not read live participant activities for Council run {RunId}.", runId);
+            return [];
+        }
+    }
+
     IReadOnlyList<CouncilLiveSessionSummary> RunningLiveCouncilSessions => CouncilLiveSessions.GetActiveSummaries();
     CouncilLiveSessionSummary? ActiveLiveCouncilSession
     {
@@ -980,6 +1062,7 @@
             CouncilLiveSessions.Changed += OnCouncilLiveSessionChanged;
             CouncilRunConfigurations.Changed += OnCouncilRunConfigurationChanged;
 
+            ArchitectureLanguageToolchain = Catalog.ArchitectureLanguageToolchainOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureUiStack = Catalog.ArchitectureUiStackOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureSolutionShape = Catalog.ArchitectureSolutionShapeOptions.FirstOrDefault() ?? string.Empty;
             ArchitectureRenderMode = Catalog.ArchitectureRenderModeOptions.FirstOrDefault() ?? string.Empty;
@@ -1414,6 +1497,7 @@
         try
         {
             var message = CouncilText.BuildArchitecturePollMessage(
+                ArchitectureLanguageToolchain,
                 ArchitectureUiStack,
                 ArchitectureSolutionShape,
                 ArchitectureRenderMode,
@@ -1436,6 +1520,7 @@
     {
         try
         {
+            ArchitectureLanguageToolchain = Catalog.ArchitectureLanguageToolchainOptions[0];
             ArchitectureUiStack = Catalog.ArchitectureUiStackOptions[0];
             ArchitectureSolutionShape = Catalog.ArchitectureSolutionShapeOptions[0];
             ArchitectureRenderMode = Catalog.ArchitectureRenderModeOptions[0];
@@ -2726,6 +2811,44 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Applies the simple host/road scheduling choice without requiring the advanced per-model road editor.
+    /// </summary>
+    private Task OnCouncilSchedulingModeChanged(ChangeEventArgs args)
+    {
+        try
+        {
+            var allowParallelRoads = string.Equals(args.Value?.ToString(), "road-parallel", StringComparison.OrdinalIgnoreCase);
+            if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+            {
+                ActiveCouncilAllowParallelHardwareRoads = allowParallelRoads;
+                if (UpdateActiveCouncilConfiguration(runId))
+                {
+                    LoadCouncilRunConfiguration(runId);
+                    modelStatus = $"Running Council {ActiveCouncilRunShortId} now uses {(allowParallelRoads ? "hardware-road parallel" : "host-balanced")} scheduling for model requests that have not started yet.";
+                }
+                else
+                {
+                    modelStatus = "The running Council ended before the scheduling policy could be applied.";
+                }
+
+                return Task.CompletedTask;
+            }
+
+            CouncilAllowParallelHardwareRoads = allowParallelRoads;
+            SelectedModelPreset = null;
+            SavePreparationConfiguration();
+            modelStatus = $"Future Council runs will use {(allowParallelRoads ? "hardware-road parallel" : "host-balanced")} scheduling.";
+            return Task.CompletedTask;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, $"{nameof(OnCouncilSchedulingModeChanged)} failed while applying the user-selected Council scheduling policy.");
+            Notifier.ShowError(toastName, "The load-balancing policy could not be changed. See local logs for details.", "Scheduling failed");
+            return Task.CompletedTask;
+        }
+    }
+
     private Task OnCouncilResourceLoadChanged(ChangeEventArgs args)
     {
         if (!int.TryParse(args.Value?.ToString(), out var value))
@@ -3913,11 +4036,12 @@
 
 
     [JSInvokable]
-    public async Task<bool> QueueLiveCouncilUserMessageAsync(string content)
+    public async Task<bool> QueueLiveCouncilUserMessageAsync(string content, IReadOnlyList<LiveCouncilUploadFile>? files)
     {
         var activeRun = ActiveCouncilRun;
         var activeRunId = activeRun?.RunId ?? ActiveLiveCouncilSession?.RunId;
-        if (activeRunId is not Guid councilRunId || string.IsNullOrWhiteSpace(content) || isDisposed)
+        var uploadedFiles = files?.Where(file => file is not null && !string.IsNullOrWhiteSpace(file.Name)).ToList() ?? [];
+        if (activeRunId is not Guid councilRunId || (string.IsNullOrWhiteSpace(content) && uploadedFiles.Count == 0) || isDisposed)
             return false;
 
         try
@@ -3932,16 +4056,36 @@
                 councilRound: activeRun?.CurrentRound ?? 0,
                 phase: activeRun?.Phase ?? "Rejoined live Council");
 
-            var normalizedContent = content.Trim();
+            var normalizedContent = string.IsNullOrWhiteSpace(content) ? "Please review the attached files." : content.Trim();
+            var deliveredContent = normalizedContent;
+            ChatUploadWorkspaceResult? uploadWorkspace = null;
+            if (uploadedFiles.Count > 0)
+            {
+                var workspaceInputs = uploadedFiles.Select(file => new ChatUploadWorkspaceInputFile(
+                    file.Name.Trim(),
+                    string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType.Trim(),
+                    file.SizeBytes > 0 ? file.SizeBytes : file.Data.LongLength,
+                    file.Data)).ToArray();
+                uploadWorkspace = await ChatUploadWorkspaces.CreateWorkspaceAsync(
+                    normalizedContent,
+                    workspaceInputs,
+                    componentLifetimeCts.Token).ConfigureAwait(false);
+                deliveredContent = $"{normalizedContent}\n\n{CouncilText.BuildUploadWorkspaceSystemPrompt(uploadWorkspace, Logger)}";
+            }
+
             await HumanCollaboration.QueueUserMessageAsync(
                 councilRunId,
-                normalizedContent,
+                deliveredContent,
                 componentLifetimeCts.Token).ConfigureAwait(false);
-            CouncilLiveSessions.AppendUserMessage(councilRunId, normalizedContent);
+
+            var displayContent = BuildLiveCouncilUserDisplayContent(
+                normalizedContent,
+                uploadWorkspace?.Files.Select(file => file.RelativePath) ?? uploadedFiles.Select(file => file.Name));
+            CouncilLiveSessions.AppendUserMessage(councilRunId, displayContent);
 
             var chatMessage = new BlazorChatMessage(
                 ChatRole.User,
-                normalizedContent,
+                displayContent,
                 new List<AIChatUploadFileInfo>());
             PendingLiveCouncilUserMessages.Add(chatMessage);
             if (ChatClientProvider?.SelectedSession is not null)
@@ -3950,7 +4094,9 @@
             ComponentActivity.RecordInformation(
                 nameof(Chat),
                 "QueueLiveCouncilUserMessage",
-                "A direct user message was accepted for immediate model interruption/resume and subsequent Council context.");
+                uploadedFiles.Count > 0
+                    ? $"A direct user message with {uploadedFiles.Count} upload(s) was accepted into a new chat upload workspace for the running Council."
+                    : "A direct user message was accepted for immediate model interruption/resume and subsequent Council context.");
             await RefreshHumanCollaborationAsync().ConfigureAwait(false);
             return true;
         }
@@ -3960,13 +4106,37 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Could not queue a direct user message from the active Chat composer; content was omitted from logs.");
+            Logger.LogError(ex, "Could not queue a direct user message or upload from the active Chat composer; content was omitted from logs.");
             ComponentActivity.RecordFailure(nameof(Chat), "QueueLiveCouncilUserMessage", ex);
             Notifier.ShowError(
                 toastName,
-                ex is InvalidOperationException ? ex.Message : "The message could not be added to the running Council. Review LocalGPT logs.",
+                ex is InvalidOperationException ? ex.Message : "The message or attached files could not be added to the running Council. Review LocalGPT logs.",
                 "Council user message");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Builds the visible user-message content used while a live upload workspace is already participating in a Council run.
+    /// </summary>
+    private string BuildLiveCouncilUserDisplayContent(string content, IEnumerable<string> fileNames)
+    {
+        try
+        {
+            var names = fileNames
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => System.Net.WebUtility.HtmlEncode(Path.GetFileName(name.Trim())))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (names.Length == 0)
+                return content;
+            var chips = string.Join(string.Empty, names.Select(name => $"<span class=\"localgpt-restored-attachment\">📎 {name}</span>"));
+            return $"{content}\n<div class=\"localgpt-restored-attachments\" data-localgpt-restored-attachments=\"true\">{chips}</div>";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not build the live upload attachment presentation; file names were omitted from the message bubble.");
+            return content;
         }
     }
 

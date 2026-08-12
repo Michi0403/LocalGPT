@@ -1269,6 +1269,10 @@ namespace LocalGPT.Services
         /// </summary>
         public string DefaultOllamaEndpoint => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint);
         /// <summary>
+        /// Gets the database-provisioned language and toolchain choices for architecture guidance.
+        /// </summary>
+        public string[] ArchitectureLanguageToolchainOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureLanguageToolchainOptions)];
+        /// <summary>
         /// Gets or sets architecture UI stack options.
         /// </summary>
         public string[] ArchitectureUiStackOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureUiStackOptions)];

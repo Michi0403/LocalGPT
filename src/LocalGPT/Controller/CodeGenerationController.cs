@@ -1,7 +1,6 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using LocalGPT.Security;
-using LocalGPT.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LocalGPT.Controller;

@@ -15,6 +15,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     let councilComposerActive = false;
     let councilComposerSubmitting = false;
     let liveUserMessageSequence = 0;
+    let layoutPulseTimer = 0;
     const liveUserMessages = new WeakMap();
 
     function visible(element) {
@@ -501,6 +502,96 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         }
     }
 
+    const liveUploadFileCache = new WeakMap();
+
+    function cachePendingUploadFiles(composer) {
+        try {
+            if (!(composer instanceof HTMLElement)) return [];
+            const input = pendingUploadInput(composer);
+            const current = input instanceof HTMLInputElement && input.files ? [...input.files] : [];
+            if (current.length > 0) {
+                // DevExpress may materialize its attachment chips and then clear the browser input. Keep the
+                // real File objects for the custom live-Council send path until LocalGPT accepts or cancels them.
+                liveUploadFileCache.set(composer, current);
+                return current;
+            }
+            return liveUploadFileCache.get(composer) || [];
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.cachePendingUploadFiles', error);
+            throw error;
+        }
+    }
+
+    function pendingUploadInput(composer) {
+        try {
+            return composer instanceof HTMLElement
+                ? composer.querySelector('input[type="file"]')
+                : null;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.pendingUploadInput', error);
+            throw error;
+        }
+    }
+
+    function pendingUploadFiles(composer) {
+        try {
+            return cachePendingUploadFiles(composer);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.pendingUploadFiles', error);
+            throw error;
+        }
+    }
+
+    async function readPendingUploadFiles(composer) {
+        try {
+            const files = pendingUploadFiles(composer);
+            const payloads = [];
+            for (const file of files) {
+                payloads.push({
+                    name: file.name || 'attachment',
+                    contentType: file.type || 'application/octet-stream',
+                    sizeBytes: file.size || 0,
+                    data: new Uint8Array(await file.arrayBuffer())
+                });
+            }
+            return payloads;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.readPendingUploadFiles', error);
+            throw error;
+        }
+    }
+
+    function clearPendingUploadFiles(composer) {
+        try {
+            const input = pendingUploadInput(composer);
+            if (!(input instanceof HTMLInputElement)) return;
+
+            // The live-Council send path intentionally bypasses DxAIChat's normal send handler, so clear both
+            // the native input and any DevExpress upload-list entries it already materialized. Clicking only
+            // bounded remove/delete controls avoids touching unrelated composer buttons.
+            const uploadList = composer.querySelector('.dxbl-upload-file-list-view');
+            const removalButtons = uploadList
+                ? [...uploadList.querySelectorAll('button,[role="button"]')].filter(button => {
+                    const label = `${button.getAttribute('aria-label') || ''} ${button.getAttribute('title') || ''} ${button.textContent || ''}`.toLowerCase();
+                    return label.includes('remove') || label.includes('delete') || label.includes('clear') || label.includes('cancel');
+                })
+                : [];
+            for (const button of removalButtons) {
+                if (button instanceof HTMLElement && !button.hasAttribute('disabled')) button.click();
+            }
+
+            liveUploadFileCache.delete(composer);
+            input.value = '';
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            scheduleApply();
+            scheduleLayoutStabilization();
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.clearPendingUploadFiles', error);
+            throw error;
+        }
+    }
+
     function renderLiveUserMessages(host, region) {
         try {
             if (!(host instanceof HTMLElement) || !(region instanceof HTMLElement)) return;
@@ -531,6 +622,17 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 const bubble = document.createElement('div');
                 bubble.className = 'localgpt-live-user-message';
                 bubble.textContent = message.content;
+                if (Array.isArray(message.fileNames) && message.fileNames.length > 0) {
+                    const attachments = document.createElement('div');
+                    attachments.className = 'localgpt-live-user-attachments';
+                    for (const fileName of message.fileNames) {
+                        const chip = document.createElement('span');
+                        chip.className = 'localgpt-live-user-attachment';
+                        chip.textContent = `📎 ${fileName}`;
+                        attachments.appendChild(chip);
+                    }
+                    bubble.appendChild(attachments);
+                }
                 row.appendChild(bubble);
                 messageList.appendChild(row);
             }
@@ -540,10 +642,10 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         }
     }
 
-    function appendLiveUserMessage(host, content) {
+    function appendLiveUserMessage(host, content, fileNames = []) {
         try {
             const messages = liveUserMessages.get(host) || [];
-            messages.push({ id: `live-user-${++liveUserMessageSequence}`, content });
+            messages.push({ id: `live-user-${++liveUserMessageSequence}`, content, fileNames });
             liveUserMessages.set(host, messages);
             const composer = host.querySelector('.localgpt-chat-composer');
             const region = findScrollRegion(host, composer);
@@ -574,15 +676,21 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                     const currentEditor = host.querySelector('textarea,[contenteditable="true"],[role="textbox"]');
                     const currentComposer = button.closest('.localgpt-chat-composer') || composer;
                     const content = editorText(currentEditor).trim();
+                    const pendingFiles = pendingUploadFiles(currentComposer);
                     if (!councilComposerActive || !councilComposerDotNet || councilComposerSubmitting) return;
                     councilComposerSubmitting = true;
                     button.disabled = true;
                     try {
-                        if (content) {
-                            const accepted = await councilComposerDotNet.invokeMethodAsync('QueueLiveCouncilUserMessageAsync', content);
+                        if (content || pendingFiles.length > 0) {
+                            const filePayloads = await readPendingUploadFiles(currentComposer);
+                            const accepted = await councilComposerDotNet.invokeMethodAsync('QueueLiveCouncilUserMessageAsync', content, filePayloads);
                             if (accepted) {
-                                appendLiveUserMessage(host, content);
+                                appendLiveUserMessage(
+                                    host,
+                                    content || 'Attached files',
+                                    filePayloads.map(file => file.name));
                                 clearEditor(currentEditor);
+                                clearPendingUploadFiles(currentComposer);
                             }
                         } else {
                             const stopped = await councilComposerDotNet.invokeMethodAsync('StopActiveCouncilRunAsync');
@@ -607,6 +715,8 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         try {
             if (!(host instanceof HTMLElement) || !(editor instanceof HTMLElement) || !(composer instanceof HTMLElement)) return;
             const hasText = editorText(editor).trim().length > 0;
+            const hasPendingFiles = pendingUploadFiles(composer).length > 0;
+            const hasMessage = hasText || hasPendingFiles;
             const liveAction = ensureLiveSendButton(host, composer, editor);
             const actionButtons = [...composer.querySelectorAll('button,[role="button"]')];
             const nativeStop = actionButtons.find(button => {
@@ -619,19 +729,19 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 return /send|submit|paper-plane|arrow-right/i.test(buttonMarker)
                     && !/attach|upload|file|paperclip|clip|stop|cancel generation|abort|square/i.test(buttonMarker);
             }) || null;
-            nativeSend?.classList.toggle('localgpt-council-native-send-hidden', councilComposerActive && hasText);
-            const showLiveAction = councilComposerActive && (hasText || nativeStop === null);
+            nativeSend?.classList.toggle('localgpt-council-native-send-hidden', councilComposerActive && hasMessage);
+            const showLiveAction = councilComposerActive && (hasMessage || nativeStop === null);
             liveAction?.classList.toggle('localgpt-live-send-visible', showLiveAction);
             if (liveAction instanceof HTMLButtonElement) {
                 liveAction.disabled = councilComposerSubmitting;
-                liveAction.textContent = hasText ? '➤' : '■';
+                liveAction.textContent = hasMessage ? '➤' : '■';
                 liveAction.setAttribute(
                     'aria-label',
-                    hasText ? 'Send message to running AI Council' : 'Stop running AI Council');
+                    hasMessage ? 'Send message and attachments to running AI Council' : 'Stop running AI Council');
                 liveAction.setAttribute(
                     'title',
-                    hasText
-                        ? 'Add this user message to the running Council without stopping generation'
+                    hasMessage
+                        ? 'Add this user message and attached files to the running Council without stopping generation'
                         : 'Stop the running Council');
             }
         } catch (error) {
@@ -723,6 +833,16 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             const composer = findComposer(host, editor, send);
             addClass(composer, 'localgpt-chat-composer');
             if (composer instanceof HTMLElement) composer.dataset.localgptComposer = 'true';
+            if (composer instanceof HTMLElement) {
+                const uploadInput = pendingUploadInput(composer);
+                if (uploadInput instanceof HTMLInputElement && uploadInput.dataset.localgptCouncilUploadBound !== 'true') {
+                    uploadInput.dataset.localgptCouncilUploadBound = 'true';
+                    uploadInput.addEventListener('change', diagnostics.guard('localgpt-chat-ui.liveCouncilUpload.change', () => {
+                        cachePendingUploadFiles(composer);
+                        updateCouncilComposer(host, editor, composer);
+                    }));
+                }
+            }
             if (editor instanceof HTMLElement && composer instanceof HTMLElement) {
                 if (editor.dataset.localgptCouncilInputBound !== 'true') {
                     editor.dataset.localgptCouncilInputBound = 'true';
@@ -733,7 +853,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                             || event.key !== 'Enter'
                             || event.shiftKey
                             || event.isComposing
-                            || editorText(editor).trim().length === 0) return;
+                            || (editorText(editor).trim().length === 0 && pendingUploadFiles(composer).length === 0)) return;
                         event.preventDefault();
                         event.stopImmediatePropagation();
                         ensureLiveSendButton(host, composer, editor)?.click();
@@ -788,13 +908,46 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         }
     }
 
+    function scheduleLayoutStabilization() {
+        try {
+            if (layoutPulseTimer) clearTimeout(layoutPulseTimer);
+            layoutPulseTimer = window.setTimeout(diagnostics.guard('localgpt-chat-ui.layoutStabilization', () => {
+                layoutPulseTimer = 0;
+                const host = document.querySelector(hostSelector);
+                if (!(host instanceof HTMLElement)) return;
+                // Expanding a DevExpress details block naturally causes the control to remeasure itself.
+                // Reproduce that benign layout notification after a loaded/rejoined transcript settles so
+                // the initial chat viewport is correct without requiring the user to toggle a details block.
+                requestAnimationFrame(diagnostics.guard('localgpt-chat-ui.layoutStabilization.firstFrame', () =>
+                    requestAnimationFrame(diagnostics.guard('localgpt-chat-ui.layoutStabilization.secondFrame', () => {
+                        window.dispatchEvent(new Event('resize'));
+                        const composer = host.querySelector('.localgpt-chat-composer');
+                        const region = findScrollRegion(host, composer);
+                        if (region instanceof HTMLElement) {
+                            const state = bindSlowScroll(host, region);
+                            queueTranscriptHeightCheck(host, state);
+                        }
+                    }))));
+            }), 240);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.scheduleLayoutStabilization', error);
+            throw error;
+        }
+    }
+
     const observer = new MutationObserver(diagnostics.guard('localgpt-chat-ui.mutationObserver', records => { try {
-        if (records.some(record => { try { return (record.type === 'attributes' || record.addedNodes.length > 0 || record.removedNodes.length > 0); } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-chat-ui.js:callback:records.some@159', __javascriptError); throw __javascriptError; } })) scheduleApply();
+        const changed = records.some(record => { try { return (record.type === 'attributes' || record.addedNodes.length > 0 || record.removedNodes.length > 0); } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-chat-ui.js:callback:records.some@159', __javascriptError); throw __javascriptError; } });
+        if (changed) {
+            scheduleApply();
+            if (records.some(record => record.target instanceof Element && (record.target.matches?.(hostSelector) || record.target.closest?.(hostSelector))))
+                scheduleLayoutStabilization();
+        }
      } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-chat-ui.js:callback:diagnostics.guard@158', __javascriptError); throw __javascriptError; }}));
 
     function start() {
         try {
             scheduleApply();
+            scheduleLayoutStabilization();
             observer.observe(document.body, {
                 childList: true,
                 subtree: true,
@@ -812,6 +965,13 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 }
             });
             window.localGptChatUi = {
+                stabilizeLayout() {
+                    try {
+                        scheduleLayoutStabilization();
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.stabilizeLayout', error);
+                    }
+                },
                 registerCouncilComposer(dotNetReference, isActive) {
                     try {
                         councilComposerDotNet = dotNetReference || councilComposerDotNet;

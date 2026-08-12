@@ -36,6 +36,7 @@ namespace LocalGPT.Services
         IModelCapabilitySelfAssessmentService modelSelfAssessment,
         IAiFeatureReportService featureReports,
         IAmbientLocalGptContext ambientContext,
+        ICouncilLiveSessionService liveCouncilSessions,
         IProviderModelRuntimeService providerModels,
         ILogger<MultiModelCouncilService> logger,
         CouncilRuntimeService councilRuntime,
@@ -3482,22 +3483,33 @@ namespace LocalGPT.Services
                             : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
                         var gateAcquired = false;
                         var participantStream = participantStreams is null ? null : participantStreams[modelName];
+                        var activityKey = $"{round}:{phase}:{role}:{modelName}";
+                        var routeLabel = $"{GetCouncilExecutionHostKey(modelName)} · {fallbackPlan.LaneKey}";
+                        liveCouncilSessions.BeginParticipantActivity(result.RunId, activityKey, modelName, phase, role, routeLabel);
                         Action<string>? participantStreamUpdate = participantStream is null
                             ? null
                             : text =>
                             {
                                 if (!string.IsNullOrEmpty(text))
+                                {
                                     participantStream.Writer.TryWrite(text);
+                                    // The ordered transcript is still pumped member-by-member to avoid corrupting
+                                    // provider HTML/thinking markup. This side channel makes every host/model visible
+                                    // immediately while the host queues execute in parallel.
+                                    liveCouncilSessions.AppendParticipantActivity(result.RunId, activityKey, text);
+                                }
                             };
                         try
                         {
                             if (hostGate is not null)
                             {
                                 using var gateCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
+                                liveCouncilSessions.SetParticipantActivityStatus(result.RunId, activityKey, $"Waiting for AI host road {routeLabel}.");
                                 await hostGate.WaitAsync(gateCancellation.Token).ConfigureAwait(false);
                                 gateAcquired = true;
                             }
 
+                            liveCouncilSessions.SetParticipantActivityStatus(result.RunId, activityKey, $"Running on {routeLabel}.");
                             var step = await RunParticipantAsync(
                                 baseUri, modelName, councilMembers ?? participants, round, phase, role, promptFactory(modelName), participantBootstrap,
                                 fallbackPlan.EffectiveMaxOutputTokens, keepAlive, fallbackPlan.OllamaNumGpu, fallbackPlan.EffectiveMaxContextTokens,
@@ -3505,12 +3517,19 @@ namespace LocalGPT.Services
                                 fallbackPlan: fallbackPlan,
                                 progressMessage: progressMessage).ConfigureAwait(false);
                             ArgumentNullException.ThrowIfNull(step);
+                            liveCouncilSessions.CompleteParticipantActivity(
+                                result.RunId,
+                                activityKey,
+                                string.IsNullOrWhiteSpace(step.Error)
+                                    ? "Model completed; integrating this member into the ordered Council transcript."
+                                    : $"Model completed with an error: {step.Error}");
                             return step;
                         }
                         catch (OperationCanceledException) when (
                             roundSkipToken.IsCancellationRequested &&
                             !cancellationToken.IsCancellationRequested)
                         {
+                            liveCouncilSessions.CompleteParticipantActivity(result.RunId, activityKey, "Participant was skipped because the current Council phase was cancelled.");
                             return CreateRoundSkippedStep(
                                 modelName,
                                 councilMembers ?? participants,

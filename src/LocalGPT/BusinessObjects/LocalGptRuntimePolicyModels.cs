@@ -137,6 +137,7 @@ public enum LocalGptRuntimeCollection
     KnowledgeFiles,
     AllowedUploadExtensions,
     AllowedUploadMimeTypes,
+    ArchitectureLanguageToolchainOptions,
     ArchitectureUiStackOptions,
     ArchitectureSolutionShapeOptions,
     ArchitectureRenderModeOptions,

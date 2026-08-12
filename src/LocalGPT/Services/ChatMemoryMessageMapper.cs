@@ -3,6 +3,8 @@ using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using Microsoft.Extensions.AI;
 using System.Net;
+using System.Collections;
+using System.Reflection;
 
 namespace LocalGPT.Services;
 
@@ -25,7 +27,7 @@ public sealed class ChatMemoryMessageMapper(
                 ?? messages.FirstOrDefault()?.Content
                 ?? string.Empty;
             var title = catalog.WhitespacePattern
-                .Replace(text.StripThinking(firstUserMessage, logger), " ")
+                .Replace(text.StripThinking(StripAttachmentPresentation(firstUserMessage), logger), " ")
                 .Trim();
 
             if (string.IsNullOrWhiteSpace(title))
@@ -102,6 +104,98 @@ public sealed class ChatMemoryMessageMapper(
         throw;
     }
 }
+
+    /// <summary>
+    /// Builds durable message content and preserves the visible file names from native DXAiChat attachment metadata.
+    /// </summary>
+    public string BuildPersistedContent(BlazorChatMessage message)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(message);
+            var content = message.Content ?? string.Empty;
+            if (content.Contains("data-localgpt-restored-attachments", StringComparison.OrdinalIgnoreCase))
+                return content;
+
+            var names = ExtractAttachmentNames(message);
+            if (names.Count == 0)
+                return content;
+
+            var chips = string.Join(string.Empty, names.Select(name =>
+                $"<span class=\"localgpt-restored-attachment\">📎 {WebUtility.HtmlEncode(name)}</span>"));
+            return $"{content}\n<div class=\"localgpt-restored-attachments\" data-localgpt-restored-attachments=\"true\">{chips}</div>";
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not preserve DXAiChat attachment names while saving chat memory; message content was saved without attachment presentation.");
+            return message.Content ?? string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Extracts native DXAiChat upload file names without binding LocalGPT to non-public DevExpress attachment members.
+    /// </summary>
+    private IReadOnlyList<string> ExtractAttachmentNames(BlazorChatMessage message)
+    {
+        try
+        {
+            var names = new List<string>();
+            var properties = message.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public);
+            foreach (var property in properties)
+            {
+                if (property.PropertyType == typeof(string) || !typeof(IEnumerable).IsAssignableFrom(property.PropertyType))
+                    continue;
+                if (!property.Name.Contains("file", StringComparison.OrdinalIgnoreCase) &&
+                    !property.Name.Contains("attachment", StringComparison.OrdinalIgnoreCase) &&
+                    !(property.PropertyType.FullName?.Contains("AIChatUpload", StringComparison.OrdinalIgnoreCase) ?? false))
+                {
+                    continue;
+                }
+
+                if (property.GetValue(message) is not IEnumerable values)
+                    continue;
+                foreach (var value in values)
+                {
+                    if (value is null)
+                        continue;
+                    var valueType = value.GetType();
+                    var nameProperty = valueType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                        .FirstOrDefault(candidate => candidate.PropertyType == typeof(string) &&
+                            (candidate.Name.Equals("FileName", StringComparison.OrdinalIgnoreCase) ||
+                             candidate.Name.Equals("Name", StringComparison.OrdinalIgnoreCase) ||
+                             candidate.Name.Equals("DisplayName", StringComparison.OrdinalIgnoreCase)));
+                    var name = nameProperty?.GetValue(value) as string;
+                    if (!string.IsNullOrWhiteSpace(name))
+                        names.Add(Path.GetFileName(name.Trim()));
+                }
+            }
+            return names.Where(name => !string.IsNullOrWhiteSpace(name)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Native DXAiChat attachment metadata could not be inspected while persisting a message.");
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// Removes LocalGPT's restored-attachment presentation before deriving titles or other plain-text metadata.
+    /// </summary>
+    private string StripAttachmentPresentation(string content)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(content))
+                return string.Empty;
+            var start = content.IndexOf("<div class=\"localgpt-restored-attachments\"", StringComparison.OrdinalIgnoreCase);
+            return start < 0 ? content : content[..start].TrimEnd();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Could not strip LocalGPT restored-attachment presentation from chat metadata text.");
+            return content;
+        }
+    }
 
     /// <summary>
     /// Runs the to blazor chat message operation.

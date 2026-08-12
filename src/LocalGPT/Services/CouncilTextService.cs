@@ -138,6 +138,7 @@ namespace LocalGPT.Services
         /// Builds architecture poll message.
         /// </summary>
         public string BuildArchitecturePollMessage(
+            string languageToolchain,
             string uiStack,
             string solutionShape,
             string renderMode,
@@ -152,6 +153,7 @@ namespace LocalGPT.Services
                     .AppendLine("# LocalGPT Architecture Poll Decision")
                     .AppendLine()
                     .AppendLine("Treat explicit non-Ask values as my current decision for the next answer. Treat my normal chat request and extra direction as binding design input too; do not downgrade a user-stated design into an unresolved Ask value.")
+                    .AppendLine($"- Language/toolchain: {languageToolchain}")
                     .AppendLine($"- UI stack: {uiStack}")
                     .AppendLine($"- Solution shape: {solutionShape}")
                     .AppendLine($"- Runtime/rendering: {renderMode}")
@@ -166,8 +168,9 @@ namespace LocalGPT.Services
                     .AppendLine("If any selected value says \"Ask me\", first check whether my chat prompt or extra direction already answers it. If yes, treat the stated design as selected.")
                     .AppendLine("If an Ask value remains materially unresolved and prior consent is granted, choose a safe sandbox default, name that choice, and continue with a downloadable artifact.")
                     .AppendLine("If an Ask value remains materially unresolved and prior consent is not granted, stop before generating code or files. Return a concise runtime poll with concrete options and wait for my answer.")
-                    .AppendLine("Do not assume Blazor or DevExpress unless I chose it, the target repository already requires it, or the requested app type clearly benefits from it.")
-                    .AppendLine("When recreating a goal application, compare its layout, navigation, data flows, API routes, settings, and user workflows, then recreate the recognizable structure with the selected architecture.");
+                    .AppendLine("Do not assume C#/.NET, Minecraft, Blazor, DevExpress, Java, C++, PowerShell, or any other ecosystem unless I chose it, the target repository already requires it, or the request clearly specifies it.")
+                    .AppendLine("When the requested language or ecosystem has no CodeDOM specialization, use the reviewed generic source/workspace file-generation path and preserve the target repository's build/project conventions instead of forcing a C# solution shape.")
+                    .AppendLine("When recreating a goal application, compare its layout, navigation, data flows, API routes, settings, build/toolchain conventions, and user workflows, then recreate the recognizable structure with the selected architecture.");
 
                 logger.LogDebug($"{nameof(BuildArchitecturePollMessage)} created a service-owned architecture decision message without logging user content.");
                 return builder.ToString().Trim();

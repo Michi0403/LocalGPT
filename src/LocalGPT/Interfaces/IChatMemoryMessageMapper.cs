@@ -26,6 +26,11 @@ public interface IChatMemoryMessageMapper
     string ToRoleName(ChatMessageRole role);
 
     /// <summary>
+    /// Builds the durable message content, including a lightweight attachment presentation for native DXAiChat uploads.
+    /// </summary>
+    string BuildPersistedContent(BlazorChatMessage message);
+
+    /// <summary>
     /// Runs the to blazor chat message operation.
     /// </summary>
     BlazorChatMessage ToBlazorChatMessage(ChatMemoryMessage message);

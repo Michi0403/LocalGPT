@@ -83,6 +83,10 @@ internal sealed class CouncilLiveSessionState : IDisposable
     /// </summary>
     public List<string> AdditionalUserMessages { get; } = [];
     /// <summary>
+    /// Gets live participant activity states keyed by the run-local participant/phase identity.
+    /// </summary>
+    public Dictionary<string, CouncilLiveParticipantActivityState> ParticipantActivities { get; } = new(StringComparer.Ordinal);
+    /// <summary>
     /// Gets or sets transcript.
     /// </summary>
     public StringBuilder Transcript { get; }
@@ -115,6 +119,38 @@ internal sealed class CouncilLiveSessionState : IDisposable
     /// Runs the dispose operation.
     /// </summary>
     public void Dispose() => Cancellation.Dispose();
+}
+
+/// <summary>
+/// Holds one live participant stream separately from the ordered Council transcript so parallel AI hosts remain visible without interleaving provider markup.
+/// </summary>
+internal sealed class CouncilLiveParticipantActivityState(
+    string activityKey,
+    string modelName,
+    string phase,
+    string role,
+    string routeLabel)
+{
+    /// <summary>Gets the run-local activity key.</summary>
+    public string ActivityKey { get; } = activityKey;
+    /// <summary>Gets the provider-qualified model name.</summary>
+    public string ModelName { get; } = modelName;
+    /// <summary>Gets the current Council phase.</summary>
+    public string Phase { get; } = phase;
+    /// <summary>Gets the current Council role.</summary>
+    public string Role { get; } = role;
+    /// <summary>Gets the selected host/hardware route label.</summary>
+    public string RouteLabel { get; } = routeLabel;
+    /// <summary>Gets the streamed participant content.</summary>
+    public StringBuilder Content { get; } = new();
+    /// <summary>Gets or sets the human-readable activity status.</summary>
+    public string StatusMessage { get; set; } = "Waiting for the model runtime.";
+    /// <summary>Gets or sets whether this participant is still running.</summary>
+    public bool IsRunning { get; set; } = true;
+    /// <summary>Gets the start timestamp.</summary>
+    public DateTime StartedAtUtc { get; } = DateTime.UtcNow;
+    /// <summary>Gets or sets the most recent update timestamp.</summary>
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
 /// <summary>

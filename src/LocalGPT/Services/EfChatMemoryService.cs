@@ -195,13 +195,14 @@ namespace LocalGPT.Services
                 {
                     var sortOrder = index++;
                     var role = messageMapper.ToRoleName(message.Role);
-                    previousFeedback.TryGetValue((sortOrder, role, message.Content), out var feedback);
+                    var persistedContent = messageMapper.BuildPersistedContent(message);
+                    previousFeedback.TryGetValue((sortOrder, role, persistedContent), out var feedback);
                     db.Messages.Add(new ChatMemoryMessage
                     {
                         ConversationId = conversation.Id,
                         SortOrder = sortOrder,
                         Role = role,
-                        Content = message.Content,
+                        Content = persistedContent,
                         Thinking = councilText.ExtractThinking(message.Content, logger),
                         IsPositiveFeedback = feedback?.IsPositiveFeedback,
                         FeedbackComment = feedback?.FeedbackComment ?? string.Empty,
