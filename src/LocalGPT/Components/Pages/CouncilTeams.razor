@@ -386,6 +386,68 @@
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.CanUseOrganicFunctions" /><span>Allow DX/organic function requests</span></label>
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.ProducesAsciiFrame" /><span>Produces one AI-owned ASCII frame</span></label>
                         </div>
+                        <details class="council-advanced-section">
+                            <summary>X-Rounds / revisable control flow @(step.XFunctionsEnabled ? "· enabled" : "· disabled")</summary>
+                            <p class="hint">X-Rounds do not erase history. A revisit creates a new workflow-step revision caused by the requesting step. Reconsider suppresses DX/organic side effects; Reexecute deliberately runs the target's normal function policy again.</p>
+                            <div class="d-flex flex-wrap gap-2 mb-2" aria-label="X-Round workflow presets">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.Gatekeeper)">Gatekeeper</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.ReactiveRevisit)">Reactive revisit</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.DerivedSingleModel)">Derived single model</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.DerivedCouncil)">Derived Council</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.Disabled)">Clear X policy</button>
+                            </div>
+                            <div class="council-step-options">
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XFunctionsEnabled" /><span>Enable X-Functions for this step</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XCanRevisit" disabled="@(!step.XFunctionsEnabled)" /><span>May revisit another step</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XCanReturnText" disabled="@(!step.XFunctionsEnabled)" /><span>May return text and finish parent workflow</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XCanStartSingleModel" disabled="@(!step.XFunctionsEnabled)" /><span>May start one selected model subtask</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XCanStartCouncil" disabled="@(!step.XFunctionsEnabled)" /><span>May start another Council team</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.XRequiresHumanApproval" disabled="@(!step.XFunctionsEnabled)" /><span>Human must approve every accepted X control request</span></label>
+                            </div>
+                            <div class="council-workflow-fields">
+                                <label><span>X transition budget for this source step</span><input class="form-control" type="number" min="1" max="100" @bind="step.XMaximumTransitions" disabled="@(!step.XFunctionsEnabled)" /></label>
+                                <label>
+                                    <span>Default revisit target</span>
+                                    <select class="form-select" @bind="step.XDefaultTargetStepKey" disabled="@(!step.XFunctionsEnabled || !step.XCanRevisit)">
+                                        <option value="">Require the AI to name a target</option>
+                                        @foreach (var targetStep in _editor.WorkflowSteps.Take(stepIndex + 1))
+                                        {
+                                            <option value="@targetStep.Key">@targetStep.DisplayName · @targetStep.Key</option>
+                                        }
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Default child Council team</span>
+                                    <select class="form-select" @bind="step.XChildCouncilTeamKey" disabled="@(!step.XFunctionsEnabled || !step.XCanStartCouncil)">
+                                        <option value="">Require teamKey in the X call</option>
+                                        @if (!string.IsNullOrWhiteSpace(step.XChildCouncilTeamKey) && !_teams.Any(team => team.Key.Equals(step.XChildCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            <option value="@step.XChildCouncilTeamKey">Saved but unavailable · @step.XChildCouncilTeamKey</option>
+                                        }
+                                        @foreach (var availableTeam in _teams.Where(team => team.IsEnabled))
+                                        {
+                                            <option value="@availableTeam.Key">@availableTeam.DisplayName · @availableTeam.Key</option>
+                                        }
+                                    </select>
+                                </label>
+                                <label><span>Maximum child-Council nesting depth</span><input class="form-control" type="number" min="1" max="10" @bind="step.XMaximumChildCouncilDepth" disabled="@(!step.XFunctionsEnabled || !step.XCanStartCouncil)" /></label>
+                                <label class="wide">
+                                    <span>Default single-model target</span>
+                                    <select class="form-select" @bind="step.XChildModelName" disabled="@(!step.XFunctionsEnabled || !step.XCanStartSingleModel)">
+                                        <option value="">Use the current Council leader</option>
+                                        @if (!string.IsNullOrWhiteSpace(step.XChildModelName) && !_providerModels.Any(model => model.SelectionKey.Equals(step.XChildModelName, StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            <option value="@step.XChildModelName">Saved but unavailable · @step.XChildModelName</option>
+                                        }
+                                        @foreach (var candidate in _providerModels.Where(model => model.IsInstalled || model.IsConfigured).OrderBy(model => model.Provider).ThenBy(model => model.ModelName))
+                                        {
+                                            <option value="@candidate.SelectionKey">@candidate.Provider · @candidate.ModelName · @candidate.Endpoint</option>
+                                        }
+                                    </select>
+                                </label>
+                                <div class="wide alert alert-info mb-0">X functions exposed to the role are <code>council.x.status</code>, <code>council.x.revisit</code>, <code>council.x.return_text</code>, <code>council.x.start_single_model</code> and <code>council.x.start_council</code>. X-Rounds also require “Allow DX/organic function requests” because they are explicit DXFunctions.</div>
+                            </div>
+                        </details>
                     </article>
                 }
             </section>
@@ -651,6 +713,36 @@
             _editor.Roles.RemoveAt(index);
     }
 
+    /// <summary>Applies one convenience X-Round policy without hiding any of the explicit per-step controls below it.</summary>
+    private void ApplyXRoundPreset(CouncilWorkflowStepDefinition step, CouncilXRoundPreset preset)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        step.UseBuiltInBehavior = false;
+        step.XFunctionsEnabled = preset != CouncilXRoundPreset.Disabled;
+        step.XCanRevisit = preset is CouncilXRoundPreset.Gatekeeper or CouncilXRoundPreset.ReactiveRevisit;
+        step.XCanReturnText = preset is CouncilXRoundPreset.Gatekeeper or CouncilXRoundPreset.DerivedSingleModel or CouncilXRoundPreset.DerivedCouncil;
+        step.XCanStartSingleModel = preset == CouncilXRoundPreset.DerivedSingleModel;
+        step.XCanStartCouncil = preset == CouncilXRoundPreset.DerivedCouncil;
+        if (preset == CouncilXRoundPreset.Disabled)
+            step.XRequiresHumanApproval = false;
+        step.XMaximumTransitions = preset == CouncilXRoundPreset.ReactiveRevisit ? 5 : 3;
+        step.XMaximumChildCouncilDepth = Math.Max(1, step.XMaximumChildCouncilDepth);
+        _confirmed = false;
+        _status = preset == CouncilXRoundPreset.Disabled
+            ? $"Cleared X-Round authority from '{step.DisplayName}'."
+            : $"Applied the {preset} X-Round starting point to '{step.DisplayName}'. Review the explicit switches before saving.";
+    }
+
+    /// <summary>Lists the convenience starting points for configurable X-Round step policies.</summary>
+    private enum CouncilXRoundPreset
+    {
+        Disabled,
+        Gatekeeper,
+        ReactiveRevisit,
+        DerivedSingleModel,
+        DerivedCouncil
+    }
+
     private void AddWorkflowStep()
     {
         foreach (var existing in _editor.WorkflowSteps)
@@ -672,6 +764,8 @@
         IncludePriorTranscript = true,
         IsEnabled = true,
         CanUseOrganicFunctions = true,
+        XMaximumTransitions = 3,
+        XMaximumChildCouncilDepth = 1,
         PromptTemplate = "Contribute to {{TeamName}} as {{Role}}. Address the original request, consider the prior transcript, and state disagreements or missing information plainly.\n\nUser request:\n{{UserPrompt}}\n\nPrior transcript:\n{{Transcript}}"
     };
 
@@ -749,6 +843,11 @@
                 ? 1
                 : Math.Clamp(step.MaximumLoopIterations, 1, 100);
             step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
+            step.XMaximumTransitions = Math.Clamp(step.XMaximumTransitions, 1, 100);
+            step.XMaximumChildCouncilDepth = Math.Clamp(step.XMaximumChildCouncilDepth, 1, 10);
+            step.XDefaultTargetStepKey = step.XDefaultTargetStepKey?.Trim().ToLowerInvariant() ?? string.Empty;
+            step.XChildCouncilTeamKey = step.XChildCouncilTeamKey?.Trim().ToLowerInvariant() ?? string.Empty;
+            step.XChildModelName = step.XChildModelName?.Trim() ?? string.Empty;
             step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, 20, 240);
             step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, 8, 120);
             step.WorldStepScale = Math.Clamp(step.WorldStepScale, 1, 1000);

@@ -25,6 +25,7 @@ namespace LocalGPT.Services
         ICodeGenerationWorkflowService codeGenerationWorkflow,
         ICouncilCodeGenerationPlanService codeGenerationPlanService,
         IHumanCollaborationService humanCollaboration,
+        ICouncilXRoundService councilXRounds,
         IDeferredDxAiInvocationService deferredDxAiInvocations,
         IOrganicCouncilBlueprintService organicCouncilBlueprints,
         ICouncilSpoolerService councilSpooler,
@@ -83,7 +84,12 @@ namespace LocalGPT.Services
                     team.WorkflowSteps.Any(step =>
                         step.IsEnabled &&
                         string.Equals(NormalizeConfiguredExecutionMode(step.ExecutionMode), "AssignedModelSingle", StringComparison.Ordinal) &&
-                        !string.IsNullOrWhiteSpace(step.AssignedModelName));
+                        !string.IsNullOrWhiteSpace(step.AssignedModelName)) ||
+                    team.WorkflowSteps.Any(step =>
+                        step.IsEnabled &&
+                        step.XFunctionsEnabled &&
+                        step.XCanStartSingleModel &&
+                        !string.IsNullOrWhiteSpace(step.XChildModelName));
                 if (!hasSavedBindings)
                     return;
 
@@ -110,6 +116,19 @@ namespace LocalGPT.Services
                         $"workflow step {step.DisplayName}");
                 }
 
+                foreach (var step in team.WorkflowSteps.Where(step =>
+                             step.IsEnabled &&
+                             step.XFunctionsEnabled &&
+                             step.XCanStartSingleModel &&
+                             !string.IsNullOrWhiteSpace(step.XChildModelName)))
+                {
+                    step.XChildModelName = ResolveConfiguredTeamModelBinding(
+                        step.XChildModelName,
+                        candidates,
+                        team,
+                        $"X-Function single-model target for {step.DisplayName}");
+                }
+
                 var configuredBindings = team.Roles
                     .Where(role =>
                         role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
@@ -120,6 +139,12 @@ namespace LocalGPT.Services
                             step.IsEnabled &&
                             string.Equals(NormalizeConfiguredExecutionMode(step.ExecutionMode), "AssignedModelSingle", StringComparison.Ordinal))
                         .Select(step => step.AssignedModelName))
+                    .Concat(team.WorkflowSteps
+                        .Where(step =>
+                            step.IsEnabled &&
+                            step.XFunctionsEnabled &&
+                            step.XCanStartSingleModel)
+                        .Select(step => step.XChildModelName))
                     .Where(value => !string.IsNullOrWhiteSpace(value))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -345,6 +370,13 @@ namespace LocalGPT.Services
                     "Address the user's lawful request across science, chemistry, engineering, education, creative work, software, facilities, devices, everyday questions, and other domains supported by the models' knowledge. " +
                     "Never refuse merely because a request is unrelated to LocalGPT itself or because no dedicated DXFunction exists. When execution tools or authoritative current evidence are missing, still provide useful reasoning, clearly mark uncertainty, and report the exact capability gap only where it matters. " +
                     "Safety and one-use approval rules govern actions, not ordinary subject-matter assistance.",
+                    logger);
+                bootstrap = MultiModelCouncilServiceAppendPromptSection(
+                    bootstrap,
+                    "Readable streamed prose",
+                    "Keep normal word boundaries and punctuation in all user-visible prose, including thinking/status text when your provider exposes it. " +
+                    "Do not concatenate labels with following numeric values or protocol names: write 'output 24,576', 'context 262,144', and 'connected 1-Wire', not 'output24,576', 'context262,144', or 'connected1-Wire'. " +
+                    "Do not alter intentional identifiers, code, URLs, model names, file paths, or serialized data merely to add spaces.",
                     logger);
                 var continuationContext = MultiModelCouncilServiceBuildContinuationContext(continuedConversation, logger);
                 if (!string.IsNullOrWhiteSpace(continuationContext))
@@ -835,6 +867,7 @@ namespace LocalGPT.Services
                 if (collaborationRunId is Guid runId)
                 {
                     humanCollaboration.EndCouncilRun(runId);
+                    councilXRounds.EndRun(runId);
                     runConfigurations.Complete(runId);
                 }
             }
@@ -1690,6 +1723,9 @@ namespace LocalGPT.Services
                 var roleAssignments = BuildConfiguredRoleAssignments(result, request, team, participants);
                 var rolePairings = BuildConfiguredRolePairings(result, request, team, roleAssignments);
                 var state = new ConfiguredWorkflowExecutionState(0, 0, string.Empty, string.Empty, string.Empty);
+                var workflowRevisions = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                var nextExecutionIsReconsideration = false;
+                var nextXRoundCause = string.Empty;
 
                 for (var stepIndex = 0; stepIndex < configuredSteps.Count;)
                 {
@@ -1697,6 +1733,10 @@ namespace LocalGPT.Services
                     var firstStep = configuredSteps[stepIndex];
                     if (string.IsNullOrWhiteSpace(firstStep.LoopGroup))
                     {
+                        var revision = workflowRevisions.TryGetValue(firstStep.Key, out var previousRevision)
+                            ? previousRevision + 1
+                            : 1;
+                        workflowRevisions[firstStep.Key] = revision;
                         state = await ExecuteConfiguredWorkflowDefinitionAsync(
                             result,
                             request,
@@ -1718,7 +1758,41 @@ namespace LocalGPT.Services
                             loopGroup: string.Empty,
                             loopIteration: 1,
                             loopMaximumIterations: 1,
+                            workflowRevision: revision,
+                            xRoundCause: nextXRoundCause,
+                            suppressOrganicFunctions: nextExecutionIsReconsideration,
                             cancellationToken: cancellationToken).ConfigureAwait(false);
+                        nextExecutionIsReconsideration = false;
+                        nextXRoundCause = string.Empty;
+
+                        var resolution = await ResolveConfiguredXDirectiveAsync(
+                            result,
+                            request,
+                            team,
+                            firstStep,
+                            configuredSteps,
+                            state,
+                            baseUri,
+                            participants,
+                            bootstrap,
+                            modelRoutes,
+                            keepAlive,
+                            ollamaNumGpu,
+                            maxContextTokens,
+                            modelTimeoutSeconds,
+                            leaderModel,
+                            cancellationToken).ConfigureAwait(false);
+                        state = resolution.State;
+                        if (resolution.StopWorkflow)
+                            return state.FinalAnswer;
+                        if (resolution.JumpStepIndex is int jumpIndex)
+                        {
+                            stepIndex = jumpIndex;
+                            nextExecutionIsReconsideration = resolution.ReconsiderTarget;
+                            nextXRoundCause = resolution.Cause;
+                            continue;
+                        }
+
                         stepIndex++;
                         continue;
                     }
@@ -1736,11 +1810,12 @@ namespace LocalGPT.Services
                         .Select(step => step.LoopCompletionMarker?.Trim() ?? string.Empty)
                         .FirstOrDefault(marker => !string.IsNullOrWhiteSpace(marker)) ?? string.Empty;
                     var completed = false;
+                    var xJumpedFromLoop = false;
                     request.ProgressMessage?.Invoke(
                         $"Starting bounded workflow loop '{loopGroup}' with {loopSteps.Count} step(s), up to {maximumIterations} iteration(s)" +
                         (string.IsNullOrWhiteSpace(completionMarker) ? "." : $", stopping when '{completionMarker}' appears."));
 
-                    for (var loopIteration = 1; loopIteration <= maximumIterations; loopIteration++)
+                    for (var loopIteration = 1; loopIteration <= maximumIterations && !xJumpedFromLoop; loopIteration++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var completionReportedThisIteration = false;
@@ -1748,6 +1823,10 @@ namespace LocalGPT.Services
                         foreach (var loopStep in loopSteps)
                         {
                             var firstLoopStepResultIndex = result.Steps.Count;
+                            var revision = workflowRevisions.TryGetValue(loopStep.Key, out var previousRevision)
+                                ? previousRevision + 1
+                                : 1;
+                            workflowRevisions[loopStep.Key] = revision;
                             state = await ExecuteConfiguredWorkflowDefinitionAsync(
                                 result,
                                 request,
@@ -1769,7 +1848,41 @@ namespace LocalGPT.Services
                                 loopGroup,
                                 loopIteration,
                                 maximumIterations,
+                                revision,
+                                nextXRoundCause,
+                                nextExecutionIsReconsideration,
                                 cancellationToken).ConfigureAwait(false);
+                            nextExecutionIsReconsideration = false;
+                            nextXRoundCause = string.Empty;
+
+                            var resolution = await ResolveConfiguredXDirectiveAsync(
+                                result,
+                                request,
+                                team,
+                                loopStep,
+                                configuredSteps,
+                                state,
+                                baseUri,
+                                participants,
+                                bootstrap,
+                                modelRoutes,
+                                keepAlive,
+                                ollamaNumGpu,
+                                maxContextTokens,
+                                modelTimeoutSeconds,
+                                leaderModel,
+                                cancellationToken).ConfigureAwait(false);
+                            state = resolution.State;
+                            if (resolution.StopWorkflow)
+                                return state.FinalAnswer;
+                            if (resolution.JumpStepIndex is int jumpIndex)
+                            {
+                                stepIndex = jumpIndex;
+                                nextExecutionIsReconsideration = resolution.ReconsiderTarget;
+                                nextXRoundCause = resolution.Cause;
+                                xJumpedFromLoop = true;
+                                break;
+                            }
 
                             var configuredStepMarker = loopStep.LoopCompletionMarker?.Trim() ?? string.Empty;
                             if (!string.IsNullOrWhiteSpace(configuredStepMarker) &&
@@ -1779,6 +1892,9 @@ namespace LocalGPT.Services
                                 completionReportedThisIteration = true;
                             }
                         }
+
+                        if (xJumpedFromLoop)
+                            break;
 
                         if (!string.IsNullOrWhiteSpace(completionMarker) && completionReportedThisIteration)
                         {
@@ -1795,6 +1911,9 @@ namespace LocalGPT.Services
                             break;
                         }
                     }
+
+                    if (xJumpedFromLoop)
+                        continue;
 
                     if (!string.IsNullOrWhiteSpace(completionMarker) && !completed)
                     {
@@ -1832,6 +1951,421 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Resolves one accepted X-Round directive after a configured workflow step completes.</summary>
+        private async Task<(ConfiguredWorkflowExecutionState State, int? JumpStepIndex, bool StopWorkflow, bool ReconsiderTarget, string Cause)> ResolveConfiguredXDirectiveAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            CouncilWorkflowStepDefinition sourceDefinition,
+            IReadOnlyList<CouncilWorkflowStepDefinition> configuredSteps,
+            ConfiguredWorkflowExecutionState state,
+            string baseUri,
+            IReadOnlyList<string> participants,
+            string bootstrap,
+            IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
+            string keepAlive,
+            int? ollamaNumGpu,
+            int maxContextTokens,
+            int modelTimeoutSeconds,
+            string leaderModel,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var directive = state.XDirective;
+                if (directive is null)
+                    return (state, null, false, false, string.Empty);
+
+                var clearedState = state with { XDirective = null };
+                switch (directive.Action)
+                {
+                    case CouncilXRoundAction.ReturnText:
+                    {
+                        var returned = string.IsNullOrWhiteSpace(directive.Text)
+                            ? clearedState.FallbackAnswer
+                            : directive.Text.Trim();
+                        if (string.IsNullOrWhiteSpace(returned))
+                        {
+                            result.Warnings.Add($"X-Round text return from '{sourceDefinition.DisplayName}' was empty and therefore did not stop the workflow.");
+                            return (clearedState, null, false, false, string.Empty);
+                        }
+
+                        request.ProgressMessage?.Invoke(
+                            $"X-Round from '{sourceDefinition.DisplayName}' returned an explicit parent result. Earlier round revisions remain immutable in the transcript.");
+                        return (clearedState with { FinalAnswer = returned, FallbackAnswer = returned }, null, true, false, directive.Reason);
+                    }
+                    case CouncilXRoundAction.ReconsiderStep:
+                    case CouncilXRoundAction.ReexecuteStep:
+                    {
+                        var targetIndex = configuredSteps
+                            .Select((step, index) => new { step, index })
+                            .Where(item => string.Equals(item.step.Key, directive.TargetStepKey, StringComparison.OrdinalIgnoreCase))
+                            .Select(item => (int?)item.index)
+                            .FirstOrDefault();
+                        if (targetIndex is null)
+                        {
+                            var warning = $"X-Round requested unknown workflow step '{directive.TargetStepKey}'. The current workflow continues instead of guessing a target.";
+                            result.Warnings.Add(warning);
+                            request.ProgressMessage?.Invoke(warning);
+                            return (clearedState, null, false, false, string.Empty);
+                        }
+
+                        var sourceIndex = configuredSteps
+                            .Select((step, index) => new { step, index })
+                            .Where(item => string.Equals(item.step.Key, sourceDefinition.Key, StringComparison.OrdinalIgnoreCase))
+                            .Select(item => (int?)item.index)
+                            .FirstOrDefault();
+                        if (sourceIndex is null || targetIndex.Value > sourceIndex.Value)
+                        {
+                            var warning = $"X-Round revisit from '{sourceDefinition.Key}' to later step '{directive.TargetStepKey}' was rejected. Revisit control may re-enter the current or an earlier step, but it cannot jump forward across workflow gates.";
+                            result.Warnings.Add(warning);
+                            request.ProgressMessage?.Invoke(warning);
+                            return (clearedState, null, false, false, string.Empty);
+                        }
+
+                        var reconsider = directive.Action == CouncilXRoundAction.ReconsiderStep;
+                        var cause = string.IsNullOrWhiteSpace(directive.Reason)
+                            ? $"{sourceDefinition.Key} requested {directive.Action}."
+                            : directive.Reason.Trim();
+                        request.ProgressMessage?.Invoke(
+                            $"X-Round {directive.Action} routes the workflow from '{sourceDefinition.Key}' to '{configuredSteps[targetIndex.Value].Key}'. " +
+                            (reconsider
+                                ? "This revision is reasoning-only and cannot repeat DX/organic side effects."
+                                : "This revision deliberately re-executes the target's normal configured function policy."));
+                        return (clearedState, targetIndex, false, reconsider, cause);
+                    }
+                    case CouncilXRoundAction.StartSingleModel:
+                    {
+                        var subtaskText = await RunXRoundSingleModelAsync(
+                            result, request, sourceDefinition, directive, baseUri, participants, bootstrap, modelRoutes,
+                            keepAlive, ollamaNumGpu, maxContextTokens, modelTimeoutSeconds, leaderModel, cancellationToken).ConfigureAwait(false);
+                        if (string.IsNullOrWhiteSpace(subtaskText))
+                            return (clearedState, null, false, false, string.Empty);
+                        return (clearedState with { PreviousStep = subtaskText, FallbackAnswer = subtaskText }, null, false, false, directive.Reason);
+                    }
+                    case CouncilXRoundAction.StartCouncil:
+                    {
+                        var subtaskText = await RunXRoundChildCouncilAsync(
+                            result, request, team, sourceDefinition, directive, cancellationToken).ConfigureAwait(false);
+                        if (string.IsNullOrWhiteSpace(subtaskText))
+                            return (clearedState, null, false, false, string.Empty);
+                        return (clearedState with { PreviousStep = subtaskText, FallbackAnswer = subtaskText }, null, false, false, directive.Reason);
+                    }
+                    default:
+                        return (clearedState, null, false, false, string.Empty);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Council run {RunId} failed while resolving X-Round control from step {StepKey}.", result.RunId, sourceDefinition.Key);
+                throw;
+            }
+        }
+
+        /// <summary>Runs one selected parent-Council model as a bounded X-Function subtask and records the returned text as a separate immutable step.</summary>
+        private async Task<string> RunXRoundSingleModelAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            CouncilWorkflowStepDefinition sourceDefinition,
+            CouncilXRoundDirective directive,
+            string baseUri,
+            IReadOnlyList<string> participants,
+            string bootstrap,
+            IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
+            string keepAlive,
+            int? ollamaNumGpu,
+            int maxContextTokens,
+            int modelTimeoutSeconds,
+            string leaderModel,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var requestedModel = directive.ModelName?.Trim() ?? string.Empty;
+                var selectedModel = string.IsNullOrWhiteSpace(requestedModel)
+                    ? leaderModel
+                    : participants.FirstOrDefault(model =>
+                        string.Equals(model, requestedModel, StringComparison.OrdinalIgnoreCase) ||
+                        model.Contains($"— {requestedModel} @", StringComparison.OrdinalIgnoreCase) ||
+                        model.EndsWith($"— {requestedModel}", StringComparison.OrdinalIgnoreCase));
+                if (string.IsNullOrWhiteSpace(selectedModel))
+                {
+                    var warning = $"X-Function requested single model '{requestedModel}', but that model is not already a member of this Council run. No substitute was chosen.";
+                    result.Warnings.Add(warning);
+                    request.ProgressMessage?.Invoke(warning);
+                    return string.Empty;
+                }
+
+                var phase = $"X Function · single model · {sourceDefinition.Key}";
+                var plan = modelRoutes.TryGetValue(selectedModel, out var configuredPlan)
+                    ? configuredPlan
+                    : new CouncilHardwareRoadPlan(
+                        selectedModel, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{selectedModel}",
+                        request.ResourceLoadPercent, request.MaxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
+                MultiModelCouncilStep? step;
+                using (ambientContext.PushCouncil(result.RunId, directive.Round, phase))
+                {
+                    step = await RunParticipantAsync(
+                        baseUri,
+                        selectedModel,
+                        participants,
+                        directive.Round,
+                        phase,
+                        "X-Function derived single-model subtask",
+                        directive.Prompt,
+                        bootstrap,
+                        plan.EffectiveMaxOutputTokens,
+                        keepAlive,
+                        plan.OllamaNumGpu,
+                        plan.EffectiveMaxContextTokens,
+                        modelTimeoutSeconds,
+                        request.StreamUpdate,
+                        cancellationToken,
+                        allowRecovery: true,
+                        fallbackPlan: plan,
+                        progressMessage: request.ProgressMessage).ConfigureAwait(false);
+                }
+
+                if (step is null)
+                    return string.Empty;
+                step.WorkflowStepKey = sourceDefinition.Key;
+                step.WorkflowRevision = 1;
+                step.XRoundCause = directive.Reason;
+                MultiModelCouncilServiceAddOrderedStep(result, step, logger);
+                request.StepCompleted?.Invoke(step);
+                request.ProgressMessage?.Invoke($"X-Function single-model subtask returned from {selectedModel}.");
+                return step.VisibleContent?.Trim() ?? string.Empty;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Council run {RunId} failed while running an X-Function single-model subtask.", result.RunId);
+                throw;
+            }
+        }
+
+        /// <summary>Runs another configured Council team as a bounded child X-Function and records the child run identity plus returned text in the parent transcript.</summary>
+        private async Task<string> RunXRoundChildCouncilAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition parentTeam,
+            CouncilWorkflowStepDefinition sourceDefinition,
+            CouncilXRoundDirective directive,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var teamKey = directive.TeamKey?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(teamKey))
+                {
+                    var warning = $"X-Function from '{sourceDefinition.DisplayName}' requested a child Council without a team key. Configure a default child team or provide teamKey.";
+                    result.Warnings.Add(warning);
+                    request.ProgressMessage?.Invoke(warning);
+                    return string.Empty;
+                }
+
+                var maximumDepth = Math.Clamp(sourceDefinition.XMaximumChildCouncilDepth, 1, 10);
+                if (request.XRoundChildDepth >= maximumDepth)
+                {
+                    var warning = $"X-Function child Council '{teamKey}' was not started because step '{sourceDefinition.DisplayName}' allows at most {maximumDepth} nested child-Council level(s).";
+                    result.Warnings.Add(warning);
+                    request.ProgressMessage?.Invoke(warning);
+                    return string.Empty;
+                }
+
+                var childPrompt = string.IsNullOrWhiteSpace(directive.Prompt)
+                    ? $"Derived Council task requested by parent team '{parentTeam.DisplayName}'. Return a concise text result to the parent Council."
+                    : directive.Prompt.Trim();
+                var childRequest = new MultiModelCouncilRequest
+                {
+                    RunId = Guid.NewGuid(),
+                    Prompt = childPrompt,
+                    ModelNames = request.ModelNames.ToList(),
+                    ModelSelections = request.ModelSelections.ToList(),
+                    UnavailableModelSelections = request.UnavailableModelSelections.ToList(),
+                    BaseUri = request.BaseUri,
+                    MaxRounds = request.MaxRounds,
+                    MaxOutputTokens = request.MaxOutputTokens,
+                    MaxParallelModels = request.MaxParallelModels,
+                    AllowParallelHardwareRoads = request.AllowParallelHardwareRoads,
+                    ResourceLoadPercent = request.ResourceLoadPercent,
+                    ModelRoutes = request.ModelRoutes.ToList(),
+                    MaxContextTokens = request.MaxContextTokens,
+                    ModelTimeoutSeconds = request.ModelTimeoutSeconds,
+                    OllamaKeepAlive = request.OllamaKeepAlive,
+                    OllamaNumGpu = request.OllamaNumGpu,
+                    IncludeMemory = request.IncludeMemory,
+                    SaveToMemory = false,
+                    GenerateImplementationArtifact = false,
+                    UseChangeReviewWorkflow = request.UseChangeReviewWorkflow,
+                    ProjectId = request.ProjectId,
+                    ProjectTopicId = request.ProjectTopicId,
+                    ProjectRevisionId = request.ProjectRevisionId,
+                    CreateProjectForRun = false,
+                    UseOrganicCouncilWorkflow = true,
+                    CouncilTeamKey = teamKey,
+                    CouncilLeaderModelName = request.CouncilLeaderModelName,
+                    RequestedOrganicCapabilities = request.RequestedOrganicCapabilities.ToList(),
+                    ExternalProjectContextJson = request.ExternalProjectContextJson,
+                    XRoundChildDepth = request.XRoundChildDepth + 1,
+                    ProgressMessage = message => request.ProgressMessage?.Invoke($"X child Council {teamKey}: {message}"),
+                    StreamUpdate = request.StreamUpdate
+                };
+                request.ProgressMessage?.Invoke(
+                    $"X-Function starting child Council team '{teamKey}' at depth {childRequest.XRoundChildDepth}/{maximumDepth}. The child has its own run identity and normal approval boundaries.");
+                var childResult = await RunAsync(childRequest, cancellationToken).ConfigureAwait(false);
+                var returned = childResult.FinalAnswer?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(returned))
+                    returned = "The child Council completed without a visible text result.";
+
+                var visible = $"### X-Function child Council · {teamKey}{Environment.NewLine}" +
+                    $"Child run: `{childResult.RunId}`{Environment.NewLine}{Environment.NewLine}{returned}";
+                var parentStep = new MultiModelCouncilStep
+                {
+                    Round = directive.Round,
+                    Phase = $"X Function · child Council · {teamKey}",
+                    ModelName = $"Council: {teamKey}",
+                    CouncilMembers = result.ModelNames.ToList(),
+                    Role = "X-Function derived Council",
+                    Content = visible,
+                    VisibleContent = visible,
+                    StartedAtUtc = childResult.StartedAtUtc,
+                    CompletedAtUtc = childResult.CompletedAtUtc ?? DateTime.UtcNow,
+                    DurationSeconds = Math.Max(0, ((childResult.CompletedAtUtc ?? DateTime.UtcNow) - childResult.StartedAtUtc).TotalSeconds),
+                    WorkflowStepKey = sourceDefinition.Key,
+                    WorkflowRevision = 1,
+                    XRoundCause = directive.Reason
+                };
+                MultiModelCouncilServiceAddOrderedStep(result, parentStep, logger);
+                request.StepCompleted?.Invoke(parentStep);
+                return returned;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Council run {RunId} failed while running an X-Function child Council.", result.RunId);
+                throw;
+            }
+        }
+
+        /// <summary>Waits for the local human when the configured source step requires explicit approval of an X-Round control transition.</summary>
+        private async Task<bool> WaitForXRoundApprovalAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            CouncilWorkflowStepDefinition sourceDefinition,
+            CouncilXRoundDirective directive,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var fingerprintSource = $"{result.RunId:N}|{sourceDefinition.Key}|{directive.Id:N}|{directive.Action}|{directive.TargetStepKey}|{directive.TeamKey}|{directive.ModelName}";
+                var fingerprint = Convert.ToHexString(
+                    System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(fingerprintSource))).ToLowerInvariant();
+                var spec = new HumanApprovalRequestSpec(
+                    CorrelationId: $"council:x:{result.RunId:N}:{directive.Id:N}",
+                    OperationKey: $"council.x.{directive.Action.ToString().ToLowerInvariant()}",
+                    Title: $"Approve X-Round {directive.Action} — {sourceDefinition.DisplayName}",
+                    Description:
+                        $"Council team '{team.DisplayName}' requested X-Round action {directive.Action} from step '{sourceDefinition.Key}'. " +
+                        $"Reason: {(string.IsNullOrWhiteSpace(directive.Reason) ? "No reason supplied." : directive.Reason)} " +
+                        "Approval changes workflow control only; consequential child/tool actions retain their own normal approval boundaries.",
+                    RiskLevel: directive.Action == CouncilXRoundAction.ReexecuteStep ? "Medium" : "Low",
+                    Source: nameof(MultiModelCouncilService),
+                    RequestedBy: directive.RequestedBy,
+                    RequestedRole: "Local owner",
+                    CouncilRunId: result.RunId,
+                    EarliestCouncilRound: directive.Round,
+                    RequiredBeforeCompletion: true,
+                    IsSensitive: false,
+                    RequestKind: vocabulary.Get().HumanRequestApproval,
+                    SuggestedResponsesText: "Approve\nDecline",
+                    ResponsePrompt: "Approve or decline this exact X-Round workflow transition.",
+                    PrefillText: string.Empty,
+                    AllowFreeText: false,
+                    ParameterFingerprint: fingerprint,
+                    QuestionScope: "Council",
+                    GateMode: "Completion",
+                    TargetMembersText: string.Empty,
+                    RequestedCouncilRound: directive.Round,
+                    RequestedCouncilPhase: directive.Phase);
+
+                var waitingNoticeAdded = false;
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(spec, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    if (gate.IsAuthorized)
+                    {
+                        humanCollaboration.UpdateCouncilRun(result.RunId, directive.Round, directive.Phase);
+                        return true;
+                    }
+                    if (gate.IsDeclined)
+                    {
+                        var warning = $"Local human declined X-Round action {directive.Action} from '{sourceDefinition.DisplayName}'. The workflow continues normally.";
+                        result.Warnings.Add(warning);
+                        request.ProgressMessage?.Invoke(warning);
+                        return false;
+                    }
+
+                    if (!waitingNoticeAdded)
+                    {
+                        var visible = $"Council paused for approval of X-Round action **{directive.Action}** from `{sourceDefinition.Key}`. Use Approvals & team to approve or decline the exact transition.";
+                        var waitingStep = new MultiModelCouncilStep
+                        {
+                            Round = directive.Round,
+                            Phase = directive.Phase,
+                            ModelName = "LocalGPT: X-Round approval",
+                            CouncilMembers = result.ModelNames.ToList(),
+                            Role = "Human X-Round gate",
+                            Content = visible,
+                            VisibleContent = visible,
+                            StartedAtUtc = DateTime.UtcNow,
+                            CompletedAtUtc = DateTime.UtcNow,
+                            WorkflowStepKey = sourceDefinition.Key,
+                            XRoundCause = directive.Reason
+                        };
+                        MultiModelCouncilServiceAddOrderedStep(result, waitingStep, logger);
+                        request.StepCompleted?.Invoke(waitingStep);
+                        waitingNoticeAdded = true;
+                    }
+
+                    humanCollaboration.UpdateCouncilRun(result.RunId, directive.Round, $"Awaiting X-Round approval: {directive.Action}", true);
+                    var changed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    void HandleChanged() => changed.TrySetResult(true);
+                    humanCollaboration.Changed += HandleChanged;
+                    try
+                    {
+                        var fallback = Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+                        await Task.WhenAny(changed.Task, fallback).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        humanCollaboration.Changed -= HandleChanged;
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Council run {RunId} failed while waiting for X-Round human approval.", result.RunId);
+                throw;
+            }
+        }
+
         /// <summary>
         /// Runs the execute configured workflow definition async operation.
         /// </summary>
@@ -1856,6 +2390,9 @@ namespace LocalGPT.Services
             string loopGroup,
             int loopIteration,
             int loopMaximumIterations,
+            int workflowRevision,
+            string xRoundCause,
+            bool suppressOrganicFunctions,
             CancellationToken cancellationToken)
         {
             try
@@ -1865,7 +2402,9 @@ namespace LocalGPT.Services
                 var previousStep = state.PreviousStep;
                 var fallbackAnswer = state.FallbackAnswer;
                 var finalAnswer = state.FinalAnswer;
+                CouncilXRoundDirective? xDirective = null;
                 var repeatCount = Math.Clamp(definition.RepeatCount, 1, 100);
+                var effectiveAllowDxFunctions = definition.CanUseOrganicFunctions && !suppressOrganicFunctions;
 
                 for (var repeatIndex = 0; repeatIndex < repeatCount; repeatIndex++)
                 {
@@ -1879,6 +2418,8 @@ namespace LocalGPT.Services
                         phaseParts.Add($"loop {loopIteration}/{loopMaximumIterations}");
                     if (repeatCount > 1)
                         phaseParts.Add($"repeat {repeatIndex + 1}/{repeatCount}");
+                    if (workflowRevision > 1)
+                        phaseParts.Add($"X revision {workflowRevision}");
                     var phase = string.Join(" · ", phaseParts);
                     var roleAssignment = GetConfiguredRoleAssignment(
                         result,
@@ -1928,10 +2469,31 @@ namespace LocalGPT.Services
                         bootstrap,
                         cancellationToken).ConfigureAwait(false);
                     var executionMode = NormalizeConfiguredExecutionMode(definition.ExecutionMode);
+                    var xRoundActive = definition.XFunctionsEnabled && effectiveAllowDxFunctions;
+                    if (xRoundActive)
+                    {
+                        councilXRounds.Activate(new CouncilXRoundStepContext(
+                            result.RunId,
+                            round,
+                            phase,
+                            definition.Key,
+                            definition.DisplayName,
+                            definition.XCanRevisit,
+                            definition.XCanReturnText,
+                            definition.XCanStartSingleModel,
+                            definition.XCanStartCouncil,
+                            definition.XMaximumTransitions,
+                            definition.XRequiresHumanApproval,
+                            definition.XDefaultTargetStepKey,
+                            definition.XChildCouncilTeamKey,
+                            definition.XMaximumChildCouncilDepth,
+                            definition.XChildModelName));
+                    }
                     request.ProgressMessage?.Invoke(
                         $"Executing configured council round {round}: {definition.DisplayName} / {phase} / {definition.Role} using {executionMode}; " +
                         $"role assignment: {roleAssignment.AiSelectionDescription}; human mode {roleAssignment.HumanParticipationMode}; " +
-                        $"organic functions {(definition.CanUseOrganicFunctions ? "allowed" : "disabled")}.");
+                        $"organic functions {(effectiveAllowDxFunctions ? "allowed" : "disabled")}; " +
+                        $"X-Rounds {(definition.XFunctionsEnabled && effectiveAllowDxFunctions ? "active" : "inactive")}.");
 
                     if (roleParticipants.Count == 0)
                     {
@@ -1981,7 +2543,7 @@ namespace LocalGPT.Services
                                         modelRoutes,
                                         request.AllowParallelHardwareRoads,
                                         cancellationToken,
-                                        allowDxFunctions: definition.CanUseOrganicFunctions,
+                                        allowDxFunctions: effectiveAllowDxFunctions,
                                         councilMembers: participants).ConfigureAwait(false);
                                     break;
                                 }
@@ -2024,7 +2586,7 @@ namespace LocalGPT.Services
                                         modelRoutes,
                                         request.AllowParallelHardwareRoads,
                                         cancellationToken,
-                                        allowDxFunctions: definition.CanUseOrganicFunctions,
+                                        allowDxFunctions: effectiveAllowDxFunctions,
                                         councilMembers: participants,
                                         sequentialPerHost: true).ConfigureAwait(false);
                                     break;
@@ -2059,6 +2621,7 @@ namespace LocalGPT.Services
                                             ollamaNumGpu,
                                             maxContextTokens,
                                             modelTimeoutSeconds,
+                                            effectiveAllowDxFunctions,
                                             cancellationToken).ConfigureAwait(false);
                                     }
                                     break;
@@ -2099,6 +2662,7 @@ namespace LocalGPT.Services
                                         ollamaNumGpu,
                                         maxContextTokens,
                                         modelTimeoutSeconds,
+                                        effectiveAllowDxFunctions,
                                         cancellationToken).ConfigureAwait(false);
                                     break;
                                 }
@@ -2112,6 +2676,20 @@ namespace LocalGPT.Services
                             (roleParticipants.Contains(step.ModelName, StringComparer.OrdinalIgnoreCase) ||
                              step.ModelName.StartsWith("Human:", StringComparison.OrdinalIgnoreCase)))
                         .ToList();
+                    foreach (var roundStep in roundSteps)
+                    {
+                        roundStep.WorkflowStepKey = definition.Key;
+                        roundStep.WorkflowRevision = Math.Max(1, workflowRevision);
+                        roundStep.XRoundCause = xRoundCause ?? string.Empty;
+                    }
+
+                    IReadOnlyList<CouncilXRoundDirective> emittedXDirectives = [];
+                    if (xRoundActive)
+                    {
+                        emittedXDirectives = councilXRounds.Drain(result.RunId, round, phase);
+                        councilXRounds.Deactivate(result.RunId, round, phase);
+                    }
+
                     var stageAnswer = BuildConfiguredWorkflowStageAnswer(roundSteps);
                     if (!string.IsNullOrWhiteSpace(stageAnswer))
                     {
@@ -2125,14 +2703,45 @@ namespace LocalGPT.Services
                         result.Warnings.Add($"Configured council round '{definition.DisplayName}' did not produce a usable visible response.");
                     }
 
+                    if (emittedXDirectives.Count > 0)
+                    {
+                        var candidate = emittedXDirectives[0];
+                        if (emittedXDirectives.Count > 1)
+                        {
+                            result.Warnings.Add(
+                                $"Configured X-Round step '{definition.DisplayName}' emitted {emittedXDirectives.Count} control requests. LocalGPT applies only the first request deterministically and preserves the others only in logs.");
+                        }
+
+                        if (!councilXRounds.TryConsumeTransitionBudget(
+                                result.RunId,
+                                definition.Key,
+                                Math.Max(1, definition.XMaximumTransitions),
+                                out var usedTransitions))
+                        {
+                            var warning =
+                                $"X-Round transition from '{definition.DisplayName}' was ignored because its configured budget of {Math.Max(1, definition.XMaximumTransitions)} transition(s) is exhausted (request {usedTransitions}).";
+                            result.Warnings.Add(warning);
+                            request.ProgressMessage?.Invoke(warning);
+                        }
+                        else if (!definition.XRequiresHumanApproval ||
+                                 await WaitForXRoundApprovalAsync(result, request, team, definition, candidate, cancellationToken).ConfigureAwait(false))
+                        {
+                            xDirective = candidate;
+                            request.ProgressMessage?.Invoke(
+                                $"Accepted X-Round action {candidate.Action} from '{definition.DisplayName}' ({usedTransitions}/{Math.Max(1, definition.XMaximumTransitions)} configured transition budget).");
+                        }
+                    }
+
                     if (definition.LogicalRoundNumber <= 0)
                         nextAutomaticRound = round + 1;
                     else
                         nextAutomaticRound = Math.Max(nextAutomaticRound, round + 1);
                     expandedStepIndex++;
+                    if (xDirective is not null)
+                        break;
                 }
 
-                return new ConfiguredWorkflowExecutionState(nextAutomaticRound, expandedStepIndex, previousStep, fallbackAnswer, finalAnswer);
+                return new ConfiguredWorkflowExecutionState(nextAutomaticRound, expandedStepIndex, previousStep, fallbackAnswer, finalAnswer, xDirective);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -2286,6 +2895,7 @@ namespace LocalGPT.Services
             int? ollamaNumGpu,
             int maxContextTokens,
             int modelTimeoutSeconds,
+            bool allowDxFunctions,
             CancellationToken cancellationToken)
         {
     try
@@ -2356,7 +2966,7 @@ namespace LocalGPT.Services
                     participantStep,
                     request.StepCompleted,
                     request.ProgressMessage,
-                    definition.CanUseOrganicFunctions,
+                    allowDxFunctions,
                     cancellationToken).ConfigureAwait(false);
         
     }
@@ -2546,6 +3156,20 @@ namespace LocalGPT.Services
                 assignmentBriefing.Append("- Boundary instruction: ").AppendLine(boundaryInstruction);
                 assignmentBriefing.Append("- Language instruction: ").AppendLine(languageInstruction);
                 assignmentBriefing.Append("- Human-turn instruction: ").AppendLine(humanParticipationInstruction);
+                if (definition.XFunctionsEnabled)
+                {
+                    assignmentBriefing.AppendLine("- X-Round control: this step may use only the X actions explicitly enabled in Council Teams, and every control request must state a concrete reason.");
+                    assignmentBriefing.Append("- X revisit: ").AppendLine(definition.XCanRevisit ? "enabled through council.x.revisit; reconsider is reasoning-only while reexecute deliberately permits the target step's normal function policy." : "disabled.");
+                    assignmentBriefing.Append("- X text return: ").AppendLine(definition.XCanReturnText ? "enabled through council.x.return_text." : "disabled.");
+                    assignmentBriefing.Append("- X single model: ").AppendLine(definition.XCanStartSingleModel ? "enabled through council.x.start_single_model; the requested model must already belong to this Council." : "disabled.");
+                    assignmentBriefing.Append("- X child Council: ").AppendLine(definition.XCanStartCouncil ? "enabled through council.x.start_council; the child keeps an independent run identity." : "disabled.");
+                    assignmentBriefing.Append("- X transition budget: ").Append(Math.Max(1, definition.XMaximumTransitions)).AppendLine(" accepted request(s) from this source step per run.");
+                    if (definition.XRequiresHumanApproval)
+                        assignmentBriefing.AppendLine("- X human gate: every accepted X control transition pauses for explicit local-human approval before control flow changes.");
+                    if (!string.IsNullOrWhiteSpace(definition.XDefaultTargetStepKey))
+                        assignmentBriefing.Append("- Default X revisit target: ").AppendLine(definition.XDefaultTargetStepKey);
+                    assignmentBriefing.AppendLine("- X history contract: never pretend an earlier round disappeared. Revisited steps create a new revision while prior outputs remain immutable evidence.");
+                }
                 if (definition.ProducesFinalAnswer)
                     assignmentBriefing.AppendLine("- Final-output contract: answer the human in normal prose/Markdown. Do not make raw JSON, work-order metadata, or tool parameters the final answer unless the human explicitly asked for JSON.");
                 if (councilRuntime.MultiModelCouncilServiceHasExplicitArtifactIntent(request.Prompt, logger))
@@ -3396,6 +4020,13 @@ namespace LocalGPT.Services
             try
             {
                 using var councilScope = ambientContext.PushCouncil(result.RunId, round, phase);
+                var runConfiguration = runConfigurations.Get(result.RunId);
+                if (runConfiguration is { IsRunning: true })
+                {
+                    allowParallelHardwareRoads = runConfiguration.AllowParallelHardwareRoads;
+                    maxParallelModels = Math.Max(1, runConfiguration.MaxParallelModels);
+                    modelTimeoutSeconds = Math.Clamp(runConfiguration.ModelTimeoutSeconds, 30, 1800);
+                }
                 var failedModels = result.Steps
                     .Where(step => !string.IsNullOrWhiteSpace(step.Error))
                     .Select(step => step.ModelName)
@@ -3452,10 +4083,28 @@ namespace LocalGPT.Services
                 var presentationTask = participantStreams is null
                     ? Task.CompletedTask
                     : PumpCouncilParticipantStreamsAsync(
+                        result.RunId,
+                        round,
+                        phase,
+                        role,
                         phaseParticipants,
                         participantStreams,
                         streamUpdate!,
                         cancellationToken);
+
+                // Publish every selected member to the live board before host execution starts.
+                // This makes remote/queued members visible immediately and keeps every provider-qualified
+                // Council member equivalent even when an earlier ordered stream is still being presented.
+                foreach (var modelName in phaseParticipants)
+                {
+                    var plannedRoad = modelRoutes.TryGetValue(modelName, out var configuredPlan)
+                        ? configuredPlan
+                        : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
+                    var queuedActivityKey = BuildCouncilParticipantActivityKey(round, phase, role, modelName);
+                    var queuedRouteLabel = $"{GetCouncilExecutionHostKey(modelName)} · {plannedRoad.LaneKey}";
+                    liveCouncilSessions.BeginParticipantActivity(result.RunId, queuedActivityKey, modelName, phase, role, queuedRouteLabel);
+                    liveCouncilSessions.SetParticipantActivityStatus(result.RunId, queuedActivityKey, $"Queued for {queuedRouteLabel}; waiting for this member's one Council turn.");
+                }
 
                 var participantBootstrap = bootstrap;
                 if (streamUpdate is not null)
@@ -3483,9 +4132,8 @@ namespace LocalGPT.Services
                             : new CouncilHardwareRoadPlan(modelName, OneWireHardwareKind.Auto, -1, "Automatic", $"auto:{modelName}", 100, maxOutputTokens, maxContextTokens, ollamaNumGpu, 1);
                         var gateAcquired = false;
                         var participantStream = participantStreams is null ? null : participantStreams[modelName];
-                        var activityKey = $"{round}:{phase}:{role}:{modelName}";
+                        var activityKey = BuildCouncilParticipantActivityKey(round, phase, role, modelName);
                         var routeLabel = $"{GetCouncilExecutionHostKey(modelName)} · {fallbackPlan.LaneKey}";
-                        liveCouncilSessions.BeginParticipantActivity(result.RunId, activityKey, modelName, phase, role, routeLabel);
                         Action<string>? participantStreamUpdate = participantStream is null
                             ? null
                             : text =>
@@ -3517,11 +4165,15 @@ namespace LocalGPT.Services
                                 fallbackPlan: fallbackPlan,
                                 progressMessage: progressMessage).ConfigureAwait(false);
                             ArgumentNullException.ThrowIfNull(step);
+                            liveCouncilSessions.SetParticipantActivityResult(
+                                result.RunId,
+                                activityKey,
+                                step.VisibleContent);
                             liveCouncilSessions.CompleteParticipantActivity(
                                 result.RunId,
                                 activityKey,
                                 string.IsNullOrWhiteSpace(step.Error)
-                                    ? "Model completed; integrating this member into the ordered Council transcript."
+                                    ? "Model completed. Its live result is available in this lane now; ordered transcript integration may follow later."
                                     : $"Model completed with an error: {step.Error}");
                             return step;
                         }
@@ -3635,6 +4287,34 @@ namespace LocalGPT.Services
             }
         }
 
+        /// <summary>Builds the stable run-local key used for one participant's live activity card.</summary>
+        private string BuildCouncilParticipantActivityKey(int round, string phase, string role, string modelName)
+        {
+            try
+            {
+                return $"{round}:{phase}:{role}:{modelName}";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Building the Council participant live-activity key failed for round {Round}, phase {Phase}.", round, phase);
+                throw;
+            }
+        }
+
+        /// <summary>Builds the stable consumer identity used to route an immediate user heartbeat to the participant currently visible in ordered presentation.</summary>
+        private string BuildLiveInputConsumerKey(string modelName, string phase, string role)
+        {
+            try
+            {
+                return $"{modelName}|{phase}|{role}";
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Building the Council live-input consumer key failed for model {ModelName}, phase {Phase}.", modelName, phase);
+                throw;
+            }
+        }
+
         /// <summary>
         /// Gets council execution host key.
         /// </summary>
@@ -3665,6 +4345,10 @@ namespace LocalGPT.Services
         /// Runs the pump council participant streams async operation.
         /// </summary>
         private async Task PumpCouncilParticipantStreamsAsync(
+            Guid councilRunId,
+            int round,
+            string phase,
+            string role,
             IReadOnlyList<string> participantOrder,
             IReadOnlyDictionary<string, Channel<string>> participantStreams,
             Action<string> streamUpdate,
@@ -3677,8 +4361,17 @@ namespace LocalGPT.Services
                     if (!participantStreams.TryGetValue(modelName, out var stream))
                         continue;
 
-                    await foreach (var text in stream.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-                        streamUpdate(text);
+                    var consumerKey = BuildLiveInputConsumerKey(modelName, phase, role);
+                    humanCollaboration.SetPreferredDirectUserMessageConsumer(councilRunId, consumerKey);
+                    try
+                    {
+                        await foreach (var text in stream.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+                            streamUpdate(text);
+                    }
+                    finally
+                    {
+                        humanCollaboration.ClearPreferredDirectUserMessageConsumer(councilRunId, consumerKey);
+                    }
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -4151,6 +4844,9 @@ namespace LocalGPT.Services
                         maxOutputTokens = executionPlan.EffectiveMaxOutputTokens;
                         maxContextTokens = executionPlan.EffectiveMaxContextTokens;
                         ollamaNumGpu = executionPlan.OllamaNumGpu;
+                        var currentRunConfiguration = runConfigurations.Get(activeRunId);
+                        if (currentRunConfiguration is { IsRunning: true })
+                            modelTimeoutSeconds = Math.Clamp(currentRunConfiguration.ModelTimeoutSeconds, 30, 1800);
                         var accelerationSummary = providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
                             ? $"Ollama num_gpu={(ollamaNumGpu?.ToString() ?? "auto")}"
                             : $"{providerModel.ProviderName} provider route";
@@ -4172,15 +4868,41 @@ namespace LocalGPT.Services
                     using var participantCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, roundSkipToken);
                     participantCts.CancelAfter(TimeSpan.FromSeconds(modelTimeoutSeconds));
 
+                    var participantBootstrap = bootstrap;
+                    var observedContributionIds = new HashSet<Guid>();
+                    if (councilRunId is Guid heartbeatRunId)
+                    {
+                        // A direct message queued after the phase heartbeat but before this participant
+                        // starts belongs to the shared Council context. Include it from the beginning
+                        // without claiming/restarting this model. Only a model that was already streaming
+                        // may atomically claim the immediate interrupt path below.
+                        var queuedHeartbeatMessages = (await humanCollaboration
+                            .ReadQueuedContributionsAsync(heartbeatRunId, round, cancellationToken)
+                            .ConfigureAwait(false))
+                            .Where(item => item.HumanRole.Equals("Direct user message", StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                        if (queuedHeartbeatMessages.Count > 0)
+                        {
+                            foreach (var contribution in queuedHeartbeatMessages)
+                                observedContributionIds.Add(contribution.Id);
+                            participantBootstrap = MultiModelCouncilServiceAppendPromptSection(
+                                participantBootstrap,
+                                "Queued direct user messages for the current Council heartbeat",
+                                BuildHumanContributionBriefing(queuedHeartbeatMessages),
+                                logger);
+                            progressMessage?.Invoke(
+                                $"Included {queuedHeartbeatMessages.Count} queued direct user heartbeat message(s) in {modelName}'s initial context without restarting the model.");
+                        }
+                    }
+
                     var messages = new List<ChatMessage>();
-                    if (!string.IsNullOrWhiteSpace(bootstrap))
-                        messages.Add(new ChatMessage(ChatRole.System, bootstrap));
+                    if (!string.IsNullOrWhiteSpace(participantBootstrap))
+                        messages.Add(new ChatMessage(ChatRole.System, participantBootstrap));
                     messages.Add(new ChatMessage(ChatRole.System, councilText.MultiModelCouncilServiceCreateCouncilSystemPrompt(modelName, councilMembers, logger)));
                     messages.Add(new ChatMessage(ChatRole.User, prompt));
 
                     var allContent = new StringBuilder();
                     var finalAttemptContent = string.Empty;
-                    var observedContributionIds = new HashSet<Guid>();
                     var liveInputRestarts = 0;
                     const int maximumLiveInputRestarts = 12;
 
@@ -4203,6 +4925,7 @@ namespace LocalGPT.Services
                             ? MonitorLiveCouncilInputAsync(
                                 monitoredRunId,
                                 round,
+                                BuildLiveInputConsumerKey(modelName, phase, role),
                                 observedContributionIds,
                                 liveInputSignal,
                                 streamCts,
@@ -4306,7 +5029,8 @@ namespace LocalGPT.Services
                         var deliveredMessageCount = liveContributions.Count;
                         streamUpdate?.Invoke(
                             $"> **Live user input delivered to {WebUtility.HtmlEncode(modelName)}.** " +
-                            $"LocalGPT added {deliveredMessageCount} new user message(s) to this model's prompt and restarted the same model. " +
+                            $"LocalGPT atomically assigned {deliveredMessageCount} new direct user message(s) to this active model, added them to its prompt and restarted only this model. " +
+                            "The same message remains shared Council heartbeat context for later participants/rounds without restarting every active stream. " +
                             "The following continuation is generated with that input present.\n\n");
                         logger.LogInformation(
                             "Restarting Council model {ModelName} in phase {Phase} after receiving {ContributionCount} live user message(s).",
@@ -4524,6 +5248,7 @@ namespace LocalGPT.Services
         private async Task MonitorLiveCouncilInputAsync(
             Guid councilRunId,
             int currentRound,
+            string consumerKey,
             IReadOnlySet<Guid> observedContributionIds,
             TaskCompletionSource<IReadOnlyList<HumanCouncilContribution>> signal,
             CancellationTokenSource streamCancellation,
@@ -4538,6 +5263,12 @@ namespace LocalGPT.Services
                     return;
                 }
 
+                // Direct user input is shared Council heartbeat context, but exactly one currently
+                // running model may claim the immediate interrupt/restart. Without this atomic
+                // claim every parallel participant subscribed to the same event and restarted.
+                if (!humanCollaboration.TryClaimDirectUserMessage(contribution.Id, councilRunId, consumerKey))
+                    return;
+
                 if (signal.TrySetResult([contribution]))
                     streamCancellation.Cancel();
             }
@@ -4551,14 +5282,15 @@ namespace LocalGPT.Services
                 var queued = await humanCollaboration
                     .ReadQueuedContributionsAsync(councilRunId, currentRound, cancellationToken)
                     .ConfigureAwait(false);
-                var unseenDirectMessages = queued
+                var claimedDirectMessage = queued
                     .Where(item =>
                         item.HumanRole.Equals("Direct user message", StringComparison.OrdinalIgnoreCase) &&
                         !observedContributionIds.Contains(item.Id))
-                    .ToList();
-                if (unseenDirectMessages.Count > 0)
+                    .FirstOrDefault(item =>
+                        humanCollaboration.TryClaimDirectUserMessage(item.Id, councilRunId, consumerKey));
+                if (claimedDirectMessage is not null)
                 {
-                    if (signal.TrySetResult(unseenDirectMessages))
+                    if (signal.TrySetResult([claimedDirectMessage]))
                         streamCancellation.Cancel();
                     return;
                 }
@@ -5084,6 +5816,11 @@ namespace LocalGPT.Services
                 var thinking = councilText.MultiModelCouncilServiceExtractThinking(content, logger);
                 var visibleContent = councilText.MultiModelCouncilServiceStripThinking(content, logger);
                 return (content, visibleContent, thinking);
+            }
+            catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogDebug(ex, "Council final-only recovery was canceled for model {ModelName} in phase {Phase} because the Council run was canceled.", modelName, phase);
+                return (string.Empty, string.Empty, null);
             }
             catch (Exception ex)
             {

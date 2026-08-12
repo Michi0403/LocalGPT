@@ -27,6 +27,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     /// Runs the new operation.
     /// </summary>
     private readonly ConcurrentDictionary<Guid, HumanCouncilRunSnapshot> activeRuns = new();
+    /// <summary>Tracks the single active-model consumer that claimed each direct user message for immediate interruption.</summary>
+    private readonly ConcurrentDictionary<Guid, string> directUserMessageClaims = new();
+    /// <summary>Tracks the owning run so process-local direct-message claims can be cleared deterministically.</summary>
+    private readonly ConcurrentDictionary<Guid, Guid> directUserMessageRuns = new();
+    /// <summary>Tracks the participant currently owning ordered live presentation for each Council run so a direct heartbeat interrupts the model the user is actually watching instead of an arbitrary parallel subscriber.</summary>
+    private readonly ConcurrentDictionary<Guid, string> preferredDirectUserMessageConsumers = new();
     /// <summary>
     /// Runs the new guid operation.
     /// </summary>
@@ -546,6 +552,63 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <inheritdoc />
+    public void SetPreferredDirectUserMessageConsumer(Guid councilRunId, string consumerKey)
+    {
+        try
+        {
+            if (councilRunId == Guid.Empty || string.IsNullOrWhiteSpace(consumerKey))
+                return;
+            preferredDirectUserMessageConsumers[councilRunId] = consumerKey.Trim();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Setting preferred direct-message consumer failed for Council run {CouncilRunId}.", councilRunId);
+        }
+    }
+
+    /// <inheritdoc />
+    public void ClearPreferredDirectUserMessageConsumer(Guid councilRunId, string consumerKey)
+    {
+        try
+        {
+            if (councilRunId == Guid.Empty || string.IsNullOrWhiteSpace(consumerKey))
+                return;
+            if (preferredDirectUserMessageConsumers.TryGetValue(councilRunId, out var current) &&
+                string.Equals(current, consumerKey.Trim(), StringComparison.Ordinal))
+            {
+                preferredDirectUserMessageConsumers.TryRemove(councilRunId, out _);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Clearing preferred direct-message consumer failed for Council run {CouncilRunId}.", councilRunId);
+        }
+    }
+
+    /// <inheritdoc />
+    public bool TryClaimDirectUserMessage(Guid contributionId, Guid councilRunId, string consumerKey)
+    {
+        try
+        {
+            if (contributionId == Guid.Empty || councilRunId == Guid.Empty || string.IsNullOrWhiteSpace(consumerKey))
+                return false;
+            var normalizedConsumer = consumerKey.Trim();
+            if (preferredDirectUserMessageConsumers.TryGetValue(councilRunId, out var preferredConsumer) &&
+                !string.Equals(preferredConsumer, normalizedConsumer, StringComparison.Ordinal))
+            {
+                return false;
+            }
+            directUserMessageRuns[contributionId] = councilRunId;
+            return directUserMessageClaims.TryAdd(contributionId, normalizedConsumer);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Claiming direct Council user message {ContributionId} failed.", contributionId);
+            return false;
+        }
+    }
+
     /// <summary>
     /// Runs the queue contribution core async operation.
     /// </summary>
@@ -591,7 +654,10 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
             db.HumanCouncilContributions.Add(contribution);
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             if (directUserMessage)
+            {
+                directUserMessageRuns[contribution.Id] = councilRunId;
                 NotifyDirectUserMessageQueued(contribution);
+            }
             NotifyChanged();
             componentActivity.RecordInformation(
                 "HumanCollaboration",
@@ -686,6 +752,11 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
                 }
                 if (contributions.Count > 0)
                     await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                foreach (var contribution in contributions)
+                {
+                    directUserMessageClaims.TryRemove(contribution.Id, out _);
+                    directUserMessageRuns.TryRemove(contribution.Id, out _);
+                }
                 NotifyChanged();
                 return contributions;
             }
@@ -999,6 +1070,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     try
     {
             activeRuns.TryRemove(runId, out _);
+            preferredDirectUserMessageConsumers.TryRemove(runId, out _);
+            foreach (var entry in directUserMessageRuns.Where(entry => entry.Value == runId).ToArray())
+            {
+                directUserMessageRuns.TryRemove(entry.Key, out _);
+                directUserMessageClaims.TryRemove(entry.Key, out _);
+            }
             NotifyChanged();
     
     }

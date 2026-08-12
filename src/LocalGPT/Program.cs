@@ -395,6 +395,7 @@ namespace LocalGPT
 
                 builder.Services.AddSingleton<IOrganicCouncilBlueprintSeedDataService, OrganicCouncilBlueprintSeedDataService>();
                 builder.Services.AddSingleton<IHumanCollaborationService, HumanCollaborationService>();
+                builder.Services.AddSingleton<ICouncilXRoundService, CouncilXRoundService>();
                 builder.Services.AddSingleton<ICouncilLiveSessionService, CouncilLiveSessionService>();
                 builder.Services.AddSingleton<ICouncilGameActorRuntimeFactory, CouncilGameActorRuntimeFactory>();
                 builder.Services.AddSingleton<ICouncilGameSubdirector, CreatureCouncilGameSubdirector>();

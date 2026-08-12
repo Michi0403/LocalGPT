@@ -48,7 +48,9 @@ public sealed class CouncilRunConfigurationService(
                     request.MaxOutputTokens,
                     request.MaxContextTokens,
                     request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu,
-                    request.AllowParallelHardwareRoads));
+                    request.AllowParallelHardwareRoads,
+                    request.MaxParallelModels,
+                    request.ModelTimeoutSeconds));
 
             lock (state.SyncRoot)
             {
@@ -159,7 +161,9 @@ public sealed class CouncilRunConfigurationService(
         int requestedMaxOutputTokens,
         int requestedMaxContextTokens,
         int? fallbackOllamaNumGpu,
-        bool allowParallelHardwareRoads)
+        bool allowParallelHardwareRoads,
+        int maxParallelModels,
+        int modelTimeoutSeconds)
     {
     try
     {
@@ -179,6 +183,8 @@ public sealed class CouncilRunConfigurationService(
                 state.RequestedMaxContextTokens = Math.Max(256, requestedMaxContextTokens);
                 state.FallbackOllamaNumGpu = fallbackOllamaNumGpu is < 0 ? 0 : fallbackOllamaNumGpu;
                 state.AllowParallelHardwareRoads = allowParallelHardwareRoads;
+                state.MaxParallelModels = Math.Max(1, maxParallelModels);
+                state.ModelTimeoutSeconds = Math.Clamp(modelTimeoutSeconds, 30, 1800);
                 revision = ++state.Revision;
                 PulseLocked(state);
             }
@@ -589,6 +595,8 @@ public sealed class CouncilRunConfigurationService(
             state.RequestedMaxContextTokens,
             state.FallbackOllamaNumGpu,
             state.AllowParallelHardwareRoads,
+            state.MaxParallelModels,
+            state.ModelTimeoutSeconds,
             state.CurrentRound,
             state.CurrentPhase,
             state.IsRoundSkipRequested,
@@ -630,6 +638,7 @@ public sealed class CouncilRunConfigurationService(
                 configuration.OllamaNumGpu is < 0 ? 0 : configuration.OllamaNumGpu,
                 configuration.AllowParallelHardwareRoads,
                 Math.Max(1, configuration.MaxParallelModels),
+                Math.Clamp(configuration.ModelTimeoutSeconds, 30, 1800),
                 Math.Max(0, configuration.CritiqueRounds),
                 configuration.IncludeMemory,
                 configuration.CreateProjectPerRun,
@@ -661,6 +670,7 @@ public sealed class CouncilRunConfigurationService(
             configuration.OllamaNumGpu,
             configuration.AllowParallelHardwareRoads,
             configuration.MaxParallelModels,
+            configuration.ModelTimeoutSeconds,
             configuration.CritiqueRounds,
             configuration.IncludeMemory,
             configuration.CreateProjectPerRun,

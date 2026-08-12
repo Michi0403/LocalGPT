@@ -34,6 +34,10 @@ public interface ICouncilLiveSessionService
     /// </summary>
     void SetParticipantActivityStatus(Guid runId, string activityKey, string statusMessage);
     /// <summary>
+    /// Stores the authoritative final answer for one participant independently from its incremental provider stream.
+    /// </summary>
+    void SetParticipantActivityResult(Guid runId, string activityKey, string finalContent);
+    /// <summary>
     /// Marks one live participant stream complete while retaining it until the overall Council run finishes.
     /// </summary>
     void CompleteParticipantActivity(Guid runId, string activityKey, string statusMessage);

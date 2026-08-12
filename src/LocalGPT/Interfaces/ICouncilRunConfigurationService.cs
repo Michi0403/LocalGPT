@@ -51,7 +51,9 @@ public interface ICouncilRunConfigurationService
         int requestedMaxOutputTokens,
         int requestedMaxContextTokens,
         int? fallbackOllamaNumGpu,
-        bool allowParallelHardwareRoads);
+        bool allowParallelHardwareRoads,
+        int maxParallelModels,
+        int modelTimeoutSeconds);
 
     /// <summary>
     /// Runs the begin round operation.

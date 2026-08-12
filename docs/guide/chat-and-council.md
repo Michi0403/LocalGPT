@@ -70,3 +70,31 @@ DX functions expose bounded application capabilities through typed parameters an
 
 > [!NOTE]
 > Council output is a structured proposal pipeline, not a magic quorum. The boring deterministic parts are what keep the fun parts usable.
+
+## X-Rounds: revisable Council control flow
+
+X-Rounds make cross-step revision a first-class Council workflow feature. They extend the existing ability to keep one round alive until its completion condition is met: an enabled workflow step may finish normally and later request a controlled return to another configured step when new evidence invalidates an earlier assumption.
+
+The original transcript is never rewound or overwritten. A revisit appends another revision of the target step. For example, `R2.v1 → R3.v1 → R5.v1 → R2.v2` preserves both versions and records the X-Round reason that caused the second visit.
+
+Council Teams owns the policy. Each workflow step can independently grant the following X-functions:
+
+- `council.x.status` — inspect the X policy currently granted to the executing step;
+- `council.x.revisit` — request either `reconsider` or `reexecute` of another configured step;
+- `council.x.return_text` — return explicit text to the parent workflow and complete it cleanly;
+- `council.x.start_single_model` — run one selected member as a bounded derived reasoning task and feed its visible result back to the parent;
+- `council.x.start_council` — run another configured Council team with its own run identity and feed its final text back to the parent.
+
+`reconsider` is deliberately side-effect-free: the revisited step may reason again but LocalGPT suppresses DX/organic function execution for that revision. `reexecute` is the explicit alternative when the workflow really needs the target step's normal function policy again; its ordinary tool approvals remain in force. A revisit may target the current or an earlier configured step only. X-Rounds do not jump forward across workflow gates; forward progress happens through the normal configured workflow after the revisited revision completes.
+
+Every source step has an explicit transition budget. Child-Council nesting has a separate depth budget. A team can also require a local human to approve every accepted X transition. Declining the gate continues the ordinary workflow instead of silently selecting another route. These boundaries prevent a useful feedback graph from turning into an unbounded retry loop or bypassing a human gate.
+
+A gatekeeper is therefore not a special hard-coded Council type. It can be an ordinary role/step whose responsibility, prompt and X permissions allow it to send work back, request another specialist/Council, return a result, or require the configured human decision.
+
+## Live heartbeat messages during a Council run
+
+A direct live user message has two jobs. One currently executing participant may claim the new message and restart immediately so the owner does not need to wait for the next workflow boundary. The same contribution remains in the Council heartbeat queue and becomes shared context for later participants and later rounds when the normal heartbeat is prepared.
+
+The immediate restart claim is single-consumer per Council run. While ordered presentation has a foreground participant, that participant owns the immediate restart claim; hidden parallel participants keep running instead of all restarting. If the foreground model has already completed, the message simply remains queued for subsequent participants and the next heartbeat. Other active participants do not restart for the same direct message, which avoids multiplying one correction into many duplicate model restarts while still preserving the correction as general Council context.
+
+The Chat configuration exposes the scheduler at two levels. **Load balancing** selects host-balanced versus hardware-road parallel scheduling, and **Parallel models per AI host** controls the per-host ceiling. Expanding **Hardware spooler and per-model CPU/GPU roads** exposes each selected model's hardware kind/device, token road, Ollama GPU-layer choice, lane concurrency, and per-model load override. Different AI hosts remain independent compute roads, so a remote PC can work at the same time as the local machine. **Model response timeout (seconds)** controls how long a not-yet-started/current provider attempt may wait before the existing bounded recovery policy applies; this is useful when one slow remote model would otherwise make an ordered Council transcript appear stalled even though other hosts are busy.

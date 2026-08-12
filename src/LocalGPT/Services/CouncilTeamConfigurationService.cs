@@ -311,6 +311,11 @@ public sealed class CouncilTeamConfigurationService(
                     ? 1
                     : Math.Clamp(step.MaximumLoopIterations, 1, MaxExpandedWorkflowSteps);
                 step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
+                step.XMaximumTransitions = Math.Clamp(step.XMaximumTransitions, 1, MaxExpandedWorkflowSteps);
+                step.XMaximumChildCouncilDepth = Math.Clamp(step.XMaximumChildCouncilDepth, 1, 10);
+                step.XDefaultTargetStepKey = step.XDefaultTargetStepKey?.Trim().ToLowerInvariant() ?? string.Empty;
+                step.XChildCouncilTeamKey = step.XChildCouncilTeamKey?.Trim().ToLowerInvariant() ?? string.Empty;
+                step.XChildModelName = step.XChildModelName?.Trim() ?? string.Empty;
                 step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, 20, 240);
                 step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, 8, 120);
                 step.WorldStepScale = Math.Clamp(step.WorldStepScale, 1, 1000);
@@ -468,6 +473,11 @@ public sealed class CouncilTeamConfigurationService(
                     ? 1
                     : Math.Clamp(step.MaximumLoopIterations, 1, MaxExpandedWorkflowSteps);
                 step.LoopCompletionMarker = step.LoopCompletionMarker?.Trim() ?? string.Empty;
+                step.XMaximumTransitions = Math.Clamp(step.XMaximumTransitions, 1, MaxExpandedWorkflowSteps);
+                step.XMaximumChildCouncilDepth = Math.Clamp(step.XMaximumChildCouncilDepth, 1, 10);
+                step.XDefaultTargetStepKey = step.XDefaultTargetStepKey?.Trim().ToLowerInvariant() ?? string.Empty;
+                step.XChildCouncilTeamKey = step.XChildCouncilTeamKey?.Trim().ToLowerInvariant() ?? string.Empty;
+                step.XChildModelName = step.XChildModelName?.Trim() ?? string.Empty;
                 step.AsciiFrameWidth = Math.Clamp(step.AsciiFrameWidth, 20, 240);
                 step.AsciiFrameHeight = Math.Clamp(step.AsciiFrameHeight, 8, 120);
                 step.WorldStepScale = Math.Clamp(step.WorldStepScale, 1, 1000);
@@ -475,6 +485,14 @@ public sealed class CouncilTeamConfigurationService(
                     throw new InvalidOperationException($"ASCII frame step '{step.DisplayName}' must use a single-member execution mode so one AI owns the complete frame.");
                 if (string.IsNullOrWhiteSpace(step.LoopGroup) && !string.IsNullOrWhiteSpace(step.LoopCompletionMarker))
                     throw new InvalidOperationException($"Workflow step '{step.DisplayName}' defines a loop completion marker without a loop group.");
+                if (step.XFunctionsEnabled && !step.CanUseOrganicFunctions)
+                    throw new InvalidOperationException($"Workflow step '{step.DisplayName}' enables X-Round DXFunctions while DX/organic function requests are disabled. Enable both so X control can be invoked explicitly.");
+                if (step.XFunctionsEnabled &&
+                    !step.XCanRevisit &&
+                    !step.XCanReturnText &&
+                    !step.XCanStartSingleModel &&
+                    !step.XCanStartCouncil)
+                    throw new InvalidOperationException($"Workflow step '{step.DisplayName}' enables X-Rounds but grants no X action.");
                 if (team.Roles.Count > 0 && !rolesByName.ContainsKey(step.Role))
                     throw new InvalidOperationException($"Workflow step '{step.DisplayName}' references role '{step.Role}', but that role is not defined in the team.");
                 if (step.ExecutionMode == "AssignedModelSingle")
@@ -497,6 +515,19 @@ public sealed class CouncilTeamConfigurationService(
                                 $"Workflow step '{step.DisplayName}' assigns model '{step.AssignedModelName}', but that model is not bound to role '{step.Role}'.");
                         }
                     }
+                }
+            }
+
+            var workflowStepKeys = team.WorkflowSteps
+                .Select(step => step.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var step in team.WorkflowSteps.Where(step => step.XFunctionsEnabled && step.XCanRevisit))
+            {
+                if (!string.IsNullOrWhiteSpace(step.XDefaultTargetStepKey) &&
+                    !workflowStepKeys.Contains(step.XDefaultTargetStepKey))
+                {
+                    throw new InvalidOperationException(
+                        $"Workflow step '{step.DisplayName}' uses missing default X-Round target '{step.XDefaultTargetStepKey}'.");
                 }
             }
 

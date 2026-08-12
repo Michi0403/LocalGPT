@@ -232,6 +232,28 @@ public sealed class CouncilWorkflowStepDefinition
     public bool RequiresHumanCheckpoint { get; set; }
     /// <summary>Gets or sets whether registered organic/DX functions may be requested.</summary>
     public bool CanUseOrganicFunctions { get; set; } = true;
+    /// <summary>Gets or sets whether this step may emit first-class X-Round control requests.</summary>
+    public bool XFunctionsEnabled { get; set; }
+    /// <summary>Gets or sets whether X-Rounds may reconsider or deliberately re-execute another workflow step.</summary>
+    public bool XCanRevisit { get; set; }
+    /// <summary>Gets or sets whether an X-Function may return an explicit text result and finish the parent workflow.</summary>
+    public bool XCanReturnText { get; set; }
+    /// <summary>Gets or sets whether an X-Function may run one bounded single-model derived subtask.</summary>
+    public bool XCanStartSingleModel { get; set; }
+    /// <summary>Gets or sets whether an X-Function may start another configured Council as a derived subtask.</summary>
+    public bool XCanStartCouncil { get; set; }
+    /// <summary>Gets or sets the maximum number of X-Round transitions accepted from this source step in one run.</summary>
+    public int XMaximumTransitions { get; set; } = 3;
+    /// <summary>Gets or sets whether every X-Round request from this step must be approved by a local human before it changes control flow.</summary>
+    public bool XRequiresHumanApproval { get; set; }
+    /// <summary>Gets or sets the default target workflow-step key for revisit actions.</summary>
+    public string XDefaultTargetStepKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets the default Council team key used by the start-council X-Function.</summary>
+    public string XChildCouncilTeamKey { get; set; } = string.Empty;
+    /// <summary>Gets or sets the maximum nested child-Council depth allowed when this step emits start-council X-Functions.</summary>
+    public int XMaximumChildCouncilDepth { get; set; } = 1;
+    /// <summary>Gets or sets the default provider-qualified model identity used by the start-single-model X-Function.</summary>
+    public string XChildModelName { get; set; } = string.Empty;
     /// <summary>Gets or sets whether the step owns a complete ASCII frame.</summary>
     public bool ProducesAsciiFrame { get; set; }
     /// <summary>Gets or sets the requested ASCII frame width.</summary>

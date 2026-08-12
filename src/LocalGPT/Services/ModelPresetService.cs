@@ -106,7 +106,7 @@ public sealed class ModelPresetService(
         entity.AllowParallelHardwareRoads = preset.AllowParallelHardwareRoads;
         entity.MaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, 512, 262144);
         entity.MaxContextTokens = Math.Clamp(preset.MaxContextTokens, 2048, 262144);
-        entity.MaxParallelModels = Math.Clamp(preset.MaxParallelModels, 1, 8);
+        entity.MaxParallelModels = Math.Max(1, preset.MaxParallelModels);
         entity.OllamaNumGpu = preset.OllamaNumGpu is < 0 ? 0 : preset.OllamaNumGpu;
         entity.IncludeMemory = preset.IncludeMemory;
         entity.GenerateArtifacts = preset.GenerateArtifacts;
@@ -140,7 +140,7 @@ public sealed class ModelPresetService(
 
         preset.MaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, 512, 262144);
         preset.MaxContextTokens = Math.Clamp(preset.MaxContextTokens, 2048, 262144);
-        preset.MaxParallelModels = Math.Clamp(preset.MaxParallelModels, 1, 8);
+        preset.MaxParallelModels = Math.Max(1, preset.MaxParallelModels);
         preset.OllamaNumGpu = preset.OllamaNumGpu is < 0 ? 0 : preset.OllamaNumGpu;
     }
 

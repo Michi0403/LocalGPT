@@ -143,6 +143,8 @@ internal sealed class CouncilLiveParticipantActivityState(
     public string RouteLabel { get; } = routeLabel;
     /// <summary>Gets the streamed participant content.</summary>
     public StringBuilder Content { get; } = new();
+    /// <summary>Gets or sets the authoritative final participant answer once the model request completes.</summary>
+    public string FinalContent { get; set; } = string.Empty;
     /// <summary>Gets or sets the human-readable activity status.</summary>
     public string StatusMessage { get; set; } = "Waiting for the model runtime.";
     /// <summary>Gets or sets whether this participant is still running.</summary>
@@ -169,7 +171,9 @@ internal sealed class CouncilRunState
         int requestedMaxOutputTokens,
         int requestedMaxContextTokens,
         int? fallbackOllamaNumGpu,
-        bool allowParallelHardwareRoads)
+        bool allowParallelHardwareRoads,
+        int maxParallelModels,
+        int modelTimeoutSeconds)
     {
         RunId = runId;
         Participants = participants.ToList();
@@ -179,6 +183,8 @@ internal sealed class CouncilRunState
         RequestedMaxContextTokens = Math.Max(256, requestedMaxContextTokens);
         FallbackOllamaNumGpu = fallbackOllamaNumGpu;
         AllowParallelHardwareRoads = allowParallelHardwareRoads;
+        MaxParallelModels = Math.Max(1, maxParallelModels);
+        ModelTimeoutSeconds = Math.Clamp(modelTimeoutSeconds, 30, 1800);
         ChangeSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
@@ -222,6 +228,10 @@ internal sealed class CouncilRunState
     /// Gets or sets allow parallel hardware roads.
     /// </summary>
     public bool AllowParallelHardwareRoads { get; set; }
+    /// <summary>Gets or sets the per-host Council model request concurrency ceiling used by road-parallel scheduling.</summary>
+    public int MaxParallelModels { get; set; }
+    /// <summary>Gets or sets the provider-request timeout in seconds for Council members in this run.</summary>
+    public int ModelTimeoutSeconds { get; set; }
     /// <summary>
     /// Gets or sets current round.
     /// </summary>
@@ -333,4 +343,5 @@ internal sealed record ConfiguredWorkflowExecutionState(
     int ExpandedStepIndex,
     string PreviousStep,
     string FallbackAnswer,
-    string FinalAnswer);
+    string FinalAnswer,
+    CouncilXRoundDirective? XDirective = null);

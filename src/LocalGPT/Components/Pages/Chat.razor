@@ -201,6 +201,16 @@
                 </select>
                 <small>@CouncilSchedulingSummary</small>
             </label>
+            <BoundedNumberEditor Label="Parallel models per AI host"
+                                 HelpText="Global per-host request ceiling used by hardware-road parallel scheduling. Per-model lane concurrency below can further constrain individual roads."
+                                 Min="1" Max="64"
+                                 Value="@CouncilEditorMaxParallelModels"
+                                 ValueChanged="OnCouncilMaxParallelModelsChangedAsync" />
+            <BoundedNumberEditor Label="Model response timeout (seconds)"
+                                 HelpText="Maximum provider time for one Council member attempt before LocalGPT records a timeout and may perform its one bounded recovery attempt."
+                                 Min="30" Max="1800" Step="30"
+                                 Value="@CouncilEditorModelTimeoutSeconds"
+                                 ValueChanged="OnCouncilModelTimeoutChangedAsync" />
             @if (!string.IsNullOrWhiteSpace(modelStatus))
             {
                 <span class="memory-status">@modelStatus</span>
@@ -578,14 +588,30 @@
                                                     <small>@activity.Phase · @activity.Role · @activity.RouteLabel</small>
                                                 </span>
                                                 <em>@activity.StatusMessage</em>
+                                                @if (!activity.IsRunning && !string.IsNullOrWhiteSpace(activity.FinalContent))
+                                                {
+                                                    <span class="localgpt-live-result-ready">Result ready · expand</span>
+                                                }
                                             </summary>
+                                            @if (!activity.IsRunning && !string.IsNullOrWhiteSpace(activity.FinalContent))
+                                            {
+                                                <section class="localgpt-live-participant-final" aria-label="Completed Council member answer">
+                                                    <strong>Completed answer</strong>
+                                                    <div data-localgpt-details-host>
+                                                        @(new MarkupString(ChatContentRenderer.Render(activity.FinalContent)))
+                                                    </div>
+                                                </section>
+                                            }
                                             @if (!string.IsNullOrWhiteSpace(activity.Content))
                                             {
-                                                <div class="localgpt-live-participant-content" data-localgpt-details-host>
-                                                    @(new MarkupString(ChatContentRenderer.Render(activity.Content)))
-                                                </div>
+                                                <details class="localgpt-live-participant-stream-history" open="@activity.IsRunning">
+                                                    <summary>@(activity.IsRunning ? "Live thinking, functions and provider stream" : "Thinking, functions and provider stream")</summary>
+                                                    <div class="localgpt-live-participant-content" data-localgpt-details-host>
+                                                        @(new MarkupString(ChatContentRenderer.Render(activity.Content)))
+                                                    </div>
+                                                </details>
                                             }
-                                            else
+                                            else if (activity.IsRunning)
                                             {
                                                 <p class="localgpt-live-participant-waiting">Waiting for streamed model output…</p>
                                             }
@@ -799,14 +825,21 @@
     string CouncilEditorSchedulingMode => (EditingRunningCouncilConfiguration ? ActiveCouncilAllowParallelHardwareRoads : CouncilAllowParallelHardwareRoads)
         ? "road-parallel"
         : "host-balanced";
+    int CouncilEditorMaxParallelModels => EditingRunningCouncilConfiguration
+        ? ActiveCouncilMaxParallelModels
+        : Math.Max(1, CouncilMaxParallelModels);
+    int CouncilEditorModelTimeoutSeconds => EditingRunningCouncilConfiguration
+        ? ActiveCouncilModelTimeoutSeconds
+        : Math.Clamp(CouncilModelTimeoutSeconds, 30, 1800);
 
     /// <summary>
     /// Gets a compact explanation of the currently selected Council scheduling policy.
     /// </summary>
     string CouncilSchedulingSummary => CouncilEditorSchedulingMode == "road-parallel"
-        ? "Configured CPU/GPU lanes may run concurrently on the same host; different hosts can also run in parallel."
+        ? $"Up to {CouncilEditorMaxParallelModels} request(s) per AI host may run concurrently, still constrained by each model road's lane setting; separate hosts also run independently."
         : "Each AI host stays single-flight while separate machines/providers may run concurrently.";
     int CouncilMaxParallelModels { get; set; } = 1;
+    int CouncilModelTimeoutSeconds { get; set; } = 1800;
 
     string ArchitectureLanguageToolchain { get; set; } = string.Empty;
     string ArchitectureUiStack { get; set; } = string.Empty;
@@ -895,6 +928,8 @@
     int ActiveCouncilMaxContextTokens { get; set; }
     int? ActiveCouncilFallbackOllamaNumGpu { get; set; }
     bool ActiveCouncilAllowParallelHardwareRoads { get; set; } = true;
+    int ActiveCouncilMaxParallelModels { get; set; } = 1;
+    int ActiveCouncilModelTimeoutSeconds { get; set; } = 1800;
     bool EditingRunningCouncilConfiguration =>
         ActiveCouncilConfigurationRunId is Guid runId &&
         SelectedCouncilRunId == runId &&
@@ -2136,7 +2171,7 @@
                 ResourceLoadPercent = Math.Clamp((int)Math.Round(CouncilResourceLoadPercent / 5d) * 5, 0, 100),
                 ModelRoutes = CreateProviderQualifiedCouncilRoutes(),
                 MaxContextTokens = ResolveCouncilContextTokens(),
-                ModelTimeoutSeconds = 1800,
+                ModelTimeoutSeconds = Math.Clamp(CouncilModelTimeoutSeconds, 30, 1800),
                 OllamaKeepAlive = "0s",
                 OllamaNumGpu = ResolveOllamaNumGpu(),
                 IncludeMemory = IncludeCouncilMemory,
@@ -2679,6 +2714,7 @@
             ResolveOllamaNumGpu(),
             CouncilAllowParallelHardwareRoads,
             Math.Max(1, CouncilMaxParallelModels),
+            Math.Clamp(CouncilModelTimeoutSeconds, 30, 1800),
             Math.Clamp(CouncilCritiqueRounds, 0, 3),
             IncludeCouncilMemory,
             CreateProjectPerCouncilRun,
@@ -2697,6 +2733,7 @@
         CouncilCritiqueRounds = Math.Clamp(configuration.CritiqueRounds, 0, 3);
         CouncilAllowParallelHardwareRoads = configuration.AllowParallelHardwareRoads;
         CouncilMaxParallelModels = Math.Max(1, configuration.MaxParallelModels);
+        CouncilModelTimeoutSeconds = Math.Clamp(configuration.ModelTimeoutSeconds, 30, 1800);
         IncludeCouncilMemory = configuration.IncludeMemory;
         CreateProjectPerCouncilRun = configuration.CreateProjectPerRun;
         var requestedTeamKey = string.IsNullOrWhiteSpace(configuration.CouncilTeamKey) ? "general" : configuration.CouncilTeamKey;
@@ -2728,7 +2765,9 @@
             ActiveCouncilMaxOutputTokens,
             ActiveCouncilMaxContextTokens,
             ActiveCouncilFallbackOllamaNumGpu,
-            ActiveCouncilAllowParallelHardwareRoads);
+            ActiveCouncilAllowParallelHardwareRoads,
+            ActiveCouncilMaxParallelModels,
+            ActiveCouncilModelTimeoutSeconds);
 
     private Task OnCouncilMaxOutputTokensChangedAsync(int value)
     {
@@ -2811,6 +2850,58 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>Updates the Council provider timeout without changing other saved or running sessions.</summary>
+    private Task OnCouncilModelTimeoutChangedAsync(int value)
+    {
+        value = Math.Clamp(value, 30, 1800);
+        if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+        {
+            ActiveCouncilModelTimeoutSeconds = value;
+            if (UpdateActiveCouncilConfiguration(runId))
+            {
+                LoadCouncilRunConfiguration(runId);
+                modelStatus = $"Running Council {ActiveCouncilRunShortId} now uses a {value}s model timeout for provider requests that have not started yet.";
+            }
+            else
+            {
+                modelStatus = "The running Council ended before the model timeout could be applied.";
+            }
+            return Task.CompletedTask;
+        }
+
+        CouncilModelTimeoutSeconds = value;
+        SelectedModelPreset = null;
+        SavePreparationConfiguration();
+        modelStatus = $"Future Council runs will use a {value}s model response timeout.";
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Updates the visible per-host Council concurrency ceiling while keeping per-road lane limits independently configurable.</summary>
+    private Task OnCouncilMaxParallelModelsChangedAsync(int value)
+    {
+        value = Math.Max(1, value);
+        if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+        {
+            ActiveCouncilMaxParallelModels = value;
+            if (UpdateActiveCouncilConfiguration(runId))
+            {
+                LoadCouncilRunConfiguration(runId);
+                modelStatus = $"Running Council {ActiveCouncilRunShortId} will use up to {value} request(s) per AI host when the next phase constructs its hardware-road gates; per-model lane limits can reduce that further.";
+            }
+            else
+            {
+                modelStatus = "The running Council ended before the per-host concurrency ceiling could be applied.";
+            }
+            return Task.CompletedTask;
+        }
+
+        CouncilMaxParallelModels = value;
+        SelectedModelPreset = null;
+        SavePreparationConfiguration();
+        modelStatus = $"Future Council runs may use up to {value} parallel request(s) per AI host in hardware-road mode; per-model lane limits still apply.";
+        return Task.CompletedTask;
+    }
+
     /// <summary>
     /// Applies the simple host/road scheduling choice without requiring the advanced per-model road editor.
     /// </summary>
@@ -2884,6 +2975,8 @@
         ActiveCouncilMaxContextTokens = snapshot.RequestedMaxContextTokens;
         ActiveCouncilFallbackOllamaNumGpu = snapshot.FallbackOllamaNumGpu;
         ActiveCouncilAllowParallelHardwareRoads = snapshot.AllowParallelHardwareRoads;
+        ActiveCouncilMaxParallelModels = Math.Max(1, snapshot.MaxParallelModels);
+        ActiveCouncilModelTimeoutSeconds = Math.Clamp(snapshot.ModelTimeoutSeconds, 30, 1800);
     }
 
     private void LoadCouncilRunConfiguration(Guid? runId)
@@ -2898,6 +2991,8 @@
             ActiveCouncilMaxContextTokens = 0;
             ActiveCouncilFallbackOllamaNumGpu = null;
             ActiveCouncilAllowParallelHardwareRoads = true;
+            ActiveCouncilMaxParallelModels = 1;
+            ActiveCouncilModelTimeoutSeconds = 1800;
             return;
         }
 
@@ -2922,6 +3017,8 @@
                 ActiveCouncilMaxContextTokens = 0;
                 ActiveCouncilFallbackOllamaNumGpu = null;
                 ActiveCouncilAllowParallelHardwareRoads = true;
+            ActiveCouncilMaxParallelModels = 1;
+            ActiveCouncilModelTimeoutSeconds = 1800;
             }
             return;
         }

@@ -169,6 +169,10 @@ namespace LocalGPT.BusinessObjects
         /// </summary>
         public string OneWireCorrelationId { get; set; } = string.Empty;
 
+        /// <summary>Gets or sets the process-local nesting depth for a Council started by an X-Function.</summary>
+        [JsonIgnore]
+        public int XRoundChildDepth { get; set; }
+
         /// <summary>
         /// Gets or sets progress message.
         /// </summary>
@@ -553,6 +557,15 @@ namespace LocalGPT.BusinessObjects
         /// Gets or sets error.
         /// </summary>
         public string? Error { get; set; }
+
+        /// <summary>Gets or sets the configured workflow-step key that produced this immutable transcript entry.</summary>
+        public string WorkflowStepKey { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets the one-based X-Round revision number for the configured workflow step.</summary>
+        public int WorkflowRevision { get; set; } = 1;
+
+        /// <summary>Gets or sets the causal reason that revisited this workflow step, without replacing earlier transcript revisions.</summary>
+        public string XRoundCause { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets brain part.

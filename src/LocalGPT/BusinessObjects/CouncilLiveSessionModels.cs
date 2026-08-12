@@ -26,6 +26,7 @@ public sealed record CouncilLiveParticipantActivitySnapshot(
     string RouteLabel,
     string StatusMessage,
     string Content,
+    string FinalContent,
     bool IsRunning,
     DateTime StartedAtUtc,
     DateTime UpdatedAtUtc);

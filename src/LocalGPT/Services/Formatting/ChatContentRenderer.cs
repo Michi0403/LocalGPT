@@ -95,6 +95,20 @@ public sealed class ChatContentRenderer(
         @"\[\[ASCII_FRAME(?:\s+(?<attributes>[^\]]+))?\]\]\s*(?<frame>.*?)\s*\[\[/ASCII_FRAME\]\]",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.Singleline,
         runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Repairs a small set of known prose label/number boundaries emitted without whitespace by some local models.
+    /// </summary>
+    private readonly Regex ProseLabelBoundaryRegex = new(
+        @"\b(?<label>output|context|input|timeout|connected|detailed)(?=(?:\d|1-Wire\b))",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        runtimePolicy.RegexTimeout);
+    /// <summary>
+    /// Repairs a missing boundary between a numeric value and common prose units without touching identifiers.
+    /// </summary>
+    private readonly Regex ProseUnitBoundaryRegex = new(
+        @"(?<=\d)(?=(?:tokens?|models?|members?|capabilit(?:y|ies)|rounds?|seconds?|minutes?|messages?|files?|functions?|skills?|organs?|peers?|roads?)\b)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
+        runtimePolicy.RegexTimeout);
 
     /// <summary>
     /// Runs the markdown pipeline builder operation.
@@ -143,6 +157,7 @@ public sealed class ChatContentRenderer(
             // preserving valid surrogate pairs and every other character.
             var text = SanitizeInvalidUnicode(content);
             text = HarmonyMarkerRegex.Replace(text, string.Empty);
+            text = RepairCommonProseSpacing(text);
             text = RenderAsciiFrames(text);
             // The renderer is called for every streaming snapshot. Re-scanning a large, still-live
             // Council transcript for balanced JSON on every token can monopolize the Blazor circuit
@@ -232,6 +247,57 @@ public sealed class ChatContentRenderer(
         throw;
     }
 }
+
+    /// <summary>
+    /// Repairs conservative, display-only spacing omissions in prose without applying spacing edits inside fenced code, inline code or raw HTML lines.
+    /// </summary>
+    private string RepairCommonProseSpacing(string text)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(text))
+                return string.Empty;
+
+            var lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+            var builder = new StringBuilder(text.Length + 32);
+            var inFence = false;
+
+            for (var index = 0; index < lines.Length; index++)
+            {
+                var line = lines[index];
+                var trimmed = line.TrimStart();
+                var fenceLine = trimmed.StartsWith("```", StringComparison.Ordinal) ||
+                                trimmed.StartsWith("~~~", StringComparison.Ordinal);
+                if (fenceLine)
+                {
+                    inFence = !inFence;
+                }
+                else if (!inFence &&
+                         !line.Contains('`') &&
+                         !trimmed.StartsWith('<'))
+                {
+                    line = ProseLabelBoundaryRegex.Replace(line, "${label} ");
+                    line = ProseUnitBoundaryRegex.Replace(line, " ");
+                }
+
+                if (index > 0)
+                    builder.Append('\n');
+                builder.Append(line);
+            }
+
+            return builder.ToString();
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            logger.LogWarning(ex, "Prose spacing repair timed out; LocalGPT will render the original model text.");
+            return text;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Prose spacing repair failed; LocalGPT will render the original model text.");
+            return text;
+        }
+    }
 
     /// <summary>
     /// Runs the render ascii frames operation.

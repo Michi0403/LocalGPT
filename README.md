@@ -21,6 +21,10 @@ A local-first .NET and Blazor platform for AI councils, model orchestration, per
 
 🌸 **[Open the live Kawaii documentation](https://michi0403.github.io/LocalGPT/)** · [User guide](docs/guide/index.md) · [Complete API reference](docs/api/index.md)
 
+**Live project pages (visible URLs for mobile GitHub):**  
+LocalGPT: <https://michi0403.github.io/LocalGPT/>  
+PublisherStudio: <https://michi0403.github.io/BlazorPublisher/>
+
 </div>
 
 ## What LocalGPT is
@@ -47,7 +51,7 @@ Read the full position in [`docs/reference/design-evolution.md`](docs/reference/
 
 ### AI Council and role-driven workflows
 
-Create teams of models with explicit roles, execution limits, workflow phases, human participation modes, bounded repetition, and database-backed configuration. Council output is streamed and preserved so the reasoning process, failures, recoveries, and final synthesis remain inspectable.
+Create teams of models with explicit roles, execution limits, workflow phases, human participation modes, bounded repetition, revisable **X-Rounds**, and database-backed configuration. Council output is streamed and preserved so the reasoning process, failures, recoveries, live per-host participant activity, X-Round causal revisions, and final synthesis remain inspectable. X-Rounds can revisit an earlier step without deleting history, start a bounded single-model or child-Council subtask, return text to the parent workflow, and optionally require a local human gate.
 
 ### Human participation as a first-class role
 

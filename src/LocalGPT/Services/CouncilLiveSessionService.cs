@@ -160,6 +160,32 @@ public sealed class CouncilLiveSessionService(
     }
 
     /// <summary>
+    /// Stores one participant's authoritative final answer separately from transient streamed provider markup.
+    /// </summary>
+    public void SetParticipantActivityResult(Guid runId, string activityKey, string finalContent)
+    {
+        try
+        {
+            if (!sessions.TryGetValue(runId, out var state))
+                return;
+            lock (state.SyncRoot)
+            {
+                if (!state.ParticipantActivities.TryGetValue(activityKey, out var activity))
+                    return;
+                activity.FinalContent = finalContent?.Trim() ?? string.Empty;
+                activity.UpdatedAtUtc = DateTime.UtcNow;
+                state.UpdatedAtUtc = activity.UpdatedAtUtc;
+            }
+            ScheduleChanged(state);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not store final live Council participant result {ActivityKey} for run {RunId}.", activityKey, runId);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Marks one participant stream complete while leaving the final ordered transcript unchanged.
     /// </summary>
     public void CompleteParticipantActivity(Guid runId, string activityKey, string statusMessage)
@@ -439,6 +465,7 @@ public sealed class CouncilLiveSessionService(
                             activity.RouteLabel,
                             activity.StatusMessage,
                             activity.Content.ToString(),
+                            activity.FinalContent,
                             activity.IsRunning,
                             activity.StartedAtUtc,
                             activity.UpdatedAtUtc))

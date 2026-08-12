@@ -62,6 +62,15 @@ public interface IHumanCollaborationService
         string content,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Marks the participant currently owning ordered live presentation as the preferred immediate heartbeat consumer for this Council run.</summary>
+    void SetPreferredDirectUserMessageConsumer(Guid councilRunId, string consumerKey);
+
+    /// <summary>Clears the preferred immediate heartbeat consumer when that participant leaves ordered live presentation.</summary>
+    void ClearPreferredDirectUserMessageConsumer(Guid councilRunId, string consumerKey);
+
+    /// <summary>Atomically claims one direct user message for immediate interruption of exactly one active model stream, preferring the participant currently visible in ordered live presentation.</summary>
+    bool TryClaimDirectUserMessage(Guid contributionId, Guid councilRunId, string consumerKey);
+
     /// <summary>
     /// Reads queued contributions async.
     /// </summary>
