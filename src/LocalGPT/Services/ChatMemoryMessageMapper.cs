@@ -117,13 +117,7 @@ public sealed class ChatMemoryMessageMapper(
             if (content.Contains("data-localgpt-restored-attachments", StringComparison.OrdinalIgnoreCase))
                 return content;
 
-            var names = ExtractAttachmentNames(message);
-            if (names.Count == 0)
-                return content;
-
-            var chips = string.Join(string.Empty, names.Select(name =>
-                $"<span class=\"localgpt-restored-attachment\">📎 {WebUtility.HtmlEncode(name)}</span>"));
-            return $"{content}\n<div class=\"localgpt-restored-attachments\" data-localgpt-restored-attachments=\"true\">{chips}</div>";
+            return text.BuildAttachmentPresentation(content, ExtractAttachmentNames(message));
         }
         catch (Exception ex)
         {

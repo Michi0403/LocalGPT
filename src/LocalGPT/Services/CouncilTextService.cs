@@ -33,6 +33,41 @@ namespace LocalGPT.Services
    
 
         /// <summary>
+        /// Builds the safe visible attachment presentation shared by live and persisted chat messages.
+        /// </summary>
+        public string BuildAttachmentPresentation(string? content, IEnumerable<string>? fileNames)
+        {
+            try
+            {
+                serviceLogger.LogTrace("Council text operation {Operation} started.", nameof(BuildAttachmentPresentation));
+                var safeContent = content ?? string.Empty;
+                if (fileNames is null)
+                    return safeContent;
+
+                var names = fileNames
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => WebUtility.HtmlEncode(Path.GetFileName(name.Trim())))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                if (names.Length == 0)
+                    return safeContent;
+
+                var chips = string.Join(
+                    string.Empty,
+                    names.Select(name => $"<span class=\"localgpt-restored-attachment\">📎 {name}</span>"));
+                return $"{safeContent}\n<div class=\"localgpt-restored-attachments\" data-localgpt-restored-attachments=\"true\">{chips}</div>";
+            }
+            catch (Exception ex)
+            {
+                serviceLogger.LogWarning(
+                    ex,
+                    "Council text operation {Operation} failed; attachment names were omitted from the visible chat content.",
+                    nameof(BuildAttachmentPresentation));
+                return content ?? string.Empty;
+            }
+        }
+
+        /// <summary>
         /// Runs the format live council session option operation.
         /// </summary>
         public string FormatLiveCouncilSessionOption(

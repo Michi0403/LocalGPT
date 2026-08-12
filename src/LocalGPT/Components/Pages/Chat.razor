@@ -4218,23 +4218,7 @@
     /// </summary>
     private string BuildLiveCouncilUserDisplayContent(string content, IEnumerable<string> fileNames)
     {
-        try
-        {
-            var names = fileNames
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Select(name => System.Net.WebUtility.HtmlEncode(Path.GetFileName(name.Trim())))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            if (names.Length == 0)
-                return content;
-            var chips = string.Join(string.Empty, names.Select(name => $"<span class=\"localgpt-restored-attachment\">📎 {name}</span>"));
-            return $"{content}\n<div class=\"localgpt-restored-attachments\" data-localgpt-restored-attachments=\"true\">{chips}</div>";
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Could not build the live upload attachment presentation; file names were omitted from the message bubble.");
-            return content;
-        }
+        return CouncilText.BuildAttachmentPresentation(content, fileNames);
     }
 
     private async Task RunUiActionAsync(Func<Task> action, string operation)

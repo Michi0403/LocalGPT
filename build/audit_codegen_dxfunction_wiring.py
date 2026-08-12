@@ -16,6 +16,7 @@ PROJECT_MODELS = (ROOT / "src/LocalGPT/BusinessObjects/ProjectMaintenanceModels.
 OUTPUT_MODELS = (ROOT / "src/LocalGPT/BusinessObjects/CodeGenerationWorkflowModels.cs").read_text(encoding="utf-8-sig")
 ARTIFACT_FUNCTIONS = (ROOT / "src/LocalGPT/Services/ArtifactWorkspaceDxAiFunctions.cs").read_text(encoding="utf-8-sig")
 CAPABILITY_FUNCTION = (ROOT / "src/LocalGPT/Services/CodeGenerationCapabilitiesDxAiFunction.cs").read_text(encoding="utf-8-sig")
+CODEGEN_CONTROLLER = (ROOT / "src/LocalGPT/Controller/CodeGenerationController.cs").read_text(encoding="utf-8-sig")
 REMOTE_IMPORT = (ROOT / "src/LocalGPT/Services/RemoteKnowledgeImportService.cs").read_text(encoding="utf-8-sig")
 CHAT_UPLOADS = (ROOT / "src/LocalGPT/Services/ChatUploadWorkspaceService.cs").read_text(encoding="utf-8-sig")
 RUNTIME_SEEDS = (ROOT / "src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs").read_text(encoding="utf-8-sig")
@@ -35,6 +36,8 @@ require(PROGRAM, "AddScoped<ICodeGenerationWorkflowService, CodeGenerationWorkfl
 require(PROGRAM, "AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>()", "DXFunction registry DI registration")
 require(PROGRAM, "typeof(IDxAiFunctionHandler).IsAssignableFrom(type.AsType())", "DXFunction handler discovery")
 require(PROGRAM, "AddScoped(typeof(IDxAiFunctionHandler), handlerType)", "DXFunction handler scoped registration")
+require(CODEGEN_CONTROLLER, "using LocalGPT.Services;", "code-generation controller service namespace import")
+require(CODEGEN_CONTROLLER, "LocalGptCatalogService catalog", "code-generation controller catalog dependency")
 
 functions = {
     "codegen.review.list": "workflow.ListReviewsAsync",
