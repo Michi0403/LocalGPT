@@ -1271,7 +1271,7 @@ public sealed class CodeGenerationWorkflowService(
                             await File.WriteAllTextAsync(path,
                                 $"# Reviewed PowerShell source. LocalGPT writes this file but never executes it automatically.{Environment.NewLine}Write-Output {JsonSerializer.Serialize(output.Description)}{Environment.NewLine}",
                                 cancellationToken).ConfigureAwait(false);
-                            writtenFiles.Add(Path.GetRelativePath(workspaceRoot, path).Replace('\', '/'));
+                            writtenFiles.Add(Path.GetRelativePath(workspaceRoot, path).Replace('\\', '/'));
                         }
                     }
                     return;

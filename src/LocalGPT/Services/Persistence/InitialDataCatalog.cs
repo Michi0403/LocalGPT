@@ -90,7 +90,7 @@ public sealed class InitialDataCatalog(
         new("builtin.codegen-class-library-pattern", "(class library|library project|shared library|\\.dll\\b)", "i,c"),
         new("builtin.codegen-solution-pattern", "(whole solution|full solution|entire solution|solution project|\\.sln\\b)", "i,c"),
         new("builtin.codegen-addon-pattern", "(localgpt addon|localgpt add-on|addon project|plugin project)", "i,c"),
-        new("builtin.codegen-powershell-script-pattern", "(powershell|power shell|\.ps1\b|pwsh|ps script)", "i,c"),
+        new("builtin.codegen-powershell-script-pattern", "(powershell|power shell|\\.ps1\\b|pwsh|ps script)", "i,c"),
         new("builtin.codegen-quoted-literal-pattern", """(?<quote>["'])(?<text>[^"'\r\n]{1,200})\k<quote>""", "c"),
         new("builtin.whole-solution-pattern", "(whole solution|full solution|entire solution|solution zip|project zip|\\.sln|\\.csproj|all source files|tacosportalopen|localgpt\\s+(?:clone|replacement|workbench|app|application|solution)|(?:clone|replace|rebuild)\\s+localgpt|whole ai host|ai host dotnet|local ai host|whole ollama|ollama dotnet|ollama \\.net)", "i,c"),
         new("builtin.ai-host-experiment-pattern", @"(ai\s*host|local\s*model\s*host|model[- ]file\s*runner|native\s*runner|ollama[- ]compatible|/api/(?:chat|generate|tags|ps|version)|host\s+gpt-oss|provider[- ]compatible).*(dotnet|\.net|blazor|devexpress|aspnet|asp\.net|api|route|endpoint|sqlite|ollama|model|runner)|(dotnet|\.net|blazor|devexpress|aspnet|asp\.net|api|route|endpoint|sqlite|model|runner).*(ai\s*host|local\s*model\s*host|model[- ]file\s*runner|native\s*runner|ollama[- ]compatible|/api/(?:chat|generate|tags|ps|version)|provider[- ]compatible)", "i,s,c"),

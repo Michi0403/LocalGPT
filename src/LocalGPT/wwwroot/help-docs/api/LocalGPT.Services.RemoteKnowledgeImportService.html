@@ -125,7 +125,7 @@
 
   <h1 id="LocalGPT_Services_RemoteKnowledgeImportService" data-uid="LocalGPT.Services.RemoteKnowledgeImportService" class="text-break">
 Class RemoteKnowledgeImportService  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Services.html">Services</a></dd></dl>
@@ -201,8 +201,8 @@ Class RemoteKnowledgeImportService
 
   <a id="LocalGPT_Services_RemoteKnowledgeImportService__ctor_" data-uid="LocalGPT.Services.RemoteKnowledgeImportService.#ctor*"></a>
 
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_RemoteKnowledgeImportService__ctor_LocalGPT_Interfaces_ILearnBaseKnowledgeImporterService_LocalGPT_Interfaces_ICouncilKnowledgeService_IRegexPatternService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_RemoteKnowledgeImportService__" data-uid="LocalGPT.Services.RemoteKnowledgeImportService.#ctor(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService,LocalGPT.Interfaces.ICouncilKnowledgeService,IRegexPatternService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.RemoteKnowledgeImportService})">
-  RemoteKnowledgeImportService(ILearnBaseKnowledgeImporterService, ICouncilKnowledgeService, IRegexPatternService, ILogger&lt;RemoteKnowledgeImportService&gt;)
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_Services_RemoteKnowledgeImportService__ctor_LocalGPT_Interfaces_ILearnBaseKnowledgeImporterService_LocalGPT_Interfaces_ICouncilKnowledgeService_LocalGPT_Interfaces_IRegexPatternService_LocalGPT_Services_LocalGptCatalogService_Microsoft_Extensions_Logging_ILogger_LocalGPT_Services_RemoteKnowledgeImportService__" data-uid="LocalGPT.Services.RemoteKnowledgeImportService.#ctor(LocalGPT.Interfaces.ILearnBaseKnowledgeImporterService,LocalGPT.Interfaces.ICouncilKnowledgeService,LocalGPT.Interfaces.IRegexPatternService,LocalGPT.Services.LocalGptCatalogService,Microsoft.Extensions.Logging.ILogger{LocalGPT.Services.RemoteKnowledgeImportService})">
+  RemoteKnowledgeImportService(ILearnBaseKnowledgeImporterService, ICouncilKnowledgeService, IRegexPatternService, LocalGptCatalogService, ILogger&lt;RemoteKnowledgeImportService&gt;)
   
   </h3><div class="localgpt-api-member-item-body">
 
@@ -211,7 +211,7 @@ Class RemoteKnowledgeImportService
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public RemoteKnowledgeImportService(ILearnBaseKnowledgeImporterService learnBaseImporter, ICouncilKnowledgeService knowledge, IRegexPatternService regexPatterns, ILogger&lt;RemoteKnowledgeImportService&gt; logger)</code></pre>
+    <pre><code class="lang-csharp hljs">public RemoteKnowledgeImportService(ILearnBaseKnowledgeImporterService learnBaseImporter, ICouncilKnowledgeService knowledge, IRegexPatternService regexPatterns, LocalGptCatalogService catalog, ILogger&lt;RemoteKnowledgeImportService&gt; logger)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -221,6 +221,8 @@ Class RemoteKnowledgeImportService
     <dt><code>knowledge</code> <a class="xref" href="LocalGPT.Interfaces.ICouncilKnowledgeService.html">ICouncilKnowledgeService</a></dt>
     <dd></dd>
     <dt><code>regexPatterns</code> <a class="xref" href="LocalGPT.Interfaces.IRegexPatternService.html">IRegexPatternService</a></dt>
+    <dd></dd>
+    <dt><code>catalog</code> <a class="xref" href="LocalGPT.Services.LocalGptCatalogService.html">LocalGptCatalogService</a></dt>
     <dd></dd>
     <dt><code>logger</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/microsoft.extensions.logging.ilogger-1">ILogger</a>&lt;<a class="xref" href="LocalGPT.Services.RemoteKnowledgeImportService.html">RemoteKnowledgeImportService</a>&gt;</dt>
     <dd></dd>
@@ -248,7 +250,8 @@ Class RemoteKnowledgeImportService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Runs the dispose operation.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -274,7 +277,8 @@ Class RemoteKnowledgeImportService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Imports async.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -312,7 +316,8 @@ Class RemoteKnowledgeImportService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Parses labels.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -358,7 +363,7 @@ Class RemoteKnowledgeImportService
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.7.1 Â· generated documentation
         </div>
       </div>
     </footer>

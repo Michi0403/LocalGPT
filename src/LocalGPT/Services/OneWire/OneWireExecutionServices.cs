@@ -404,6 +404,30 @@ public sealed class OneWireMessageDispatcher(
                         ["UiFeatures"] = await capabilities.GetLocalUiFeaturesAsync(cancellationToken).ConfigureAwait(false)
                     });
 
+                case OneWireMessageType.CapabilityResponse:
+                case OneWireMessageType.SkillResponse:
+                case OneWireMessageType.SkillStateUpdate:
+                    if (peers.GetPeer(envelope.SourcePeerId) is not { } refreshedPeer)
+                        return Error(envelope, "The linked peer has no registered 1-Wire advertisement to refresh.");
+                    if (TryRead<List<OneWireCapabilityDescriptor>>(envelope, "Capabilities", out var refreshedCapabilities))
+                        refreshedPeer.Capabilities = refreshedCapabilities ?? [];
+                    if (TryRead<List<OneWireSkillDescriptor>>(envelope, "Skills", out var refreshedSkills))
+                        refreshedPeer.Skills = refreshedSkills ?? [];
+                    if (TryRead<List<OneWireUiFeatureDescriptor>>(envelope, "UiFeatures", out var refreshedUiFeatures))
+                        refreshedPeer.UiFeatures = refreshedUiFeatures ?? [];
+                    if (TryRead<List<OneWireHardwareDescriptor>>(envelope, "Hardware", out var refreshedHardware))
+                        refreshedPeer.Hardware = refreshedHardware ?? [];
+                    refreshedPeer.IsConnected = true;
+                    peers.Upsert(refreshedPeer);
+                    logger.LogInformation(
+                        "Refreshed live 1-Wire directory for peer {PeerId}: {CapabilityCount} capabilities, {SkillCount} skills, {UiFeatureCount} UI features and {HardwareCount} hardware entries.",
+                        refreshedPeer.PeerId,
+                        refreshedPeer.Capabilities.Count,
+                        refreshedPeer.Skills.Count,
+                        refreshedPeer.UiFeatures.Count,
+                        refreshedPeer.Hardware.Count);
+                    return null;
+
                 case OneWireMessageType.CouncilRequest:
                     return await AuthorizeTargetAndQueueAsync(envelope, alwaysRequireHuman: true, cancellationToken).ConfigureAwait(false);
 
@@ -642,7 +666,7 @@ public sealed class OneWireMessageDispatcher(
         PeerId = "localgpt",
         DisplayName = "LocalGPT",
         Application = "LocalGPT",
-        ApplicationVersion = "2.3.6-organic-wire",
+        ApplicationVersion = typeof(OneWireMessageDispatcher).Assembly.GetName().Version?.ToString(3) ?? string.Empty,
         HostName = Environment.MachineName,
         Address = "127.0.0.1",
         ServicePort = Program.OneWirePort,

@@ -146,6 +146,9 @@
 <h2 id="capability-routing">Capability routing</h2>
 <p>The capability catalog maps protocol operations to application services. It prevents transport handlers from reflecting arbitrary public methods or constructing unreviewed commands.</p>
 <p>Capabilities may include reviewed text exchange, screen capture requests, website/document content, embedded wiring proposals, OCR, or plugin work results. Each capability has its own parameters and approval behavior.</p>
+<h2 id="live-capability-directory-refresh">Live capability directory refresh</h2>
+<p>A linked peer may refresh its advertised capability directory without reconnecting. <code>CapabilityResponse</code>, <code>SkillResponse</code>, and <code>SkillStateUpdate</code> messages from the authenticated linked peer update the existing peer-registry entry while preserving the approved connection state. This is directory synchronization, not dynamic loading of arbitrary executable assemblies.</p>
+<p>PublisherStudio can therefore change an already-backed organic capability descriptor or its peer exposure policy and have LocalGPT use the refreshed descriptor on the next invocation. Trust, MFA, replay protection, and per-capability approval remain independent of directory refreshes.</p>
 <h2 id="work-spooler">Work spooler</h2>
 <p>Incoming work enters a queue with peer identity, capability, payload summary, status, and decision state. A hosted processor executes only work that has passed validation and approval.</p>
 <h2 id="security-invariants">Security invariants</h2>
@@ -178,7 +181,7 @@
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.7.1 Â· generated documentation
         </div>
       </div>
     </footer>

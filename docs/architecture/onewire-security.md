@@ -37,6 +37,12 @@ The capability catalog maps protocol operations to application services. It prev
 
 Capabilities may include reviewed text exchange, screen capture requests, website/document content, embedded wiring proposals, OCR, or plugin work results. Each capability has its own parameters and approval behavior.
 
+## Live capability directory refresh
+
+A linked peer may refresh its advertised capability directory without reconnecting. `CapabilityResponse`, `SkillResponse`, and `SkillStateUpdate` messages from the authenticated linked peer update the existing peer-registry entry while preserving the approved connection state. This is directory synchronization, not dynamic loading of arbitrary executable assemblies.
+
+PublisherStudio can therefore change an already-backed organic capability descriptor or its peer exposure policy and have LocalGPT use the refreshed descriptor on the next invocation. Trust, MFA, replay protection, and per-capability approval remain independent of directory refreshes.
+
 ## Work spooler
 
 Incoming work enters a queue with peer identity, capability, payload summary, status, and decision state. A hosted processor executes only work that has passed validation and approval.

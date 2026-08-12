@@ -32,6 +32,8 @@ if ($globalUsing -and $globalUsing -notmatch 'global using LocalGPT\.WireProtoco
 if ($interfaces -and $interfaces -notmatch 'RegisterOwned') { Add-Finding 'Connection-generation ownership is missing from the 1-Wire registry contract.' }
 if ($interfaces -and $interfaces -notmatch 'IOneWireReplayGuard') { Add-Finding 'The replay-guard contract is missing.' }
 if ($dispatcher -and $dispatcher -notmatch 'OneWireDispatchContext') { Add-Finding 'The dispatcher no longer receives transport-owned peer context.' }
+if ($dispatcher -and $dispatcher -notmatch 'case OneWireMessageType\.CapabilityResponse') { Add-Finding 'LocalGPT no longer accepts live capability directory refreshes from linked peers.' }
+if ($dispatcher -and $dispatcher -notmatch 'Refreshed live 1-Wire directory for peer') { Add-Finding 'LocalGPT live peer-directory refresh diagnostics are missing.' }
 if ($dispatcher -match 'SourcePeerId\s*,\s*"localgpt"[\s\S]{0,180}IsConnected') { Add-Finding 'Review dispatcher identity handling; source envelope data may be participating in internal-call authorization.' }
 if ($state -and $state -notmatch 'class OneWireReplayGuard') { Add-Finding 'The replay guard implementation is missing.' }
 if ($transport -and ($transport -notmatch 'EnableLanTransport' -or $transport -notmatch 'IPAddress\.Loopback')) { Add-Finding 'The TCP listener no longer defaults to loopback with explicit LAN opt-in.' }
