@@ -139,14 +139,20 @@
 <li>human participant when invited.</li>
 </ul>
 <p>The Council spooler and preflight services prepare work, validate routes, and track steps. A model can propose a result, but deterministic application rules still decide whether a step is complete, failed, recoverable, or waiting for a human.</p>
+<h3 id="choosing-an-execution-mode">Choosing an execution mode</h3>
+<p>For most multi-PC Councils, <strong>one member per AI host with all hosts working in parallel</strong> is the conservative default. In the team editor this is <code>AllMembersSequentialOnEachAIHostParallel</code>. It avoids loading several large models on one GPU at once while still using every connected AI PC.</p>
+<p>Choose <code>AllMembersParallel</code> when each host has enough VRAM/CPU capacity for multiple simultaneous model requests and set the lane limit accordingly. Choose <code>AllMembersSequential</code> only when the workflow really needs one global speaking order across every host.</p>
+<p>All modes keep the workflow phase barrier: the next round starts only after every member assigned to the current phase has completed, failed, or been explicitly skipped.</p>
 <h2 id="provider-qualified-routing">Provider-qualified routing</h2>
 <p>The visible address follows this shape:</p>
 <pre><code class="lang-text">Provider — model @ endpoint
 </code></pre>
 <p>A bare model name is accepted only when it resolves to one provider route. Ambiguous or stale selections fail clearly instead of falling back to an arbitrary endpoint.</p>
-<p>Mixed-provider Councils can combine Ollama, LM Studio or another OpenAI-compatible endpoint, OpenAI, and Azure OpenAI. The correct client is created immediately before each call. Provider-specific settings—such as Ollama GPU options—stay with the provider that understands them.</p>
+<p>Mixed-provider Councils can combine multiple Ollama hosts, LM Studio or another OpenAI-compatible endpoint, OpenAI, and Azure OpenAI. The correct client is created immediately before each call. Provider-specific settings—such as Ollama GPU options—stay with the provider that understands them.</p>
+<p>A provider host is identified by provider kind and normalized endpoint. Adding a second Ollama does not replace the first: the existing primary remains the default and the new endpoint becomes an additional host unless the user explicitly promotes it. On refresh/run preflight, stale provider-qualified selections are deselected or rejected with their exact endpoint; LocalGPT never substitutes a same-name model from another host.</p>
 <h2 id="benchmark-council">Benchmark Council</h2>
 <p>A bounded benchmark measures one or more selected routes using deterministic tasks and explicit limits for context, output, count, and timeout. Other selected models can review the recommendation; when no independent reviewer is available, a bounded self-review may be used.</p>
+<p>Every benchmark run is registered as a detachable live Council session. Its current target, profile, task, timeout, review, and recommendation progress can be opened from the benchmark panel or rejoined from <strong>Chat → Running session tools</strong>. Stopping that live session cancels the owned benchmark run. Automatic DXFunctions are disabled during benchmark calls so tool negotiation does not distort the measured route.</p>
 <p>Recommendations are never applied automatically. The user chooses whether to save or apply a preset. Applying a preset changes future LocalGPT routing; it does not rewrite provider-global server configuration.</p>
 <h2 id="result-integrity">Result integrity</h2>
 <p>A step that produces thinking but no substantive final answer receives at most one bounded final-only recovery request. If the result is still empty, the step is failed rather than counted as success.</p>
@@ -159,6 +165,24 @@
 <h5>Note</h5>
 <p>Council output is a structured proposal pipeline, not a magic quorum. The boring deterministic parts are what keep the fun parts usable.</p>
 </div>
+<h2 id="x-rounds-revisable-council-control-flow">X-Rounds: revisable Council control flow</h2>
+<p>X-Rounds make cross-step revision a first-class Council workflow feature. They extend the existing ability to keep one round alive until its completion condition is met: an enabled workflow step may finish normally and later request a controlled return to another configured step when new evidence invalidates an earlier assumption.</p>
+<p>The original transcript is never rewound or overwritten. A revisit appends another revision of the target step. For example, <code>R2.v1 → R3.v1 → R5.v1 → R2.v2</code> preserves both versions and records the X-Round reason that caused the second visit.</p>
+<p>Council Teams owns the policy. Each workflow step can independently grant the following X-functions:</p>
+<ul>
+<li><code>council.x.status</code> — inspect the X policy currently granted to the executing step;</li>
+<li><code>council.x.revisit</code> — request either <code>reconsider</code> or <code>reexecute</code> of another configured step;</li>
+<li><code>council.x.return_text</code> — return explicit text to the parent workflow and complete it cleanly;</li>
+<li><code>council.x.start_single_model</code> — run one selected member as a bounded derived reasoning task and feed its visible result back to the parent;</li>
+<li><code>council.x.start_council</code> — run another configured Council team with its own run identity and feed its final text back to the parent.</li>
+</ul>
+<p><code>reconsider</code> is deliberately side-effect-free: the revisited step may reason again but LocalGPT suppresses DX/organic function execution for that revision. <code>reexecute</code> is the explicit alternative when the workflow really needs the target step's normal function policy again; its ordinary tool approvals remain in force. A revisit may target the current or an earlier configured step only. X-Rounds do not jump forward across workflow gates; forward progress happens through the normal configured workflow after the revisited revision completes.</p>
+<p>Every source step has an explicit transition budget. Child-Council nesting has a separate depth budget. A team can also require a local human to approve every accepted X transition. Declining the gate continues the ordinary workflow instead of silently selecting another route. These boundaries prevent a useful feedback graph from turning into an unbounded retry loop or bypassing a human gate.</p>
+<p>A gatekeeper is therefore not a special hard-coded Council type. It can be an ordinary role/step whose responsibility, prompt and X permissions allow it to send work back, request another specialist/Council, return a result, or require the configured human decision.</p>
+<h2 id="live-heartbeat-messages-during-a-council-run">Live heartbeat messages during a Council run</h2>
+<p>A direct live user message has two jobs. One currently executing participant may claim the new message and restart immediately so the owner does not need to wait for the next workflow boundary. The same contribution remains in the Council heartbeat queue and becomes shared context for later participants and later rounds when the normal heartbeat is prepared.</p>
+<p>The immediate restart claim is single-consumer per Council run. While ordered presentation has a foreground participant, that participant owns the immediate restart claim; hidden parallel participants keep running instead of all restarting. If the foreground model has already completed, the message simply remains queued for subsequent participants and the next heartbeat. Other active participants do not restart for the same direct message, which avoids multiplying one correction into many duplicate model restarts while still preserving the correction as general Council context.</p>
+<p>The Chat configuration exposes the scheduler at two levels. <strong>Load balancing</strong> selects host-balanced versus hardware-road parallel scheduling, and <strong>Parallel models per AI host</strong> controls the per-host ceiling. Expanding <strong>Hardware spooler and per-model CPU/GPU roads</strong> exposes each selected model's hardware kind/device, token road, Ollama GPU-layer choice, lane concurrency, and per-model load override. Different AI hosts remain independent compute roads, so a remote PC can work at the same time as the local machine. <strong>Model response timeout (seconds)</strong> controls how long a not-yet-started/current provider attempt may wait before the existing bounded recovery policy applies; this is useful when one slow remote model would otherwise make an ordered Council transcript appear stalled even though other hosts are busy.</p>
 
 </article>
 
@@ -177,7 +201,7 @@
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.7.4 Â· generated documentation
         </div>
       </div>
     </footer>

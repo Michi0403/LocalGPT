@@ -6,7 +6,7 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Class CouncilRunConfigurationSnapshot | LocalGPT Documentation ">
       
-      
+      <meta name="description" content="Represents a council run configuration snapshot.">
       <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
 <link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
       <link rel="stylesheet" href="../public/docfx.min.css">
@@ -125,14 +125,15 @@
 
   <h1 id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot" class="text-break">
 Class CouncilRunConfigurationSnapshot  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.BusinessObjects.html">BusinessObjects</a></dd></dl>
   <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
   </div>
 
-  <div class="markdown summary"></div>
+  <div class="markdown summary"><p>Represents a council run configuration snapshot.</p>
+</div>
   <div class="markdown conceptual"></div>
 
   <div class="codewrapper">
@@ -190,16 +191,17 @@ Class CouncilRunConfigurationSnapshot
 
   <a id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot__ctor_" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.#ctor*"></a>
 
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot__ctor_System_Guid_System_Int64_System_Collections_Generic_IReadOnlyList_System_String__System_Collections_Generic_IReadOnlyList_LocalGPT_WireProtocol_OneWireCouncilModelRoute__System_Int32_System_Int32_System_Int32_System_Nullable_System_Int32__System_Boolean_System_Int32_System_String_System_Boolean_System_Boolean_" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.#ctor(System.Guid,System.Int64,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{LocalGPT.WireProtocol.OneWireCouncilModelRoute},System.Int32,System.Int32,System.Int32,System.Nullable{System.Int32},System.Boolean,System.Int32,System.String,System.Boolean,System.Boolean)">
-  CouncilRunConfigurationSnapshot(Guid, long, IReadOnlyList&lt;string&gt;, IReadOnlyList&lt;OneWireCouncilModelRoute&gt;, int, int, int, int?, bool, int, string, bool, bool)
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot__ctor_System_Guid_System_Int64_System_Collections_Generic_IReadOnlyList_System_String__System_Collections_Generic_IReadOnlyList_LocalGPT_WireProtocol_OneWireCouncilModelRoute__System_Int32_System_Int32_System_Int32_System_Nullable_System_Int32__System_Boolean_System_Int32_System_Int32_System_Int32_System_String_System_Boolean_System_Boolean_" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.#ctor(System.Guid,System.Int64,System.Collections.Generic.IReadOnlyList{System.String},System.Collections.Generic.IReadOnlyList{LocalGPT.WireProtocol.OneWireCouncilModelRoute},System.Int32,System.Int32,System.Int32,System.Nullable{System.Int32},System.Boolean,System.Int32,System.Int32,System.Int32,System.String,System.Boolean,System.Boolean)">
+  CouncilRunConfigurationSnapshot(Guid, long, IReadOnlyList&lt;string&gt;, IReadOnlyList&lt;OneWireCouncilModelRoute&gt;, int, int, int, int?, bool, int, int, int, string, bool, bool)
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Represents a council run configuration snapshot.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public CouncilRunConfigurationSnapshot(Guid RunId, long Revision, IReadOnlyList&lt;string&gt; Participants, IReadOnlyList&lt;OneWireCouncilModelRoute&gt; ModelRoutes, int ResourceLoadPercent, int RequestedMaxOutputTokens, int RequestedMaxContextTokens, int? FallbackOllamaNumGpu, bool AllowParallelHardwareRoads, int CurrentRound, string CurrentPhase, bool IsRoundSkipRequested, bool IsRunning)</code></pre>
+    <pre><code class="lang-csharp hljs">public CouncilRunConfigurationSnapshot(Guid RunId, long Revision, IReadOnlyList&lt;string&gt; Participants, IReadOnlyList&lt;OneWireCouncilModelRoute&gt; ModelRoutes, int ResourceLoadPercent, int RequestedMaxOutputTokens, int RequestedMaxContextTokens, int? FallbackOllamaNumGpu, bool AllowParallelHardwareRoads, int MaxParallelModels, int ModelTimeoutSeconds, int CurrentRound, string CurrentPhase, bool IsRoundSkipRequested, bool IsRunning)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -221,6 +223,10 @@ Class CouncilRunConfigurationSnapshot
     <dt><code>FallbackOllamaNumGpu</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>?</dt>
     <dd></dd>
     <dt><code>AllowParallelHardwareRoads</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>MaxParallelModels</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>ModelTimeoutSeconds</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
     <dd></dd>
     <dt><code>CurrentRound</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
     <dd></dd>
@@ -244,7 +250,7 @@ Class CouncilRunConfigurationSnapshot
 
 
   </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--properties" data-member-kind="Properties" style="--localgpt-api-accent:#06b6d4;" role="region" aria-labelledby="properties"><h2 class="section" id="properties"><span class="localgpt-api-member-icon" aria-hidden="true">&#x1F43E;</span>Properties
-<span class="localgpt-api-member-count" aria-label="13 items">13</span></h2><div class="localgpt-api-member-panel-body">
+<span class="localgpt-api-member-count" aria-label="15 items">15</span></h2><div class="localgpt-api-member-panel-body">
 
 
   <a id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot_AllowParallelHardwareRoads_" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.AllowParallelHardwareRoads*"></a>
@@ -433,6 +439,37 @@ Class CouncilRunConfigurationSnapshot
 
 
 
+  <a id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot_MaxParallelModels_" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.MaxParallelModels*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot_MaxParallelModels" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.MaxParallelModels">
+  MaxParallelModels
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int MaxParallelModels { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
   <a id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot_ModelRoutes_" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.ModelRoutes*"></a>
 
   </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot_ModelRoutes" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.ModelRoutes">
@@ -454,6 +491,37 @@ Class CouncilRunConfigurationSnapshot
   <h4 class="section">Value</h4>
   <dl class="parameters">
     <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<span class="xref">OneWireCouncilModelRoute</span>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot_ModelTimeoutSeconds_" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.ModelTimeoutSeconds*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot_ModelTimeoutSeconds" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.ModelTimeoutSeconds">
+  ModelTimeoutSeconds
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public int ModelTimeoutSeconds { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
     <dd></dd>
   </dl>
 
@@ -656,8 +724,8 @@ Class CouncilRunConfigurationSnapshot
 
   <a id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot_Deconstruct_" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.Deconstruct*"></a>
 
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot_Deconstruct_System_Guid__System_Int64__System_Collections_Generic_IReadOnlyList_System_String___System_Collections_Generic_IReadOnlyList_LocalGPT_WireProtocol_OneWireCouncilModelRoute___System_Int32__System_Int32__System_Int32__System_Nullable_System_Int32___System_Boolean__System_Int32__System_String__System_Boolean__System_Boolean__" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.Deconstruct(System.Guid@,System.Int64@,System.Collections.Generic.IReadOnlyList{System.String}@,System.Collections.Generic.IReadOnlyList{LocalGPT.WireProtocol.OneWireCouncilModelRoute}@,System.Int32@,System.Int32@,System.Int32@,System.Nullable{System.Int32}@,System.Boolean@,System.Int32@,System.String@,System.Boolean@,System.Boolean@)">
-  Deconstruct(out Guid, out long, out IReadOnlyList&lt;string&gt;, out IReadOnlyList&lt;OneWireCouncilModelRoute&gt;, out int, out int, out int, out int?, out bool, out int, out string, out bool, out bool)
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilRunConfigurationSnapshot_Deconstruct_System_Guid__System_Int64__System_Collections_Generic_IReadOnlyList_System_String___System_Collections_Generic_IReadOnlyList_LocalGPT_WireProtocol_OneWireCouncilModelRoute___System_Int32__System_Int32__System_Int32__System_Nullable_System_Int32___System_Boolean__System_Int32__System_Int32__System_Int32__System_String__System_Boolean__System_Boolean__" data-uid="LocalGPT.BusinessObjects.CouncilRunConfigurationSnapshot.Deconstruct(System.Guid@,System.Int64@,System.Collections.Generic.IReadOnlyList{System.String}@,System.Collections.Generic.IReadOnlyList{LocalGPT.WireProtocol.OneWireCouncilModelRoute}@,System.Int32@,System.Int32@,System.Int32@,System.Nullable{System.Int32}@,System.Boolean@,System.Int32@,System.Int32@,System.Int32@,System.String@,System.Boolean@,System.Boolean@)">
+  Deconstruct(out Guid, out long, out IReadOnlyList&lt;string&gt;, out IReadOnlyList&lt;OneWireCouncilModelRoute&gt;, out int, out int, out int, out int?, out bool, out int, out int, out int, out string, out bool, out bool)
   
   </h3><div class="localgpt-api-member-item-body">
 
@@ -665,7 +733,7 @@ Class CouncilRunConfigurationSnapshot
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public void Deconstruct(out Guid RunId, out long Revision, out IReadOnlyList&lt;string&gt; Participants, out IReadOnlyList&lt;OneWireCouncilModelRoute&gt; ModelRoutes, out int ResourceLoadPercent, out int RequestedMaxOutputTokens, out int RequestedMaxContextTokens, out int? FallbackOllamaNumGpu, out bool AllowParallelHardwareRoads, out int CurrentRound, out string CurrentPhase, out bool IsRoundSkipRequested, out bool IsRunning)</code></pre>
+    <pre><code class="lang-csharp hljs">public void Deconstruct(out Guid RunId, out long Revision, out IReadOnlyList&lt;string&gt; Participants, out IReadOnlyList&lt;OneWireCouncilModelRoute&gt; ModelRoutes, out int ResourceLoadPercent, out int RequestedMaxOutputTokens, out int RequestedMaxContextTokens, out int? FallbackOllamaNumGpu, out bool AllowParallelHardwareRoads, out int MaxParallelModels, out int ModelTimeoutSeconds, out int CurrentRound, out string CurrentPhase, out bool IsRoundSkipRequested, out bool IsRunning)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -687,6 +755,10 @@ Class CouncilRunConfigurationSnapshot
     <dt><code>FallbackOllamaNumGpu</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>?</dt>
     <dd></dd>
     <dt><code>AllowParallelHardwareRoads</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>MaxParallelModels</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd></dd>
+    <dt><code>ModelTimeoutSeconds</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
     <dd></dd>
     <dt><code>CurrentRound</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
     <dd></dd>
@@ -940,7 +1012,7 @@ Class CouncilRunConfigurationSnapshot
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.7.4 Â· generated documentation
         </div>
       </div>
     </footer>

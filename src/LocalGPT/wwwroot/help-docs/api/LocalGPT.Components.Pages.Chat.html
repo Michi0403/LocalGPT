@@ -125,7 +125,7 @@
 
   <h1 id="LocalGPT_Components_Pages_Chat" data-uid="LocalGPT.Components.Pages.Chat" class="text-break">
 Class Chat  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Components.html">Components</a>.<a class="xref" href="LocalGPT.Components.Pages.html">Pages</a></dd></dl>
@@ -602,8 +602,8 @@ public bool StartNewCouncilChat { get; set; }</code></pre>
 
   <a id="LocalGPT_Components_Pages_Chat_QueueLiveCouncilUserMessageAsync_" data-uid="LocalGPT.Components.Pages.Chat.QueueLiveCouncilUserMessageAsync*"></a>
 
-  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Components_Pages_Chat_QueueLiveCouncilUserMessageAsync_System_String_" data-uid="LocalGPT.Components.Pages.Chat.QueueLiveCouncilUserMessageAsync(System.String)">
-  QueueLiveCouncilUserMessageAsync(string)
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Components_Pages_Chat_QueueLiveCouncilUserMessageAsync_System_String_System_Collections_Generic_IReadOnlyList_LocalGPT_BusinessObjects_LiveCouncilUploadFile__" data-uid="LocalGPT.Components.Pages.Chat.QueueLiveCouncilUserMessageAsync(System.String,System.Collections.Generic.IReadOnlyList{LocalGPT.BusinessObjects.LiveCouncilUploadFile})">
+  QueueLiveCouncilUserMessageAsync(string, IReadOnlyList&lt;LiveCouncilUploadFile&gt;?)
   
   </h3><div class="localgpt-api-member-item-body">
 
@@ -612,12 +612,14 @@ public bool StartNewCouncilChat { get; set; }</code></pre>
 
   <div class="codewrapper">
     <pre><code class="lang-csharp hljs">[JSInvokable]
-public Task&lt;bool&gt; QueueLiveCouncilUserMessageAsync(string content)</code></pre>
+public Task&lt;bool&gt; QueueLiveCouncilUserMessageAsync(string content, IReadOnlyList&lt;LiveCouncilUploadFile&gt;? files)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
   <dl class="parameters">
     <dt><code>content</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>files</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.LiveCouncilUploadFile.html">LiveCouncilUploadFile</a>&gt;</dt>
     <dd></dd>
   </dl>
 
@@ -686,7 +688,7 @@ public Task&lt;bool&gt; StopActiveCouncilRunAsync()</code></pre>
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.7.4 Â· generated documentation
         </div>
       </div>
     </footer>

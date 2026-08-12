@@ -6,7 +6,7 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Class CouncilLiveSessionSnapshot | LocalGPT Documentation ">
       
-      
+      <meta name="description" content="Represents a council live session snapshot.">
       <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
 <link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
       <link rel="stylesheet" href="../public/docfx.min.css">
@@ -125,14 +125,15 @@
 
   <h1 id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot" class="text-break">
 Class CouncilLiveSessionSnapshot  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.BusinessObjects.html">BusinessObjects</a></dd></dl>
   <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
   </div>
 
-  <div class="markdown summary"></div>
+  <div class="markdown summary"><p>Represents a council live session snapshot.</p>
+</div>
   <div class="markdown conceptual"></div>
 
   <div class="codewrapper">
@@ -190,16 +191,17 @@ Class CouncilLiveSessionSnapshot
 
   <a id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot__ctor_" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.#ctor*"></a>
 
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot__ctor_System_Guid_System_Boolean_System_DateTime_System_DateTime_System_Collections_Generic_IReadOnlyList_System_String__System_String_System_Collections_Generic_IReadOnlyList_System_String__System_String_" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.#ctor(System.Guid,System.Boolean,System.DateTime,System.DateTime,System.Collections.Generic.IReadOnlyList{System.String},System.String,System.Collections.Generic.IReadOnlyList{System.String},System.String)">
-  CouncilLiveSessionSnapshot(Guid, bool, DateTime, DateTime, IReadOnlyList&lt;string&gt;, string, IReadOnlyList&lt;string&gt;, string)
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot__ctor_System_Guid_System_Boolean_System_DateTime_System_DateTime_System_Collections_Generic_IReadOnlyList_System_String__System_String_System_Collections_Generic_IReadOnlyList_System_String__System_String_System_String_System_Collections_Generic_IReadOnlyList_LocalGPT_BusinessObjects_CouncilLiveParticipantActivitySnapshot__" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.#ctor(System.Guid,System.Boolean,System.DateTime,System.DateTime,System.Collections.Generic.IReadOnlyList{System.String},System.String,System.Collections.Generic.IReadOnlyList{System.String},System.String,System.String,System.Collections.Generic.IReadOnlyList{LocalGPT.BusinessObjects.CouncilLiveParticipantActivitySnapshot})">
+  CouncilLiveSessionSnapshot(Guid, bool, DateTime, DateTime, IReadOnlyList&lt;string&gt;, string, IReadOnlyList&lt;string&gt;, string, string, IReadOnlyList&lt;CouncilLiveParticipantActivitySnapshot&gt;)
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Represents a council live session snapshot.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public CouncilLiveSessionSnapshot(Guid RunId, bool IsRunning, DateTime StartedAtUtc, DateTime UpdatedAtUtc, IReadOnlyList&lt;string&gt; CouncilMembers, string UserMessage, IReadOnlyList&lt;string&gt; AdditionalUserMessages, string Transcript)</code></pre>
+    <pre><code class="lang-csharp hljs">public CouncilLiveSessionSnapshot(Guid RunId, bool IsRunning, DateTime StartedAtUtc, DateTime UpdatedAtUtc, IReadOnlyList&lt;string&gt; CouncilMembers, string UserMessage, IReadOnlyList&lt;string&gt; AdditionalUserMessages, string Transcript, string StatusMessage, IReadOnlyList&lt;CouncilLiveParticipantActivitySnapshot&gt; ParticipantActivities)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -220,6 +222,10 @@ Class CouncilLiveSessionSnapshot
     <dd></dd>
     <dt><code>Transcript</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
     <dd></dd>
+    <dt><code>StatusMessage</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>ParticipantActivities</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilLiveParticipantActivitySnapshot.html">CouncilLiveParticipantActivitySnapshot</a>&gt;</dt>
+    <dd></dd>
   </dl>
 
 
@@ -234,7 +240,7 @@ Class CouncilLiveSessionSnapshot
 
 
   </div></section></div></section><section class="localgpt-api-member-panel localgpt-api-member-panel--properties" data-member-kind="Properties" style="--localgpt-api-accent:#06b6d4;" role="region" aria-labelledby="properties"><h2 class="section" id="properties"><span class="localgpt-api-member-icon" aria-hidden="true">&#x1F43E;</span>Properties
-<span class="localgpt-api-member-count" aria-label="8 items">8</span></h2><div class="localgpt-api-member-panel-body">
+<span class="localgpt-api-member-count" aria-label="10 items">10</span></h2><div class="localgpt-api-member-panel-body">
 
 
   <a id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot_AdditionalUserMessages_" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.AdditionalUserMessages*"></a>
@@ -330,6 +336,37 @@ Class CouncilLiveSessionSnapshot
 
 
 
+  <a id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot_ParticipantActivities_" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.ParticipantActivities*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot_ParticipantActivities" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.ParticipantActivities">
+  ParticipantActivities
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public IReadOnlyList&lt;CouncilLiveParticipantActivitySnapshot&gt; ParticipantActivities { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilLiveParticipantActivitySnapshot.html">CouncilLiveParticipantActivitySnapshot</a>&gt;</dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
   <a id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot_RunId_" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.RunId*"></a>
 
   </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot_RunId" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.RunId">
@@ -382,6 +419,37 @@ Class CouncilLiveSessionSnapshot
   <h4 class="section">Value</h4>
   <dl class="parameters">
     <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.datetime">DateTime</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot_StatusMessage_" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.StatusMessage*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot_StatusMessage" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.StatusMessage">
+  StatusMessage
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public string StatusMessage { get; init; }</code></pre>
+  </div>
+
+
+
+
+
+  <h4 class="section">Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
     <dd></dd>
   </dl>
 
@@ -491,8 +559,8 @@ Class CouncilLiveSessionSnapshot
 
   <a id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot_Deconstruct_" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.Deconstruct*"></a>
 
-  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot_Deconstruct_System_Guid__System_Boolean__System_DateTime__System_DateTime__System_Collections_Generic_IReadOnlyList_System_String___System_String__System_Collections_Generic_IReadOnlyList_System_String___System_String__" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.Deconstruct(System.Guid@,System.Boolean@,System.DateTime@,System.DateTime@,System.Collections.Generic.IReadOnlyList{System.String}@,System.String@,System.Collections.Generic.IReadOnlyList{System.String}@,System.String@)">
-  Deconstruct(out Guid, out bool, out DateTime, out DateTime, out IReadOnlyList&lt;string&gt;, out string, out IReadOnlyList&lt;string&gt;, out string)
+  <section class="localgpt-api-member-item"><h3 id="LocalGPT_BusinessObjects_CouncilLiveSessionSnapshot_Deconstruct_System_Guid__System_Boolean__System_DateTime__System_DateTime__System_Collections_Generic_IReadOnlyList_System_String___System_String__System_Collections_Generic_IReadOnlyList_System_String___System_String__System_String__System_Collections_Generic_IReadOnlyList_LocalGPT_BusinessObjects_CouncilLiveParticipantActivitySnapshot___" data-uid="LocalGPT.BusinessObjects.CouncilLiveSessionSnapshot.Deconstruct(System.Guid@,System.Boolean@,System.DateTime@,System.DateTime@,System.Collections.Generic.IReadOnlyList{System.String}@,System.String@,System.Collections.Generic.IReadOnlyList{System.String}@,System.String@,System.String@,System.Collections.Generic.IReadOnlyList{LocalGPT.BusinessObjects.CouncilLiveParticipantActivitySnapshot}@)">
+  Deconstruct(out Guid, out bool, out DateTime, out DateTime, out IReadOnlyList&lt;string&gt;, out string, out IReadOnlyList&lt;string&gt;, out string, out string, out IReadOnlyList&lt;CouncilLiveParticipantActivitySnapshot&gt;)
   
   </h3><div class="localgpt-api-member-item-body">
 
@@ -500,7 +568,7 @@ Class CouncilLiveSessionSnapshot
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">public void Deconstruct(out Guid RunId, out bool IsRunning, out DateTime StartedAtUtc, out DateTime UpdatedAtUtc, out IReadOnlyList&lt;string&gt; CouncilMembers, out string UserMessage, out IReadOnlyList&lt;string&gt; AdditionalUserMessages, out string Transcript)</code></pre>
+    <pre><code class="lang-csharp hljs">public void Deconstruct(out Guid RunId, out bool IsRunning, out DateTime StartedAtUtc, out DateTime UpdatedAtUtc, out IReadOnlyList&lt;string&gt; CouncilMembers, out string UserMessage, out IReadOnlyList&lt;string&gt; AdditionalUserMessages, out string Transcript, out string StatusMessage, out IReadOnlyList&lt;CouncilLiveParticipantActivitySnapshot&gt; ParticipantActivities)</code></pre>
   </div>
 
   <h4 class="section">Parameters</h4>
@@ -520,6 +588,10 @@ Class CouncilLiveSessionSnapshot
     <dt><code>AdditionalUserMessages</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>&gt;</dt>
     <dd></dd>
     <dt><code>Transcript</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>StatusMessage</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>ParticipantActivities</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1">IReadOnlyList</a>&lt;<a class="xref" href="LocalGPT.BusinessObjects.CouncilLiveParticipantActivitySnapshot.html">CouncilLiveParticipantActivitySnapshot</a>&gt;</dt>
     <dd></dd>
   </dl>
 
@@ -765,7 +837,7 @@ Class CouncilLiveSessionSnapshot
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.7.4 Â· generated documentation
         </div>
       </div>
     </footer>

@@ -6,7 +6,7 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="title" content="Interface ICouncilLiveSessionService | LocalGPT Documentation ">
       
-      
+      <meta name="description" content="Defines the council live session service contract.">
       <link rel="icon" type="image/svg+xml" href="../favicon.svg?v=bd8f0a1e541f" data-localgpt-favicon="true" />
 <link rel="alternate icon" href="../favicon.ico?v=c1e7eb37cc8b" />
       <link rel="stylesheet" href="../public/docfx.min.css">
@@ -125,14 +125,15 @@
 
   <h1 id="LocalGPT_Interfaces_ICouncilLiveSessionService" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService" class="text-break">
 Interface ICouncilLiveSessionService  
-  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> · Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
+  </h1><aside class="localgpt-api-neko-note" role="note"><span class="localgpt-api-neko-mascot" aria-hidden="true">&#x1F431;&#x2009;&#x1F436;</span><span><strong>Neko & Puppy type guide</strong> Â· Tiny paws, tidy details: constructors, properties, methods, and events stay cuddled up with the type that owns them, nya~ woof!</span></aside>
 
   <div class="facts text-secondary">
     <dl><dt>Namespace</dt><dd><a class="xref" href="LocalGPT.html">LocalGPT</a>.<a class="xref" href="LocalGPT.Interfaces.html">Interfaces</a></dd></dl>
   <dl><dt>Assembly</dt><dd>LocalGPT.dll</dd></dl>
   </div>
 
-  <div class="markdown summary"></div>
+  <div class="markdown summary"><p>Defines the council live session service contract.</p>
+</div>
   <div class="markdown conceptual"></div>
 
   <div class="codewrapper">
@@ -159,7 +160,7 @@ Interface ICouncilLiveSessionService
 
 
   <section class="localgpt-api-member-panel localgpt-api-member-panel--methods" data-member-kind="Methods" style="--localgpt-api-accent:#3b82f6;" role="region" aria-labelledby="methods"><h2 class="section" id="methods"><span class="localgpt-api-member-icon" aria-hidden="true">&#x2699;&#xFE0F;</span>Methods
-<span class="localgpt-api-member-count" aria-label="9 items">9</span></h2><div class="localgpt-api-member-panel-body">
+<span class="localgpt-api-member-count" aria-label="16 items">16</span></h2><div class="localgpt-api-member-panel-body">
 
 
   <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_Append_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.Append*"></a>
@@ -169,7 +170,8 @@ Interface ICouncilLiveSessionService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Runs the append operation.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -195,6 +197,42 @@ Interface ICouncilLiveSessionService
 
 
 
+  <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_AppendParticipantActivity_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.AppendParticipantActivity*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_ICouncilLiveSessionService_AppendParticipantActivity_System_Guid_System_String_System_String_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.AppendParticipantActivity(System.Guid,System.String,System.String)">
+  AppendParticipantActivity(Guid, string, string)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Appends provider thinking, status markup, function-call notices, or response text to one live participant stream.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">void AppendParticipantActivity(Guid runId, string activityKey, string text)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>activityKey</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>text</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
   <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_AppendUserMessage_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.AppendUserMessage*"></a>
 
   </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_ICouncilLiveSessionService_AppendUserMessage_System_Guid_System_String_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.AppendUserMessage(System.Guid,System.String)">
@@ -202,7 +240,8 @@ Interface ICouncilLiveSessionService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Runs the append user message operation.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -235,7 +274,8 @@ Interface ICouncilLiveSessionService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Runs the begin operation.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -270,6 +310,48 @@ Interface ICouncilLiveSessionService
 
 
 
+  <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_BeginParticipantActivity_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.BeginParticipantActivity*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_ICouncilLiveSessionService_BeginParticipantActivity_System_Guid_System_String_System_String_System_String_System_String_System_String_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.BeginParticipantActivity(System.Guid,System.String,System.String,System.String,System.String,System.String)">
+  BeginParticipantActivity(Guid, string, string, string, string, string)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Starts or refreshes a live participant activity stream without changing ordered transcript presentation.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">void BeginParticipantActivity(Guid runId, string activityKey, string modelName, string phase, string role, string routeLabel)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>activityKey</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>modelName</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>phase</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>role</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>routeLabel</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
   <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_Cancel_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.Cancel*"></a>
 
   </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_ICouncilLiveSessionService_Cancel_System_Guid_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.Cancel(System.Guid)">
@@ -277,7 +359,8 @@ Interface ICouncilLiveSessionService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Determines whether cel.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -313,7 +396,8 @@ Interface ICouncilLiveSessionService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Runs the complete operation.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -337,6 +421,42 @@ Interface ICouncilLiveSessionService
 
 
 
+  <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_CompleteParticipantActivity_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.CompleteParticipantActivity*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_ICouncilLiveSessionService_CompleteParticipantActivity_System_Guid_System_String_System_String_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.CompleteParticipantActivity(System.Guid,System.String,System.String)">
+  CompleteParticipantActivity(Guid, string, string)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Marks one live participant stream complete while retaining it until the overall Council run finishes.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">void CompleteParticipantActivity(Guid runId, string activityKey, string statusMessage)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>activityKey</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>statusMessage</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
   <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_Get_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.Get*"></a>
 
   </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_ICouncilLiveSessionService_Get_System_Guid_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.Get(System.Guid)">
@@ -344,7 +464,8 @@ Interface ICouncilLiveSessionService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Runs the get operation.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -380,7 +501,8 @@ Interface ICouncilLiveSessionService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Gets active.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -411,7 +533,8 @@ Interface ICouncilLiveSessionService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Gets active summaries.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -442,7 +565,8 @@ Interface ICouncilLiveSessionService
   
   </h3><div class="localgpt-api-member-item-body">
 
-  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 summary"><p>Gets summary.</p>
+</div>
   <div class="markdown level1 conceptual"></div>
 
   <div class="codewrapper">
@@ -460,6 +584,144 @@ Interface ICouncilLiveSessionService
     <dt><a class="xref" href="LocalGPT.BusinessObjects.CouncilLiveSessionSummary.html">CouncilLiveSessionSummary</a></dt>
     <dd></dd>
   </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_SetParticipantActivityResult_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.SetParticipantActivityResult*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_ICouncilLiveSessionService_SetParticipantActivityResult_System_Guid_System_String_System_String_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.SetParticipantActivityResult(System.Guid,System.String,System.String)">
+  SetParticipantActivityResult(Guid, string, string)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Stores the authoritative final answer for one participant independently from its incremental provider stream.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">void SetParticipantActivityResult(Guid runId, string activityKey, string finalContent)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>activityKey</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>finalContent</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_SetParticipantActivityStatus_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.SetParticipantActivityStatus*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_ICouncilLiveSessionService_SetParticipantActivityStatus_System_Guid_System_String_System_String_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.SetParticipantActivityStatus(System.Guid,System.String,System.String)">
+  SetParticipantActivityStatus(Guid, string, string)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Updates the status of one live participant stream.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">void SetParticipantActivityStatus(Guid runId, string activityKey, string statusMessage)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>activityKey</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>statusMessage</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_SetStatus_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.SetStatus*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_ICouncilLiveSessionService_SetStatus_System_Guid_System_String_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.SetStatus(System.Guid,System.String)">
+  SetStatus(Guid, string)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Sets status.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">void SetStatus(Guid runId, string statusMessage)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+    <dt><code>statusMessage</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <a id="LocalGPT_Interfaces_ICouncilLiveSessionService_Touch_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.Touch*"></a>
+
+  </div></section><section class="localgpt-api-member-item"><h3 id="LocalGPT_Interfaces_ICouncilLiveSessionService_Touch_System_Guid_" data-uid="LocalGPT.Interfaces.ICouncilLiveSessionService.Touch(System.Guid)">
+  Touch(Guid)
+  
+  </h3><div class="localgpt-api-member-item-body">
+
+  <div class="markdown level1 summary"><p>Runs the touch operation.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">void Touch(Guid runId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>runId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.guid">Guid</a></dt>
+    <dd></dd>
+  </dl>
+
 
 
 
@@ -522,7 +784,7 @@ Interface ICouncilLiveSessionService
     <footer class="border-top text-secondary">
       <div class="container-xxl">
         <div class="flex-fill">
-          LocalGPT 2.3.7 · generated documentation
+          LocalGPT 2.7.4 Â· generated documentation
         </div>
       </div>
     </footer>
