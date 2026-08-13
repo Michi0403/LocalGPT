@@ -565,6 +565,64 @@ namespace LocalGPT.Migrations
                     b.ToTable("CouncilModelPresets", (string)null);
                 });
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.HardwarePerformancePreset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsUserApproved")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ModelRoutesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ResourceLoadPercent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SourceRunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("SourceRunId");
+
+                    b.HasIndex("IsArchived", "IsDefault", "UpdatedAtUtc");
+
+                    b.ToTable("HardwarePerformancePresets", (string)null);
+                });
+
             modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilTeamConfiguration", b =>
                 {
                     b.Property<Guid>("Id")

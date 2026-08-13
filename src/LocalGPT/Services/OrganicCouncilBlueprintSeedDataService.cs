@@ -971,19 +971,23 @@ Original learning request:
     {
         Key = "adaptive-model-benchmark",
         DisplayName = "Adaptive Ollama Benchmark Council",
-        Purpose = "Benchmarks user-selected provider-qualified models already available on configured local or LAN AI endpoints, compares speed and answer value, and lets independent reviewers recommend a new preset without overwriting an existing one.",
+        Purpose = "Benchmarks user-selected provider-qualified models already available on configured local or LAN AI endpoints, compares speed and answer value, and stores the measured result as a reusable hardware-spooler performance profile without changing Council membership.",
         Roles =
         [
             new() { Role = "Benchmark Director", Expertise = "bounded benchmark design, fairness, reproducibility and hardware-road constraints", Responsibility = "define the candidate set and ensure every model receives equivalent tasks and limits" },
             new() { Role = "Task Curator", Expertise = "small checkable C#, PowerShell, Java, Minecraft and ASCII-game tasks", Responsibility = "prepare deterministic tasks with explicit acceptance evidence rather than subjective style prompts" },
             new() { Role = "Code Curator", Expertise = "Qwen/DeepSeek/code-model review, correctness, maintainability and generated-artifact quality", Responsibility = "score candidate answers independently and explain good or bad generation value" },
             new() { Role = "Performance Analyst", Expertise = "latency, token throughput, context/output budgets, CPU/GPU routing and timeout evidence", Responsibility = "compare speed and resource behavior without treating the fastest incomplete answer as the winner" },
-            new() { Role = "Preset Synthesizer", Expertise = "LocalGPT model presets and safe parameter ranges", Responsibility = "recommend a new named preset while preserving all existing presets and requiring user confirmation before save" }
+            new() { Role = "Preset Synthesizer", Expertise = "LocalGPT hardware performance presets and safe token ranges", Responsibility = "verify the benchmark-created hardware-spooler profile, explain its measured ranges and identify whether additional named benchmark profiles are worth creating" }
         ],
         PreferredCapabilities =
         [
             "localgpt.models.benchmark.provider",
-            "localgpt.models.benchmark.autotune",
+            "localgpt.hardware.performance.presets.list",
+            "localgpt.hardware.performance.presets.get",
+            "localgpt.hardware.performance.presets.save",
+            "localgpt.hardware.performance.presets.apply",
+            "localgpt.hardware.performance.presets.delete",
             "localgpt.time_state.now",
             "localgpt.onboarding.status",
             "localgpt.learning.snapshot",
@@ -998,7 +1002,7 @@ Inspect authoritative installed-model discovery, configured hardware roads, atta
 Create a compact task matrix covering at least one architecture/code task and one structured reasoning task. Consume the Benchmark Director's preflight evidence and all existing human guidance; this role must not reopen model-selection or hardware questions that preflight already resolved. Every task needs a checkable acceptance shape and must fit the configured benchmark budget. Do not include secrets, repositories outside the approved workspace or destructive commands.
 """, "AllMembersSequentialOnEachAIHostParallel"),
             Step("benchmark-execution", "Run installed-model benchmark", 30, "Execution", "Benchmark Director", """
-Use localgpt.models.benchmark.provider exactly once with the exact provider-qualified candidate set and reviewed limits already established by preflight. Set allDiscoveredModels=true only when the user explicitly requested every discovered model; otherwise pass the exact modelSelectionKeys. Pass the selected reviewer pool when the user configured one, or let LocalGPT prefer capable default reviewers such as gpt-oss:20b. Do not restart discovery questionnaires during execution. This is the only benchmark execution step. Preserve generated-text privacy in logs; benchmark recommendations are not applied automatically.
+Use localgpt.models.benchmark.provider exactly once with the exact provider-qualified candidate set and reviewed limits already established by preflight. Set allDiscoveredModels=true only when the user explicitly requested every discovered model; otherwise pass the exact modelSelectionKeys. Pass the selected reviewer pool when the user configured one, or let LocalGPT prefer capable default reviewers such as gpt-oss:20b. Pass the agreed performancePresetName. After the already required human approval, every successful benchmark automatically becomes a durable Hardware spooler performance profile. Do not restart discovery questionnaires during execution. This is the only benchmark execution step. Preserve generated-text privacy in logs; saving the profile must not change Council membership or provider-global settings.
 """, "LeaderSingle", canUseOrganicFunctions: true),
             Step("benchmark-curation", "Independent code curation", 40, "Review", "Code Curator", """
 Review the returned bounded results independently. Compare correctness, completeness, architecture quality, instruction following and obvious hallucination risk. Explain why each result is good, bad or inconclusive. Do not change the benchmark measurements.
@@ -1007,17 +1011,17 @@ Review the returned bounded results independently. Compare correctness, complete
 Compare first-token/total latency, throughput, timeout behavior, context/output limits and hardware roads. Penalize incomplete or invalid output even when it is fast. Separate measured facts from inferred hardware explanations.
 """, "AllMembersSequentialOnEachAIHostParallel"),
             Step("benchmark-preset", "Preset recommendation", 60, "Synthesis", "Preset Synthesizer", """
-Synthesize one recommended model/preset configuration plus alternatives for low-latency games and higher-value development. State the evidence and unresolved uncertainty. Existing presets must remain untouched; any new preset save remains a separate user-confirmed action.
+Call localgpt.hardware.performance.presets.list and then localgpt.hardware.performance.presets.get for the profile created by this benchmark. Summarize which provider-qualified models it covers, the measured token ranges, recommended per-model load points and remaining uncertainty. Do not invent a second unsaved preset in prose. If the evidence supports a materially different low-latency or high-value profile, use localgpt.hardware.performance.presets.save only after fresh human approval. Existing profiles remain untouched unless the user explicitly chooses to replace or delete one. Use localgpt.hardware.performance.presets.apply only when the user explicitly asks to apply a profile to preparation or a running Council.
 """, "LeaderSingle", producesFinalAnswer: true)
         ],
-        MainRoundInstructionTemplate = "Treat benchmark measurements as evidence, not reputation. Code curators judge answer value independently; the Benchmark Director remains responsible for fairness and the Preset Synthesizer may only recommend a new preset.",
+        MainRoundInstructionTemplate = "Treat benchmark measurements as evidence, not reputation. Code curators judge answer value independently; the Benchmark Director remains responsible for fairness, and every successful approved benchmark must surface as a selectable Hardware spooler performance profile rather than prose-only token advice.",
         ArchitectureContracts =
         [
             .. DefaultArchitectureContracts(),
             "Benchmark only provider-qualified models already discovered at configured local or LAN AI endpoints; never substitute a same-name model from another endpoint.",
             "Every candidate receives equivalent bounded tasks and runtime limits; failed or incomplete answers remain visible in the result.",
             "Independent reviewer judgments and measured performance are separate evidence streams; the benchmark reviewer pool is user-selectable and should prefer capable reviewers such as gpt-oss:20b when available rather than tiny models by default.",
-            "A benchmark may create a new user-approved preset but never overwrites an existing preset."
+            "A successful approved benchmark creates or updates only its own hardware performance profile. Performance profiles are selectable and deletable in Chat Hardware spooler and never change Council membership when applied."
         ]
     };
     }

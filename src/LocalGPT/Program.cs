@@ -435,6 +435,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IEmbeddedTelemetryIngressService, EmbeddedTelemetryIngressService>();
                 builder.Services.AddScoped<IEmbeddedFirmwarePlanningService, EmbeddedFirmwarePlanningService>();
                 builder.Services.AddScoped<IModelPresetService, ModelPresetService>();
+                builder.Services.AddScoped<IHardwarePerformancePresetService, HardwarePerformancePresetService>();
                 builder.Services.AddScoped<ISqliteEditorPreferenceService, SqliteEditorPreferenceService>();
                 builder.Services.AddScoped<ISafeTextDocumentService, SafeTextDocumentService>();
                 builder.Services.AddScoped<IKnowledgeRatingService, KnowledgeRatingService>();
@@ -456,6 +457,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IDebugArtifactInspectionService, DebugArtifactInspectionService>();
                 builder.Services.AddSingleton<DxAiFunctionHandlerMapService>();
                 builder.Services.AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>();
+                builder.Services.AddScoped<HardwarePerformancePresetDxAiSupport>();
                 builder.Services.AddSingleton<DxAiFunctionCatalogSynchronizationGate>();
                 builder.Services.AddScoped<IDxAiFunctionCatalogService, DxAiFunctionCatalogService>();
                 builder.Services.AddScoped<ICouncilDxFunctionOrchestrator, CouncilDxFunctionOrchestrator>();

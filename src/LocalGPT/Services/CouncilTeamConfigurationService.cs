@@ -24,7 +24,7 @@ public sealed class CouncilTeamConfigurationService(
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 19;
+    private const int CurrentSeedVersion = 20;
     /// <summary>
     /// Defines the max roles constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>

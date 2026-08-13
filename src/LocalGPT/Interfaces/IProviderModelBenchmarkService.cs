@@ -18,6 +18,20 @@ public interface IProviderModelBenchmarkService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Stores successful measured recommendations as a hardware-spooler performance profile without changing Council membership.
+    /// </summary>
+    /// <param name="report">Completed benchmark report whose provider-qualified recommendations should be persisted.</param>
+    /// <param name="presetName">User-visible profile name.</param>
+    /// <param name="userConfirmed">Whether the user explicitly approved the benchmark/profile operation.</param>
+    /// <param name="cancellationToken">Cancellation token for persistence.</param>
+    /// <returns>The durable performance profile created or updated for the benchmark run.</returns>
+    Task<HardwarePerformancePreset> SavePerformancePresetAsync(
+        ProviderModelBenchmarkReport report,
+        string presetName,
+        bool userConfirmed,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Applies recommendations as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="report">Report value supplied to the provider model benchmark operation and used when producing its result.</param>

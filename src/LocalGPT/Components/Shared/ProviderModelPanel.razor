@@ -144,10 +144,6 @@
             </p>
             <div class="provider-model-actions">
                 <button type="button" class="model-action model-action-primary" disabled="@isBusy" @onclick="RunBenchmarkAsync">Run bounded benchmark</button>
-                @if (report is not null && SuccessfulTarget is not null)
-                {
-                    <button type="button" class="model-action" disabled="@isBusy" @onclick="ApplyRecommendationAsync">Apply recommendation</button>
-                }
             </div>
 
             @if (!string.IsNullOrWhiteSpace(statusText))
@@ -195,6 +191,7 @@
     [Parameter] public EventCallback<ProviderModelReference> Activated { get; set; }
     [Parameter] public IReadOnlyList<ProviderModelReference> CouncilModels { get; set; } = [];
     [Parameter] public EventCallback<ProviderModelBenchmarkAppliedEvent> BenchmarkApplied { get; set; }
+    [Parameter] public EventCallback<HardwarePerformancePreset> PerformancePresetSaved { get; set; }
     [Parameter] public EventCallback<Guid> BenchmarkStarted { get; set; }
 
     readonly string instanceId = Guid.NewGuid().ToString("N");
@@ -274,13 +271,26 @@
             }, benchmarkCts.Token);
             await InvokeAsync(() => BenchmarkStarted.InvokeAsync(activeRunId.Value)).ConfigureAwait(false);
             var completedReport = await benchmarkTask.ConfigureAwait(false);
-            await InvokeAsync(() =>
+            HardwarePerformancePreset? savedPerformancePreset = null;
+            if (completedReport.Targets.Any(target => string.IsNullOrWhiteSpace(target.Error) && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName)))
+            {
+                savedPerformancePreset = await BenchmarkService.SavePerformancePresetAsync(
+                    completedReport,
+                    $"Benchmark performance · {Model.ProviderName} · {Model.ModelName}",
+                    userConfirmed: true,
+                    benchmarkCts.Token).ConfigureAwait(false);
+            }
+            await InvokeAsync(async () =>
             {
                 report = completedReport;
                 var target = SuccessfulTarget;
                 statusText = target is null
                     ? report.Warnings.FirstOrDefault() ?? report.Targets.FirstOrDefault()?.Error ?? "No benchmark profile completed successfully."
-                    : $"Benchmark complete. {target.CouncilReviews.Count(review => string.IsNullOrWhiteSpace(review.Error))} council review(s) contributed. The transcript remains available in Chat for this LocalGPT process.";
+                    : savedPerformancePreset is null
+                        ? $"Benchmark complete. {target.CouncilReviews.Count(review => string.IsNullOrWhiteSpace(review.Error))} council review(s) contributed."
+                        : $"Benchmark complete and saved as hardware performance profile “{savedPerformancePreset.Name}”. It is now selectable in Hardware spooler.";
+                if (savedPerformancePreset is not null)
+                    await PerformancePresetSaved.InvokeAsync(savedPerformancePreset).ConfigureAwait(false);
             }).ConfigureAwait(false);
         }
         catch (OperationCanceledException)

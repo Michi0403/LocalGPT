@@ -12,12 +12,14 @@ namespace LocalGPT.Services;
 /// LocalGPT model preset whose routes retain provider, endpoint and provider model name.
 /// </summary>
 /// <param name="providerModels">Provider model runtime service dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
-/// <param name="modelPresets">Model preset service dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
+/// <param name="modelPresets">Model preset service dependency used by the provider model benchmark workflow to preserve the existing whole-Council preset apply path.</param>
+/// <param name="performancePresets">Hardware performance preset service that persists benchmarked token and road settings independently from Council membership.</param>
 /// <param name="liveSessions">Council live session service dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProviderModelBenchmarkService(
     IProviderModelRuntimeService providerModels,
     IModelPresetService modelPresets,
+    IHardwarePerformancePresetService performancePresets,
     ICouncilLiveSessionService liveSessions,
     ILogger<ProviderModelBenchmarkService> logger) : IProviderModelBenchmarkService
 {
@@ -292,6 +294,36 @@ public sealed class ProviderModelBenchmarkService(
     }
 
     /// <summary>
+    /// Persists the measured benchmark result as a hardware-spooler performance profile. This path intentionally
+    /// does not change selected Council members or provider-global settings.
+    /// </summary>
+    /// <param name="report">Report value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="presetName">Preset name value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The hardware performance preset produced by the operation.</returns>
+    public async Task<HardwarePerformancePreset> SavePerformancePresetAsync(
+        ProviderModelBenchmarkReport report,
+        string presetName,
+        bool userConfirmed,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await performancePresets.SaveBenchmarkResultAsync(
+                report, presetName, userConfirmed, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Saving benchmark {BenchmarkRunId} as a performance preset was cancelled.", report?.RunId);
+            else
+                logger.LogError(exception, "Saving benchmark {BenchmarkRunId} as a performance preset failed.", report?.RunId);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Applies recommendations as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="report">Report value supplied to the provider model benchmark operation and used when producing its result.</param>
@@ -317,6 +349,9 @@ public sealed class ProviderModelBenchmarkService(
                 .ToList();
             if (recommended.Count == 0)
                 throw new InvalidOperationException("The benchmark report contains no successful recommendation to apply.");
+
+            if (!report.AppliedPerformancePresetId.HasValue)
+                await SavePerformancePresetAsync(report, presetName, userConfirmed: true, cancellationToken).ConfigureAwait(false);
 
             var routes = recommended.Select(target => new OneWireCouncilModelRoute
             {

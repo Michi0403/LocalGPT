@@ -27,8 +27,8 @@ public sealed class RunProviderModelBenchmarkFunction(
         "POST",
         "/api/dxai/functions/localgpt.models.benchmark.provider/invoke",
         "Runs the same provider-qualified Benchmark Council used by Chat configuration against exact selected provider/endpoint/model identities. It supports all currently discovered models, evenly-spaced token stepping, a user-selected reviewer pool, and provider endpoints on configured local or LAN AI hosts.",
-        "Provide modelSelectionKeys, or explicitly set allDiscoveredModels=true. Optional reviewerSelectionKeys select exact reviewers; otherwise LocalGPT ranks the available reviewer pool and prefers capable reviewers such as gpt-oss:20b. Configure profileSteps/profileMode, token bounds, task count, timeout, reviewer count and optional early stopping.",
-        "Requires fresh human approval because it consumes AI compute. It never downloads models, changes provider-global settings, or applies benchmark recommendations/presets automatically.",
+        "Provide modelSelectionKeys, or explicitly set allDiscoveredModels=true. Optional reviewerSelectionKeys select exact reviewers; otherwise LocalGPT ranks the available reviewer pool and prefers capable reviewers such as gpt-oss:20b. Configure profileSteps/profileMode, token bounds, task count, timeout, reviewer count and optional early stopping. Every successful approved run creates or updates a selectable hardware-spooler performance profile. Use performancePresetName to choose its user-visible base name.",
+        "Requires fresh human approval because it consumes AI compute and normally stores the measured performance profile. It never downloads models, changes provider-global settings, or changes Council membership.",
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -53,7 +53,8 @@ public sealed class RunProviderModelBenchmarkFunction(
                 "reviewersPerRecommendation": { "type": "integer", "minimum": 0 },
                 "includeCpuSafeControl": { "type": "boolean" },
                 "stopWhenImprovementStalls": { "type": "boolean" },
-                "improvementThresholdPercent": { "type": "number", "minimum": 0 }
+                "improvementThresholdPercent": { "type": "number", "minimum": 0 },
+                "performancePresetName": { "type": "string", "maxLength": 160 }
               },
               "additionalProperties": false
             }
@@ -137,6 +138,14 @@ public sealed class RunProviderModelBenchmarkFunction(
             }, cancellationToken).ConfigureAwait(false);
 
             var successfulTargets = report.Targets.Count(target => string.IsNullOrWhiteSpace(target.Error));
+            if (successfulTargets > 0)
+            {
+                var presetName = string.IsNullOrWhiteSpace(options.PerformancePresetName)
+                    ? $"Benchmark performance · {DateTimeOffset.Now:yyyy-MM-dd HHmm}"
+                    : options.PerformancePresetName;
+                await benchmarks.SavePerformancePresetAsync(
+                    report, presetName, userConfirmed: true, cancellationToken).ConfigureAwait(false);
+            }
             return new DxAiFunctionInvocationResult
             {
                 Succeeded = successfulTargets > 0,
@@ -149,7 +158,7 @@ public sealed class RunProviderModelBenchmarkFunction(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogInformation("Provider-qualified benchmark DXFunction was cancelled; no benchmark recommendation was applied.");
+            logger.LogInformation("Provider-qualified benchmark DXFunction was cancelled; no benchmark performance profile was stored or applied.");
             throw;
         }
         catch (JsonException exception)

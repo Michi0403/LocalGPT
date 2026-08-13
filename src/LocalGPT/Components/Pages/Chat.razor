@@ -23,6 +23,7 @@
 @inject ILocalGptProjectService ProjectService
 @inject IFeaturePersistenceService FeaturePersistence
 @inject IModelPresetService ModelPresetService
+@inject IHardwarePerformancePresetService HardwarePerformancePresets
 @inject ICouncilTeamConfigurationService CouncilTeamConfigurations
 @inject IChatSessionContext SessionContext
 @inject IHumanCollaborationService HumanCollaboration
@@ -135,6 +136,7 @@
                                             Activated="SelectProviderModelFromPanelAsync"
                                             CouncilModels="SelectedCouncilProviderModels"
                                             BenchmarkApplied="OnChatBenchmarkAppliedAsync"
+                                            PerformancePresetSaved="OnBenchmarkPerformancePresetSavedAsync"
                                             BenchmarkStarted="OnBenchmarkStartedAsync" />
                     }
                 </div>
@@ -269,6 +271,7 @@
                                                         SelectedChanged="@(selected => ToggleCouncilModel(candidate.SelectionKey, selected))"
                                                         CouncilModels="SelectedCouncilProviderModels"
                                                         BenchmarkApplied="OnChatBenchmarkAppliedAsync"
+                                                        PerformancePresetSaved="OnBenchmarkPerformancePresetSavedAsync"
                                                         BenchmarkStarted="OnBenchmarkStartedAsync" />
                                 }
                             </div>
@@ -277,6 +280,7 @@
                 </div>
                 <ProviderModelBenchmarkCouncilPanel Models="SelectedCouncilProviderModels"
                                                     BenchmarkApplied="OnChatBenchmarkCouncilAppliedAsync"
+                                                    PerformancePresetSaved="OnBenchmarkPerformancePresetSavedAsync"
                                                     BenchmarkStarted="OnBenchmarkStartedAsync" />
             </div>
         }
@@ -289,6 +293,28 @@
                     Each model reads the newest revision immediately before its next provider request starts. Other runs and saved presets remain unchanged.
                 </p>
             }
+            <div class="hardware-performance-preset-toolbar" aria-label="Hardware performance presets" data-testid="hardware-performance-presets">
+                <label title="Apply benchmarked token ranges and hardware roads to matching selected provider/model identities without changing Council membership.">
+                    <span>@L("Chat.HardwarePerformancePreset.Label", "Performance preset")</span>
+                    <select class="form-select" value="@SelectedHardwarePerformancePresetValue" @onchange="OnHardwarePerformancePresetChangedAsync" disabled="@isHardwarePerformancePresetBusy">
+                        <option value="">@L("Chat.HardwarePerformancePreset.Custom", "Custom hardware settings")</option>
+                        @foreach (var preset in HardwarePerformancePresetItems)
+                        {
+                            <option value="@preset.Id">@preset.Name@(preset.IsDefault ? " (default)" : string.Empty)</option>
+                        }
+                    </select>
+                </label>
+                <label title="Save the currently visible per-model roads and token ranges as a reusable hardware performance profile.">
+                    <span>@L("Chat.HardwarePerformancePreset.Name", "Performance preset name")</span>
+                    <input class="form-control" @bind="HardwarePerformancePresetName" maxlength="160" placeholder="My benchmark profile" />
+                </label>
+                <div class="hardware-performance-preset-actions">
+                    <button type="button" class="btn btn-outline-secondary" disabled="@(isHardwarePerformancePresetBusy || CouncilEditorRoutes.Count == 0 || string.IsNullOrWhiteSpace(HardwarePerformancePresetName))" @onclick="SaveHardwarePerformancePresetAsync">@L("Chat.HardwarePerformancePreset.Save", "Save current")</button>
+                    <button type="button" class="btn btn-outline-danger" disabled="@(isHardwarePerformancePresetBusy || SelectedHardwarePerformancePreset is null)" @onclick="DeleteHardwarePerformancePresetAsync">@L("Chat.HardwarePerformancePreset.Delete", "Delete preset")</button>
+                    <button type="button" class="btn btn-outline-secondary" disabled="@isHardwarePerformancePresetBusy" @onclick="RefreshHardwarePerformancePresetsAsync">@L("Common.Refresh", "Refresh")</button>
+                </div>
+                <small class="memory-status">@L("Chat.HardwarePerformancePreset.Help", "Benchmark runs add profiles here automatically. Selecting one applies only matching provider/endpoint/model roads; selected Council members stay unchanged.")</small>
+            </div>
             <CouncilHardwareRoadEditor ModelNames="CouncilEditorModelNames"
                                        Routes="@CouncilEditorRoutes"
                                        ResourceLoadPercent="CouncilEditorResourceLoadPercent"
@@ -918,6 +944,11 @@
 
     List<string> DiagnosticCouncilModelNames { get; set; } = new();
     List<CouncilModelPreset> ModelPresets { get; set; } = new();
+    List<HardwarePerformancePreset> HardwarePerformancePresetItems { get; set; } = new();
+    HardwarePerformancePreset? SelectedHardwarePerformancePreset { get; set; }
+    string HardwarePerformancePresetName { get; set; } = string.Empty;
+    bool isHardwarePerformancePresetBusy;
+    string SelectedHardwarePerformancePresetValue => SelectedHardwarePerformancePreset?.Id.ToString() ?? string.Empty;
     List<OneWireCouncilModelRoute> CouncilModelRoutes { get; set; } = [];
     List<OneWireCouncilModelRoute> ActiveCouncilModelRoutes { get; set; } = [];
     List<string> ActiveCouncilConfigurationParticipants { get; set; } = [];
@@ -1132,6 +1163,7 @@
             await RefreshMemoryAsync().ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);
             await LoadModelPresetsAsync().ConfigureAwait(false);
+            await LoadHardwarePerformancePresetsAsync(cancellationToken).ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: true);
             if (UseFreshDiagnosticChat)
             {
@@ -1669,6 +1701,11 @@
                 nameof(Chat),
                 "RefreshProvidersOnChatConfigurationOpen",
                 cancellationToken => DiscoverAndApplyOllamaModelsAsync(showToast: false, cancellationToken),
+                componentLifetimeCts.Token);
+            TaskRunner.Run(
+                nameof(Chat),
+                "RefreshHardwarePerformancePresetsOnChatConfigurationOpen",
+                LoadHardwarePerformancePresetsAsync,
                 componentLifetimeCts.Token);
         }
 
@@ -2552,6 +2589,166 @@
 
 
 
+    private async Task LoadHardwarePerformancePresetsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var selectedId = SelectedHardwarePerformancePreset?.Id;
+            HardwarePerformancePresetItems = (await HardwarePerformancePresets
+                .GetPresetsAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false)).ToList();
+            SelectedHardwarePerformancePreset = selectedId is Guid id
+                ? HardwarePerformancePresetItems.FirstOrDefault(item => item.Id == id)
+                : null;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+        {
+            Logger.LogDebug("Hardware performance preset refresh was cancelled during Chat teardown.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not load hardware performance presets.");
+            ComponentActivity.RecordWarning(nameof(Chat), "LoadHardwarePerformancePresets", "Hardware performance profiles could not be loaded; manual hardware roads remain available.");
+        }
+    }
+
+    private Task RefreshHardwarePerformancePresetsAsync() =>
+        LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token);
+
+    private async Task OnHardwarePerformancePresetChangedAsync(ChangeEventArgs args)
+    {
+        try
+        {
+            if (!Guid.TryParse(Convert.ToString(args.Value, CultureInfo.InvariantCulture), out var presetId))
+            {
+                SelectedHardwarePerformancePreset = null;
+                HardwarePerformancePresetName = string.Empty;
+                modelStatus = "Custom hardware settings are active. Current roads were not reset.";
+                return;
+            }
+
+            var preset = HardwarePerformancePresetItems.FirstOrDefault(item => item.Id == presetId);
+            if (preset is null)
+                return;
+
+            int applied;
+            if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+            {
+                applied = await HardwarePerformancePresets
+                    .ApplyPresetToRunAsync(preset.Id, runId, userConfirmed: true, componentLifetimeCts.Token)
+                    .ConfigureAwait(false);
+                await InvokeAsync(() =>
+                {
+                    LoadCouncilRunConfiguration(runId);
+                    SelectedHardwarePerformancePreset = preset;
+                    HardwarePerformancePresetName = preset.Name;
+                    modelStatus = $"Applied hardware performance preset '{preset.Name}' to {applied} matching provider-qualified model road(s) in running Council {ActiveCouncilRunShortId}. Council membership was not changed.";
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+            }
+            else
+            {
+                // Persist the current participant selection first; the service then owns all provider-qualified
+                // matching, road copying, normalization and session token-ceiling changes.
+                SavePreparationConfiguration();
+                applied = await HardwarePerformancePresets
+                    .ApplyPresetToPreparationAsync(preset.Id, userConfirmed: true, componentLifetimeCts.Token)
+                    .ConfigureAwait(false);
+                var preparation = CouncilRunConfigurations.GetPreparation();
+                await InvokeAsync(() =>
+                {
+                    if (preparation is not null)
+                        ApplyPreparationConfiguration(preparation);
+                    SelectedHardwarePerformancePreset = preset;
+                    HardwarePerformancePresetName = preset.Name;
+                    modelStatus = $"Applied hardware performance preset '{preset.Name}' to {applied} matching provider-qualified model road(s), including the profile session token ceilings. Council membership was not changed.";
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (componentLifetimeCts.IsCancellationRequested || isDisposed)
+        {
+            Logger.LogDebug("Hardware performance preset application was cancelled during Chat teardown.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            Logger.LogWarning(ex, "The selected hardware performance preset could not be applied to the current Council configuration.");
+            await InvokeAsync(() =>
+            {
+                SelectedHardwarePerformancePreset = null;
+                modelStatus = ex.Message;
+                Notifier.ShowWarning(toastName, ex.Message, "Performance preset not applied");
+                StateHasChanged();
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not apply hardware performance preset.");
+            await InvokeAsync(() => Notifier.ShowError(toastName, "The hardware performance preset could not be applied. See local logs.", "Performance preset failed")).ConfigureAwait(false);
+        }
+    }
+
+    private async Task SaveHardwarePerformancePresetAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            isHardwarePerformancePresetBusy = true;
+            try
+            {
+                var preset = new HardwarePerformancePreset
+                {
+                    Id = SelectedHardwarePerformancePreset?.Id ?? Guid.NewGuid(),
+                    Name = HardwarePerformancePresetName,
+                    Description = EditingRunningCouncilConfiguration
+                        ? $"Saved from running Council {ActiveCouncilRunShortId} hardware spooler settings."
+                        : "Saved from Chat configuration hardware spooler settings.",
+                    ModelRoutesJson = JsonSerializer.Serialize(CouncilEditorRoutes.Select(CloneRoute).ToList()),
+                    ResourceLoadPercent = CouncilEditorResourceLoadPercent,
+                    SourceKind = "Manual",
+                    IsDefault = SelectedHardwarePerformancePreset?.IsDefault ?? HardwarePerformancePresetItems.Count == 0,
+                    IsUserApproved = true
+                };
+                var saved = await HardwarePerformancePresets
+                    .SavePresetAsync(preset, userConfirmed: true, componentLifetimeCts.Token)
+                    .ConfigureAwait(false);
+                await LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token).ConfigureAwait(false);
+                SelectedHardwarePerformancePreset = HardwarePerformancePresetItems.FirstOrDefault(item => item.Id == saved.Id) ?? saved;
+                HardwarePerformancePresetName = saved.Name;
+                Notifier.ShowSuccess(toastName, "The hardware performance preset was saved to SQLite.", "Performance preset saved");
+            }
+            finally
+            {
+                isHardwarePerformancePresetBusy = false;
+            }
+        }, "Save hardware performance preset").ConfigureAwait(false);
+    }
+
+    private async Task DeleteHardwarePerformancePresetAsync()
+    {
+        if (SelectedHardwarePerformancePreset is null)
+            return;
+        await RunUiActionAsync(async () =>
+        {
+            isHardwarePerformancePresetBusy = true;
+            try
+            {
+                var id = SelectedHardwarePerformancePreset.Id;
+                await HardwarePerformancePresets
+                    .DeletePresetAsync(id, userConfirmed: true, componentLifetimeCts.Token)
+                    .ConfigureAwait(false);
+                SelectedHardwarePerformancePreset = null;
+                HardwarePerformancePresetName = string.Empty;
+                await LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token).ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "The hardware performance preset was deleted. Current road values were left unchanged.", "Performance preset deleted");
+            }
+            finally
+            {
+                isHardwarePerformancePresetBusy = false;
+            }
+        }, "Delete hardware performance preset").ConfigureAwait(false);
+    }
+
     private async Task LoadModelPresetsAsync()
     {
         try
@@ -2845,6 +3042,7 @@
         }
 
         SelectedModelPreset = null;
+        SelectedHardwarePerformancePreset = null;
         SavePreparationConfiguration();
         modelStatus = $"Custom hardware roads active at {CouncilResourceLoadPercent}% session load for future Council runs.";
         return Task.CompletedTask;
@@ -3312,6 +3510,12 @@
         }
         await OnModelChanged(session).ConfigureAwait(false);
         modelStatus = $"Using {model.SelectionKey} in Chat.";
+    }
+
+    private async Task OnBenchmarkPerformancePresetSavedAsync(HardwarePerformancePreset preset)
+    {
+        await LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token).ConfigureAwait(false);
+        modelStatus = $"Benchmark saved hardware performance preset '{preset.Name}'. Select it in Hardware spooler to apply it without changing Council membership.";
     }
 
     private async Task OnChatBenchmarkAppliedAsync(ProviderModelBenchmarkAppliedEvent applied)

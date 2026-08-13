@@ -126,6 +126,11 @@ namespace LocalGPT.BusinessObjects.EFCore
         /// <value>The council model presets value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CouncilModelPreset> CouncilModelPresets => Set<CouncilModelPreset>();
         /// <summary>
+        /// Gets the reusable hardware-spooler performance profiles created manually or from provider benchmarks.
+        /// </summary>
+        /// <value>The hardware performance preset set exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<HardwarePerformancePreset> HardwarePerformancePresets => Set<HardwarePerformancePreset>();
+        /// <summary>
         /// Gets the sqlite editor field overrides value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The sqlite editor field overrides value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
@@ -484,6 +489,19 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.ModelNamesJson).IsRequired();
                 entity.Property(item => item.ModelRoutesJson).IsRequired();
                 entity.HasIndex(item => item.Name).IsUnique();
+                entity.HasIndex(item => new { item.IsArchived, item.IsDefault, item.UpdatedAtUtc });
+            });
+
+            modelBuilder.Entity<HardwarePerformancePreset>(entity =>
+            {
+                entity.ToTable("HardwarePerformancePresets");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Name).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Description).HasMaxLength(1000).IsRequired();
+                entity.Property(item => item.ModelRoutesJson).IsRequired();
+                entity.Property(item => item.SourceKind).HasMaxLength(80).IsRequired();
+                entity.HasIndex(item => item.Name).IsUnique();
+                entity.HasIndex(item => item.SourceRunId);
                 entity.HasIndex(item => new { item.IsArchived, item.IsDefault, item.UpdatedAtUtc });
             });
 

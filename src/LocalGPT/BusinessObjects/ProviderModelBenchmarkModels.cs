@@ -166,6 +166,10 @@ public sealed class ProviderModelBenchmarkFunctionRequest
     /// <summary>Gets or sets the percentage improvement required to reset the optional consecutive non-improvement counter.</summary>
     /// <value>The comparison threshold used only when improvement-based early stopping is enabled.</value>
     public double ImprovementThresholdPercent { get; set; } = 5d;
+
+    /// <summary>Gets or sets an optional user-visible name for the stored performance profile.</summary>
+    /// <value>The requested name, or an empty string to let LocalGPT derive one from the benchmark run.</value>
+    public string PerformancePresetName { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -213,6 +217,16 @@ public sealed class ProviderModelBenchmarkReport
     /// </summary>
     /// <value>The applied preset name value exposed by <see cref="ProviderModelBenchmarkReport"/>.</value>
     public string AppliedPresetName { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the durable hardware-spooler performance profile identifier created from this benchmark.
+    /// </summary>
+    /// <value>The persisted performance preset identifier, when the benchmark result has been stored.</value>
+    public Guid? AppliedPerformancePresetId { get; set; }
+    /// <summary>
+    /// Gets or sets the user-visible hardware-spooler performance profile name created from this benchmark.
+    /// </summary>
+    /// <value>The persisted performance preset name, or an empty string until it has been stored.</value>
+    public string AppliedPerformancePresetName { get; set; } = string.Empty;
 }
 
 /// <summary>

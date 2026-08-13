@@ -32,10 +32,10 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     /// <value>The descriptor value exposed by <see cref="AdaptiveOllamaBenchmarkWiring"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.models.benchmark.autotune", "POST", "/api/dxai/functions/localgpt.models.benchmark.autotune/invoke",
-        "Benchmarks already-installed local Ollama models with bounded peer-authored and deterministic tasks, stops tuning a model when the next profile improves by less than the configured threshold, and optionally saves a new user-approved model preset.",
+        "Legacy direct-invocation Ollama-only autotune retained for compatibility. AI Councils use localgpt.models.benchmark.provider so measured results become selectable Hardware spooler performance profiles instead of Council membership presets.",
         "Optional endpoint, modelNames, maxModels, maxProfilesPerModel, maxTasks, maxSecondsPerCall, improvementThresholdPercent, includePeerAuthoredTask, persistPreset, presetName, makeDefault, maximumContextTokens and maximumOutputTokens.",
         "Calls only a loopback Ollama endpoint, never downloads models, never modifies an existing preset, and requires fresh human confirmation before the benchmark or preset save starts.",
-        IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true,
+        IsReadOnly: false, AvailableToAi: false, RequiresHumanConfirmation: true,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: false, Source: "DIHandler",
         ParameterSchemaJson: """
             {
