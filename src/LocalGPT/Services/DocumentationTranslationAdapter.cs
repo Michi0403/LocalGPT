@@ -20,9 +20,6 @@ public sealed class DocumentationTranslationAdapter(
     /// Performs adapt for <see cref="DocumentationTranslationAdapter"/>, keeping the operation consistent with the state and invariants of the surrounding documentation translation adapter workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="comment">Comment value supplied to the documentation translation adapter operation and used when producing its result.</param>
-    /// <param name="culture">Culture value supplied to the documentation translation adapter operation and used when producing its result.</param>
-    /// <returns>The LocalGPT documentation comment produced by the operation.</returns>
     public LocalGptDocumentationComment Adapt(LocalGptDocumentationComment comment, string? culture = null)
     {
         var memberId = comment?.MemberId;

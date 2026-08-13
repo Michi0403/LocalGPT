@@ -164,9 +164,6 @@ public sealed class InspectRemoteKnowledgeFunction(
         "Downloads a user-selected public GitHub repository or webpage into the bounded cache and returns the exact file list plus regex matches without saving knowledge.",
         "JSON parameters: sourceUrl required; sourceKind, branch, fileIncludeRegex, maxFiles and maxLinkedPages optional. Omit maxFiles/maxLinkedPages or use non-positive values to use the database-backed MaxFiles policy; LocalGPT no longer imposes source-code repository or 50-page crawl ceilings.",
         "Network read with size, ZIP traversal and private-network protections. No database mutation.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="InspectRemoteKnowledgeFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sourceUrl"],"properties":{"sourceUrl":{"type":"string"},"sourceKind":{"type":"string"},"branch":{"type":"string"},"fileIncludeRegex":{"type":"string"},"maxFiles":{"type":"integer"},"maxLinkedPages":{"type":"integer"}},"additionalProperties":false}""");
@@ -212,9 +209,6 @@ public sealed class ImportRemoteKnowledgeFunction(
         "Imports a reviewed public GitHub repository or webpage through the existing learn-base service and associates resulting knowledge with role/topic tags.",
         "JSON parameters: sourceUrl required; sourceKind, branch, fileIncludeRegex, maxFiles, roleKeys, topics and saveToKnowledge optional. Omit maxFiles or use a non-positive value to use the database-backed MaxFiles policy.",
         "Requires fresh human confirmation before database writes. Source files remain in the local bounded cache and commercial game assets are not supplied.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ImportRemoteKnowledgeFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sourceUrl"],"properties":{"sourceUrl":{"type":"string"},"sourceKind":{"type":"string"},"branch":{"type":"string"},"fileIncludeRegex":{"type":"string"},"maxFiles":{"type":"integer"},"maxLinkedPages":{"type":"integer"},"roleKeys":{"type":"array","items":{"type":"string"}},"topics":{"type":"array","items":{"type":"string"}},"saveToKnowledge":{"type":"boolean"}},"additionalProperties":false}""");

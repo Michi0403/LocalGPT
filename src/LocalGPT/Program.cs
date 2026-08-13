@@ -148,9 +148,6 @@ namespace LocalGPT
             logger.LogInformation("Configured JSON options.");
             ConfigureForwardedHeaders(builder.Services, logger);
             logger.LogInformation("Configured forwarded headers.");
-            /// <summary>
-            /// Runs the service method diagnostics registration operation.
-            /// </summary>
             new ServiceMethodDiagnosticsRegistration(logger).Apply(builder.Services, builder.Environment.IsDevelopment());
             logger.LogInformation("Configured bounded service method diagnostics.");
 
@@ -295,9 +292,6 @@ namespace LocalGPT
                     builder.Logging.AddFilter((category, level) => level >= LogLevel.Warning);
 
                 builder.Services.AddLogging(logging =>
-                    /// <summary>
-                    /// Runs the logging configuration service operation.
-                    /// </summary>
                     new LoggingConfigurationService(builder.Services, builder.Configuration, logger).Configure(logging));
             }
             catch (Exception ex)
@@ -950,9 +944,6 @@ namespace LocalGPT
                             QueryStringKey = "culture",
                             UIQueryStringKey = "ui-culture"
                         },
-                        /// <summary>
-                        /// Runs the cookie request culture provider operation.
-                        /// </summary>
                         new CookieRequestCultureProvider()
                     ];
                 });

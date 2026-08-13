@@ -133,13 +133,12 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
     }
 
     /// <summary>
-    /// Runs the failed operation.
+    /// Performs failed as part of the DevExpress AI function JSON service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="DxAiFunctionJsonService"/>.</typeparam>
+    /// <param name="error">Error value supplied to the DevExpress AI function JSON operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function parameter binding t produced by the operation.</returns>
     private DxAiFunctionParameterBinding<T> Failed<T>(string error) where T : new() =>
-        /// <summary>
-        /// Gets the new value that forms part of the DevExpress AI function JSON state consumed or produced by the surrounding workflow.
-        /// </summary>
-        /// <value>The new value exposed by <see cref="DxAiFunctionJsonService"/>.</value>
         new()
         {
             Succeeded = false,

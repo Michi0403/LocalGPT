@@ -26,6 +26,7 @@ namespace LocalGPT.Logging
         /// Determines whether enabled for <see cref="DatabaseLogger"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
         /// <returns>The bool is enabled log level log level provider produced by the operation.</returns>
+        /// <param name="logLevel">Log level value supplied to the database logger operation and used when producing its result.</param>
         public bool IsEnabled(LogLevel logLevel) => provider.IsEnabled(categoryName, logLevel);
 
         /// <summary>

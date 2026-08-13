@@ -140,9 +140,6 @@ public sealed class EmailLogger : ILogger, IDisposable
     /// <param name="state">State value supplied to the email logger operation and used when producing its result.</param>
     /// <returns>The i disposable i logger produced by the operation.</returns>
     IDisposable ILogger.BeginScope<TState>(TState state) =>
-        /// <summary>
-        /// Runs the disposable scope operation.
-        /// </summary>
         new DisposableScope(string.Empty);
 
     /// <summary>

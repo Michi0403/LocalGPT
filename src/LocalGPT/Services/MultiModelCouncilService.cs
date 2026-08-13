@@ -4622,9 +4622,6 @@ namespace LocalGPT.Services
                 var roundSkipToken = runConfigurations.GetRoundCancellationToken(result.RunId, round, phase);
                 try
                 {
-                    /// <summary>
-                    /// Runs the execute participant async operation.
-                    /// </summary>
                     async Task<MultiModelCouncilStep> ExecuteParticipantAsync(string modelName, SemaphoreSlim? hostGate)
                     {
                         var fallbackPlan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
@@ -6805,17 +6802,11 @@ namespace LocalGPT.Services
                 messages.Add(new BlazorChatMessage(
                     ChatRole.User,
                     MultiModelCouncilServiceBuildCouncilRequestMemoryMessage(request, result, continuedConversation is not null, logger),
-                    /// <summary>
-                    /// Runs the list operation.
-                    /// </summary>
                     new List<AIChatUploadFileInfo>()));
 
                 messages.Add(new BlazorChatMessage(
                     ChatRole.Assistant,
                     $"## Council members for this round{Environment.NewLine}{string.Join(", ", result.ModelNames)}",
-                    /// <summary>
-                    /// Runs the list operation.
-                    /// </summary>
                     new List<AIChatUploadFileInfo>()));
 
                 if (result.ContinuedFromConversationId is Guid continuedFrom)
@@ -6823,9 +6814,6 @@ namespace LocalGPT.Services
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
                         $"Continuing prior council conversation `{continuedFrom}`{(string.IsNullOrWhiteSpace(result.ContinuedFromTitle) ? string.Empty : $" - {result.ContinuedFromTitle}")}.",
-                        /// <summary>
-                        /// Runs the list operation.
-                        /// </summary>
                         new List<AIChatUploadFileInfo>()));
                 }
 
@@ -6834,9 +6822,6 @@ namespace LocalGPT.Services
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
                         MultiModelCouncilServiceBuildMemoryMessage(step, logger),
-                        /// <summary>
-                        /// Runs the list operation.
-                        /// </summary>
                         new List<AIChatUploadFileInfo>()));
                 }
 
@@ -6845,9 +6830,6 @@ namespace LocalGPT.Services
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
                         councilText.MultiModelCouncilServiceBuildPollMarkdown(result.UserPoll, logger),
-                        /// <summary>
-                        /// Runs the list operation.
-                        /// </summary>
                         new List<AIChatUploadFileInfo>()));
                 }
 
@@ -6856,18 +6838,12 @@ namespace LocalGPT.Services
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
                         $"## Council knowledge entry{Environment.NewLine}{knowledgeEntryId}",
-                        /// <summary>
-                        /// Runs the list operation.
-                        /// </summary>
                         new List<AIChatUploadFileInfo>()));
                 }
 
                 messages.Add(new BlazorChatMessage(
                     ChatRole.Assistant,
                     $"## Final council answer{Environment.NewLine}{result.FinalAnswer}",
-                    /// <summary>
-                    /// Runs the list operation.
-                    /// </summary>
                     new List<AIChatUploadFileInfo>()));
 
                 if (result.Artifacts.Count > 0)
@@ -6875,9 +6851,6 @@ namespace LocalGPT.Services
                     messages.Add(new BlazorChatMessage(
                         ChatRole.Assistant,
                         councilText.MultiModelCouncilServiceBuildArtifactsMarkdown(result.Artifacts, logger),
-                        /// <summary>
-                        /// Runs the list operation.
-                        /// </summary>
                         new List<AIChatUploadFileInfo>()));
                 }
 

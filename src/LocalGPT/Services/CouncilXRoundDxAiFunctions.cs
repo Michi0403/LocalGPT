@@ -17,14 +17,10 @@ public sealed class CouncilXRoundStatusFunction(
     /// Gets the descriptor value that forms part of the council x round status function state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <value>The descriptor value exposed by <see cref="CouncilXRoundStatusFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "council.x.status", "POST", "/api/dxai/functions/council.x.status/invoke",
         "Returns the first-class X-Round control policy active for the current configured Council step.",
         "No parameters.", "Read-only. It cannot change Council control flow.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="CouncilXRoundStatusFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{},"additionalProperties":false}""");
@@ -33,9 +29,6 @@ public sealed class CouncilXRoundStatusFunction(
     /// Performs invoke for <see cref="CouncilXRoundStatusFunction"/>, keeping the operation consistent with the state and invariants of the surrounding council x round status function workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -107,14 +100,10 @@ public sealed class CouncilXRoundRevisitFunction(
     /// Gets the descriptor value that forms part of the council x round revisit function state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <value>The descriptor value exposed by <see cref="CouncilXRoundRevisitFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "council.x.revisit", "POST", "/api/dxai/functions/council.x.revisit/invoke",
         "Requests an X-Round jump to another configured workflow step. Reconsider is reasoning-only; reexecute deliberately permits the target step's normal DX/organic policy.",
         "targetStepKey, mode=reconsider|reexecute, reason.", "The request is accepted only while the current step explicitly grants revisit authority; configured transition and human gates still apply.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="CouncilXRoundRevisitFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -125,9 +114,6 @@ public sealed class CouncilXRoundRevisitFunction(
     /// Performs invoke for <see cref="CouncilXRoundRevisitFunction"/>, keeping the operation consistent with the state and invariants of the surrounding council x round revisit function workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -222,14 +208,10 @@ public sealed class CouncilXRoundReturnTextFunction(
     /// Gets the descriptor value that forms part of the council x round return text function state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <value>The descriptor value exposed by <see cref="CouncilXRoundReturnTextFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "council.x.return_text", "POST", "/api/dxai/functions/council.x.return_text/invoke",
         "Returns explicit text from the current X-Round to the parent Council workflow and requests clean workflow completion.",
         "text and optional reason.", "Available only when the current configured step grants X-Round text-return authority.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="CouncilXRoundReturnTextFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["text"],"properties":{"text":{"type":"string"},"reason":{"type":"string"}},"additionalProperties":false}""");
@@ -238,9 +220,6 @@ public sealed class CouncilXRoundReturnTextFunction(
     /// Performs invoke for <see cref="CouncilXRoundReturnTextFunction"/>, keeping the operation consistent with the state and invariants of the surrounding council x round return text function workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -334,14 +313,10 @@ public sealed class CouncilXRoundStartSingleModelFunction(
     /// Gets the descriptor value that forms part of the council x round start single model function state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <value>The descriptor value exposed by <see cref="CouncilXRoundStartSingleModelFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "council.x.start_single_model", "POST", "/api/dxai/functions/council.x.start_single_model/invoke",
         "Requests one selected Council model as a bounded derived X-Function subtask; its visible result is fed back into the parent workflow.",
         "prompt and optional provider-qualified modelName.", "Available only when the current configured step grants single-model X authority. The requested model must already belong to the parent Council.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="CouncilXRoundStartSingleModelFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["prompt"],"properties":{"prompt":{"type":"string"},"modelName":{"type":"string"},"reason":{"type":"string"}},"additionalProperties":false}""");
@@ -350,9 +325,6 @@ public sealed class CouncilXRoundStartSingleModelFunction(
     /// Performs invoke for <see cref="CouncilXRoundStartSingleModelFunction"/>, keeping the operation consistent with the state and invariants of the surrounding council x round start single model function workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -447,14 +419,10 @@ public sealed class CouncilXRoundStartCouncilFunction(
     /// Gets the descriptor value that forms part of the council x round start council function state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <value>The descriptor value exposed by <see cref="CouncilXRoundStartCouncilFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "council.x.start_council", "POST", "/api/dxai/functions/council.x.start_council/invoke",
         "Requests another configured Council team as a derived X-Function subtask; the child final text returns to the parent workflow with its own immutable run identity.",
         "prompt and optional teamKey.", "Available only when the current configured step grants child-Council X authority. Nested X-Council depth is bounded by the runtime.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="CouncilXRoundStartCouncilFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["prompt"],"properties":{"prompt":{"type":"string"},"teamKey":{"type":"string"},"reason":{"type":"string"}},"additionalProperties":false}""");
@@ -463,9 +431,6 @@ public sealed class CouncilXRoundStartCouncilFunction(
     /// Performs invoke for <see cref="CouncilXRoundStartCouncilFunction"/>, keeping the operation consistent with the state and invariants of the surrounding council x round start council function workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try

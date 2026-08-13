@@ -28,9 +28,6 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
         "Lists public LocalGPT controller and service methods and shows which DI-backed DXFunctions are directly invokable.",
         "No parameters.",
         "Read-only metadata. A listed public method is not permission and is not automatically invokable.",
-        /// <summary>
-        /// Stores the internal source state used by <see cref="GetPublicArchitectureDirectoryFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         SupportsDirectInvocation: true,
@@ -153,9 +150,6 @@ public sealed class InspectDebugArtifactFunction(
         "Reads bounded portable-PDB document and debug metadata so a council can understand the matching build without loading or executing it.",
         "filePath: exact user-selected local debug artifact path.",
         "Local file read. Requires current human confirmation for the exact path. Does not load assemblies or execute symbol code.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="InspectDebugArtifactFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,

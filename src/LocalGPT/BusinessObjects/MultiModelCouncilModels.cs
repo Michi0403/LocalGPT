@@ -267,8 +267,9 @@ namespace LocalGPT.BusinessObjects
         public string SelectionKey => new ProviderModelIdentity().CreateSelectionKey(Provider, Endpoint, ModelName);
 
         /// <summary>
-        /// Runs the to reference operation.
+        /// Performs to reference for <see cref="MultiModelCouncilModelCandidate"/>, keeping the operation consistent with the state and invariants of the surrounding multi model council model candidate workflow.
         /// </summary>
+        /// <returns>The provider model reference produced by the operation.</returns>
         public ProviderModelReference ToReference() => new()
         {
             ProviderKind = ProviderKind,

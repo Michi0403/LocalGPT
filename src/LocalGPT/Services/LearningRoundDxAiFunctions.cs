@@ -22,9 +22,6 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
         "Builds a current learning-round evidence snapshot from chat memory, logs, council knowledge and database regexes.",
         "JSON parameters: takePerSource optional integer from 1 to 10000.",
         "Read-only. The snapshot contains local data evidence and grants no execution authority.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="GetLearningRoundSnapshotFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,

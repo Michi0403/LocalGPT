@@ -26,10 +26,6 @@ namespace LocalGPT.Services
         /// </summary>
         /// <value>The artifact root value exposed by <see cref="CouncilArtifactService"/>.</value>
         public string ArtifactRoot { get; } = Path.Combine(
-            /// <summary>
-            /// Retrieves folder path as part of the council artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-            /// </summary>
-            /// <returns>The environment produced by the operation.</returns>
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "CouncilArtifacts");

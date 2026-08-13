@@ -31,9 +31,6 @@ public sealed class ListArtifactWorkspacesFunction(
         "Lists generated council artifact workspaces so the council can inspect and continue source generation in an existing workspace.",
         "JSON parameters: take optional integer. Omit it or use a non-positive value to use the database-backed MaxFiles policy instead of a hard-coded catalog ceiling.",
         "Read-only. It only enumerates workspaces under LocalGPT's configured CouncilArtifacts root.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ListArtifactWorkspacesFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -111,9 +108,6 @@ public sealed class ListArtifactWorkspaceFilesFunction(
         "Lists supported text/source files inside one generated artifact workspace, including C#, Razor, JavaScript, PowerShell, SQL and other database-provisioned text extensions.",
         "JSON parameters: workspaceName required; take optional integer. Omit take or use a non-positive value to use the database-backed MaxFiles policy.",
         "Read-only. Paths are constrained to the selected generated workspace and the database-provisioned ArtifactTextExtensions collection.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ListArtifactWorkspaceFilesFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -208,9 +202,6 @@ public sealed class ReadArtifactWorkspaceFileFunction(
         "Reads one generated workspace text/source file by relative path so the council can review or continue code generation.",
         "JSON parameters: workspaceName and relativePath are required.",
         "Read-only. The path must remain inside the generated workspace and use a database-provisioned ArtifactTextExtensions extension. File size follows MaxSingleFileBytes instead of a hard-coded inline-editor limit.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ReadArtifactWorkspaceFileFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,

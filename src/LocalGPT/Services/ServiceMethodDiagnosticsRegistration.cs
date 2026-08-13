@@ -22,14 +22,8 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
     {
         try
         {
-            /// <summary>
-            /// Runs the throw if null operation.
-            /// </summary>
             ArgumentNullException.ThrowIfNull(services);
             var decorated = 0;
-            /// <summary>
-            /// Runs the to array operation.
-            /// </summary>
             var descriptors = services.ToArray();
 
             foreach (var descriptor in descriptors)
@@ -37,16 +31,10 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
                 if (!ShouldDecorate(descriptor))
                     continue;
 
-                /// <summary>
-                /// Runs the index of operation.
-                /// </summary>
                 var index = services.IndexOf(descriptor);
                 if (index < 0)
                     continue;
 
-                /// <summary>
-                /// Runs the describe operation.
-                /// </summary>
                 var replacement = ServiceDescriptor.Describe(
                     descriptor.ServiceType,
                     provider => CreateProxy(provider, descriptor, isDevelopment),
@@ -55,21 +43,12 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
                 decorated++;
             }
 
-            /// <summary>
-            /// Runs the log information operation.
-            /// </summary>
             logger.LogInformation(
-                /// <summary>
-                /// Runs the registration operation.
-                /// </summary>
                 "Enabled bounded method-level diagnostics for {ServiceDescriptorCount} scoped/transient LocalGPT interface service registration(s); singleton, disposable, high-frequency and ThemeService registrations were excluded.",
                 decorated);
         }
         catch (Exception exception)
         {
-            /// <summary>
-            /// Runs the log error operation.
-            /// </summary>
             logger.LogError(exception, "Registering bounded service-method diagnostics failed.");
             throw;
         }
@@ -115,9 +94,6 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
         }
         catch (Exception exception)
         {
-            /// <summary>
-            /// Runs the log error operation.
-            /// </summary>
             logger.LogError(exception, "Evaluating a service registration for method diagnostics failed.");
             throw;
         }
@@ -142,16 +118,10 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
                 serviceType == typeof(IChatProtocolResolver) ||
                 serviceType == typeof(IChatProtocolProfileCatalog) ||
                 serviceType == typeof(IChatProtocolTextService) ||
-                /// <summary>
-                /// Runs the typeof operation.
-                /// </summary>
                 serviceType == typeof(IChatProtocolProfile);
         }
         catch (Exception exception)
         {
-            /// <summary>
-            /// Runs the log error operation.
-            /// </summary>
             logger.LogError(exception, "Evaluating a high-frequency service exclusion failed for {ServiceType}.", serviceType.FullName);
             throw;
         }
@@ -173,32 +143,17 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
             var target = descriptor.ImplementationInstance
                 ?? descriptor.ImplementationFactory?.Invoke(provider)
                 ?? ActivatorUtilities.CreateInstance(provider, descriptor.ImplementationType
-                    /// <summary>
-                    /// Runs the invalid operation exception operation.
-                    /// </summary>
                     ?? throw new InvalidOperationException($"Service descriptor {descriptor.ServiceType} has no implementation."));
 
             if (target is IDisposable or IAsyncDisposable)
             {
-                /// <summary>
-                /// Runs the log debug operation.
-                /// </summary>
                 logger.LogDebug(
                     "Skipped method-diagnostics proxy creation for disposable implementation {ServiceImplementationType}; DI retains disposal ownership.",
-                    /// <summary>
-                    /// Gets type.
-                    /// </summary>
                     target.GetType().FullName);
                 return target;
             }
 
-            /// <summary>
-            /// Runs the create operation.
-            /// </summary>
             var proxy = DispatchProxy.Create(descriptor.ServiceType, typeof(ServiceMethodLoggingDispatchProxy));
-            /// <summary>
-            /// Runs the initialize operation.
-            /// </summary>
             ((ServiceMethodLoggingDispatchProxy)proxy).Initialize(
                 target,
                 provider.GetRequiredService<ILoggerFactory>(),
@@ -207,9 +162,6 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
         }
         catch (Exception exception)
         {
-            /// <summary>
-            /// Runs the log error operation.
-            /// </summary>
             logger.LogError(
                 exception,
                 "Creating a bounded method-diagnostics proxy failed for {ServiceType}; no service arguments were logged.",

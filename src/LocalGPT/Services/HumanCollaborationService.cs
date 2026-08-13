@@ -590,8 +590,6 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     /// Sets preferred direct user message consumer as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
-    /// <param name="consumerKey">Consumer key value supplied to the human collaboration operation and used when producing its result.</param>
     public void SetPreferredDirectUserMessageConsumer(Guid councilRunId, string consumerKey)
     {
         try
@@ -610,8 +608,6 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     /// Performs clear preferred direct user message consumer as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
-    /// <param name="consumerKey">Consumer key value supplied to the human collaboration operation and used when producing its result.</param>
     public void ClearPreferredDirectUserMessageConsumer(Guid councilRunId, string consumerKey)
     {
         try
@@ -634,10 +630,6 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     /// Attempts to claim direct user message as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="contributionId">Identifier of the contribution to use for this operation.</param>
-    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
-    /// <param name="consumerKey">Consumer key value supplied to the human collaboration operation and used when producing its result.</param>
-    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool TryClaimDirectUserMessage(Guid contributionId, Guid councilRunId, string consumerKey)
     {
         try

@@ -2423,9 +2423,6 @@ namespace LocalGPT.Services
             try
             {
                 return new AnalyzedUploadFile(
-                /// <summary>
-                /// Runs the chat upload workspace file summary operation.
-                /// </summary>
                 new ChatUploadWorkspaceFileSummary(
                     relativePath,
                     kind,

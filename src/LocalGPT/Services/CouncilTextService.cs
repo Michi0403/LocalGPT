@@ -7070,14 +7070,8 @@ namespace LocalGPT.Services
             try
             {
                 method.Statements.Add(new CodeMethodInvokeExpression(
-                 /// <summary>
-                 /// Runs the code variable reference expression operation.
-                 /// </summary>
                  new CodeVariableReferenceExpression("builder"),
                  "AppendLine",
-                 /// <summary>
-                 /// Runs the code primitive expression operation.
-                 /// </summary>
                  new CodePrimitiveExpression(line)));
             }
             catch (Exception ex)

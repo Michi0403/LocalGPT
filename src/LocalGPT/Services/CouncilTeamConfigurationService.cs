@@ -58,9 +58,6 @@ public sealed class CouncilTeamConfigurationService(
     /// Retrieves teams as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="includeDisabled">Value indicating whether include disabled should apply to this operation.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<OrganicCouncilTeamDefinition>> GetTeamsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)
     {
     try
@@ -88,9 +85,6 @@ public sealed class CouncilTeamConfigurationService(
     /// Finds team as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="key">Key value supplied to the council team configuration operation and used when producing its result.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The organic council team definition produced by the operation.</returns>
     public async Task<OrganicCouncilTeamDefinition?> FindTeamAsync(string? key, CancellationToken cancellationToken = default)
     {
     try
@@ -118,9 +112,6 @@ public sealed class CouncilTeamConfigurationService(
     /// Performs save as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The organic council team definition produced by the operation.</returns>
     public async Task<OrganicCouncilTeamDefinition> SaveAsync(SaveCouncilTeamConfigurationRequest request, CancellationToken cancellationToken = default)
     {
     try

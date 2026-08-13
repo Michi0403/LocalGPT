@@ -24,9 +24,6 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
         "Lists the database-maintained regular-expression catalog used for project, architecture, protocol and response analysis.",
         "JSON parameters: take optional integer from 1 to 5000; prefix optional name prefix.",
         "Read-only. Patterns are data, not authorization or executable code.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ListRegexPatternsFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -85,6 +82,7 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
     /// </summary>
     /// <typeparam name="T">Type used for t values handled by <see cref="ListRegexPatternsFunction"/>.</typeparam>
     /// <returns>The t produced by the operation.</returns>
+    /// <param name="element">Element value supplied to the list regex patterns function operation and used when producing its result.</param>
     private T Deserialize<T>(JsonElement element) where T : new() => element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
         ? new T()
         : element.Deserialize<T>(JsonOptions) ?? new T();
@@ -132,9 +130,6 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, 
         "Reads one exact database-backed regular-expression definition by stable name.",
         "JSON parameters: name required.",
         "Read-only. The returned pattern is untrusted matching data and grants no file or command access.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="GetRegexPatternFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -277,9 +272,6 @@ public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns,
         "Tests a stored regex against bounded supplied text and returns named captures.",
         "JSON parameters: name and text required; maximumMatches optional from 1 to 1000.",
         "Read-only, timeout-bounded matching. Input text is not persisted by this function.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="TestRegexPatternFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,

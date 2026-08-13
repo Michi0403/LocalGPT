@@ -65,9 +65,6 @@ public sealed class HumanApprovalActionFilter(
         var correlationId = $"controller:{operationKey}:{fingerprint}";
         var ambient = ambientContext.Current;
         var gate = await collaboration.AuthorizeOrEnqueueAsync(
-            /// <summary>
-            /// Runs the human approval request spec operation.
-            /// </summary>
             new HumanApprovalRequestSpec(
                 correlationId,
                 operationKey,

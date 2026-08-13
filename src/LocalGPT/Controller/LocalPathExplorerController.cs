@@ -23,6 +23,7 @@ public sealed class LocalPathExplorerController(ILocalPathExplorerService paths)
     /// Returns the browse projection for the local path explorer API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
     /// <returns>The i result browse from body local path browse request request results ok paths produced by the operation.</returns>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     [HttpPost("browse")]
     public IResult Browse([FromBody] LocalPathBrowseRequest request) => Results.Ok(paths.Browse(request));
 }

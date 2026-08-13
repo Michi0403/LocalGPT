@@ -26,9 +26,6 @@ public sealed class ListSqliteTablesFunction(IDxAiFunctionJsonService json,
         "List every user-maintainable LocalGPT SQLite table with row and schema counts before selecting a targeted read or write operation.",
         "No parameters.",
         "Read-only metadata. Internal sqlite_* tables are excluded.",
-        /// <summary>
-        /// Stores the internal source state used by <see cref="ListSqliteTablesFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         SupportsDirectInvocation: true,
@@ -82,9 +79,6 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
         "Read a bounded, masked preview of one LocalGPT SQLite table after a structured project/requirement plan identifies why that table is relevant.",
         "JSON parameters: tableName required; take optional 1-100.",
         "Read-only. Values in password, secret, token, key, connection-string, and raw payload columns are masked. Use a separately approved exact read only when the human needs those values.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="PreviewSqliteTableFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         SupportsDirectInvocation: true,
@@ -181,9 +175,6 @@ public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
         "Read an exact bounded SQLite table preview when masked values are insufficient for the user's requested maintenance task.",
         "JSON parameters: tableName required; take optional 1-100.",
         "Potentially sensitive database content can be returned. Exact table name and row limit are shown in the Human Collaboration Inbox and require one-use approval.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ReadExactSqliteTableFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -248,9 +239,6 @@ public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
         "Insert or update one exact LocalGPT SQLite row after the council maps the operation to an approved project requirement.",
         "JSON parameters: tableName required; rowId optional for update; values required object keyed by real column names.",
         "Writes one row only. The Human Collaboration Inbox shows the table, row ID, column names, and redacted sensitive values. Approval is exact and one-use.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="UpsertSqliteRowFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -328,9 +316,6 @@ public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
         "Delete one exact row from a LocalGPT SQLite table after structured requirement mapping and user review.",
         "JSON parameters: tableName and rowId required.",
         "Destructive and one-row bounded. Exact table and row ID require one-use approval. Existing foreign-key restrictions remain active.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="DeleteSqliteRowFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -395,9 +380,6 @@ public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService j
         "Import one harmless allowlisted text document into a database-first project revision as untrusted reference data.",
         "JSON parameters: projectId required; revisionId optional; filePath required.",
         "Reads one local text file only after approval. Binary content, oversized files, unknown extensions, control-byte payloads, and invalid encodings are rejected. Text is never evaluated as regex, command, or instruction authority.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ImportProjectTextDocumentFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,

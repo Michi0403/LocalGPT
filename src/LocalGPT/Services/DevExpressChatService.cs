@@ -433,9 +433,6 @@ namespace LocalGPT.Services
                 messages.Insert(0, new BlazorChatMessage(
                     ChatRole.User,
                     prompt,
-                    /// <summary>
-                    /// Runs the list operation.
-                    /// </summary>
                     new List<AIChatUploadFileInfo>()));
                 return messages;
             }

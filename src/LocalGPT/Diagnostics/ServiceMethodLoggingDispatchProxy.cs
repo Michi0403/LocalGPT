@@ -50,38 +50,17 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
         ILogger? initializationLogger = null;
         try
         {
-            /// <summary>
-            /// Runs the throw if null operation.
-            /// </summary>
             ArgumentNullException.ThrowIfNull(loggerFactory);
-            /// <summary>
-            /// Creates logger.
-            /// </summary>
             initializationLogger = loggerFactory.CreateLogger<ServiceMethodLoggingDispatchProxy>();
-            /// <summary>
-            /// Runs the argument null exception operation.
-            /// </summary>
             target = serviceTarget ?? throw new ArgumentNullException(nameof(serviceTarget));
-            /// <summary>
-            /// Creates logger.
-            /// </summary>
             logger = loggerFactory.CreateLogger(serviceTarget.GetType());
             development = isDevelopment;
-            /// <summary>
-            /// Runs the log debug operation.
-            /// </summary>
             initializationLogger.LogDebug(
                 "Initialized bounded service-method diagnostics for {ServiceImplementationType}; service arguments and payloads remain excluded from logs.",
-                /// <summary>
-                /// Gets type.
-                /// </summary>
                 serviceTarget.GetType().FullName);
         }
         catch (Exception exception)
         {
-            /// <summary>
-            /// Runs the log error operation.
-            /// </summary>
             (initializationLogger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance).LogError(
                 exception,
                 "Initializing a service-method diagnostics proxy failed; service arguments and payloads were omitted.");
@@ -97,102 +76,45 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     /// <returns>The object produced by the operation.</returns>
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
     {
-        /// <summary>
-        /// Runs the throw if null operation.
-        /// </summary>
         ArgumentNullException.ThrowIfNull(targetMethod);
-        /// <summary>
-        /// Runs the invalid operation exception operation.
-        /// </summary>
         var currentTarget = target ?? throw new InvalidOperationException("The service diagnostics proxy was not initialized.");
-        /// <summary>
-        /// Runs the invalid operation exception operation.
-        /// </summary>
         var currentLogger = logger ?? throw new InvalidOperationException("The service diagnostics proxy was not initialized.");
-        /// <summary>
-        /// Gets type.
-        /// </summary>
         var operation = $"{currentTarget.GetType().Name}.{targetMethod.Name}";
-        /// <summary>
-        /// Starts new.
-        /// </summary>
         var stopwatch = Stopwatch.StartNew();
-       /// <summary>
-       /// Runs the log started operation.
-       /// </summary>
         LogStarted(currentLogger, operation);
 
         object? result;
         try
         {
-            /// <summary>
-            /// Runs the invoke operation.
-            /// </summary>
             result = targetMethod.Invoke(currentTarget, args);
         }
         catch (TargetInvocationException exception) when (exception.InnerException is not null)
         {
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log failure operation.
-           /// </summary>
             LogFailure(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception.InnerException);
-            /// <summary>
-            /// Runs the capture operation.
-            /// </summary>
             ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
             throw;
         }
         catch (Exception exception)
         {
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log failure operation.
-           /// </summary>
             LogFailure(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
             throw;
         }
 
         var returnType = targetMethod.ReturnType;
         if (returnType == typeof(Task))
-           /// <summary>
-           /// Runs the observe task async operation.
-           /// </summary>
             return ObserveTaskAsync((Task)result!, currentLogger, operation, stopwatch);
         if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
-           /// <summary>
-           /// Runs the invoke generic observer operation.
-           /// </summary>
             return InvokeGenericObserver(nameof(ObserveTaskAsync), returnType.GenericTypeArguments[0], result!, currentLogger, operation, stopwatch);
         if (returnType == typeof(ValueTask))
-           /// <summary>
-           /// Runs the value task operation.
-           /// </summary>
             return new ValueTask(ObserveValueTaskAsync((ValueTask)result!, currentLogger, operation, stopwatch));
         if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
-           /// <summary>
-           /// Runs the invoke generic observer operation.
-           /// </summary>
             return InvokeGenericObserver(nameof(ObserveValueTaskAsync), returnType.GenericTypeArguments[0], result!, currentLogger, operation, stopwatch);
         if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>))
-           /// <summary>
-           /// Runs the invoke generic observer operation.
-           /// </summary>
             return InvokeGenericObserver(nameof(ObserveAsyncEnumerable), returnType.GenericTypeArguments[0], result!, currentLogger, operation, stopwatch);
 
-        /// <summary>
-        /// Runs the stop operation.
-        /// </summary>
         stopwatch.Stop();
-       /// <summary>
-       /// Runs the log completed operation.
-       /// </summary>
         LogCompleted(currentLogger, operation, stopwatch.ElapsedMilliseconds);
         return result;
     }
@@ -223,14 +145,8 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
             .Single(candidate =>
                 candidate.Name == methodName
                 && candidate.IsGenericMethodDefinition
-                /// <summary>
-                /// Gets generic arguments.
-                /// </summary>
                 && candidate.GetGenericArguments().Length == 1);
         return method.MakeGenericMethod(resultType)
-            /// <summary>
-            /// Runs the invoke operation.
-            /// </summary>
             .Invoke(this, [result, currentLogger, operation, stopwatch])!;
     }
 
@@ -246,40 +162,19 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     {
         try
         {
-            /// <summary>
-            /// Runs the configure await operation.
-            /// </summary>
             await task.ConfigureAwait(false);
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log completed operation.
-           /// </summary>
             LogCompleted(currentLogger, operation, stopwatch.ElapsedMilliseconds);
         }
         catch (OperationCanceledException exception)
         {
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log cancellation operation.
-           /// </summary>
             LogCancellation(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
             throw;
         }
         catch (Exception exception)
         {
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log failure operation.
-           /// </summary>
             LogFailure(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
             throw;
         }
@@ -298,41 +193,20 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     {
         try
         {
-            /// <summary>
-            /// Runs the configure await operation.
-            /// </summary>
             var result = await task.ConfigureAwait(false);
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log completed operation.
-           /// </summary>
             LogCompleted(currentLogger, operation, stopwatch.ElapsedMilliseconds);
             return result;
         }
         catch (OperationCanceledException exception)
         {
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log cancellation operation.
-           /// </summary>
             LogCancellation(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
             throw;
         }
         catch (Exception exception)
         {
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log failure operation.
-           /// </summary>
             LogFailure(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
             throw;
         }
@@ -350,40 +224,19 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     {
         try
         {
-            /// <summary>
-            /// Runs the configure await operation.
-            /// </summary>
             await task.ConfigureAwait(false);
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log completed operation.
-           /// </summary>
             LogCompleted(currentLogger, operation, stopwatch.ElapsedMilliseconds);
         }
         catch (OperationCanceledException exception)
         {
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log cancellation operation.
-           /// </summary>
             LogCancellation(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
             throw;
         }
         catch (Exception exception)
         {
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log failure operation.
-           /// </summary>
             LogFailure(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
             throw;
         }
@@ -402,41 +255,20 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     {
         try
         {
-            /// <summary>
-            /// Runs the configure await operation.
-            /// </summary>
             var result = await task.ConfigureAwait(false);
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log completed operation.
-           /// </summary>
             LogCompleted(currentLogger, operation, stopwatch.ElapsedMilliseconds);
             return result;
         }
         catch (OperationCanceledException exception)
         {
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log cancellation operation.
-           /// </summary>
             LogCancellation(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
             throw;
         }
         catch (Exception exception)
         {
-            /// <summary>
-            /// Runs the stop operation.
-            /// </summary>
             stopwatch.Stop();
-           /// <summary>
-           /// Runs the log failure operation.
-           /// </summary>
             LogFailure(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
             throw;
         }
@@ -458,9 +290,6 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
         Stopwatch stopwatch)
     {
         var terminalEventLogged = false;
-        /// <summary>
-        /// Gets async enumerator.
-        /// </summary>
         var enumerator = source.GetAsyncEnumerator();
 
         try
@@ -470,33 +299,18 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
                 bool hasNext;
                 try
                 {
-                    /// <summary>
-                    /// Runs the move next async operation.
-                    /// </summary>
                     hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
                 }
                 catch (OperationCanceledException exception)
                 {
-                    /// <summary>
-                    /// Runs the stop operation.
-                    /// </summary>
                     stopwatch.Stop();
-                   /// <summary>
-                   /// Runs the log cancellation operation.
-                   /// </summary>
                     LogCancellation(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
                     terminalEventLogged = true;
                     throw;
                 }
                 catch (Exception exception)
                 {
-                    /// <summary>
-                    /// Runs the stop operation.
-                    /// </summary>
                     stopwatch.Stop();
-                   /// <summary>
-                   /// Runs the log failure operation.
-                   /// </summary>
                     LogFailure(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
                     terminalEventLogged = true;
                     throw;
@@ -512,22 +326,13 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
         {
             try
             {
-                /// <summary>
-                /// Runs the dispose async operation.
-                /// </summary>
                 await enumerator.DisposeAsync().ConfigureAwait(false);
             }
             catch (OperationCanceledException exception)
             {
                 if (!terminalEventLogged)
                 {
-                    /// <summary>
-                    /// Runs the stop operation.
-                    /// </summary>
                     stopwatch.Stop();
-                   /// <summary>
-                   /// Runs the log cancellation operation.
-                   /// </summary>
                     LogCancellation(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
                     terminalEventLogged = true;
                     throw;
@@ -537,21 +342,12 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
             {
                 if (!terminalEventLogged)
                 {
-                    /// <summary>
-                    /// Runs the stop operation.
-                    /// </summary>
                     stopwatch.Stop();
-                   /// <summary>
-                   /// Runs the log failure operation.
-                   /// </summary>
                     LogFailure(currentLogger, operation, stopwatch.ElapsedMilliseconds, exception);
                     terminalEventLogged = true;
                     throw;
                 }
 
-                /// <summary>
-                /// Runs the log warning operation.
-                /// </summary>
                 currentLogger.LogWarning(
                     exception,
                     "Service operation {Operation} also failed while disposing its asynchronous enumerator.",
@@ -560,13 +356,7 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
 
             if (!terminalEventLogged)
             {
-                /// <summary>
-                /// Runs the stop operation.
-                /// </summary>
                 stopwatch.Stop();
-               /// <summary>
-               /// Runs the log completed operation.
-               /// </summary>
                 LogCompleted(currentLogger, operation, stopwatch.ElapsedMilliseconds);
             }
         }
@@ -582,9 +372,6 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
         // Per-call diagnostics remain available at Trace, while the normal Development log receives
         // bounded aggregate summaries. This prevents hot property getters and formatting helpers from
         // monopolising the log pipeline without discarding call counts or timing information.
-        /// <summary>
-        /// Runs the log trace operation.
-        /// </summary>
         currentLogger.LogTrace(
             "Service operation {Operation} started; arguments and payload content were omitted.",
             operation);
@@ -598,17 +385,11 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     /// <param name="elapsedMilliseconds">Elapsed milliseconds value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
     private void LogCompleted(ILogger currentLogger, string operation, long elapsedMilliseconds)
     {
-        /// <summary>
-        /// Runs the log trace operation.
-        /// </summary>
         currentLogger.LogTrace(
             "Service operation {Operation} completed in {ElapsedMilliseconds} ms.",
             operation,
             elapsedMilliseconds);
 
-       /// <summary>
-       /// Runs the record successful call operation.
-       /// </summary>
         RecordSuccessfulCall(currentLogger, operation, elapsedMilliseconds, forceFlush: false);
     }
 
@@ -621,13 +402,7 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     /// <param name="exception">Exception value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
     private void LogCancellation(ILogger currentLogger, string operation, long elapsedMilliseconds, OperationCanceledException exception)
     {
-       /// <summary>
-       /// Runs the flush batch operation.
-       /// </summary>
         FlushBatch(currentLogger, operation);
-        /// <summary>
-        /// Runs the log information operation.
-        /// </summary>
         currentLogger.LogInformation(
             exception,
             "Service operation {Operation} was cancelled after {ElapsedMilliseconds} ms.",
@@ -646,20 +421,11 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     {
         if (exception is OperationCanceledException cancellation)
         {
-           /// <summary>
-           /// Runs the log cancellation operation.
-           /// </summary>
             LogCancellation(currentLogger, operation, elapsedMilliseconds, cancellation);
             return;
         }
 
-       /// <summary>
-       /// Runs the flush batch operation.
-       /// </summary>
         FlushBatch(currentLogger, operation);
-        /// <summary>
-        /// Runs the log error operation.
-        /// </summary>
         currentLogger.LogError(
             exception,
             "Service operation {Operation} failed after {ElapsedMilliseconds} ms; arguments, return values and payload content were omitted.",
@@ -680,9 +446,6 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
         long elapsedMilliseconds,
         bool forceFlush)
     {
-        /// <summary>
-        /// Gets or add.
-        /// </summary>
         var batch = operationBatches.GetOrAdd(operation, _ => new ServiceOperationBatch());
         ServiceOperationBatchSnapshot? snapshot = null;
         lock (batch.SyncRoot)
@@ -693,33 +456,21 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
 
             batch.Count++;
             batch.TotalElapsedMilliseconds += elapsedMilliseconds;
-            /// <summary>
-            /// Runs the max operation.
-            /// </summary>
             batch.MaximumElapsedMilliseconds = Math.Max(batch.MaximumElapsedMilliseconds, elapsedMilliseconds);
 
             if (forceFlush || batch.Count >= BatchSize || now - batch.StartedAtUtc >= batchWindow)
             {
-                /// <summary>
-                /// Runs the service operation batch snapshot operation.
-                /// </summary>
                 snapshot = new ServiceOperationBatchSnapshot(
                     batch.Count,
                     batch.TotalElapsedMilliseconds,
                     batch.MaximumElapsedMilliseconds,
                     batch.StartedAtUtc,
                     now);
-               /// <summary>
-               /// Runs the reset batch operation.
-               /// </summary>
                 ResetBatch(batch);
             }
         }
 
         if (snapshot is not null)
-           /// <summary>
-           /// Writes batch.
-           /// </summary>
             WriteBatch(currentLogger, operation, snapshot);
     }
 
@@ -739,26 +490,17 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
             if (batch.Count > 0)
             {
                 var now = DateTimeOffset.UtcNow;
-                /// <summary>
-                /// Runs the service operation batch snapshot operation.
-                /// </summary>
                 snapshot = new ServiceOperationBatchSnapshot(
                     batch.Count,
                     batch.TotalElapsedMilliseconds,
                     batch.MaximumElapsedMilliseconds,
                     batch.StartedAtUtc,
                     now);
-               /// <summary>
-               /// Runs the reset batch operation.
-               /// </summary>
                 ResetBatch(batch);
             }
         }
 
         if (snapshot is not null)
-           /// <summary>
-           /// Writes batch.
-           /// </summary>
             WriteBatch(currentLogger, operation, snapshot);
     }
 
@@ -785,13 +527,7 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
         var average = snapshot.Count == 0
             ? 0d
             : (double)snapshot.TotalElapsedMilliseconds / snapshot.Count;
-        /// <summary>
-        /// Runs the log information operation.
-        /// </summary>
         currentLogger.LogInformation(
-            /// <summary>
-            /// Runs the call operation.
-            /// </summary>
             "Service operation batch {Operation}: {InvocationCount} successful call(s) in {BatchDurationMilliseconds} ms; aggregate {TotalElapsedMilliseconds} ms, average {AverageElapsedMilliseconds:F2} ms, maximum {MaximumElapsedMilliseconds} ms. Arguments and payload content were omitted.",
             operation,
             snapshot.Count,

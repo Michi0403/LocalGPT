@@ -726,23 +726,23 @@ public sealed class DxAiFunctionInvocationRequest
 /// <summary>
 /// Represents a DevExpress AI function parameter binding application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
-/// <typeparam name="T">Type used for t values handled by <see cref="DxAiFunctionParameterBinding"/>.</typeparam>
+/// <typeparam name="T">Type used for t values handled by <see cref="DxAiFunctionParameterBinding{T}"/>.</typeparam>
 public sealed class DxAiFunctionParameterBinding<T> where T : new()
 {
     /// <summary>
     /// Gets or sets a value indicating whether the operation succeeded applies to the DevExpress AI function parameter binding state.
     /// </summary>
-    /// <value>The succeeded value exposed by <see cref="DxAiFunctionParameterBinding"/>.</value>
+    /// <value>The succeeded value exposed by <see cref="DxAiFunctionParameterBinding{T}"/>.</value>
     public bool Succeeded { get; init; }
     /// <summary>
     /// Gets or sets the value value that forms part of the DevExpress AI function parameter binding state consumed or produced by the surrounding workflow.
     /// </summary>
-    /// <value>The value value exposed by <see cref="DxAiFunctionParameterBinding"/>.</value>
+    /// <value>The value value exposed by <see cref="DxAiFunctionParameterBinding{T}"/>.</value>
     public T Value { get; init; } = new();
     /// <summary>
     /// Gets or sets the error value that forms part of the DevExpress AI function parameter binding state consumed or produced by the surrounding workflow.
     /// </summary>
-    /// <value>The error value exposed by <see cref="DxAiFunctionParameterBinding"/>.</value>
+    /// <value>The error value exposed by <see cref="DxAiFunctionParameterBinding{T}"/>.</value>
     public string Error { get; init; } = string.Empty;
 }
 

@@ -355,9 +355,6 @@ public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spoo
     /// </summary>
     /// <value>The descriptor value exposed by <see cref="ReadOrganicPluginWorkResultFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
-        /// <summary>
-        /// Stores the internal false state used by <see cref="ReadOrganicPluginWorkResultFunction"/> while executing its surrounding workflow.
-        /// </summary>
         Name: "organic.plugin.work.read",
         Method: "GET",
         Route: "/api/onewire/work/{workItemId}",

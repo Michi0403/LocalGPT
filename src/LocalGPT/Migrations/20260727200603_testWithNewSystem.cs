@@ -14,7 +14,6 @@ namespace LocalGPT.Migrations
         /// Applies the schema changes defined by the <see cref="testWithNewSystem"/> Entity Framework Core migration to move the database forward.
         /// </summary>
         /// <inheritdoc />
-        /// <param name="migrationBuilder">Migration builder value supplied to the test with new system operation and used when producing its result.</param>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateIndex(
@@ -32,7 +31,6 @@ namespace LocalGPT.Migrations
         /// Reverts the schema changes defined by the <see cref="testWithNewSystem"/> Entity Framework Core migration to return the database to its preceding shape.
         /// </summary>
         /// <inheritdoc />
-        /// <param name="migrationBuilder">Migration builder value supplied to the test with new system operation and used when producing its result.</param>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(

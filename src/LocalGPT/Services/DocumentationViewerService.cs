@@ -23,14 +23,12 @@ public sealed class DocumentationViewerService(ILogger<DocumentationViewerServic
     /// Gets or sets the state value that forms part of the documentation viewer state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <inheritdoc />
-    /// <value>The state value exposed by <see cref="DocumentationViewerService"/>.</value>
     public LocalGptDocumentationViewerState State { get; private set; } = new();
 
     /// <summary>
     /// Performs open as part of the documentation viewer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     public void Open(LocalGptDocumentationViewerRequest request)
     {
     try

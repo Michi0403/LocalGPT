@@ -186,9 +186,6 @@ public sealed class InvokeConfiguredPublicServiceMethodFunction(
         "Invokes one public service method that the local user explicitly enabled in the database-backed DX Function Catalog.",
         "catalogKey is required; parameters is an object matching the selected method signature.",
         "The catalog entry controls exposure. Frontend confirmation is required before this generic bridge executes a configured service method.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="InvokeConfiguredPublicServiceMethodFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,

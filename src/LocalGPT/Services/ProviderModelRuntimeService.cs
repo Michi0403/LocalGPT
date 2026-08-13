@@ -318,9 +318,6 @@ public sealed class ProviderModelRuntimeService(
             if (model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
             {
                 return new LoggingChatClient(
-                    /// <summary>
-                    /// Runs the ollama thinking chat client operation.
-                    /// </summary>
                     new OllamaThinkingChatClient(
                         new OllamaCoreOptions { Uri = NormalizeOllamaEndpoint(model.Endpoint), ModelName = model.ModelName },
                         logger,
@@ -346,13 +343,7 @@ public sealed class ProviderModelRuntimeService(
                     throw new InvalidOperationException("Azure OpenAI credentials are not configured.");
                 EnsureCredentialEndpointMatch(model.Endpoint, azure.Endpoint, "Azure OpenAI");
                 var client = new AzureOpenAIClient(
-                        /// <summary>
-                        /// Runs the URI operation.
-                        /// </summary>
                         new Uri(new ProviderModelIdentity().NormalizeEndpoint(azure.Endpoint), UriKind.Absolute),
-                        /// <summary>
-                        /// Runs the azure key credential operation.
-                        /// </summary>
                         new AzureKeyCredential(azure.Key),
                         new AzureOpenAIClientOptions
                         {
@@ -399,9 +390,6 @@ public sealed class ProviderModelRuntimeService(
             }
 
             var openAiClient = new global::OpenAI.OpenAIClient(
-                /// <summary>
-                /// Runs the API key credential operation.
-                /// </summary>
                 new ApiKeyCredential(apiKey),
                 new OpenAIClientOptions
                 {

@@ -1367,8 +1367,10 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Runs the default patterns for operation.
+    /// Performs default patterns for as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="extension">Extension value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string role string structure string content produced by the operation.</returns>
     private (string Role, string Structure, string Content) DefaultPatternsFor(string extension) => extension.ToLowerInvariant() switch
     {
         ".cs" => ("CSharpSource", @"(?m)^\s*(?:public|internal|private|protected)?\s*(?:sealed\s+|abstract\s+|static\s+|partial\s+)*(?:class|record|interface|enum|struct)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", @"(?s).*"),

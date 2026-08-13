@@ -28,10 +28,6 @@ namespace LocalGPT.Services
         /// </summary>
         /// <value>The workspace root value exposed by <see cref="ChatUploadWorkspaceService"/>.</value>
         public string WorkspaceRoot { get; } = Path.Combine(
-            /// <summary>
-            /// Retrieves folder path as part of the chat upload workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-            /// </summary>
-            /// <returns>The environment produced by the operation.</returns>
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "ChatUploadWorkspaces");
@@ -432,9 +428,6 @@ namespace LocalGPT.Services
                 return new ChatUploadWorkspaceSummary(
                     directory.Name,
                     directory.FullName,
-                    /// <summary>
-                    /// Runs the date time offset operation.
-                    /// </summary>
                     new DateTimeOffset(createdAtUtc, TimeSpan.Zero),
                     directory.LastWriteTimeUtc,
                     fileCount,

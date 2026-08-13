@@ -23,9 +23,6 @@ public sealed class CodeGenerationCapabilitiesFunction(
         "Returns the exact LocalGPT source-generation routes, output kinds, plain-file fallback behavior and database-backed scale policies the AI Council can use.",
         "No parameters.",
         "Read-only. This function describes capability; generation remains review/approval-gated and generated workspace writes require their own fresh approval.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="CodeGenerationCapabilitiesFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,

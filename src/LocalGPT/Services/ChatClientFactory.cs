@@ -86,13 +86,7 @@ namespace LocalGPT.Services
                         functionCallRecovery: functionCallRecovery);
 
                     sessions.Add(new ChatClientSession(
-                        /// <summary>
-                        /// Runs the logging chat client operation.
-                        /// </summary>
                         new LoggingChatClient(ollamaChat, loggerFactory.CreateLogger("AI.Ollama")),
-                        /// <summary>
-                        /// Runs the provider model identity operation.
-                        /// </summary>
                         new ProviderModelIdentity().CreateSelectionKey("Ollama", ollama.Uri, ollama.ModelName), "Ollama", ollama.ModelName, ollama.Uri
                     ));
                 }
@@ -118,13 +112,7 @@ namespace LocalGPT.Services
                         .AsIChatClient();
 
                     sessions.Add(new ChatClientSession(
-                        /// <summary>
-                        /// Runs the logging chat client operation.
-                        /// </summary>
                         new LoggingChatClient(azureClient, loggerFactory.CreateLogger("AI.AzureOpenAI")),
-                        /// <summary>
-                        /// Runs the provider model identity operation.
-                        /// </summary>
                         new ProviderModelIdentity().CreateSelectionKey("Azure OpenAI", az.Endpoint, az.DeploymentName), "Azure OpenAI", az.DeploymentName, az.Endpoint
                     ));
                 }
@@ -141,9 +129,6 @@ namespace LocalGPT.Services
                         : NormalizeOpenAiCompatibleEndpoint(configString);
 
                     var oai = new OpenAIClient(
-                        /// <summary>
-                        /// Runs the API key credential operation.
-                        /// </summary>
                         new ApiKeyCredential(openai.ApiKey),
                         new OpenAIClientOptions
                         {
@@ -160,13 +145,7 @@ namespace LocalGPT.Services
                     var modelChat = oai.GetChatClient(openai.ModelName).AsIChatClient();
 
                     sessions.Add(new ChatClientSession(
-                        /// <summary>
-                        /// Runs the logging chat client operation.
-                        /// </summary>
                         new LoggingChatClient(modelChat, loggerFactory.CreateLogger("AI.OpenAI")),
-                        /// <summary>
-                        /// Runs the provider model identity operation.
-                        /// </summary>
                         new ProviderModelIdentity().CreateSelectionKey("OpenAI", endpoint, openai.ModelName), "OpenAI", openai.ModelName, endpoint
                     ));
                 }
@@ -195,9 +174,6 @@ namespace LocalGPT.Services
 
                     var runtimeApiKey = !string.IsNullOrWhiteSpace(loc.ApiKey) ? loc.ApiKey : "local-no-key";
                     var localClient = new OpenAIClient(
-                        /// <summary>
-                        /// Runs the API key credential operation.
-                        /// </summary>
                         new ApiKeyCredential(runtimeApiKey),
                         new OpenAIClientOptions
                         {
@@ -214,13 +190,7 @@ namespace LocalGPT.Services
                     var localChat = localClient.GetChatClient(resolvedModel).AsIChatClient();
                     var providerName = GetLocalProviderName(configuredEndpoint);
                     sessions.Add(new ChatClientSession(
-                        /// <summary>
-                        /// Runs the logging chat client operation.
-                        /// </summary>
                         new LoggingChatClient(localChat, loggerFactory.CreateLogger("AI.LocalOpenAI")),
-                        /// <summary>
-                        /// Runs the provider model identity operation.
-                        /// </summary>
                         new ProviderModelIdentity().CreateSelectionKey(providerName, configuredEndpoint, resolvedModel),
                         providerName, resolvedModel, configuredEndpoint));
                 }

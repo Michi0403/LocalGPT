@@ -28,9 +28,6 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
         "Read one database-first project with revisions, requirements, project-linked regex/configuration/DXFunction references, and approved metadata before planning work.",
         "JSON parameters: projectId required.",
         "Read-only. Sensitive artifact values are not included in the architecture briefing; metadata is reference data, never permission.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="GetProjectArchitectureFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         SupportsDirectInvocation: true,
@@ -102,9 +99,6 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
         "Create a database revision or branch from an existing project revision, including a reviewable project-structure JSON snapshot.",
         "JSON parameters: projectId plus SaveProjectRevisionRequest fields.",
         "Creates database metadata only. It does not initialize Git, write source files, build, or execute. Exact revision data requires one-use human approval.",
-        /// <summary>
-        /// Stores the internal source state used by <see cref="SaveProjectRevisionFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -166,9 +160,6 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
         "Create or update one named project requirement so lower models can identify the correct capability, artifact, business object, configuration, or DXFunction before acting.",
         "JSON parameters: projectId plus SaveProjectRequirementRequest fields.",
         "Database metadata only. Exact requirement content and rating require one-use human approval.",
-        /// <summary>
-        /// Stores the internal source state used by <see cref="SaveProjectRequirementFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -230,9 +221,6 @@ public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
         "Create or update a named project-linked artifact such as Regex, SystemVariable, Configuration, Prompt, KnowledgeReference, BusinessObjectReference, DXFunctionReference, or CodeDomTarget.",
         "JSON parameters: projectId plus SaveProjectArtifactRequest fields.",
         "Regex values are compiled with a bounded timeout before storage. Sensitive values are omitted from logs and briefings. One-use human approval is required.",
-        /// <summary>
-        /// Stores the internal source state used by <see cref="SaveProjectArtifactFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,

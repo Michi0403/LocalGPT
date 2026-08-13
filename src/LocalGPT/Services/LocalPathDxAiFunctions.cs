@@ -19,9 +19,6 @@ public sealed class BrowseLocalPathFunction(ILocalPathExplorerService paths) : I
         "Browses one local folder so Chat or Council can present real filesystem choices instead of guessing paths.",
         "JSON parameters: path optional; includeFiles optional; maxEntries optional 1..1000.",
         "Read-only filesystem metadata. This function cannot create, edit, delete, execute, upload, or approve anything.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="BrowseLocalPathFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -66,9 +63,6 @@ public sealed class ListLocalPathRootsFunction(ILocalPathExplorerService paths) 
         "localgpt.path.roots", "POST", "/api/dxai/functions/localgpt.path.roots/invoke",
         "Lists platform-appropriate local root suggestions for path selection.", "No parameters.",
         "Read-only filesystem metadata. Suggested roots are choices, not permission grants.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ListLocalPathRootsFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{},"additionalProperties":false}""");

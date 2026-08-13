@@ -91,9 +91,6 @@ public sealed class OneWireTcpHostedService(
             using (var reader = new StreamReader(stream, Encoding.UTF8, false, 8192, leaveOpen: true))
             using (var writer = new StreamWriter(stream, new UTF8Encoding(false), 8192, leaveOpen: true) { AutoFlush = true })
             {
-                /// <summary>
-                /// Runs the sender operation.
-                /// </summary>
                 async Task Sender(OneWireEnvelope message, CancellationToken token)
                 {
                     await security.ProtectOutgoingAsync(message, token).ConfigureAwait(false);

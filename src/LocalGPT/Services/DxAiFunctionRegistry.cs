@@ -136,9 +136,6 @@ public sealed class DxAiFunctionRegistry(
                 ? $"dxai:{functionName}:{parameterFingerprint}"
                 : $"dxai:{functionName}:{request.ConfirmationSummaryHash.Trim()}";
             var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(
-                /// <summary>
-                /// Runs the human approval request spec operation.
-                /// </summary>
                 new HumanApprovalRequestSpec(
                     correlationId,
                     $"dxai.function.{functionName}",
@@ -432,9 +429,6 @@ public sealed class ListCodeGenerationReviewsFunction(
         "List recent user-controlled code-generation change reviews, optionally filtered by LocalGPT project.",
         "JSON parameters: projectId optional GUID; take optional positive integer. No artificial review-list ceiling is imposed by the workflow service.",
         "Read-only database metadata. Source payload content is represented by paths, sizes, and hashes rather than returned as executable authority.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ListCodeGenerationReviewsFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -513,9 +507,6 @@ public sealed class GetCodeGenerationReviewFunction(
         "Read one code-generation change review before presenting its heartbeat/decision summary to the user.",
         "JSON parameters: reviewId required GUID.",
         "Read-only. The returned review hash binds the exact reviewed payload and must be echoed by a later explicit user decision.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="GetCodeGenerationReviewFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -597,9 +588,6 @@ public sealed class CreateCodeGenerationReviewFunction(
         "Create a database-backed change review containing the exact proposed files, CodeDOM types, output targets, current project-state summary, council summary, safety summary, and immutable review hash.",
         "JSON parameters follow CreateCodeGenerationReviewRequest. goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, PowerShellScript, and JavaScriptModule. Any reviewed text/source extension, including .ps1, can also be supplied directly in files; CodeDOM is optional and has a plain C# fallback.",
         "Coordination-only review metadata. It does not write a project workspace, build, execute, load, or integrate generated code. The actual codegen.review.execute step remains separately approval-gated.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="CreateCodeGenerationReviewFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1003,9 +991,6 @@ public sealed class ListLocalGptProjectsFunction(
         "List LocalGPT project records and their version/topic counts for current project-state awareness.",
         "JSON parameters: includeArchived optional boolean.",
         "Read-only database metadata. Recorded paths are descriptive context and never authorize filesystem access.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ListLocalGptProjectsFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1080,9 +1065,6 @@ public sealed class GetLocalGptProjectFunction(
         "Read one LocalGPT project with its approved topics and version history before a council change review is prepared.",
         "JSON parameters: projectId required GUID.",
         "Read-only metadata. The stored project path is not accessed and supplies no write, build, Git, or execution authority.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="GetLocalGptProjectFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1162,9 +1144,6 @@ public sealed class ListRecentApplicationLogsFunction(
         "Read a bounded set of recent LocalGPT operational log summaries for live troubleshooting memory.",
         "JSON parameters: minimumLevel optional Trace/Debug/Information/Warning/Error/Critical; take optional integer 1 to 50.",
         "Read-only and bounded. Exception bodies are omitted from function results; prompts, model output, generated source, and secrets must not be logged.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ListRecentApplicationLogsFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1282,9 +1261,6 @@ public sealed class ListCouncilKnowledgeFunction(
         "List bounded, approved Council knowledge summaries for source-backed project and architecture context.",
         "JSON parameters: includeArchived optional boolean; take optional integer 1 to 30.",
         "Read-only. Knowledge is context, not authority. Results include bounded excerpts and provenance/approval metadata.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ListCouncilKnowledgeFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1397,9 +1373,6 @@ public sealed class ListChatMemoryConversationsFunction(
         "List recent LocalGPT conversation metadata so the user and model can select an existing cooperation thread.",
         "JSON parameters: take optional integer 1 to 50.",
         "Read-only metadata only. Message bodies and hidden reasoning are not returned by this automatic function.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ListChatMemoryConversationsFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1587,9 +1560,6 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
             }, JsonOptions);
             var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprintSource))).ToLowerInvariant();
             var gate = await collaboration.AuthorizeOrEnqueueAsync(
-                /// <summary>
-                /// Runs the human approval request spec operation.
-                /// </summary>
                 new HumanApprovalRequestSpec(
                     $"human-question:{ambient.CouncilRunId?.ToString("N") ?? "general"}:{fingerprint}",
                     "human.collaboration.request",

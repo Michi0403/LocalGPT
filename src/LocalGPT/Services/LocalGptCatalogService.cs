@@ -43,10 +43,6 @@ namespace LocalGPT.Services
         /// </summary>
         /// <value>The utf8 no bom value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Encoding Utf8NoBom { get; } =
-            /// <summary>
-            /// Performs utf8 encoding as part of the LocalGPT catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-            /// </summary>
-            /// <param name="false">False value supplied to the LocalGPT catalog operation and used when producing its result.</param>
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
         /// <summary>
         /// Gets the name cleaner value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
@@ -486,8 +482,9 @@ namespace LocalGPT.Services
         "- plan for 1000+ citizens by simulating city aggregates before individuals"
     });
         /// <summary>
-        /// Gets or sets council knowledge entry new.
+        /// Gets the council knowledge entry new value that forms part of the local GPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council knowledge entry new value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public CouncilKnowledgeEntry CouncilKnowledgeEntryNew => new CouncilKnowledgeEntry()
             {
                 Topic = "New LocalGPT knowledge",
@@ -502,8 +499,9 @@ namespace LocalGPT.Services
                 IsUserApproved = true
             };
     /// <summary>
-    /// Gets or sets generate solution routes razor.
+    /// Gets the generate solution routes razor value that forms part of the local GPT catalog state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The generate solution routes razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
     public string GenerateSolutionRoutesRazor =>
            """
             <Router AppAssembly="@typeof(Program).Assembly">

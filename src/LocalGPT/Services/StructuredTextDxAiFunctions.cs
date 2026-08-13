@@ -24,9 +24,6 @@ public sealed class TranslateJsonTextFunction(
         "Turns standalone JSON objects or arrays into a readable Markdown tree while preserving normalized raw JSON.",
         "JSON parameters: text required; includeRawJson optional boolean; maximumDocuments optional integer from 1 to 100.",
         "Read-only and local. It parses supplied text only, does not execute JSON, and does not persist input.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="TranslateJsonTextFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -125,9 +122,6 @@ public sealed class InspectJsonTextFunction(
         "Detects valid standalone JSON objects or arrays and reports their root kind, position and normalized structure.",
         "JSON parameters: text required; maximumDocuments optional integer from 1 to 100.",
         "Read-only and local. It does not execute or persist supplied JSON.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="InspectJsonTextFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,

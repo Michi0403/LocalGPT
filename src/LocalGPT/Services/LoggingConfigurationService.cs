@@ -75,9 +75,6 @@ public sealed class LoggingConfigurationService(
             }
 
             services.AddSingleton<ILoggerProvider>(provider =>
-                /// <summary>
-                /// Runs the email logger provider operation.
-                /// </summary>
                 new EmailLoggerProvider(provider.GetRequiredService<IOptionsMonitor<EmailLoggerCoreOptions>>()));
             logger.LogInformation("Registered the optional email logger provider.");
         }
@@ -103,9 +100,6 @@ public sealed class LoggingConfigurationService(
                 return;
 
             services.AddSingleton<ILoggerProvider>(provider =>
-                /// <summary>
-                /// Runs the file logger provider operation.
-                /// </summary>
                 new FileLoggerProvider(provider.GetRequiredService<IOptionsMonitor<FileLoggerCoreOptions>>()));
             logger.LogInformation("Registered the optional file logger provider.");
         }

@@ -168,9 +168,6 @@ public sealed class StartCouncilGameFunction(
         "Starts a directly playable /Chat ASCII game session. Human and AI players receive the same control contract.",
         "JSON parameters: gameKey ascii-doom or green-dragon; teamKey optional; conversationId optional; controlMode Human, Ai or Shared; directorMode Deterministic or CouncilModelPreferred; gameDirectorModelName and creatureDirectorCount optional; autoplayEnabled and autoplayDelayMilliseconds optional.",
         "Starts only an original LocalGPT runtime-class game session. It does not execute the original DOOM engine or include commercial assets.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="StartCouncilGameFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -235,9 +232,6 @@ public sealed class GetCouncilGameFunction(
         "localgpt.game.session.get", "POST", "/api/dxai/functions/localgpt.game.session.get/invoke",
         "Reads the authoritative game frame, turn, shared controls and input gate for one /Chat game session.",
         "JSON parameters: sessionId required.", "Read-only game-state inspection.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="GetCouncilGameFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sessionId"],"properties":{"sessionId":{"type":"string"}},"additionalProperties":false}""");
@@ -287,9 +281,6 @@ public sealed class PreviewCouncilGameControlFunction(
         "Asks the authoritative GameDirector and its creature/object subdirectors to review one proposed control without advancing the game.",
         "JSON parameters: sessionId and action required; expectedTurn, aimX, aimY, actorName, actorKind and runtimeClassKey optional.",
         "Read-only decision preview. A later localgpt.game.control call is still required to advance the authoritative session.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="PreviewCouncilGameControlFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -357,9 +348,6 @@ public sealed class ControlCouncilGameFunction(
         "Lets an AI player use exactly the same move, turn, aim, shoot, duck, use or choice action contract as the human /Chat controls.",
         "JSON parameters: sessionId and action required; expectedTurn, aimX, aimY, actorName, actorKind and runtimeClassKey optional.",
         "One bounded game control only. The function cannot send operating-system keyboard or gamepad input.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ControlCouncilGameFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -426,9 +414,6 @@ public sealed class SubmitCouncilGameFrameFunction(
         "Submits one complete fixed-size ASCII frame. Exactly one renderer name may own a Council turn's frame.",
         "JSON parameters: sessionId, turn, rendererName and frameText required; caption optional.",
         "Frame-only mutation. It cannot change authoritative player/world state.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="SubmitCouncilGameFrameFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -483,9 +468,6 @@ public sealed class SetCouncilGameControlModeFunction(
         "Switches a running /Chat game between human, shared and AI autoplay while retaining the same control service.",
         "JSON parameters: sessionId and controlMode required; autoplayEnabled and autoplayDelayMilliseconds optional.",
         "Only changes ownership and timing of game controls. It does not issue an operating-system input event.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="SetCouncilGameControlModeFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sessionId","controlMode"],"properties":{"sessionId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Shared","Ai"]},"autoplayEnabled":{"type":"boolean"},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000}},"additionalProperties":false}""");
@@ -541,9 +523,6 @@ public sealed class SetCouncilGameInputGateFunction(
         "Shows or hides the in-chat human control overlay for one game turn without blocking the rest of LocalGPT.",
         "JSON parameters: sessionId and humanInputRequired required; reason optional.",
         "Only changes the per-game input gate.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="SetCouncilGameInputGateFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sessionId","humanInputRequired"],"properties":{"sessionId":{"type":"string"},"humanInputRequired":{"type":"boolean"},"reason":{"type":"string"}},"additionalProperties":false}""");

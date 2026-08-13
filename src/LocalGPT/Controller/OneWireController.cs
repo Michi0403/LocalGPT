@@ -56,8 +56,9 @@ public sealed class OneWireController(
 
 
     /// <summary>
-    /// Runs the transport policy operation.
+    /// Returns the transport policy projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("transport-policy")]
     public IActionResult TransportPolicy()
     {
@@ -82,8 +83,9 @@ public sealed class OneWireController(
 
 
     /// <summary>
-    /// Runs the replay policy operation.
+    /// Returns the replay policy projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("replay-policy")]
     public ActionResult<OneWireReplayPolicySnapshot> ReplayPolicy()
     {
@@ -101,8 +103,10 @@ public sealed class OneWireController(
     }
 
     /// <summary>
-    /// Runs the capabilities operation.
+    /// Returns the capabilities projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("capabilities")]
     public async Task<ActionResult<IReadOnlyList<OneWireCapabilityDescriptor>>> Capabilities(CancellationToken cancellationToken) =>
         Ok(await capabilities.GetLocalCapabilitiesAsync(cancellationToken).ConfigureAwait(false));
@@ -220,7 +224,7 @@ public sealed class OneWireController(
     /// <summary>
     /// Returns the validate projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
-    /// <param name="error">Error value supplied to the one wire operation and used when producing its result.</param>
+    /// <param name="envelope">Envelope to validate against the current 1-Wire codec contract.</param>
     /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("validate")]
     public IActionResult Validate([FromBody] OneWireEnvelope envelope) => codec.Validate(envelope, out var error)

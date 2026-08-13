@@ -24,9 +24,6 @@ public sealed class ListCouncilRuntimeClassesFunction(
         "Lists database-backed Council runtime classes, their namespaces, kinds and field/input counts.",
         "JSON parameters: namespace optional; kind optional; includeDisabled optional boolean.",
         "Read-only. Definitions are configuration and source-study metadata; listing them does not execute a game, repository or input binding.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ListCouncilRuntimeClassesFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -130,9 +127,6 @@ public sealed class ResolveCouncilRuntimeClassFunction(
         "Resolves a runtime-class key, namespace, display name or common alias without case or punctuation sensitivity.",
         "JSON parameters: query required. Examples: games.ascii.doom.map, LocalGPT.Games.AsciiDoom.Map, doom map.",
         "Read-only. Returns the canonical database-backed definition and stable key so models do not need discovery loops.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="ResolveCouncilRuntimeClassFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -205,9 +199,6 @@ public sealed class GetCouncilRuntimeClassFunction(
         "Reads one database-backed Council runtime class including field ownership, human blocking gates, keyboard/gamepad bindings and source references.",
         "JSON parameters: key required.",
         "Read-only. A binding describes permitted configuration; it does not synthesize or send keyboard/gamepad input.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="GetCouncilRuntimeClassFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,

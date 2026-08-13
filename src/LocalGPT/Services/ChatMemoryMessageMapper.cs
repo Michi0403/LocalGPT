@@ -76,9 +76,6 @@ public sealed class ChatMemoryMessageMapper(
             messages.Insert(0, new BlazorChatMessage(
                 ChatRole.User,
                 prompt,
-                /// <summary>
-                /// Runs the list operation.
-                /// </summary>
                 new List<AIChatUploadFileInfo>()));
             return messages;
         }
@@ -217,14 +214,8 @@ public sealed class ChatMemoryMessageMapper(
         try
         {
             return new BlazorChatMessage(
-                /// <summary>
-                /// Runs the chat role operation.
-                /// </summary>
                 new ChatRole(message.Role),
                 message.Content,
-                /// <summary>
-                /// Runs the list operation.
-                /// </summary>
                 new List<AIChatUploadFileInfo>());
         }
         catch (Exception ex)
@@ -233,9 +224,6 @@ public sealed class ChatMemoryMessageMapper(
             return new BlazorChatMessage(
                 ChatRole.Assistant,
                 message.Content ?? string.Empty,
-                /// <summary>
-                /// Runs the list operation.
-                /// </summary>
                 new List<AIChatUploadFileInfo>());
         }
     }

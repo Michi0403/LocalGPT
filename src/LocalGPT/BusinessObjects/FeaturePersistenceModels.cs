@@ -261,11 +261,11 @@ public sealed class SaveFeatureRecordRequest<TRecord>
     /// <summary>
     /// Gets or sets the record value that forms part of the save feature record state consumed or produced by the surrounding workflow.
     /// </summary>
-    /// <value>The record value exposed by <see cref="SaveFeatureRecordRequest"/>.</value>
+    /// <value>The record value exposed by <see cref="SaveFeatureRecordRequest{TRecord}"/>.</value>
     public TRecord Record { get; set; } = default!;
     /// <summary>
     /// Gets or sets a value indicating whether user confirmed applies to the save feature record state.
     /// </summary>
-    /// <value>The user confirmed value exposed by <see cref="SaveFeatureRecordRequest"/>.</value>
+    /// <value>The user confirmed value exposed by <see cref="SaveFeatureRecordRequest{TRecord}"/>.</value>
     public bool UserConfirmed { get; set; }
 }

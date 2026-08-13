@@ -24,14 +24,12 @@ namespace LocalGPT.Endpoints
         LocalGptCatalogService catalog) : ControllerBase
     {
         /// <summary>
-        /// Runs the require human confirmation operation.
+        /// Returns the require human confirmation projection for the minecraft diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
         /// </summary>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="operation">Operation value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+        /// <returns>The i result produced by the operation.</returns>
         private IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
-            /// <summary>
-            /// Returns the bad request projection for the minecraft diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
-            /// </summary>
-            /// <param name="Error">Error value supplied to the minecraft diagnostic operation and used when producing its result.</param>
-            /// <returns>The user confirmed null results produced by the operation.</returns>
             userConfirmed
                 ? null
                 : Results.BadRequest(new
@@ -41,8 +39,12 @@ namespace LocalGPT.Endpoints
                 });
 
         /// <summary>
-        /// Gets minecraft project name file name.
+        /// Retrieves minecraft project name file name for the minecraft diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+        /// <param name="fileName">File name value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+        /// <param name="workspaces">Minecraft mod workspace service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__artifacts/minecraft/{projectName}/{fileName}")]
         public IResult GetMinecraftProjectNameFileName(
             string projectName,

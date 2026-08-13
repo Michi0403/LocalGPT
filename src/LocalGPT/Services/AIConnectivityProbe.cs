@@ -58,9 +58,6 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         {
             using var http = new HttpClient { BaseAddress = new Uri("https://api.openai.com/v1/") };
             http.DefaultRequestHeaders.Authorization =
-                /// <summary>
-                /// Runs the authentication header value operation.
-                /// </summary>
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
             return await aiDiscovery.GetAsync(http, "models", cancellationToken, logger).ConfigureAwait(false);
         }
@@ -114,9 +111,6 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
             if (!string.IsNullOrWhiteSpace(options.ApiKey))
             {
                 http.DefaultRequestHeaders.Authorization =
-                    /// <summary>
-                    /// Runs the authentication header value operation.
-                    /// </summary>
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
             }
 

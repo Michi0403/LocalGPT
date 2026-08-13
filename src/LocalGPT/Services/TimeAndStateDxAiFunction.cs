@@ -35,9 +35,6 @@ public sealed class GetTimeAndStateNowFunction(
         "Returns LocalGPT's current UTC/local time, process state, the three newest operational logs, the three newest Council spool entries, hardware inventory and linked 1-Wire peers.",
         "No parameters are required.",
         "Read-only, bounded and safe for automatic Council preflight use. Log messages and exceptions are truncated; no chat prompts, generated source, secrets or whole databases are returned.",
-        /// <summary>
-        /// Stores the internal parameter schema JSON state used by <see cref="GetTimeAndStateNowFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,

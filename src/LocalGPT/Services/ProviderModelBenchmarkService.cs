@@ -422,9 +422,6 @@ public sealed class ProviderModelBenchmarkService(
                 var stopwatch = Stopwatch.StartNew();
                 var response = await client.GetResponseAsync(
                     [new ChatMessage(ChatRole.System, "You are running a bounded LocalGPT benchmark. Return only the requested final answer."),
-                     /// <summary>
-                     /// Runs the chat message operation.
-                     /// </summary>
                      new ChatMessage(ChatRole.User, task.Prompt)],
                     new ChatOptions { MaxOutputTokens = profile.OutputTokens, Temperature = 0f },
                     timeout.Token).ConfigureAwait(false);
@@ -532,9 +529,6 @@ public sealed class ProviderModelBenchmarkService(
                 """;
             var response = await client.GetResponseAsync(
                 [new ChatMessage(ChatRole.System, "You are one bounded reviewer in a model benchmark council. Use only the supplied evidence."),
-                 /// <summary>
-                 /// Runs the chat message operation.
-                 /// </summary>
                  new ChatMessage(ChatRole.User, prompt)],
                 new ChatOptions { MaxOutputTokens = Math.Min(512, maximumOutput), Temperature = 0f },
                 timeout.Token).ConfigureAwait(false);

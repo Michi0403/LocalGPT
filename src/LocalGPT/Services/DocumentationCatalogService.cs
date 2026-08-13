@@ -58,7 +58,6 @@ public sealed class DocumentationCatalogService(
     /// Retrieves status as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <returns>The LocalGPT documentation status produced by the operation.</returns>
     public LocalGptDocumentationStatus GetStatus()
     {
         try
@@ -94,7 +93,6 @@ public sealed class DocumentationCatalogService(
     /// Retrieves PDF path as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <returns>The string produced by the operation.</returns>
     public string? GetPdfPath()
     {
         try
@@ -114,8 +112,6 @@ public sealed class DocumentationCatalogService(
     /// Retrieves HTML file path as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="relativePath">Relative path value supplied to the documentation catalog operation and used when producing its result.</param>
-    /// <returns>The string produced by the operation.</returns>
     public string? GetHtmlFilePath(string? relativePath)
     {
         try
@@ -142,9 +138,6 @@ public sealed class DocumentationCatalogService(
     /// Retrieves comment as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="memberId">Identifier of the member to use for this operation.</param>
-    /// <param name="culture">Culture value supplied to the documentation catalog operation and used when producing its result.</param>
-    /// <returns>The LocalGPT documentation comment produced by the operation.</returns>
     public LocalGptDocumentationComment? GetComment(string memberId, string? culture = null)
     {
         try
@@ -165,10 +158,6 @@ public sealed class DocumentationCatalogService(
     /// Searches comments as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="query">Query value supplied to the documentation catalog operation and used when producing its result.</param>
-    /// <param name="limit">Limit value supplied to the documentation catalog operation and used when producing its result.</param>
-    /// <param name="culture">Culture value supplied to the documentation catalog operation and used when producing its result.</param>
-    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<LocalGptDocumentationComment> SearchComments(string? query, int limit = 100, string? culture = null)
     {
         try

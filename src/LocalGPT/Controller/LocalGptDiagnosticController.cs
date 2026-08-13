@@ -37,14 +37,12 @@ namespace LocalGPT.Controller
         LocalGptCatalogService catalog) : ControllerBase
     {
         /// <summary>
-        /// Runs the require human confirmation operation.
+        /// Returns the require human confirmation projection for the local GPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
         /// </summary>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="operation">Operation value supplied to the local GPT diagnostic operation and used when producing its result.</param>
+        /// <returns>The i result produced by the operation.</returns>
         private IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
-            /// <summary>
-            /// Returns the bad request projection for the LocalGPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
-            /// </summary>
-            /// <param name="Error">Error value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
-            /// <returns>The user confirmed null results produced by the operation.</returns>
             userConfirmed
                 ? null
                 : Results.BadRequest(new
@@ -54,8 +52,12 @@ namespace LocalGPT.Controller
                 });
 
         /// <summary>
-        /// Runs the run ensure create async once operation.
+        /// Returns the run ensure create async once projection for the local GPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
         /// </summary>
+        /// <param name="iChatMemoryService">Chat memory service dependency used by the local GPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="iApplicationLogReaderService">Application log reader service dependency used by the local GPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="iCouncilKnowledgeService">Council knowledge service dependency used by the local GPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RunEnsureCreateAsyncOnce(IChatMemoryService? iChatMemoryService, IApplicationLogReaderService? iApplicationLogReaderService, ICouncilKnowledgeService? iCouncilKnowledgeService  )
         {
             try
@@ -150,9 +152,6 @@ namespace LocalGPT.Controller
 
                 var response = await chatClient.GetResponseAsync(
                [
-                   /// <summary>
-                   /// Runs the chat message operation.
-                   /// </summary>
                    new Microsoft.Extensions.AI. ChatMessage(ChatRole.User, string.IsNullOrWhiteSpace(prompt)
                         ? "Reply with exactly: LocalGPT DXAiChat backend test passed."
                         : prompt)
@@ -227,9 +226,6 @@ namespace LocalGPT.Controller
 
                 var response = await client.GetResponseAsync(
                     [
-                        /// <summary>
-                        /// Runs the chat message operation.
-                        /// </summary>
                         new Microsoft.Extensions.AI. ChatMessage(ChatRole.User, string.IsNullOrWhiteSpace(prompt)
                         ? "Reply with exactly: LocalGPT Ollama-compatible endpoint smoke passed."
                         : prompt)
@@ -315,13 +311,7 @@ namespace LocalGPT.Controller
                     savedConversationId = await memory.SaveConversationAsync(
                         string.IsNullOrWhiteSpace(request.Title) ? "Diagnostic - DXAiChat configured client" : request.Title.Trim(),
                         [
-                            /// <summary>
-                            /// Runs the blazor chat message operation.
-                            /// </summary>
                             new BlazorChatMessage(ChatRole.User, prompt, new List<AIChatUploadFileInfo>()),
-                        /// <summary>
-                        /// Runs the blazor chat message operation.
-                        /// </summary>
                         new BlazorChatMessage(ChatRole.Assistant, response.Text, new List<AIChatUploadFileInfo>())
                         ],
                         cancellationToken: ct).ConfigureAwait(false);
@@ -1051,27 +1041,15 @@ namespace LocalGPT.Controller
                         : prompt,
                     new[]
                     {
-                    /// <summary>
-                    /// Runs the chat upload workspace input file operation.
-                    /// </summary>
                     new ChatUploadWorkspaceInputFile(
                         "WeatherHostUpload.zip",
                         "application/zip",
                         zip.Length,
-                        /// <summary>
-                        /// Reads only memory.
-                        /// </summary>
                         new ReadOnlyMemory<byte>(zip)),
-                    /// <summary>
-                    /// Runs the chat upload workspace input file operation.
-                    /// </summary>
                     new ChatUploadWorkspaceInputFile(
                         "WeatherHostUpload.pdb",
                         "application/octet-stream",
                         pdb.Length,
-                        /// <summary>
-                        /// Reads only memory.
-                        /// </summary>
                         new ReadOnlyMemory<byte>(pdb))
                     },
                     ct).ConfigureAwait(false);
@@ -1136,9 +1114,6 @@ namespace LocalGPT.Controller
                 var conversationId = await memory.SaveConversationAsync("Diagnostic - gpt-oss:20b", seedMessages, cancellationToken: ct).ConfigureAwait(false);
                 var response = await chatClient.GetResponseAsync(
                     [
-                        /// <summary>
-                        /// Runs the chat message operation.
-                        /// </summary>
                         new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, "Using your LocalGPT bootstrap, saved memory, and AI guidance files, answer in exactly three bullets: project mission, one Minecraft Mod Builder feature you should support, and the humane safety rule for the current user. Mention gpt-oss:20b if you see it in memory.")
                     ],
                     new ChatOptions
@@ -1233,9 +1208,6 @@ namespace LocalGPT.Controller
 
                 var response = await chatClient.GetResponseAsync(
                     [
-                        /// <summary>
-                        /// Runs the chat message operation.
-                        /// </summary>
                         new Microsoft.Extensions.AI.ChatMessage(ChatRole.User, prompt)
                     ],
                     new ChatOptions

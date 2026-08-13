@@ -27,9 +27,6 @@ public sealed class FirstRunOnboardingService(
     /// Retrieves status as part of the first run onboarding service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="refreshConnectivity">Value indicating whether refresh connectivity should apply to this operation.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The first run onboarding status produced by the operation.</returns>
     public async Task<FirstRunOnboardingStatus> GetStatusAsync(bool refreshConnectivity, CancellationToken cancellationToken = default)
     {
         var status = new FirstRunOnboardingStatus
@@ -94,9 +91,6 @@ public sealed class FirstRunOnboardingService(
     /// Performs complete as part of the first run onboarding service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task CompleteAsync(bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try

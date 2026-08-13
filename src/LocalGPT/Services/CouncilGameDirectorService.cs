@@ -26,9 +26,6 @@ public sealed class CouncilGameDirectorService(
     /// Performs evaluate as part of the council game director service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="context">Context value supplied to the council game director operation and used when producing its result.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The council game director decision produced by the operation.</returns>
     public async Task<CouncilGameDirectorDecision> EvaluateAsync(
         CouncilGameDirectorContext context,
         CancellationToken cancellationToken = default)
@@ -197,9 +194,6 @@ public sealed class CouncilGameActorRuntimeFactory(
     /// Creates actors using the configuration and dependencies owned by <see cref="CouncilGameActorRuntimeFactory"/>.
     /// </summary>
     /// <inheritdoc />
-    /// <param name="context">Context value supplied to the council game actor runtime operation and used when producing its result.</param>
-    /// <param name="actorKind">Actor kind value supplied to the council game actor runtime operation and used when producing its result.</param>
-    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<CouncilGameActorRuntimeDescriptor> CreateActors(
         CouncilGameDirectorContext context,
         CouncilGameActorKind actorKind)
