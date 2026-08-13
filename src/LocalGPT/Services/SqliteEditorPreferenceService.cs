@@ -7,21 +7,31 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides sqlite editor preference service operations.
+/// Coordinates sqlite editor preference behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the sqlite editor preference workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the sqlite editor preference workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SqliteEditorPreferenceService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<SqliteEditorPreferenceService> logger) : ISqliteEditorPreferenceService
 {
+    /// <summary>
+    /// Gets the allowed kinds value that forms part of the sqlite editor preference state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The allowed kinds value exposed by <see cref="SqliteEditorPreferenceService"/>.</value>
     private FrozenSet<string> AllowedKinds { get; } = new[]
     {
         "Automatic", "Text", "LongText", "Number", "Boolean", "DateTime", "Guid", "Json", "Secret"
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets overrides async.
+    /// Retrieves overrides as part of the sqlite editor preference service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="tableName">Table name value supplied to the sqlite editor preference operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The i read only dictionary string sqlite editor field override produced by the operation.</returns>
     public async Task<IReadOnlyDictionary<string, SqliteEditorFieldOverride>> GetOverridesAsync(string tableName, CancellationToken cancellationToken = default)
     {
     try
@@ -45,8 +55,12 @@ public sealed class SqliteEditorPreferenceService(
 }
 
     /// <summary>
-    /// Saves override async.
+    /// Persists override as part of the sqlite editor preference service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="preference">Preference value supplied to the sqlite editor preference operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The sqlite editor field override produced by the operation.</returns>
     public async Task<SqliteEditorFieldOverride> SaveOverrideAsync(SqliteEditorFieldOverride preference, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -96,8 +110,11 @@ public sealed class SqliteEditorPreferenceService(
 }
 
     /// <summary>
-    /// Runs the infer editor kind operation.
+    /// Performs infer editor kind as part of the sqlite editor preference service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="column">Column value supplied to the sqlite editor preference operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the sqlite editor preference operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string InferEditorKind(SqliteColumnSummary column, string? value)
     {
     try

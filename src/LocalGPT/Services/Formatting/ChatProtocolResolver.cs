@@ -4,15 +4,19 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services.Formatting;
 
 /// <summary>
-/// Provides chat protocol resolver operations.
+/// Resolves chat protocol choices from the available runtime state and returns the application-appropriate result to callers.
 /// </summary>
+/// <param name="catalog">Chat protocol profile catalog dependency used by the chat protocol workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ChatProtocolResolver(
     IChatProtocolProfileCatalog catalog,
     ILogger<ChatProtocolResolver> logger) : IChatProtocolResolver
 {
     /// <summary>
-    /// Runs the resolve operation.
+    /// Performs resolve for <see cref="ChatProtocolResolver"/>, keeping the operation consistent with the state and invariants of the surrounding chat protocol workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The chat response protocol produced by the operation.</returns>
     public ChatResponseProtocol Resolve(OllamaCoreOptions options)
     {
         try

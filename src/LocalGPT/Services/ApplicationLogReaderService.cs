@@ -9,8 +9,13 @@ using Microsoft.Extensions.Logging;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides application log reader service operations.
+    /// Coordinates application log reader behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="dbContextFactory">Local gpt memory database context dependency used by the application log reader workflow to provide the corresponding application capability.</param>
+    /// <param name="databaseInitializer">Database initialization service dependency used by the application log reader workflow to provide the corresponding application capability.</param>
+    /// <param name="databaseOptions">Database options value supplied to the application log reader operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilText">Council text service dependency used by the application log reader workflow to provide the corresponding application capability.</param>
     public partial class ApplicationLogReaderService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
@@ -19,12 +24,17 @@ namespace LocalGPT.Services
         CouncilTextService councilText) : IApplicationLogReaderService
     {
         /// <summary>
-        /// Gets or sets database path.
+        /// Gets the database path used by this application log reader instance to locate the associated file-system resource.
         /// </summary>
+        /// <value>The database path value exposed by <see cref="ApplicationLogReaderService"/>.</value>
         public string DatabasePath => databaseOptions.DatabasePath;
         /// <summary>
-        /// Gets recent async.
+        /// Retrieves recent as part of the application log reader service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="minimumLevel">Minimum level value supplied to the application log reader operation and used when producing its result.</param>
+        /// <param name="take">Take value supplied to the application log reader operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public async Task<IReadOnlyList<ApplicationLogSummary>> GetRecentAsync(LogLevel minimumLevel = LogLevel.Warning, int take = 20, CancellationToken cancellationToken = default)
         {
             try
@@ -58,8 +68,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds ai log briefing async.
+        /// Builds AI log briefing as part of the application log reader service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="minimumLevel">Minimum level value supplied to the application log reader operation and used when producing its result.</param>
+        /// <param name="take">Take value supplied to the application log reader operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         public async Task<string> BuildAiLogBriefingAsync(LogLevel minimumLevel = LogLevel.Warning, int take = 8, CancellationToken cancellationToken = default)
         {
             try

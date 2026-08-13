@@ -9,14 +9,24 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides safe text document service operations.
+/// Coordinates safe text document behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the safe text document workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the safe text document workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SafeTextDocumentService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<SafeTextDocumentService> logger) : ISafeTextDocumentService
 {
+    /// <summary>
+    /// Defines the max bytes constant used by <see cref="SafeTextDocumentService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxBytes = 8 * 1024 * 1024;
+    /// <summary>
+    /// Gets the allowed extensions value that forms part of the safe text document state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The allowed extensions value exposed by <see cref="SafeTextDocumentService"/>.</value>
     private FrozenSet<string> AllowedExtensions { get; } = new[]
     {
         ".txt", ".md", ".markdown", ".rst", ".csv", ".tsv", ".json", ".jsonl", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".config",
@@ -25,8 +35,12 @@ public sealed class SafeTextDocumentService(
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Reads async.
+    /// Performs read as part of the safe text document service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="filePath">File path value supplied to the safe text document operation and used when producing its result.</param>
+    /// <param name="maxCharacters">Max characters value supplied to the safe text document operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The safe text document produced by the operation.</returns>
     public async Task<SafeTextDocument> ReadAsync(string filePath, int maxCharacters = 500_000, CancellationToken cancellationToken = default)
     {
     try
@@ -77,8 +91,14 @@ public sealed class SafeTextDocumentService(
 }
 
     /// <summary>
-    /// Imports async.
+    /// Performs import as part of the safe text document service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="revisionId">Identifier of the revision to use for this operation.</param>
+    /// <param name="filePath">File path value supplied to the safe text document operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project document import produced by the operation.</returns>
     public async Task<ProjectDocumentImport> ImportAsync(Guid projectId, Guid? revisionId, string filePath, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -132,8 +152,10 @@ public sealed class SafeTextDocumentService(
 }
 
     /// <summary>
-    /// Runs the looks binary operation.
+    /// Performs looks binary as part of the safe text document service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="bytes">Bytes value supplied to the safe text document operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool LooksBinary(byte[] bytes)
     {
     try
@@ -164,8 +186,10 @@ public sealed class SafeTextDocumentService(
 }
 
     /// <summary>
-    /// Runs the detect encoding operation.
+    /// Performs detect encoding as part of the safe text document service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="bytes">Bytes value supplied to the safe text document operation and used when producing its result.</param>
+    /// <returns>The encoding encoding int bom length produced by the operation.</returns>
     private (Encoding Encoding, int BomLength) DetectEncoding(byte[] bytes)
     {
         if (bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }))
@@ -186,8 +210,13 @@ public sealed class SafeTextDocumentService(
     }
 
     /// <summary>
-    /// Normalizes text.
+    /// Normalizes text as part of the safe text document service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="input">Input value supplied to the safe text document operation and used when producing its result.</param>
+    /// <param name="maxCharacters">Max characters value supplied to the safe text document operation and used when producing its result.</param>
+    /// <param name="truncated">Value indicating whether truncated should apply to this operation.</param>
+    /// <param name="removedControls">Removed controls value supplied to the safe text document operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeText(string input, int maxCharacters, out bool truncated, out int removedControls)
     {
     try
@@ -218,8 +247,10 @@ public sealed class SafeTextDocumentService(
 }
 
     /// <summary>
-    /// Runs the guess content type operation.
+    /// Performs guess content type as part of the safe text document service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="extension">Extension value supplied to the safe text document operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GuessContentType(string extension) {
     try
     {

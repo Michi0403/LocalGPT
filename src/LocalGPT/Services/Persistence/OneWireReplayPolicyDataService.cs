@@ -4,8 +4,9 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services.Persistence;
 
 /// <summary>
-/// Provides one wire replay policy data service operations.
+/// Coordinates one wire replay policy behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireReplayPolicyDataService(
     ILogger<OneWireReplayPolicyDataService> logger) : IOneWireReplayPolicyDataService
 {
@@ -21,8 +22,9 @@ public sealed class OneWireReplayPolicyDataService(
     };
 
     /// <summary>
-    /// Gets snapshot.
+    /// Retrieves snapshot as part of the one wire replay policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The one wire replay policy snapshot produced by the operation.</returns>
     public OneWireReplayPolicySnapshot GetSnapshot()
     {
         try

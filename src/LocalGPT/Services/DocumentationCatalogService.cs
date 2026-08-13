@@ -10,6 +10,10 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Resolves generated DocFX artifacts and compiler-generated XML comments without exposing arbitrary filesystem paths.
 /// </summary>
+/// <param name="environment">Web host environment dependency used by the documentation catalog workflow to provide the corresponding application capability.</param>
+/// <param name="version">Custom version dependency used by the documentation catalog workflow to provide the corresponding application capability.</param>
+/// <param name="translation">Documentation translation adapter dependency used by the documentation catalog workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [DocumentationUpdated("2.2.8")]
 public sealed class DocumentationCatalogService(
     IWebHostEnvironment environment,
@@ -18,24 +22,43 @@ public sealed class DocumentationCatalogService(
     ILogger<DocumentationCatalogService> logger) : IDocumentationCatalogService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal comment sync state used by <see cref="DocumentationCatalogService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly object commentSync = new();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal documentation root sync state used by <see cref="DocumentationCatalogService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly object documentationRootSync = new();
     /// <summary>
-    /// Gets full path.
+    /// Stores the internal application root state used by <see cref="DocumentationCatalogService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly string applicationRoot = Path.GetFullPath(AppContext.BaseDirectory);
+    /// <summary>
+    /// Stores the in-memory comment cache collection maintained internally by <see cref="DocumentationCatalogService"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<LocalGptDocumentationComment>? commentCache;
+    /// <summary>
+    /// Stores the internal comment cache path state used by <see cref="DocumentationCatalogService"/> while executing its surrounding workflow.
+    /// </summary>
     private string? commentCachePath;
+    /// <summary>
+    /// Stores the internal comment cache write UTC state used by <see cref="DocumentationCatalogService"/> while executing its surrounding workflow.
+    /// </summary>
     private DateTime commentCacheWriteUtc;
+    /// <summary>
+    /// Stores the internal documentation root cache state used by <see cref="DocumentationCatalogService"/> while executing its surrounding workflow.
+    /// </summary>
     private string? documentationRootCache;
+    /// <summary>
+    /// Stores the internal documentation root cache expires UTC state used by <see cref="DocumentationCatalogService"/> while executing its surrounding workflow.
+    /// </summary>
     private DateTime documentationRootCacheExpiresUtc;
 
+    /// <summary>
+    /// Retrieves status as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <returns>The LocalGPT documentation status produced by the operation.</returns>
     public LocalGptDocumentationStatus GetStatus()
     {
         try
@@ -67,7 +90,11 @@ public sealed class DocumentationCatalogService(
         }
     }
 
+    /// <summary>
+    /// Retrieves PDF path as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <returns>The string produced by the operation.</returns>
     public string? GetPdfPath()
     {
         try
@@ -83,7 +110,12 @@ public sealed class DocumentationCatalogService(
         }
     }
 
+    /// <summary>
+    /// Retrieves HTML file path as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="relativePath">Relative path value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string? GetHtmlFilePath(string? relativePath)
     {
         try
@@ -106,7 +138,13 @@ public sealed class DocumentationCatalogService(
         }
     }
 
+    /// <summary>
+    /// Retrieves comment as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="memberId">Identifier of the member to use for this operation.</param>
+    /// <param name="culture">Culture value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The LocalGPT documentation comment produced by the operation.</returns>
     public LocalGptDocumentationComment? GetComment(string memberId, string? culture = null)
     {
         try
@@ -123,7 +161,14 @@ public sealed class DocumentationCatalogService(
         }
     }
 
+    /// <summary>
+    /// Searches comments as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="query">Query value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="limit">Limit value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="culture">Culture value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<LocalGptDocumentationComment> SearchComments(string? query, int limit = 100, string? culture = null)
     {
         try
@@ -149,8 +194,9 @@ public sealed class DocumentationCatalogService(
     }
 
     /// <summary>
-    /// Gets comment catalog.
+    /// Retrieves comment catalog as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<LocalGptDocumentationComment> GetCommentCatalog()
     {
     try
@@ -183,8 +229,10 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Loads comment catalog.
+    /// Loads comment catalog as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="xmlDocumentationPath">Xml documentation path value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<LocalGptDocumentationComment> LoadCommentCatalog(string xmlDocumentationPath)
     {
     try
@@ -211,8 +259,11 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Builds comment.
+    /// Builds comment as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="member">Member value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="assembly">Assembly value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The LocalGPT documentation comment produced by the operation.</returns>
     private LocalGptDocumentationComment? BuildComment(XElement member, Assembly assembly)
     {
     try
@@ -249,8 +300,11 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Resolves documentation version.
+    /// Resolves documentation version as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="assembly">Assembly value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="memberId">Identifier of the member to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveDocumentationVersion(Assembly assembly, string memberId)
     {
     try
@@ -271,8 +325,11 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Resolves declaring type.
+    /// Resolves declaring type as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="assembly">Assembly value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="memberId">Identifier of the member to use for this operation.</param>
+    /// <returns>The type produced by the operation.</returns>
     private Type? ResolveDeclaringType(Assembly assembly, string memberId)
     {
     try
@@ -305,8 +362,11 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Resolves type.
+    /// Resolves type as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="assembly">Assembly value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="identifier">Identifier value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The type produced by the operation.</returns>
     private Type? ResolveType(Assembly assembly, string identifier)
     {
     try
@@ -338,8 +398,10 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Reads build manifest.
+    /// Reads build manifest as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="documentationRoot">Documentation root value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The documentation build manifest produced by the operation.</returns>
     private DocumentationBuildManifest? ReadBuildManifest(string? documentationRoot)
     {
         if (documentationRoot is null) return null;
@@ -358,8 +420,9 @@ public sealed class DocumentationCatalogService(
     }
 
     /// <summary>
-    /// Resolves documentation root.
+    /// Resolves documentation root as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     private string? ResolveDocumentationRoot()
     {
     try
@@ -404,8 +467,9 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Runs the enumerate documentation roots operation.
+    /// Performs enumerate documentation roots as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IEnumerable<string> EnumerateDocumentationRoots()
     {
     try
@@ -428,8 +492,10 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Adds documentation root.
+    /// Adds documentation root as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="roots">String dependency used by the documentation catalog workflow to provide the corresponding application capability.</param>
+    /// <param name="path">Path value supplied to the documentation catalog operation and used when producing its result.</param>
     private void AddDocumentationRoot(ISet<string> roots, string path)
     {
     try
@@ -457,8 +523,10 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Runs the inspect documentation root operation.
+    /// Performs inspect documentation root as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="path">Path value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The documentation root candidate produced by the operation.</returns>
     private DocumentationRootCandidate? InspectDocumentationRoot(string path)
     {
         try
@@ -502,8 +570,10 @@ public sealed class DocumentationCatalogService(
     }
 
     /// <summary>
-    /// Runs the enumerate PDF files operation.
+    /// Performs enumerate PDF files as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="documentationRoot">Documentation root value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> EnumeratePdfFiles(string documentationRoot)
     {
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -538,8 +608,11 @@ public sealed class DocumentationCatalogService(
     }
 
     /// <summary>
-    /// Resolves installed PDF path.
+    /// Resolves installed PDF path as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="documentationRoot">Documentation root value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="manifestVersion">Manifest version value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? ResolveInstalledPdfPath(string? documentationRoot, string? manifestVersion)
     {
         try
@@ -576,8 +649,10 @@ public sealed class DocumentationCatalogService(
     }
 
     /// <summary>
-    /// Adds PDF files.
+    /// Adds PDF files as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="files">String dependency used by the documentation catalog workflow to provide the corresponding application capability.</param>
+    /// <param name="root">Root value supplied to the documentation catalog operation and used when producing its result.</param>
     private void AddPdfFiles(ISet<string> files, string root)
     {
     try
@@ -598,8 +673,10 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Resolves XML documentation path.
+    /// Resolves XML documentation path as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="documentationRoot">Documentation root value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? ResolveXmlDocumentationPath(string? documentationRoot)
     {
     try
@@ -624,8 +701,11 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Determines whether within root.
+    /// Determines whether within root as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="candidate">Candidate value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsWithinRoot(string root, string candidate)
     {
     try
@@ -647,8 +727,10 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Parses version.
+    /// Parses version as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The system version produced by the operation.</returns>
     private System.Version? ParseVersion(string? value)
         {
     try
@@ -666,8 +748,10 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Parses version or zero.
+    /// Parses version or zero as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The system version produced by the operation.</returns>
     private System.Version ParseVersionOrZero(string? value)
         {
     try
@@ -685,8 +769,10 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Builds display name.
+    /// Builds display name as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="memberId">Identifier of the member to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildDisplayName(string memberId)
     {
     try
@@ -706,8 +792,10 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Normalizes comment text.
+    /// Normalizes comment text as part of the documentation catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeCommentText(string? value) {
     try
     {
@@ -726,23 +814,30 @@ public sealed class DocumentationCatalogService(
 }
 
     /// <summary>
-    /// Represents a documentation build manifest.
+    /// Represents a documentation build manifest helper type nested within <see cref="DocumentationCatalogService"/>, grouping the state or behavior used only by that containing workflow.
     /// </summary>
     private sealed class DocumentationBuildManifest
     {
         /// <summary>
-        /// Gets or sets version.
+        /// Gets or sets the version value that forms part of the documentation build manifest state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The version value exposed by <see cref="DocumentationBuildManifest"/>.</value>
         public string Version { get; set; } = string.Empty;
         /// <summary>
-        /// Gets or sets generated at UTC.
+        /// Gets or sets the generated at UTC associated with this documentation build manifest state, using the time semantics implied by the member name.
         /// </summary>
+        /// <value>The generated at UTC value exposed by <see cref="DocumentationBuildManifest"/>.</value>
         public DateTime? GeneratedAtUtc { get; set; }
     }
 
     /// <summary>
-    /// Represents a documentation root candidate.
+    /// Represents a documentation root candidate helper type nested within <see cref="DocumentationCatalogService"/>, grouping the state or behavior used only by that containing workflow.
     /// </summary>
+    /// <param name="Path">Path value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="ParsedVersion">Parsed version value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="IsCurrentVersion">Value indicating whether current version should apply to this operation.</param>
+    /// <param name="GeneratedAtUtc">Generated at utc value supplied to the documentation catalog operation and used when producing its result.</param>
+    /// <param name="LastWriteUtc">Last write utc value supplied to the documentation catalog operation and used when producing its result.</param>
     private sealed record DocumentationRootCandidate(
         string Path,
         System.Version? ParsedVersion,

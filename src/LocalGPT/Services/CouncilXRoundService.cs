@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 namespace LocalGPT.Services;
 
 /// <summary>Provides process-local, bounded X-Round control state for active configured Council workflows.</summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilXRoundService(ILogger<CouncilXRoundService> logger) : ICouncilXRoundService
 {
     /// <summary>Active X-Round policy keyed by the exact executing Council run/round/phase identity.</summary>
@@ -16,7 +17,11 @@ public sealed class CouncilXRoundService(ILogger<CouncilXRoundService> logger) :
     /// <summary>Consumed cross-step transition counts keyed by Council run and source workflow step.</summary>
     private readonly ConcurrentDictionary<string, int> transitionCounts = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Performs activate as part of the council x round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="context">Context value supplied to the council x round operation and used when producing its result.</param>
     public void Activate(CouncilXRoundStepContext context)
     {
         try
@@ -32,7 +37,13 @@ public sealed class CouncilXRoundService(ILogger<CouncilXRoundService> logger) :
         }
     }
 
+    /// <summary>
+    /// Performs deactivate as part of the council x round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="round">Round value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the council x round operation and used when producing its result.</param>
     public void Deactivate(Guid runId, int round, string phase)
     {
         try
@@ -48,7 +59,14 @@ public sealed class CouncilXRoundService(ILogger<CouncilXRoundService> logger) :
         }
     }
 
+    /// <summary>
+    /// Retrieves active as part of the council x round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="round">Round value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the council x round operation and used when producing its result.</param>
+    /// <returns>The council x round step context produced by the operation.</returns>
     public CouncilXRoundStepContext? GetActive(Guid runId, int round, string phase)
     {
         try
@@ -65,7 +83,19 @@ public sealed class CouncilXRoundService(ILogger<CouncilXRoundService> logger) :
         }
     }
 
+    /// <summary>
+    /// Performs request as part of the council x round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="ambient">Ambient value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="action">Action value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="targetStepKey">Target step key value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="reason">Reason value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="text">Text value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="prompt">Prompt value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="teamKey">Team key value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="modelName">Model name value supplied to the council x round operation and used when producing its result.</param>
+    /// <returns>The council x round directive produced by the operation.</returns>
     public CouncilXRoundDirective Request(
         AmbientLocalGptContextSnapshot ambient, CouncilXRoundAction action, string targetStepKey = "",
         string reason = "", string text = "", string prompt = "", string teamKey = "", string modelName = "")
@@ -105,7 +135,14 @@ public sealed class CouncilXRoundService(ILogger<CouncilXRoundService> logger) :
         }
     }
 
+    /// <summary>
+    /// Performs drain as part of the council x round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="round">Round value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the council x round operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<CouncilXRoundDirective> Drain(Guid runId, int round, string phase)
     {
         try
@@ -132,7 +169,15 @@ public sealed class CouncilXRoundService(ILogger<CouncilXRoundService> logger) :
         }
     }
 
+    /// <summary>
+    /// Attempts to consume transition budget as part of the council x round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="sourceStepKey">Source step key value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="maximumTransitions">Maximum transitions value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="usedTransitions">Used transitions value supplied to the council x round operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool TryConsumeTransitionBudget(Guid runId, string sourceStepKey, int maximumTransitions, out int usedTransitions)
     {
         var maximum = Math.Max(1, maximumTransitions);
@@ -158,7 +203,11 @@ public sealed class CouncilXRoundService(ILogger<CouncilXRoundService> logger) :
         }
     }
 
+    /// <summary>
+    /// Performs end run as part of the council x round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
     public void EndRun(Guid runId)
     {
         try
@@ -178,6 +227,8 @@ public sealed class CouncilXRoundService(ILogger<CouncilXRoundService> logger) :
     }
 
     /// <summary>Validates that the active workflow step grants the requested X-Round action.</summary>
+    /// <param name="context">Context value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="action">Action value supplied to the council x round operation and used when producing its result.</param>
     private void ValidateAction(CouncilXRoundStepContext context, CouncilXRoundAction action)
     {
         try
@@ -202,6 +253,10 @@ public sealed class CouncilXRoundService(ILogger<CouncilXRoundService> logger) :
     }
 
     /// <summary>Builds the process-local identity used to scope one executing Council workflow step.</summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="round">Round value supplied to the council x round operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the council x round operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildExecutionKey(Guid runId, int round, string phase)
     {
         try

@@ -6,8 +6,14 @@ using System.Text.Json;
 namespace LocalGPT.Services.OneWire;
 
 /// <summary>
-/// Provides one wire capability catalog operations.
+/// Maintains the authoritative directory of one wire capability entries used for discovery, validation, and runtime lookup.
 /// </summary>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the one wire capability workflow to provide the corresponding application capability.</param>
+/// <param name="scopeFactory">Service scope factory dependency used by the one wire capability workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the one wire capability workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the one wire capability workflow to provide the corresponding application capability.</param>
+/// <param name="hardwareInventory">Hardware inventory service dependency used by the one wire capability workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabulary,
     
     IServiceScopeFactory scopeFactory,
@@ -17,8 +23,10 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     ILogger<OneWireCapabilityCatalog> logger) : IOneWireCapabilityCatalog
 {
     /// <summary>
-    /// Gets local capabilities async.
+    /// Retrieves local capabilities in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -34,21 +42,44 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     }
 }
 
+    /// <summary>
+    /// Retrieves capabilities in the one wire capability directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     Task<IReadOnlyList<OneWireCapabilityDescriptor>> IOneWireCapabilityProvider.GetCapabilitiesAsync(CancellationToken cancellationToken) =>
         GetLocalCapabilitiesAsync(cancellationToken);
 
+    /// <summary>
+    /// Retrieves skills in the one wire capability directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     Task<IReadOnlyList<OneWireSkillDescriptor>> IOneWireCapabilityProvider.GetSkillsAsync(CancellationToken cancellationToken) =>
         GetLocalSkillsAsync(cancellationToken);
 
+    /// <summary>
+    /// Retrieves UI features in the one wire capability directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     Task<IReadOnlyList<OneWireUiFeatureDescriptor>> IOneWireCapabilityProvider.GetUiFeaturesAsync(CancellationToken cancellationToken) =>
         GetLocalUiFeaturesAsync(cancellationToken);
 
+    /// <summary>
+    /// Retrieves hardware in the one wire capability directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     Task<IReadOnlyList<OneWireHardwareDescriptor>> IOneWireCapabilityProvider.GetHardwareAsync(CancellationToken cancellationToken) =>
         GetLocalHardwareAsync(cancellationToken);
 
     /// <summary>
-    /// Gets local capabilities for peer async.
+    /// Retrieves local capabilities for peer in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public Task<IReadOnlyList<OneWireCapabilityDescriptor>> GetLocalCapabilitiesForPeerAsync(string peerId, CancellationToken cancellationToken = default)
     {
     try
@@ -68,8 +99,11 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Builds capabilities async.
+    /// Builds capabilities in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<OneWireCapabilityDescriptor>> BuildCapabilitiesAsync(string? peerId, CancellationToken cancellationToken)
     {
     try
@@ -225,8 +259,10 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Gets local skills async.
+    /// Retrieves local skills in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<OneWireSkillDescriptor>> GetLocalSkillsAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -268,8 +304,10 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Gets local hardware async.
+    /// Retrieves local hardware in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public Task<IReadOnlyList<OneWireHardwareDescriptor>> GetLocalHardwareAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -286,8 +324,10 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Gets local UI features async.
+    /// Retrieves local UI features in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<OneWireUiFeatureDescriptor>> GetLocalUiFeaturesAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -318,8 +358,13 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Creates feature.
+    /// Creates feature in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="key">Key value supplied to the one wire capability operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the one wire capability operation and used when producing its result.</param>
+    /// <param name="enabled">Value indicating whether enabled should apply to this operation.</param>
+    /// <param name="disabledReason">Disabled reason value supplied to the one wire capability operation and used when producing its result.</param>
+    /// <returns>The one wire UI feature descriptor produced by the operation.</returns>
     private OneWireUiFeatureDescriptor CreateFeature(string key, string name, bool enabled, string disabledReason) {
     try
     {
@@ -342,8 +387,15 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Creates capability feature.
+    /// Creates capability feature in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="key">Key value supplied to the one wire capability operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the one wire capability operation and used when producing its result.</param>
+    /// <param name="connectedPeers">One wire peer advertisement dependency used by the one wire capability workflow to provide the corresponding application capability.</param>
+    /// <param name="availableSkills">String dependency used by the one wire capability workflow to provide the corresponding application capability.</param>
+    /// <param name="requiredCapabilities">String dependency used by the one wire capability workflow to provide the corresponding application capability.</param>
+    /// <param name="requiredSkills">String dependency used by the one wire capability workflow to provide the corresponding application capability.</param>
+    /// <returns>The one wire UI feature descriptor produced by the operation.</returns>
     private OneWireUiFeatureDescriptor CreateCapabilityFeature(
         string key,
         string name,
@@ -381,8 +433,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Runs the built in skills operation.
+    /// Performs built in skills in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<OneWireSkillDescriptor> BuiltInSkills() {
     try
     {
@@ -429,8 +482,10 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Parses list.
+    /// Parses list in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="json">Json value supplied to the one wire capability operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> ParseList(string? json)
     {
     try
@@ -450,8 +505,11 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Runs the infer organs operation.
+    /// Performs infer organs in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="name">Name value supplied to the one wire capability operation and used when producing its result.</param>
+    /// <param name="purpose">Purpose value supplied to the one wire capability operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> InferOrgans(string name, string purpose)
     {
     try
@@ -474,8 +532,11 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Runs the infer skills operation.
+    /// Performs infer skills in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="name">Name value supplied to the one wire capability operation and used when producing its result.</param>
+    /// <param name="purpose">Purpose value supplied to the one wire capability operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> InferSkills(string name, string purpose)
     {
     try
@@ -495,8 +556,9 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
 }
 
     /// <summary>
-    /// Runs the populate teaching operation.
+    /// Performs populate teaching in the one wire capability directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="capability">Capability value supplied to the one wire capability operation and used when producing its result.</param>
     private void PopulateTeaching(OneWireCapabilityDescriptor capability)
     {
     try

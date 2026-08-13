@@ -23,21 +23,33 @@ public sealed record LocalizationCatalogDescriptor(
 public sealed class LocalizationCatalogValidationResult
 {
     /// <summary>Gets or sets whether the culture name and JSON dictionary are valid.</summary>
+    /// <value>The is valid value exposed by <see cref="LocalizationCatalogValidationResult"/>.</value>
     public bool IsValid { get; set; }
 
-    /// <summary>Gets or sets the normalized culture name.</summary>
+    /// <summary>
+    /// Gets or sets the culture value that forms part of the localization catalog validation state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The culture value exposed by <see cref="LocalizationCatalogValidationResult"/>.</value>
     public string Culture { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the number of non-empty localization keys in the submitted catalog.</summary>
+    /// <value>The string count value exposed by <see cref="LocalizationCatalogValidationResult"/>.</value>
     public int StringCount { get; set; }
 
     /// <summary>Gets or sets the number of English baseline keys absent from the submitted catalog.</summary>
+    /// <value>The missing baseline key count value exposed by <see cref="LocalizationCatalogValidationResult"/>.</value>
     public int MissingBaselineKeyCount { get; set; }
 
-    /// <summary>Gets or sets validation warnings that do not prevent import.</summary>
+    /// <summary>
+    /// Gets or sets the warnings collection maintained or exposed by this localization catalog validation instance for downstream processing.
+    /// </summary>
+    /// <value>The warnings value exposed by <see cref="LocalizationCatalogValidationResult"/>.</value>
     public List<string> Warnings { get; set; } = [];
 
-    /// <summary>Gets or sets validation errors that prevent import.</summary>
+    /// <summary>
+    /// Gets or sets the errors collection maintained or exposed by this localization catalog validation instance for downstream processing.
+    /// </summary>
+    /// <value>The errors value exposed by <see cref="LocalizationCatalogValidationResult"/>.</value>
     public List<string> Errors { get; set; } = [];
 }
 

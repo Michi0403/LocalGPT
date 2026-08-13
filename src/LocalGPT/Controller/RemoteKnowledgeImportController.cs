@@ -6,8 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
 /// <summary>
-/// Provides remote knowledge import controller operations.
+/// Exposes the remote knowledge import application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
+/// <param name="importer">Remote knowledge import service dependency used by the remote knowledge import workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/knowledge/remote-import")]
 public sealed class RemoteKnowledgeImportController(
@@ -15,8 +17,11 @@ public sealed class RemoteKnowledgeImportController(
     ILogger<RemoteKnowledgeImportController> logger) : ControllerBase
 {
     /// <summary>
-    /// Runs the preview operation.
+    /// Returns the preview projection for the remote knowledge import API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("preview")]
     public async Task<ActionResult<RemoteKnowledgeImportResult>> Preview(
         [FromBody] RemoteKnowledgeImportRequest request,
@@ -48,8 +53,11 @@ public sealed class RemoteKnowledgeImportController(
     }
 
     /// <summary>
-    /// Runs the import operation.
+    /// Returns the import projection for the remote knowledge import API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost]
     [HumanApprovalRequired(
         "knowledge.remote.import",

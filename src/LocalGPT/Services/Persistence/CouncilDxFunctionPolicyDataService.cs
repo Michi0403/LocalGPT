@@ -7,8 +7,13 @@ using System.Globalization;
 namespace LocalGPT.Services.Persistence;
 
 /// <summary>
-/// Provides council DevExpress function policy data service operations.
+/// Coordinates council DevExpress function policy behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="databaseInitialization">Database initialization service dependency used by the council DevExpress function policy workflow to provide the corresponding application capability.</param>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the council DevExpress function policy workflow to provide the corresponding application capability.</param>
+/// <param name="definitions">System variable definition service dependency used by the council DevExpress function policy workflow to provide the corresponding application capability.</param>
+/// <param name="prompts">Prompt config service dependency used by the council DevExpress function policy workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilDxFunctionPolicyDataService(
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -17,8 +22,10 @@ public sealed class CouncilDxFunctionPolicyDataService(
     ILogger<CouncilDxFunctionPolicyDataService> logger) : ICouncilDxFunctionPolicyDataService
 {
     /// <summary>
-    /// Gets policy async.
+    /// Retrieves policy as part of the council DevExpress function policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council DevExpress function policy produced by the operation.</returns>
     public async Task<CouncilDxFunctionPolicy> GetPolicyAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -54,8 +61,11 @@ public sealed class CouncilDxFunctionPolicyDataService(
     }
 
     /// <summary>
-    /// Parses positive.
+    /// Parses positive as part of the council DevExpress function policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="values">String dependency used by the council DevExpress function policy workflow to provide the corresponding application capability.</param>
+    /// <param name="definition">Definition value supplied to the council DevExpress function policy operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int ParsePositive(
         IReadOnlyDictionary<string, string> values,
         SystemVariableDefinition<int> definition)

@@ -11,6 +11,10 @@ namespace LocalGPT.Services;
 /// Loads source-controlled organic add-on manifests. Offline manifests are discovery metadata only;
 /// they become available for invocation only when the matching trusted 1-Wire peer is connected.
 /// </summary>
+/// <param name="environment">Web host environment dependency used by the organic addon manifest workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the organic addon manifest workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the organic addon manifest workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OrganicAddonManifestService(
     IWebHostEnvironment environment,
     IOneWireConnectionRegistry connections,
@@ -26,8 +30,9 @@ public sealed class OrganicAddonManifestService(
     };
 
     /// <summary>
-    /// Gets manifests.
+    /// Retrieves manifests as part of the organic addon manifest service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<OrganicAddonManifest> GetManifests()
     {
         var manifests = new Dictionary<string, OrganicAddonManifest>(StringComparer.OrdinalIgnoreCase);
@@ -64,8 +69,9 @@ public sealed class OrganicAddonManifestService(
     }
 
     /// <summary>
-    /// Gets skill descriptors.
+    /// Retrieves skill descriptors as part of the organic addon manifest service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<OneWireSkillDescriptor> GetSkillDescriptors() {
     try
     {
@@ -96,8 +102,9 @@ public sealed class OrganicAddonManifestService(
 }
 
     /// <summary>
-    /// Gets catalog entries.
+    /// Retrieves catalog entries as part of the organic addon manifest service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<DxAiFunctionCatalogEntry> GetCatalogEntries()
     {
     try
@@ -166,8 +173,10 @@ public sealed class OrganicAddonManifestService(
 }
 
     /// <summary>
-    /// Determines whether peer online.
+    /// Determines whether peer online as part of the organic addon manifest service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sourcePeerId">Identifier of the source peer to use for this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsPeerOnline(string sourcePeerId)
     {
     try
@@ -193,8 +202,9 @@ public sealed class OrganicAddonManifestService(
 }
 
     /// <summary>
-    /// Gets manifest directories.
+    /// Retrieves manifest directories as part of the organic addon manifest service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IEnumerable<string> GetManifestDirectories()
     {
         logger.LogTrace("Organic add-on manifest directory enumeration started.");
@@ -214,8 +224,9 @@ public sealed class OrganicAddonManifestService(
     }
 
     /// <summary>
-    /// Runs the normalize operation.
+    /// Performs normalize as part of the organic addon manifest service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="manifest">Manifest value supplied to the organic addon manifest operation and used when producing its result.</param>
     private void Normalize(OrganicAddonManifest manifest)
     {
     try
@@ -247,8 +258,10 @@ public sealed class OrganicAddonManifestService(
 }
 
     /// <summary>
-    /// Normalizes list.
+    /// Normalizes list as part of the organic addon manifest service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="values">String dependency used by the organic addon manifest workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> NormalizeList(IEnumerable<string>? values) {
     try
     {
@@ -270,8 +283,10 @@ public sealed class OrganicAddonManifestService(
 }
 
     /// <summary>
-    /// Normalizes identifier.
+    /// Normalizes identifier as part of the organic addon manifest service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the organic addon manifest operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeIdentifier(string value)
     {
     try

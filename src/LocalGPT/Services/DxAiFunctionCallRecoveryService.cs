@@ -11,14 +11,20 @@ namespace LocalGPT.Services;
 /// populate their native tool-call field. Function names are resolved exclusively against the live
 /// DI-backed registry; this service never invents or hardcodes callable operations.
 /// </summary>
+/// <param name="registry">Devexpress ai function registry dependency used by the DevExpress AI function call recovery workflow to provide the corresponding application capability.</param>
+/// <param name="textPatterns">Council text pattern data service dependency used by the DevExpress AI function call recovery workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DxAiFunctionCallRecoveryService(
     IDxAiFunctionRegistry registry,
     ICouncilTextPatternDataService textPatterns,
     ILogger<DxAiFunctionCallRecoveryService> logger) : IDxAiFunctionCallRecoveryService
 {
     /// <summary>
-    /// Runs the recover operation.
+    /// Performs recover as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="content">Content value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <param name="automaticInvocation">Value indicating whether automatic invocation should apply to this operation.</param>
+    /// <returns>The DevExpress AI function text recovery result produced by the operation.</returns>
     public DxAiFunctionTextRecoveryResult Recover(string content, bool automaticInvocation = true)
     {
     try
@@ -71,8 +77,10 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>
-    /// Runs the looks like structured function call operation.
+    /// Performs looks like structured function call as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="content">Content value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool LooksLikeStructuredFunctionCall(string content)
     {
     try
@@ -103,8 +111,12 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>
-    /// Parses candidate.
+    /// Parses candidate as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="json">Json value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <param name="format">Format value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <param name="automaticInvocation">Value indicating whether automatic invocation should apply to this operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<RecoveredDxAiFunctionCall> ParseCandidate(string json, string format, bool automaticInvocation)
     {
     try
@@ -133,8 +145,12 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>
-    /// Reads element.
+    /// Reads element as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="element">Element value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <param name="format">Format value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <param name="automaticInvocation">Value indicating whether automatic invocation should apply to this operation.</param>
+    /// <param name="calls">Calls value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
     private void ReadElement(JsonElement element, string format, bool automaticInvocation, List<RecoveredDxAiFunctionCall> calls)
     {
     try
@@ -173,8 +189,12 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>
-    /// Reads named call.
+    /// Reads named call as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="element">Element value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <param name="format">Format value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <param name="automaticInvocation">Value indicating whether automatic invocation should apply to this operation.</param>
+    /// <param name="calls">Calls value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
     private void ReadNamedCall(JsonElement element, string format, bool automaticInvocation, List<RecoveredDxAiFunctionCall> calls)
     {
     try
@@ -208,8 +228,11 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>
-    /// Resolves registry name.
+    /// Resolves registry name as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="suppliedName">Supplied name value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <param name="automaticInvocation">Value indicating whether automatic invocation should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? ResolveRegistryName(string suppliedName, bool automaticInvocation)
     {
     try
@@ -238,8 +261,10 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>
-    /// Reads arguments.
+    /// Reads arguments as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="element">Element value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <returns>The JSON element produced by the operation.</returns>
     private JsonElement ReadArguments(JsonElement element)
     {
     try
@@ -272,8 +297,11 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>
-    /// Reads string.
+    /// Reads string as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="element">Element value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <param name="propertyName">Property name value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? ReadString(JsonElement element, string propertyName) {
     try
     {
@@ -292,8 +320,10 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>
-    /// Attempts to unwrap fence.
+    /// Attempts to unwrap fence as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="content">Content value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? TryUnwrapFence(string content)
     {
     try
@@ -318,8 +348,10 @@ public sealed class DxAiFunctionCallRecoveryService(
 }
 
     /// <summary>
-    /// Runs the to transport name operation.
+    /// Performs to transport name as part of the DevExpress AI function call recovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="registryName">Registry name value supplied to the DevExpress AI function call recovery operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ToTransportName(string registryName)
     {
     try

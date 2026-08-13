@@ -11,85 +11,91 @@ namespace LocalGPT.Services.Formatting;
 /// update. It deliberately does not decode HTML entities: thinking text is
 /// encoded by <see cref="IChatResponseFormatter"/> and must stay text.
 /// </summary>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the chat content workflow to provide the corresponding application capability.</param>
+/// <param name="structuredText">Structured text translation service dependency used by the chat content workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ChatContentRenderer(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     IStructuredTextTranslationService structuredText,
     ILogger<ChatContentRenderer> logger) : IChatContentRenderer
 {
+    /// <summary>
+    /// Defines the automatic structured translation limit constant used by <see cref="ChatContentRenderer"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int AutomaticStructuredTranslationLimit = 120_000;
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal harmony marker regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex HarmonyMarkerRegex = new(
         @"<\|[^>]+\|>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal thinking details start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex ThinkingDetailsStartRegex = new(
         "<details\\s+class=\"model-thinking(?:\\s+open)?\"(?:\\s+open)?\\s*>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal council completion marker regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex CouncilCompletionMarkerRegex = new(
         @"<!--localgpt-council-stream-complete:(?<id>[a-f0-9]{32})-->",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal list after HTML regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex ListAfterHtmlRegex = new(
         @"(</(?:p|details|pre|div)>)\s*((?:[-*]|\d+\.)\s+)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal controlled details start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex ControlledDetailsStartRegex = new(
         "<details\\s+class=\"(?:model-thinking(?:\\s+open)?|council-step(?:\\s+council-live)?|council-prompt)\"[^>]*>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal details end regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex DetailsEndRegex = new(
         @"</details>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal stable panel start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex StablePanelStartRegex = new(
         "<details\\s+class=\"(?<class>model-thinking(?:\\s+open)?|council-step(?:\\s+council-live)?|council-prompt)\"(?<attributes>[^>]*)>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal stream identifier attribute regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex StreamIdAttributeRegex = new(
         "data-localgpt-stream-id=\"(?<id>[a-f0-9]{32})\"",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal pre start regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex PreStartRegex = new(
         @"<pre(?:\s[^>]*)?>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal pre end regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex PreEndRegex = new(
         @"</pre>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled,
         runtimePolicy.RegexTimeout);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal ascii frame regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex AsciiFrameRegex = new(
         @"\[\[ASCII_FRAME(?:\s+(?<attributes>[^\]]+))?\]\]\s*(?<frame>.*?)\s*\[\[/ASCII_FRAME\]\]",
@@ -111,15 +117,17 @@ public sealed class ChatContentRenderer(
         runtimePolicy.RegexTimeout);
 
     /// <summary>
-    /// Runs the markdown pipeline builder operation.
+    /// Stores the internal markdown pipeline state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly MarkdownPipeline markdownPipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
         .Build();
 
     /// <summary>
-    /// Runs the render operation.
+    /// Performs render for <see cref="ChatContentRenderer"/>, keeping the operation consistent with the state and invariants of the surrounding chat content workflow.
     /// </summary>
+    /// <param name="content">Content value supplied to the chat content operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string Render(string? content)
     {
         try
@@ -143,6 +151,8 @@ public sealed class ChatContentRenderer(
     /// <summary>
     /// Normalizes for render.
     /// </summary>
+    /// <param name="content">Content value supplied to the chat content operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeForRender(string? content)
     {
         try
@@ -224,8 +234,10 @@ public sealed class ChatContentRenderer(
 
 
     /// <summary>
-    /// Runs the should translate structured text operation.
+    /// Performs should translate structured text for <see cref="ChatContentRenderer"/>, keeping the operation consistent with the state and invariants of the surrounding chat content workflow.
     /// </summary>
+    /// <param name="text">Text value supplied to the chat content operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool ShouldTranslateStructuredText(string text)
     {
     try
@@ -251,6 +263,8 @@ public sealed class ChatContentRenderer(
     /// <summary>
     /// Repairs conservative, display-only spacing omissions in prose without applying spacing edits inside fenced code, inline code or raw HTML lines.
     /// </summary>
+    /// <param name="text">Text value supplied to the chat content operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RepairCommonProseSpacing(string text)
     {
         try
@@ -300,8 +314,10 @@ public sealed class ChatContentRenderer(
     }
 
     /// <summary>
-    /// Runs the render ascii frames operation.
+    /// Performs render ascii frames for <see cref="ChatContentRenderer"/>, keeping the operation consistent with the state and invariants of the surrounding chat content workflow.
     /// </summary>
+    /// <param name="text">Text value supplied to the chat content operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RenderAsciiFrames(string text)
     {
         try
@@ -328,8 +344,10 @@ public sealed class ChatContentRenderer(
     }
 
     /// <summary>
-    /// Adds stable panel keys.
+    /// Adds stable panel keys for <see cref="ChatContentRenderer"/>, keeping the operation consistent with the state and invariants of the surrounding chat content workflow.
     /// </summary>
+    /// <param name="text">Text value supplied to the chat content operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string AddStablePanelKeys(string text)
     {
         try
@@ -377,8 +395,10 @@ public sealed class ChatContentRenderer(
     }
 
     /// <summary>
-    /// Runs the sanitize invalid unicode operation.
+    /// Performs sanitize invalid unicode for <see cref="ChatContentRenderer"/>, keeping the operation consistent with the state and invariants of the surrounding chat content workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the chat content operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SanitizeInvalidUnicode(string value)
     {
         try
@@ -442,8 +462,10 @@ public sealed class ChatContentRenderer(
     }
 
     /// <summary>
-    /// Builds safe fallback.
+    /// Builds safe fallback for <see cref="ChatContentRenderer"/>, keeping the operation consistent with the state and invariants of the surrounding chat content workflow.
     /// </summary>
+    /// <param name="content">Content value supplied to the chat content operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildSafeFallback(string? content)
     {
         try

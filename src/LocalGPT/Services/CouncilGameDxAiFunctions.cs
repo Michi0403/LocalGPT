@@ -5,14 +5,19 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides council game DevExpress parameter reader operations.
+/// Represents a council game DevExpress parameter application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilGameDxParameterReader(
     ILogger<CouncilGameDxParameterReader> logger)
 {
     /// <summary>
-    /// Runs the string operation.
+    /// Performs string for <see cref="CouncilGameDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding council game DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string String(JsonElement parameters, string name, string fallback = "")
     {
         try
@@ -31,8 +36,12 @@ public sealed class CouncilGameDxParameterReader(
     }
 
     /// <summary>
-    /// Runs the boolean operation.
+    /// Performs boolean for <see cref="CouncilGameDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding council game DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="fallback">Value indicating whether fallback should apply to this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool Boolean(JsonElement parameters, string name, bool fallback = false)
     {
         try
@@ -51,8 +60,11 @@ public sealed class CouncilGameDxParameterReader(
     }
 
     /// <summary>
-    /// Runs the guid operation.
+    /// Performs GUID for <see cref="CouncilGameDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding council game DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The GUID produced by the operation.</returns>
     public Guid Guid(JsonElement parameters, string name)
     {
         try
@@ -69,8 +81,12 @@ public sealed class CouncilGameDxParameterReader(
     }
 
     /// <summary>
-    /// Runs the long operation.
+    /// Performs long for <see cref="CouncilGameDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding council game DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The long produced by the operation.</returns>
     public long Long(JsonElement parameters, string name, long fallback = 0)
     {
         try
@@ -89,8 +105,11 @@ public sealed class CouncilGameDxParameterReader(
     }
 
     /// <summary>
-    /// Runs the nullable int operation.
+    /// Performs nullable int for <see cref="CouncilGameDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding council game DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     public int? NullableInt(JsonElement parameters, string name)
     {
         try
@@ -109,8 +128,12 @@ public sealed class CouncilGameDxParameterReader(
     }
 
     /// <summary>
-    /// Runs the integer operation.
+    /// Performs integer for <see cref="CouncilGameDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding council game DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the council game DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     public int Integer(JsonElement parameters, string name, int fallback)
     {
         try
@@ -126,21 +149,28 @@ public sealed class CouncilGameDxParameterReader(
 }
 
 /// <summary>
-/// Represents a start council game function.
+/// Represents a start council game function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="games">Council game session service dependency used by the start council game function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the start council game function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class StartCouncilGameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<StartCouncilGameFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the start council game function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="StartCouncilGameFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.session.start", "POST", "/api/dxai/functions/localgpt.game.session.start/invoke",
         "Starts a directly playable /Chat ASCII game session. Human and AI players receive the same control contract.",
         "JSON parameters: gameKey ascii-doom or green-dragon; teamKey optional; conversationId optional; controlMode Human, Ai or Shared; directorMode Deterministic or CouncilModelPreferred; gameDirectorModelName and creatureDirectorCount optional; autoplayEnabled and autoplayDelayMilliseconds optional.",
         "Starts only an original LocalGPT runtime-class game session. It does not execute the original DOOM engine or include commercial assets.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="StartCouncilGameFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -148,8 +178,11 @@ public sealed class StartCouncilGameFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="StartCouncilGameFunction"/>, keeping the operation consistent with the state and invariants of the surrounding start council game function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -184,27 +217,37 @@ public sealed class StartCouncilGameFunction(
 }
 
 /// <summary>
-/// Represents a get council game function.
+/// Represents a get council game function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="games">Council game session service dependency used by the get council game function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the get council game function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetCouncilGameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<GetCouncilGameFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the get council game function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetCouncilGameFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.session.get", "POST", "/api/dxai/functions/localgpt.game.session.get/invoke",
         "Reads the authoritative game frame, turn, shared controls and input gate for one /Chat game session.",
         "JSON parameters: sessionId required.", "Read-only game-state inspection.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="GetCouncilGameFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sessionId"],"properties":{"sessionId":{"type":"string"}},"additionalProperties":false}""");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="GetCouncilGameFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get council game function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -225,21 +268,28 @@ public sealed class GetCouncilGameFunction(
 }
 
 /// <summary>
-/// Represents a preview council game control function.
+/// Represents a preview council game control function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="games">Council game session service dependency used by the preview council game control function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the preview council game control function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class PreviewCouncilGameControlFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<PreviewCouncilGameControlFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the preview council game control function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="PreviewCouncilGameControlFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.control.preview", "POST", "/api/dxai/functions/localgpt.game.control.preview/invoke",
         "Asks the authoritative GameDirector and its creature/object subdirectors to review one proposed control without advancing the game.",
         "JSON parameters: sessionId and action required; expectedTurn, aimX, aimY, actorName, actorKind and runtimeClassKey optional.",
         "Read-only decision preview. A later localgpt.game.control call is still required to advance the authoritative session.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="PreviewCouncilGameControlFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -247,8 +297,11 @@ public sealed class PreviewCouncilGameControlFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="PreviewCouncilGameControlFunction"/>, keeping the operation consistent with the state and invariants of the surrounding preview council game control function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -285,21 +338,28 @@ public sealed class PreviewCouncilGameControlFunction(
 }
 
 /// <summary>
-/// Represents a control council game function.
+/// Represents a control council game function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="games">Council game session service dependency used by the control council game function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the control council game function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ControlCouncilGameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<ControlCouncilGameFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the control council game function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ControlCouncilGameFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.control", "POST", "/api/dxai/functions/localgpt.game.control/invoke",
         "Lets an AI player use exactly the same move, turn, aim, shoot, duck, use or choice action contract as the human /Chat controls.",
         "JSON parameters: sessionId and action required; expectedTurn, aimX, aimY, actorName, actorKind and runtimeClassKey optional.",
         "One bounded game control only. The function cannot send operating-system keyboard or gamepad input.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ControlCouncilGameFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -307,8 +367,11 @@ public sealed class ControlCouncilGameFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ControlCouncilGameFunction"/>, keeping the operation consistent with the state and invariants of the surrounding control council game function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -344,21 +407,28 @@ public sealed class ControlCouncilGameFunction(
 }
 
 /// <summary>
-/// Represents a submit council game frame function.
+/// Represents a submit council game frame function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="games">Council game session service dependency used by the submit council game frame function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the submit council game frame function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SubmitCouncilGameFrameFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<SubmitCouncilGameFrameFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the submit council game frame function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="SubmitCouncilGameFrameFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.frame.submit", "POST", "/api/dxai/functions/localgpt.game.frame.submit/invoke",
         "Submits one complete fixed-size ASCII frame. Exactly one renderer name may own a Council turn's frame.",
         "JSON parameters: sessionId, turn, rendererName and frameText required; caption optional.",
         "Frame-only mutation. It cannot change authoritative player/world state.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="SubmitCouncilGameFrameFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -366,8 +436,11 @@ public sealed class SubmitCouncilGameFrameFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="SubmitCouncilGameFrameFunction"/>, keeping the operation consistent with the state and invariants of the surrounding submit council game frame function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -391,28 +464,38 @@ public sealed class SubmitCouncilGameFrameFunction(
 }
 
 /// <summary>
-/// Represents a set council game control mode function.
+/// Represents a set council game control mode function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="games">Council game session service dependency used by the set council game control mode function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the set council game control mode function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SetCouncilGameControlModeFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<SetCouncilGameControlModeFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the set council game control mode function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="SetCouncilGameControlModeFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.control-mode.set", "POST", "/api/dxai/functions/localgpt.game.control-mode.set/invoke",
         "Switches a running /Chat game between human, shared and AI autoplay while retaining the same control service.",
         "JSON parameters: sessionId and controlMode required; autoplayEnabled and autoplayDelayMilliseconds optional.",
         "Only changes ownership and timing of game controls. It does not issue an operating-system input event.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="SetCouncilGameControlModeFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sessionId","controlMode"],"properties":{"sessionId":{"type":"string"},"controlMode":{"type":"string","enum":["Human","Shared","Ai"]},"autoplayEnabled":{"type":"boolean"},"autoplayDelayMilliseconds":{"type":"integer","minimum":250,"maximum":10000}},"additionalProperties":false}""");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="SetCouncilGameControlModeFunction"/>, keeping the operation consistent with the state and invariants of the surrounding set council game control mode function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -439,28 +522,38 @@ public sealed class SetCouncilGameControlModeFunction(
 }
 
 /// <summary>
-/// Represents a set council game input gate function.
+/// Represents a set council game input gate function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="games">Council game session service dependency used by the set council game input gate function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the set council game input gate function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SetCouncilGameInputGateFunction(
     ICouncilGameSessionService games,
     CouncilGameDxParameterReader parameters,
     ILogger<SetCouncilGameInputGateFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the set council game input gate function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="SetCouncilGameInputGateFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.game.input-gate.set", "POST", "/api/dxai/functions/localgpt.game.input-gate.set/invoke",
         "Shows or hides the in-chat human control overlay for one game turn without blocking the rest of LocalGPT.",
         "JSON parameters: sessionId and humanInputRequired required; reason optional.",
         "Only changes the per-game input gate.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="SetCouncilGameInputGateFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sessionId","humanInputRequired"],"properties":{"sessionId":{"type":"string"},"humanInputRequired":{"type":"boolean"},"reason":{"type":"string"}},"additionalProperties":false}""");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="SetCouncilGameInputGateFunction"/>, keeping the operation consistent with the state and invariants of the surrounding set council game input gate function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try

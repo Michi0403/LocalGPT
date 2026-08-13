@@ -5,15 +5,18 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a translate JSON text function.
+/// Represents a translate JSON text function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="translator">Structured text translation service dependency used by the translate JSON text function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class TranslateJsonTextFunction(
     IStructuredTextTranslationService translator,
     ILogger<TranslateJsonTextFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the translate JSON text function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="TranslateJsonTextFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.text.json.translate",
         "POST",
@@ -21,6 +24,9 @@ public sealed class TranslateJsonTextFunction(
         "Turns standalone JSON objects or arrays into a readable Markdown tree while preserving normalized raw JSON.",
         "JSON parameters: text required; includeRawJson optional boolean; maximumDocuments optional integer from 1 to 100.",
         "Read-only and local. It parses supplied text only, does not execute JSON, and does not persist input.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="TranslateJsonTextFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -41,8 +47,11 @@ public sealed class TranslateJsonTextFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="TranslateJsonTextFunction"/>, keeping the operation consistent with the state and invariants of the surrounding translate JSON text function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -97,15 +106,18 @@ public sealed class TranslateJsonTextFunction(
 }
 
 /// <summary>
-/// Represents an inspect JSON text function.
+/// Represents an inspect JSON text function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="translator">Structured text translation service dependency used by the inspect JSON text function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class InspectJsonTextFunction(
     IStructuredTextTranslationService translator,
     ILogger<InspectJsonTextFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the inspect JSON text function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="InspectJsonTextFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.text.json.inspect",
         "POST",
@@ -113,6 +125,9 @@ public sealed class InspectJsonTextFunction(
         "Detects valid standalone JSON objects or arrays and reports their root kind, position and normalized structure.",
         "JSON parameters: text required; maximumDocuments optional integer from 1 to 100.",
         "Read-only and local. It does not execute or persist supplied JSON.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="InspectJsonTextFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -132,8 +147,11 @@ public sealed class InspectJsonTextFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="InspectJsonTextFunction"/>, keeping the operation consistent with the state and invariants of the surrounding inspect JSON text function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)

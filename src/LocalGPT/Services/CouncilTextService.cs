@@ -26,8 +26,11 @@ namespace LocalGPT.Services
 {
     
     /// <summary>
-    /// Provides council text service operations.
+    /// Coordinates council text behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="patterns">Council text pattern data service dependency used by the council text workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the council text workflow to provide the corresponding application capability.</param>
+    /// <param name="serviceLogger">Council text service dependency used by the council text workflow to provide the corresponding application capability.</param>
     public sealed partial class CouncilTextService(ICouncilTextPatternDataService patterns, LocalGptCatalogService catalog, ILogger<CouncilTextService> serviceLogger)
     {
    
@@ -35,6 +38,9 @@ namespace LocalGPT.Services
         /// <summary>
         /// Builds the safe visible attachment presentation shared by live and persisted chat messages.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="fileNames">String dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildAttachmentPresentation(string? content, IEnumerable<string>? fileNames)
         {
             try
@@ -68,8 +74,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the format live council session option operation.
+        /// Performs format live council session option as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="startedAtUtc">Started at utc value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="runState">Run state value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="councilMembers">String dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string FormatLiveCouncilSessionOption(
             DateTime startedAtUtc,
             string runState,
@@ -89,8 +99,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Normalizes former thought.
+        /// Normalizes former thought as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizeFormerThought(string? value, ILogger logger)
         {
             try
@@ -124,8 +137,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds role coordination explanation.
+        /// Builds role coordination explanation as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="details">String dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildRoleCoordinationExplanation(IReadOnlyCollection<string> details, ILogger logger)
         {
             try
@@ -151,8 +167,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds feedback preview.
+        /// Builds feedback preview as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildFeedbackPreview(string? content, ILogger logger)
         {
             try
@@ -170,8 +189,17 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds architecture poll message.
+        /// Builds architecture poll message as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="languageToolchain">Language toolchain value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="uiStack">Ui stack value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="solutionShape">Solution shape value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="renderMode">Render mode value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="referenceLook">Reference look value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="allowSafeDefaults">Value indicating whether allow safe defaults should apply to this operation.</param>
+        /// <param name="extraDirection">Extra direction value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildArchitecturePollMessage(
             string languageToolchain,
             string uiStack,
@@ -218,8 +246,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Parses model names.
+        /// Parses model names as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IReadOnlyList<string> ParseModelNames(string? value, ILogger logger)
         {
             try
@@ -240,8 +271,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Normalizes name.
+        /// Normalizes name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="fallback">Fallback value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizeName(string value, string fallback)
         {
     try
@@ -261,8 +295,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Normalizes mod identifier.
+        /// Normalizes mod identifier as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="fallback">Fallback value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizeModId(string value, string fallback)
         {
     try
@@ -282,8 +319,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Normalizes package name.
+        /// Normalizes package name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizePackageName(string value)
         {
     try
@@ -307,8 +346,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Normalizes loader.
+        /// Normalizes loader as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="loader">Loader value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizeLoader(string? loader, ILogger logger)
         {
             try
@@ -346,8 +388,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the to pascal case operation.
+        /// Performs to pascal case as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ToPascalCase(string value, ILogger logger)
         {
             try
@@ -364,8 +409,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the escape JSON operation.
+        /// Performs escape JSON as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string EscapeJson(string value) {
     try
     {
@@ -382,8 +429,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates fabric settings gradle.
+        /// Creates fabric settings gradle as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateFabricSettingsGradle(string projectName) {
     try
     {
@@ -416,8 +465,10 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Creates neo forge settings gradle.
+        /// Creates neo forge settings gradle as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateNeoForgeSettingsGradle(string projectName) {
     try
     {
@@ -450,8 +501,11 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Creates fabric build gradle.
+        /// Creates fabric build gradle as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateFabricBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -515,8 +569,11 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Creates neo forge build gradle.
+        /// Creates neo forge build gradle as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateNeoForgeBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -577,8 +634,10 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Creates paper settings gradle.
+        /// Creates paper settings gradle as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreatePaperSettingsGradle(string projectName) {
     try
     {
@@ -610,8 +669,11 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Creates paper build gradle.
+        /// Creates paper build gradle as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreatePaperBuildGradle(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -672,8 +734,10 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Normalizes description.
+        /// Normalizes description as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="description">Description value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizeDescription(string description)
         {
     try
@@ -695,8 +759,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates fabric main class.
+        /// Creates fabric main class as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateFabricMainClass(WorkspaceContext context) {
     try
     {
@@ -757,8 +823,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates neo forge main class.
+        /// Creates neo forge main class as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateNeoForgeMainClass(WorkspaceContext context) {
     try
     {
@@ -832,8 +900,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates paper main class.
+        /// Creates paper main class as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreatePaperMainClass(WorkspaceContext context) {
     try
     {
@@ -879,8 +949,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates fabric empty main class.
+        /// Creates fabric empty main class as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateFabricEmptyMainClass(WorkspaceContext context) {
     try
     {
@@ -913,8 +985,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates neo forge empty main class.
+        /// Creates neo forge empty main class as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateNeoForgeEmptyMainClass(WorkspaceContext context) {
     try
     {
@@ -948,8 +1022,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates living cities report class.
+        /// Creates living cities report class as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="packageName">Package name value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateLivingCitiesReportClass(string packageName) {
     try
     {
@@ -976,8 +1052,11 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Creates fabric metadata.
+        /// Creates fabric metadata as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateFabricMetadata(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -1019,8 +1098,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates neo forge metadata.
+        /// Creates neo forge metadata as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateNeoForgeMetadata(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -1062,8 +1144,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates paper plugin yaml.
+        /// Creates paper plugin yaml as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreatePaperPluginYaml(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -1095,8 +1180,10 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Creates english lang.
+        /// Creates english lang as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="modId">Identifier of the mod to use for this operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateEnglishLang(string modId) {
     try
     {
@@ -1118,8 +1205,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates city charter model.
+        /// Creates city charter model as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateCityCharterModel() {
     try
     {
@@ -1142,8 +1230,11 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Gets pack format JSON value.
+        /// Retrieves pack format JSON value as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="minecraftVersion">Minecraft version value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GetPackFormatJsonValue(string minecraftVersion, ILogger logger)
         {
             try
@@ -1161,8 +1252,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates function tag.
+        /// Creates function tag as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="modId">Identifier of the mod to use for this operation.</param>
+        /// <param name="functionName">Function name value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateFunctionTag(string modId, string functionName) {
     try
     {
@@ -1185,8 +1279,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack load function.
+        /// Creates datapack load function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackLoadFunction(WorkspaceContext context) {
     try
     {
@@ -1234,8 +1330,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack tick function.
+        /// Creates datapack tick function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackTickFunction(WorkspaceContext context) {
     try
     {
@@ -1268,8 +1366,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack schedule function.
+        /// Creates datapack schedule function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackScheduleFunction(WorkspaceContext context) {
     try
     {
@@ -1295,8 +1395,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack city create function.
+        /// Creates datapack city create function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackCityCreateFunction(WorkspaceContext context) {
     try
     {
@@ -1316,8 +1418,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack city check villagers function.
+        /// Creates datapack city check villagers function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackCityCheckVillagersFunction(WorkspaceContext context) {
     try
     {
@@ -1339,8 +1443,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack city create new function.
+        /// Creates datapack city create new function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackCityCreateNewFunction(WorkspaceContext context) {
     try
     {
@@ -1370,8 +1476,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack city already exists function.
+        /// Creates datapack city already exists function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackCityAlreadyExistsFunction() {
     try
     {
@@ -1390,8 +1497,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack register banner function.
+        /// Creates datapack register banner function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackRegisterBannerFunction(WorkspaceContext context) {
     try
     {
@@ -1414,8 +1523,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack update population function.
+        /// Creates datapack update population function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackUpdatePopulationFunction(WorkspaceContext context) {
     try
     {
@@ -1436,8 +1547,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack citizen register function.
+        /// Creates datapack citizen register function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackCitizenRegisterFunction(WorkspaceContext context) {
     try
     {
@@ -1460,8 +1573,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack citizen detect new function.
+        /// Creates datapack citizen detect new function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackCitizenDetectNewFunction() {
     try
     {
@@ -1482,8 +1596,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack citizen aging function.
+        /// Creates datapack citizen aging function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackCitizenAgingFunction() {
     try
     {
@@ -1503,8 +1618,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack citizen personalities function.
+        /// Creates datapack citizen personalities function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackCitizenPersonalitiesFunction(WorkspaceContext context) {
     try
     {
@@ -1524,8 +1641,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack citizen status function.
+        /// Creates datapack citizen status function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackCitizenStatusFunction(WorkspaceContext context) {
     try
     {
@@ -1545,8 +1664,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack food update function.
+        /// Creates datapack food update function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackFoodUpdateFunction(WorkspaceContext context) {
     try
     {
@@ -1570,8 +1691,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack food production function.
+        /// Creates datapack food production function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackFoodProductionFunction() {
     try
     {
@@ -1599,8 +1721,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack food consumption function.
+        /// Creates datapack food consumption function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackFoodConsumptionFunction() {
     try
     {
@@ -1619,8 +1742,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack security update function.
+        /// Creates datapack security update function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackSecurityUpdateFunction(WorkspaceContext context) {
     try
     {
@@ -1641,8 +1766,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack security golems function.
+        /// Creates datapack security golems function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackSecurityGolemsFunction() {
     try
     {
@@ -1665,8 +1791,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack security nightwatch function.
+        /// Creates datapack security nightwatch function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackSecurityNightwatchFunction() {
     try
     {
@@ -1685,8 +1812,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack chronicle add event function.
+        /// Creates datapack chronicle add event function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackChronicleAddEventFunction(WorkspaceContext context) {
     try
     {
@@ -1705,8 +1834,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack chronicle update function.
+        /// Creates datapack chronicle update function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackChronicleUpdateFunction(WorkspaceContext context) {
     try
     {
@@ -1725,8 +1856,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack admin book function.
+        /// Creates datapack admin book function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackAdminBookFunction(WorkspaceContext context)
         {
     try
@@ -1760,8 +1893,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack town hall function.
+        /// Creates datapack town hall function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackTownHallFunction(WorkspaceContext context) {
     try
     {
@@ -1782,8 +1917,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack report function.
+        /// Creates datapack report function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackReportFunction(WorkspaceContext context) {
     try
     {
@@ -1810,8 +1947,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack chronicle UI function.
+        /// Creates datapack chronicle UI function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackChronicleUiFunction(WorkspaceContext context) {
     try
     {
@@ -1831,8 +1970,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack quest update function.
+        /// Creates datapack quest update function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackQuestUpdateFunction(WorkspaceContext context) {
     try
     {
@@ -1851,8 +1992,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack quest generate function.
+        /// Creates datapack quest generate function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackQuestGenerateFunction(WorkspaceContext context) {
     try
     {
@@ -1873,8 +2016,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack buildings init function.
+        /// Creates datapack buildings init function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackBuildingsInitFunction() {
     try
     {
@@ -1894,8 +2038,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack register house function.
+        /// Creates datapack register house function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackRegisterHouseFunction(WorkspaceContext context) {
     try
     {
@@ -1917,8 +2063,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack building debug list function.
+        /// Creates datapack building debug list function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackBuildingDebugListFunction(WorkspaceContext context) {
     try
     {
@@ -1938,8 +2086,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack reset city function.
+        /// Creates datapack reset city function as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackResetCityFunction(WorkspaceContext context) {
     try
     {
@@ -1968,8 +2118,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack build script.
+        /// Creates datapack build script as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackBuildScript(WorkspaceContext context) {
     try
     {
@@ -2111,8 +2263,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack benchmark notes.
+        /// Creates datapack benchmark notes as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackBenchmarkNotes(WorkspaceContext context) {
     try
     {
@@ -2157,8 +2311,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates datapack readme.
+        /// Creates datapack readme as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateDatapackReadme(MinecraftModBuildRequest request, WorkspaceContext context) {
     try
     {
@@ -2221,8 +2378,12 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates workspace readme.
+        /// Creates workspace readme as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="context">Context value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="loader">Loader value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateWorkspaceReadme(MinecraftModBuildRequest request, WorkspaceContext context, string loader) {
     try
     {
@@ -2278,8 +2439,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates living cities plan.
+        /// Creates living cities plan as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateLivingCitiesPlan(MinecraftModBuildRequest request) {
     try
     {
@@ -2336,8 +2499,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the looks like missing feature report operation.
+        /// Performs looks like missing feature report as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool LooksLikeMissingFeatureReport(string text, ILogger<AiFeatureReportService> logger)
         {
             try
@@ -2351,8 +2517,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the sanitize file name operation.
+        /// Performs sanitize file name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string SanitizeFileName(string value, ILogger<BuildDebugInventoryService> logger)
         {
             try
@@ -2372,8 +2541,12 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Builds import directories.
+        /// Builds import directories as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="maxProjects">Max projects value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IEnumerable<string> BuildImportDirectories(string rootPath, int maxProjects, ILogger logger)
         {
             try
@@ -2398,8 +2571,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the enumerate import directory candidates operation.
+        /// Performs enumerate import directory candidates as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IEnumerable<string> EnumerateImportDirectoryCandidates(string rootPath, ILogger logger)
         {
             try
@@ -2419,8 +2595,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the extract target frameworks operation.
+        /// Performs extract target frameworks as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IEnumerable<string> ExtractTargetFrameworks(string text, ILogger logger)
         {
             try
@@ -2438,8 +2617,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the extract package references operation.
+        /// Performs extract package references as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IEnumerable<string> ExtractPackageReferences(string text, ILogger logger)
         {
             try
@@ -2456,8 +2638,12 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Determines whether important file.
+        /// Determines whether important file as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="fileName">File name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="extension">Extension value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsImportantFile(string fileName, string extension, ILogger logger)
         {
             try
@@ -2480,8 +2666,12 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Determines whether project root file.
+        /// Determines whether project root file as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="fileName">File name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="extension">Extension value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsProjectRootFile(string fileName, string extension, ILogger logger)
         {
             try
@@ -2501,8 +2691,12 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the contains zip entry operation.
+        /// Performs contains ZIP entry as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="zipEntries">Zip entries value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="required">Required value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool ContainsZipEntry(HashSet<string> zipEntries, string required, ILogger logger)
         {
             try
@@ -2522,8 +2716,11 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Runs the redact sensitive name operation.
+        /// Performs redact sensitive name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string RedactSensitiveName(string value, ILogger logger)
         {
             try
@@ -2539,8 +2736,10 @@ namespace LocalGPT.Services
         }
   
         /// <summary>
-        /// Builds file policy summary.
+        /// Builds file policy summary as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildFilePolicySummary(ILogger logger)
         {
             try
@@ -2559,8 +2758,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Normalizes task set.
+        /// Normalizes task set as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="taskSet">Task set value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizeTaskSet(string? taskSet, ILogger logger)
         {
             try
@@ -2582,8 +2784,9 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Builds engineering tasks.
+        /// Builds engineering tasks as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The collection produced by the operation.</returns>
         public IReadOnlyList<BenchmarkTaskDefinition> BuildEngineeringTasks()
         {
     try
@@ -2653,8 +2856,9 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Builds replacement tasks.
+        /// Builds replacement tasks as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The collection produced by the operation.</returns>
         public IReadOnlyList<BenchmarkTaskDefinition> BuildReplacementTasks()
         {
     try
@@ -2714,8 +2918,11 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Normalizes open aiendpoint.
+        /// Normalizes OpenAI endpoint as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizeOpenAIEndpoint(string endpoint, ILogger<AiConnectivityProbe> logger)
         {
             try
@@ -2735,8 +2942,11 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Builds ollama details.
+        /// Builds Ollama details as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="details">Details value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string? BuildOllamaDetails(OllamaModelDetails? details, ILogger<AiConnectivityProbe> logger)
         {
             try
@@ -2757,8 +2967,12 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Runs the trim for display operation.
+        /// Performs trim for display as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="maxCharacters">Max characters value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string TrimForDisplay(string text, int maxCharacters, ILogger logger)
         {
             try
@@ -2778,8 +2992,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the looks likely truncated operation.
+        /// Performs looks likely truncated as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool LooksLikelyTruncated(string text, ILogger logger)
         {
             try
@@ -2814,8 +3031,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Normalizes recovered prompt.
+        /// Normalizes recovered prompt as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="prompt">Prompt value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizeRecoveredPrompt(string prompt, ILogger logger)
         {
             try
@@ -2832,8 +3052,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Attempts to find council prompt section.
+        /// Attempts to find council prompt section as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string? TryFindCouncilPromptSection(string content, ILogger logger)
         {
             try
@@ -2855,6 +3078,9 @@ namespace LocalGPT.Services
         /// <summary>
         /// Attempts to recover prompt from title.
         /// </summary>
+        /// <param name="title">Title value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string? TryRecoverPromptFromTitle(string title, ILogger logger)
         {
             try
@@ -2879,8 +3105,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the extract thinking operation.
+        /// Performs extract thinking as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string? ExtractThinking(string content, ILogger logger)
         {
             try
@@ -2899,8 +3128,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the strip thinking operation.
+        /// Performs strip thinking as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string StripThinking(string content, ILogger logger)
         {
             try
@@ -2914,8 +3146,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the decode text operation.
+        /// Performs decode text as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="bytes">Bytes value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string DecodeText(byte[] bytes, ILogger logger)
         {
             try
@@ -2941,8 +3176,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the extract printable strings operation.
+        /// Performs extract printable strings as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="bytes">Bytes value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="maxCharacters">Max characters value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ExtractPrintableStrings(byte[] bytes, int maxCharacters, ILogger logger)
         {
             try
@@ -2974,8 +3213,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the to forward slash operation.
+        /// Performs to forward slash as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="path">Path value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ToForwardSlash(string path, ILogger logger)
         {
             try
@@ -2989,8 +3231,12 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the flush current string operation.
+        /// Performs flush current string as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="builder">Builder value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="current">Current value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="maxCharacters">Max characters value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         public void FlushCurrentString(StringBuilder builder, StringBuilder current, int maxCharacters, ILogger logger)
         {
             try
@@ -3010,8 +3256,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the extract capability gap summary operation.
+        /// Performs extract capability gap summary as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ExtractCapabilityGapSummary(string text, ILogger<AiFeatureReportService> logger)
         {
             try
@@ -3063,8 +3312,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the extract helpful sources operation.
+        /// Performs extract helpful sources as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ExtractHelpfulSources(string text, ILogger<AiFeatureReportService> logger)
         {
             try
@@ -3095,8 +3347,12 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the extract field operation.
+        /// Performs extract field as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="body">Body value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="name">Name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ExtractField(string body, string name, ILogger<AiFeatureReportService> logger)
         {
             try
@@ -3110,8 +3366,12 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Builds unique file name.
+        /// Builds unique file name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="directory">Directory value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="fileName">File name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildUniqueFileName(string directory, string fileName, ILogger logger)
         {
             try
@@ -3140,8 +3400,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the sanitize file name operation.
+        /// Performs sanitize file name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="fileName">File name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string SanitizeFileName(string fileName, ILogger logger)
         {
             try
@@ -3160,8 +3423,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds safe zip relative path.
+        /// Builds safe ZIP relative path as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="fullName">Full name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string? BuildSafeZipRelativePath(string fullName, ILogger logger)
         {
             try
@@ -3184,8 +3450,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service build poll markdown operation.
+        /// Performs multi model council service build poll markdown as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="poll">Poll value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceBuildPollMarkdown(CouncilUserPoll poll, ILogger logger)
         {
             try
@@ -3222,8 +3491,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service build artifacts markdown operation.
+        /// Performs multi model council service build artifacts markdown as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="artifacts">Council artifact dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceBuildArtifactsMarkdown(IEnumerable<CouncilArtifact> artifacts, ILogger logger)
         {
             try
@@ -3270,8 +3542,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service build transcript operation.
+        /// Performs multi model council service build transcript as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="steps">Multi model council step dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceBuildTranscript(IEnumerable<MultiModelCouncilStep> steps, ILogger logger)
         {
             try
@@ -3302,8 +3577,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service create council system prompt operation.
+        /// Performs multi model council service create council system prompt as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="modelName">Model name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="councilMembers">String dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceCreateCouncilSystemPrompt(string modelName, IReadOnlyList<string> councilMembers, ILogger logger)
         {
             try
@@ -3377,8 +3656,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service create proposal prompt operation.
+        /// Performs multi model council service create proposal prompt as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="modelName">Model name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="userPrompt">User prompt value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceCreateProposalPrompt(string modelName, string userPrompt, ILogger logger)
         {
             try
@@ -3403,8 +3686,14 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service create critique prompt operation.
+        /// Performs multi model council service create critique prompt as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="modelName">Model name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="userPrompt">User prompt value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="transcript">Transcript value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="selfReview">Value indicating whether self review should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceCreateCritiquePrompt(string modelName, string userPrompt, string transcript, bool selfReview, ILogger logger)
         {
             try
@@ -3430,8 +3719,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service create consensus prompt operation.
+        /// Performs multi model council service create consensus prompt as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="userPrompt">User prompt value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="transcript">Transcript value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceCreateConsensusPrompt(string userPrompt, string transcript, ILogger logger)
         {
             try
@@ -3495,8 +3788,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service create verification prompt operation.
+        /// Performs multi model council service create verification prompt as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="userPrompt">User prompt value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="transcript">Transcript value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="consensus">Consensus value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceCreateVerificationPrompt(string userPrompt, string transcript, string consensus, ILogger logger)
         {
             try
@@ -3525,8 +3823,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service extract thinking operation.
+        /// Performs multi model council service extract thinking as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceExtractThinking(string content, ILogger logger)
         {
             try
@@ -3547,8 +3848,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service strip thinking operation.
+        /// Performs multi model council service strip thinking as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceStripThinking(string content, ILogger logger)
         {
             try
@@ -3566,8 +3870,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service trim council text operation.
+        /// Performs multi model council service trim council text as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="maxLength">Max length value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceTrimCouncilText(string content, int maxLength, ILogger logger)
         {
             try
@@ -3586,8 +3894,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service normalize endpoint operation.
+        /// Performs multi model council service normalize endpoint as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceNormalizeEndpoint(string endpoint, ILogger logger)
         {
             try
@@ -3604,8 +3915,11 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Runs the extract model thinking operation.
+        /// Performs extract model thinking as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ExtractModelThinking(string content, ILogger logger)
         {
             try
@@ -3627,8 +3941,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the strip model thinking operation.
+        /// Performs strip model thinking as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string StripModelThinking(string content, ILogger logger)
         {
             try
@@ -3645,8 +3962,12 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Builds source preview markup.
+        /// Builds source preview markup as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="relativePath">Relative path value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="source">Source value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildSourcePreviewMarkup(string relativePath, string source, ILogger logger)
         {
             try
@@ -3669,8 +3990,11 @@ namespace LocalGPT.Services
          
         }
         /// <summary>
-        /// Determines whether allowed local route.
+        /// Determines whether allowed local route as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="route">Route value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsAllowedLocalRoute(string route, ILogger logger)
         {
             try
@@ -3688,8 +4012,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the pretty print JSON operation.
+        /// Performs pretty print JSON as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string PrettyPrintJson(string text, ILogger logger)
         {
             try
@@ -3720,8 +4047,15 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Runs the trim for prompt operation.
+        /// Performs trim for prompt as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="maxCharacters">Max characters value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <param name="keepBothEnds">Value indicating whether keep both ends should apply to this operation.</param>
+        /// <param name="collapseWhitespace">Value indicating whether collapse whitespace should apply to this operation.</param>
+        /// <param name="useLocalGptOmission">Value indicating whether use LocalGPT omission should apply to this operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string TrimForPrompt(
     string? text,
     int maxCharacters, 
@@ -3785,8 +4119,14 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the generate archetype page razor operation.
+        /// Generates archetype page razor as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="route">Route value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="title">Title value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="summary">Summary value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="areas">String dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateArchetypePageRazor(
             string route,
             string title,
@@ -3869,8 +4209,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds archetype next action.
+        /// Builds archetype next action as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="area">Area value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildArchetypeNextAction(string area, ILogger logger)
         {
             try
@@ -3894,8 +4237,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution detail razor operation.
+        /// Generates solution detail razor as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionDetailRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -4011,8 +4359,12 @@ namespace LocalGPT.Services
         
 
         /// <summary>
-        /// Runs the generate solution service operation.
+        /// Generates solution service as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionService(string projectName, bool isAiHostLab, ILogger logger)
         {
             try
@@ -4349,8 +4701,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate source fidelity service operation.
+        /// Generates source fidelity service as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="archetype">Archetype value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSourceFidelityService(string projectName, GeneratedSolutionArchetype archetype, ILogger logger)
         {
             try
@@ -4525,8 +4881,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate ai host architecture services operation.
+        /// Generates AI host architecture services as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateAiHostArchitectureServices(string projectName,ILogger logger) {
             try
             {
@@ -5012,8 +5371,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution model operation.
+        /// Generates solution model as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionModel(string projectName, ILogger logger)
         {
             try
@@ -5591,8 +5953,10 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Runs the generate navigation icon svgs operation.
+        /// Generates navigation icon svgs as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IReadOnlyList<(string FileName, string Svg)>? GenerateNavigationIconSvgs( ILogger logger)
         {
             try
@@ -5668,8 +6032,14 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution readme operation.
+        /// Generates solution readme as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionReadme(
             string projectName,
             MultiModelCouncilRequest request,
@@ -5750,8 +6120,14 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Runs the generate solution project index operation.
+        /// Generates solution project index as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionProjectIndex(
             string projectName,
             MultiModelCouncilRequest request,
@@ -5889,8 +6265,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution architecture doc operation.
+        /// Generates solution architecture doc as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionArchitectureDoc(string projectName, bool isAiHostLab, ILogger logger)
         {
             try
@@ -5951,8 +6331,13 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Runs the generate source fidelity doc operation.
+        /// Generates source fidelity doc as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="archetype">Archetype value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="promiseModules">Generated promise module dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSourceFidelityDoc(
             string projectName,
             GeneratedSolutionArchetype archetype,
@@ -6021,8 +6406,14 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate promise map doc operation.
+        /// Generates promise map doc as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="promiseModules">Generated promise module dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GeneratePromiseMapDoc(
             string projectName,
             MultiModelCouncilRequest request,
@@ -6077,8 +6468,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate design review doc operation.
+        /// Generates design review doc as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="archetype">Archetype value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="promiseModules">Generated promise module dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateDesignReviewDoc(
             string projectName,
              GeneratedSolutionArchetype archetype,
@@ -6138,8 +6534,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution build and run doc operation.
+        /// Generates solution build and run doc as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionBuildAndRunDoc(string projectName, bool isAiHostLab, ILogger logger)
         {
             try
@@ -6186,8 +6586,14 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate local gpt generation JSON operation.
+        /// Generates LocalGPT generation JSON as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateLocalGptGenerationJson(
             string projectName,
             MultiModelCouncilRequest request,
@@ -6303,8 +6709,15 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution manifest operation.
+        /// Generates solution manifest as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="solutionGuid">Identifier of the solution gu to use for this operation.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionManifest(
             string projectName,
             string solutionGuid,
@@ -6344,8 +6757,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate blazor dev express razor example operation.
+        /// Generates blazor DevExpress razor example as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateBlazorDevExpressRazorExample(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result, ILogger logger)
@@ -6446,8 +6863,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate blazor support code operation.
+        /// Generates blazor support code as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="targetArea">Target area value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateBlazorSupportCode(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -6495,8 +6917,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate code dom example operation.
+        /// Generates code DOM example as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="targetArea">Target area value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateCodeDomExample(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -6588,8 +7015,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates constant.
+        /// Creates constant as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="name">Name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The code member field produced by the operation.</returns>
         public CodeMemberField? CreateConstant(string name, string value, ILogger logger)
         {
             try
@@ -6607,8 +7038,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Gets discovered model button text.
+        /// Retrieves discovered model button text as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="model">Model value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GetDiscoveredModelButtonText(LocalAiModelInfo model, ILogger logger)
         {
             try
@@ -6626,8 +7060,11 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Runs the append line operation.
+        /// Performs append line as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="method">Method value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="line">Line value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         public void AppendLine(CodeMemberMethod method, string line, ILogger logger)
         {
             try
@@ -6650,8 +7087,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Determines whether minecraft datapack artifact target.
+        /// Determines whether minecraft datapack artifact target as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="prompt">Prompt value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="finalAnswer">Final answer value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The bool produced by the operation.</returns>
         public bool? IsMinecraftDatapackArtifactTarget(string prompt, string finalAnswer, ILogger logger)
         {
             try
@@ -6667,8 +7108,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Determines whether minecraft skeleton matrix artifact target.
+        /// Determines whether minecraft skeleton matrix artifact target as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="prompt">Prompt value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="finalAnswer">Final answer value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The bool produced by the operation.</returns>
         public bool? IsMinecraftSkeletonMatrixArtifactTarget(string prompt, string finalAnswer, ILogger logger)
         {
             try
@@ -6684,8 +7129,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the extract minecraft version operation.
+        /// Performs extract minecraft version as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ExtractMinecraftVersion(string text, ILogger logger)
         {
             try
@@ -6703,8 +7151,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds minecraft datapack artifact identity.
+        /// Builds minecraft datapack artifact identity as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="timestamp">Timestamp value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The minecraft datapack artifact identity produced by the operation.</returns>
         public MinecraftDatapackArtifactIdentity? BuildMinecraftDatapackArtifactIdentity(string text, string timestamp, ILogger logger)
         {
             try
@@ -6730,8 +7182,12 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the extract minecraft project display name operation.
+        /// Performs extract minecraft project display name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="harmonyModel">Harmony model value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ExtractMinecraftProjectDisplayName(string text, bool? harmonyModel, ILogger logger)
         {
             try
@@ -6763,8 +7219,11 @@ namespace LocalGPT.Services
             
         }
         /// <summary>
-        /// Runs the clean minecraft project display name operation.
+        /// Performs clean minecraft project display name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CleanMinecraftProjectDisplayName(string value, ILogger logger)
         {
             try
@@ -6787,8 +7246,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the to minecraft namespace operation.
+        /// Performs to minecraft namespace as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ToMinecraftNamespace(string value, ILogger logger)
         {
             try
@@ -6804,8 +7266,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the to pascal identifier operation.
+        /// Performs to pascal identifier as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ToPascalIdentifier(string value, ILogger logger)
         {
             try
@@ -6824,8 +7289,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the to kebab route operation.
+        /// Performs to kebab route as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ToKebabRoute(string value, ILogger logger)
         {
             try
@@ -6841,8 +7309,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution navigation razor operation.
+        /// Generates solution navigation razor as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="archetype">Archetype value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="promiseModules">Generated promise module dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionNavigationRazor(
              GeneratedSolutionArchetype archetype,
             IReadOnlyList<GeneratedPromiseModule> promiseModules, ILogger logger)
@@ -7043,8 +7515,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds promise navigation links.
+        /// Builds promise navigation links as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="promiseModules">Generated promise module dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildPromiseNavigationLinks(IReadOnlyList<GeneratedPromiseModule> promiseModules, ILogger logger)
         {
             try
@@ -7075,8 +7550,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution index razor operation.
+        /// Generates solution index razor as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="archetype">Archetype value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionIndexRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -7212,8 +7692,13 @@ namespace LocalGPT.Services
            
         }
         /// <summary>
-        /// Runs the generate solution dashboard razor operation.
+        /// Generates solution dashboard razor as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="archetype">Archetype value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionDashboardRazor(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -7311,8 +7796,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution knowledge table razor operation.
+        /// Generates solution knowledge table razor as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionKnowledgeTableRazor(bool isAiHostLab, ILogger logger)
         {
             try
@@ -7382,8 +7870,12 @@ namespace LocalGPT.Services
         
 
         /// <summary>
-        /// Runs the generate solution file operation.
+        /// Generates solution file as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="projectGuid">Identifier of the project gu to use for this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionFile(string projectName, string projectGuid, ILogger logger)
         {
             try
@@ -7421,8 +7913,11 @@ namespace LocalGPT.Services
        
 
         /// <summary>
-        /// Runs the generate solution app settings operation.
+        /// Generates solution app settings as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionAppSettings(bool isAiHostLab,ILogger logger)
         {
             try
@@ -7495,8 +7990,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution program operation.
+        /// Generates solution program as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="isAiHostLab">Value indicating whether is AI host lab should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionProgram(string projectName, bool isAiHostLab, ILogger logger)
         {
             try
@@ -7592,8 +8091,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate solution imports operation.
+        /// Generates solution imports as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GenerateSolutionImports(string projectName, ILogger logger)
         {
             try
@@ -7624,8 +8126,12 @@ namespace LocalGPT.Services
         }
        
         /// <summary>
-        /// Builds data content file name.
+        /// Builds data content file name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="index">Index value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="mediaType">Media type value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildDataContentFileName(int index, string? mediaType, ILogger logger)
         {
             try
@@ -7652,8 +8158,11 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Attempts to get data content file name.
+        /// Attempts to retrieve data content file name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string? TryGetDataContentFileName(DataContent content, ILogger logger)
         {
             try
@@ -7684,8 +8193,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the format live council running title operation.
+        /// Performs format live council running title as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="template">Template value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="runId">Identifier of the run to use for this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string FormatLiveCouncilRunningTitle(string template, string runId, ILogger logger)
         {
             try
@@ -7700,8 +8213,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the format live council elapsed status operation.
+        /// Performs format live council elapsed status as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="template">Template value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="elapsed">Elapsed value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="status">Status value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string FormatLiveCouncilElapsedStatus(string template, string elapsed, string status, ILogger logger)
         {
             try
@@ -7718,8 +8236,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds upload workspace system prompt.
+        /// Builds upload workspace system prompt as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildUploadWorkspaceSystemPrompt(ChatUploadWorkspaceResult result, ILogger logger)
         {
             try
@@ -7762,8 +8283,11 @@ namespace LocalGPT.Services
             
         }
         /// <summary>
-        /// Runs the extract upload files operation.
+        /// Performs extract upload files as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="message">Message value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IEnumerable<ChatUploadWorkspaceInputFile>? ExtractUploadFiles(ChatMessage message, ILogger logger)
         {
             try
@@ -7794,8 +8318,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Adds optional system message.
+        /// Adds optional system message as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="messages">Messages value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         public void AddOptionalSystemMessage(List<ChatMessage> messages, string? text, ILogger logger)
         {
             try
@@ -7810,8 +8337,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Attempts to parse confidence.
+        /// Attempts to parse confidence as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The int produced by the operation.</returns>
         public int? TryParseConfidence(string value, ILogger logger)
         {
             try
@@ -7829,8 +8359,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the generate promise module razor operation.
+        /// Generates promise module razor as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="module">Module value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string GeneratePromiseModuleRazor(GeneratedPromiseModule module, ILogger logger)
         {
             try
@@ -7848,8 +8381,12 @@ namespace LocalGPT.Services
 
       
         /// <summary>
-        /// Runs the merge tags operation.
+        /// Performs merge tags as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="requestedTags">Requested tags value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="requiredTags">Required tags value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MergeTags(string requestedTags, string requiredTags, ILogger logger)
         {
             try
@@ -7866,8 +8403,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds capability gap knowledge content.
+        /// Builds capability gap knowledge content as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="body">Body value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildCapabilityGapKnowledgeContent(string body, ILogger logger)
         {
             try
@@ -7912,8 +8452,12 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Parses knowledge requests.
+        /// Parses knowledge requests as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="source">Source value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="responseText">Response text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IEnumerable<CouncilKnowledgeEntry>? ParseKnowledgeRequests(string source, string responseText, ILogger logger)
         {
             try
@@ -7983,8 +8527,13 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the extract field operation.
+        /// Performs extract field as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="body">Body value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="name">Name value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <param name="fallback">Fallback value supplied to the council text operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ExtractField(string body, string name,  ILogger logger, string fallback = "")
         {
             try
@@ -8000,8 +8549,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the fallback operation.
+        /// Performs fallback as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="fallback">Fallback value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string Fallback(string value, string fallback, ILogger logger)
         {
             try
@@ -8017,8 +8570,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Parses nullable guid.
+        /// Parses nullable GUID as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The GUID produced by the operation.</returns>
         public Guid? ParseNullableGuid(string value, ILogger logger)
         {
             try
@@ -8037,8 +8593,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the format nullable UTC operation.
+        /// Performs format nullable UTC as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string FormatNullableUtc(DateTime? value, ILogger logger)
         {
             try
@@ -8052,8 +8611,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the format nullable guid operation.
+        /// Performs format nullable GUID as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string FormatNullableGuid(Guid? value, ILogger logger)
         {
             try
@@ -8067,8 +8629,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Parses nullable UTC.
+        /// Parses nullable UTC as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The date time produced by the operation.</returns>
         public DateTime? ParseNullableUtc(string value, ILogger logger)
         {
             try
@@ -8093,8 +8658,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates message signature.
+        /// Creates message signature as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="messages">Blazor chat message dependency used by the council text workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateMessageSignature(IEnumerable<BlazorChatMessage> messages, ILogger logger)
         {
             try
@@ -8111,8 +8679,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the detect target area operation.
+        /// Performs detect target area as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="prompt">Prompt value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="finalAnswer">Final answer value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string DetectTargetArea(string prompt, string finalAnswer, ILogger logger)
         {
             try
@@ -8142,8 +8714,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the trim for code comment operation.
+        /// Performs trim for code comment as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="maxLength">Max length value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string TrimForCodeComment(string text, int maxLength, ILogger logger)
         {
             try
@@ -8162,8 +8738,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the escape csharp string operation.
+        /// Performs escape c sharp string as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string EscapeCSharpString(string text, ILogger logger)
         {
             try
@@ -8183,8 +8762,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the escape JSON string operation.
+        /// Performs escape JSON string as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string EscapeJsonString(string text, ILogger logger)
         {
             try
@@ -8199,8 +8781,11 @@ namespace LocalGPT.Services
            
         }
         /// <summary>
-        /// Normalizes dbnull string value.
+        /// Normalizes database null string value as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string? NormalizeDBNullStringValue(string value, ILogger logger)
         {
             try
@@ -8215,8 +8800,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the trim endpoint operation.
+        /// Performs trim endpoint as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string TrimEndpoint(string endpoint, ILogger logger)
         {
             try
@@ -8237,8 +8825,12 @@ namespace LocalGPT.Services
            
         }
         /// <summary>
-        /// Runs the trim for knowledge operation.
+        /// Performs trim for knowledge as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="maxLength">Max length value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string TrimForKnowledge(string text, int maxLength, ILogger logger)
         {
             try
@@ -8257,8 +8849,11 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Creates minecraft system prompt.
+        /// Creates minecraft system prompt as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="mode">Mode value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateMinecraftSystemPrompt(string mode, ILogger logger)
         {
             try
@@ -8287,8 +8882,11 @@ namespace LocalGPT.Services
     
 
         /// <summary>
-        /// Runs the minecraft datapack version info resolve operation.
+        /// Performs minecraft datapack version info resolve as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="minecraftVersion">Minecraft version value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The minecraft datapack version info produced by the operation.</returns>
         public MinecraftDatapackVersionInfo MinecraftDatapackVersionInfoResolve(string? minecraftVersion, ILogger logger)
         {
             try
@@ -8340,8 +8938,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the minecraft datapack version known versions operation.
+        /// Performs minecraft datapack version known versions as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public List< MinecraftDatapackVersionInfo> MinecraftDatapackVersionKnownVersions (ILogger logger)
         {
     try
@@ -8379,8 +8979,14 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the minecraft datapack version info known operation.
+        /// Performs minecraft datapack version info known as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="version">Version value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="packFormat">Pack format value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="functionRegistryFolder">Function registry folder value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="notes">Notes value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The minecraft datapack version info produced by the operation.</returns>
         public MinecraftDatapackVersionInfo MinecraftDatapackVersionInfoKnown(string version, string packFormat, string functionRegistryFolder, string notes, ILogger logger) 
         {
             try
@@ -8411,8 +9017,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the enumerate nested architecture roots operation.
+        /// Performs enumerate nested architecture roots as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IEnumerable<string> EnumerateNestedArchitectureRoots(string rootPath, ILogger logger)
         {
             try
@@ -8438,8 +9047,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the safe enumerate directories operation.
+        /// Performs safe enumerate directories as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IEnumerable<string> SafeEnumerateDirectories(string rootPath, ILogger logger)
         {
             try
@@ -8454,8 +9066,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the safe enumerate directory infos operation.
+        /// Performs safe enumerate directory infos as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IEnumerable<DirectoryInfo> SafeEnumerateDirectoryInfos(string rootPath, ILogger logger)
         {
             try
@@ -8474,8 +9089,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the looks like architecture root operation.
+        /// Performs looks like architecture root as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool LooksLikeArchitectureRoot(string rootPath, ILogger logger)
         {
             try
@@ -8514,8 +9132,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the sanitize for prompt operation.
+        /// Performs sanitize for prompt as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council text operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string SanitizeForPrompt(string text, ILogger logger)
         {
             try

@@ -7,13 +7,19 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides council runtime class service operations.
+/// Coordinates council runtime class behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the council runtime class workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the council runtime class workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilRuntimeClassService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<CouncilRuntimeClassService> logger) : ICouncilRuntimeClassService
 {
+    /// <summary>
+    /// Defines the current seed version constant used by <see cref="CouncilRuntimeClassService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int CurrentSeedVersion = 4;
     /// <summary>
     /// Runs the new operation.
@@ -25,8 +31,11 @@ public sealed class CouncilRuntimeClassService(
     };
 
     /// <summary>
-    /// Gets definitions async.
+    /// Retrieves definitions as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="includeDisabled">Value indicating whether include disabled should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<CouncilRuntimeClassDefinition>> GetDefinitionsAsync(
         bool includeDisabled = false,
         CancellationToken cancellationToken = default)
@@ -53,8 +62,11 @@ public sealed class CouncilRuntimeClassService(
     }
 
     /// <summary>
-    /// Finds async.
+    /// Performs find as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council runtime class definition produced by the operation.</returns>
     public async Task<CouncilRuntimeClassDefinition?> FindAsync(
         string? key,
         CancellationToken cancellationToken = default)
@@ -86,8 +98,11 @@ public sealed class CouncilRuntimeClassService(
     }
 
     /// <summary>
-    /// Saves async.
+    /// Performs save as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council runtime class definition produced by the operation.</returns>
     public async Task<CouncilRuntimeClassDefinition> SaveAsync(
         SaveCouncilRuntimeClassRequest request,
         CancellationToken cancellationToken = default)
@@ -137,8 +152,10 @@ public sealed class CouncilRuntimeClassService(
     }
 
     /// <summary>
-    /// Ensures seed data async.
+    /// Ensures seed data as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EnsureSeedDataAsync(CancellationToken cancellationToken)
     {
     try
@@ -203,8 +220,9 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Creates seed definitions.
+    /// Creates seed definitions as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<CouncilRuntimeClassDefinition> CreateSeedDefinitions()
     {
     try
@@ -392,8 +410,18 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Builds definition.
+    /// Builds definition as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="runtimeNamespace">Runtime namespace value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="displayName">Display name value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="kind">Kind value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="description">Description value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="fields">Fields value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="inputBindings">Input bindings value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="recommendedDxFunctions">Recommended devexpress functions value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="sourceReferences">Source references value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <returns>The council runtime class definition produced by the operation.</returns>
     private CouncilRuntimeClassDefinition BuildDefinition(
         string key,
         string runtimeNamespace,
@@ -433,8 +461,20 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Runs the field operation.
+    /// Performs field as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="displayName">Display name value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="dataType">Data type value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="defaultValue">Default value value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="inputMode">Input mode value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="aiAssignable">Value indicating whether AI assignable should apply to this operation.</param>
+    /// <param name="humanAssignable">Value indicating whether human assignable should apply to this operation.</param>
+    /// <param name="blocks">Value indicating whether blocks should apply to this operation.</param>
+    /// <param name="required">Value indicating whether required should apply to this operation.</param>
+    /// <param name="keyboardKey">Keyboard key value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="gamepadButton">Gamepad button value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <returns>The runtime class field definition produced by the operation.</returns>
     private RuntimeClassFieldDefinition Field(
         string name,
         string displayName,
@@ -475,8 +515,13 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Runs the binding operation.
+    /// Performs binding as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="action">Action value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="displayName">Display name value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="keyboardKey">Keyboard key value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="gamepadButton">Gamepad button value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <returns>The runtime input binding definition produced by the operation.</returns>
     private RuntimeInputBindingDefinition Binding(
         string action,
         string displayName,
@@ -503,8 +548,10 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Runs the deterministic guid operation.
+    /// Performs deterministic GUID as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <returns>The GUID produced by the operation.</returns>
     private Guid DeterministicGuid(string value)
     {
     try
@@ -524,8 +571,9 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Normalizes and validate.
+    /// Normalizes and validate as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="definition">Definition value supplied to the council runtime class operation and used when producing its result.</param>
     private void NormalizeAndValidate(CouncilRuntimeClassDefinition definition)
     {
     try
@@ -594,8 +642,10 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Normalizes lookup token.
+    /// Normalizes lookup token as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeLookupToken(string value) {
     try
     {
@@ -617,8 +667,11 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Runs the lookup rank operation.
+    /// Performs lookup rank as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="definition">Definition value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="normalized">Normalized value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int LookupRank(CouncilRuntimeClassDefinition definition, string normalized)
     {
     try
@@ -647,8 +700,10 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Builds aliases.
+    /// Builds aliases as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="definition">Definition value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IEnumerable<string> BuildAliases(CouncilRuntimeClassDefinition definition) {
     try
     {
@@ -667,8 +722,12 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Builds aliases.
+    /// Builds aliases as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="runtimeNamespace">Runtime namespace value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="displayName">Display name value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IEnumerable<string> BuildAliases(string key, string runtimeNamespace, string displayName)
     {
     try
@@ -709,8 +768,10 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Applies definition.
+    /// Applies definition as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="row">Row value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <param name="definition">Definition value supplied to the council runtime class operation and used when producing its result.</param>
     private void ApplyDefinition(CouncilRuntimeClassConfiguration row, CouncilRuntimeClassDefinition definition)
     {
     try
@@ -738,8 +799,10 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Runs the to definition operation.
+    /// Performs to definition as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="row">Row value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <returns>The council runtime class definition produced by the operation.</returns>
     private CouncilRuntimeClassDefinition ToDefinition(CouncilRuntimeClassConfiguration row)
     {
     try
@@ -776,8 +839,11 @@ public sealed class CouncilRuntimeClassService(
 }
 
     /// <summary>
-    /// Runs the deserialize operation.
+    /// Performs deserialize as part of the council runtime class service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="CouncilRuntimeClassService"/>.</typeparam>
+    /// <param name="json">Json value supplied to the council runtime class operation and used when producing its result.</param>
+    /// <returns>The t produced by the operation.</returns>
     private T? Deserialize<T>(string json)
     {
         try

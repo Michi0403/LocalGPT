@@ -47,6 +47,9 @@ public sealed class FirstRunOnboardingController(IFirstRunOnboardingService onbo
 [DocumentationUpdated("2.1.20")]
 public sealed class CompleteFirstRunOnboardingRequest
 {
-    /// <summary>Gets or sets whether the current user explicitly confirmed completion.</summary>
+    /// <summary>
+    /// Gets or sets a value indicating whether user confirmed applies to the complete first run onboarding state.
+    /// </summary>
+    /// <value>The user confirmed value exposed by <see cref="CompleteFirstRunOnboardingRequest"/>.</value>
     public bool UserConfirmed { get; set; }
 }

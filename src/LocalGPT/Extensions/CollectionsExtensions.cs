@@ -3,13 +3,21 @@ using System.Runtime.CompilerServices;
 namespace LocalGPT.Extensions
 {
     /// <summary>
-    /// Represents an observable collection extensions.
+    /// Represents an observable collection extensions application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
     public static class ObservableCollectionExtensions
     {
         /// <summary>
-        /// Runs the sync with operation.
+        /// Performs sync with for <see cref="ObservableCollectionExtensions"/>, keeping the operation consistent with the state and invariants of the surrounding observable collection extensions workflow.
         /// </summary>
+        /// <typeparam name="T">Type used for t values handled by <see cref="ObservableCollectionExtensions"/>.</typeparam>
+        /// <typeparam name="TKey">Type used for t key values handled by <see cref="ObservableCollectionExtensions"/>.</typeparam>
+        /// <param name="target">T dependency used by the observable collection extensions workflow to provide the corresponding application capability.</param>
+        /// <param name="updated">T dependency used by the observable collection extensions workflow to provide the corresponding application capability.</param>
+        /// <param name="keySelector">Key selector value supplied to the observable collection extensions operation and used when producing its result.</param>
+        /// <param name="replaceIfDifferent">Value indicating whether replace if different should apply to this operation.</param>
+        /// <param name="configuredTaskAwaitableToInformUpdates">Configured task awaitable to inform updates value supplied to the observable collection extensions operation and used when producing its result.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         public static async Task SyncWith<T, TKey>(
             this IList<T> target,
             IEnumerable<T> updated,

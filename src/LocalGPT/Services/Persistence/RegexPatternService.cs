@@ -8,16 +8,21 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services.Persistence;
 
 /// <summary>
-/// Provides regex pattern service operations.
+/// Coordinates regex pattern behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the regex pattern workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the regex pattern workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RegexPatternService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<RegexPatternService> logger) : IRegexPatternService
 {
     /// <summary>
-    /// Adds or update async.
+    /// Adds or update as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="dto">Dto value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task AddOrUpdateAsync(RegexPatternDto dto)
     {
         try
@@ -47,8 +52,10 @@ public sealed class RegexPatternService(
     }
 
     /// <summary>
-    /// Gets regex async.
+    /// Retrieves regex as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <returns>The regex produced by the operation.</returns>
     public async Task<Regex?> GetRegexAsync(string name)
     {
         try
@@ -68,8 +75,11 @@ public sealed class RegexPatternService(
     }
 
     /// <summary>
-    /// Runs the compile operation.
+    /// Performs compile as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="pattern">Pattern value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <param name="flags">Flags value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <returns>The regex produced by the operation.</returns>
     public Regex Compile(string pattern, string? flags = null)
     {
         try
@@ -84,8 +94,12 @@ public sealed class RegexPatternService(
     }
 
     /// <summary>
-    /// Runs the compile operation.
+    /// Performs compile as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="pattern">Pattern value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <param name="flags">Flags value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <param name="timeout">Timeout value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <returns>The regex produced by the operation.</returns>
     public Regex Compile(string pattern, string? flags, TimeSpan timeout)
     {
         try
@@ -106,8 +120,9 @@ public sealed class RegexPatternService(
     }
 
     /// <summary>
-    /// Runs the list all async operation.
+    /// Lists all as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<List<RegexPattern>> ListAllAsync()
     {
         try
@@ -122,8 +137,10 @@ public sealed class RegexPatternService(
     }
 
     /// <summary>
-    /// Runs the list all async operation.
+    /// Lists all as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="take">Take value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<List<RegexPattern>> ListAllAsync(int? take = null)
     {
         try
@@ -143,8 +160,10 @@ public sealed class RegexPatternService(
     }
 
     /// <summary>
-    /// Deletes async.
+    /// Performs delete as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task DeleteAsync(string name)
     {
         try
@@ -159,8 +178,11 @@ public sealed class RegexPatternService(
     }
 
     /// <summary>
-    /// Deletes async.
+    /// Performs delete as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <param name="confirm">Value indicating whether confirm should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task DeleteAsync(string name, bool confirm = false)
     {
         try
@@ -185,8 +207,10 @@ public sealed class RegexPatternService(
     }
 
     /// <summary>
-    /// Validates pattern.
+    /// Validates pattern as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="pattern">Pattern value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <param name="flags">Flags value supplied to the regex pattern operation and used when producing its result.</param>
     private void ValidatePattern(string pattern, string? flags)
     {
     try
@@ -208,8 +232,10 @@ public sealed class RegexPatternService(
 }
 
     /// <summary>
-    /// Parses flags.
+    /// Parses flags as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="flags">Flags value supplied to the regex pattern operation and used when producing its result.</param>
+    /// <returns>The regex options produced by the operation.</returns>
     private RegexOptions ParseFlags(string? flags)
     {
     try

@@ -10,16 +10,21 @@ namespace LocalGPT.Controller
 
 
     /// <summary>
-    /// Provides database query controller operations.
+    /// Exposes the database query application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
     /// </summary>
+    /// <param name="db">Database value supplied to the database query operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     [ApiController]
     [Route("__diag/database/[controller]")]
     public class DatabaseQueryController(LocalGptMemoryDbContext db, ILogger<DatabaseQueryController> logger) : ControllerBase
     {
 
         /// <summary>
-        /// Runs the query database operation.
+        /// Queries database for the database query API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="table">Table value supplied to the database query operation and used when producing its result.</param>
+        /// <param name="take">Take value supplied to the database query operation and used when producing its result.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("query")]
         public async Task<IActionResult> QueryDatabase([FromQuery] string table, [FromQuery] int take = 100)
         {
@@ -48,8 +53,9 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Runs the list configs operation.
+        /// Lists configs for the database query API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("configs")]
         public async Task<IActionResult> ListConfigs()
         {

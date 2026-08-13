@@ -6,25 +6,34 @@ using System.Text;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides council live session service operations.
+/// Coordinates council live session behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilLiveSessionService(
     ILogger<CouncilLiveSessionService> logger) : ICouncilLiveSessionService
 {
+    /// <summary>
+    /// Defines the max transcript characters constant used by <see cref="CouncilLiveSessionService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxTranscriptCharacters = 2_000_000;
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory sessions collection maintained internally by <see cref="CouncilLiveSessionService"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<Guid, CouncilLiveSessionState> sessions = new();
 
     /// <summary>
-    /// Occurs when changed.
+    /// Occurs when changed changes or completes in <see cref="CouncilLiveSessionService"/>, allowing interested callers to react without polling internal state.
     /// </summary>
     public event Action<Guid>? Changed;
 
     /// <summary>
-    /// Runs the begin operation.
+    /// Performs begin as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="councilMembers">String dependency used by the council live session workflow to provide the corresponding application capability.</param>
+    /// <param name="userMessage">User message value supplied to the council live session operation and used when producing its result.</param>
+    /// <param name="initialTranscript">Initial transcript value supplied to the council live session operation and used when producing its result.</param>
+    /// <returns>The cancellation token produced by the operation.</returns>
     public CancellationToken Begin(
         Guid runId,
         IReadOnlyList<string> councilMembers,
@@ -53,8 +62,10 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Runs the append operation.
+    /// Performs append as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="text">Text value supplied to the council live session operation and used when producing its result.</param>
     public void Append(Guid runId, string text)
     {
     try
@@ -83,8 +94,14 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Starts or refreshes one provider-qualified participant activity stream.
+    /// Performs begin participant activity as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="activityKey">Activity key value supplied to the council live session operation and used when producing its result.</param>
+    /// <param name="modelName">Model name value supplied to the council live session operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the council live session operation and used when producing its result.</param>
+    /// <param name="role">Role value supplied to the council live session operation and used when producing its result.</param>
+    /// <param name="routeLabel">Route label value supplied to the council live session operation and used when producing its result.</param>
     public void BeginParticipantActivity(Guid runId, string activityKey, string modelName, string phase, string role, string routeLabel)
     {
         try
@@ -109,6 +126,9 @@ public sealed class CouncilLiveSessionService(
     /// <summary>
     /// Appends live provider output to one participant activity independently from ordered transcript presentation.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="activityKey">Activity key value supplied to the council live session operation and used when producing its result.</param>
+    /// <param name="text">Text value supplied to the council live session operation and used when producing its result.</param>
     public void AppendParticipantActivity(Guid runId, string activityKey, string text)
     {
         try
@@ -136,6 +156,9 @@ public sealed class CouncilLiveSessionService(
     /// <summary>
     /// Updates one participant activity status while a host queue is running.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="activityKey">Activity key value supplied to the council live session operation and used when producing its result.</param>
+    /// <param name="statusMessage">Status message value supplied to the council live session operation and used when producing its result.</param>
     public void SetParticipantActivityStatus(Guid runId, string activityKey, string statusMessage)
     {
         try
@@ -162,6 +185,9 @@ public sealed class CouncilLiveSessionService(
     /// <summary>
     /// Stores one participant's authoritative final answer separately from transient streamed provider markup.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="activityKey">Activity key value supplied to the council live session operation and used when producing its result.</param>
+    /// <param name="finalContent">Final content value supplied to the council live session operation and used when producing its result.</param>
     public void SetParticipantActivityResult(Guid runId, string activityKey, string finalContent)
     {
         try
@@ -188,6 +214,9 @@ public sealed class CouncilLiveSessionService(
     /// <summary>
     /// Marks one participant stream complete while leaving the final ordered transcript unchanged.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="activityKey">Activity key value supplied to the council live session operation and used when producing its result.</param>
+    /// <param name="statusMessage">Status message value supplied to the council live session operation and used when producing its result.</param>
     public void CompleteParticipantActivity(Guid runId, string activityKey, string statusMessage)
     {
         try
@@ -213,8 +242,10 @@ public sealed class CouncilLiveSessionService(
     }
 
     /// <summary>
-    /// Sets status.
+    /// Sets status as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="statusMessage">Status message value supplied to the council live session operation and used when producing its result.</param>
     public void SetStatus(Guid runId, string statusMessage)
     {
         try
@@ -244,8 +275,9 @@ public sealed class CouncilLiveSessionService(
     }
 
     /// <summary>
-    /// Runs the touch operation.
+    /// Performs touch as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
     public void Touch(Guid runId)
     {
         try
@@ -268,8 +300,10 @@ public sealed class CouncilLiveSessionService(
     }
 
     /// <summary>
-    /// Runs the append user message operation.
+    /// Performs append user message as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="text">Text value supplied to the council live session operation and used when producing its result.</param>
     public void AppendUserMessage(Guid runId, string text)
     {
     try
@@ -296,8 +330,9 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Runs the complete operation.
+    /// Performs complete as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
     public void Complete(Guid runId)
     {
     try
@@ -325,8 +360,10 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Determines whether cel.
+    /// Determines whether cel as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool Cancel(Guid runId)
     {
     try
@@ -357,8 +394,10 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Runs the get operation.
+    /// Performs get as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The council live session snapshot produced by the operation.</returns>
     public CouncilLiveSessionSnapshot? Get(Guid runId) {
     try
     {
@@ -375,8 +414,10 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Gets summary.
+    /// Retrieves summary as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The council live session summary produced by the operation.</returns>
     public CouncilLiveSessionSummary? GetSummary(Guid runId) {
     try
     {
@@ -393,8 +434,9 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Gets active.
+    /// Retrieves active as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<CouncilLiveSessionSnapshot> GetActive() {
     try
     {
@@ -415,8 +457,9 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Gets active summaries.
+    /// Retrieves active summaries as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<CouncilLiveSessionSummary> GetActiveSummaries() {
     try
     {
@@ -437,8 +480,10 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Creates snapshot.
+    /// Creates snapshot as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="state">State value supplied to the council live session operation and used when producing its result.</param>
+    /// <returns>The council live session snapshot produced by the operation.</returns>
     private CouncilLiveSessionSnapshot CreateSnapshot(CouncilLiveSessionState state)
     {
     try
@@ -484,8 +529,10 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Creates summary.
+    /// Creates summary as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="state">State value supplied to the council live session operation and used when producing its result.</param>
+    /// <returns>The council live session summary produced by the operation.</returns>
     private CouncilLiveSessionSummary CreateSummary(CouncilLiveSessionState state)
     {
     try
@@ -513,8 +560,10 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Runs the append with block boundary operation.
+    /// Performs append with block boundary as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="transcript">Transcript value supplied to the council live session operation and used when producing its result.</param>
+    /// <param name="text">Text value supplied to the council live session operation and used when producing its result.</param>
     private void AppendWithBlockBoundary(StringBuilder transcript, string text)
     {
     try
@@ -535,8 +584,10 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Runs the ends visible block operation.
+    /// Performs ends visible block as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="transcript">Transcript value supplied to the council live session operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool EndsVisibleBlock(StringBuilder transcript)
     {
     try
@@ -562,8 +613,10 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Starts s visible block.
+    /// Starts s visible block as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="text">Text value supplied to the council live session operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool StartsVisibleBlock(string text)
     {
     try
@@ -588,8 +641,9 @@ public sealed class CouncilLiveSessionService(
 }
 
     /// <summary>
-    /// Runs the schedule changed operation.
+    /// Performs schedule changed as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="state">State value supplied to the council live session operation and used when producing its result.</param>
     private void ScheduleChanged(CouncilLiveSessionState state)
     {
         if (Interlocked.Exchange(ref state.NotificationScheduled, 1) != 0)

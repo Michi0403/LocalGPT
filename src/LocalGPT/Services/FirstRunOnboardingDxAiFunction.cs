@@ -10,7 +10,10 @@ namespace LocalGPT.Services;
 [DocumentationUpdated("2.1.20")]
 public sealed class GetFirstRunOnboardingStatusFunction(IFirstRunOnboardingService onboarding) : IDxAiFunctionHandler
 {
-    /// <summary>Gets the stable read-only DXFunction descriptor.</summary>
+    /// <summary>
+    /// Gets the descriptor value that forms part of the get first run onboarding status function state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetFirstRunOnboardingStatusFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.onboarding.status",
         "POST",
@@ -18,6 +21,9 @@ public sealed class GetFirstRunOnboardingStatusFunction(IFirstRunOnboardingServi
         "Returns first-run readiness, installed local models, seeded Council teams, model presets, installer profiles, documentation route and safe Chat quick starts.",
         "Set refreshConnectivity to true only when a current loopback provider probe is needed.",
         "Read-only. It never installs, downloads, starts, stops or removes models or repositories.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="GetFirstRunOnboardingStatusFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,

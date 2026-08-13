@@ -17,9 +17,21 @@ namespace WebView2_WinUI3_Sample
     /// </summary>
     public partial class App : Application
     {
+        /// <summary>
+        /// Stores the internal window state used by <see cref="App"/> while executing its surrounding workflow.
+        /// </summary>
         private Window? _window;
+        /// <summary>
+        /// Stores the internal web app state used by <see cref="App"/> while executing its surrounding workflow.
+        /// </summary>
         private WebApplication? _webApp;
+        /// <summary>
+        /// Stores the internal owns web host state used by <see cref="App"/> while executing its surrounding workflow.
+        /// </summary>
         private bool _ownsWebHost;
+        /// <summary>
+        /// Stores the internal base URL state used by <see cref="App"/> while executing its surrounding workflow.
+        /// </summary>
         private string _baseUrl = string.Empty;
 
         /// <summary>
@@ -34,6 +46,7 @@ namespace WebView2_WinUI3_Sample
         /// Starts or reconnects to the loopback LocalGPT host and then opens the WebView shell.
         /// The installer-provided positional port argument is forwarded unchanged to LocalGPT.Program.
         /// </summary>
+        /// <param name="args">Args value supplied to the app operation and used when producing its result.</param>
         protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             try
@@ -73,8 +86,9 @@ namespace WebView2_WinUI3_Sample
         }
 
         /// <summary>
-        /// Opens main window.
+        /// Opens main window for <see cref="App"/>, keeping the operation consistent with the state and invariants of the surrounding app workflow.
         /// </summary>
+        /// <param name="baseUrl">Base url value supplied to the app operation and used when producing its result.</param>
         private void OpenMainWindow(string baseUrl)
         {
             _window = new MainWindow(baseUrl)
@@ -91,8 +105,9 @@ namespace WebView2_WinUI3_Sample
         }
 
         /// <summary>
-        /// Opens startup failure window.
+        /// Opens startup failure window for <see cref="App"/>, keeping the operation consistent with the state and invariants of the surrounding app workflow.
         /// </summary>
+        /// <param name="exception">Exception value supplied to the app operation and used when producing its result.</param>
         private void OpenStartupFailureWindow(Exception exception)
         {
             var message = $"LocalGPT could not start.\n\n{exception.GetType().Name}: {exception.Message}\n\n" +
@@ -117,8 +132,9 @@ namespace WebView2_WinUI3_Sample
         }
 
         /// <summary>
-        /// Runs the dispose owned host async operation.
+        /// Performs dispose owned host for <see cref="App"/>, keeping the operation consistent with the state and invariants of the surrounding app workflow.
         /// </summary>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task DisposeOwnedHostAsync()
         {
             if (!_ownsWebHost || _webApp is null)
@@ -137,8 +153,10 @@ namespace WebView2_WinUI3_Sample
         }
 
         /// <summary>
-        /// Determines whether existing local gpt reachable async.
+        /// Determines whether existing LocalGPT reachable for <see cref="App"/>, keeping the operation consistent with the state and invariants of the surrounding app workflow.
         /// </summary>
+        /// <param name="baseUrl">Base url value supplied to the app operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private static async Task<bool> IsExistingLocalGptReachableAsync(string baseUrl)
         {
             try

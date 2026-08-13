@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
 /// <summary>
-/// Provides council game controller operations.
+/// Exposes the council game application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
+/// <param name="games">Council game session service dependency used by the council game workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/council/games")]
 public sealed class CouncilGameController(
@@ -14,8 +16,11 @@ public sealed class CouncilGameController(
     ILogger<CouncilGameController> logger) : ControllerBase
 {
     /// <summary>
-    /// Runs the start operation.
+    /// Returns the start projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("start")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> Start(
         [FromBody] StartCouncilGameRequest request,
@@ -43,8 +48,11 @@ public sealed class CouncilGameController(
     }
 
     /// <summary>
-    /// Runs the list operation.
+    /// Returns the list projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="includeCompleted">Value indicating whether include completed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CouncilGameSessionSnapshot>>> List(
         [FromQuery] bool includeCompleted,
@@ -67,8 +75,11 @@ public sealed class CouncilGameController(
     }
 
     /// <summary>
-    /// Runs the get operation.
+    /// Returns the get projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("{sessionId:guid}")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> Get(
         Guid sessionId,
@@ -92,8 +103,11 @@ public sealed class CouncilGameController(
     }
 
     /// <summary>
-    /// Runs the preview control operation.
+    /// Previews control for the council game API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("control/preview")]
     public async Task<ActionResult<CouncilGameDirectorDecision>> PreviewControl(
         [FromBody] CouncilGameControlRequest request,
@@ -121,8 +135,11 @@ public sealed class CouncilGameController(
     }
 
     /// <summary>
-    /// Runs the control operation.
+    /// Returns the control projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("control")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> Control(
         [FromBody] CouncilGameControlRequest request,
@@ -150,8 +167,11 @@ public sealed class CouncilGameController(
     }
 
     /// <summary>
-    /// Runs the frame operation.
+    /// Returns the frame projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("frame")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> Frame(
         [FromBody] SubmitCouncilGameFrameRequest request,
@@ -179,8 +199,11 @@ public sealed class CouncilGameController(
     }
 
     /// <summary>
-    /// Runs the control mode operation.
+    /// Returns the control mode projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("control-mode")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> ControlMode(
         [FromBody] SetCouncilGameControlModeRequest request,
@@ -213,8 +236,11 @@ public sealed class CouncilGameController(
     }
 
     /// <summary>
-    /// Runs the input gate operation.
+    /// Returns the input gate projection for the council game API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("input-gate")]
     public async Task<ActionResult<CouncilGameSessionSnapshot>> InputGate(
         [FromBody] SetCouncilGameInputGateRequest request,

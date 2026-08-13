@@ -7,24 +7,34 @@ namespace LocalGPT.Services;
 /// Observes intentionally concurrent work so exceptions cannot become unobserved Tasks.
 /// The runner is process-scoped, but every operation must carry its owning component/service name.
 /// </summary>
+/// <param name="serviceActivity">Service activity service dependency used by the supervised task runner workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SupervisedTaskRunner(
     IServiceActivityService serviceActivity,
     ILogger<SupervisedTaskRunner> logger) : ISupervisedTaskRunner
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory active tasks collection maintained internally by <see cref="SupervisedTaskRunner"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<long, Task> activeTasks = new();
+    /// <summary>
+    /// Stores the internal next task identifier state used by <see cref="SupervisedTaskRunner"/> while executing its surrounding workflow.
+    /// </summary>
     private long nextTaskId;
 
     /// <summary>
-    /// Gets or sets active task count.
+    /// Gets the active task count that quantifies the associated supervised task runner data.
     /// </summary>
+    /// <value>The active task count value exposed by <see cref="SupervisedTaskRunner"/>.</value>
     public int ActiveTaskCount => activeTasks.Count;
 
     /// <summary>
-    /// Runs the run operation.
+    /// Performs run for <see cref="SupervisedTaskRunner"/>, keeping the operation consistent with the state and invariants of the surrounding supervised task runner workflow.
     /// </summary>
+    /// <param name="owner">Owner value supplied to the supervised task runner operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the supervised task runner operation and used when producing its result.</param>
+    /// <param name="action">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     public void Run(
         string owner,
         string operation,
@@ -61,8 +71,14 @@ public sealed class SupervisedTaskRunner(
 }
 
     /// <summary>
-    /// Runs the observe async operation.
+    /// Performs observe for <see cref="SupervisedTaskRunner"/>, keeping the operation consistent with the state and invariants of the surrounding supervised task runner workflow.
     /// </summary>
+    /// <param name="taskId">Identifier of the task to use for this operation.</param>
+    /// <param name="owner">Owner value supplied to the supervised task runner operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the supervised task runner operation and used when producing its result.</param>
+    /// <param name="action">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ObserveAsync(
         long taskId,
         string owner,

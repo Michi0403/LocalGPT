@@ -5,13 +5,16 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a get learning round snapshot function.
+/// Represents a get learning round snapshot function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="learning">Learning round service dependency used by the get learning round snapshot function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learning, ILogger<GetLearningRoundSnapshotFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the get learning round snapshot function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetLearningRoundSnapshotFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.learning.snapshot",
         "POST",
@@ -19,6 +22,9 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
         "Builds a current learning-round evidence snapshot from chat memory, logs, council knowledge and database regexes.",
         "JSON parameters: takePerSource optional integer from 1 to 10000.",
         "Read-only. The snapshot contains local data evidence and grants no execution authority.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="GetLearningRoundSnapshotFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -30,8 +36,11 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="GetLearningRoundSnapshotFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get learning round snapshot function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -62,18 +71,21 @@ public sealed class GetLearningRoundSnapshotFunction(ILearningRoundService learn
 }
 
 /// <summary>
-/// Represents a maintain learning round knowledge function.
+/// Represents a maintain learning round knowledge function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="learning">Learning round service dependency used by the maintain learning round knowledge function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService learning, ILogger<MaintainLearningRoundKnowledgeFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="MaintainLearningRoundKnowledgeFunction"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the maintain learning round knowledge function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="MaintainLearningRoundKnowledgeFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.learning.maintain",
         "POST",
@@ -81,6 +93,9 @@ public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService
         "Stores model-suggested learning facts and validated regex definitions in LocalGPT's SQLite self-maintenance layer.",
         "JSON parameters: facts array and regexPatterns array; both optional.",
         "Knowledge maintenance only. New facts remain ModelSuggested/NeedsUserReview and regexes are timeout-validated. This function cannot run commands or authorize side effects.",
+        /// <summary>
+        /// Stores the internal true state used by <see cref="MaintainLearningRoundKnowledgeFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -100,8 +115,11 @@ public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService
         IsCoordinationOnly: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="MaintainLearningRoundKnowledgeFunction"/>, keeping the operation consistent with the state and invariants of the surrounding maintain learning round knowledge function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

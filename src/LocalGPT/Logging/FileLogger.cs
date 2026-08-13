@@ -7,26 +7,40 @@ using System.Text;
 namespace LocalGPT.Logging
 {
     /// <summary>
-    /// Represents a file logger.
+    /// Represents a file logger application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
     public class FileLogger : ILogger, IDisposable
     {
+        /// <summary>
+        /// Stores the internal real path state used by <see cref="FileLogger"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly string _realPath;
+        /// <summary>
+        /// Stores the internal options state used by <see cref="FileLogger"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly FileLoggerCoreOptions _options;
         /// <summary>
-        /// Runs the new operation.
+        /// Stores the internal log queue state used by <see cref="FileLogger"/> while executing its surrounding workflow.
         /// </summary>
         private readonly BlockingCollection<string> _logQueue = new();
+        /// <summary>
+        /// Stores the internal logging thread state used by <see cref="FileLogger"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly Thread _loggingThread;
+        /// <summary>
+        /// Stores the internal disposed state used by <see cref="FileLogger"/> while executing its surrounding workflow.
+        /// </summary>
         private bool _disposed = false;
         /// <summary>
-        /// Runs the new operation.
+        /// Stores the internal null scope state used by <see cref="FileLogger"/> while executing its surrounding workflow.
         /// </summary>
         private readonly LoggerNullScope nullScope = new();
 
         /// <summary>
-        /// Runs the file logger operation.
+        /// Initializes a new <see cref="FileLogger"/> instance and captures the dependencies or initial state required by its file logger workflow.
         /// </summary>
+        /// <param name="categoryName">Category name value supplied to the file logger operation and used when producing its result.</param>
+        /// <param name="optionsSnapshot">File logger core options dependency used by the file logger workflow to provide the corresponding application capability.</param>
         public FileLogger(string categoryName, IOptionsMonitor<FileLoggerCoreOptions> optionsSnapshot)
         {
             _options = optionsSnapshot.CurrentValue;
@@ -43,6 +57,12 @@ namespace LocalGPT.Logging
             _loggingThread.Start();
         }
 
+        /// <summary>
+        /// Performs begin scope for <see cref="FileLogger"/>, keeping the operation consistent with the state and invariants of the surrounding file logger workflow.
+        /// </summary>
+        /// <typeparam name="TState">Type used for t state values handled by <see cref="FileLogger"/>.</typeparam>
+        /// <param name="state">State value supplied to the file logger operation and used when producing its result.</param>
+        /// <returns>The i disposable i logger produced by the operation.</returns>
         IDisposable ILogger.BeginScope<TState>(TState state)
         {
 
@@ -50,16 +70,24 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>
-        /// Determines whether enabled.
+        /// Determines whether enabled for <see cref="FileLogger"/>, keeping the operation consistent with the state and invariants of the surrounding file logger workflow.
         /// </summary>
+        /// <param name="logLevel">Log level value supplied to the file logger operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsEnabled(LogLevel logLevel)
         {
             return (int)logLevel >= (int)_options.CoreLogLevel;
         }
 
         /// <summary>
-        /// Runs the log operation.
+        /// Performs log for <see cref="FileLogger"/>, keeping the operation consistent with the state and invariants of the surrounding file logger workflow.
         /// </summary>
+        /// <typeparam name="TState">Type used for t state values handled by <see cref="FileLogger"/>.</typeparam>
+        /// <param name="logLevel">Log level value supplied to the file logger operation and used when producing its result.</param>
+        /// <param name="eventId">Identifier of the event to use for this operation.</param>
+        /// <param name="state">State value supplied to the file logger operation and used when producing its result.</param>
+        /// <param name="exception">Exception value supplied to the file logger operation and used when producing its result.</param>
+        /// <param name="formatter">Formatter value supplied to the file logger operation and used when producing its result.</param>
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             if (!IsEnabled(logLevel) || formatter == null)
@@ -95,7 +123,7 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>
-        /// Runs the process log queue operation.
+        /// Processes log queue for <see cref="FileLogger"/>, keeping the operation consistent with the state and invariants of the surrounding file logger workflow.
         /// </summary>
         private void ProcessLogQueue()
         {
@@ -133,7 +161,7 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>
-        /// Runs the dispose operation.
+        /// Releases resources owned by <see cref="FileLogger"/> and leaves the file logger workflow in a safely disposed state.
         /// </summary>
         public void Dispose()
         {

@@ -4,15 +4,20 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services.Formatting;
 
 /// <summary>
-/// Provides chat protocol text service operations.
+/// Coordinates chat protocol text behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the chat protocol text workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ChatProtocolTextService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ChatProtocolTextService> logger) : IChatProtocolTextService
 {
     /// <summary>
-    /// Runs the contains any operation.
+    /// Performs contains any as part of the chat protocol text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the chat protocol text operation and used when producing its result.</param>
+    /// <param name="collection">Collection value supplied to the chat protocol text operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool ContainsAny(string value, LocalGptRuntimeCollection collection)
     {
         try
@@ -31,8 +36,11 @@ public sealed class ChatProtocolTextService(
     }
 
     /// <summary>
-    /// Runs the replace all operation.
+    /// Performs replace all as part of the chat protocol text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="text">Text value supplied to the chat protocol text operation and used when producing its result.</param>
+    /// <param name="collection">Collection value supplied to the chat protocol text operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string ReplaceAll(string text, LocalGptRuntimeCollection collection)
     {
         try
@@ -52,22 +60,27 @@ public sealed class ChatProtocolTextService(
 }
 
 /// <summary>
-/// Provides chat protocol profile catalog operations.
+/// Maintains the authoritative directory of chat protocol profile entries used for discovery, validation, and runtime lookup.
 /// </summary>
+/// <param name="profiles">Chat protocol profile dependency used by the chat protocol profile workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ChatProtocolProfileCatalog(
     IEnumerable<IChatProtocolProfile> profiles,
     ILogger<ChatProtocolProfileCatalog> logger) : IChatProtocolProfileCatalog
 {
     /// <summary>
-    /// Gets or sets profiles.
+    /// Gets the profiles collection maintained or exposed by this chat protocol profile instance for downstream processing.
     /// </summary>
+    /// <value>The profiles value exposed by <see cref="ChatProtocolProfileCatalog"/>.</value>
     public IReadOnlyList<IChatProtocolProfile> Profiles { get; } = profiles
         .OrderByDescending(profile => profile.Priority)
         .ToArray();
 
     /// <summary>
-    /// Resolves exact.
+    /// Resolves exact in the chat protocol profile directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="protocol">Protocol value supplied to the chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The i chat protocol profile produced by the operation.</returns>
     public IChatProtocolProfile ResolveExact(ChatResponseProtocol protocol)
     {
         try
@@ -87,24 +100,30 @@ public sealed class ChatProtocolProfileCatalog(
 }
 
 /// <summary>
-/// Represents a harmony chat protocol profile.
+/// Represents a harmony chat protocol profile application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="text">Chat protocol text service dependency used by the harmony chat protocol profile workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class HarmonyChatProtocolProfile(
     IChatProtocolTextService text,
     ILogger<HarmonyChatProtocolProfile> logger) : IChatProtocolProfile
 {
     /// <summary>
-    /// Gets or sets protocol.
+    /// Gets the protocol value that forms part of the harmony chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The protocol value exposed by <see cref="HarmonyChatProtocolProfile"/>.</value>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.Harmony;
     /// <summary>
-    /// Gets or sets priority.
+    /// Gets the priority value that forms part of the harmony chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The priority value exposed by <see cref="HarmonyChatProtocolProfile"/>.</value>
     public int Priority => 100;
 
     /// <summary>
-    /// Runs the matches model operation.
+    /// Performs matches model for <see cref="HarmonyChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding harmony chat protocol profile workflow.
     /// </summary>
+    /// <param name="modelName">Model name value supplied to the harmony chat protocol profile operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool MatchesModel(string modelName)
     {
         try
@@ -121,8 +140,10 @@ public sealed class HarmonyChatProtocolProfile(
     }
 
     /// <summary>
-    /// Normalizes thinking.
+    /// Normalizes thinking for <see cref="HarmonyChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding harmony chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the harmony chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeThinking(string value)
     {
         try
@@ -138,8 +159,10 @@ public sealed class HarmonyChatProtocolProfile(
     }
 
     /// <summary>
-    /// Normalizes content.
+    /// Normalizes content for <see cref="HarmonyChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding harmony chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the harmony chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeContent(string value)
     {
         try
@@ -156,24 +179,30 @@ public sealed class HarmonyChatProtocolProfile(
 }
 
 /// <summary>
-/// Represents a deep seek chat protocol profile.
+/// Represents a deep seek chat protocol profile application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="text">Chat protocol text service dependency used by the deep seek chat protocol profile workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DeepSeekChatProtocolProfile(
     IChatProtocolTextService text,
     ILogger<DeepSeekChatProtocolProfile> logger) : IChatProtocolProfile
 {
     /// <summary>
-    /// Gets or sets protocol.
+    /// Gets the protocol value that forms part of the deep seek chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The protocol value exposed by <see cref="DeepSeekChatProtocolProfile"/>.</value>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.DeepSeek;
     /// <summary>
-    /// Gets or sets priority.
+    /// Gets the priority value that forms part of the deep seek chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The priority value exposed by <see cref="DeepSeekChatProtocolProfile"/>.</value>
     public int Priority => 90;
 
     /// <summary>
-    /// Runs the matches model operation.
+    /// Performs matches model for <see cref="DeepSeekChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding deep seek chat protocol profile workflow.
     /// </summary>
+    /// <param name="modelName">Model name value supplied to the deep seek chat protocol profile operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool MatchesModel(string modelName)
     {
         try
@@ -190,8 +219,10 @@ public sealed class DeepSeekChatProtocolProfile(
     }
 
     /// <summary>
-    /// Normalizes thinking.
+    /// Normalizes thinking for <see cref="DeepSeekChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding deep seek chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the deep seek chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeThinking(string value) {
         try
         {
@@ -205,8 +236,10 @@ public sealed class DeepSeekChatProtocolProfile(
         }
     }
     /// <summary>
-    /// Normalizes content.
+    /// Normalizes content for <see cref="DeepSeekChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding deep seek chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the deep seek chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeContent(string value) {
         try
         {
@@ -221,8 +254,10 @@ public sealed class DeepSeekChatProtocolProfile(
     }
 
     /// <summary>
-    /// Runs the normalize operation.
+    /// Performs normalize for <see cref="DeepSeekChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding deep seek chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the deep seek chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Normalize(string value)
     {
         try
@@ -240,24 +275,30 @@ public sealed class DeepSeekChatProtocolProfile(
 }
 
 /// <summary>
-/// Represents a gemma chat protocol profile.
+/// Represents a gemma chat protocol profile application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="text">Chat protocol text service dependency used by the gemma chat protocol profile workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GemmaChatProtocolProfile(
     IChatProtocolTextService text,
     ILogger<GemmaChatProtocolProfile> logger) : IChatProtocolProfile
 {
     /// <summary>
-    /// Gets or sets protocol.
+    /// Gets the protocol value that forms part of the gemma chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The protocol value exposed by <see cref="GemmaChatProtocolProfile"/>.</value>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.Gemma;
     /// <summary>
-    /// Gets or sets priority.
+    /// Gets the priority value that forms part of the gemma chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The priority value exposed by <see cref="GemmaChatProtocolProfile"/>.</value>
     public int Priority => 80;
 
     /// <summary>
-    /// Runs the matches model operation.
+    /// Performs matches model for <see cref="GemmaChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding gemma chat protocol profile workflow.
     /// </summary>
+    /// <param name="modelName">Model name value supplied to the gemma chat protocol profile operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool MatchesModel(string modelName)
     {
         try
@@ -274,8 +315,10 @@ public sealed class GemmaChatProtocolProfile(
     }
 
     /// <summary>
-    /// Normalizes thinking.
+    /// Normalizes thinking for <see cref="GemmaChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding gemma chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the gemma chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeThinking(string value) {
         try
         {
@@ -289,8 +332,10 @@ public sealed class GemmaChatProtocolProfile(
         }
     }
     /// <summary>
-    /// Normalizes content.
+    /// Normalizes content for <see cref="GemmaChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding gemma chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the gemma chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeContent(string value) {
         try
         {
@@ -305,8 +350,10 @@ public sealed class GemmaChatProtocolProfile(
     }
 
     /// <summary>
-    /// Runs the normalize operation.
+    /// Performs normalize for <see cref="GemmaChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding gemma chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the gemma chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Normalize(string value)
     {
         try
@@ -324,24 +371,30 @@ public sealed class GemmaChatProtocolProfile(
 }
 
 /// <summary>
-/// Represents an apple chat protocol profile.
+/// Represents an apple chat protocol profile application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="text">Chat protocol text service dependency used by the apple chat protocol profile workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class AppleChatProtocolProfile(
     IChatProtocolTextService text,
     ILogger<AppleChatProtocolProfile> logger) : IChatProtocolProfile
 {
     /// <summary>
-    /// Gets or sets protocol.
+    /// Gets the protocol value that forms part of the apple chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The protocol value exposed by <see cref="AppleChatProtocolProfile"/>.</value>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.Apple;
     /// <summary>
-    /// Gets or sets priority.
+    /// Gets the priority value that forms part of the apple chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The priority value exposed by <see cref="AppleChatProtocolProfile"/>.</value>
     public int Priority => 70;
 
     /// <summary>
-    /// Runs the matches model operation.
+    /// Performs matches model for <see cref="AppleChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding apple chat protocol profile workflow.
     /// </summary>
+    /// <param name="modelName">Model name value supplied to the apple chat protocol profile operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool MatchesModel(string modelName)
     {
         try
@@ -358,8 +411,10 @@ public sealed class AppleChatProtocolProfile(
     }
 
     /// <summary>
-    /// Normalizes thinking.
+    /// Normalizes thinking for <see cref="AppleChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding apple chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the apple chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeThinking(string value) {
         try
         {
@@ -373,8 +428,10 @@ public sealed class AppleChatProtocolProfile(
         }
     }
     /// <summary>
-    /// Normalizes content.
+    /// Normalizes content for <see cref="AppleChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding apple chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the apple chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeContent(string value) {
         try
         {
@@ -389,8 +446,10 @@ public sealed class AppleChatProtocolProfile(
     }
 
     /// <summary>
-    /// Runs the normalize operation.
+    /// Performs normalize for <see cref="AppleChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding apple chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the apple chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Normalize(string value)
     {
         try
@@ -408,24 +467,30 @@ public sealed class AppleChatProtocolProfile(
 }
 
 /// <summary>
-/// Represents a think tags chat protocol profile.
+/// Represents a think tags chat protocol profile application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="text">Chat protocol text service dependency used by the think tags chat protocol profile workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ThinkTagsChatProtocolProfile(
     IChatProtocolTextService text,
     ILogger<ThinkTagsChatProtocolProfile> logger) : IChatProtocolProfile
 {
     /// <summary>
-    /// Gets or sets protocol.
+    /// Gets the protocol value that forms part of the think tags chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The protocol value exposed by <see cref="ThinkTagsChatProtocolProfile"/>.</value>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.ThinkTags;
     /// <summary>
-    /// Gets or sets priority.
+    /// Gets the priority value that forms part of the think tags chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The priority value exposed by <see cref="ThinkTagsChatProtocolProfile"/>.</value>
     public int Priority => 50;
 
     /// <summary>
-    /// Runs the matches model operation.
+    /// Performs matches model for <see cref="ThinkTagsChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding think tags chat protocol profile workflow.
     /// </summary>
+    /// <param name="modelName">Model name value supplied to the think tags chat protocol profile operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool MatchesModel(string modelName)
     {
         try
@@ -442,8 +507,10 @@ public sealed class ThinkTagsChatProtocolProfile(
     }
 
     /// <summary>
-    /// Normalizes thinking.
+    /// Normalizes thinking for <see cref="ThinkTagsChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding think tags chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the think tags chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeThinking(string value)
     {
         try
@@ -459,8 +526,10 @@ public sealed class ThinkTagsChatProtocolProfile(
     }
 
     /// <summary>
-    /// Normalizes content.
+    /// Normalizes content for <see cref="ThinkTagsChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding think tags chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the think tags chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeContent(string value)
     {
         try
@@ -477,23 +546,28 @@ public sealed class ThinkTagsChatProtocolProfile(
 }
 
 /// <summary>
-/// Represents a plain text chat protocol profile.
+/// Represents a plain text chat protocol profile application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class PlainTextChatProtocolProfile(
     ILogger<PlainTextChatProtocolProfile> logger) : IChatProtocolProfile
 {
     /// <summary>
-    /// Gets or sets protocol.
+    /// Gets the protocol value that forms part of the plain text chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The protocol value exposed by <see cref="PlainTextChatProtocolProfile"/>.</value>
     public ChatResponseProtocol Protocol => ChatResponseProtocol.PlainText;
     /// <summary>
-    /// Gets or sets priority.
+    /// Gets the priority value that forms part of the plain text chat protocol profile state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The priority value exposed by <see cref="PlainTextChatProtocolProfile"/>.</value>
     public int Priority => 0;
 
     /// <summary>
-    /// Runs the matches model operation.
+    /// Performs matches model for <see cref="PlainTextChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding plain text chat protocol profile workflow.
     /// </summary>
+    /// <param name="modelName">Model name value supplied to the plain text chat protocol profile operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool MatchesModel(string modelName)
     {
         try
@@ -509,8 +583,10 @@ public sealed class PlainTextChatProtocolProfile(
     }
 
     /// <summary>
-    /// Normalizes thinking.
+    /// Normalizes thinking for <see cref="PlainTextChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding plain text chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the plain text chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeThinking(string value)
     {
         try
@@ -526,8 +602,10 @@ public sealed class PlainTextChatProtocolProfile(
     }
 
     /// <summary>
-    /// Normalizes content.
+    /// Normalizes content for <see cref="PlainTextChatProtocolProfile"/>, keeping the operation consistent with the state and invariants of the surrounding plain text chat protocol profile workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the plain text chat protocol profile operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeContent(string value)
     {
         try

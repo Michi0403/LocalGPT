@@ -17,6 +17,13 @@ namespace LocalGPT.Services;
 /// destructive schema replacement: old databases receive missing records, while user-edited exposure and
 /// confirmation settings survive descriptor refreshes and application upgrades.
 /// </summary>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the DevExpress AI function catalog workflow to provide the corresponding application capability.</param>
+/// <param name="synchronizationGate">Synchronization gate value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+/// <param name="databaseInitialization">Database initialization service dependency used by the DevExpress AI function catalog workflow to provide the corresponding application capability.</param>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the DevExpress AI function catalog workflow to provide the corresponding application capability.</param>
+/// <param name="registry">Devexpress ai function registry dependency used by the DevExpress AI function catalog workflow to provide the corresponding application capability.</param>
+/// <param name="addonManifests">Organic addon manifest service dependency used by the DevExpress AI function catalog workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabulary,
     DxAiFunctionCatalogSynchronizationGate synchronizationGate,
     IDatabaseInitializationService databaseInitialization,
@@ -25,16 +32,24 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     IOrganicAddonManifestService addonManifests,
     ILogger<DxAiFunctionCatalogService> logger) : IDxAiFunctionCatalogService
 {
+    /// <summary>
+    /// Defines the data type constant used by <see cref="DxAiFunctionCatalogService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string DataType = "DxAiFunctionCatalogEntry";
+    /// <summary>
+    /// Defines the storage name prefix constant used by <see cref="DxAiFunctionCatalogService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string StorageNamePrefix = "DxFunctionCatalog.";
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="DxAiFunctionCatalogService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     /// <summary>
-    /// Runs the synchronize async operation.
+    /// Performs synchronize as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> SynchronizeAsync(CancellationToken cancellationToken = default)
     {
         await databaseInitialization.InitializeAsync(cancellationToken).ConfigureAwait(false);
@@ -65,8 +80,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 
     /// <summary>
-    /// Runs the synchronize core async operation.
+    /// Performs synchronize core as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> SynchronizeCoreAsync(CancellationToken cancellationToken)
     {
     try
@@ -221,8 +238,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Determines whether system variable name conflict.
+    /// Determines whether system variable name conflict as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="exception">Exception value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsSystemVariableNameConflict(DbUpdateException exception)
     {
     try
@@ -253,8 +272,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Gets entries async.
+    /// Retrieves entries as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> GetEntriesAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -276,8 +297,11 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Gets entry async.
+    /// Retrieves entry as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="catalogKey">Catalog key value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function catalog entry produced by the operation.</returns>
     public async Task<DxAiFunctionCatalogEntry?> GetEntryAsync(string catalogKey, CancellationToken cancellationToken = default)
     {
     try
@@ -298,8 +322,11 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Gets by function name async.
+    /// Retrieves by function name as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="functionName">Function name value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function catalog entry produced by the operation.</returns>
     public async Task<DxAiFunctionCatalogEntry?> GetByFunctionNameAsync(string functionName, CancellationToken cancellationToken = default)
     {
     try
@@ -320,8 +347,11 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Saves policy async.
+    /// Persists policy as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function catalog entry produced by the operation.</returns>
     public async Task<DxAiFunctionCatalogEntry> SavePolicyAsync(DxAiFunctionCatalogSaveRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -384,8 +414,11 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Gets exposed to peer async.
+    /// Retrieves exposed to peer as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> GetExposedToPeerAsync(string peerId, CancellationToken cancellationToken = default)
     {
     try
@@ -408,8 +441,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Runs the discover entries operation.
+    /// Discovers entries as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<DxAiFunctionCatalogEntry> DiscoverEntries()
     {
     try
@@ -440,8 +474,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Creates DevExpress entry.
+    /// Creates DevExpress entry as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="function">Function value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function catalog entry produced by the operation.</returns>
     private DxAiFunctionCatalogEntry CreateDxEntry(DxaichatFunctionInfo function)
     {
     try
@@ -482,8 +518,9 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Runs the discover public service methods operation.
+    /// Discovers public service methods as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IEnumerable<DxAiFunctionCatalogEntry> DiscoverPublicServiceMethods()
     {
         var assembly = typeof(Program).Assembly;
@@ -534,8 +571,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     }
 
     /// <summary>
-    /// Determines whether supported public method.
+    /// Determines whether supported public method as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="method">Method value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsSupportedPublicMethod(MethodInfo method) {
     try
     {
@@ -554,8 +593,11 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Resolves contract.
+    /// Resolves contract as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="implementation">Implementation value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <param name="method">Method value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The type produced by the operation.</returns>
     private Type ResolveContract(Type implementation, MethodInfo method)
     {
     try
@@ -579,8 +621,11 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Runs the same signature operation.
+    /// Performs same signature as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="left">Left value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <param name="right">Right value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool SameSignature(MethodInfo left, MethodInfo right)
     {
     try
@@ -602,8 +647,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Builds parameter schema.
+    /// Builds parameter schema as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="method">Method value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildParameterSchema(MethodInfo method)
     {
     try
@@ -636,8 +683,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Runs the JSON type operation.
+    /// Performs JSON type as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="type">Type value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string JsonType(Type type)
     {
     try
@@ -660,8 +709,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Runs the infer read only operation.
+    /// Performs infer read only as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="method">Method value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool InferReadOnly(MethodInfo method)
     {
     try
@@ -685,8 +736,12 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Runs the infer editor operation.
+    /// Performs infer editor as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <param name="schema">Schema value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <param name="requiresConfirmation">Value indicating whether requires confirmation should apply to this operation.</param>
+    /// <returns>The one wire interaction editor produced by the operation.</returns>
     private OneWireInteractionEditor InferEditor(string name, string schema, bool requiresConfirmation)
     {
     try
@@ -707,8 +762,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Runs the preserve policy and refresh descriptor operation.
+    /// Performs preserve policy and refresh descriptor as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="stored">Stored value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <param name="current">Current value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
     private void PreservePolicyAndRefreshDescriptor(DxAiFunctionCatalogEntry stored, DxAiFunctionCatalogEntry current)
     {
     try
@@ -766,8 +823,11 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Reads entries async.
+    /// Reads entries as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<List<DxAiFunctionCatalogEntry>> ReadEntriesAsync(LocalGptMemoryDbContext db, CancellationToken cancellationToken)
     {
     try
@@ -799,8 +859,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Runs the select canonical catalog row operation.
+    /// Performs select canonical catalog row as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="rows">Entry) dependency used by the DevExpress AI function catalog workflow to provide the corresponding application capability.</param>
+    /// <returns>The system variable variable DevExpress AI function catalog entry entry produced by the operation.</returns>
     private (SystemVariable Variable, DxAiFunctionCatalogEntry Entry) SelectCanonicalCatalogRow(
         IEnumerable<(SystemVariable Variable, DxAiFunctionCatalogEntry Entry)> rows)
     {
@@ -817,8 +879,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 
 
     /// <summary>
-    /// Gets semantic identity.
+    /// Retrieves semantic identity as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="entry">Entry value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetSemanticIdentity(DxAiFunctionCatalogEntry entry)
     {
     try
@@ -848,8 +912,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Gets stored type name.
+    /// Retrieves stored type name as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="assemblyQualifiedTypeName">Assembly qualified type name value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetStoredTypeName(string? assemblyQualifiedTypeName)
     {
     try
@@ -871,8 +937,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Gets stable type identity.
+    /// Retrieves stable type identity as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="type">Type value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetStableTypeIdentity(Type type)
     {
     try
@@ -904,8 +972,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Runs the deserialize operation.
+    /// Performs deserialize as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function catalog entry produced by the operation.</returns>
     private DxAiFunctionCatalogEntry? Deserialize(string value)
     {
     try
@@ -925,8 +995,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Normalizes peers JSON.
+    /// Normalizes peers JSON as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="json">Json value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizePeersJson(string json)
     {
     try
@@ -951,8 +1023,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Builds storage name.
+    /// Builds storage name as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="catalogKey">Catalog key value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildStorageName(string catalogKey)
     {
     try
@@ -972,8 +1046,10 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Computes descriptor hash.
+    /// Computes descriptor hash as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="entry">Entry value supplied to the DevExpress AI function catalog operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ComputeDescriptorHash(DxAiFunctionCatalogEntry entry)
     {
     try
@@ -995,15 +1071,19 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
 }
 
 /// <summary>
-/// Provides DevExpress ai function catalog hosted service operations.
+/// Coordinates DevExpress AI function catalog behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="scopeFactory">Service scope factory dependency used by the DevExpress AI function catalog workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DxAiFunctionCatalogHostedService(
     IServiceScopeFactory scopeFactory,
     ILogger<DxAiFunctionCatalogHostedService> logger) : IHostedService
 {
     /// <summary>
-    /// Starts async.
+    /// Performs start as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
@@ -1020,8 +1100,10 @@ public sealed class DxAiFunctionCatalogHostedService(
     }
 
     /// <summary>
-    /// Stops async.
+    /// Performs stop as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public Task StopAsync(CancellationToken cancellationToken) {
     try
     {

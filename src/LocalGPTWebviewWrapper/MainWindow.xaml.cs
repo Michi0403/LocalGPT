@@ -13,11 +13,15 @@ namespace WebView2_WinUI3_Sample
     /// </summary>
     public sealed partial class MainWindow : Window
     {
+        /// <summary>
+        /// Stores the internal base URL state used by <see cref="MainWindow"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly string _baseUrl;
 
         /// <summary>
-        /// Runs the main window operation.
+        /// Initializes a new <see cref="MainWindow"/> instance and captures the dependencies or initial state required by its main window workflow.
         /// </summary>
+        /// <param name="baseUrl">Base url value supplied to the main window operation and used when producing its result.</param>
         public MainWindow(string baseUrl)
         {
             InitializeComponent();
@@ -37,16 +41,19 @@ namespace WebView2_WinUI3_Sample
         }
 
         /// <summary>
-        /// Runs the status update operation.
+        /// Performs status update for <see cref="MainWindow"/>, keeping the operation consistent with the state and invariants of the surrounding main window workflow.
         /// </summary>
+        /// <param name="message">Message value supplied to the main window operation and used when producing its result.</param>
         private void StatusUpdate(string message)
         {
             Debug.WriteLine(message);
         }
 
         /// <summary>
-        /// Runs the web view2 core web view2 initialized operation.
+        /// Performs web view2 core web view2 initialized for <see cref="MainWindow"/>, keeping the operation consistent with the state and invariants of the surrounding main window workflow.
         /// </summary>
+        /// <param name="sender">Sender value supplied to the main window operation and used when producing its result.</param>
+        /// <param name="args">Args value supplied to the main window operation and used when producing its result.</param>
         private void WebView2_CoreWebView2Initialized(WebView2 sender, CoreWebView2InitializedEventArgs args)
         {
             if (args.Exception != null)
@@ -75,8 +82,10 @@ namespace WebView2_WinUI3_Sample
 
 
         /// <summary>
-        /// Runs the core web view2 web message received operation.
+        /// Performs core web view2 web message received for <see cref="MainWindow"/>, keeping the operation consistent with the state and invariants of the surrounding main window workflow.
         /// </summary>
+        /// <param name="sender">Sender value supplied to the main window operation and used when producing its result.</param>
+        /// <param name="args">Args value supplied to the main window operation and used when producing its result.</param>
         private void CoreWebView2_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
         {
             try
@@ -92,8 +101,10 @@ namespace WebView2_WinUI3_Sample
         }
 
         /// <summary>
-        /// Runs the web view2 navigation completed operation.
+        /// Performs web view2 navigation completed for <see cref="MainWindow"/>, keeping the operation consistent with the state and invariants of the surrounding main window workflow.
         /// </summary>
+        /// <param name="sender">Sender value supplied to the main window operation and used when producing its result.</param>
+        /// <param name="args">Args value supplied to the main window operation and used when producing its result.</param>
         private void WebView2_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
         {
             StatusUpdate("Navigation complete");
@@ -103,8 +114,11 @@ namespace WebView2_WinUI3_Sample
         }
 
         /// <summary>
-        /// Attempts to create URI.
+        /// Attempts to create URI for <see cref="MainWindow"/>, keeping the operation consistent with the state and invariants of the surrounding main window workflow.
         /// </summary>
+        /// <param name="potentialUri">Potential uri value supplied to the main window operation and used when producing its result.</param>
+        /// <param name="result">Result value supplied to the main window operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private bool TryCreateUri(string potentialUri, out Uri? result)
         {
             StatusUpdate("TryCreateUri");
@@ -126,16 +140,19 @@ namespace WebView2_WinUI3_Sample
         }
 
         /// <summary>
-        /// Sets title.
+        /// Sets title for <see cref="MainWindow"/>, keeping the operation consistent with the state and invariants of the surrounding main window workflow.
         /// </summary>
+        /// <param name="webView2">Web view2 value supplied to the main window operation and used when producing its result.</param>
         private void SetTitle(WebView2? webView2 = null)
         {
             Title = $"LocalGPT by Michi0403";
         }
 
         /// <summary>
-        /// Gets web view2 version.
+        /// Retrieves web view2 version for <see cref="MainWindow"/>, keeping the operation consistent with the state and invariants of the surrounding main window workflow.
         /// </summary>
+        /// <param name="webView2">Web view2 value supplied to the main window operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string GetWebView2Version(WebView2 webView2)
         {
             var runtimeVersion = webView2.CoreWebView2.Environment.BrowserVersionString;

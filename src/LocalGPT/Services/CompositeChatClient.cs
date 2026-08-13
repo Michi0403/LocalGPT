@@ -8,48 +8,95 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a composite chat client.
+/// Represents a composite chat application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 public class CompositeChatClient : IChatClient
 {
       /// <summary>
-      /// Gets or sets available chat clients.
+      /// Gets the available chat clients collection maintained or exposed by this composite chat instance for downstream processing.
       /// </summary>
+      /// <value>The available chat clients value exposed by <see cref="CompositeChatClient"/>.</value>
       public List<ChatClientSession> AvailableChatClients { get; }
     /// <summary>
-    /// Gets or sets selected session.
+    /// Gets or sets the selected session value that forms part of the composite chat state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The selected session value exposed by <see cref="CompositeChatClient"/>.</value>
     public ChatClientSession? SelectedSession { get; set; }
     /// <summary>
-    /// Gets or sets locked session name.
+    /// Gets or sets the locked session name value that forms part of the composite chat state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The locked session name value exposed by <see cref="CompositeChatClient"/>.</value>
     public string? LockedSessionName { get; set; }
     /// <summary>
-    /// Gets or sets forced max output tokens.
+    /// Gets or sets the forced max output tokens value that forms part of the composite chat state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The forced max output tokens value exposed by <see cref="CompositeChatClient"/>.</value>
     public int? ForcedMaxOutputTokens { get; set; }
     /// <summary>
-    /// Gets or sets forced max prompt characters.
+    /// Gets or sets the forced max prompt characters value that forms part of the composite chat state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The forced max prompt characters value exposed by <see cref="CompositeChatClient"/>.</value>
     public int? ForcedMaxPromptCharacters { get; set; }
     /// <summary>
-    /// Gets or sets suppress bootstrap context.
+    /// Gets or sets a value indicating whether suppress bootstrap context applies to the composite chat state.
     /// </summary>
+    /// <value>The suppress bootstrap context value exposed by <see cref="CompositeChatClient"/>.</value>
     public bool SuppressBootstrapContext { get; set; }
+    /// <summary>
+    /// Stores the logger used by <see cref="CompositeChatClient"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger _logger;
+    /// <summary>
+    /// Stores the AI feature report service dependency used by <see cref="CompositeChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IAiFeatureReportService? _featureReportService;
+    /// <summary>
+    /// Stores the AI context bootstrap service dependency used by <see cref="CompositeChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IAiContextBootstrapService? _bootstrapService;
+    /// <summary>
+    /// Stores the council knowledge service dependency used by <see cref="CompositeChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly ICouncilKnowledgeService? _knowledgeService;
+    /// <summary>
+    /// Stores the chat upload workspace service dependency used by <see cref="CompositeChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IChatUploadWorkspaceService? _chatUploadWorkspaces;
+    /// <summary>
+    /// Stores the prompt config service dependency used by <see cref="CompositeChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IPromptConfigService? _promptConfigService;
+    /// <summary>
+    /// Stores the variable store service dependency used by <see cref="CompositeChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IVariableStoreService? _variableStoreService;
+    /// <summary>
+    /// Stores the system variable definition service dependency used by <see cref="CompositeChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly ISystemVariableDefinitionService _systemVariables;
+    /// <summary>
+    /// Stores the council runtime service dependency used by <see cref="CompositeChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly CouncilRuntimeService _councilRuntime;
+    /// <summary>
+    /// Stores the council text service dependency used by <see cref="CompositeChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly CouncilTextService _councilText;
 
     /// <summary>
-    /// Runs the composite chat client operation.
+    /// Initializes a new <see cref="CompositeChatClient"/> instance and captures the dependencies or initial state required by its composite chat workflow.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="featureReportService">Ai feature report service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="bootstrapService">Ai context bootstrap service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="knowledgeService">Council knowledge service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="chatUploadWorkspaces">Chat upload workspace service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="promptConfigService">Prompt config service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="variableStoreService">Variable store service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="systemVariables">System variable definition service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="councilText">Council text service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="chatClients">Chat clients value supplied to the composite chat operation and used when producing its result.</param>
     public CompositeChatClient(
         ILogger logger,
         IAiFeatureReportService? featureReportService,
@@ -79,8 +126,12 @@ public class CompositeChatClient : IChatClient
     }
 
     /// <summary>
-    /// Gets response async.
+    /// Retrieves response for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="messages">Chat message dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The chat response produced by the operation.</returns>
     public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         CancellationToken cancellationToken = new CancellationToken())
     {
@@ -107,8 +158,12 @@ public class CompositeChatClient : IChatClient
     }
 
     /// <summary>
-    /// Gets streaming response async.
+    /// Retrieves streaming response for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="messages">Chat message dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The i async enumerable chat response update produced by the operation.</returns>
     public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
         CancellationToken cancellationToken = new CancellationToken())
     {
@@ -129,8 +184,10 @@ public class CompositeChatClient : IChatClient
     }
 
     /// <summary>
-    /// Creates failure response.
+    /// Creates failure response for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="message">Message value supplied to the composite chat operation and used when producing its result.</param>
+    /// <returns>The chat response produced by the operation.</returns>
     private ChatResponse CreateFailureResponse(string message) {
     try
     {
@@ -147,8 +204,10 @@ public class CompositeChatClient : IChatClient
 }
 
     /// <summary>
-    /// Creates failure updates.
+    /// Creates failure updates for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="message">Message value supplied to the composite chat operation and used when producing its result.</param>
+    /// <returns>The i async enumerable chat response update produced by the operation.</returns>
     private async IAsyncEnumerable<ChatResponseUpdate> CreateFailureUpdates(string message)
     {
         yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(message)]);
@@ -156,8 +215,10 @@ public class CompositeChatClient : IChatClient
     }
 
     /// <summary>
-    /// Determines whether connection refused.
+    /// Determines whether connection refused for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="exception">Exception value supplied to the composite chat operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsConnectionRefused(Exception exception)
     {
     try
@@ -185,7 +246,7 @@ public class CompositeChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the dispose operation.
+    /// Releases resources owned by <see cref="CompositeChatClient"/> and leaves the composite chat workflow in a safely disposed state.
     /// </summary>
     public void Dispose()
     {
@@ -213,8 +274,11 @@ public class CompositeChatClient : IChatClient
 
     }
     /// <summary>
-    /// Gets service.
+    /// Retrieves service for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="serviceType">Service type value supplied to the composite chat operation and used when producing its result.</param>
+    /// <param name="serviceKey">Service key value supplied to the composite chat operation and used when producing its result.</param>
+    /// <returns>The object produced by the operation.</returns>
     public object? GetService(Type serviceType, object? serviceKey = null)
     {
     try
@@ -237,8 +301,11 @@ public class CompositeChatClient : IChatClient
 
 
     /// <summary>
-    /// Applies default options async.
+    /// Applies default options for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The chat options produced by the operation.</returns>
     private async Task<ChatOptions> ApplyDefaultOptionsAsync(
         ChatOptions? options,
         CancellationToken cancellationToken)
@@ -277,8 +344,9 @@ public class CompositeChatClient : IChatClient
     }
 
     /// <summary>
-    /// Resolves selected session.
+    /// Resolves selected session for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <returns>The chat client session produced by the operation.</returns>
     private ChatClientSession? ResolveSelectedSession()
     {
     try
@@ -313,8 +381,13 @@ public class CompositeChatClient : IChatClient
 }
 
     /// <summary>
-    /// Gets response and report async.
+    /// Retrieves response and report for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="session">Session value supplied to the composite chat operation and used when producing its result.</param>
+    /// <param name="messages">Chat message dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The chat response produced by the operation.</returns>
     private async Task<ChatResponse> GetResponseAndReportAsync(
         ChatClientSession session,
         IEnumerable<ChatMessage> messages,
@@ -345,8 +418,13 @@ public class CompositeChatClient : IChatClient
     }
 
     /// <summary>
-    /// Gets streaming response and report async.
+    /// Retrieves streaming response and report for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="session">Session value supplied to the composite chat operation and used when producing its result.</param>
+    /// <param name="messages">Chat message dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The i async enumerable chat response update produced by the operation.</returns>
     private async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAndReportAsync(
         ChatClientSession session,
         IEnumerable<ChatMessage> messages,
@@ -479,8 +557,12 @@ public class CompositeChatClient : IChatClient
     }
 
     /// <summary>
-    /// Writes missing feature report if needed async.
+    /// Writes missing feature report if needed for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="source">Source value supplied to the composite chat operation and used when producing its result.</param>
+    /// <param name="responseText">Response text value supplied to the composite chat operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task WriteMissingFeatureReportIfNeededAsync(string source, string responseText, CancellationToken cancellationToken)
     {
         try
@@ -504,8 +586,12 @@ public class CompositeChatClient : IChatClient
     }
 
     /// <summary>
-    /// Writes knowledge requests if needed async.
+    /// Writes knowledge requests if needed for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="source">Source value supplied to the composite chat operation and used when producing its result.</param>
+    /// <param name="responseText">Response text value supplied to the composite chat operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task WriteKnowledgeRequestsIfNeededAsync(string source, string responseText, CancellationToken cancellationToken)
     {
         try
@@ -533,8 +619,11 @@ public class CompositeChatClient : IChatClient
 
 
     /// <summary>
-    /// Adds bootstrap context async.
+    /// Adds bootstrap context for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="messages">Chat message dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<ChatMessage>> AddBootstrapContextAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
     {
         try
@@ -593,8 +682,11 @@ public class CompositeChatClient : IChatClient
 
 
     /// <summary>
-    /// Saves uploaded message content async.
+    /// Persists uploaded message content for <see cref="CompositeChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding composite chat workflow.
     /// </summary>
+    /// <param name="messages">Chat message dependency used by the composite chat workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> SaveUploadedMessageContentAsync(
         IReadOnlyList<ChatMessage> messages,
         CancellationToken cancellationToken)

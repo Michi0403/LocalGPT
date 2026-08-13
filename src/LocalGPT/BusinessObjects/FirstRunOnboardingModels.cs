@@ -18,10 +18,16 @@ public sealed record OnboardingInstallerProfile(
     IReadOnlyList<string> Models,
     IReadOnlyList<string> Repositories)
 {
-    /// <summary>Gets the comma-separated recommended model labels for display.</summary>
+    /// <summary>
+    /// Gets the model summary value that forms part of the onboarding installer profile state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The model summary value exposed by <see cref="OnboardingInstallerProfile"/>.</value>
     public string ModelSummary => string.Join(", ", Models);
 
-    /// <summary>Gets the comma-separated recommended repository labels for display.</summary>
+    /// <summary>
+    /// Gets the repository summary value that forms part of the onboarding installer profile state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The repository summary value exposed by <see cref="OnboardingInstallerProfile"/>.</value>
     public string RepositorySummary => string.Join(", ", Repositories);
 }
 
@@ -51,42 +57,71 @@ public sealed record CouncilQuickStart(
 [DocumentationUpdated("2.1.20")]
 public sealed class FirstRunOnboardingStatus
 {
-    /// <summary>Gets or sets the LocalGPT version that produced the status.</summary>
+    /// <summary>
+    /// Gets or sets the version value that forms part of the first run onboarding status state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The version value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public string Version { get; set; } = string.Empty;
 
     /// <summary>Gets or sets whether the user has dismissed the first-run guide.</summary>
+    /// <value>The is completed value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public bool IsCompleted { get; set; }
 
     /// <summary>Gets or sets whether at least one supported local AI endpoint answered the bounded discovery probe.</summary>
+    /// <value>The local AI reachable value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public bool LocalAiReachable { get; set; }
 
-    /// <summary>Gets or sets the distinct locally discovered model names.</summary>
+    /// <summary>
+    /// Gets or sets the installed models collection maintained or exposed by this first run onboarding status instance for downstream processing.
+    /// </summary>
+    /// <value>The installed models value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public List<string> InstalledModels { get; set; } = [];
 
     /// <summary>Gets or sets the currently available seeded or user-owned council team keys.</summary>
+    /// <value>The council team keys value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public List<string> CouncilTeamKeys { get; set; } = [];
 
-    /// <summary>Gets or sets the currently available model-preset names.</summary>
+    /// <summary>
+    /// Gets or sets the model preset names collection maintained or exposed by this first run onboarding status instance for downstream processing.
+    /// </summary>
+    /// <value>The model preset names value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public List<string> ModelPresetNames { get; set; } = [];
 
     /// <summary>Gets or sets installer profiles that remain user-triggered and reviewable.</summary>
+    /// <value>The installer profiles value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public List<OnboardingInstallerProfile> InstallerProfiles { get; set; } = [];
 
     /// <summary>Gets or sets direct Chat quick starts for common council workloads.</summary>
+    /// <value>The quick starts value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public List<CouncilQuickStart> QuickStarts { get; set; } = [];
 
-    /// <summary>Gets or sets warnings collected while optional connectivity discovery ran.</summary>
+    /// <summary>
+    /// Gets or sets the warnings collection maintained or exposed by this first run onboarding status instance for downstream processing.
+    /// </summary>
+    /// <value>The warnings value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public List<string> Warnings { get; set; } = [];
 
-    /// <summary>Gets the LocalGPT installer route.</summary>
+    /// <summary>
+    /// Gets the installer route value that forms part of the first run onboarding status state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The installer route value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public string InstallerRoute => "/install";
 
-    /// <summary>Gets the LocalGPT council-team editor route.</summary>
+    /// <summary>
+    /// Gets the council teams route value that forms part of the first run onboarding status state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The council teams route value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public string CouncilTeamsRoute => "/council-teams";
 
-    /// <summary>Gets the LocalGPT generated-documentation route.</summary>
+    /// <summary>
+    /// Gets the documentation route value that forms part of the first run onboarding status state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The documentation route value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public string DocumentationRoute => "/help";
 
-    /// <summary>Gets the LocalGPT Chat route.</summary>
+    /// <summary>
+    /// Gets the chat route value that forms part of the first run onboarding status state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The chat route value exposed by <see cref="FirstRunOnboardingStatus"/>.</value>
     public string ChatRoute => "/chat";
 }

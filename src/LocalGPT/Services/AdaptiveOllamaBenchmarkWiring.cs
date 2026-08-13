@@ -11,6 +11,10 @@ namespace LocalGPT.Services;
 /// Runs a bounded, user-approved benchmark against models already installed in the configured local
 /// Ollama runtime. It never pulls models, changes global Ollama state, or overwrites an existing preset.
 /// </summary>
+/// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+/// <param name="hardwareInventory">Hardware inventory service dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+/// <param name="modelPresets">Model preset service dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class AdaptiveOllamaBenchmarkWiring(
     IOptionsMonitor<global::LocalGPT.BusinessObjects.ConfigurationRoot> configuration,
     IHardwareInventoryService hardwareInventory,
@@ -18,18 +22,22 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     ILogger<AdaptiveOllamaBenchmarkWiring> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="AdaptiveOllamaBenchmarkWiring"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web);
 
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the adaptive Ollama benchmark wiring state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="AdaptiveOllamaBenchmarkWiring"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.models.benchmark.autotune", "POST", "/api/dxai/functions/localgpt.models.benchmark.autotune/invoke",
         "Benchmarks already-installed local Ollama models with bounded peer-authored and deterministic tasks, stops tuning a model when the next profile improves by less than the configured threshold, and optionally saves a new user-approved model preset.",
         "Optional endpoint, modelNames, maxModels, maxProfilesPerModel, maxTasks, maxSecondsPerCall, improvementThresholdPercent, includePeerAuthoredTask, persistPreset, presetName, makeDefault, maximumContextTokens and maximumOutputTokens.",
         "Calls only a loopback Ollama endpoint, never downloads models, never modifies an existing preset, and requires fresh human confirmation before the benchmark or preset save starts.",
+        /// <summary>
+        /// Stores the internal true state used by <see cref="AdaptiveOllamaBenchmarkWiring"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: false, Source: "DIHandler",
         ParameterSchemaJson: """
@@ -57,8 +65,11 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         ApprovalRequiredBeforeCompletion: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -107,8 +118,10 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Runs the bind options operation.
+    /// Performs bind options for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <returns>The adaptive Ollama benchmark options produced by the operation.</returns>
     private AdaptiveOllamaBenchmarkOptions BindOptions(JsonElement parameters)
     {
         try
@@ -149,8 +162,12 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Runs the run empirical benchmark async operation.
+    /// Performs run empirical benchmark for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The adaptive Ollama benchmark report produced by the operation.</returns>
     private async Task<AdaptiveOllamaBenchmarkReport> RunEmpiricalBenchmarkAsync(
         AdaptiveOllamaBenchmarkOptions options,
         bool userConfirmed,
@@ -254,8 +271,10 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Resolves loopback endpoint.
+    /// Resolves loopback endpoint for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="requestedEndpoint">Requested endpoint value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <returns>The URI produced by the operation.</returns>
     private Uri ResolveLoopbackEndpoint(string requestedEndpoint)
     {
         try
@@ -285,8 +304,11 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Reads installed models async.
+    /// Reads installed models for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="http">Http client dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<List<OllamaBenchmarkModelInfo>> ReadInstalledModelsAsync(
         HttpClient http,
         CancellationToken cancellationToken)
@@ -317,8 +339,11 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Runs the select models operation.
+    /// Performs select models for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="installed">Ollama benchmark model info dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<OllamaBenchmarkModelInfo> SelectModels(
         IReadOnlyList<OllamaBenchmarkModelInfo> installed,
         AdaptiveOllamaBenchmarkOptions options)
@@ -346,8 +371,10 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Builds deterministic tasks.
+    /// Builds deterministic tasks for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="maximumTasks">Maximum tasks value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<AdaptiveOllamaBenchmarkTask> BuildDeterministicTasks(int maximumTasks)
     {
         try
@@ -386,8 +413,13 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Creates peer authored task async.
+    /// Creates peer authored task for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="http">Http client dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="author">Author value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> CreatePeerAuthoredTaskAsync(
         HttpClient http,
         OllamaBenchmarkModelInfo author,
@@ -428,8 +460,11 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Builds profiles.
+    /// Builds profiles for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="hardware">One wire hardware descriptor dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<AdaptiveOllamaTuningProfile> BuildProfiles(
         IReadOnlyList<OneWireHardwareDescriptor> hardware,
         AdaptiveOllamaBenchmarkOptions options)
@@ -497,8 +532,15 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Runs the benchmark model async operation.
+    /// Performs benchmark model for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="http">Http client dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="model">Model value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="profiles">Adaptive ollama tuning profile dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="tasks">Adaptive ollama benchmark task dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The adaptive Ollama benchmark model result produced by the operation.</returns>
     private async Task<AdaptiveOllamaBenchmarkModelResult> BenchmarkModelAsync(
         HttpClient http,
         OllamaBenchmarkModelInfo model,
@@ -561,8 +603,15 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Runs the benchmark profile async operation.
+    /// Performs benchmark profile for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="http">Http client dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="modelName">Model name value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="profile">Profile value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="tasks">Adaptive ollama benchmark task dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="maxSecondsPerCall">Max seconds per call value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The adaptive Ollama benchmark profile result produced by the operation.</returns>
     private async Task<AdaptiveOllamaBenchmarkProfileResult> BenchmarkProfileAsync(
         HttpClient http,
         string modelName,
@@ -615,8 +664,15 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Runs the benchmark task async operation.
+    /// Performs benchmark task for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="http">Http client dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="modelName">Model name value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="profile">Profile value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="task">Task value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="maxSecondsPerCall">Max seconds per call value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The adaptive Ollama benchmark task result produced by the operation.</returns>
     private async Task<AdaptiveOllamaBenchmarkTaskResult> BenchmarkTaskAsync(
         HttpClient http,
         string modelName,
@@ -664,8 +720,15 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Runs the generate async operation.
+    /// Performs generate for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="http">Http client dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="modelName">Model name value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="prompt">Prompt value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="profile">Profile value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="maxSecondsPerCall">Max seconds per call value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The Ollama benchmark generate response produced by the operation.</returns>
     private async Task<OllamaBenchmarkGenerateResponse> GenerateAsync(
         HttpClient http,
         string modelName,
@@ -719,8 +782,11 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Runs the score quality operation.
+    /// Performs score quality for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="response">Response value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="task">Task value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <returns>The double produced by the operation.</returns>
     private double ScoreQuality(string response, AdaptiveOllamaBenchmarkTask task)
     {
         try
@@ -752,8 +818,10 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Determines whether JSON response.
+    /// Determines whether JSON response for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="response">Response value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsJsonResponse(string response)
     {
         try
@@ -781,8 +849,14 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Saves benchmark preset async.
+    /// Persists benchmark preset for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="report">Report value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <param name="hardware">One wire hardware descriptor dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council model preset produced by the operation.</returns>
     private async Task<CouncilModelPreset> SaveBenchmarkPresetAsync(
         AdaptiveOllamaBenchmarkReport report,
         IReadOnlyList<OneWireHardwareDescriptor> hardware,
@@ -859,8 +933,10 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Builds hardware summary.
+    /// Builds hardware summary for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="hardware">One wire hardware descriptor dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildHardwareSummary(IReadOnlyList<OneWireHardwareDescriptor> hardware)
     {
         try
@@ -880,8 +956,10 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
     }
 
     /// <summary>
-    /// Runs the display model name operation.
+    /// Performs display model name for <see cref="AdaptiveOllamaBenchmarkWiring"/>, keeping the operation consistent with the state and invariants of the surrounding adaptive Ollama benchmark wiring workflow.
     /// </summary>
+    /// <param name="model">Model value supplied to the adaptive Ollama benchmark wiring operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string DisplayModelName(OllamaBenchmarkModelInfo model)
     {
         try

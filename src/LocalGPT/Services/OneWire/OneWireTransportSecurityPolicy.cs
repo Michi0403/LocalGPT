@@ -5,13 +5,16 @@ using System.Net;
 namespace LocalGPT.Services.OneWire;
 
 /// <summary>
-/// Represents an one wire transport security policy.
+/// Represents an one wire transport security policy application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireTransportSecurityPolicy(ILogger<OneWireTransportSecurityPolicy> logger) : IOneWireTransportSecurityPolicy
 {
     /// <summary>
-    /// Runs the requires protected transport operation.
+    /// Performs requires protected transport for <see cref="OneWireTransportSecurityPolicy"/>, keeping the operation consistent with the state and invariants of the surrounding one wire transport security policy workflow.
     /// </summary>
+    /// <param name="messageType">Message type value supplied to the one wire transport security policy operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool RequiresProtectedTransport(OneWireMessageType messageType)
     {
         try
@@ -41,8 +44,10 @@ public sealed class OneWireTransportSecurityPolicy(ILogger<OneWireTransportSecur
     }
 
     /// <summary>
-    /// Determines whether protected.
+    /// Determines whether protected for <see cref="OneWireTransportSecurityPolicy"/>, keeping the operation consistent with the state and invariants of the surrounding one wire transport security policy workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire transport security policy operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool IsProtected(OneWireEnvelope envelope)
     {
         try
@@ -60,8 +65,10 @@ public sealed class OneWireTransportSecurityPolicy(ILogger<OneWireTransportSecur
     }
 
     /// <summary>
-    /// Determines whether loopback.
+    /// Determines whether loopback for <see cref="OneWireTransportSecurityPolicy"/>, keeping the operation consistent with the state and invariants of the surrounding one wire transport security policy workflow.
     /// </summary>
+    /// <param name="address">P address dependency used by the one wire transport security policy workflow to provide the corresponding application capability.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool IsLoopback(IPAddress? address)
     {
         try

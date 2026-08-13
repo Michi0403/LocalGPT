@@ -3,13 +3,16 @@ using LocalGPT.BusinessObjects;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides council text service operations.
+/// Coordinates council text behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 public sealed partial class CouncilTextService
 {
     /// <summary>
-    /// Runs the provider model benchmark council signature operation.
+    /// Performs provider model benchmark council signature as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="models">Provider model reference dependency used by the council text workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string ProviderModelBenchmarkCouncilSignature(
         IEnumerable<ProviderModelReference> models,
         ILogger logger)
@@ -29,8 +32,12 @@ public sealed partial class CouncilTextService
     }
 
     /// <summary>
-    /// Runs the provider model reviewer summary operation.
+    /// Performs provider model reviewer summary as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="model">Model value supplied to the council text operation and used when producing its result.</param>
+    /// <param name="councilModels">Provider model reference dependency used by the council text workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string ProviderModelReviewerSummary(
         ProviderModelReference model,
         IEnumerable<ProviderModelReference> councilModels,
@@ -57,8 +64,12 @@ public sealed partial class CouncilTextService
     }
 
     /// <summary>
-    /// Runs the provider unavailable selection notice operation.
+    /// Performs provider unavailable selection notice as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="unavailable">String dependency used by the council text workflow to provide the corresponding application capability.</param>
+    /// <param name="selectionScope">Selection scope value supplied to the council text operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string ProviderUnavailableSelectionNotice(
         IReadOnlyCollection<string> unavailable,
         string selectionScope,
@@ -83,8 +94,11 @@ public sealed partial class CouncilTextService
     }
 
     /// <summary>
-    /// Runs the provider unavailable run notice operation.
+    /// Performs provider unavailable run notice as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="unavailable">String dependency used by the council text workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string ProviderUnavailableRunNotice(IReadOnlyCollection<string> unavailable, ILogger logger)
     {
         try

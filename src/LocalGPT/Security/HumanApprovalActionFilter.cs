@@ -12,8 +12,18 @@ using System.Reflection;
 namespace LocalGPT.Security;
 
 /// <summary>
-/// Provides human approval action filter operations.
+/// Represents a human approval action application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="operationKey">Operation key value supplied to the human approval action operation and used when producing its result.</param>
+/// <param name="title">Title value supplied to the human approval action operation and used when producing its result.</param>
+/// <param name="description">Description value supplied to the human approval action operation and used when producing its result.</param>
+/// <param name="riskLevel">Risk level value supplied to the human approval action operation and used when producing its result.</param>
+/// <param name="requestedRole">Requested role value supplied to the human approval action operation and used when producing its result.</param>
+/// <param name="requiredBeforeCompletion">Value indicating whether required before completion should apply to this operation.</param>
+/// <param name="collaboration">Human collaboration service dependency used by the human approval action workflow to provide the corresponding application capability.</param>
+/// <param name="ambientContext">Ambient local gpt context dependency used by the human approval action workflow to provide the corresponding application capability.</param>
+/// <param name="approvalExecutionContext">Human approval execution context dependency used by the human approval action workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class HumanApprovalActionFilter(
     string operationKey,
     string title,
@@ -44,8 +54,11 @@ public sealed class HumanApprovalActionFilter(
     };
 
     /// <summary>
-    /// Runs the on action execution async operation.
+    /// Handles the action execution async lifecycle or event notification for <see cref="HumanApprovalActionFilter"/>, updating the state required by the surrounding workflow.
     /// </summary>
+    /// <param name="context">Context value supplied to the human approval action operation and used when producing its result.</param>
+    /// <param name="next">Next value supplied to the human approval action operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         var fingerprint = BuildFingerprint(context);
@@ -124,8 +137,10 @@ public sealed class HumanApprovalActionFilter(
     }
 
     /// <summary>
-    /// Builds fingerprint.
+    /// Builds fingerprint for <see cref="HumanApprovalActionFilter"/>, keeping the operation consistent with the state and invariants of the surrounding human approval action workflow.
     /// </summary>
+    /// <param name="context">Context value supplied to the human approval action operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildFingerprint(ActionExecutingContext context)
     {
         var builder = new StringBuilder()
@@ -155,8 +170,10 @@ public sealed class HumanApprovalActionFilter(
     }
 
     /// <summary>
-    /// Runs the append fingerprint value operation.
+    /// Performs append fingerprint value for <see cref="HumanApprovalActionFilter"/>, keeping the operation consistent with the state and invariants of the surrounding human approval action workflow.
     /// </summary>
+    /// <param name="builder">Builder value supplied to the human approval action operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the human approval action operation and used when producing its result.</param>
     private void AppendFingerprintValue(StringBuilder builder, object? value)
     {
         try
@@ -174,8 +191,9 @@ public sealed class HumanApprovalActionFilter(
     }
 
     /// <summary>
-    /// Removes confirmation members.
+    /// Removes confirmation members for <see cref="HumanApprovalActionFilter"/>, keeping the operation consistent with the state and invariants of the surrounding human approval action workflow.
     /// </summary>
+    /// <param name="node">Node value supplied to the human approval action operation and used when producing its result.</param>
     private void RemoveConfirmationMembers(JsonNode? node)
     {
         if (node is JsonObject jsonObject)
@@ -200,8 +218,9 @@ public sealed class HumanApprovalActionFilter(
     }
 
     /// <summary>
-    /// Applies legacy confirmation flags.
+    /// Applies legacy confirmation flags for <see cref="HumanApprovalActionFilter"/>, keeping the operation consistent with the state and invariants of the surrounding human approval action workflow.
     /// </summary>
+    /// <param name="actionArguments">Object dependency used by the human approval action workflow to provide the corresponding application capability.</param>
     private void ApplyLegacyConfirmationFlags(IDictionary<string, object?> actionArguments)
     {
         foreach (var argumentName in actionArguments.Keys.ToList())
@@ -223,8 +242,11 @@ public sealed class HumanApprovalActionFilter(
     }
 
     /// <summary>
-    /// Gets boolean property.
+    /// Retrieves boolean property for <see cref="HumanApprovalActionFilter"/>, keeping the operation consistent with the state and invariants of the surrounding human approval action workflow.
     /// </summary>
+    /// <param name="instance">Instance value supplied to the human approval action operation and used when producing its result.</param>
+    /// <param name="propertyName">Property name value supplied to the human approval action operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool GetBooleanProperty(object instance, string propertyName)
     {
         var property = instance.GetType().GetProperty(
@@ -234,8 +256,11 @@ public sealed class HumanApprovalActionFilter(
     }
 
     /// <summary>
-    /// Sets boolean property.
+    /// Sets boolean property for <see cref="HumanApprovalActionFilter"/>, keeping the operation consistent with the state and invariants of the surrounding human approval action workflow.
     /// </summary>
+    /// <param name="instance">Instance value supplied to the human approval action operation and used when producing its result.</param>
+    /// <param name="propertyName">Property name value supplied to the human approval action operation and used when producing its result.</param>
+    /// <param name="value">Value indicating whether value should apply to this operation.</param>
     private void SetBooleanProperty(object instance, string propertyName, bool value)
     {
         var property = instance.GetType().GetProperty(

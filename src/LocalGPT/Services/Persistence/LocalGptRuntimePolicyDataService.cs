@@ -7,17 +7,28 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services.Persistence;
 
 /// <summary>
-/// Provides local gpt runtime policy data service operations.
+/// Coordinates LocalGPT runtime policy behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDataService
 {
+    /// <summary>
+    /// Stores the LocalGPT runtime policy store service dependency used by <see cref="LocalGptRuntimePolicyDataService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly ILocalGptRuntimePolicyStoreService store;
+    /// <summary>
+    /// Stores the logger used by <see cref="LocalGptRuntimePolicyDataService"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger<LocalGptRuntimePolicyDataService> logger;
+    /// <summary>
+    /// Stores the internal state state used by <see cref="LocalGptRuntimePolicyDataService"/> while executing its surrounding workflow.
+    /// </summary>
     private LocalGptRuntimePolicyState state = null!;
 
     /// <summary>
-    /// Runs the local gpt runtime policy data service operation.
+    /// Initializes a new <see cref="LocalGptRuntimePolicyDataService"/> instance and captures the dependencies or initial state required by its LocalGPT runtime policy workflow.
     /// </summary>
+    /// <param name="store">Local gpt runtime policy store service dependency used by the LocalGPT runtime policy workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public LocalGptRuntimePolicyDataService(ILocalGptRuntimePolicyStoreService store, ILogger<LocalGptRuntimePolicyDataService> logger)
     {
         this.store = store;
@@ -35,33 +46,41 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Gets or sets local gpt core project identifier.
+    /// Gets the stable LocalGPT core project identifier used to identify or correlate this LocalGPT runtime policy instance with related application state.
     /// </summary>
+    /// <value>The LocalGPT core project identifier value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
     public Guid LocalGptCoreProjectId => GetGuid(LocalGptRuntimeValue.LocalGptCoreProjectId);
     /// <summary>
-    /// Gets or sets regex timeout.
+    /// Gets the regex timeout duration used to control timing in the LocalGPT runtime policy workflow.
     /// </summary>
+    /// <value>The regex timeout value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
     public TimeSpan RegexTimeout => TimeSpan.FromMilliseconds(GetInt(LocalGptRuntimeValue.RegexTimeoutMilliseconds));
     /// <summary>
-    /// Gets or sets allowed native executables.
+    /// Gets the allowed native executables value that forms part of the LocalGPT runtime policy state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The allowed native executables value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
     public FrozenSet<string> AllowedNativeExecutables => GetCollection(LocalGptRuntimeCollection.AllowedNativeExecutables);
     /// <summary>
-    /// Gets or sets power shell inline command pattern.
+    /// Gets the power shell inline command pattern value that forms part of the LocalGPT runtime policy state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The power shell inline command pattern value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
     public Regex PowerShellInlineCommandPattern => GetPattern(LocalGptRuntimePattern.PowerShellInlineCommand);
     /// <summary>
-    /// Gets or sets power shell file pattern.
+    /// Gets the power shell file pattern value that forms part of the LocalGPT runtime policy state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The power shell file pattern value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
     public Regex PowerShellFilePattern => GetPattern(LocalGptRuntimePattern.PowerShellFile);
     /// <summary>
-    /// Gets or sets sensitive argument pattern.
+    /// Gets the sensitive argument pattern value that forms part of the LocalGPT runtime policy state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The sensitive argument pattern value exposed by <see cref="LocalGptRuntimePolicyDataService"/>.</value>
     public Regex SensitiveArgumentPattern => GetPattern(LocalGptRuntimePattern.SensitiveArgument);
 
     /// <summary>
-    /// Gets string.
+    /// Retrieves string as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string GetString(LocalGptRuntimeValue key)
     {
         try
@@ -79,8 +98,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Gets int.
+    /// Retrieves int as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     public int GetInt(LocalGptRuntimeValue key)
     {
         try
@@ -98,8 +119,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Gets long.
+    /// Retrieves long as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The long produced by the operation.</returns>
     public long GetLong(LocalGptRuntimeValue key)
     {
         try
@@ -117,8 +140,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Gets guid.
+    /// Retrieves GUID as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The GUID produced by the operation.</returns>
     public Guid GetGuid(LocalGptRuntimeValue key)
     {
         try
@@ -136,8 +161,11 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Gets JSON.
+    /// Retrieves JSON as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="LocalGptRuntimePolicyDataService"/>.</typeparam>
+    /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The t produced by the operation.</returns>
     public T GetJson<T>(LocalGptRuntimeValue key)
     {
         try
@@ -156,8 +184,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Gets pattern.
+    /// Retrieves pattern as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The regex produced by the operation.</returns>
     public Regex GetPattern(LocalGptRuntimePattern key)
     {
         try
@@ -175,8 +205,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Gets collection.
+    /// Retrieves collection as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The frozen set string produced by the operation.</returns>
     public FrozenSet<string> GetCollection(LocalGptRuntimeCollection key)
     {
         try
@@ -194,8 +226,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Runs the reload operation.
+    /// Performs reload as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The LocalGPT runtime policy snapshot produced by the operation.</returns>
     public LocalGptRuntimePolicySnapshot Reload()
     {
         try
@@ -237,8 +270,9 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Gets snapshot.
+    /// Retrieves snapshot as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The LocalGPT runtime policy snapshot produced by the operation.</returns>
     public LocalGptRuntimePolicySnapshot GetSnapshot()
     {
         try
@@ -253,8 +287,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Creates snapshot.
+    /// Creates snapshot as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="current">Current value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The LocalGPT runtime policy snapshot produced by the operation.</returns>
     private LocalGptRuntimePolicySnapshot CreateSnapshot(LocalGptRuntimePolicyState current)
     {
         try
@@ -278,8 +314,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     }
 
     /// <summary>
-    /// Parses flags.
+    /// Parses flags as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="definition">Definition value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
+    /// <returns>The regex options produced by the operation.</returns>
     private RegexOptions ParseFlags(LocalGptRuntimeRegexDefinition definition)
     {
         try

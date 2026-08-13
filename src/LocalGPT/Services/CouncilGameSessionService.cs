@@ -10,31 +10,48 @@ namespace LocalGPT.Services;
 /// Provides one shared control surface for humans and AI players. The deterministic renderer keeps
 /// /Chat reactive; a single Council renderer may replace a turn's complete frame through SubmitFrameAsync.
 /// </summary>
+/// <param name="gameDirector">Council game director service dependency used by the council game session workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilGameSessionService(
     ICouncilGameDirectorService gameDirector,
     ILogger<CouncilGameSessionService> logger) : ICouncilGameSessionService, IDisposable
 {
+    /// <summary>
+    /// Defines the default frame width constant used by <see cref="CouncilGameSessionService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int DefaultFrameWidth = 80;
+    /// <summary>
+    /// Defines the default frame height constant used by <see cref="CouncilGameSessionService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int DefaultFrameHeight = 25;
+    /// <summary>
+    /// Defines the field of view constant used by <see cref="CouncilGameSessionService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const double FieldOfView = Math.PI / 3d;
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory sessions collection maintained internally by <see cref="CouncilGameSessionService"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<Guid, CouncilGameSessionState> sessions = new();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the cancellation source used by <see cref="CouncilGameSessionService"/> to stop its current background or asynchronous operation.
     /// </summary>
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> autoplayLoops = new();
+    /// <summary>
+    /// Stores the internal disposed state used by <see cref="CouncilGameSessionService"/> while executing its surrounding workflow.
+    /// </summary>
     private int disposed;
 
     /// <summary>
-    /// Occurs when changed.
+    /// Occurs when changed changes or completes in <see cref="CouncilGameSessionService"/>, allowing interested callers to react without polling internal state.
     /// </summary>
     public event Action<Guid>? Changed;
 
     /// <summary>
-    /// Starts async.
+    /// Performs start as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     public Task<CouncilGameSessionSnapshot> StartAsync(
         StartCouncilGameRequest request,
         CancellationToken cancellationToken = default)
@@ -99,8 +116,11 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Gets async.
+    /// Performs get as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     public Task<CouncilGameSessionSnapshot?> GetAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         try
@@ -122,8 +142,11 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Gets active async.
+    /// Retrieves active as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="conversationId">Identifier of the conversation to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     public Task<CouncilGameSessionSnapshot?> GetActiveAsync(Guid? conversationId, CancellationToken cancellationToken = default)
     {
         try
@@ -149,8 +172,11 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Runs the list async operation.
+    /// Performs list as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="includeCompleted">Value indicating whether include completed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public Task<IReadOnlyList<CouncilGameSessionSnapshot>> ListAsync(bool includeCompleted = false, CancellationToken cancellationToken = default)
     {
         try
@@ -177,8 +203,11 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Runs the preview control async operation.
+    /// Previews control as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game director decision produced by the operation.</returns>
     public async Task<CouncilGameDirectorDecision> PreviewControlAsync(
         CouncilGameControlRequest request,
         CancellationToken cancellationToken = default)
@@ -225,8 +254,11 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Applies control async.
+    /// Applies control as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     public async Task<CouncilGameSessionSnapshot> ApplyControlAsync(
         CouncilGameControlRequest request,
         CancellationToken cancellationToken = default)
@@ -299,8 +331,11 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Runs the submit frame async operation.
+    /// Performs submit frame as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     public Task<CouncilGameSessionSnapshot> SubmitFrameAsync(
         SubmitCouncilGameFrameRequest request,
         CancellationToken cancellationToken = default)
@@ -356,8 +391,11 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Sets input gate async.
+    /// Sets input gate as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     public Task<CouncilGameSessionSnapshot> SetInputGateAsync(
         SetCouncilGameInputGateRequest request,
         CancellationToken cancellationToken = default)
@@ -397,8 +435,14 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Sets control mode async.
+    /// Sets control mode as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
+    /// <param name="mode">Mode value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="autoplayEnabled">Value indicating whether autoplay enabled should apply to this operation.</param>
+    /// <param name="autoplayDelayMilliseconds">Autoplay delay milliseconds value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     public Task<CouncilGameSessionSnapshot> SetControlModeAsync(
         Guid sessionId,
         CouncilGameControlMode mode,
@@ -441,8 +485,9 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Ensures autoplay loop.
+    /// Ensures autoplay loop as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
     private void EnsureAutoplayLoop(CouncilGameSessionState session)
     {
     try
@@ -477,8 +522,11 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the run autoplay loop async operation.
+    /// Performs run autoplay loop as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunAutoplayLoopAsync(Guid sessionId, CancellationToken cancellationToken)
     {
         try
@@ -529,8 +577,10 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Runs the select autoplay action operation.
+    /// Performs select autoplay action as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="snapshot">Snapshot value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SelectAutoplayAction(CouncilGameSessionSnapshot snapshot)
     {
     try
@@ -563,8 +613,9 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Stops autoplay loop.
+    /// Stops autoplay loop as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
     private void StopAutoplayLoop(Guid sessionId)
     {
     try
@@ -587,8 +638,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Normalizes autoplay delay.
+    /// Normalizes autoplay delay as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int NormalizeAutoplayDelay(int value) {
     try
     {
@@ -605,7 +658,7 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the throw if disposed operation.
+    /// Performs throw if disposed as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     private void ThrowIfDisposed()
     {
@@ -626,7 +679,7 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the dispose operation.
+    /// Releases resources owned by <see cref="CouncilGameSessionService"/> and leaves the council game session workflow in a safely disposed state.
     /// </summary>
     public void Dispose()
     {
@@ -646,8 +699,10 @@ public sealed class CouncilGameSessionService(
     }
 
     /// <summary>
-    /// Normalizes game key.
+    /// Normalizes game key as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="gameKey">Game key value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeGameKey(string? gameKey)
     {
     try
@@ -672,8 +727,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the default team for operation.
+    /// Performs default team for as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="gameKey">Game key value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string DefaultTeamFor(string gameKey) {
     try
     {
@@ -690,8 +747,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Builds legal actions.
+    /// Builds legal actions as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="gameKey">Game key value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> BuildLegalActions(string gameKey) {
     try
     {
@@ -710,8 +769,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Builds input bindings.
+    /// Builds input bindings as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="gameKey">Game key value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<RuntimeInputBindingDefinition> BuildInputBindings(string gameKey) {
     try
     {
@@ -751,8 +812,13 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the binding operation.
+    /// Performs binding as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="action">Action value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="display">Display value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="keyboard">Keyboard value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="gamepad">Gamepad value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The runtime input binding definition produced by the operation.</returns>
     private RuntimeInputBindingDefinition Binding(string action, string display, string keyboard, string gamepad) {
     try
     {
@@ -776,8 +842,12 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Normalizes action.
+    /// Normalizes action as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="action">Action value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="axisX">Axis x value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="axisY">Axis y value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeAction(string? action, double? axisX, double? axisY)
     {
     try
@@ -819,8 +889,12 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Applies action.
+    /// Applies action as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="action">Action value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="aimX">Aim x value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="aimY">Aim y value supplied to the council game session operation and used when producing its result.</param>
     private void ApplyAction(CouncilGameSessionState session, string action, int? aimX, int? aimY)
     {
     try
@@ -893,8 +967,11 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Attempts to move.
+    /// Attempts to move as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="dx">Devexpress value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="dy">Dy value supplied to the council game session operation and used when producing its result.</param>
     private void TryMove(CouncilGameSessionState session, double dx, double dy)
     {
     try
@@ -919,8 +996,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the render operation.
+    /// Performs render as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Render(CouncilGameSessionState session) {
     try
     {
@@ -939,8 +1018,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the render doom like operation.
+    /// Performs render doom like as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RenderDoomLike(CouncilGameSessionState session)
     {
     try
@@ -990,8 +1071,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the render green dragon operation.
+    /// Performs render green dragon as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RenderGreenDragon(CouncilGameSessionState session)
     {
     try
@@ -1039,8 +1122,12 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the cast ray operation.
+    /// Performs cast ray as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="angle">Angle value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The double produced by the operation.</returns>
     private double CastRay(double x, double y, double angle)
     {
     try
@@ -1067,8 +1154,12 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the wall glyph operation.
+    /// Performs wall glyph as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="distance">Distance value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The char produced by the operation.</returns>
     private char WallGlyph(double distance, int x, int y) {
     try
     {
@@ -1091,8 +1182,11 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the floor glyph operation.
+    /// Performs floor glyph as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="x">X value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="y">Y value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The char produced by the operation.</returns>
     private char FloorGlyph(int x, int y) {
     try
     {
@@ -1109,8 +1203,12 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the put operation.
+    /// Performs put as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="lines">Lines value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="row">Row value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="column">Column value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="text">Text value supplied to the council game session operation and used when producing its result.</param>
     private void Put(char[][] lines, int row, int column, string text)
     {
     try
@@ -1131,8 +1229,11 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the fit operation.
+    /// Performs fit as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="text">Text value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="width">Width value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Fit(string text, int width)
     {
     try
@@ -1153,8 +1254,12 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Normalizes frame.
+    /// Normalizes frame as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="frame">Frame value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="width">Width value supplied to the council game session operation and used when producing its result.</param>
+    /// <param name="height">Height value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeFrame(string frame, int width, int height)
     {
     try
@@ -1183,8 +1288,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Builds caption.
+    /// Builds caption as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildCaption(CouncilGameSessionState session) {
     try
     {
@@ -1201,8 +1308,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the compass operation.
+    /// Performs compass as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="radians">Radians value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Compass(double radians)
     {
     try
@@ -1232,8 +1341,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Normalizes radians.
+    /// Normalizes radians as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The double produced by the operation.</returns>
     private double NormalizeRadians(double value)
     {
     try
@@ -1254,8 +1365,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the to snapshot operation.
+    /// Performs to snapshot as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     private CouncilGameSessionSnapshot ToSnapshot(CouncilGameSessionState session)
     {
     try
@@ -1275,8 +1388,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the to snapshot unsafe operation.
+    /// Performs to snapshot unsafe as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Session value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council game session snapshot produced by the operation.</returns>
     private CouncilGameSessionSnapshot ToSnapshotUnsafe(CouncilGameSessionState session) {
     try
     {
@@ -1331,8 +1446,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the clone binding operation.
+    /// Performs clone binding as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="binding">Binding value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The runtime input binding definition produced by the operation.</returns>
     private RuntimeInputBindingDefinition CloneBinding(RuntimeInputBindingDefinition binding) {
     try
     {
@@ -1356,8 +1473,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the clone prediction operation.
+    /// Performs clone prediction as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="prediction">Prediction value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council game subdirector prediction produced by the operation.</returns>
     private CouncilGameSubdirectorPrediction ClonePrediction(CouncilGameSubdirectorPrediction prediction) {
     try
     {
@@ -1382,8 +1501,10 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the clone actor runtime operation.
+    /// Performs clone actor runtime as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="actor">Actor value supplied to the council game session operation and used when producing its result.</param>
+    /// <returns>The council game actor runtime descriptor produced by the operation.</returns>
     private CouncilGameActorRuntimeDescriptor CloneActorRuntime(CouncilGameActorRuntimeDescriptor actor) {
     try
     {
@@ -1409,8 +1530,9 @@ public sealed class CouncilGameSessionService(
 }
 
     /// <summary>
-    /// Runs the notify operation.
+    /// Performs notify as part of the council game session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
     private void Notify(Guid sessionId)
     {
         var listeners = Changed?.GetInvocationList().Cast<Action<Guid>>().ToArray() ?? [];
@@ -1421,6 +1543,9 @@ public sealed class CouncilGameSessionService(
         }
     }
 
+    /// <summary>
+    /// Stores the internal doom map state used by <see cref="CouncilGameSessionService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string[] doomMap =
     [
         "################################",

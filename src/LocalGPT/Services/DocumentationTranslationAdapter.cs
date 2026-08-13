@@ -9,12 +9,20 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Bridges compiler-generated XML comments to the existing LocalGPT localization service without changing that service's contract.
 /// </summary>
+/// <param name="localization">Local gpt localization service dependency used by the documentation translation adapter workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [DocumentationUpdated("2.1.20")]
 public sealed class DocumentationTranslationAdapter(
     ILocalGptLocalizationService localization,
     ILogger<DocumentationTranslationAdapter> logger) : IDocumentationTranslationAdapter
 {
+    /// <summary>
+    /// Performs adapt for <see cref="DocumentationTranslationAdapter"/>, keeping the operation consistent with the state and invariants of the surrounding documentation translation adapter workflow.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="comment">Comment value supplied to the documentation translation adapter operation and used when producing its result.</param>
+    /// <param name="culture">Culture value supplied to the documentation translation adapter operation and used when producing its result.</param>
+    /// <returns>The LocalGPT documentation comment produced by the operation.</returns>
     public LocalGptDocumentationComment Adapt(LocalGptDocumentationComment comment, string? culture = null)
     {
         var memberId = comment?.MemberId;
@@ -43,8 +51,10 @@ public sealed class DocumentationTranslationAdapter(
     }
 
     /// <summary>
-    /// Builds localization key.
+    /// Builds localization key for <see cref="DocumentationTranslationAdapter"/>, keeping the operation consistent with the state and invariants of the surrounding documentation translation adapter workflow.
     /// </summary>
+    /// <param name="memberId">Identifier of the member to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildLocalizationKey(string memberId)
     {
     try
@@ -66,8 +76,10 @@ public sealed class DocumentationTranslationAdapter(
 }
 
     /// <summary>
-    /// Normalizes culture.
+    /// Normalizes culture for <see cref="DocumentationTranslationAdapter"/>, keeping the operation consistent with the state and invariants of the surrounding documentation translation adapter workflow.
     /// </summary>
+    /// <param name="culture">Culture value supplied to the documentation translation adapter operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeCulture(string? culture)
     {
     try

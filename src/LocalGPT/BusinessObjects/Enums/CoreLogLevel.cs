@@ -1,7 +1,7 @@
 namespace LocalGPT.BusinessObjects.Enums
 {
     /// <summary>
-    /// Lists supported core log level values.
+    /// Defines the supported core log level values used to select or describe behavior in the surrounding workflow.
     /// </summary>
     public enum CoreLogLevel
     {

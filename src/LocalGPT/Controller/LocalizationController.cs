@@ -35,7 +35,9 @@ public sealed class LocalizationController(ILocalGptLocalizationService localiza
     public ActionResult<IReadOnlyList<LocalizationCatalogDescriptor>> Catalogs()
         => Ok(localization.GetCatalogs());
 
-    /// <summary>Validates and imports a persistent user localization catalog.</summary>
+    /// <summary>
+    /// Returns the import projection for the localization API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+    /// </summary>
     /// <param name="request">Culture, JSON content and overwrite decision.</param>
     /// <param name="cancellationToken">Cancels the import.</param>
     /// <returns>A task that completes with the import result or validation error.</returns>
@@ -91,12 +93,19 @@ public sealed class LocalizationController(ILocalGptLocalizationService localiza
 [DocumentationUpdated("2.2.8")]
 public sealed class ImportLocalizationCatalogRequest
 {
-    /// <summary>Gets or sets the requested .NET culture name.</summary>
+    /// <summary>
+    /// Gets or sets the culture value that forms part of the import localization catalog state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The culture value exposed by <see cref="ImportLocalizationCatalogRequest"/>.</value>
     public string Culture { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the string-to-string JSON object.</summary>
+    /// <summary>
+    /// Gets or sets the JSON value that forms part of the import localization catalog state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The JSON value exposed by <see cref="ImportLocalizationCatalogRequest"/>.</value>
     public string Json { get; set; } = string.Empty;
 
     /// <summary>Gets or sets whether an existing user catalog may be replaced.</summary>
+    /// <value>The overwrite value exposed by <see cref="ImportLocalizationCatalogRequest"/>.</value>
     public bool Overwrite { get; set; }
 }

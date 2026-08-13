@@ -7,15 +7,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace LocalGPT.Migrations
 {
     /// <summary>
-    /// Represents an add embedded firmware and workspace environments.
+    /// Defines the Entity Framework Core migration AddEmbeddedFirmwareAndWorkspaceEnvironments, applying and reverting the schema changes represented by this versioned database step.
     /// </summary>
     [DbContext(typeof(LocalGptMemoryDbContext))]
     [Migration("20260802020000_AddEmbeddedFirmwareAndWorkspaceEnvironments")]
     public partial class AddEmbeddedFirmwareAndWorkspaceEnvironments : Migration
     {
         /// <summary>
-        /// Runs the up operation.
+        /// Applies the schema changes defined by the <see cref="AddEmbeddedFirmwareAndWorkspaceEnvironments"/> Entity Framework Core migration to move the database forward.
         /// </summary>
+        /// <param name="migrationBuilder">Migration builder value supplied to the add embedded firmware and workspace environments operation and used when producing its result.</param>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(name: "AccessPolicyJson", table: "ProjectWorkspaceRoots", type: "TEXT", nullable: false, defaultValue: "[]");
@@ -34,8 +35,9 @@ namespace LocalGPT.Migrations
         }
 
         /// <summary>
-        /// Runs the down operation.
+        /// Reverts the schema changes defined by the <see cref="AddEmbeddedFirmwareAndWorkspaceEnvironments"/> Entity Framework Core migration to return the database to its preceding shape.
         /// </summary>
+        /// <param name="migrationBuilder">Migration builder value supplied to the add embedded firmware and workspace environments operation and used when producing its result.</param>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(name: "AccessPolicyJson", table: "ProjectWorkspaceRoots");

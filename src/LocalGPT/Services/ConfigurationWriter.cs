@@ -5,13 +5,17 @@ using System.Text.Json.Nodes;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides configuration writer operations.
+    /// Represents a configuration application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public sealed class ConfigurationWriter(ILogger<ConfigurationWriter> logger) : IConfigurationWriter
     {
         /// <summary>
-        /// Saves async.
+        /// Performs save for <see cref="ConfigurationWriter"/>, keeping the operation consistent with the state and invariants of the surrounding configuration workflow.
         /// </summary>
+        /// <param name="root">Root value supplied to the configuration operation and used when producing its result.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         public async Task SaveAsync(BusinessObjects.ConfigurationRoot root, CancellationToken ct = default)
         {
             try
@@ -53,8 +57,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Sets section.
+        /// Sets section for <see cref="ConfigurationWriter"/>, keeping the operation consistent with the state and invariants of the surrounding configuration workflow.
         /// </summary>
+        /// <typeparam name="T">Type used for t values handled by <see cref="ConfigurationWriter"/>.</typeparam>
+        /// <param name="settings">Settings containing the caller-supplied values that control this operation.</param>
+        /// <param name="sectionName">Section name value supplied to the configuration operation and used when producing its result.</param>
+        /// <param name="value">Value value supplied to the configuration operation and used when producing its result.</param>
+        /// <param name="serializerOptions">Serializer options value supplied to the configuration operation and used when producing its result.</param>
         private void SetSection<T>(
             JsonObject settings,
             string sectionName,

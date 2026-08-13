@@ -5,18 +5,20 @@ using System.Collections.Concurrent;
 namespace LocalGPT.Services.OneWire;
 
 /// <summary>
-/// Provides one wire peer registry operations.
+/// Maintains the authoritative directory of one wire peer entries used for discovery, validation, and runtime lookup.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : IOneWirePeerRegistry
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory peers collection maintained internally by <see cref="OneWirePeerRegistry"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<string, OneWirePeerAdvertisement> peers = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets peers.
+    /// Retrieves peers in the one wire peer directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<OneWirePeerAdvertisement> GetPeers() {
     try
     {
@@ -37,8 +39,10 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
 }
 
     /// <summary>
-    /// Gets peer.
+    /// Retrieves peer in the one wire peer directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <returns>The one wire peer advertisement produced by the operation.</returns>
     public OneWirePeerAdvertisement? GetPeer(string peerId) {
     try
     {
@@ -55,8 +59,9 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
 }
 
     /// <summary>
-    /// Runs the upsert operation.
+    /// Performs upsert in the one wire peer directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peer">Peer value supplied to the one wire peer operation and used when producing its result.</param>
     public void Upsert(OneWirePeerAdvertisement peer)
     {
     try
@@ -85,8 +90,10 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
 }
 
     /// <summary>
-    /// Sets connected.
+    /// Sets connected in the one wire peer directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="connected">Value indicating whether connected should apply to this operation.</param>
     public void SetConnected(string peerId, bool connected)
     {
     try
@@ -109,8 +116,9 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
 }
 
     /// <summary>
-    /// Removes expired.
+    /// Removes expired in the one wire peer directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="maximumAge">Maximum age value supplied to the one wire peer operation and used when producing its result.</param>
     public void RemoveExpired(TimeSpan maximumAge)
     {
     try
@@ -131,8 +139,10 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
 }
 
     /// <summary>
-    /// Runs the clone operation.
+    /// Performs clone in the one wire peer directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peer">Peer value supplied to the one wire peer operation and used when producing its result.</param>
+    /// <returns>The one wire peer advertisement produced by the operation.</returns>
     private OneWirePeerAdvertisement Clone(OneWirePeerAdvertisement peer) {
     try
     {
@@ -181,23 +191,26 @@ public sealed class OneWirePeerRegistry(ILogger<OneWirePeerRegistry> logger) : I
 }
 
 /// <summary>
-/// Provides one wire connection registry operations.
+/// Maintains the authoritative directory of one wire connection entries used for discovery, validation, and runtime lookup.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry> logger) : IOneWireConnectionRegistry
 {
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory senders collection maintained internally by <see cref="OneWireConnectionRegistry"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<string, OneWireConnectionRegistration> senders = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal registration gate state used by <see cref="OneWireConnectionRegistry"/> while executing its surrounding workflow.
     /// </summary>
     private readonly object registrationGate = new();
 
     /// <summary>
-    /// Runs the register operation.
+    /// Performs register in the one wire connection directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="sender">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     public void Register(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender) {
     try
     {
@@ -214,8 +227,11 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
 }
 
     /// <summary>
-    /// Registers owned.
+    /// Registers owned in the one wire connection directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="sender">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The GUID produced by the operation.</returns>
     public Guid RegisterOwned(string peerId, Func<OneWireEnvelope, CancellationToken, Task> sender)
     {
     try
@@ -240,8 +256,9 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
 }
 
     /// <summary>
-    /// Runs the unregister operation.
+    /// Performs unregister in the one wire connection directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
     public void Unregister(string peerId)
     {
     try
@@ -264,8 +281,11 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
 }
 
     /// <summary>
-    /// Runs the unregister operation.
+    /// Performs unregister in the one wire connection directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="registrationId">Identifier of the registration to use for this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool Unregister(string peerId, Guid registrationId)
     {
     try
@@ -293,8 +313,10 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
 }
 
     /// <summary>
-    /// Determines whether connected.
+    /// Determines whether connected in the one wire connection directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool IsConnected(string peerId) {
     try
     {
@@ -311,8 +333,12 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
 }
 
     /// <summary>
-    /// Runs the send async operation.
+    /// Performs send in the one wire connection directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="envelope">Envelope value supplied to the one wire connection operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public async Task<bool> SendAsync(string peerId, OneWireEnvelope envelope, CancellationToken cancellationToken = default)
     {
         if (!senders.TryGetValue(peerId, out var registration))
@@ -332,21 +358,30 @@ public sealed class OneWireConnectionRegistry(ILogger<OneWireConnectionRegistry>
 }
 
 /// <summary>
-/// Represents an one wire replay guard.
+/// Represents an one wire replay guard application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="policyData">One wire replay policy data service dependency used by the one wire replay guard workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireReplayGuard(
     IOneWireReplayPolicyDataService policyData,
     ILogger<OneWireReplayGuard> logger) : IOneWireReplayGuard
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory accepted collection maintained internally by <see cref="OneWireReplayGuard"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<string, DateTimeOffset> accepted = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores the internal cleanup counter state used by <see cref="OneWireReplayGuard"/> while executing its surrounding workflow.
+    /// </summary>
     private int cleanupCounter;
 
     /// <summary>
-    /// Attempts to accept.
+    /// Attempts to accept for <see cref="OneWireReplayGuard"/>, keeping the operation consistent with the state and invariants of the surrounding one wire replay guard workflow.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="messageId">Identifier of the message to use for this operation.</param>
+    /// <param name="createdUtc">Created utc value supplied to the one wire replay guard operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool TryAccept(string peerId, Guid messageId, DateTimeOffset createdUtc)
     {
     try
@@ -389,26 +424,29 @@ public sealed class OneWireReplayGuard(
 }
 
 /// <summary>
-/// Represents an one wire work spooler.
+/// Represents an one wire work spooler application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOneWireWorkSpooler
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory work items collection maintained internally by <see cref="OneWireWorkSpooler"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<Guid, OneWireWorkItem> workItems = new();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal queue state used by <see cref="OneWireWorkSpooler"/> while executing its surrounding workflow.
     /// </summary>
     private readonly ConcurrentQueue<Guid> queue = new();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to signal state owned by <see cref="OneWireWorkSpooler"/>.
     /// </summary>
     private readonly SemaphoreSlim signal = new(0);
 
     /// <summary>
-    /// Runs the enqueue operation.
+    /// Performs enqueue for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire work spooler operation and used when producing its result.</param>
+    /// <returns>The one wire work item produced by the operation.</returns>
     public OneWireWorkItem Enqueue(OneWireEnvelope envelope)
     {
     try
@@ -442,8 +480,10 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 
     /// <summary>
-    /// Runs the dequeue async operation.
+    /// Performs dequeue for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The one wire work item produced by the operation.</returns>
     public async Task<OneWireWorkItem> DequeueAsync(CancellationToken cancellationToken)
     {
     try
@@ -474,8 +514,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 
     /// <summary>
-    /// Gets snapshot.
+    /// Retrieves snapshot for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<OneWireWorkItem> GetSnapshot() {
     try
     {
@@ -495,8 +536,10 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 
     /// <summary>
-    /// Runs the get operation.
+    /// Performs get for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <returns>The one wire work item produced by the operation.</returns>
     public OneWireWorkItem? Get(Guid id) {
     try
     {
@@ -513,8 +556,9 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 
     /// <summary>
-    /// Runs the mark running operation.
+    /// Performs mark running for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
     public void MarkRunning(Guid id) {
     try
     {
@@ -531,8 +575,10 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 
     /// <summary>
-    /// Runs the mark pending approval operation.
+    /// Performs mark pending approval for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="resultJson">Result json value supplied to the one wire work spooler operation and used when producing its result.</param>
     public void MarkPendingApproval(Guid correlationId, string resultJson)
     {
     try
@@ -558,8 +604,10 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 
     /// <summary>
-    /// Runs the complete operation.
+    /// Performs complete for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="resultJson">Result json value supplied to the one wire work spooler operation and used when producing its result.</param>
     public void Complete(Guid id, string resultJson) {
     try
     {
@@ -581,8 +629,10 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 
     /// <summary>
-    /// Runs the fail operation.
+    /// Performs fail for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="error">Error value supplied to the one wire work spooler operation and used when producing its result.</param>
     public void Fail(Guid id, string error) {
     try
     {
@@ -603,8 +653,12 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 
     /// <summary>
-    /// Applies external result.
+    /// Applies external result for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="resultJson">Result json value supplied to the one wire work spooler operation and used when producing its result.</param>
+    /// <param name="error">Error value supplied to the one wire work spooler operation and used when producing its result.</param>
+    /// <param name="status">Status value supplied to the one wire work spooler operation and used when producing its result.</param>
     public void ApplyExternalResult(Guid correlationId, string resultJson, string error, OneWireWorkStatus? status = null)
     {
     try
@@ -649,8 +703,10 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 
     /// <summary>
-    /// Finds by correlation.
+    /// Finds by correlation for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <returns>The one wire work item produced by the operation.</returns>
     private OneWireWorkItem? FindByCorrelation(Guid correlationId) {
     try
     {
@@ -669,8 +725,10 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 
     /// <summary>
-    /// Runs the mutate operation.
+    /// Performs mutate for <see cref="OneWireWorkSpooler"/>, keeping the operation consistent with the state and invariants of the surrounding one wire work spooler workflow.
     /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="mutation">Mutation value supplied to the one wire work spooler operation and used when producing its result.</param>
     private void Mutate(Guid id, Action<OneWireWorkItem> mutation)
     {
     try
@@ -692,19 +750,22 @@ public sealed class OneWireWorkSpooler(ILogger<OneWireWorkSpooler> logger) : IOn
 }
 }
 /// <summary>
-/// Provides one wire pending council store operations.
+/// Owns persistence and retrieval of one wire pending council state, keeping storage-specific behavior behind a focused application abstraction.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWirePendingCouncilStore(
     ILogger<OneWirePendingCouncilStore> logger) : IOneWirePendingCouncilStore
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory pending collection maintained internally by <see cref="OneWirePendingCouncilStore"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<Guid, OneWirePendingCouncilRequest> pending = new();
 
     /// <summary>
-    /// Runs the upsert operation.
+    /// Performs upsert in the one wire pending council persistence workflow while keeping storage-specific behavior contained within <see cref="OneWirePendingCouncilStore"/>.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire pending council operation and used when producing its result.</param>
+    /// <param name="approvalRequestId">Identifier of the approval request to use for this operation.</param>
     public void Upsert(OneWireEnvelope envelope, Guid? approvalRequestId)
     {
     try
@@ -738,8 +799,9 @@ public sealed class OneWirePendingCouncilStore(
 }
 
     /// <summary>
-    /// Gets snapshot.
+    /// Retrieves snapshot in the one wire pending council persistence workflow while keeping storage-specific behavior contained within <see cref="OneWirePendingCouncilStore"/>.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<OneWirePendingCouncilRequest> GetSnapshot()
     {
     try
@@ -762,8 +824,11 @@ public sealed class OneWirePendingCouncilStore(
 }
 
     /// <summary>
-    /// Runs the remove operation.
+    /// Performs remove in the one wire pending council persistence workflow while keeping storage-specific behavior contained within <see cref="OneWirePendingCouncilStore"/>.
     /// </summary>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool Remove(Guid correlationId, out OneWirePendingCouncilRequest? request)
     {
     try
@@ -784,8 +849,9 @@ public sealed class OneWirePendingCouncilStore(
 }
 
     /// <summary>
-    /// Runs the mark checked operation.
+    /// Performs mark checked in the one wire pending council persistence workflow while keeping storage-specific behavior contained within <see cref="OneWirePendingCouncilStore"/>.
     /// </summary>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
     public void MarkChecked(Guid correlationId)
     {
     try

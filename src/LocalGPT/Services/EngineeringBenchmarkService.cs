@@ -7,8 +7,15 @@ using System.Text;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides engineering benchmark service operations.
+    /// Coordinates engineering benchmark behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="artifactService">Council artifact service dependency used by the engineering benchmark workflow to provide the corresponding application capability.</param>
+    /// <param name="knowledgeService">Council knowledge service dependency used by the engineering benchmark workflow to provide the corresponding application capability.</param>
+    /// <param name="learnBaseImporter">Learn base knowledge importer service dependency used by the engineering benchmark workflow to provide the corresponding application capability.</param>
+    /// <param name="artifactBuildExecutor">Artifact build executor dependency used by the engineering benchmark workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the engineering benchmark workflow to provide the corresponding application capability.</param>
+    /// <param name="councilText">Council text service dependency used by the engineering benchmark workflow to provide the corresponding application capability.</param>
     public sealed class EngineeringBenchmarkService(
         ICouncilArtifactService artifactService,
         ICouncilKnowledgeService knowledgeService,
@@ -19,8 +26,11 @@ namespace LocalGPT.Services
         CouncilTextService councilText) : IEngineeringBenchmarkService
     {
         /// <summary>
-        /// Runs the run async operation.
+        /// Performs run as part of the engineering benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The engineering benchmark result produced by the operation.</returns>
         public async Task<EngineeringBenchmarkResult> RunAsync(
             EngineeringBenchmarkRequest request,
             CancellationToken cancellationToken = default)
@@ -92,8 +102,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Saves benchmark knowledge async.
+        /// Persists benchmark knowledge as part of the engineering benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the engineering benchmark operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The GUID produced by the operation.</returns>
         public async Task<Guid?> SaveBenchmarkKnowledgeAsync(EngineeringBenchmarkResult result, CancellationToken cancellationToken)
         {
             try
@@ -136,8 +149,13 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the run local gpt lane async operation.
+        /// Performs run LocalGPT lane as part of the engineering benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="task">Task value supplied to the engineering benchmark operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The engineering benchmark lane result produced by the operation.</returns>
         private async Task<EngineeringBenchmarkLaneResult?> RunLocalGptLaneAsync(
             BenchmarkTaskDefinition task,
             EngineeringBenchmarkRequest request,
@@ -213,8 +231,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Validates buildable artifacts async.
+        /// Validates buildable artifacts as part of the engineering benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="artifacts">Council artifact dependency used by the engineering benchmark workflow to provide the corresponding application capability.</param>
+        /// <param name="maxBuildArtifacts">Max build artifacts value supplied to the engineering benchmark operation and used when producing its result.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private async Task<IReadOnlyList<EngineeringBenchmarkBuildCheck>> ValidateBuildableArtifactsAsync(
             IReadOnlyList<CouncilArtifact> artifacts,
             int maxBuildArtifacts,
@@ -245,8 +268,12 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Validates buildable artifact async.
+        /// Validates buildable artifact as part of the engineering benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="artifact">Artifact value supplied to the engineering benchmark operation and used when producing its result.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The engineering benchmark build check produced by the operation.</returns>
         private async Task<EngineeringBenchmarkBuildCheck> ValidateBuildableArtifactAsync(
             CouncilArtifact artifact,
             bool userConfirmed,

@@ -10,11 +10,14 @@ namespace LocalGPT.Services;
 /// Singleton services remain DI-owned and use their explicit service logging so the decorator can never
 /// resolve a scoped dependency from the root provider.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
 {
     /// <summary>
-    /// Runs the apply operation.
+    /// Performs apply for <see cref="ServiceMethodDiagnosticsRegistration"/>, keeping the operation consistent with the state and invariants of the surrounding service method diagnostics registration workflow.
     /// </summary>
+    /// <param name="services">Service collection dependency used by the service method diagnostics registration workflow to provide the corresponding application capability.</param>
+    /// <param name="isDevelopment">Value indicating whether is development should apply to this operation.</param>
     public void Apply(IServiceCollection services, bool isDevelopment)
     {
         try
@@ -73,8 +76,10 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
     }
 
     /// <summary>
-    /// Runs the should decorate operation.
+    /// Performs should decorate for <see cref="ServiceMethodDiagnosticsRegistration"/>, keeping the operation consistent with the state and invariants of the surrounding service method diagnostics registration workflow.
     /// </summary>
+    /// <param name="descriptor">Descriptor value supplied to the service method diagnostics registration operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool ShouldDecorate(ServiceDescriptor descriptor)
     {
         try
@@ -119,8 +124,10 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
     }
 
     /// <summary>
-    /// Determines whether high frequency read service.
+    /// Determines whether high frequency read service for <see cref="ServiceMethodDiagnosticsRegistration"/>, keeping the operation consistent with the state and invariants of the surrounding service method diagnostics registration workflow.
     /// </summary>
+    /// <param name="serviceType">Service type value supplied to the service method diagnostics registration operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsHighFrequencyReadService(Type serviceType)
     {
         try
@@ -151,8 +158,12 @@ public sealed class ServiceMethodDiagnosticsRegistration(ILogger logger)
     }
 
     /// <summary>
-    /// Creates proxy.
+    /// Creates proxy for <see cref="ServiceMethodDiagnosticsRegistration"/>, keeping the operation consistent with the state and invariants of the surrounding service method diagnostics registration workflow.
     /// </summary>
+    /// <param name="provider">Service provider dependency used by the service method diagnostics registration workflow to provide the corresponding application capability.</param>
+    /// <param name="descriptor">Descriptor value supplied to the service method diagnostics registration operation and used when producing its result.</param>
+    /// <param name="isDevelopment">Value indicating whether is development should apply to this operation.</param>
+    /// <returns>The object produced by the operation.</returns>
     private object CreateProxy(IServiceProvider provider, ServiceDescriptor descriptor, bool isDevelopment)
     {
         try

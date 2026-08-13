@@ -10,8 +10,12 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Endpoints
 {
     /// <summary>
-    /// Provides minecraft diagnostic controller operations.
+    /// Exposes the minecraft diagnostic application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
+    /// <param name="councilText">Council text service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
     [ApiController]
     [Route("")]
     public class MinecraftDiagnosticController(ILogger<MinecraftDiagnosticController> logger,
@@ -23,6 +27,11 @@ namespace LocalGPT.Endpoints
         /// Runs the require human confirmation operation.
         /// </summary>
         private IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
+            /// <summary>
+            /// Returns the bad request projection for the minecraft diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+            /// </summary>
+            /// <param name="Error">Error value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+            /// <returns>The user confirmed null results produced by the operation.</returns>
             userConfirmed
                 ? null
                 : Results.BadRequest(new
@@ -70,8 +79,10 @@ namespace LocalGPT.Endpoints
         }
 
         /// <summary>
-        /// Gets minecraft datapack version.
+        /// Retrieves minecraft datapack version for the minecraft diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="minecraftVersion">Minecraft version value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/minecraft/datapack-version")]
         public IResult GetMinecraftDatapackVersion(
             string? minecraftVersion)
@@ -88,8 +99,13 @@ namespace LocalGPT.Endpoints
         }
 
         /// <summary>
-        /// Gets minecraft dependency version.
+        /// Retrieves minecraft dependency version for the minecraft diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="loader">Loader value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+        /// <param name="minecraftVersion">Minecraft version value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+        /// <param name="javaVersion">Java version value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+        /// <param name="gradleVersion">Gradle version value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/minecraft/dependency-version")]
         public IResult GetMinecraftDependencyVersion(
             string? loader,
@@ -109,8 +125,13 @@ namespace LocalGPT.Endpoints
         }
 
         /// <summary>
-        /// Gets minecraft workspace smoke.
+        /// Retrieves minecraft workspace smoke for the minecraft diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="workspaceService">Minecraft mod workspace service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="loader">Loader value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/minecraft/workspace-smoke")]
         [HumanApprovalRequired("diagnostic.minecraft.workspace.create", "Create Minecraft diagnostic workspace", "Create one bounded Minecraft diagnostic workspace from the exact selected loader and versions.", "High", "Minecraft workspace reviewer")]
         public async Task<IResult> GetMinecraftWorkspaceSmoke(
@@ -159,8 +180,15 @@ namespace LocalGPT.Endpoints
         }
 
         /// <summary>
-        /// Gets minecraft datapack benchmark.
+        /// Retrieves minecraft datapack benchmark for the minecraft diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="workspaceService">Minecraft mod workspace service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="commandRunner">Native command runner dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="knowledgeService">Council knowledge service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="minecraftVersion">Minecraft version value supplied to the minecraft diagnostic operation and used when producing its result.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/minecraft/datapack-benchmark")]
         [HumanApprovalRequired("diagnostic.minecraft.datapack.benchmark", "Build Minecraft datapack benchmark", "Create, validate, build, and persist the exact Minecraft datapack benchmark request.", "High", "Minecraft build reviewer", requiredBeforeCompletion: true)]
         public async Task<IResult> GetMinecraftDatapackBenchmark(

@@ -13,34 +13,56 @@ namespace LocalGPT.Services.Council;
 public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="CouncilSpoolerService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory runs collection maintained internally by <see cref="CouncilSpoolerService"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<Guid, CouncilSpoolerSnapshot> runs = new();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal mutation gate state used by <see cref="CouncilSpoolerService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly object mutationGate = new();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to persistence gate state owned by <see cref="CouncilSpoolerService"/>.
     /// </summary>
     private readonly SemaphoreSlim persistenceGate = new(1, 1);
+    /// <summary>
+    /// Stores the logger used by <see cref="CouncilSpoolerService"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger<CouncilSpoolerService> logger;
+    /// <summary>
+    /// Stores the LocalGPT vocabulary service dependency used by <see cref="CouncilSpoolerService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly ILocalGptVocabularyService vocabulary;
+    /// <summary>
+    /// Stores the cancellation source used by <see cref="CouncilSpoolerService"/> to stop its current background or asynchronous operation.
+    /// </summary>
     private CancellationTokenSource? pendingPersist;
+    /// <summary>
+    /// Stores the internal disposed state used by <see cref="CouncilSpoolerService"/> while executing its surrounding workflow.
+    /// </summary>
     private bool disposed;
+    /// <summary>
+    /// Gets the checkpoint path used by this council spooler instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The checkpoint path value exposed by <see cref="CouncilSpoolerService"/>.</value>
     private string CheckpointPath { get; } = Path.Combine(
+        /// <summary>
+        /// Retrieves folder path as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
+        /// <returns>The environment produced by the operation.</returns>
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "LocalGPT",
         "CouncilSpooler",
         "recent-runs.json");
 
     /// <summary>
-    /// Runs the council spooler service operation.
+    /// Initializes a new <see cref="CouncilSpoolerService"/> instance and captures the dependencies or initial state required by its council spooler workflow.
     /// </summary>
+    /// <param name="vocabulary">Local gpt vocabulary service dependency used by the council spooler workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public CouncilSpoolerService(ILocalGptVocabularyService vocabulary, ILogger<CouncilSpoolerService> logger)
     {
         this.vocabulary = vocabulary;
@@ -49,13 +71,14 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 
     /// <summary>
-    /// Occurs when changed.
+    /// Occurs when changed changes or completes in <see cref="CouncilSpoolerService"/>, allowing interested callers to react without polling internal state.
     /// </summary>
     public event Action? Changed;
 
     /// <summary>
-    /// Runs the begin operation.
+    /// Performs begin as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="result">Result value supplied to the council spooler operation and used when producing its result.</param>
     public void Begin(MultiModelCouncilResult result)
     {
     try
@@ -88,8 +111,11 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 }
 
     /// <summary>
-    /// Runs the update operation.
+    /// Performs update as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="round">Round value supplied to the council spooler operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the council spooler operation and used when producing its result.</param>
     public void Update(Guid runId, int round, string phase)
     {
     try
@@ -115,8 +141,10 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 }
 
     /// <summary>
-    /// Adds step.
+    /// Adds step as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="step">Step value supplied to the council spooler operation and used when producing its result.</param>
     public void AddStep(Guid runId, MultiModelCouncilStep step)
     {
     try
@@ -150,8 +178,10 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 }
 
     /// <summary>
-    /// Runs the complete operation.
+    /// Performs complete as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="result">Result value supplied to the council spooler operation and used when producing its result.</param>
+    /// <param name="failed">Value indicating whether failed should apply to this operation.</param>
     public void Complete(MultiModelCouncilResult result, bool failed = false)
     {
     try
@@ -188,8 +218,11 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 }
 
     /// <summary>
-    /// Gets snapshots.
+    /// Retrieves snapshots as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="includeCompleted">Value indicating whether include completed should apply to this operation.</param>
+    /// <param name="take">Take value supplied to the council spooler operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<CouncilSpoolerSnapshot> GetSnapshots(bool includeCompleted = true, int take = 30)
     {
     try
@@ -217,8 +250,10 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 }
 
     /// <summary>
-    /// Gets snapshot.
+    /// Retrieves snapshot as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The council spooler snapshot produced by the operation.</returns>
     public CouncilSpoolerSnapshot? GetSnapshot(Guid runId)
     {
     try
@@ -238,7 +273,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 }
 
     /// <summary>
-    /// Runs the notify changed operation.
+    /// Performs notify changed as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     private void NotifyChanged()
     {
@@ -252,7 +287,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 
     /// <summary>
-    /// Runs the schedule persist operation.
+    /// Performs schedule persist as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     private void SchedulePersist()
     {
@@ -277,8 +312,10 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 }
 
     /// <summary>
-    /// Runs the persist after delay async operation.
+    /// Persists after delay as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PersistAfterDelayAsync(CancellationToken cancellationToken)
     {
         try
@@ -301,7 +338,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 
     /// <summary>
-    /// Loads checkpoint.
+    /// Loads checkpoint as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     private void LoadCheckpoint()
     {
@@ -327,8 +364,10 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     }
 
     /// <summary>
-    /// Runs the clone snapshot operation.
+    /// Performs clone snapshot as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="source">Source value supplied to the council spooler operation and used when producing its result.</param>
+    /// <returns>The council spooler snapshot produced by the operation.</returns>
     private CouncilSpoolerSnapshot CloneSnapshot(CouncilSpoolerSnapshot source) {
     try
     {
@@ -360,8 +399,10 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 }
 
     /// <summary>
-    /// Runs the clone step operation.
+    /// Performs clone step as part of the council spooler service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="source">Source value supplied to the council spooler operation and used when producing its result.</param>
+    /// <returns>The multi model council step produced by the operation.</returns>
     private MultiModelCouncilStep CloneStep(MultiModelCouncilStep source) {
     try
     {
@@ -399,7 +440,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
 }
 
     /// <summary>
-    /// Runs the dispose operation.
+    /// Releases resources owned by <see cref="CouncilSpoolerService"/> and leaves the council spooler workflow in a safely disposed state.
     /// </summary>
     public void Dispose()
     {

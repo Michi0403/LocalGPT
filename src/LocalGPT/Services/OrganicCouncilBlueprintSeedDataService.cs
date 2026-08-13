@@ -1348,7 +1348,7 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
 }
 
     /// <summary>
-    /// Creates architecture contracts shared by every seeded council team.
+    /// Performs default architecture contracts as part of the organic council blueprint seed service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <returns>The shared architecture-contract list.</returns>
     private List<string> DefaultArchitectureContracts() {

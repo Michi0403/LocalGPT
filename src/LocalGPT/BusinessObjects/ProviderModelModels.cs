@@ -4,28 +4,28 @@ using System.Text;
 namespace LocalGPT.BusinessObjects;
 
 /// <summary>
-/// Represents a provider model kinds.
+/// Represents a provider model kinds application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 internal sealed class ProviderModelKinds
 {
     /// <summary>
-    /// Runs the provider model kinds operation.
+    /// Initializes a new <see cref="ProviderModelKinds"/> instance and captures the dependencies or initial state required by its provider model kinds workflow.
     /// </summary>
     private ProviderModelKinds() { }
     /// <summary>
-    /// Stores ollama.
+    /// Defines the Ollama constant used by <see cref="ProviderModelKinds"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string Ollama = "ollama";
     /// <summary>
-    /// Stores open aicompatible.
+    /// Defines the OpenAI compatible constant used by <see cref="ProviderModelKinds"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string OpenAICompatible = "openai-compatible";
     /// <summary>
-    /// Stores open ai.
+    /// Defines the OpenAI constant used by <see cref="ProviderModelKinds"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string OpenAI = "openai";
     /// <summary>
-    /// Stores azure open ai.
+    /// Defines the azure OpenAI constant used by <see cref="ProviderModelKinds"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string AzureOpenAI = "azure-openai";
 }
@@ -37,72 +37,90 @@ internal sealed class ProviderModelKinds
 public sealed class ProviderModelReference
 {
     /// <summary>
-    /// Gets or sets provider kind.
+    /// Gets or sets the provider kind value that forms part of the provider model reference state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The provider kind value exposed by <see cref="ProviderModelReference"/>.</value>
     public string ProviderKind { get; set; } = ProviderModelKinds.Ollama;
     /// <summary>
-    /// Gets or sets provider name.
+    /// Gets or sets the provider name value that forms part of the provider model reference state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The provider name value exposed by <see cref="ProviderModelReference"/>.</value>
     public string ProviderName { get; set; } = "Ollama";
     /// <summary>
-    /// Gets or sets endpoint.
+    /// Gets or sets the endpoint that identifies the network or application endpoint associated with this provider model reference state.
     /// </summary>
+    /// <value>The endpoint value exposed by <see cref="ProviderModelReference"/>.</value>
     public string Endpoint { get; set; } = string.Empty;
     /// <summary>
-    /// Gets or sets model name.
+    /// Gets or sets the model name value that forms part of the provider model reference state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The model name value exposed by <see cref="ProviderModelReference"/>.</value>
     public string ModelName { get; set; } = string.Empty;
     /// <summary>
-    /// Gets or sets is local.
+    /// Gets or sets a value indicating whether local applies to the provider model reference state.
     /// </summary>
+    /// <value>The is local value exposed by <see cref="ProviderModelReference"/>.</value>
     public bool IsLocal { get; set; } = true;
     /// <summary>
-    /// Gets or sets is reachable.
+    /// Gets or sets a value indicating whether reachable applies to the provider model reference state.
     /// </summary>
+    /// <value>The is reachable value exposed by <see cref="ProviderModelReference"/>.</value>
     public bool IsReachable { get; set; }
     /// <summary>
-    /// Gets or sets is configured.
+    /// Gets or sets a value indicating whether configured applies to the provider model reference state.
     /// </summary>
+    /// <value>The is configured value exposed by <see cref="ProviderModelReference"/>.</value>
     public bool IsConfigured { get; set; }
     /// <summary>
-    /// Gets or sets is loaded.
+    /// Gets or sets a value indicating whether loaded applies to the provider model reference state.
     /// </summary>
+    /// <value>The is loaded value exposed by <see cref="ProviderModelReference"/>.</value>
     public bool IsLoaded { get; set; }
     /// <summary>
-    /// Gets or sets supports benchmark.
+    /// Gets or sets a value indicating whether benchmark applies to the provider model reference state.
     /// </summary>
+    /// <value>The supports benchmark value exposed by <see cref="ProviderModelReference"/>.</value>
     public bool SupportsBenchmark { get; set; } = true;
     /// <summary>
-    /// Gets or sets details.
+    /// Gets or sets the details value that forms part of the provider model reference state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The details value exposed by <see cref="ProviderModelReference"/>.</value>
     public string Details { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets selection key.
+    /// Gets the stable selection key used to identify or correlate this provider model reference instance with related application state.
     /// </summary>
+    /// <value>The selection key value exposed by <see cref="ProviderModelReference"/>.</value>
     public string SelectionKey => new ProviderModelIdentity().CreateSelectionKey(ProviderName, Endpoint, ModelName);
     /// <summary>
-    /// Gets or sets display name.
+    /// Gets the display name value that forms part of the provider model reference state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The display name value exposed by <see cref="ProviderModelReference"/>.</value>
     public string DisplayName => $"{ModelName} — {ProviderName}";
     /// <summary>
-    /// Gets or sets endpoint label.
+    /// Gets the endpoint label value that forms part of the provider model reference state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The endpoint label value exposed by <see cref="ProviderModelReference"/>.</value>
     public string EndpointLabel => new ProviderModelIdentity().GetEndpointLabel(Endpoint);
     /// <summary>
-    /// Gets or sets stable identifier.
+    /// Gets the stable stable identifier used to identify or correlate this provider model reference instance with related application state.
     /// </summary>
+    /// <value>The stable identifier value exposed by <see cref="ProviderModelReference"/>.</value>
     public string StableId => new ProviderModelIdentity().CreateStableId(ProviderKind, Endpoint, ModelName);
 }
 
 /// <summary>
-/// Represents a provider model identity.
+/// Represents a provider model identity application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 internal readonly struct ProviderModelIdentity
 {
     /// <summary>
-    /// Creates selection key.
+    /// Creates selection key for <see cref="ProviderModelIdentity"/>, keeping the operation consistent with the state and invariants of the surrounding provider model identity workflow.
     /// </summary>
+    /// <param name="providerName">Provider name value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <param name="endpoint">Endpoint value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <param name="modelName">Model name value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string CreateSelectionKey(string providerName, string endpoint, string modelName)
     {
         var provider = string.IsNullOrWhiteSpace(providerName) ? "AI provider" : providerName.Trim();
@@ -114,8 +132,10 @@ internal readonly struct ProviderModelIdentity
     }
 
     /// <summary>
-    /// Gets endpoint label.
+    /// Retrieves endpoint label for <see cref="ProviderModelIdentity"/>, keeping the operation consistent with the state and invariants of the surrounding provider model identity workflow.
     /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string GetEndpointLabel(string? endpoint)
     {
         if (string.IsNullOrWhiteSpace(endpoint))
@@ -136,8 +156,12 @@ internal readonly struct ProviderModelIdentity
     }
 
     /// <summary>
-    /// Creates stable identifier.
+    /// Creates stable identifier for <see cref="ProviderModelIdentity"/>, keeping the operation consistent with the state and invariants of the surrounding provider model identity workflow.
     /// </summary>
+    /// <param name="providerKind">Provider kind value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <param name="endpoint">Endpoint value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <param name="modelName">Model name value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string CreateStableId(string? providerKind, string? endpoint, string? modelName)
     {
         var value = $"{providerKind?.Trim().ToLowerInvariant() ?? string.Empty}|{NormalizeEndpoint(endpoint)}|{modelName?.Trim() ?? string.Empty}";
@@ -146,16 +170,21 @@ internal readonly struct ProviderModelIdentity
 
 
     /// <summary>
-    /// Runs the looks provider qualified operation.
+    /// Performs looks provider qualified for <see cref="ProviderModelIdentity"/>, keeping the operation consistent with the state and invariants of the surrounding provider model identity workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool LooksProviderQualified(string? value) =>
         !string.IsNullOrWhiteSpace(value)
         && value.Contains(" — ", StringComparison.Ordinal)
         && value.Contains(" @ ", StringComparison.Ordinal);
 
     /// <summary>
-    /// Attempts to parse selection key.
+    /// Attempts to parse selection key for <see cref="ProviderModelIdentity"/>, keeping the operation consistent with the state and invariants of the surrounding provider model identity workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <param name="reference">Reference value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool TryParseSelectionKey(string? value, out ProviderModelReference reference)
     {
         reference = new ProviderModelReference();
@@ -197,8 +226,10 @@ internal readonly struct ProviderModelIdentity
     }
 
     /// <summary>
-    /// Runs the infer provider kind operation.
+    /// Performs infer provider kind for <see cref="ProviderModelIdentity"/>, keeping the operation consistent with the state and invariants of the surrounding provider model identity workflow.
     /// </summary>
+    /// <param name="providerName">Provider name value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string InferProviderKind(string providerName)
     {
         if (providerName.Equals("Ollama", StringComparison.OrdinalIgnoreCase))
@@ -211,8 +242,10 @@ internal readonly struct ProviderModelIdentity
     }
 
     /// <summary>
-    /// Normalizes open ai compatible endpoint.
+    /// Normalizes OpenAI compatible endpoint for <see cref="ProviderModelIdentity"/>, keeping the operation consistent with the state and invariants of the surrounding provider model identity workflow.
     /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeOpenAiCompatibleEndpoint(string? endpoint)
     {
         var normalized = NormalizeEndpoint(endpoint);
@@ -225,8 +258,10 @@ internal readonly struct ProviderModelIdentity
     }
 
     /// <summary>
-    /// Normalizes endpoint.
+    /// Normalizes endpoint for <see cref="ProviderModelIdentity"/>, keeping the operation consistent with the state and invariants of the surrounding provider model identity workflow.
     /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the provider model identity operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string NormalizeEndpoint(string? endpoint)
     {
         var value = endpoint?.Trim().TrimEnd('/') ?? string.Empty;

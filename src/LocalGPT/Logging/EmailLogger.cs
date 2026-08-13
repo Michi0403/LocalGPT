@@ -9,26 +9,40 @@ using System.Net.Mail;
 namespace LocalGPT.Logging;
 
 /// <summary>
-/// Represents an email logger.
+/// Represents an email logger application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 public sealed class EmailLogger : ILogger, IDisposable
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal log queue state used by <see cref="EmailLogger"/> while executing its surrounding workflow.
     /// </summary>
     private readonly BlockingCollection<(string Message, string? ExceptionType)> logQueue = new(boundedCapacity: 256);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the cancellation source used by <see cref="EmailLogger"/> to stop its current background or asynchronous operation.
     /// </summary>
     private readonly CancellationTokenSource stop = new();
+    /// <summary>
+    /// Stores the internal config state used by <see cref="EmailLogger"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly EmailLoggerCoreOptions config;
+    /// <summary>
+    /// Stores the internal category name state used by <see cref="EmailLogger"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string categoryName;
+    /// <summary>
+    /// Stores the internal background task state used by <see cref="EmailLogger"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly Task backgroundTask;
+    /// <summary>
+    /// Stores the internal disposed state used by <see cref="EmailLogger"/> while executing its surrounding workflow.
+    /// </summary>
     private int disposed;
 
     /// <summary>
-    /// Runs the email logger operation.
+    /// Initializes a new <see cref="EmailLogger"/> instance and captures the dependencies or initial state required by its email logger workflow.
     /// </summary>
+    /// <param name="categoryName">Category name value supplied to the email logger operation and used when producing its result.</param>
+    /// <param name="optionsSnapshot">Email logger core options dependency used by the email logger workflow to provide the corresponding application capability.</param>
     public EmailLogger(string categoryName, IOptionsMonitor<EmailLoggerCoreOptions> optionsSnapshot)
     {
         this.categoryName = categoryName;
@@ -37,8 +51,9 @@ public sealed class EmailLogger : ILogger, IDisposable
     }
 
     /// <summary>
-    /// Runs the process log queue async operation.
+    /// Processes log queue for <see cref="EmailLogger"/>, keeping the operation consistent with the state and invariants of the surrounding email logger workflow.
     /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ProcessLogQueueAsync()
     {
         try
@@ -61,8 +76,12 @@ public sealed class EmailLogger : ILogger, IDisposable
     }
 
     /// <summary>
-    /// Runs the send email async operation.
+    /// Performs send email for <see cref="EmailLogger"/>, keeping the operation consistent with the state and invariants of the surrounding email logger workflow.
     /// </summary>
+    /// <param name="message">Message value supplied to the email logger operation and used when producing its result.</param>
+    /// <param name="exceptionType">Exception type value supplied to the email logger operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SendEmailAsync(
         string message,
         string? exceptionType,
@@ -114,6 +133,12 @@ public sealed class EmailLogger : ILogger, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs begin scope for <see cref="EmailLogger"/>, keeping the operation consistent with the state and invariants of the surrounding email logger workflow.
+    /// </summary>
+    /// <typeparam name="TState">Type used for t state values handled by <see cref="EmailLogger"/>.</typeparam>
+    /// <param name="state">State value supplied to the email logger operation and used when producing its result.</param>
+    /// <returns>The i disposable i logger produced by the operation.</returns>
     IDisposable ILogger.BeginScope<TState>(TState state) =>
         /// <summary>
         /// Runs the disposable scope operation.
@@ -121,15 +146,23 @@ public sealed class EmailLogger : ILogger, IDisposable
         new DisposableScope(string.Empty);
 
     /// <summary>
-    /// Determines whether enabled.
+    /// Determines whether enabled for <see cref="EmailLogger"/>, keeping the operation consistent with the state and invariants of the surrounding email logger workflow.
     /// </summary>
+    /// <param name="logLevel">Log level value supplied to the email logger operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool IsEnabled(LogLevel logLevel) =>
         System.Threading.Volatile.Read(ref disposed) == 0 &&
         (int)logLevel >= (int)config.CoreLogLevel;
 
     /// <summary>
-    /// Runs the log operation.
+    /// Performs log for <see cref="EmailLogger"/>, keeping the operation consistent with the state and invariants of the surrounding email logger workflow.
     /// </summary>
+    /// <typeparam name="TState">Type used for t state values handled by <see cref="EmailLogger"/>.</typeparam>
+    /// <param name="logLevel">Log level value supplied to the email logger operation and used when producing its result.</param>
+    /// <param name="eventId">Identifier of the event to use for this operation.</param>
+    /// <param name="state">State value supplied to the email logger operation and used when producing its result.</param>
+    /// <param name="exception">Exception value supplied to the email logger operation and used when producing its result.</param>
+    /// <param name="formatter">Formatter value supplied to the email logger operation and used when producing its result.</param>
     public void Log<TState>(
         LogLevel logLevel,
         EventId eventId,
@@ -153,7 +186,7 @@ public sealed class EmailLogger : ILogger, IDisposable
     }
 
     /// <summary>
-    /// Runs the dispose operation.
+    /// Releases resources owned by <see cref="EmailLogger"/> and leaves the email logger workflow in a safely disposed state.
     /// </summary>
     public void Dispose()
     {

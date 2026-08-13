@@ -3,14 +3,16 @@ using Microsoft.Extensions.Options;
 namespace LocalGPT.Helper
 {
     /// <summary>
-    /// Represents a configure email logger options.
+    /// Carries the configurable configure email logger settings used to control the associated application behavior without hard-coding policy in consumers.
     /// </summary>
+    /// <param name="loggingOptions">Email logger core options dependency used by the configure email logger workflow to provide the corresponding application capability.</param>
     public class ConfigureEmailLoggerOptions(IOptionsMonitor<EmailLoggerCoreOptions> loggingOptions) : IConfigureOptions<EmailLoggerCoreOptions>
     {
 
         /// <summary>
-        /// Runs the configure operation.
+        /// Performs configure for <see cref="ConfigureEmailLoggerOptions"/>, keeping the operation consistent with the state and invariants of the surrounding configure email logger workflow.
         /// </summary>
+        /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
         public void Configure(EmailLoggerCoreOptions options)
         {
             loggingOptions.CurrentValue.SmtpServer = options.SmtpServer;

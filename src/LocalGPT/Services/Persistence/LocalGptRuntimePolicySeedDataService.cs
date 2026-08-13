@@ -4,16 +4,23 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services.Persistence;
 
 /// <summary>
-/// Provides local gpt runtime policy seed data service operations.
+/// Coordinates LocalGPT runtime policy seed behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 public sealed class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolicySeedDataService
 {
+    /// <summary>
+    /// Stores the internal seed state used by <see cref="LocalGptRuntimePolicySeedDataService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly LocalGptRuntimePolicySeedModel seed;
+    /// <summary>
+    /// Stores the logger used by <see cref="LocalGptRuntimePolicySeedDataService"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger<LocalGptRuntimePolicySeedDataService> logger;
 
     /// <summary>
-    /// Runs the local gpt runtime policy seed data service operation.
+    /// Initializes a new <see cref="LocalGptRuntimePolicySeedDataService"/> instance and captures the dependencies or initial state required by its LocalGPT runtime policy seed workflow.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public LocalGptRuntimePolicySeedDataService(ILogger<LocalGptRuntimePolicySeedDataService> logger)
     {
         this.logger = logger;
@@ -346,8 +353,9 @@ public sealed class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolic
     }
 
     /// <summary>
-    /// Gets seed.
+    /// Retrieves seed as part of the LocalGPT runtime policy seed service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The LocalGPT runtime policy seed model produced by the operation.</returns>
     public LocalGptRuntimePolicySeedModel GetSeed()
     {
         try

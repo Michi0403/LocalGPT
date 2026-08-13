@@ -5,8 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
 /// <summary>
-/// Provides runtime policy controller operations.
+/// Exposes the runtime policy application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the runtime policy workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicyStore">Local gpt runtime policy store service dependency used by the runtime policy workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicySeed">Local gpt runtime policy seed data service dependency used by the runtime policy workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/runtime-policy")]
 public sealed class RuntimePolicyController(
@@ -16,8 +20,9 @@ public sealed class RuntimePolicyController(
     ILogger<RuntimePolicyController> logger) : ControllerBase
 {
     /// <summary>
-    /// Runs the get operation.
+    /// Returns the get projection for the runtime policy API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet]
     public ActionResult<LocalGptRuntimePolicySnapshot> Get()
     {
@@ -35,8 +40,9 @@ public sealed class RuntimePolicyController(
     }
 
     /// <summary>
-    /// Gets definition.
+    /// Retrieves definition for the runtime policy API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("definition")]
     public ActionResult<LocalGptRuntimePolicyDefinition> GetDefinition()
     {
@@ -54,8 +60,9 @@ public sealed class RuntimePolicyController(
     }
 
     /// <summary>
-    /// Gets seed.
+    /// Retrieves seed for the runtime policy API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("seed")]
     public ActionResult<LocalGptRuntimePolicySeedModel> GetSeed()
     {
@@ -73,8 +80,9 @@ public sealed class RuntimePolicyController(
     }
 
     /// <summary>
-    /// Runs the reload operation.
+    /// Returns the reload projection for the runtime policy API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("reload")]
     public ActionResult<LocalGptRuntimePolicySnapshot> Reload()
     {

@@ -9,13 +9,18 @@ namespace LocalGPT.Diagnostics;
 /// each controller to repeat request lifecycle logging. Client disconnects remain
 /// cancellations; unexpected failures are logged and recorded in bounded activity.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="componentActivity">Component activity service dependency used by the controller request logging workflow to provide the corresponding application capability.</param>
 public sealed class ControllerRequestLoggingFilter(
     ILogger<ControllerRequestLoggingFilter> logger,
     IComponentActivityService componentActivity) : IAsyncActionFilter
 {
     /// <summary>
-    /// Runs the on action execution async operation.
+    /// Handles the action execution async lifecycle or event notification for <see cref="ControllerRequestLoggingFilter"/>, updating the state required by the surrounding workflow.
     /// </summary>
+    /// <param name="context">Context value supplied to the controller request logging operation and used when producing its result.</param>
+    /// <param name="next">Next value supplied to the controller request logging operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -104,8 +109,12 @@ public sealed class ControllerRequestLoggingFilter(
     }
 
     /// <summary>
-    /// Gets route value.
+    /// Retrieves route value for <see cref="ControllerRequestLoggingFilter"/>, keeping the operation consistent with the state and invariants of the surrounding controller request logging workflow.
     /// </summary>
+    /// <param name="routeValues">String dependency used by the controller request logging workflow to provide the corresponding application capability.</param>
+    /// <param name="key">Key value supplied to the controller request logging operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the controller request logging operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetRouteValue(
         IDictionary<string, string?> routeValues,
         string key,

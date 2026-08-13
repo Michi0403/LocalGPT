@@ -6,20 +6,26 @@ using System.Runtime.InteropServices;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides ollama process service operations.
+/// Coordinates Ollama process behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OllamaProcessService(
     ILogger<OllamaProcessService> logger) : IOllamaProcessService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to process gate state owned by <see cref="OllamaProcessService"/>.
     /// </summary>
     private readonly SemaphoreSlim processGate = new(1, 1);
+    /// <summary>
+    /// Stores the internal Ollama process names state used by <see cref="OllamaProcessService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string[] ollamaProcessNames = ["ollama", "ollamaapp"];
 
     /// <summary>
-    /// Gets status async.
+    /// Retrieves status as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The Ollama process status produced by the operation.</returns>
     public async Task<OllamaProcessStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -39,8 +45,10 @@ public sealed class OllamaProcessService(
 }
 
     /// <summary>
-    /// Starts async.
+    /// Performs start as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The Ollama process status produced by the operation.</returns>
     public async Task<OllamaProcessStatus> StartAsync(CancellationToken cancellationToken = default)
     {
         await processGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -93,8 +101,10 @@ public sealed class OllamaProcessService(
     }
 
     /// <summary>
-    /// Stops async.
+    /// Performs stop as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The Ollama process status produced by the operation.</returns>
     public async Task<OllamaProcessStatus> StopAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -130,8 +140,10 @@ public sealed class OllamaProcessService(
 }
 
     /// <summary>
-    /// Runs the restart async operation.
+    /// Performs restart as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The Ollama process status produced by the operation.</returns>
     public async Task<OllamaProcessStatus> RestartAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -183,8 +195,9 @@ public sealed class OllamaProcessService(
 }
 
     /// <summary>
-    /// Builds status.
+    /// Builds status as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The Ollama process status produced by the operation.</returns>
     private OllamaProcessStatus BuildStatus()
     {
     try
@@ -233,8 +246,9 @@ public sealed class OllamaProcessService(
 }
 
     /// <summary>
-    /// Gets ollama processes.
+    /// Retrieves Ollama processes as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private List<Process> GetOllamaProcesses()
     {
     try
@@ -268,8 +282,10 @@ public sealed class OllamaProcessService(
 }
 
     /// <summary>
-    /// Normalizes process name.
+    /// Normalizes process name as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the Ollama process operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeProcessName(string value) {
     try
     {
@@ -286,8 +302,10 @@ public sealed class OllamaProcessService(
 }
 
     /// <summary>
-    /// Determines whether ollama app executable.
+    /// Determines whether Ollama app executable as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="executable">Executable value supplied to the Ollama process operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsOllamaAppExecutable(string executable) {
     try
     {
@@ -304,8 +322,9 @@ public sealed class OllamaProcessService(
 }
 
     /// <summary>
-    /// Resolves ollama executable.
+    /// Resolves Ollama executable as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     private string? ResolveOllamaExecutable()
     {
     try
@@ -351,8 +370,10 @@ public sealed class OllamaProcessService(
 }
 
     /// <summary>
-    /// Runs the terminate all ollama processes async operation.
+    /// Performs terminate all Ollama processes as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The int produced by the operation.</returns>
     private async Task<int> TerminateAllOllamaProcessesAsync(CancellationToken cancellationToken)
     {
         var terminatedProcessIds = new HashSet<int>();
@@ -394,8 +415,11 @@ public sealed class OllamaProcessService(
     }
 
     /// <summary>
-    /// Runs the wait for process state async operation.
+    /// Performs wait for process state as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="expectedRunning">Value indicating whether expected running should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task WaitForProcessStateAsync(bool expectedRunning, CancellationToken cancellationToken)
     {
     try

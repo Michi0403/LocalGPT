@@ -6,8 +6,12 @@ using System.Text.Json;
 namespace LocalGPT.Services.OneWire;
 
 /// <summary>
-/// Represents an one wire operation executor.
+/// Represents an one wire operation executor application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="scopeFactory">Service scope factory dependency used by the one wire operation executor workflow to provide the corresponding application capability.</param>
+/// <param name="codec">One wire envelope codec dependency used by the one wire operation executor workflow to provide the corresponding application capability.</param>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the one wire operation executor workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireOperationExecutor(
     IServiceScopeFactory scopeFactory,
     IOneWireEnvelopeCodec codec,
@@ -16,8 +20,11 @@ public sealed class OneWireOperationExecutor(
 {
 
     /// <summary>
-    /// Runs the execute async operation.
+    /// Performs execute for <see cref="OneWireOperationExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding one wire operation executor workflow.
     /// </summary>
+    /// <param name="item">Item value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> ExecuteAsync(OneWireWorkItem item, CancellationToken cancellationToken = default)
     {
     try
@@ -195,8 +202,12 @@ public sealed class OneWireOperationExecutor(
 }
 
     /// <summary>
-    /// Gets string.
+    /// Retrieves string for <see cref="OneWireOperationExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding one wire operation executor workflow.
     /// </summary>
+    /// <param name="element">Element value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetString(JsonElement element, string name, string fallback) {
     try
     {
@@ -215,8 +226,11 @@ public sealed class OneWireOperationExecutor(
 }
 
     /// <summary>
-    /// Gets boolean.
+    /// Retrieves boolean for <see cref="OneWireOperationExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding one wire operation executor workflow.
     /// </summary>
+    /// <param name="element">Element value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool GetBoolean(JsonElement element, string name) {
     try
     {
@@ -233,8 +247,12 @@ public sealed class OneWireOperationExecutor(
 }
 
     /// <summary>
-    /// Gets int.
+    /// Retrieves int for <see cref="OneWireOperationExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding one wire operation executor workflow.
     /// </summary>
+    /// <param name="element">Element value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int GetInt(JsonElement element, string name, int fallback) {
     try
     {
@@ -251,8 +269,12 @@ public sealed class OneWireOperationExecutor(
 }
 
     /// <summary>
-    /// Reads payload.
+    /// Reads payload for <see cref="OneWireOperationExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding one wire operation executor workflow.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="OneWireOperationExecutor"/>.</typeparam>
+    /// <param name="envelope">Envelope value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <param name="propertyName">Property name value supplied to the one wire operation executor operation and used when producing its result.</param>
+    /// <returns>The t produced by the operation.</returns>
     private T ReadPayload<T>(OneWireEnvelope envelope, string propertyName)
     {
         if (envelope.Properties is null || !envelope.Properties.TryGetValue(propertyName, out var element))
@@ -262,8 +284,20 @@ public sealed class OneWireOperationExecutor(
 }
 
 /// <summary>
-/// Represents an one wire message dispatcher.
+/// Represents an one wire message dispatcher application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="codec">One wire envelope codec dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="capabilities">One wire capability catalog dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="pendingCouncils">One wire pending council store dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="humanCollaboration">Human collaboration service dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="security">One wire runtime security service dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="replayGuard">One wire replay guard dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="transportSecurityPolicy">One wire transport security policy dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="dispatchContextFactory">One wire dispatch context factory dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="targetApprovalPolicy">One wire target approval policy dependency used by the one wire message dispatcher workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireMessageDispatcher(
     IOneWireEnvelopeCodec codec,
     IOneWireCapabilityCatalog capabilities,
@@ -279,8 +313,11 @@ public sealed class OneWireMessageDispatcher(
     ILogger<OneWireMessageDispatcher> logger) : IOneWireMessageDispatcher
 {
     /// <summary>
-    /// Runs the dispatch async operation.
+    /// Performs dispatch for <see cref="OneWireMessageDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding one wire message dispatcher workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The one wire envelope produced by the operation.</returns>
     public Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default) {
     try
     {
@@ -297,8 +334,12 @@ public sealed class OneWireMessageDispatcher(
 }
 
     /// <summary>
-    /// Runs the dispatch async operation.
+    /// Performs dispatch for <see cref="OneWireMessageDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding one wire message dispatcher workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <param name="context">Context value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The one wire envelope produced by the operation.</returns>
     public async Task<OneWireEnvelope?> DispatchAsync(OneWireEnvelope envelope, OneWireDispatchContext context, CancellationToken cancellationToken = default)
     {
     try
@@ -492,8 +533,12 @@ public sealed class OneWireMessageDispatcher(
 }
 
     /// <summary>
-    /// Runs the authorize target and queue async operation.
+    /// Performs authorize target and queue for <see cref="OneWireMessageDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding one wire message dispatcher workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <param name="alwaysRequireHuman">Value indicating whether always require human should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The one wire envelope produced by the operation.</returns>
     private async Task<OneWireEnvelope> AuthorizeTargetAndQueueAsync(
         OneWireEnvelope envelope,
         bool alwaysRequireHuman,
@@ -537,8 +582,10 @@ public sealed class OneWireMessageDispatcher(
 }
 
     /// <summary>
-    /// Applies human response.
+    /// Applies human response for <see cref="OneWireMessageDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding one wire message dispatcher workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <param name="userResponse">User response value supplied to the one wire message dispatcher operation and used when producing its result.</param>
     public void ApplyHumanResponse(OneWireEnvelope envelope, string? userResponse)
     {
     try
@@ -564,8 +611,11 @@ public sealed class OneWireMessageDispatcher(
 }
 
     /// <summary>
-    /// Runs the accepted operation.
+    /// Performs accepted for <see cref="OneWireMessageDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding one wire message dispatcher workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="item">Item value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <returns>The one wire envelope produced by the operation.</returns>
     private OneWireEnvelope Accepted(OneWireEnvelope request, OneWireWorkItem item) {
     try
     {
@@ -582,8 +632,11 @@ public sealed class OneWireMessageDispatcher(
 }
 
     /// <summary>
-    /// Runs the error operation.
+    /// Performs error for <see cref="OneWireMessageDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding one wire message dispatcher workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="error">Error value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <returns>The one wire envelope produced by the operation.</returns>
     private OneWireEnvelope Error(OneWireEnvelope request, string error) {
     try
     {
@@ -608,8 +661,12 @@ public sealed class OneWireMessageDispatcher(
 }
 
     /// <summary>
-    /// Runs the reply operation.
+    /// Performs reply for <see cref="OneWireMessageDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding one wire message dispatcher workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="type">Type value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <param name="values">Values value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <returns>The one wire envelope produced by the operation.</returns>
     private OneWireEnvelope Reply(OneWireEnvelope request, OneWireMessageType type, Dictionary<string, object?> values)
     {
     try
@@ -637,8 +694,13 @@ public sealed class OneWireMessageDispatcher(
 }
 
     /// <summary>
-    /// Attempts to read.
+    /// Attempts to read for <see cref="OneWireMessageDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding one wire message dispatcher workflow.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="OneWireMessageDispatcher"/>.</typeparam>
+    /// <param name="envelope">Envelope value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <param name="propertyName">Property name value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the one wire message dispatcher operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryRead<T>(OneWireEnvelope envelope, string propertyName, out T? value)
     {
         value = default;
@@ -656,8 +718,9 @@ public sealed class OneWireMessageDispatcher(
     }
 
     /// <summary>
-    /// Gets local advertisement.
+    /// Retrieves local advertisement for <see cref="OneWireMessageDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding one wire message dispatcher workflow.
     /// </summary>
+    /// <returns>The one wire peer advertisement produced by the operation.</returns>
     public OneWirePeerAdvertisement GetLocalAdvertisement() {
     try
     {
@@ -689,15 +752,19 @@ public sealed class OneWireMessageDispatcher(
 }
 
 /// <summary>
-/// Represents an one wire target approval policy.
+/// Represents an one wire target approval policy application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the one wire target approval policy workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireTargetApprovalPolicy(
     ILocalGptVocabularyService vocabulary,
     ILogger<OneWireTargetApprovalPolicy> logger) : IOneWireTargetApprovalPolicy
 {
     /// <summary>
-    /// Runs the create operation.
+    /// Performs create for <see cref="OneWireTargetApprovalPolicy"/>, keeping the operation consistent with the state and invariants of the surrounding one wire target approval policy workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire target approval policy operation and used when producing its result.</param>
+    /// <returns>The human approval request spec produced by the operation.</returns>
     public HumanApprovalRequestSpec Create(OneWireEnvelope envelope)
     {
     try
@@ -764,8 +831,10 @@ public sealed class OneWireTargetApprovalPolicy(
 }
 
     /// <summary>
-    /// Reads editor.
+    /// Reads editor for <see cref="OneWireTargetApprovalPolicy"/>, keeping the operation consistent with the state and invariants of the surrounding one wire target approval policy workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire target approval policy operation and used when producing its result.</param>
+    /// <returns>The one wire interaction editor produced by the operation.</returns>
     public OneWireInteractionEditor ReadEditor(OneWireEnvelope envelope)
     {
     try
@@ -796,8 +865,18 @@ public sealed class OneWireTargetApprovalPolicy(
 }
 
 /// <summary>
-/// Provides one wire council approval processor hosted service operations.
+/// Coordinates one wire council approval processor behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="pendingCouncils">One wire pending council store dependency used by the one wire council approval processor workflow to provide the corresponding application capability.</param>
+/// <param name="humanCollaboration">Human collaboration service dependency used by the one wire council approval processor workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the one wire council approval processor workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the one wire council approval processor workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the one wire council approval processor workflow to provide the corresponding application capability.</param>
+/// <param name="security">One wire runtime security service dependency used by the one wire council approval processor workflow to provide the corresponding application capability.</param>
+/// <param name="targetApprovalPolicy">One wire target approval policy dependency used by the one wire council approval processor workflow to provide the corresponding application capability.</param>
+/// <param name="dispatcher">One wire message dispatcher dependency used by the one wire council approval processor workflow to provide the corresponding application capability.</param>
+/// <param name="codec">One wire envelope codec dependency used by the one wire council approval processor workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireCouncilApprovalProcessorHostedService(
     IOneWirePendingCouncilStore pendingCouncils,
     IHumanCollaborationService humanCollaboration,
@@ -811,8 +890,10 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
     ILogger<OneWireCouncilApprovalProcessorHostedService> logger) : BackgroundService
 {
     /// <summary>
-    /// Runs the execute async operation.
+    /// Performs execute as part of the one wire council approval processor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="stoppingToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -894,8 +975,12 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
     }
 
     /// <summary>
-    /// Runs the send error async operation.
+    /// Performs send error as part of the one wire council approval processor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="error">Error value supplied to the one wire council approval processor operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task SendErrorAsync(OneWireEnvelope request, string error, CancellationToken cancellationToken) {
     try
     {
@@ -920,8 +1005,12 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
 }
 
     /// <summary>
-    /// Creates reply.
+    /// Creates reply as part of the one wire council approval processor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="type">Type value supplied to the one wire council approval processor operation and used when producing its result.</param>
+    /// <param name="values">Values value supplied to the one wire council approval processor operation and used when producing its result.</param>
+    /// <returns>The one wire envelope produced by the operation.</returns>
     private OneWireEnvelope CreateReply(OneWireEnvelope request, OneWireMessageType type, Dictionary<string, object?> values) {
     try
     {
@@ -950,8 +1039,12 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
 }
 
 /// <summary>
-/// Provides one wire work processor hosted service operations.
+/// Coordinates one wire work processor behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="spooler">One wire work spooler dependency used by the one wire work processor workflow to provide the corresponding application capability.</param>
+/// <param name="executor">One wire operation executor dependency used by the one wire work processor workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the one wire work processor workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireWorkProcessorHostedService(
     IOneWireWorkSpooler spooler,
     IOneWireOperationExecutor executor,
@@ -959,8 +1052,10 @@ public sealed class OneWireWorkProcessorHostedService(
     ILogger<OneWireWorkProcessorHostedService> logger) : BackgroundService
 {
     /// <summary>
-    /// Runs the execute async operation.
+    /// Performs execute as part of the one wire work processor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="stoppingToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -993,8 +1088,14 @@ public sealed class OneWireWorkProcessorHostedService(
     }
 
     /// <summary>
-    /// Runs the send result async operation.
+    /// Performs send result as part of the one wire work processor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="item">Item value supplied to the one wire work processor operation and used when producing its result.</param>
+    /// <param name="status">Status value supplied to the one wire work processor operation and used when producing its result.</param>
+    /// <param name="resultJson">Result json value supplied to the one wire work processor operation and used when producing its result.</param>
+    /// <param name="error">Error value supplied to the one wire work processor operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SendResultAsync(
         OneWireWorkItem item,
         OneWireWorkStatus status,

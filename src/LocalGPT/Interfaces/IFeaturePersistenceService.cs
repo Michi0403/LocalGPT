@@ -11,17 +11,23 @@ public interface IFeaturePersistenceService
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the matching starter records.</returns>
     Task<IReadOnlyList<CouncilPromptStarterConfiguration>> GetCouncilPromptStartersAsync(bool includeDisabled = false, CancellationToken cancellationToken = default);
-    /// <summary>Gets one Council prompt starter.</summary>
+    /// <summary>
+    /// Retrieves council prompt starter as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="id">Database identifier.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the record or null.</returns>
     Task<CouncilPromptStarterConfiguration?> GetCouncilPromptStarterAsync(Guid id, CancellationToken cancellationToken = default);
-    /// <summary>Creates or updates one Council prompt starter.</summary>
+    /// <summary>
+    /// Persists council prompt starter as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="request">Approval-gated write request.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the stored record.</returns>
     Task<CouncilPromptStarterConfiguration> SaveCouncilPromptStarterAsync(SaveFeatureRecordRequest<CouncilPromptStarterConfiguration> request, CancellationToken cancellationToken = default);
-    /// <summary>Deletes one Council prompt starter.</summary>
+    /// <summary>
+    /// Deletes council prompt starter as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="id">Database identifier.</param>
     /// <param name="userConfirmed">Whether the user explicitly approved deletion.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
@@ -33,17 +39,23 @@ public interface IFeaturePersistenceService
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the matching catalog records.</returns>
     Task<IReadOnlyList<LocalizationCatalogRegistration>> GetLocalizationCatalogsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default);
-    /// <summary>Gets one localization catalog registration.</summary>
+    /// <summary>
+    /// Retrieves localization catalog as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="id">Database identifier.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the record or null.</returns>
     Task<LocalizationCatalogRegistration?> GetLocalizationCatalogAsync(Guid id, CancellationToken cancellationToken = default);
-    /// <summary>Creates or updates one localization catalog registration.</summary>
+    /// <summary>
+    /// Persists localization catalog as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="request">Approval-gated write request.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the stored record.</returns>
     Task<LocalizationCatalogRegistration> SaveLocalizationCatalogAsync(SaveFeatureRecordRequest<LocalizationCatalogRegistration> request, CancellationToken cancellationToken = default);
-    /// <summary>Deletes one localization catalog registration.</summary>
+    /// <summary>
+    /// Deletes localization catalog as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="id">Database identifier.</param>
     /// <param name="userConfirmed">Whether the user explicitly approved deletion.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
@@ -54,17 +66,23 @@ public interface IFeaturePersistenceService
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns documentation evidence records.</returns>
     Task<IReadOnlyList<DocumentationBuildRecord>> GetDocumentationBuildsAsync(CancellationToken cancellationToken = default);
-    /// <summary>Gets one documentation build record.</summary>
+    /// <summary>
+    /// Retrieves documentation build as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="id">Database identifier.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the record or null.</returns>
     Task<DocumentationBuildRecord?> GetDocumentationBuildAsync(Guid id, CancellationToken cancellationToken = default);
-    /// <summary>Creates or updates one documentation build record.</summary>
+    /// <summary>
+    /// Persists documentation build as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="request">Approval-gated write request.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the stored record.</returns>
     Task<DocumentationBuildRecord> SaveDocumentationBuildAsync(SaveFeatureRecordRequest<DocumentationBuildRecord> request, CancellationToken cancellationToken = default);
-    /// <summary>Deletes one documentation build record.</summary>
+    /// <summary>
+    /// Deletes documentation build as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="id">Database identifier.</param>
     /// <param name="userConfirmed">Whether the user explicitly approved deletion.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
@@ -75,17 +93,23 @@ public interface IFeaturePersistenceService
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns firmware plan records.</returns>
     Task<IReadOnlyList<EmbeddedFirmwarePlanRecord>> GetEmbeddedFirmwarePlansAsync(CancellationToken cancellationToken = default);
-    /// <summary>Gets one embedded firmware plan record.</summary>
+    /// <summary>
+    /// Retrieves embedded firmware plan as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="id">Database identifier.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the record or null.</returns>
     Task<EmbeddedFirmwarePlanRecord?> GetEmbeddedFirmwarePlanAsync(Guid id, CancellationToken cancellationToken = default);
-    /// <summary>Creates or updates one embedded firmware plan record.</summary>
+    /// <summary>
+    /// Persists embedded firmware plan as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="request">Approval-gated write request.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the stored record.</returns>
     Task<EmbeddedFirmwarePlanRecord> SaveEmbeddedFirmwarePlanAsync(SaveFeatureRecordRequest<EmbeddedFirmwarePlanRecord> request, CancellationToken cancellationToken = default);
-    /// <summary>Deletes one embedded firmware plan record.</summary>
+    /// <summary>
+    /// Deletes embedded firmware plan as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="id">Database identifier.</param>
     /// <param name="userConfirmed">Whether the user explicitly approved deletion.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
@@ -96,17 +120,23 @@ public interface IFeaturePersistenceService
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns GameDirector session records.</returns>
     Task<IReadOnlyList<CouncilGameSessionRecord>> GetCouncilGameSessionsAsync(CancellationToken cancellationToken = default);
-    /// <summary>Gets one GameDirector session record.</summary>
+    /// <summary>
+    /// Retrieves council game session as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="id">Database identifier.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the record or null.</returns>
     Task<CouncilGameSessionRecord?> GetCouncilGameSessionAsync(Guid id, CancellationToken cancellationToken = default);
-    /// <summary>Creates or updates one GameDirector session record.</summary>
+    /// <summary>
+    /// Persists council game session as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="request">Approval-gated write request.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>
     /// <returns>A task that returns the stored record.</returns>
     Task<CouncilGameSessionRecord> SaveCouncilGameSessionAsync(SaveFeatureRecordRequest<CouncilGameSessionRecord> request, CancellationToken cancellationToken = default);
-    /// <summary>Deletes one GameDirector session record.</summary>
+    /// <summary>
+    /// Deletes council game session as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="id">Database identifier.</param>
     /// <param name="userConfirmed">Whether the user explicitly approved deletion.</param>
     /// <param name="cancellationToken">Cancels the database operation.</param>

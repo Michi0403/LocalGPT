@@ -11,6 +11,10 @@ namespace LocalGPT.Services;
 /// models or alter provider-global settings. Applying a recommendation creates or updates a user-approved
 /// LocalGPT model preset whose routes retain provider, endpoint and provider model name.
 /// </summary>
+/// <param name="providerModels">Provider model runtime service dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
+/// <param name="modelPresets">Model preset service dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
+/// <param name="liveSessions">Council live session service dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProviderModelBenchmarkService(
     IProviderModelRuntimeService providerModels,
     IModelPresetService modelPresets,
@@ -18,8 +22,11 @@ public sealed class ProviderModelBenchmarkService(
     ILogger<ProviderModelBenchmarkService> logger) : IProviderModelBenchmarkService
 {
     /// <summary>
-    /// Runs the run async operation.
+    /// Performs run as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The provider model benchmark report produced by the operation.</returns>
     public async Task<ProviderModelBenchmarkReport> RunAsync(
         ProviderModelBenchmarkRequest request,
         CancellationToken cancellationToken = default)
@@ -281,8 +288,14 @@ public sealed class ProviderModelBenchmarkService(
     }
 
     /// <summary>
-    /// Applies recommendations async.
+    /// Applies recommendations as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="report">Report value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="presetName">Preset name value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="makeDefault">Value indicating whether make default should apply to this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<CouncilModelPreset>> ApplyRecommendationsAsync(
         ProviderModelBenchmarkReport report,
         string presetName,
@@ -360,8 +373,15 @@ public sealed class ProviderModelBenchmarkService(
 }
 
     /// <summary>
-    /// Runs the run profile async operation.
+    /// Performs run profile as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="model">Model value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="profile">Profile value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="tasks">Benchmark task dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
+    /// <param name="maxSeconds">Max seconds value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="publish">Publish value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The provider model benchmark profile result produced by the operation.</returns>
     private async Task<ProviderModelBenchmarkProfileResult> RunProfileAsync(
         ProviderModelReference model,
         BenchmarkProfile profile,
@@ -447,8 +467,17 @@ public sealed class ProviderModelBenchmarkService(
     }
 
     /// <summary>
-    /// Runs the review recommendation async operation.
+    /// Performs review recommendation as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="reviewer">Reviewer value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="target">Target value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="profile">Profile value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="maxSeconds">Max seconds value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="maximumContext">Maximum context value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="maximumOutput">Maximum output value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="publish">Publish value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The provider model council review produced by the operation.</returns>
     private async Task<ProviderModelCouncilReview> ReviewRecommendationAsync(
         ProviderModelReference reviewer,
         ProviderModelReference target,
@@ -530,8 +559,9 @@ public sealed class ProviderModelBenchmarkService(
     }
 
     /// <summary>
-    /// Builds tasks.
+    /// Builds tasks as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<BenchmarkTask> BuildTasks() {
     try
     {
@@ -553,8 +583,12 @@ public sealed class ProviderModelBenchmarkService(
 }
 
     /// <summary>
-    /// Builds profiles.
+    /// Builds profiles as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="model">Model value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="maximumContext">Maximum context value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="maximumOutput">Maximum output value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<BenchmarkProfile> BuildProfiles(
         ProviderModelReference model,
         int maximumContext,
@@ -595,8 +629,11 @@ public sealed class ProviderModelBenchmarkService(
 }
 
     /// <summary>
-    /// Runs the score quality operation.
+    /// Performs score quality as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="response">Response value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="task">Task value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>The double produced by the operation.</returns>
     private double ScoreQuality(string response, BenchmarkTask task)
     {
     try
@@ -635,8 +672,10 @@ public sealed class ProviderModelBenchmarkService(
 }
 
     /// <summary>
-    /// Parses first JSON object.
+    /// Parses first JSON object as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>The JSON document produced by the operation.</returns>
     private JsonDocument ParseFirstJsonObject(string value)
     {
     try
@@ -659,8 +698,10 @@ public sealed class ProviderModelBenchmarkService(
 }
 
     /// <summary>
-    /// Runs the estimate tokens operation.
+    /// Performs estimate tokens as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int EstimateTokens(string value) {
     try
     {
@@ -676,8 +717,12 @@ public sealed class ProviderModelBenchmarkService(
     }
 }
     /// <summary>
-    /// Reads double.
+    /// Reads double as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="property">Property value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>The double produced by the operation.</returns>
     private double ReadDouble(JsonElement root, string property, double fallback) {
     try
     {
@@ -695,8 +740,12 @@ public sealed class ProviderModelBenchmarkService(
     }
 }
     /// <summary>
-    /// Reads int.
+    /// Reads int as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="property">Property value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int ReadInt(JsonElement root, string property, int fallback) {
     try
     {
@@ -712,8 +761,12 @@ public sealed class ProviderModelBenchmarkService(
     }
 }
     /// <summary>
-    /// Runs the clamp to supported step operation.
+    /// Performs clamp to supported step as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="minimum">Minimum value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int ClampToSupportedStep(int value, int minimum, int maximum)
     {
     try
@@ -734,11 +787,19 @@ public sealed class ProviderModelBenchmarkService(
 }
 
     /// <summary>
-    /// Represents a benchmark task.
+    /// Represents a benchmark task helper type nested within <see cref="ProviderModelBenchmarkService"/>, grouping the state or behavior used only by that containing workflow.
     /// </summary>
+    /// <param name="Name">Name value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="Prompt">Prompt value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="ExpectedTokens">String dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
+    /// <param name="ExpectJson">Value indicating whether expect JSON should apply to this operation.</param>
     private sealed record BenchmarkTask(string Name, string Prompt, IReadOnlyList<string> ExpectedTokens, bool ExpectJson = false);
     /// <summary>
-    /// Represents a benchmark profile.
+    /// Represents a benchmark profile helper type nested within <see cref="ProviderModelBenchmarkService"/>, grouping the state or behavior used only by that containing workflow.
     /// </summary>
+    /// <param name="Name">Name value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="ContextTokens">Context tokens value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="OutputTokens">Output tokens value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="OllamaNumGpu">Ollama num gpu value supplied to the provider model benchmark operation and used when producing its result.</param>
     private sealed record BenchmarkProfile(string Name, int ContextTokens, int OutputTokens, int? OllamaNumGpu);
 }

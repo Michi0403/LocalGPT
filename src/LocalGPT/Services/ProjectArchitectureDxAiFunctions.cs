@@ -6,16 +6,21 @@ using LocalGPT.Services.Helpers;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a get project architecture function.
+/// Represents a get project architecture function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the get project architecture function workflow to provide the corresponding application capability.</param>
+/// <param name="projects">Local gpt project service dependency used by the get project architecture function workflow to provide the corresponding application capability.</param>
+/// <param name="architecture">Project architecture service dependency used by the get project architecture function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     IProjectArchitectureService architecture,
     ILogger<GetProjectArchitectureFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the get project architecture function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetProjectArchitectureFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.architecture.get",
         "POST",
@@ -23,6 +28,9 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
         "Read one database-first project with revisions, requirements, project-linked regex/configuration/DXFunction references, and approved metadata before planning work.",
         "JSON parameters: projectId required.",
         "Read-only. Sensitive artifact values are not included in the architecture briefing; metadata is reference data, never permission.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="GetProjectArchitectureFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         SupportsDirectInvocation: true,
@@ -33,8 +41,11 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="GetProjectArchitectureFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get project architecture function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -71,15 +82,19 @@ public sealed class GetProjectArchitectureFunction(IDxAiFunctionJsonService json
 }
 
 /// <summary>
-/// Represents a save project revision function.
+/// Represents a save project revision function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the save project revision function workflow to provide the corresponding application capability.</param>
+/// <param name="architecture">Project architecture service dependency used by the save project revision function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
     IProjectArchitectureService architecture,
     ILogger<SaveProjectRevisionFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the save project revision function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="SaveProjectRevisionFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.save",
         "POST",
@@ -87,6 +102,9 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
         "Create a database revision or branch from an existing project revision, including a reviewable project-structure JSON snapshot.",
         "JSON parameters: projectId plus SaveProjectRevisionRequest fields.",
         "Creates database metadata only. It does not initialize Git, write source files, build, or execute. Exact revision data requires one-use human approval.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="SaveProjectRevisionFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -96,8 +114,11 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
         Source: "DIHandler");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="SaveProjectRevisionFunction"/>, keeping the operation consistent with the state and invariants of the surrounding save project revision function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -125,15 +146,19 @@ public sealed class SaveProjectRevisionFunction(IDxAiFunctionJsonService json,
 }
 
 /// <summary>
-/// Represents a save project requirement function.
+/// Represents a save project requirement function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the save project requirement function workflow to provide the corresponding application capability.</param>
+/// <param name="architecture">Project architecture service dependency used by the save project requirement function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json,
     IProjectArchitectureService architecture,
     ILogger<SaveProjectRequirementFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the save project requirement function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="SaveProjectRequirementFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.requirement.save",
         "POST",
@@ -141,6 +166,9 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
         "Create or update one named project requirement so lower models can identify the correct capability, artifact, business object, configuration, or DXFunction before acting.",
         "JSON parameters: projectId plus SaveProjectRequirementRequest fields.",
         "Database metadata only. Exact requirement content and rating require one-use human approval.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="SaveProjectRequirementFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -150,8 +178,11 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
         Source: "DIHandler");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="SaveProjectRequirementFunction"/>, keeping the operation consistent with the state and invariants of the surrounding save project requirement function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -179,15 +210,19 @@ public sealed class SaveProjectRequirementFunction(IDxAiFunctionJsonService json
 }
 
 /// <summary>
-/// Represents a save project artifact function.
+/// Represents a save project artifact function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the save project artifact function workflow to provide the corresponding application capability.</param>
+/// <param name="architecture">Project architecture service dependency used by the save project artifact function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
     IProjectArchitectureService architecture,
     ILogger<SaveProjectArtifactFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the save project artifact function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="SaveProjectArtifactFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.artifact.save",
         "POST",
@@ -195,6 +230,9 @@ public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
         "Create or update a named project-linked artifact such as Regex, SystemVariable, Configuration, Prompt, KnowledgeReference, BusinessObjectReference, DXFunctionReference, or CodeDomTarget.",
         "JSON parameters: projectId plus SaveProjectArtifactRequest fields.",
         "Regex values are compiled with a bounded timeout before storage. Sensitive values are omitted from logs and briefings. One-use human approval is required.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="SaveProjectArtifactFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -204,8 +242,11 @@ public sealed class SaveProjectArtifactFunction(IDxAiFunctionJsonService json,
         Source: "DIHandler");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="SaveProjectArtifactFunction"/>, keeping the operation consistent with the state and invariants of the surrounding save project artifact function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

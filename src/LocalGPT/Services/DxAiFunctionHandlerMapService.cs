@@ -8,12 +8,15 @@ namespace LocalGPT.Services;
 /// This keeps lazy cycle breaking in the registry while moving validation behavior
 /// behind an injected service instead of a static helper.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DxAiFunctionHandlerMapService(
     ILogger<DxAiFunctionHandlerMapService> logger)
 {
     /// <summary>
-    /// Runs the build operation.
+    /// Performs build as part of the DevExpress AI function handler map service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="handlers">Devexpress ai function handler dependency used by the DevExpress AI function handler map workflow to provide the corresponding application capability.</param>
+    /// <returns>The i read only dictionary string i DevExpress AI function handler produced by the operation.</returns>
     public IReadOnlyDictionary<string, IDxAiFunctionHandler> Build(
         IEnumerable<IDxAiFunctionHandler> handlers)
     {

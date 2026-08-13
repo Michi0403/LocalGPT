@@ -8,6 +8,7 @@ public sealed class ArtifactWorkspaceListParameters
     /// <summary>
     /// Gets or sets an optional caller-requested result count; null or non-positive values use the database-backed MaxFiles policy.
     /// </summary>
+    /// <value>The take value exposed by <see cref="ArtifactWorkspaceListParameters"/>.</value>
     public int? Take { get; set; }
 }
 
@@ -17,13 +18,15 @@ public sealed class ArtifactWorkspaceListParameters
 public sealed class ArtifactWorkspaceFilesParameters
 {
     /// <summary>
-    /// Gets or sets the generated workspace name.
+    /// Gets or sets the workspace name value that forms part of the artifact workspace files parameters state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The workspace name value exposed by <see cref="ArtifactWorkspaceFilesParameters"/>.</value>
     public string WorkspaceName { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets an optional caller-requested result count; null or non-positive values use the database-backed MaxFiles policy.
     /// </summary>
+    /// <value>The take value exposed by <see cref="ArtifactWorkspaceFilesParameters"/>.</value>
     public int? Take { get; set; }
 }
 
@@ -33,13 +36,15 @@ public sealed class ArtifactWorkspaceFilesParameters
 public sealed class ArtifactWorkspaceFileReadParameters
 {
     /// <summary>
-    /// Gets or sets the generated workspace name.
+    /// Gets or sets the workspace name value that forms part of the artifact workspace file read parameters state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The workspace name value exposed by <see cref="ArtifactWorkspaceFileReadParameters"/>.</value>
     public string WorkspaceName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the workspace-relative source path.
+    /// Gets or sets the relative path used by this artifact workspace file read parameters instance to locate the associated file-system resource.
     /// </summary>
+    /// <value>The relative path value exposed by <see cref="ArtifactWorkspaceFileReadParameters"/>.</value>
     public string RelativePath { get; set; } = string.Empty;
 }
 
@@ -49,18 +54,21 @@ public sealed class ArtifactWorkspaceFileReadParameters
 public sealed class ArtifactWorkspaceFileWriteParameters
 {
     /// <summary>
-    /// Gets or sets the generated workspace name.
+    /// Gets or sets the workspace name value that forms part of the artifact workspace file write parameters state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The workspace name value exposed by <see cref="ArtifactWorkspaceFileWriteParameters"/>.</value>
     public string WorkspaceName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the workspace-relative source path.
+    /// Gets or sets the relative path used by this artifact workspace file write parameters instance to locate the associated file-system resource.
     /// </summary>
+    /// <value>The relative path value exposed by <see cref="ArtifactWorkspaceFileWriteParameters"/>.</value>
     public string RelativePath { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the exact reviewed source text. Empty text is valid and creates an empty file.
     /// </summary>
+    /// <value>The content value exposed by <see cref="ArtifactWorkspaceFileWriteParameters"/>.</value>
     public string? Content { get; set; }
 }
 
@@ -70,7 +78,8 @@ public sealed class ArtifactWorkspaceFileWriteParameters
 public sealed class ArtifactWorkspaceZipParameters
 {
     /// <summary>
-    /// Gets or sets the generated workspace name.
+    /// Gets or sets the workspace name value that forms part of the artifact workspace ZIP parameters state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The workspace name value exposed by <see cref="ArtifactWorkspaceZipParameters"/>.</value>
     public string WorkspaceName { get; set; } = string.Empty;
 }

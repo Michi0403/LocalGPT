@@ -5,8 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
 /// <summary>
-/// Provides structured text controller operations.
+/// Exposes the structured text application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
+/// <param name="translator">Structured text translation service dependency used by the structured text workflow to provide the corresponding application capability.</param>
+/// <param name="regexPatterns">Regex pattern service dependency used by the structured text workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/text/structured")]
 public sealed class StructuredTextController(
@@ -15,8 +18,10 @@ public sealed class StructuredTextController(
     ILogger<StructuredTextController> logger) : ControllerBase
 {
     /// <summary>
-    /// Runs the translate JSON operation.
+    /// Returns the translate JSON projection for the structured text API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("json/translate")]
     public IResult TranslateJson([FromBody] StructuredJsonTranslationRequest request)
     {
@@ -33,8 +38,10 @@ public sealed class StructuredTextController(
     }
 
     /// <summary>
-    /// Runs the inspect JSON operation.
+    /// Returns the inspect JSON projection for the structured text API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("json/inspect")]
     public IResult InspectJson([FromBody] StructuredJsonTranslationRequest request)
     {
@@ -59,8 +66,10 @@ public sealed class StructuredTextController(
     }
 
     /// <summary>
-    /// Runs the list JSON regexes operation.
+    /// Lists JSON regexes for the structured text API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("json/regexes")]
     public async Task<IResult> ListJsonRegexes(CancellationToken cancellationToken)
     {

@@ -11,8 +11,14 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a native command runner.
+/// Represents a native command runner application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="workspaceService">Minecraft mod workspace service dependency used by the native command runner workflow to provide the corresponding application capability.</param>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the native command runner workflow to provide the corresponding application capability.</param>
+/// <param name="commandOptions">Native command options dependency used by the native command runner workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the native command runner workflow to provide the corresponding application capability.</param>
+/// <param name="sqliteUtility">Sqlite utility service dependency used by the native command runner workflow to provide the corresponding application capability.</param>
 public sealed class NativeCommandRunner(
     ILogger<NativeCommandRunner> logger,
     IMinecraftModWorkspaceService workspaceService,
@@ -22,8 +28,14 @@ public sealed class NativeCommandRunner(
     SqliteUtilityService sqliteUtility) : INativeCommandRunner
 {
     /// <summary>
-    /// Runs the run async operation.
+    /// Performs run for <see cref="NativeCommandRunner"/>, keeping the operation consistent with the state and invariants of the surrounding native command runner workflow.
     /// </summary>
+    /// <param name="fileName">File name value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="arguments">Arguments value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="workingDirectory">Working directory value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <returns>The command execution result produced by the operation.</returns>
     public async Task<CommandExecutionResult?> RunAsync(
         string fileName,
         string arguments,
@@ -217,8 +229,12 @@ public sealed class NativeCommandRunner(
     }
 
     /// <summary>
-    /// Validates policy.
+    /// Validates policy for <see cref="NativeCommandRunner"/>, keeping the operation consistent with the state and invariants of the surrounding native command runner workflow.
     /// </summary>
+    /// <param name="fileName">File name value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="arguments">Arguments value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="workingDirectory">Working directory value supplied to the native command runner operation and used when producing its result.</param>
+    /// <returns>The command policy decision produced by the operation.</returns>
     private CommandPolicyDecision ValidatePolicy(string fileName, string arguments, string workingDirectory)
     {
     try
@@ -269,8 +285,11 @@ public sealed class NativeCommandRunner(
 }
 
     /// <summary>
-    /// Validates power shell policy.
+    /// Validates power shell policy for <see cref="NativeCommandRunner"/>, keeping the operation consistent with the state and invariants of the surrounding native command runner workflow.
     /// </summary>
+    /// <param name="arguments">Arguments value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="workingDirectory">Working directory value supplied to the native command runner operation and used when producing its result.</param>
+    /// <returns>The command policy decision produced by the operation.</returns>
     private CommandPolicyDecision ValidatePowerShellPolicy(string arguments, string workingDirectory)
     {
     try
@@ -308,8 +327,15 @@ public sealed class NativeCommandRunner(
 }
 
     /// <summary>
-    /// Writes command output async.
+    /// Writes command output for <see cref="NativeCommandRunner"/>, keeping the operation consistent with the state and invariants of the surrounding native command runner workflow.
     /// </summary>
+    /// <param name="workingDirectory">Working directory value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="fileName">File name value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="startedAt">Started at value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="stdout">Stdout value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="stderr">Stderr value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string stdout path string stderr path produced by the operation.</returns>
     private async Task<(string StdoutPath, string StderrPath)> WriteCommandOutputAsync(
         string workingDirectory,
         string fileName,
@@ -348,8 +374,19 @@ public sealed class NativeCommandRunner(
     }
 
     /// <summary>
-    /// Saves command log async.
+    /// Persists command log for <see cref="NativeCommandRunner"/>, keeping the operation consistent with the state and invariants of the surrounding native command runner workflow.
     /// </summary>
+    /// <param name="fileName">File name value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="redactedArguments">Redacted arguments value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="workingDirectory">Working directory value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="startedAt">Started at value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="completedAt">Completed at value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="exitCode">Exit code value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="stdoutPath">Stdout path value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="stderrPath">Stderr path value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="policy">Policy value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveCommandLogAsync(
         string fileName,
         string redactedArguments,
@@ -398,8 +435,9 @@ public sealed class NativeCommandRunner(
     }
 
     /// <summary>
-    /// Runs the kill process tree operation.
+    /// Performs kill process tree for <see cref="NativeCommandRunner"/>, keeping the operation consistent with the state and invariants of the surrounding native command runner workflow.
     /// </summary>
+    /// <param name="process">Process value supplied to the native command runner operation and used when producing its result.</param>
     private void KillProcessTree(Process process)
     {
     try
@@ -426,8 +464,10 @@ public sealed class NativeCommandRunner(
 }
 
     /// <summary>
-    /// Runs the redact arguments operation.
+    /// Performs redact arguments for <see cref="NativeCommandRunner"/>, keeping the operation consistent with the state and invariants of the surrounding native command runner workflow.
     /// </summary>
+    /// <param name="arguments">Arguments value supplied to the native command runner operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RedactArguments(string arguments)
     {
     try
@@ -449,8 +489,11 @@ public sealed class NativeCommandRunner(
     }
 }
     /// <summary>
-    /// Runs the allow decision operation.
+    /// Performs allow decision for <see cref="NativeCommandRunner"/>, keeping the operation consistent with the state and invariants of the surrounding native command runner workflow.
     /// </summary>
+    /// <param name="profile">Profile value supplied to the native command runner operation and used when producing its result.</param>
+    /// <param name="reason">Reason value supplied to the native command runner operation and used when producing its result.</param>
+    /// <returns>The command policy decision produced by the operation.</returns>
     private CommandPolicyDecision AllowDecision(string profile, string reason)
     {
         try
@@ -471,8 +514,10 @@ public sealed class NativeCommandRunner(
     }
 
     /// <summary>
-    /// Runs the deny decision operation.
+    /// Performs deny decision for <see cref="NativeCommandRunner"/>, keeping the operation consistent with the state and invariants of the surrounding native command runner workflow.
     /// </summary>
+    /// <param name="reason">Reason value supplied to the native command runner operation and used when producing its result.</param>
+    /// <returns>The command policy decision produced by the operation.</returns>
     private CommandPolicyDecision DenyDecision(string reason)
     {
         try

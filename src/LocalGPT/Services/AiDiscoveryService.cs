@@ -4,21 +4,39 @@ using System.Text.Json;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides ai discovery service operations.
+    /// Coordinates AI discovery behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="runtime">Council runtime service dependency used by the AI discovery workflow to provide the corresponding application capability.</param>
+    /// <param name="text">Council text service dependency used by the AI discovery workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the AI discovery workflow to provide the corresponding application capability.</param>
+    /// <param name="serviceLogger">Ai discovery service dependency used by the AI discovery workflow to provide the corresponding application capability.</param>
     public sealed class AiDiscoveryService(
         CouncilRuntimeService runtime,
         CouncilTextService text,
         LocalGptCatalogService catalog,
         ILogger<AiDiscoveryService> serviceLogger)
     {
+        /// <summary>
+        /// Stores the council runtime service dependency used by <see cref="AiDiscoveryService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly CouncilRuntimeService _runtime = runtime;
+        /// <summary>
+        /// Stores the council text service dependency used by <see cref="AiDiscoveryService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly CouncilTextService _text = text;
+        /// <summary>
+        /// Stores the LocalGPT catalog service dependency used by <see cref="AiDiscoveryService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly LocalGptCatalogService _catalog = catalog;
 
         /// <summary>
-        /// Gets async.
+        /// Performs get as part of the AI discovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="http">Http client dependency used by the AI discovery workflow to provide the corresponding application capability.</param>
+        /// <param name="path">Path value supplied to the AI discovery operation and used when producing its result.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The bool ok string msg produced by the operation.</returns>
         public async Task<(bool ok, string msg)> GetAsync(HttpClient http, string path, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
         {
             try
@@ -55,8 +73,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Creates discovery client.
+        /// Creates discovery client as part of the AI discovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the AI discovery operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The HTTP client produced by the operation.</returns>
         public HttpClient CreateDiscoveryClient(string endpoint, ILogger<AiConnectivityProbe> logger)
         {
             try
@@ -74,8 +95,13 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the probe open aicompatible async operation.
+        /// Performs probe OpenAI compatible as part of the AI discovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="provider">Provider value supplied to the AI discovery operation and used when producing its result.</param>
+        /// <param name="endpoint">Endpoint value supplied to the AI discovery operation and used when producing its result.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The local AI host discovery result produced by the operation.</returns>
         public async Task<LocalAiHostDiscoveryResult> ProbeOpenAICompatibleAsync(string provider, string endpoint, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
         {
             var result = new LocalAiHostDiscoveryResult
@@ -151,8 +177,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the probe ollama async operation.
+        /// Performs probe Ollama as part of the AI discovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the AI discovery operation and used when producing its result.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The local AI host discovery result produced by the operation.</returns>
         public async Task<LocalAiHostDiscoveryResult> ProbeOllamaAsync(string endpoint, CancellationToken ct, ILogger<AiConnectivityProbe> logger)
         {
             var result = new LocalAiHostDiscoveryResult
@@ -257,8 +287,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Gets endpoint host.
+        /// Retrieves endpoint host as part of the AI discovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the AI discovery operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string GetEndpointHost(string endpoint) {
     try
     {

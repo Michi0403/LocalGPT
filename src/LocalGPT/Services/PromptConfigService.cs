@@ -7,16 +7,23 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides prompt config service operations.
+/// Coordinates prompt config behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the prompt config workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the prompt config workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class PromptConfigService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<PromptConfigService> logger) : IPromptConfigService
 {
     /// <summary>
-    /// Gets prompt async.
+    /// Retrieves prompt as part of the prompt config service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the prompt config operation and used when producing its result.</param>
+    /// <param name="language">Language value supplied to the prompt config operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> GetPromptAsync(string key, string language = "en", CancellationToken cancellationToken = default)
     {
     try
@@ -44,8 +51,11 @@ public sealed class PromptConfigService(
 }
 
     /// <summary>
-    /// Gets prompt async.
+    /// Retrieves prompt as part of the prompt config service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="dto">Dto value supplied to the prompt config operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public Task<string> GetPromptAsync(PromptConfigDto dto, CancellationToken cancellationToken = default)
     {
     try
@@ -65,8 +75,11 @@ public sealed class PromptConfigService(
 }
 
     /// <summary>
-    /// Updates prompt async.
+    /// Updates prompt as part of the prompt config service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="dto">Dto value supplied to the prompt config operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task UpdatePromptAsync(PromptConfigDto dto, CancellationToken cancellationToken = default)
     {
     try
@@ -100,8 +113,11 @@ public sealed class PromptConfigService(
 }
 
     /// <summary>
-    /// Runs the list prompts async operation.
+    /// Lists prompts as part of the prompt config service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="language">Language value supplied to the prompt config operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IEnumerable<PromptConfig>> ListPromptsAsync(string? language = null, CancellationToken cancellationToken = default)
     {
     try

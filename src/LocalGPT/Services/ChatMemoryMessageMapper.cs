@@ -9,16 +9,21 @@ using System.Reflection;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a chat memory message mapper.
+/// Maps chat memory message values between application representations while preserving the semantic information required by downstream callers.
 /// </summary>
+/// <param name="text">Council text service dependency used by the chat memory message workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Local gpt catalog service dependency used by the chat memory message workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ChatMemoryMessageMapper(
     CouncilTextService text,
     LocalGptCatalogService catalog,
     ILogger<ChatMemoryMessageMapper> logger) : IChatMemoryMessageMapper
 {
     /// <summary>
-    /// Builds title.
+    /// Builds title while translating between the representations owned by the chat memory message mapping workflow.
     /// </summary>
+    /// <param name="messages">Blazor chat message dependency used by the chat memory message workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string BuildTitle(IReadOnlyList<BlazorChatMessage> messages)
     {
         try
@@ -43,8 +48,11 @@ public sealed class ChatMemoryMessageMapper(
     }
 
     /// <summary>
-    /// Ensures visible council prompt.
+    /// Ensures visible council prompt while translating between the representations owned by the chat memory message mapping workflow.
     /// </summary>
+    /// <param name="conversation">Conversation value supplied to the chat memory message operation and used when producing its result.</param>
+    /// <param name="messages">Messages value supplied to the chat memory message operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public List<BlazorChatMessage> EnsureVisibleCouncilPrompt(
         ChatMemoryConversation conversation,
         List<BlazorChatMessage> messages)
@@ -82,8 +90,10 @@ public sealed class ChatMemoryMessageMapper(
     }
 
     /// <summary>
-    /// Runs the to role name operation.
+    /// Performs to role name while translating between the representations owned by the chat memory message mapping workflow.
     /// </summary>
+    /// <param name="role">Role value supplied to the chat memory message operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string ToRoleName(ChatMessageRole role) {
     try
     {
@@ -108,6 +118,8 @@ public sealed class ChatMemoryMessageMapper(
     /// <summary>
     /// Builds durable message content and preserves the visible file names from native DXAiChat attachment metadata.
     /// </summary>
+    /// <param name="message">Message value supplied to the chat memory message operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string BuildPersistedContent(BlazorChatMessage message)
     {
         try
@@ -129,6 +141,8 @@ public sealed class ChatMemoryMessageMapper(
     /// <summary>
     /// Extracts native DXAiChat upload file names without binding LocalGPT to non-public DevExpress attachment members.
     /// </summary>
+    /// <param name="message">Message value supplied to the chat memory message operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> ExtractAttachmentNames(BlazorChatMessage message)
     {
         try
@@ -175,6 +189,8 @@ public sealed class ChatMemoryMessageMapper(
     /// <summary>
     /// Removes LocalGPT's restored-attachment presentation before deriving titles or other plain-text metadata.
     /// </summary>
+    /// <param name="content">Content value supplied to the chat memory message operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string StripAttachmentPresentation(string content)
     {
         try
@@ -192,8 +208,10 @@ public sealed class ChatMemoryMessageMapper(
     }
 
     /// <summary>
-    /// Runs the to blazor chat message operation.
+    /// Performs to blazor chat message while translating between the representations owned by the chat memory message mapping workflow.
     /// </summary>
+    /// <param name="message">Message value supplied to the chat memory message operation and used when producing its result.</param>
+    /// <returns>The blazor chat message produced by the operation.</returns>
     public BlazorChatMessage ToBlazorChatMessage(ChatMemoryMessage message)
     {
         try
@@ -225,6 +243,8 @@ public sealed class ChatMemoryMessageMapper(
     /// <summary>
     /// Attempts to extract prompt from assistant messages.
     /// </summary>
+    /// <param name="messages">Blazor chat message dependency used by the chat memory message workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? TryExtractPromptFromAssistantMessages(IReadOnlyList<BlazorChatMessage> messages)
     {
     try
@@ -259,8 +279,11 @@ public sealed class ChatMemoryMessageMapper(
 }
 
     /// <summary>
-    /// Determines whether council conversation.
+    /// Determines whether council conversation while translating between the representations owned by the chat memory message mapping workflow.
     /// </summary>
+    /// <param name="conversation">Conversation value supplied to the chat memory message operation and used when producing its result.</param>
+    /// <param name="messages">Blazor chat message dependency used by the chat memory message workflow to provide the corresponding application capability.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsCouncilConversation(
         ChatMemoryConversation conversation,
         IReadOnlyList<BlazorChatMessage> messages)

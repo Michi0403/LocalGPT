@@ -11,6 +11,10 @@ namespace LocalGPT.Services.Persistence;
 /// Database boundary for every regular expression used by <see cref="CouncilTextService"/>.
 /// Pattern text and flags come from RegexPatterns; the match timeout comes from SystemVariables.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the council text pattern workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the council text pattern workflow to provide the corresponding application capability.</param>
+/// <param name="systemVariables">System variable definition service dependency used by the council text pattern workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilTextPatternDataService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -18,170 +22,211 @@ public sealed class CouncilTextPatternDataService(
     ILogger<CouncilTextPatternDataService> logger) : ICouncilTextPatternDataService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal sync state used by <see cref="CouncilTextPatternDataService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly object _sync = new();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory cache collection maintained internally by <see cref="CouncilTextPatternDataService"/> for its current workflow state.
     /// </summary>
     private readonly Dictionary<string, CouncilTextCachedPattern> _cache = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// Gets or sets former thought break pattern.
+    /// Gets the former thought break pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The former thought break pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex FormerThoughtBreakPattern => GetRequired(nameof(FormerThoughtBreakPattern));
     /// <summary>
-    /// Gets or sets former thought code wrapper pattern.
+    /// Gets the former thought code wrapper pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The former thought code wrapper pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex FormerThoughtCodeWrapperPattern => GetRequired(nameof(FormerThoughtCodeWrapperPattern));
     /// <summary>
-    /// Gets or sets former thought opening fence pattern.
+    /// Gets the former thought opening fence pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The former thought opening fence pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex FormerThoughtOpeningFencePattern => GetRequired(nameof(FormerThoughtOpeningFencePattern));
     /// <summary>
-    /// Gets or sets former thought closing fence pattern.
+    /// Gets the former thought closing fence pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The former thought closing fence pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex FormerThoughtClosingFencePattern => GetRequired(nameof(FormerThoughtClosingFencePattern));
     /// <summary>
-    /// Gets or sets former thought presentation wrapper pattern.
+    /// Gets the former thought presentation wrapper pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The former thought presentation wrapper pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex FormerThoughtPresentationWrapperPattern => GetRequired(nameof(FormerThoughtPresentationWrapperPattern));
     /// <summary>
-    /// Gets or sets former thought excess line break pattern.
+    /// Gets the former thought excess line break pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The former thought excess line break pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex FormerThoughtExcessLineBreakPattern => GetRequired(nameof(FormerThoughtExcessLineBreakPattern));
     /// <summary>
-    /// Gets or sets whitespace pattern.
+    /// Gets the whitespace pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The whitespace pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex WhitespacePattern => GetRequired("builtin.whitespace-pattern");
     /// <summary>
-    /// Gets or sets name cleaner pattern.
+    /// Gets the name cleaner pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The name cleaner pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex NameCleanerPattern => GetRequired("builtin.name-cleaner");
     /// <summary>
-    /// Gets or sets mod identifier cleaner pattern.
+    /// Gets the mod identifier cleaner pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The mod identifier cleaner pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex ModIdCleanerPattern => GetRequired("builtin.mod-id-cleaner");
     /// <summary>
-    /// Gets or sets package part cleaner pattern.
+    /// Gets the package part cleaner pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The package part cleaner pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex PackagePartCleanerPattern => GetRequired("builtin.package-part-cleaner");
     /// <summary>
-    /// Gets or sets structured field pattern.
+    /// Gets the structured field pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The structured field pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex StructuredFieldPattern => GetRequired(nameof(StructuredFieldPattern));
     /// <summary>
-    /// Gets or sets knowledge block pattern.
+    /// Gets the knowledge block pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The knowledge block pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex KnowledgeBlockPattern => GetRequired("builtin.localgpt-knowledge-block");
     /// <summary>
-    /// Gets or sets minecraft quoted project name pattern.
+    /// Gets the minecraft quoted project name pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The minecraft quoted project name pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex MinecraftQuotedProjectNamePattern => GetRequired(nameof(MinecraftQuotedProjectNamePattern));
     /// <summary>
-    /// Gets or sets minecraft explicit project name pattern.
+    /// Gets the minecraft explicit project name pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The minecraft explicit project name pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex MinecraftExplicitProjectNamePattern => GetRequired(nameof(MinecraftExplicitProjectNamePattern));
     /// <summary>
-    /// Gets or sets minecraft named project pattern.
+    /// Gets the minecraft named project pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The minecraft named project pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex MinecraftNamedProjectPattern => GetRequired(nameof(MinecraftNamedProjectPattern));
     /// <summary>
-    /// Gets or sets markdown heading project name pattern.
+    /// Gets the markdown heading project name pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The markdown heading project name pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex MarkdownHeadingProjectNamePattern => GetRequired(nameof(MarkdownHeadingProjectNamePattern));
     /// <summary>
-    /// Gets or sets identifier separator pattern.
+    /// Gets the identifier separator pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The identifier separator pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex IdentifierSeparatorPattern => GetRequired(nameof(IdentifierSeparatorPattern));
     /// <summary>
-    /// Gets or sets alpha numeric word pattern.
+    /// Gets the alpha numeric word pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The alpha numeric word pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex AlphaNumericWordPattern => GetRequired(nameof(AlphaNumericWordPattern));
     /// <summary>
-    /// Gets or sets integer pattern.
+    /// Gets the integer pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The integer pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex IntegerPattern => GetRequired(nameof(IntegerPattern));
     /// <summary>
-    /// Gets or sets council DevExpress function call pattern.
+    /// Gets the council DevExpress function call pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The council DevExpress function call pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex CouncilDxFunctionCallPattern => GetRequired(nameof(CouncilDxFunctionCallPattern));
     /// <summary>
-    /// Gets or sets missing feature pattern.
+    /// Gets the missing feature pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The missing feature pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex MissingFeaturePattern => GetRequired("builtin.missing-feature-pattern");
     /// <summary>
-    /// Gets or sets sensitive name pattern.
+    /// Gets the sensitive name pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The sensitive name pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex SensitiveNamePattern => GetRequired("builtin.sensitive-name-pattern");
     /// <summary>
-    /// Gets or sets truncated tail pattern.
+    /// Gets the truncated tail pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The truncated tail pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex TruncatedTailPattern => GetRequired("builtin.truncated-tail-pattern");
     /// <summary>
-    /// Gets or sets target framework pattern.
+    /// Gets the target framework pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The target framework pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex TargetFrameworkPattern => GetRequired("builtin.target-framework-pattern");
     /// <summary>
-    /// Gets or sets package reference pattern.
+    /// Gets the package reference pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The package reference pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex PackageReferencePattern => GetRequired("builtin.package-reference-pattern");
     /// <summary>
-    /// Gets or sets thinking block pattern.
+    /// Gets the thinking block pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The thinking block pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex ThinkingBlockPattern => GetRequired("builtin.thinking-block-pattern");
     /// <summary>
-    /// Gets or sets capability gap block pattern.
+    /// Gets the capability gap block pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The capability gap block pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex CapabilityGapBlockPattern => GetRequired("builtin.capability-gap-block-pattern");
     /// <summary>
-    /// Gets or sets helpful source line pattern.
+    /// Gets the helpful source line pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The helpful source line pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex HelpfulSourceLinePattern => GetRequired("builtin.helpful-source-line-pattern");
     /// <summary>
-    /// Gets or sets stream status pattern.
+    /// Gets the stream status pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The stream status pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex StreamStatusPattern => GetRequired("builtin.stream-status-pattern");
     /// <summary>
-    /// Gets or sets minecraft pattern.
+    /// Gets the minecraft pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The minecraft pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex MinecraftPattern => GetRequired("builtin.minecraft-pattern");
     /// <summary>
-    /// Gets or sets datapack pattern.
+    /// Gets the datapack pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The datapack pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex DatapackPattern => GetRequired("builtin.datapack-pattern");
     /// <summary>
-    /// Gets or sets minecraft skeleton matrix pattern.
+    /// Gets the minecraft skeleton matrix pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The minecraft skeleton matrix pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex MinecraftSkeletonMatrixPattern => GetRequired("builtin.minecraft-skeleton-matrix-pattern");
     /// <summary>
-    /// Gets or sets minecraft version pattern.
+    /// Gets the minecraft version pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The minecraft version pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex MinecraftVersionPattern => GetRequired("builtin.minecraft-version-pattern");
     /// <summary>
-    /// Gets or sets dev express document pattern.
+    /// Gets the DevExpress document pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The DevExpress document pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex DevExpressDocumentPattern => GetRequired("builtin.dev-express-document-pattern");
     /// <summary>
-    /// Gets or sets blazor frontend pattern.
+    /// Gets the blazor frontend pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The blazor frontend pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex BlazorFrontendPattern => GetRequired("builtin.blazor-frontend-pattern");
     /// <summary>
-    /// Gets or sets dot net pattern.
+    /// Gets the dot net pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The dot net pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex DotNetPattern => GetRequired("builtin.dot-net-pattern");
     /// <summary>
-    /// Gets or sets frontend pattern.
+    /// Gets the frontend pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The frontend pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex FrontendPattern => GetRequired("builtin.frontend-pattern");
     /// <summary>
-    /// Gets or sets logging pattern.
+    /// Gets the logging pattern value that forms part of the council text pattern state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The logging pattern value exposed by <see cref="CouncilTextPatternDataService"/>.</value>
     public Regex LoggingPattern => GetRequired("builtin.logging-pattern");
 
     /// <summary>
-    /// Runs the extract structured field operation.
+    /// Performs extract structured field as part of the council text pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="body">Body value supplied to the council text pattern operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the council text pattern operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string? ExtractStructuredField(string body, string name)
     {
         try
@@ -206,8 +251,10 @@ public sealed class CouncilTextPatternDataService(
     }
 
     /// <summary>
-    /// Gets required.
+    /// Retrieves required as part of the council text pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the council text pattern operation and used when producing its result.</param>
+    /// <returns>The regex produced by the operation.</returns>
     private Regex GetRequired(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -246,8 +293,10 @@ public sealed class CouncilTextPatternDataService(
     }
 
     /// <summary>
-    /// Reads timeout milliseconds.
+    /// Reads timeout milliseconds as part of the council text pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the council text pattern operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int ReadTimeoutMilliseconds(LocalGptMemoryDbContext db)
     {
         try
@@ -271,8 +320,10 @@ public sealed class CouncilTextPatternDataService(
     }
 
     /// <summary>
-    /// Parses flags.
+    /// Parses flags as part of the council text pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="flags">Flags value supplied to the council text pattern operation and used when producing its result.</param>
+    /// <returns>The regex options produced by the operation.</returns>
     private RegexOptions ParseFlags(string? flags)
     {
         try

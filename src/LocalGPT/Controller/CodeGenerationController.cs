@@ -7,8 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
 /// <summary>
-/// Provides code generation controller operations.
+/// Exposes the code generation application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
+/// <param name="workflow">Code generation workflow service dependency used by the code generation workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Local gpt catalog service dependency used by the code generation workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/code-generation/reviews")]
 public sealed class CodeGenerationController(
@@ -19,6 +22,7 @@ public sealed class CodeGenerationController(
     /// <summary>
     /// Gets the source-generation capability map used by DXAiChat and the AI Council.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("/api/code-generation/capabilities")]
     public IResult GetCapabilities()
     {
@@ -59,8 +63,12 @@ public sealed class CodeGenerationController(
     }
 
     /// <summary>
-    /// Runs the list reviews operation.
+    /// Lists reviews for the code generation API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="take">Take value supplied to the code generation operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet]
     public async Task<IResult> ListReviews(
         [FromQuery] Guid? projectId,
@@ -79,8 +87,11 @@ public sealed class CodeGenerationController(
     }
 
     /// <summary>
-    /// Gets review.
+    /// Retrieves review for the code generation API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="reviewId">Identifier of the review to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("{reviewId:guid}")]
     public async Task<IResult> GetReview(Guid reviewId, CancellationToken cancellationToken)
     {
@@ -97,8 +108,12 @@ public sealed class CodeGenerationController(
     }
 
     /// <summary>
-    /// Creates review.
+    /// Creates review for the code generation API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost]
     [HumanApprovalRequired(
         "code-generation.review.create",
@@ -132,8 +147,12 @@ public sealed class CodeGenerationController(
     }
 
     /// <summary>
-    /// Runs the execute review operation.
+    /// Executes review for the code generation API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="reviewId">Identifier of the review to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("{reviewId:guid}/execute")]
     [HumanApprovalRequired(
         "code-generation.review.execute",
@@ -170,8 +189,12 @@ public sealed class CodeGenerationController(
     }
 
     /// <summary>
-    /// Runs the reject review operation.
+    /// Rejects review for the code generation API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="reviewId">Identifier of the review to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("{reviewId:guid}/reject")]
     public async Task<IResult> RejectReview(
         Guid reviewId,

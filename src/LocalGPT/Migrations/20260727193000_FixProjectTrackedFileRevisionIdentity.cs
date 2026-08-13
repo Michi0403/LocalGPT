@@ -7,15 +7,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace LocalGPT.Migrations;
 
 /// <summary>
-/// Represents a fix project tracked file revision identity.
+/// Defines the Entity Framework Core migration FixProjectTrackedFileRevisionIdentity, applying and reverting the schema changes represented by this versioned database step.
 /// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260727193000_FixProjectTrackedFileRevisionIdentity")]
 public partial class FixProjectTrackedFileRevisionIdentity : Migration
 {
     /// <summary>
-    /// Runs the up operation.
+    /// Applies the schema changes defined by the <see cref="FixProjectTrackedFileRevisionIdentity"/> Entity Framework Core migration to move the database forward.
     /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the fix project tracked file revision identity operation and used when producing its result.</param>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropIndex(
@@ -30,8 +31,9 @@ public partial class FixProjectTrackedFileRevisionIdentity : Migration
     }
 
     /// <summary>
-    /// Runs the down operation.
+    /// Reverts the schema changes defined by the <see cref="FixProjectTrackedFileRevisionIdentity"/> Entity Framework Core migration to return the database to its preceding shape.
     /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the fix project tracked file revision identity operation and used when producing its result.</param>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropIndex(

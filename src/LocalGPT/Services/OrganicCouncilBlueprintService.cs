@@ -5,8 +5,12 @@ using System.Text;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides organic council blueprint service operations.
+/// Coordinates organic council blueprint behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="projectContext">Project organic context service dependency used by the organic council blueprint workflow to provide the corresponding application capability.</param>
+/// <param name="teamConfigurations">Council team configuration service dependency used by the organic council blueprint workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the organic council blueprint workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OrganicCouncilBlueprintService(
     IProjectOrganicContextService projectContext,
     ICouncilTeamConfigurationService teamConfigurations,
@@ -14,8 +18,10 @@ public sealed class OrganicCouncilBlueprintService(
     ILogger<OrganicCouncilBlueprintService> logger) : IOrganicCouncilBlueprintService
 {
     /// <summary>
-    /// Gets teams async.
+    /// Retrieves teams as part of the organic council blueprint service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public Task<IReadOnlyList<OrganicCouncilTeamDefinition>> GetTeamsAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -32,8 +38,11 @@ public sealed class OrganicCouncilBlueprintService(
 }
 
     /// <summary>
-    /// Finds team async.
+    /// Finds team as part of the organic council blueprint service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the organic council blueprint operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The organic council team definition produced by the operation.</returns>
     public Task<OrganicCouncilTeamDefinition?> FindTeamAsync(string? key, CancellationToken cancellationToken = default) {
     try
     {
@@ -50,8 +59,11 @@ public sealed class OrganicCouncilBlueprintService(
 }
 
     /// <summary>
-    /// Builds briefing async.
+    /// Builds briefing as part of the organic council blueprint service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> BuildBriefingAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -147,8 +159,11 @@ public sealed class OrganicCouncilBlueprintService(
 }
 
     /// <summary>
-    /// Builds expert preparation prompt.
+    /// Builds expert preparation prompt as part of the organic council blueprint service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="team">Team value supplied to the organic council blueprint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string BuildExpertPreparationPrompt(MultiModelCouncilRequest request, OrganicCouncilTeamDefinition team) {
     try
     {
@@ -165,8 +180,12 @@ public sealed class OrganicCouncilBlueprintService(
 }
 
     /// <summary>
-    /// Builds leader synthesis prompt.
+    /// Builds leader synthesis prompt as part of the organic council blueprint service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="team">Team value supplied to the organic council blueprint operation and used when producing its result.</param>
+    /// <param name="preparation">Preparation value supplied to the organic council blueprint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string BuildLeaderSynthesisPrompt(MultiModelCouncilRequest request, OrganicCouncilTeamDefinition team, string preparation) {
     try
     {
@@ -183,8 +202,13 @@ public sealed class OrganicCouncilBlueprintService(
 }
 
     /// <summary>
-    /// Runs the render template operation.
+    /// Performs render template as part of the organic council blueprint service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="template">Template value supplied to the organic council blueprint operation and used when producing its result.</param>
+    /// <param name="team">Team value supplied to the organic council blueprint operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="preparation">Preparation value supplied to the organic council blueprint operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RenderTemplate(string template, OrganicCouncilTeamDefinition team, MultiModelCouncilRequest request, string preparation)
     {
     try

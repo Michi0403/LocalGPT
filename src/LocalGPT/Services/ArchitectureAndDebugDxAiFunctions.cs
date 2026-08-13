@@ -8,15 +8,19 @@ using System.Reflection;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a get public architecture directory function.
+/// Represents a get public architecture directory function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the get public architecture directory function workflow to provide the corresponding application capability.</param>
+/// <param name="registry">Devexpress ai function registry dependency used by the get public architecture directory function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonService json,
     IDxAiFunctionRegistry registry,
     ILogger<GetPublicArchitectureDirectoryFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the get public architecture directory function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetPublicArchitectureDirectoryFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.architecture.public_methods",
         "GET",
@@ -24,6 +28,9 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
         "Lists public LocalGPT controller and service methods and shows which DI-backed DXFunctions are directly invokable.",
         "No parameters.",
         "Read-only metadata. A listed public method is not permission and is not automatically invokable.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="GetPublicArchitectureDirectoryFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         SupportsDirectInvocation: true,
@@ -31,8 +38,11 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
         Source: "ReflectionDirectory");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="GetPublicArchitectureDirectoryFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get public architecture directory function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -73,8 +83,10 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
 }
 
     /// <summary>
-    /// Runs the friendly name operation.
+    /// Performs friendly name for <see cref="GetPublicArchitectureDirectoryFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get public architecture directory function workflow.
     /// </summary>
+    /// <param name="type">Type value supplied to the get public architecture directory function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FriendlyName(Type type) {
     try
     {
@@ -91,8 +103,11 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
 }
 
     /// <summary>
-    /// Resolves route.
+    /// Resolves route for <see cref="GetPublicArchitectureDirectoryFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get public architecture directory function workflow.
     /// </summary>
+    /// <param name="type">Type value supplied to the get public architecture directory function operation and used when producing its result.</param>
+    /// <param name="method">Method value supplied to the get public architecture directory function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveRoute(Type type, MethodInfo method)
     {
     try
@@ -117,16 +132,20 @@ public sealed class GetPublicArchitectureDirectoryFunction(IDxAiFunctionJsonServ
 }
 
 /// <summary>
-/// Represents an inspect debug artifact function.
+/// Represents an inspect debug artifact function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the inspect debug artifact function workflow to provide the corresponding application capability.</param>
+/// <param name="inspector">Debug artifact inspection service dependency used by the inspect debug artifact function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class InspectDebugArtifactFunction(
     IDxAiFunctionJsonService json,
     IDebugArtifactInspectionService inspector,
     ILogger<InspectDebugArtifactFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the inspect debug artifact function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="InspectDebugArtifactFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.debug.inspect",
         "POST",
@@ -134,6 +153,9 @@ public sealed class InspectDebugArtifactFunction(
         "Reads bounded portable-PDB document and debug metadata so a council can understand the matching build without loading or executing it.",
         "filePath: exact user-selected local debug artifact path.",
         "Local file read. Requires current human confirmation for the exact path. Does not load assemblies or execute symbol code.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="InspectDebugArtifactFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -143,8 +165,11 @@ public sealed class InspectDebugArtifactFunction(
         ParameterSchemaJson: "{\"type\":\"object\",\"required\":[\"filePath\"],\"properties\":{\"filePath\":{\"type\":\"string\"}}}");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="InspectDebugArtifactFunction"/>, keeping the operation consistent with the state and invariants of the surrounding inspect debug artifact function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

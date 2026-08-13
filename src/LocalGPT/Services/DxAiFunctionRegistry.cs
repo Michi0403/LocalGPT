@@ -8,8 +8,16 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides DevExpress ai function registry operations.
+/// Maintains the authoritative directory of DevExpress AI function entries used for discovery, validation, and runtime lookup.
 /// </summary>
+/// <param name="serviceProvider">Service provider dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="humanCollaboration">Human collaboration service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="deferredInvocations">Deferred devexpress ai invocation service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="ambientContext">Ambient local gpt context dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="approvalExecutionContext">Human approval execution context dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="handlerMapService">Devexpress ai function handler map service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DxAiFunctionRegistry(
     IServiceProvider serviceProvider,
     IHumanCollaborationService humanCollaboration,
@@ -24,15 +32,17 @@ public sealed class DxAiFunctionRegistry(
     // references this registry to publish the complete function directory; eager IEnumerable resolution
     // would therefore create a constructor cycle during service-provider validation.
     /// <summary>
-    /// Runs the new operation.
+    /// Gets the handlers by name collection maintained or exposed by this DevExpress AI function instance for downstream processing.
     /// </summary>
+    /// <value>The handlers by name value exposed by <see cref="DxAiFunctionRegistry"/>.</value>
     private readonly Lazy<IReadOnlyDictionary<string, IDxAiFunctionHandler>> handlersByName = new(
         () => handlerMapService.Build(serviceProvider.GetServices<IDxAiFunctionHandler>()),
         System.Threading.LazyThreadSafetyMode.ExecutionAndPublication);
 
     /// <summary>
-    /// Gets functions.
+    /// Retrieves functions in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<DxaichatFunctionInfo> GetFunctions()
     {
     try
@@ -56,8 +66,12 @@ public sealed class DxAiFunctionRegistry(
 }
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="functionName">Function name value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         string functionName,
         DxAiFunctionInvocationRequest request,
@@ -250,8 +264,11 @@ public sealed class DxAiFunctionRegistry(
     }
 
     /// <summary>
-    /// Builds approval description.
+    /// Builds approval description in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="descriptor">Descriptor value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildApprovalDescription(DxaichatFunctionInfo descriptor, DxAiFunctionInvocationRequest request)
     {
     try
@@ -292,8 +309,11 @@ public sealed class DxAiFunctionRegistry(
 }
 
     /// <summary>
-    /// Runs the summarize approval value operation.
+    /// Performs summarize approval value in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="name">Name value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SummarizeApprovalValue(string name, JsonElement value)
     {
     try
@@ -331,8 +351,11 @@ public sealed class DxAiFunctionRegistry(
 }
 
     /// <summary>
-    /// Runs the quote and trim operation.
+    /// Performs quote and trim in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="value">Value value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string QuoteAndTrim(string? value, int maxLength)
     {
     try
@@ -357,8 +380,11 @@ public sealed class DxAiFunctionRegistry(
 }
 
     /// <summary>
-    /// Builds invocation fingerprint.
+    /// Builds invocation fingerprint in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="functionName">Function name value supplied to the DevExpress AI function operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildInvocationFingerprint(string functionName, DxAiFunctionInvocationRequest request)
     {
     try
@@ -385,16 +411,20 @@ public sealed class DxAiFunctionRegistry(
 }
 
 /// <summary>
-/// Represents a list code generation reviews function.
+/// Represents a list code generation reviews function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the list code generation reviews function workflow to provide the corresponding application capability.</param>
+/// <param name="workflow">Code generation workflow service dependency used by the list code generation reviews function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListCodeGenerationReviewsFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<ListCodeGenerationReviewsFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the list code generation reviews function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ListCodeGenerationReviewsFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.review.list",
         "POST",
@@ -402,6 +432,9 @@ public sealed class ListCodeGenerationReviewsFunction(
         "List recent user-controlled code-generation change reviews, optionally filtered by LocalGPT project.",
         "JSON parameters: projectId optional GUID; take optional positive integer. No artificial review-list ceiling is imposed by the workflow service.",
         "Read-only database metadata. Source payload content is represented by paths, sizes, and hashes rather than returned as executable authority.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ListCodeGenerationReviewsFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -427,8 +460,11 @@ public sealed class ListCodeGenerationReviewsFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ListCodeGenerationReviewsFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list code generation reviews function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -456,16 +492,20 @@ public sealed class ListCodeGenerationReviewsFunction(
 }
 
 /// <summary>
-/// Represents a get code generation review function.
+/// Represents a get code generation review function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the get code generation review function workflow to provide the corresponding application capability.</param>
+/// <param name="workflow">Code generation workflow service dependency used by the get code generation review function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetCodeGenerationReviewFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<GetCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the get code generation review function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetCodeGenerationReviewFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.review.get",
         "POST",
@@ -473,6 +513,9 @@ public sealed class GetCodeGenerationReviewFunction(
         "Read one code-generation change review before presenting its heartbeat/decision summary to the user.",
         "JSON parameters: reviewId required GUID.",
         "Read-only. The returned review hash binds the exact reviewed payload and must be echoed by a later explicit user decision.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="GetCodeGenerationReviewFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -496,8 +539,11 @@ public sealed class GetCodeGenerationReviewFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="GetCodeGenerationReviewFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get code generation review function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -530,16 +576,20 @@ public sealed class GetCodeGenerationReviewFunction(
 }
 
 /// <summary>
-/// Represents a create code generation review function.
+/// Represents a create code generation review function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the create code generation review function workflow to provide the corresponding application capability.</param>
+/// <param name="workflow">Code generation workflow service dependency used by the create code generation review function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CreateCodeGenerationReviewFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<CreateCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the create code generation review function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="CreateCodeGenerationReviewFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.review.create",
         "POST",
@@ -547,6 +597,9 @@ public sealed class CreateCodeGenerationReviewFunction(
         "Create a database-backed change review containing the exact proposed files, CodeDOM types, output targets, current project-state summary, council summary, safety summary, and immutable review hash.",
         "JSON parameters follow CreateCodeGenerationReviewRequest. goal is required. For exact generation provide files with relativePath/content and one or more outputs; for existing-project maintenance also provide projectId plus the approved projectRevisionId. currentProjectState, councilSummary, changeSummary, safetySummary, projectTopicId, councilRunId, and codeDomTypes are optional context. Do not invent a nested summaries object. Output kinds include SourceFiles, ClassLibrary, ConsoleApplication, Solution, LocalGptAddon, CSharpScript, PowerShellScript, and JavaScriptModule. Any reviewed text/source extension, including .ps1, can also be supplied directly in files; CodeDOM is optional and has a plain C# fallback.",
         "Coordination-only review metadata. It does not write a project workspace, build, execute, load, or integrate generated code. The actual codegen.review.execute step remains separately approval-gated.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="CreateCodeGenerationReviewFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -698,8 +751,11 @@ public sealed class CreateCodeGenerationReviewFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="CreateCodeGenerationReviewFunction"/>, keeping the operation consistent with the state and invariants of the surrounding create code generation review function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -725,16 +781,20 @@ public sealed class CreateCodeGenerationReviewFunction(
 }
 
 /// <summary>
-/// Represents an execute code generation review function.
+/// Represents an execute code generation review function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the execute code generation review function workflow to provide the corresponding application capability.</param>
+/// <param name="workflow">Code generation workflow service dependency used by the execute code generation review function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ExecuteCodeGenerationReviewFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<ExecuteCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the execute code generation review function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ExecuteCodeGenerationReviewFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.review.execute",
         "POST",
@@ -742,6 +802,9 @@ public sealed class ExecuteCodeGenerationReviewFunction(
         "Write and optionally build the exact source/addon/solution payload previously shown in a code-generation change review.",
         "JSON parameters: reviewId plus ExecuteCodeGenerationReviewRequest fields expectedReviewHash, userConfirmed, buildAfterGeneration, userConfirmedBuild, and decisionNote.",
         "One-use approval. The exact review hash and fresh human confirmation are mandatory. Files are restricted to a LocalGPT artifact workspace. Scripts and generated programs are never executed or loaded automatically.",
+        /// <summary>
+        /// Stores the internal true state used by <see cref="ExecuteCodeGenerationReviewFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -791,8 +854,11 @@ public sealed class ExecuteCodeGenerationReviewFunction(
         ApprovalRequiredBeforeCompletion: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ExecuteCodeGenerationReviewFunction"/>, keeping the operation consistent with the state and invariants of the surrounding execute code generation review function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -824,16 +890,20 @@ public sealed class ExecuteCodeGenerationReviewFunction(
 }
 
 /// <summary>
-/// Represents a reject code generation review function.
+/// Represents a reject code generation review function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the reject code generation review function workflow to provide the corresponding application capability.</param>
+/// <param name="workflow">Code generation workflow service dependency used by the reject code generation review function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RejectCodeGenerationReviewFunction(
     IDxAiFunctionJsonService json,
     ICodeGenerationWorkflowService workflow,
     ILogger<RejectCodeGenerationReviewFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the reject code generation review function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="RejectCodeGenerationReviewFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.review.reject",
         "POST",
@@ -841,6 +911,9 @@ public sealed class RejectCodeGenerationReviewFunction(
         "Reject a pending code-generation change review without writing or building its payload.",
         "JSON parameters: reviewId plus RejectCodeGenerationReviewRequest fields expectedReviewHash, userConfirmed, and decisionNote.",
         "Requires fresh human confirmation and the exact review hash. Rejection does not delete project files or private knowledge.",
+        /// <summary>
+        /// Stores the internal true state used by <see cref="RejectCodeGenerationReviewFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -883,8 +956,11 @@ public sealed class RejectCodeGenerationReviewFunction(
         SupportsDeferredApprovalRequest: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="RejectCodeGenerationReviewFunction"/>, keeping the operation consistent with the state and invariants of the surrounding reject code generation review function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -914,15 +990,18 @@ public sealed class RejectCodeGenerationReviewFunction(
 }
 
 /// <summary>
-/// Represents a list local gpt projects function.
+/// Represents a list LocalGPT projects function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="projects">Local gpt project service dependency used by the list LocalGPT projects function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListLocalGptProjectsFunction(
     ILocalGptProjectService projects,
     ILogger<ListLocalGptProjectsFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the list LocalGPT projects function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ListLocalGptProjectsFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.projects.list",
         "POST",
@@ -930,6 +1009,9 @@ public sealed class ListLocalGptProjectsFunction(
         "List LocalGPT project records and their version/topic counts for current project-state awareness.",
         "JSON parameters: includeArchived optional boolean.",
         "Read-only database metadata. Recorded paths are descriptive context and never authorize filesystem access.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ListLocalGptProjectsFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -949,8 +1031,11 @@ public sealed class ListLocalGptProjectsFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ListLocalGptProjectsFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list LocalGPT projects function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -974,22 +1059,26 @@ public sealed class ListLocalGptProjectsFunction(
 }
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="ListLocalGptProjectsFunction"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 }
 
 /// <summary>
-/// Represents a get local gpt project function.
+/// Represents a get LocalGPT project function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the get LocalGPT project function workflow to provide the corresponding application capability.</param>
+/// <param name="projects">Local gpt project service dependency used by the get LocalGPT project function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetLocalGptProjectFunction(
     IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     ILogger<GetLocalGptProjectFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the get LocalGPT project function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetLocalGptProjectFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.project.get",
         "POST",
@@ -997,6 +1086,9 @@ public sealed class GetLocalGptProjectFunction(
         "Read one LocalGPT project with its approved topics and version history before a council change review is prepared.",
         "JSON parameters: projectId required GUID.",
         "Read-only metadata. The stored project path is not accessed and supplies no write, build, Git, or execution authority.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="GetLocalGptProjectFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1020,8 +1112,11 @@ public sealed class GetLocalGptProjectFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="GetLocalGptProjectFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get LocalGPT project function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -1054,15 +1149,18 @@ public sealed class GetLocalGptProjectFunction(
 }
 
 /// <summary>
-/// Represents a list recent application logs function.
+/// Represents a list recent application logs function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="applicationLogs">Application log reader service dependency used by the list recent application logs function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListRecentApplicationLogsFunction(
     IApplicationLogReaderService applicationLogs,
     ILogger<ListRecentApplicationLogsFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the list recent application logs function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ListRecentApplicationLogsFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.logs.recent",
         "POST",
@@ -1070,6 +1168,9 @@ public sealed class ListRecentApplicationLogsFunction(
         "Read a bounded set of recent LocalGPT operational log summaries for live troubleshooting memory.",
         "JSON parameters: minimumLevel optional Trace/Debug/Information/Warning/Error/Critical; take optional integer 1 to 50.",
         "Read-only and bounded. Exception bodies are omitted from function results; prompts, model output, generated source, and secrets must not be logged.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ListRecentApplicationLogsFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1102,8 +1203,11 @@ public sealed class ListRecentApplicationLogsFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ListRecentApplicationLogsFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list recent application logs function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -1139,12 +1243,15 @@ public sealed class ListRecentApplicationLogsFunction(
 }
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="ListRecentApplicationLogsFunction"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
     /// <summary>
-    /// Runs the limit operation.
+    /// Performs limit for <see cref="ListRecentApplicationLogsFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list recent application logs function workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the list recent application logs function operation and used when producing its result.</param>
+    /// <param name="max">Max value supplied to the list recent application logs function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Limit(string value, int max) {
     try
     {
@@ -1162,15 +1269,18 @@ public sealed class ListRecentApplicationLogsFunction(
 }
 
 /// <summary>
-/// Represents a list council knowledge function.
+/// Represents a list council knowledge function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="knowledge">Council knowledge service dependency used by the list council knowledge function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListCouncilKnowledgeFunction(
     ICouncilKnowledgeService knowledge,
     ILogger<ListCouncilKnowledgeFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the list council knowledge function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ListCouncilKnowledgeFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.knowledge.list",
         "POST",
@@ -1178,6 +1288,9 @@ public sealed class ListCouncilKnowledgeFunction(
         "List bounded, approved Council knowledge summaries for source-backed project and architecture context.",
         "JSON parameters: includeArchived optional boolean; take optional integer 1 to 30.",
         "Read-only. Knowledge is context, not authority. Results include bounded excerpts and provenance/approval metadata.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ListCouncilKnowledgeFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1202,8 +1315,11 @@ public sealed class ListCouncilKnowledgeFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ListCouncilKnowledgeFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list council knowledge function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -1242,12 +1358,15 @@ public sealed class ListCouncilKnowledgeFunction(
 }
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="ListCouncilKnowledgeFunction"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
     /// <summary>
-    /// Runs the limit operation.
+    /// Performs limit for <see cref="ListCouncilKnowledgeFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list council knowledge function workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the list council knowledge function operation and used when producing its result.</param>
+    /// <param name="max">Max value supplied to the list council knowledge function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Limit(string value, int max) {
     try
     {
@@ -1265,15 +1384,18 @@ public sealed class ListCouncilKnowledgeFunction(
 }
 
 /// <summary>
-/// Represents a list chat memory conversations function.
+/// Represents a list chat memory conversations function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="memory">Chat memory service dependency used by the list chat memory conversations function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListChatMemoryConversationsFunction(
     IChatMemoryService memory,
     ILogger<ListChatMemoryConversationsFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the list chat memory conversations function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ListChatMemoryConversationsFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.memory.conversations",
         "POST",
@@ -1281,6 +1403,9 @@ public sealed class ListChatMemoryConversationsFunction(
         "List recent LocalGPT conversation metadata so the user and model can select an existing cooperation thread.",
         "JSON parameters: take optional integer 1 to 50.",
         "Read-only metadata only. Message bodies and hidden reasoning are not returned by this automatic function.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ListChatMemoryConversationsFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1302,8 +1427,11 @@ public sealed class ListChatMemoryConversationsFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ListChatMemoryConversationsFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list chat memory conversations function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -1327,15 +1455,19 @@ public sealed class ListChatMemoryConversationsFunction(
 }
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="ListChatMemoryConversationsFunction"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 }
 
 
 /// <summary>
-/// Represents a request human collaboration function.
+/// Represents a request human collaboration function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the request human collaboration function workflow to provide the corresponding application capability.</param>
+/// <param name="collaboration">Human collaboration service dependency used by the request human collaboration function workflow to provide the corresponding application capability.</param>
+/// <param name="ambientContext">Ambient local gpt context dependency used by the request human collaboration function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService vocabulary,
 
     IHumanCollaborationService collaboration,
@@ -1343,7 +1475,7 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
     ILogger<RequestHumanCollaborationFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="RequestHumanCollaborationFunction"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -1360,6 +1492,9 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
         "Ask the local human participant for bounded feedback or guidance, with an explicit Council scope and execution gate.",
         "JSON parameters: kind Feedback or Guidance; title and description required. questionScope is Member, SelectedMembers, or Consensus; use Consensus only when all participating members explicitly agreed on the same question. gate is None, NextPhase, NextRound, or Completion. targetMembers identifies affected models. Use a blocking gate only when that boundary genuinely cannot be crossed without the answer.",
         "Coordination-only. This function may create a persistent inbox question and pause only its declared Council boundary. It cannot approve operations, create trusted human identity, or authorize tools and side effects.",
+        /// <summary>
+        /// Stores the internal true state used by <see cref="RequestHumanCollaborationFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1398,8 +1533,11 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
         IsCoordinationOnly: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="RequestHumanCollaborationFunction"/>, keeping the operation consistent with the state and invariants of the surrounding request human collaboration function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -1526,8 +1664,10 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
 
 
     /// <summary>
-    /// Normalizes question scope.
+    /// Normalizes question scope for <see cref="RequestHumanCollaborationFunction"/>, keeping the operation consistent with the state and invariants of the surrounding request human collaboration function workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the request human collaboration function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeQuestionScope(string? value)
     {
     try
@@ -1550,8 +1690,11 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
 }
 
     /// <summary>
-    /// Normalizes gate mode.
+    /// Normalizes gate mode for <see cref="RequestHumanCollaborationFunction"/>, keeping the operation consistent with the state and invariants of the surrounding request human collaboration function workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the request human collaboration function operation and used when producing its result.</param>
+    /// <param name="requiredBeforeCompletion">Value indicating whether required before completion should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeGateMode(string? value, bool requiredBeforeCompletion)
     {
     try

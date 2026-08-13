@@ -6,8 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
 /// <summary>
-/// Provides council runtime classes controller operations.
+/// Exposes the council runtime classes application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
+/// <param name="runtimeClasses">Council runtime class service dependency used by the council runtime classes workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/council/runtime-classes")]
 public sealed class CouncilRuntimeClassesController(
@@ -15,8 +17,11 @@ public sealed class CouncilRuntimeClassesController(
     ILogger<CouncilRuntimeClassesController> logger) : ControllerBase
 {
     /// <summary>
-    /// Gets all.
+    /// Retrieves all for the council runtime classes API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="includeDisabled">Value indicating whether include disabled should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CouncilRuntimeClassDefinition>>> GetAll(
         [FromQuery] bool includeDisabled,
@@ -24,8 +29,11 @@ public sealed class CouncilRuntimeClassesController(
         Ok(await runtimeClasses.GetDefinitionsAsync(includeDisabled, cancellationToken).ConfigureAwait(false));
 
     /// <summary>
-    /// Runs the get operation.
+    /// Returns the get projection for the council runtime classes API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="key">Key value supplied to the council runtime classes operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("{key}")]
     public async Task<ActionResult<CouncilRuntimeClassDefinition>> Get(
         string key,
@@ -36,8 +44,11 @@ public sealed class CouncilRuntimeClassesController(
     }
 
     /// <summary>
-    /// Runs the save operation.
+    /// Returns the save projection for the council runtime classes API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost]
     [HumanApprovalRequired(
         "council.runtime-class.save",

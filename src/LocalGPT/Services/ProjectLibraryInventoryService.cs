@@ -6,14 +6,18 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides project library inventory service operations.
+    /// Coordinates project library inventory behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the project library inventory workflow to provide the corresponding application capability.</param>
     public partial class ProjectLibraryInventoryService(ILogger<ProjectLibraryInventoryService> logger,
         CouncilRuntimeService councilRuntime) : IProjectLibraryInventoryService
     {
         /// <summary>
-        /// Builds dev express briefing async.
+        /// Builds DevExpress briefing as part of the project library inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         public async Task<string> BuildDevExpressBriefingAsync(CancellationToken cancellationToken = default)
         {
     try
@@ -52,8 +56,13 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the append project package references async operation.
+        /// Performs append project package references as part of the project library inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="builder">Builder value supplied to the project library inventory operation and used when producing its result.</param>
+        /// <param name="root">Root value supplied to the project library inventory operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private async Task<bool> AppendProjectPackageReferencesAsync(StringBuilder builder, string root, CancellationToken cancellationToken, ILogger logger)
         {
             var projectPath = Path.Combine(root, "src", "LocalGPT", "LocalGPT.csproj");

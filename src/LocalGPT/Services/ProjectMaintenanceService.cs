@@ -12,8 +12,12 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides project maintenance service operations.
+/// Coordinates project maintenance behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the project maintenance workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the project maintenance workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the project maintenance workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProjectMaintenanceService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -21,8 +25,11 @@ public sealed class ProjectMaintenanceService(
     ILogger<ProjectMaintenanceService> logger) : IProjectMaintenanceService
 {
     /// <summary>
-    /// Gets workspace roots async.
+    /// Retrieves workspace roots as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<ProjectWorkspaceRoot>> GetWorkspaceRootsAsync(Guid? projectId = null, CancellationToken cancellationToken = default)
     {
     try
@@ -46,8 +53,11 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Saves workspace root async.
+    /// Persists workspace root as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project workspace root produced by the operation.</returns>
     public async Task<ProjectWorkspaceRoot> SaveWorkspaceRootAsync(SaveProjectWorkspaceRootRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -129,8 +139,11 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Resolves workspace async.
+    /// Resolves workspace as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project workspace resolution produced by the operation.</returns>
     public async Task<ProjectWorkspaceResolution> ResolveWorkspaceAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
     try
@@ -183,8 +196,12 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Runs the assess workspace permissions async operation.
+    /// Performs assess workspace permissions as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="workspaceRootId">Identifier of the workspace root to use for this operation.</param>
+    /// <param name="userConfirmedWriteProbe">Value indicating whether user confirmed write probe should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The workspace permission assessment produced by the operation.</returns>
     public async Task<WorkspacePermissionAssessment> AssessWorkspacePermissionsAsync(Guid workspaceRootId, bool userConfirmedWriteProbe, CancellationToken cancellationToken = default)
     {
     try
@@ -298,8 +315,10 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Gets compiler installations async.
+    /// Retrieves compiler installations as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<ProjectCompilerInstallation>> GetCompilerInstallationsAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -322,8 +341,11 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Saves compiler installation async.
+    /// Persists compiler installation as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project compiler installation produced by the operation.</returns>
     public async Task<ProjectCompilerInstallation> SaveCompilerInstallationAsync(SaveProjectCompilerInstallationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -477,7 +499,9 @@ public sealed class ProjectMaintenanceService(
         }
     }
 
-    /// <summary>Deletes one unreferenced compiler installation after explicit user confirmation.</summary>
+    /// <summary>
+    /// Deletes compiler installation as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="compilerId">Stored compiler installation identifier.</param>
     /// <param name="userConfirmed">Whether the user approved the destructive database change.</param>
     /// <param name="cancellationToken">Cancellation token for database work.</param>
@@ -508,8 +532,12 @@ public sealed class ProjectMaintenanceService(
     }
 
     /// <summary>
-    /// Runs the scan project files async operation.
+    /// Performs scan project files as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project scan result produced by the operation.</returns>
     public async Task<ProjectScanResult> ScanProjectFilesAsync(Guid projectId, ScanProjectFilesRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -624,8 +652,12 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Gets tracked files async.
+    /// Retrieves tracked files as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="revisionId">Identifier of the revision to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<LocalGptProjectTrackedFile>> GetTrackedFilesAsync(Guid projectId, Guid? revisionId = null, CancellationToken cancellationToken = default)
     {
     try
@@ -648,8 +680,12 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Saves tracked file pattern async.
+    /// Persists tracked file pattern as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="trackedFileId">Identifier of the tracked file to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project tracked file produced by the operation.</returns>
     public async Task<LocalGptProjectTrackedFile> SaveTrackedFilePatternAsync(Guid trackedFileId, SaveTrackedFilePatternRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -681,8 +717,15 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Registers revision workspace async.
+    /// Registers revision workspace as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="revisionId">Identifier of the revision to use for this operation.</param>
+    /// <param name="sourceRootPath">Source root path value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="solutionPath">Solution path value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project revision produced by the operation.</returns>
     public async Task<LocalGptProjectRevision> RegisterRevisionWorkspaceAsync(Guid projectId, Guid revisionId, string sourceRootPath, string solutionPath, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -721,8 +764,12 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Runs the run build verification async operation.
+    /// Performs run build verification as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project build verification produced by the operation.</returns>
     public async Task<ProjectBuildVerification> RunBuildVerificationAsync(Guid projectId, RunProjectBuildVerificationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -863,8 +910,12 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Runs the record council build review async operation.
+    /// Performs record council build review as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="verificationId">Identifier of the verification to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project build verification produced by the operation.</returns>
     public async Task<ProjectBuildVerification> RecordCouncilBuildReviewAsync(Guid verificationId, RecordCouncilBuildReviewRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -897,8 +948,13 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Runs the approve revision ready for test async operation.
+    /// Approves revision ready for test as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="revisionId">Identifier of the revision to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project build verification produced by the operation.</returns>
     public async Task<ProjectBuildVerification> ApproveRevisionReadyForTestAsync(Guid projectId, Guid revisionId, ApproveRevisionReadyForTestRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -973,8 +1029,11 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Runs the discover compiler candidates operation.
+    /// Discovers compiler candidates as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="customRoots">String dependency used by the project maintenance workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IEnumerable<(string Name, string Language, string Path, string Source)> DiscoverCompilerCandidates(IEnumerable<string>? customRoots, CancellationToken cancellationToken)
     {
         var approvedCustomRoots = (customRoots ?? [])
@@ -1057,8 +1116,13 @@ public sealed class ProjectMaintenanceService(
     }
 
     /// <summary>
-    /// Runs the enumerate compiler files operation.
+    /// Performs enumerate compiler files as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="names">Names value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="maxDepth">Max depth value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IEnumerable<string> EnumerateCompilerFiles(string root, HashSet<string> names, int maxDepth, CancellationToken cancellationToken)
     {
         var visitedDirectoryCount = 0;
@@ -1099,8 +1163,11 @@ public sealed class ProjectMaintenanceService(
     }
 
     /// <summary>
-    /// Gets compiler files.
+    /// Retrieves compiler files as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="directory">Directory value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="searchDepth">Search depth value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> GetCompilerFiles(string directory, int searchDepth)
     {
         try
@@ -1115,8 +1182,11 @@ public sealed class ProjectMaintenanceService(
     }
 
     /// <summary>
-    /// Gets compiler directories.
+    /// Retrieves compiler directories as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="directory">Directory value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="searchDepth">Search depth value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> GetCompilerDirectories(string directory, int searchDepth)
     {
         try
@@ -1131,8 +1201,10 @@ public sealed class ProjectMaintenanceService(
     }
 
     /// <summary>
-    /// Normalizes compiler search roots.
+    /// Normalizes compiler search roots as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> NormalizeCompilerSearchRoots(DiscoverProjectCompilersRequest request)
     {
     try
@@ -1158,8 +1230,11 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Runs the enumerate files safe operation.
+    /// Performs enumerate files safe as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="warnings">String dependency used by the project maintenance workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IEnumerable<string> EnumerateFilesSafe(string root, ICollection<string> warnings)
     {
         var pending = new Stack<string>();
@@ -1177,8 +1252,15 @@ public sealed class ProjectMaintenanceService(
     }
 
     /// <summary>
-    /// Runs the run process async operation.
+    /// Performs run process as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="executable">Executable value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="arguments">Arguments value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="workingDirectory">Working directory value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="environmentVariablesJson">Environment variables json value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="timeoutSeconds">Timeout seconds value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The int exit code string output produced by the operation.</returns>
     private async Task<(int ExitCode, string Output)> RunProcessAsync(string executable, string arguments, string? workingDirectory, string? environmentVariablesJson, int timeoutSeconds, CancellationToken cancellationToken)
     {
         if (!File.Exists(executable)) throw new FileNotFoundException("The configured compiler executable does not exist.", executable);
@@ -1226,8 +1308,12 @@ public sealed class ProjectMaintenanceService(
     }
 
     /// <summary>
-    /// Runs the default build arguments operation.
+    /// Performs default build arguments as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="language">Language value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="target">Target value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string DefaultBuildArguments(string language, string target, string configuration) {
     try
     {
@@ -1251,8 +1337,11 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Runs the default validation arguments operation.
+    /// Performs default validation arguments as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="language">Language value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="executable">Executable value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string DefaultValidationArguments(string language, string executable) {
     try
     {
@@ -1298,8 +1387,10 @@ public sealed class ProjectMaintenanceService(
     };
 
     /// <summary>
-    /// Runs the content type for operation.
+    /// Performs content type for as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="extension">Extension value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ContentTypeFor(string extension) {
     try
     {
@@ -1319,8 +1410,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Determines whether text extension.
+    /// Determines whether text extension as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="extension">Extension value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsTextExtension(string extension) {
     try
     {
@@ -1336,8 +1429,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Determines whether generated path.
+    /// Determines whether generated path as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="relative">Relative value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsGeneratedPath(string relative) {
     try
     {
@@ -1353,8 +1448,11 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Finds nearest project file.
+    /// Finds nearest project file as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="file">File value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FindNearestProjectFile(string root, string file)
     {
         var directory = Path.GetDirectoryName(file);
@@ -1375,8 +1473,11 @@ public sealed class ProjectMaintenanceService(
         return string.Empty;
     }
     /// <summary>
-    /// Determines whether h file async.
+    /// Determines whether h file as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="path">Path value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> HashFileAsync(string path, CancellationToken cancellationToken)
     {
     try
@@ -1396,8 +1497,12 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the capture tracked source state async operation.
+    /// Performs capture tracked source state as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="files">Local gpt project tracked file dependency used by the project maintenance workflow to provide the corresponding application capability.</param>
+    /// <param name="requireStoredHashMatch">Value indicating whether require stored hash match should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project tracked source state produced by the operation.</returns>
     private async Task<ProjectTrackedSourceState> CaptureTrackedSourceStateAsync(IReadOnlyList<LocalGptProjectTrackedFile> files, bool requireStoredHashMatch, CancellationToken cancellationToken)
     {
     try
@@ -1430,8 +1535,11 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Determines whether path inside.
+    /// Determines whether path inside as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="path">Path value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsPathInside(string root, string path)
     {
     try
@@ -1453,8 +1561,11 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Runs the regex matches operation.
+    /// Performs regex matches as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="pattern">Pattern value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="input">Input value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool RegexMatches(string pattern, string input) {
     try
     {
@@ -1470,8 +1581,12 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the compile regex operation.
+    /// Performs compile regex as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="pattern">Pattern value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="parameter">Parameter value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The regex produced by the operation.</returns>
     private Regex CompileRegex(string? pattern, string parameter, string fallback)
     {
     try
@@ -1490,8 +1605,11 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Validates regex.
+    /// Validates regex as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="pattern">Pattern value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="parameter">Parameter value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="allowEmpty">Value indicating whether allow empty should apply to this operation.</param>
     private void ValidateRegex(string? pattern, string parameter, bool allowEmpty)
     {
     try
@@ -1510,8 +1628,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Validates JSON array.
+    /// Validates JSON array as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="json">Json value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="parameter">Parameter value supplied to the project maintenance operation and used when producing its result.</param>
     private void ValidateJsonArray(string? json, string parameter)
     {
     try
@@ -1531,8 +1651,9 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Validates workspace access policy JSON.
+    /// Validates workspace access policy JSON as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="json">Json value supplied to the project maintenance operation and used when producing its result.</param>
     private void ValidateWorkspaceAccessPolicyJson(string? json)
     {
     try
@@ -1560,8 +1681,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Parses string array.
+    /// Parses string array as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="json">Json value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> ParseStringArray(string? json)
     {
     try
@@ -1580,8 +1703,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Parses access policy.
+    /// Parses access policy as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="json">Json value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<WorkspaceAccessPolicyRule> ParseAccessPolicy(string? json)
     {
     try
@@ -1600,8 +1725,12 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the enumerate relative entries operation.
+    /// Performs enumerate relative entries as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="findings">Findings value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> EnumerateRelativeEntries(string root, int maximum, List<WorkspacePermissionFinding> findings)
     {
     try
@@ -1647,8 +1776,13 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the evaluate access policy rule operation.
+    /// Performs evaluate access policy rule as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="rule">Rule value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="entries">String dependency used by the project maintenance workflow to provide the corresponding application capability.</param>
+    /// <param name="root">Root value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="rootWriteAccess">Value indicating whether root write access should apply to this operation.</param>
+    /// <param name="findings">Findings value supplied to the project maintenance operation and used when producing its result.</param>
     private void EvaluateAccessPolicyRule(WorkspaceAccessPolicyRule rule, IReadOnlyList<string> entries, string root, bool rootWriteAccess, List<WorkspacePermissionFinding> findings)
     {
     try
@@ -1690,8 +1824,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Determines whether enumerate directory.
+    /// Determines whether enumerate directory as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="path">Path value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool CanEnumerateDirectory(string path)
     {
     try
@@ -1709,8 +1845,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Determines whether open read.
+    /// Determines whether open read as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="path">Path value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool CanOpenRead(string path)
     {
     try
@@ -1728,8 +1866,11 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the probe directory write async operation.
+    /// Performs probe directory write as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private async Task<bool> ProbeDirectoryWriteAsync(string root, CancellationToken cancellationToken)
     {
     try
@@ -1758,8 +1899,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Determines whether broad or system root.
+    /// Determines whether broad or system root as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="path">Path value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsBroadOrSystemRoot(string path)
     {
     try
@@ -1787,8 +1930,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Normalizes relative policy path.
+    /// Normalizes relative policy path as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeRelativePolicyPath(string value)
     {
     try
@@ -1808,8 +1953,10 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Validates JSON object.
+    /// Validates JSON object as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="json">Json value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="parameter">Parameter value supplied to the project maintenance operation and used when producing its result.</param>
     private void ValidateJsonObject(string? json, string parameter)
     {
     try
@@ -1829,8 +1976,11 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the merge environment JSON operation.
+    /// Performs merge environment JSON as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="compilerJson">Compiler json value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="workspaceJson">Workspace json value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string MergeEnvironmentJson(string? compilerJson, string? workspaceJson)
     {
     try
@@ -1863,8 +2013,10 @@ public sealed class ProjectMaintenanceService(
 }
 
     /// <summary>
-    /// Normalizes scope.
+    /// Normalizes scope as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="scope">Scope value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeScope(string? scope) {
     try
     {
@@ -1880,8 +2032,11 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Normalizes absolute path.
+    /// Normalizes absolute path as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="parameter">Parameter value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeAbsolutePath(string? value, string parameter)
     {
     try
@@ -1901,8 +2056,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Normalizes optional path.
+    /// Normalizes optional path as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeOptionalPath(string? value) {
     try
     {
@@ -1918,8 +2075,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the require confirmation operation.
+    /// Performs require confirmation as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="confirmed">Value indicating whether confirmed should apply to this operation.</param>
+    /// <param name="operation">Operation value supplied to the project maintenance operation and used when producing its result.</param>
     private void RequireConfirmation(bool confirmed, string operation) {
     try
     {
@@ -1935,8 +2094,12 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the require text operation.
+    /// Performs require text as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="parameter">Parameter value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="max">Max value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RequireText(string? value, string parameter, int max) {
     try
     {
@@ -1952,8 +2115,12 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the trim or fallback operation.
+    /// Performs trim or fallback as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="max">Max value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string TrimOrFallback(string? value, int max, string fallback) {
     try
     {
@@ -1969,8 +2136,11 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the trim operation.
+    /// Performs trim as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="max">Max value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Trim(string? value, int max) {
     try
     {
@@ -1986,8 +2156,11 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the limit operation.
+    /// Performs limit as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="max">Max value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Limit(string value, int max) {
     try
     {
@@ -2003,8 +2176,11 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the first non empty line operation.
+    /// Performs first non empty line as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="max">Max value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FirstNonEmptyLine(string value, int max) {
     try
     {
@@ -2020,8 +2196,10 @@ public sealed class ProjectMaintenanceService(
     }
 }
     /// <summary>
-    /// Runs the safe file name operation.
+    /// Performs safe file name as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SafeFileName(string value) {
     try
     {

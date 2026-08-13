@@ -9,16 +9,24 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides project architecture service operations.
+/// Coordinates project architecture behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the project architecture workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the project architecture workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProjectArchitectureService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<ProjectArchitectureService> logger) : IProjectArchitectureService
 {
     /// <summary>
-    /// Ensures council run project async.
+    /// Ensures council run project as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="title">Title value supplied to the project architecture operation and used when producing its result.</param>
+    /// <param name="prompt">Prompt value supplied to the project architecture operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project project LocalGPT project revision revision produced by the operation.</returns>
     public async Task<(LocalGptProject Project, LocalGptProjectRevision Revision)> EnsureCouncilRunProjectAsync(
         Guid councilRunId,
         string? title,
@@ -77,8 +85,11 @@ public sealed class ProjectArchitectureService(
     }
 
     /// <summary>
-    /// Gets revisions async.
+    /// Retrieves revisions as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<LocalGptProjectRevision>> GetRevisionsAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
     try
@@ -103,8 +114,11 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Gets requirements async.
+    /// Retrieves requirements as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<LocalGptProjectRequirement>> GetRequirementsAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
     try
@@ -131,8 +145,11 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Gets artifacts async.
+    /// Retrieves artifacts as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<LocalGptProjectArtifact>> GetArtifactsAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
     try
@@ -157,8 +174,12 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Saves revision async.
+    /// Persists revision as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project revision produced by the operation.</returns>
     public async Task<LocalGptProjectRevision> SaveRevisionAsync(Guid projectId, SaveProjectRevisionRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -217,8 +238,12 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Saves requirement async.
+    /// Persists requirement as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project requirement produced by the operation.</returns>
     public async Task<LocalGptProjectRequirement> SaveRequirementAsync(Guid projectId, SaveProjectRequirementRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -268,8 +293,12 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Saves requirement link async.
+    /// Persists requirement link as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project requirement link produced by the operation.</returns>
     public async Task<LocalGptProjectRequirementLink> SaveRequirementLinkAsync(Guid projectId, SaveProjectRequirementLinkRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -316,8 +345,12 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Saves artifact async.
+    /// Persists artifact as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project artifact produced by the operation.</returns>
     public async Task<LocalGptProjectArtifact> SaveArtifactAsync(Guid projectId, SaveProjectArtifactRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -377,8 +410,12 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Builds architecture briefing async.
+    /// Builds architecture briefing as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="revisionId">Identifier of the revision to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> BuildArchitectureBriefingAsync(Guid projectId, Guid? revisionId, CancellationToken cancellationToken = default)
     {
     try
@@ -415,8 +452,12 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Builds project name.
+    /// Builds project name as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="title">Title value supplied to the project architecture operation and used when producing its result.</param>
+    /// <param name="prompt">Prompt value supplied to the project architecture operation and used when producing its result.</param>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildProjectName(string? title, string prompt, Guid runId)
     {
     try
@@ -439,8 +480,9 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Validates structure JSON.
+    /// Validates structure JSON as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="json">Json value supplied to the project architecture operation and used when producing its result.</param>
     private void ValidateStructureJson(string? json)
     {
     try
@@ -463,8 +505,10 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Validates regex.
+    /// Validates regex as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="pattern">Pattern value supplied to the project architecture operation and used when producing its result.</param>
+    /// <param name="flags">Flags value supplied to the project architecture operation and used when producing its result.</param>
     private void ValidateRegex(string pattern, string? flags)
     {
     try
@@ -488,8 +532,10 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Runs the require confirmation operation.
+    /// Performs require confirmation as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="confirmed">Value indicating whether confirmed should apply to this operation.</param>
+    /// <param name="operation">Operation value supplied to the project architecture operation and used when producing its result.</param>
     private void RequireConfirmation(bool confirmed, string operation)
     {
     try
@@ -509,8 +555,12 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Runs the require text operation.
+    /// Performs require text as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project architecture operation and used when producing its result.</param>
+    /// <param name="parameterName">Parameter name value supplied to the project architecture operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the project architecture operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RequireText(string? value, string parameterName, int maxLength)
     {
     try
@@ -532,8 +582,12 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Runs the fallback operation.
+    /// Performs fallback as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project architecture operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the project architecture operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the project architecture operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Fallback(string? value, int maxLength, string fallback)
     {
     try
@@ -553,8 +607,11 @@ public sealed class ProjectArchitectureService(
 }
 
     /// <summary>
-    /// Runs the trim operation.
+    /// Performs trim as part of the project architecture service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project architecture operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the project architecture operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Trim(string? value, int maxLength)
     {
     try

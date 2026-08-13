@@ -11,18 +11,33 @@ namespace LocalGPT.Services.Persistence;
 /// </summary>
 public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCompatibilityService
 {
+    /// <summary>
+    /// Stores the database file health service dependency used by <see cref="DatabaseMigrationCompatibilityService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IDatabaseFileHealthService databaseFileHealth;
+    /// <summary>
+    /// Stores the service activity service dependency used by <see cref="DatabaseMigrationCompatibilityService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IServiceActivityService serviceActivity;
+    /// <summary>
+    /// Stores the logger used by <see cref="DatabaseMigrationCompatibilityService"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger<DatabaseMigrationCompatibilityService> logger;
     /// <summary>
-    /// Runs the from minutes operation.
+    /// Stores the synchronization primitive that protects concurrent access to abandoned migration lock age state owned by <see cref="DatabaseMigrationCompatibilityService"/>.
     /// </summary>
     private readonly TimeSpan abandonedMigrationLockAge = TimeSpan.FromMinutes(10);
+    /// <summary>
+    /// Stores the internal legacy migration signatures state used by <see cref="DatabaseMigrationCompatibilityService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly DatabaseMigrationSignature[] legacyMigrationSignatures;
 
     /// <summary>
-    /// Runs the database migration compatibility service operation.
+    /// Initializes a new <see cref="DatabaseMigrationCompatibilityService"/> instance and captures the dependencies or initial state required by its database migration compatibility workflow.
     /// </summary>
+    /// <param name="databaseFileHealth">Database file health service dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
+    /// <param name="serviceActivity">Service activity service dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public DatabaseMigrationCompatibilityService(
         IDatabaseFileHealthService databaseFileHealth,
         IServiceActivityService serviceActivity,
@@ -35,8 +50,10 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 
     /// <summary>
-    /// Runs the prepare async operation.
+    /// Performs prepare as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public Task PrepareAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -58,8 +75,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Creates legacy migration signatures.
+    /// Creates legacy migration signatures as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The database migration signature produced by the operation.</returns>
     private DatabaseMigrationSignature[] CreateLegacyMigrationSignatures() {
     try
     {
@@ -251,8 +269,10 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Runs the prepare core async operation.
+    /// Performs prepare core as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PrepareCoreAsync(CancellationToken cancellationToken)
     {
     try
@@ -367,8 +387,13 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Attempts to repair known migration async.
+    /// Attempts to repair known migration as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="migrationId">Identifier of the migration to use for this operation.</param>
+    /// <param name="schema">String dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private async Task<bool> TryRepairKnownMigrationAsync(
         SqliteConnection connection,
         string migrationId,
@@ -426,8 +451,12 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Ensures organic skill columns async.
+    /// Ensures organic skill columns as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="schema">String dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EnsureOrganicSkillColumnsAsync(
         SqliteConnection connection,
         IReadOnlyDictionary<string, HashSet<string>> schema,
@@ -479,8 +508,12 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Ensures council team columns async.
+    /// Ensures council team columns as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="schema">String dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EnsureCouncilTeamColumnsAsync(
         SqliteConnection connection,
         IReadOnlyDictionary<string, HashSet<string>> schema,
@@ -514,8 +547,13 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Runs the archive malformed identity table async operation.
+    /// Performs archive malformed identity table as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="schema">String dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
+    /// <param name="table">Table value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string?> ArchiveMalformedIdentityTableAsync(
         SqliteConnection connection,
         IReadOnlyDictionary<string, HashSet<string>> schema,
@@ -549,8 +587,13 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Attempts to copy compatibility rows async.
+    /// Attempts to copy compatibility rows as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="archive">Archive value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="target">Target value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task TryCopyCompatibilityRowsAsync(
         SqliteConnection connection,
         string archive,
@@ -584,12 +627,22 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         }
     }
 
+    /// <summary>
+    /// Defines the sqlite GUID expression constant used by <see cref="DatabaseMigrationCompatibilityService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string SqliteGuidExpression =
         "lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1,1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6)))";
 
     /// <summary>
-    /// Adds column if missing async.
+    /// Adds column if missing as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="schema">String dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
+    /// <param name="table">Table value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="column">Column value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="definition">Definition value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task AddColumnIfMissingAsync(
         SqliteConnection connection,
         IReadOnlyDictionary<string, HashSet<string>> schema,
@@ -619,8 +672,12 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Runs the execute sql async operation.
+    /// Executes SQL as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="sql">Sql value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ExecuteSqlAsync(SqliteConnection connection, string sql, CancellationToken cancellationToken)
     {
     try
@@ -640,6 +697,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
 
+    /// <summary>
+    /// Defines the organic skill table repair SQL constant used by <see cref="DatabaseMigrationCompatibilityService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string OrganicSkillTableRepairSql = """
     CREATE TABLE IF NOT EXISTS "OrganicSkills" (
         "Id" TEXT NOT NULL CONSTRAINT "PK_OrganicSkills" PRIMARY KEY, "Key" TEXT NOT NULL DEFAULT '',
@@ -662,6 +722,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         CONSTRAINT "FK_CouncilMemberOrganicSkillLinks_OrganicSkills_SkillId" FOREIGN KEY ("SkillId") REFERENCES "OrganicSkills" ("Id") ON DELETE CASCADE);
     """;
 
+    /// <summary>
+    /// Defines the organic skill index repair SQL constant used by <see cref="DatabaseMigrationCompatibilityService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string OrganicSkillIndexRepairSql = """
     CREATE UNIQUE INDEX IF NOT EXISTS "IX_OrganicSkills_Key" ON "OrganicSkills" ("Key");
     CREATE INDEX IF NOT EXISTS "IX_OrganicSkills_IsEnabled_IsOnline_UpdatedAtUtc" ON "OrganicSkills" ("IsEnabled", "IsOnline", "UpdatedAtUtc");
@@ -673,6 +736,9 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     CREATE INDEX IF NOT EXISTS "IX_CouncilMemberOrganicSkillLinks_SkillId" ON "CouncilMemberOrganicSkillLinks" ("SkillId");
     """;
 
+    /// <summary>
+    /// Defines the council team table repair SQL constant used by <see cref="DatabaseMigrationCompatibilityService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string CouncilTeamTableRepairSql = """
     CREATE TABLE IF NOT EXISTS "CouncilTeamConfigurations" (
         "Id" TEXT NOT NULL CONSTRAINT "PK_CouncilTeamConfigurations" PRIMARY KEY, "Key" TEXT NOT NULL DEFAULT '',
@@ -685,14 +751,19 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
         "CreatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00', "UpdatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00');
     """;
 
+    /// <summary>
+    /// Defines the council team index repair SQL constant used by <see cref="DatabaseMigrationCompatibilityService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string CouncilTeamIndexRepairSql = """
     CREATE UNIQUE INDEX IF NOT EXISTS "IX_CouncilTeamConfigurations_Key" ON "CouncilTeamConfigurations" ("Key");
     CREATE INDEX IF NOT EXISTS "IX_CouncilTeamConfigurations_IsEnabled_UpdatedAtUtc" ON "CouncilTeamConfigurations" ("IsEnabled", "UpdatedAtUtc");
     """;
 
     /// <summary>
-    /// Determines whether application table.
+    /// Determines whether application table as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="tableName">Table name value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsApplicationTable(string tableName) {
     try
     {
@@ -711,8 +782,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Runs the evaluate signature operation.
+    /// Performs evaluate signature as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="signature">Signature value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="schema">String dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
+    /// <returns>The database migration signature state produced by the operation.</returns>
     private DatabaseMigrationSignatureState EvaluateSignature(
         DatabaseMigrationSignature signature,
         IReadOnlyDictionary<string, HashSet<string>> schema)
@@ -738,8 +812,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Runs the requirement exists operation.
+    /// Performs requirement exists as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="requirement">Requirement value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="schema">String dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool RequirementExists(
         DatabaseSchemaRequirement requirement,
         IReadOnlyDictionary<string, HashSet<string>> schema)
@@ -762,8 +839,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Determines whether supported application logs bootstrap.
+    /// Determines whether supported application logs bootstrap as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="signature">Signature value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="schema">String dependency used by the database migration compatibility workflow to provide the corresponding application capability.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsSupportedApplicationLogsBootstrap(
         DatabaseMigrationSignature signature,
         IReadOnlyDictionary<string, HashSet<string>> schema)
@@ -795,8 +875,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Creates compatibility backup async.
+    /// Creates compatibility backup as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sourceConnection">Source connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> CreateCompatibilityBackupAsync(
         SqliteConnection sourceConnection,
         CancellationToken cancellationToken)
@@ -837,8 +920,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 
 
     /// <summary>
-    /// Runs the clear abandoned migration lock async operation.
+    /// Performs clear abandoned migration lock as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ClearAbandonedMigrationLockAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
@@ -902,8 +988,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Ensures migration history table async.
+    /// Ensures migration history table as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EnsureMigrationHistoryTableAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
@@ -932,8 +1021,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Reads applied migrations async.
+    /// Reads applied migrations as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The hash set string produced by the operation.</returns>
     private async Task<HashSet<string>> ReadAppliedMigrationsAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
@@ -960,8 +1052,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Reads schema async.
+    /// Reads schema as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The dictionary string hash set string produced by the operation.</returns>
     private async Task<Dictionary<string, HashSet<string>>> ReadSchemaAsync(
         SqliteConnection connection,
         CancellationToken cancellationToken)
@@ -1005,8 +1100,12 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Runs the insert migration history async operation.
+    /// Performs insert migration history as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="signature">Signature value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task InsertMigrationHistoryAsync(
         SqliteConnection connection,
         DatabaseMigrationSignature signature,
@@ -1034,8 +1133,10 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Runs the quote sqlite identifier operation.
+    /// Performs quote sqlite identifier as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="identifier">Identifier value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string QuoteSqliteIdentifier(string identifier) {
     try
     {
@@ -1052,8 +1153,10 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
 }
 
     /// <summary>
-    /// Runs the table operation.
+    /// Performs table as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="tableName">Table name value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <returns>The database schema requirement produced by the operation.</returns>
     private DatabaseSchemaRequirement Table(string tableName) {
     try
     {
@@ -1069,8 +1172,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     }
 }
     /// <summary>
-    /// Runs the column operation.
+    /// Performs column as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="tableName">Table name value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <param name="columnName">Column name value supplied to the database migration compatibility operation and used when producing its result.</param>
+    /// <returns>The database schema requirement produced by the operation.</returns>
     private DatabaseSchemaRequirement Column(string tableName, string columnName) {
     try
     {

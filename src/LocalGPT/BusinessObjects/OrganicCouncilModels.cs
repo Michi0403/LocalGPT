@@ -82,31 +82,56 @@ public enum CouncilTranscriptVisibilityMode
 [DocumentationUpdated("2.1.20")]
 public sealed class OrganicCouncilTeamDefinition
 {
-    /// <summary>Gets or sets the stable lowercase team key.</summary>
+    /// <summary>
+    /// Gets or sets the stable key used to identify or correlate this organic council team definition instance with related application state.
+    /// </summary>
+    /// <value>The key value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public string Key { get; set; } = string.Empty;
-    /// <summary>Gets or sets the human-readable team name.</summary>
+    /// <summary>
+    /// Gets or sets the display name value that forms part of the organic council team definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The display name value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public string DisplayName { get; set; } = string.Empty;
-    /// <summary>Gets or sets the bounded purpose of the team.</summary>
+    /// <summary>
+    /// Gets or sets the purpose value that forms part of the organic council team definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The purpose value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public string Purpose { get; set; } = string.Empty;
-    /// <summary>Gets or sets the role definitions used by the team.</summary>
+    /// <summary>
+    /// Gets or sets the roles collection maintained or exposed by this organic council team definition instance for downstream processing.
+    /// </summary>
+    /// <value>The roles value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<OrganicCouncilRoleDefinition> Roles { get; set; } = [];
-    /// <summary>Gets or sets preferred registered DXFunction and organic capability keys.</summary>
+    /// <summary>
+    /// Gets or sets the preferred capabilities collection maintained or exposed by this organic council team definition instance for downstream processing.
+    /// </summary>
+    /// <value>The preferred capabilities value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<string> PreferredCapabilities { get; set; } = [];
     /// <summary>Gets or sets architecture and safety contracts that every round must preserve.</summary>
+    /// <value>The architecture contracts value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<string> ArchitectureContracts { get; set; } = [];
     /// <summary>Gets or sets the literal ordered Council workflow.</summary>
+    /// <value>The workflow steps value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<CouncilWorkflowStepDefinition> WorkflowSteps { get; set; } = [];
     /// <summary>Gets or sets the expert-preparation prompt used by the built-in workflow.</summary>
+    /// <value>The expert preparation prompt template value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public string ExpertPreparationPromptTemplate { get; set; } = string.Empty;
     /// <summary>Gets or sets the leader-synthesis prompt used by the built-in workflow.</summary>
+    /// <value>The leader synthesis prompt template value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public string LeaderSynthesisPromptTemplate { get; set; } = string.Empty;
-    /// <summary>Gets or sets the common main-round instruction.</summary>
+    /// <summary>
+    /// Gets or sets the main round instruction template value that forms part of the organic council team definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The main round instruction template value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public string MainRoundInstructionTemplate { get; set; } = string.Empty;
     /// <summary>Gets or sets whether the team may be selected for new runs.</summary>
+    /// <value>The is enabled value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public bool IsEnabled { get; set; } = true;
     /// <summary>Gets or sets whether the row originated from maintained seed data.</summary>
+    /// <value>The is system seed value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public bool IsSystemSeed { get; set; }
     /// <summary>Gets or sets whether a user edited the seed-owned row.</summary>
+    /// <value>The is user modified value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public bool IsUserModified { get; set; }
 }
 
@@ -114,35 +139,64 @@ public sealed class OrganicCouncilTeamDefinition
 [DocumentationUpdated("2.1.20")]
 public sealed class OrganicCouncilRoleDefinition
 {
-    /// <summary>Gets or sets the unique role name within the team.</summary>
+    /// <summary>
+    /// Gets or sets the role value that forms part of the organic council role definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The role value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public string Role { get; set; } = string.Empty;
     /// <summary>Gets or sets the expertise expected from participants assigned to the role.</summary>
+    /// <value>The expertise value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public string Expertise { get; set; } = string.Empty;
     /// <summary>Gets or sets the responsibility and ownership boundary of the role.</summary>
+    /// <value>The responsibility value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public string Responsibility { get; set; } = string.Empty;
     /// <summary>Gets or sets how AI participants are selected for the role.</summary>
+    /// <value>The AI selection mode value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public CouncilRoleAiSelectionMode AiSelectionMode { get; set; } = CouncilRoleAiSelectionMode.AllSelected;
-    /// <summary>Gets or sets the minimum AI participant count.</summary>
+    /// <summary>
+    /// Gets or sets the minimum AI participants value that forms part of the organic council role definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The minimum AI participants value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public int MinimumAiParticipants { get; set; } = 1;
-    /// <summary>Gets or sets the maximum AI participant count.</summary>
+    /// <summary>
+    /// Gets or sets the maximum AI participants value that forms part of the organic council role definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The maximum AI participants value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public int MaximumAiParticipants { get; set; } = 1;
-    /// <summary>Gets or sets the human participation policy.</summary>
+    /// <summary>
+    /// Gets or sets the human participation mode value that forms part of the organic council role definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The human participation mode value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public HumanParticipationMode HumanParticipationMode { get; set; } = HumanParticipationMode.None;
-    /// <summary>Gets or sets the task-specialist or improvisation behavior.</summary>
+    /// <summary>
+    /// Gets or sets the performance mode value that forms part of the organic council role definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The performance mode value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public CouncilRolePerformanceMode PerformanceMode { get; set; } = CouncilRolePerformanceMode.TaskSpecialist;
-    /// <summary>Gets or sets the role language policy.</summary>
+    /// <summary>
+    /// Gets or sets the language mode value that forms part of the organic council role definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The language mode value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public CouncilRoleLanguageMode LanguageMode { get; set; } = CouncilRoleLanguageMode.ModelChoice;
-    /// <summary>Gets or sets the role-boundary strictness.</summary>
+    /// <summary>
+    /// Gets or sets the boundary mode value that forms part of the organic council role definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The boundary mode value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public CouncilRoleBoundaryMode BoundaryMode { get; set; } = CouncilRoleBoundaryMode.Bounded;
     /// <summary>Gets or sets the assignment group that requires distinct model identities.</summary>
+    /// <value>The distinct AI assignment group value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public string DistinctAiAssignmentGroup { get; set; } = string.Empty;
     /// <summary>Gets or sets another role whose participant count this role mirrors.</summary>
+    /// <value>The match AI participant count to role value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public string MatchAiParticipantCountToRole { get; set; } = string.Empty;
     /// <summary>Gets or sets the role paired one-to-one with this role.</summary>
+    /// <value>The paired role value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public string PairedRole { get; set; } = string.Empty;
     /// <summary>Gets or sets runtime-class keys exposed to participants in this role.</summary>
+    /// <value>The runtime class keys value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public List<string> RuntimeClassKeys { get; set; } = [];
     /// <summary>Gets or sets exact provider-qualified model identities bound to this role.</summary>
+    /// <value>The assigned model keys value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public List<string> AssignedModelKeys { get; set; } = [];
 }
 
@@ -150,33 +204,75 @@ public sealed class OrganicCouncilRoleDefinition
 [DocumentationUpdated("2.1.20")]
 public class ProjectOrganicContext
 {
-    /// <summary>Gets or sets the owning project identifier.</summary>
+    /// <summary>
+    /// Gets or sets the stable project identifier used to identify or correlate this project organic context instance with related application state.
+    /// </summary>
+    /// <value>The project identifier value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public Guid ProjectId { get; set; }
-    /// <summary>Gets or sets the optional project revision identifier.</summary>
+    /// <summary>
+    /// Gets or sets the stable revision identifier used to identify or correlate this project organic context instance with related application state.
+    /// </summary>
+    /// <value>The revision identifier value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public Guid? RevisionId { get; set; }
-    /// <summary>Gets or sets whether an installer is known to exist.</summary>
+    /// <summary>
+    /// Gets or sets a value indicating whether installer applies to the project organic context state.
+    /// </summary>
+    /// <value>The has installer value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public bool? HasInstaller { get; set; }
-    /// <summary>Gets or sets the recorded installer path.</summary>
+    /// <summary>
+    /// Gets or sets the installer path used by this project organic context instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The installer path value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public string InstallerPath { get; set; } = string.Empty;
-    /// <summary>Gets or sets known compiler or tool names.</summary>
+    /// <summary>
+    /// Gets or sets the compilers collection maintained or exposed by this project organic context instance for downstream processing.
+    /// </summary>
+    /// <value>The compilers value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public List<string> Compilers { get; set; } = [];
-    /// <summary>Gets or sets bounded system-command descriptions.</summary>
+    /// <summary>
+    /// Gets or sets the system commands collection maintained or exposed by this project organic context instance for downstream processing.
+    /// </summary>
+    /// <value>The system commands value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public List<string> SystemCommands { get; set; } = [];
-    /// <summary>Gets or sets knowledge references relevant to the project.</summary>
+    /// <summary>
+    /// Gets or sets the knowledge references collection maintained or exposed by this project organic context instance for downstream processing.
+    /// </summary>
+    /// <value>The knowledge references value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public List<string> KnowledgeReferences { get; set; } = [];
-    /// <summary>Gets or sets project-level regex patterns.</summary>
+    /// <summary>
+    /// Gets or sets the project regex patterns collection maintained or exposed by this project organic context instance for downstream processing.
+    /// </summary>
+    /// <value>The project regex patterns value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public List<string> ProjectRegexPatterns { get; set; } = [];
-    /// <summary>Gets or sets file-level regex patterns.</summary>
+    /// <summary>
+    /// Gets or sets the file regex patterns collection maintained or exposed by this project organic context instance for downstream processing.
+    /// </summary>
+    /// <value>The file regex patterns value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public List<string> FileRegexPatterns { get; set; } = [];
-    /// <summary>Gets or sets approved debug and diagnostic paths.</summary>
+    /// <summary>
+    /// Gets or sets the debug paths used by this project organic context instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The debug paths value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public List<string> DebugPaths { get; set; } = [];
-    /// <summary>Gets or sets the latest known build result.</summary>
+    /// <summary>
+    /// Gets or sets the build successful value that forms part of the project organic context state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The build successful value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public bool? BuildSuccessful { get; set; }
-    /// <summary>Gets or sets the most recent Council activity time.</summary>
+    /// <summary>
+    /// Gets or sets the last council activity UTC associated with this project organic context state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The last council activity UTC value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public DateTimeOffset? LastCouncilActivityUtc { get; set; }
-    /// <summary>Gets or sets required organic capability keys.</summary>
+    /// <summary>
+    /// Gets or sets the required organic capabilities collection maintained or exposed by this project organic context instance for downstream processing.
+    /// </summary>
+    /// <value>The required organic capabilities value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public List<string> RequiredOrganicCapabilities { get; set; } = [];
-    /// <summary>Gets or sets external organic plugin identifiers.</summary>
+    /// <summary>
+    /// Gets or sets the external organ plugins collection maintained or exposed by this project organic context instance for downstream processing.
+    /// </summary>
+    /// <value>The external organ plugins value exposed by <see cref="ProjectOrganicContext"/>.</value>
     public List<string> ExternalOrganPlugins { get; set; } = [];
 }
 
@@ -185,6 +281,7 @@ public class ProjectOrganicContext
 public sealed class SaveProjectOrganicContextRequest : ProjectOrganicContext
 {
     /// <summary>Gets or sets whether the current user confirmed the exact change.</summary>
+    /// <value>The user confirmed value exposed by <see cref="SaveProjectOrganicContextRequest"/>.</value>
     public bool UserConfirmed { get; set; }
 }
 
@@ -192,75 +289,132 @@ public sealed class SaveProjectOrganicContextRequest : ProjectOrganicContext
 [DocumentationUpdated("2.1.20")]
 public sealed class CouncilWorkflowStepDefinition
 {
-    /// <summary>Gets or sets the stable step key.</summary>
+    /// <summary>
+    /// Gets or sets the stable key used to identify or correlate this council workflow step definition instance with related application state.
+    /// </summary>
+    /// <value>The key value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string Key { get; set; } = string.Empty;
-    /// <summary>Gets or sets the visible step name.</summary>
+    /// <summary>
+    /// Gets or sets the display name value that forms part of the council workflow step definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The display name value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string DisplayName { get; set; } = string.Empty;
-    /// <summary>Gets or sets the primary ordering value.</summary>
+    /// <summary>
+    /// Gets or sets the sort order value that forms part of the council workflow step definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The sort order value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public int SortOrder { get; set; }
     /// <summary>Gets or sets the workflow phase label.</summary>
+    /// <value>The phase value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string Phase { get; set; } = string.Empty;
-    /// <summary>Gets or sets the role assigned to the step.</summary>
+    /// <summary>
+    /// Gets or sets the role value that forms part of the council workflow step definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The role value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string Role { get; set; } = string.Empty;
-    /// <summary>Gets or sets the literal prompt template.</summary>
+    /// <summary>
+    /// Gets or sets the prompt template value that forms part of the council workflow step definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The prompt template value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string PromptTemplate { get; set; } = string.Empty;
-    /// <summary>Gets or sets the supported execution-mode name.</summary>
+    /// <summary>
+    /// Gets or sets the execution mode value that forms part of the council workflow step definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The execution mode value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string ExecutionMode { get; set; } = "AllMembersSequentialOnEachAIHostParallel";
     /// <summary>Gets or sets the exact provider-qualified model used by assigned-model execution.</summary>
+    /// <value>The assigned model name value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string AssignedModelName { get; set; } = string.Empty;
     /// <summary>Gets or sets the logical one-based Council round. Zero keeps automatic sequential round numbering.</summary>
+    /// <value>The logical round number value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public int LogicalRoundNumber { get; set; }
     /// <summary>Gets or sets which prior Council output is visible to this step.</summary>
+    /// <value>The transcript visibility value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public CouncilTranscriptVisibilityMode TranscriptVisibility { get; set; } = CouncilTranscriptVisibilityMode.FullCouncil;
     /// <summary>Gets or sets how many times the step is expanded outside a loop group.</summary>
+    /// <value>The repeat count value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public int RepeatCount { get; set; } = 1;
     /// <summary>Gets or sets whether prior step output is included in the prompt.</summary>
+    /// <value>The include prior transcript value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool IncludePriorTranscript { get; set; } = true;
     /// <summary>Gets or sets whether the step produces the visible final answer.</summary>
+    /// <value>The produces final answer value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool ProducesFinalAnswer { get; set; }
     /// <summary>Gets or sets whether the built-in orchestration behavior is used.</summary>
+    /// <value>The use built in behavior value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool UseBuiltInBehavior { get; set; }
     /// <summary>Gets or sets the loop-group key shared by consecutive steps.</summary>
+    /// <value>The loop group value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string LoopGroup { get; set; } = string.Empty;
-    /// <summary>Gets or sets the maximum loop iterations.</summary>
+    /// <summary>
+    /// Gets or sets the maximum loop iterations value that forms part of the council workflow step definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The maximum loop iterations value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public int MaximumLoopIterations { get; set; } = 1;
-    /// <summary>Gets or sets the transcript marker that completes the loop.</summary>
+    /// <summary>
+    /// Gets or sets the loop completion marker value that forms part of the council workflow step definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The loop completion marker value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string LoopCompletionMarker { get; set; } = string.Empty;
-    /// <summary>Gets or sets whether the step is active.</summary>
+    /// <summary>
+    /// Gets or sets a value indicating whether enabled applies to the council workflow step definition state.
+    /// </summary>
+    /// <value>The is enabled value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool IsEnabled { get; set; } = true;
     /// <summary>Gets or sets whether the step pauses for a human checkpoint.</summary>
+    /// <value>The requires human checkpoint value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool RequiresHumanCheckpoint { get; set; }
     /// <summary>Gets or sets whether registered organic/DX functions may be requested.</summary>
+    /// <value>The can use organic functions value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool CanUseOrganicFunctions { get; set; } = true;
     /// <summary>Gets or sets whether this step may emit first-class X-Round control requests.</summary>
+    /// <value>The x functions enabled value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool XFunctionsEnabled { get; set; }
     /// <summary>Gets or sets whether X-Rounds may reconsider or deliberately re-execute another workflow step.</summary>
+    /// <value>The x can revisit value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool XCanRevisit { get; set; }
     /// <summary>Gets or sets whether an X-Function may return an explicit text result and finish the parent workflow.</summary>
+    /// <value>The x can return text value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool XCanReturnText { get; set; }
     /// <summary>Gets or sets whether an X-Function may run one bounded single-model derived subtask.</summary>
+    /// <value>The x can start single model value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool XCanStartSingleModel { get; set; }
     /// <summary>Gets or sets whether an X-Function may start another configured Council as a derived subtask.</summary>
+    /// <value>The x can start council value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool XCanStartCouncil { get; set; }
     /// <summary>Gets or sets the maximum number of X-Round transitions accepted from this source step in one run.</summary>
+    /// <value>The x maximum transitions value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public int XMaximumTransitions { get; set; } = 3;
     /// <summary>Gets or sets whether every X-Round request from this step must be approved by a local human before it changes control flow.</summary>
+    /// <value>The x requires human approval value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool XRequiresHumanApproval { get; set; }
     /// <summary>Gets or sets the default target workflow-step key for revisit actions.</summary>
+    /// <value>The x default target step key value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string XDefaultTargetStepKey { get; set; } = string.Empty;
     /// <summary>Gets or sets the default Council team key used by the start-council X-Function.</summary>
+    /// <value>The x child council team key value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string XChildCouncilTeamKey { get; set; } = string.Empty;
     /// <summary>Gets or sets the maximum nested child-Council depth allowed when this step emits start-council X-Functions.</summary>
+    /// <value>The x maximum child council depth value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public int XMaximumChildCouncilDepth { get; set; } = 1;
     /// <summary>Gets or sets the default provider-qualified model identity used by the start-single-model X-Function.</summary>
+    /// <value>The x child model name value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public string XChildModelName { get; set; } = string.Empty;
     /// <summary>Gets or sets whether the step owns a complete ASCII frame.</summary>
+    /// <value>The produces ascii frame value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool ProducesAsciiFrame { get; set; }
-    /// <summary>Gets or sets the requested ASCII frame width.</summary>
+    /// <summary>
+    /// Gets or sets the ascii frame width value that forms part of the council workflow step definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The ascii frame width value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public int AsciiFrameWidth { get; set; } = 80;
-    /// <summary>Gets or sets the requested ASCII frame height.</summary>
+    /// <summary>
+    /// Gets or sets the ascii frame height value that forms part of the council workflow step definition state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The ascii frame height value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public int AsciiFrameHeight { get; set; } = 25;
     /// <summary>Gets or sets the logical world-step scale represented by one frame.</summary>
+    /// <value>The world step scale value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public int WorldStepScale { get; set; } = 1;
 }
 
@@ -268,39 +422,88 @@ public sealed class CouncilWorkflowStepDefinition
 [DocumentationUpdated("2.1.20")]
 public sealed class CouncilTeamConfiguration
 {
-    /// <summary>Gets or sets the row identifier.</summary>
+    /// <summary>
+    /// Gets or sets the stable identifier used to identify or correlate this council team instance with related application state.
+    /// </summary>
+    /// <value>The identifier value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public Guid Id { get; set; } = Guid.NewGuid();
-    /// <summary>Gets or sets the stable team key.</summary>
+    /// <summary>
+    /// Gets or sets the stable key used to identify or correlate this council team instance with related application state.
+    /// </summary>
+    /// <value>The key value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string Key { get; set; } = string.Empty;
-    /// <summary>Gets or sets the team display name.</summary>
+    /// <summary>
+    /// Gets or sets the display name value that forms part of the council team state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The display name value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string DisplayName { get; set; } = string.Empty;
-    /// <summary>Gets or sets the team purpose.</summary>
+    /// <summary>
+    /// Gets or sets the purpose value that forms part of the council team state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The purpose value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string Purpose { get; set; } = string.Empty;
-    /// <summary>Gets or sets serialized role definitions.</summary>
+    /// <summary>
+    /// Gets or sets the roles JSON value that forms part of the council team state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The roles JSON value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string RolesJson { get; set; } = "[]";
-    /// <summary>Gets or sets serialized preferred capabilities.</summary>
+    /// <summary>
+    /// Gets or sets the preferred capabilities JSON value that forms part of the council team state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The preferred capabilities JSON value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string PreferredCapabilitiesJson { get; set; } = "[]";
-    /// <summary>Gets or sets serialized architecture contracts.</summary>
+    /// <summary>
+    /// Gets or sets the architecture contracts JSON value that forms part of the council team state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The architecture contracts JSON value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string ArchitectureContractsJson { get; set; } = "[]";
     /// <summary>Gets or sets serialized workflow steps.</summary>
+    /// <value>The workflow steps JSON value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string WorkflowStepsJson { get; set; } = "[]";
-    /// <summary>Gets or sets the expert-preparation prompt.</summary>
+    /// <summary>
+    /// Gets or sets the expert preparation prompt template value that forms part of the council team state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The expert preparation prompt template value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string ExpertPreparationPromptTemplate { get; set; } = string.Empty;
-    /// <summary>Gets or sets the leader-synthesis prompt.</summary>
+    /// <summary>
+    /// Gets or sets the leader synthesis prompt template value that forms part of the council team state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The leader synthesis prompt template value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string LeaderSynthesisPromptTemplate { get; set; } = string.Empty;
-    /// <summary>Gets or sets the common main-round instruction.</summary>
+    /// <summary>
+    /// Gets or sets the main round instruction template value that forms part of the council team state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The main round instruction template value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string MainRoundInstructionTemplate { get; set; } = string.Empty;
-    /// <summary>Gets or sets the maintained seed schema version.</summary>
+    /// <summary>
+    /// Gets or sets the seed version value that forms part of the council team state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The seed version value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public int SeedVersion { get; set; } = 1;
-    /// <summary>Gets or sets whether the row is maintained seed data.</summary>
+    /// <summary>
+    /// Gets or sets a value indicating whether system seed applies to the council team state.
+    /// </summary>
+    /// <value>The is system seed value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public bool IsSystemSeed { get; set; } = true;
-    /// <summary>Gets or sets whether a user changed the row.</summary>
+    /// <summary>
+    /// Gets or sets a value indicating whether user modified applies to the council team state.
+    /// </summary>
+    /// <value>The is user modified value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public bool IsUserModified { get; set; }
-    /// <summary>Gets or sets whether the team can be selected.</summary>
+    /// <summary>
+    /// Gets or sets a value indicating whether enabled applies to the council team state.
+    /// </summary>
+    /// <value>The is enabled value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public bool IsEnabled { get; set; } = true;
-    /// <summary>Gets or sets the UTC creation time.</summary>
+    /// <summary>
+    /// Gets or sets the created at UTC associated with this council team state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The created at UTC value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
-    /// <summary>Gets or sets the UTC update time.</summary>
+    /// <summary>
+    /// Gets or sets the updated at UTC associated with this council team state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The updated at UTC value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
@@ -308,10 +511,17 @@ public sealed class CouncilTeamConfiguration
 [DocumentationUpdated("2.1.20")]
 public sealed class SaveCouncilTeamConfigurationRequest
 {
-    /// <summary>Gets or sets the team definition to save.</summary>
+    /// <summary>
+    /// Gets or sets the team value that forms part of the save council team configuration state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The team value exposed by <see cref="SaveCouncilTeamConfigurationRequest"/>.</value>
     public OrganicCouncilTeamDefinition Team { get; set; } = new();
-    /// <summary>Gets or sets whether the saved team remains enabled.</summary>
+    /// <summary>
+    /// Gets or sets a value indicating whether enabled applies to the save council team configuration state.
+    /// </summary>
+    /// <value>The is enabled value exposed by <see cref="SaveCouncilTeamConfigurationRequest"/>.</value>
     public bool IsEnabled { get; set; } = true;
     /// <summary>Gets or sets whether the current user confirmed the exact change.</summary>
+    /// <value>The user confirmed value exposed by <see cref="SaveCouncilTeamConfigurationRequest"/>.</value>
     public bool UserConfirmed { get; set; }
 }

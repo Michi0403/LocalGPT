@@ -8,21 +8,37 @@ using System.Net;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides dev express chat service operations.
+    /// Coordinates DevExpress chat behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="text">Council text service dependency used by the DevExpress chat workflow to provide the corresponding application capability.</param>
+    /// <param name="functionRegistry">Devexpress ai function registry dependency used by the DevExpress chat workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the DevExpress chat workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public sealed class DevExpressChatService(
         CouncilTextService text,
         IDxAiFunctionRegistry functionRegistry,
         LocalGptCatalogService catalog,
         ILogger<DevExpressChatService> logger)
     {
+        /// <summary>
+        /// Stores the council text service dependency used by <see cref="DevExpressChatService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly CouncilTextService _text = text;
+        /// <summary>
+        /// Stores the DevExpress AI function registry dependency used by <see cref="DevExpressChatService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly IDxAiFunctionRegistry _functionRegistry = functionRegistry;
+        /// <summary>
+        /// Stores the LocalGPT catalog service dependency used by <see cref="DevExpressChatService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly LocalGptCatalogService _catalog = catalog;
+        /// <summary>
+        /// Stores the logger used by <see cref="DevExpressChatService"/> to record operational diagnostics without coupling callers to logging details.
+        /// </summary>
         private readonly ILogger<DevExpressChatService> _logger = logger;
 
         /// <summary>
-        /// Stores functions.
+        /// Stores the internal functions state used by <see cref="DevExpressChatService"/> while executing its surrounding workflow.
         /// </summary>
         public readonly DxaichatFunctionInfo[] Functions =
     [
@@ -296,8 +312,9 @@ namespace LocalGPT.Services
     ];
 
         /// <summary>
-        /// Gets functions.
+        /// Retrieves functions as part of the DevExpress chat service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The collection produced by the operation.</returns>
         public IReadOnlyList<DxaichatFunctionInfo> GetFunctions()
         {
     try
@@ -323,8 +340,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Builds prompt briefing.
+        /// Builds prompt briefing as part of the DevExpress chat service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildPromptBriefing()
         {
     try
@@ -361,8 +379,11 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Builds title.
+        /// Builds title as part of the DevExpress chat service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="messages">Blazor chat message dependency used by the DevExpress chat workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildTitle(IReadOnlyList<BlazorChatMessage> messages, ILogger logger)
         {
             try
@@ -383,8 +404,12 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Ensures visible council prompt.
+        /// Ensures visible council prompt as part of the DevExpress chat service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="conversation">Conversation value supplied to the DevExpress chat operation and used when producing its result.</param>
+        /// <param name="messages">Messages value supplied to the DevExpress chat operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public List<BlazorChatMessage> EnsureVisibleCouncilPrompt(
     ChatMemoryConversation conversation,
     List<BlazorChatMessage> messages, ILogger logger)
@@ -421,8 +446,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the to role name operation.
+        /// Performs to role name as part of the DevExpress chat service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="role">Role value supplied to the DevExpress chat operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ToRoleName(ChatMessageRole role, ILogger logger)
         {
             try
@@ -444,6 +472,9 @@ namespace LocalGPT.Services
         /// <summary>
         /// Attempts to extract prompt from assistant messages.
         /// </summary>
+        /// <param name="messages">Blazor chat message dependency used by the DevExpress chat workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string? TryExtractPromptFromAssistantMessages(IReadOnlyList<BlazorChatMessage> messages, ILogger logger)
         {
             try
@@ -473,8 +504,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the to blazor chat message operation.
+        /// Performs to blazor chat message as part of the DevExpress chat service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="message">Message value supplied to the DevExpress chat operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The blazor chat message produced by the operation.</returns>
         public BlazorChatMessage? ToBlazorChatMessage(ChatMemoryMessage message, ILogger logger)
         {
             try
@@ -488,8 +522,12 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Determines whether council conversation.
+        /// Determines whether council conversation as part of the DevExpress chat service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="conversation">Conversation value supplied to the DevExpress chat operation and used when producing its result.</param>
+        /// <param name="messages">Blazor chat message dependency used by the DevExpress chat workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsCouncilConversation(
     ChatMemoryConversation conversation,
     IReadOnlyList<BlazorChatMessage> messages, ILogger logger)

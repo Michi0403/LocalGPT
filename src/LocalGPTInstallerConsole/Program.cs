@@ -18,18 +18,30 @@ using System.Threading;
 using System.Threading.Tasks;
 
 /// <summary>
-/// Represents a program.
+/// Represents a program application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 internal static class Program
 {
+    /// <summary>
+    /// Defines the LocalGPT repo constant used by <see cref="Program"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string LocalGptRepo = "Michi0403/LocalGPT";
+    /// <summary>
+    /// Defines the LocalGPT ZIP name constant used by <see cref="Program"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string LocalGptZipName = "LocalGPTByMichi0403.zip";
+    /// <summary>
+    /// Defines the LocalGPT setup ZIP name constant used by <see cref="Program"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string LocalGptSetupZipName = "LocalGPTSetupByMichi0403.zip";
     /// <summary>
-    /// Creates HTTP client.
+    /// Stores the shared read-only HTTP value used by <see cref="Program"/> across instances of the containing type.
     /// </summary>
     private static readonly HttpClient Http = CreateHttpClient();
 
+    /// <summary>
+    /// Stores the shared read-only slim models value used by <see cref="Program"/> across instances of the containing type.
+    /// </summary>
     private static readonly string[] SlimModels =
     [
         "gpt-oss:20b",
@@ -39,6 +51,9 @@ internal static class Program
         "llama2-uncensored:7b"
     ];
 
+    /// <summary>
+    /// Stores the shared read-only rtx3060 models value used by <see cref="Program"/> across instances of the containing type.
+    /// </summary>
     private static readonly string[] Rtx3060Models =
     [
         "qwen3.5:0.8b", "qwen3.5:2b", "qwen3.5:4b", "qwen3.5:9b",
@@ -61,6 +76,9 @@ internal static class Program
         "openthinker:7b"
     ];
 
+    /// <summary>
+    /// Stores the shared read-only full models value used by <see cref="Program"/> across instances of the containing type.
+    /// </summary>
     private static readonly string[] FullModels =
     [
         "qwen3.5:0.8b", "qwen3.5:2b", "qwen3.5:4b", "qwen3.5:9b", "qwen3.5:27b", "qwen3.5:35b",
@@ -85,6 +103,9 @@ internal static class Program
         "openthinker:7b", "qwen3-coder:30b", "openthinker:32b"
     ];
 
+    /// <summary>
+    /// Stores the shared read-only recommended repos value used by <see cref="Program"/> across instances of the containing type.
+    /// </summary>
     private static readonly string[] RecommendedRepos =
     [
         "Michi0403/LocalGPT",
@@ -119,8 +140,10 @@ internal static class Program
     ];
 
     /// <summary>
-    /// Runs the main operation.
+    /// Performs main for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     public static async Task<int> Main(string[] args)
     {
         var launchedByDoubleClick = args.Length == 0 && Environment.UserInteractive;
@@ -156,8 +179,10 @@ internal static class Program
         
     }
     /// <summary>
-    /// Runs the args to string operation.
+    /// Performs args to string for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string ArgsToString(string[]? args)
     {
         if (args is null)
@@ -175,8 +200,11 @@ internal static class Program
         return builder.ToString().TrimEnd();
     }
     /// <summary>
-    /// Runs the run async operation.
+    /// Performs run for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The int produced by the operation.</returns>
     private static async Task<int> RunAsync(string[] args, CliOptions options)
     {
         try
@@ -311,8 +339,11 @@ internal static class Program
     }
 
     /// <summary>
-    /// Runs the install ollama async operation.
+    /// Performs install Ollama for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private static async Task InstallOllamaAsync(CliOptions options, ILogger logger)
     {
         try
@@ -348,8 +379,11 @@ internal static class Program
     }
 
     /// <summary>
-    /// Ensures ollama available.
+    /// Ensures Ollama available for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string EnsureOllamaAvailable(CliOptions options, ILogger logger)
     {
         try
@@ -373,8 +407,11 @@ internal static class Program
     }
 
     /// <summary>
-    /// Finds ollama executable.
+    /// Finds Ollama executable for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string? FindOllamaExecutable(CliOptions options, ILogger logger)
     {
         try
@@ -416,8 +453,10 @@ internal static class Program
     }
 
     /// <summary>
-    /// Adds directory to user path if missing.
+    /// Adds directory to user path if missing for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="directory">Directory value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void AddDirectoryToUserPathIfMissing(string directory, ILogger logger)
     {
         try
@@ -448,8 +487,10 @@ internal static class Program
     }
 
     /// <summary>
-    /// Starts ollama server.
+    /// Starts Ollama server for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="ollamaExe">Ollama exe value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void StartOllamaServer(string ollamaExe, ILogger logger)
     {
         try
@@ -479,8 +520,12 @@ internal static class Program
     }
 
     /// <summary>
-    /// Runs the pull models async operation.
+    /// Performs pull models for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="ollamaExe">Ollama exe value supplied to the program operation and used when producing its result.</param>
+    /// <param name="models">Models value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private static async Task PullModelsAsync(string ollamaExe, string[] models, ILogger logger)
     {
         try
@@ -500,8 +545,11 @@ internal static class Program
     }
 
     /// <summary>
-    /// Runs the install local gpt async operation.
+    /// Performs install LocalGPT for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private static async Task InstallLocalGptAsync(CliOptions options, ILogger logger)
     {
         try
@@ -551,8 +599,10 @@ internal static class Program
     }
 
     /// <summary>
-    /// Runs the uninstall local gpt windows operation.
+    /// Performs uninstall LocalGPT windows for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void UninstallLocalGptWindows(CliOptions options, ILogger logger)
     {
         try
@@ -592,8 +642,11 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Gets local gpt uninstall targets.
+    /// Retrieves LocalGPT uninstall targets for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private static List<string> GetLocalGptUninstallTargets(CliOptions options, ILogger logger)
     {
         try
@@ -631,8 +684,10 @@ internal static class Program
     }
 
     /// <summary>
-    /// Runs the provision windows shortcuts operation.
+    /// Performs provision windows shortcuts for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void ProvisionWindowsShortcuts(CliOptions options, ILogger logger)
     {
         try
@@ -680,8 +735,11 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Gets shortcut targets.
+    /// Retrieves shortcut targets for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="localGptRoot">Local gpt root value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private static List<ShortcutDefinition> GetShortcutTargets(string localGptRoot, ILogger logger)
     {
         try
@@ -759,8 +817,11 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Creates shortcut set.
+    /// Creates shortcut set for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="shortcuts">Shortcuts value supplied to the program operation and used when producing its result.</param>
+    /// <param name="targetDirectory">Target directory value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void CreateShortcutSet(
     List<ShortcutDefinition> shortcuts,
     string targetDirectory,
@@ -909,8 +970,12 @@ internal static class Program
     }
 
     /// <summary>
-    /// Creates windows URL shortcut.
+    /// Creates windows URL shortcut for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="shortcutPath">Shortcut path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="targetPath">Target path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="iconPath">Icon path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void CreateWindowsUrlShortcut(
     string shortcutPath,
     string targetPath,
@@ -964,8 +1029,12 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Runs the enumerate files safe operation.
+    /// Performs enumerate files safe for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="root">Root value supplied to the program operation and used when producing its result.</param>
+    /// <param name="searchPattern">Search pattern value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private static IEnumerable<string> EnumerateFilesSafe(
     string root,
     string searchPattern,
@@ -993,8 +1062,10 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Finds local gpt icon.
+    /// Finds LocalGPT icon for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string? FindLocalGptIcon(ILogger logger)
     {
         try
@@ -1060,8 +1131,12 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Finds local gpt file.
+    /// Finds LocalGPT file for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="localGptRoot">Local gpt root value supplied to the program operation and used when producing its result.</param>
+    /// <param name="fileName">File name value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string? FindLocalGptFile(
     string localGptRoot,
     string fileName,
@@ -1108,8 +1183,11 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Finds local gpt executable.
+    /// Finds LocalGPT executable for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string? FindLocalGptExecutable(CliOptions options, ILogger logger)
     {
         try
@@ -1174,8 +1252,11 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Gets relative path depth.
+    /// Retrieves relative path depth for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="root">Root value supplied to the program operation and used when producing its result.</param>
+    /// <param name="path">Path value supplied to the program operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private static int GetRelativePathDepth(string root, string path)
     {
         try
@@ -1189,8 +1270,13 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Adds cmd shortcut if exists.
+    /// Adds cmd shortcut if exists for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="shortcuts">Shortcuts value supplied to the program operation and used when producing its result.</param>
+    /// <param name="localGptRoot">Local gpt root value supplied to the program operation and used when producing its result.</param>
+    /// <param name="cmdFileName">Cmd file name value supplied to the program operation and used when producing its result.</param>
+    /// <param name="shortcutName">Shortcut name value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void AddCmdShortcutIfExists(
     List<ShortcutDefinition> shortcuts,
     string localGptRoot,
@@ -1227,8 +1313,10 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Ensures windows only.
+    /// Ensures windows only for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="featureName">Feature name value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void EnsureWindowsOnly(string featureName, ILogger logger)
     {
         try
@@ -1243,8 +1331,10 @@ internal static class Program
     }
 
     /// <summary>
-    /// Gets local gpt install root.
+    /// Retrieves LocalGPT install root for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string GetLocalGptInstallRoot( ILogger logger)
     {
         try
@@ -1265,8 +1355,11 @@ internal static class Program
     }
 
     /// <summary>
-    /// Gets start menu folder.
+    /// Retrieves start menu folder for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string GetStartMenuFolder(CliOptions options, ILogger logger)
     {
         try
@@ -1290,8 +1383,11 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Runs the sanitize shortcut group name operation.
+    /// Performs sanitize shortcut group name for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string SanitizeShortcutGroupName(string value, ILogger logger)
     {
         try
@@ -1313,8 +1409,10 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Gets desktop folder.
+    /// Retrieves desktop folder for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string GetDesktopFolder(ILogger logger)
     {
         try
@@ -1333,8 +1431,12 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Imports git hub source to learning base async.
+    /// Imports GitHub source to learning base for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="repo">Repo value supplied to the program operation and used when producing its result.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private static async Task ImportGitHubSourceToLearningBaseAsync(
         string repo,
         CliOptions options,
@@ -1412,9 +1514,6 @@ internal static class Program
 
             WriteGitHubSourceCacheManifest(
                 manifestPath,
-                /// <summary>
-                /// Runs the git hub source cache manifest operation.
-                /// </summary>
                 new GitHubSourceCacheManifest(
                     Repo: repo,
                     CommitSha: remoteSha,
@@ -1434,8 +1533,12 @@ internal static class Program
     }
 
     /// <summary>
-    /// Writes local gpt learning source manifest.
+    /// Writes LocalGPT learning source manifest for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="targetPath">Target path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="repo">Repo value supplied to the program operation and used when producing its result.</param>
+    /// <param name="commitSha">Commit sha value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void WriteLocalGptLearningSourceManifest(string targetPath, string repo, string commitSha, ILogger logger)
     {
         try
@@ -1475,8 +1578,10 @@ internal static class Program
     }
 
     /// <summary>
-    /// Starts local gpt.
+    /// Starts LocalGPT for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void StartLocalGpt(CliOptions options, ILogger logger)
     {
         try
@@ -1516,8 +1621,10 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Opens default browser.
+    /// Opens default browser for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="url">Url value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void OpenDefaultBrowser(string url, ILogger logger)
     {
         try
@@ -1536,8 +1643,14 @@ internal static class Program
     }
 
     /// <summary>
-    /// Runs the download latest release asset async operation.
+    /// Performs download latest release asset for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="repo">Repo value supplied to the program operation and used when producing its result.</param>
+    /// <param name="outFile">Out file value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="setupAsset">Value indicating whether setup asset should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private static async Task DownloadLatestReleaseAssetAsync(
     string repo,
     string outFile,
@@ -1630,8 +1743,13 @@ internal static class Program
     }
 
     /// <summary>
-    /// Runs the download git hub source zip async operation.
+    /// Performs download GitHub source ZIP for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="repo">Repo value supplied to the program operation and used when producing its result.</param>
+    /// <param name="outFile">Out file value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private static async Task DownloadGitHubSourceZipAsync(string repo, string outFile, ILogger logger, CliOptions options)
     {
         try
@@ -1646,8 +1764,11 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Gets git hub default branch commit sha async.
+    /// Retrieves GitHub default branch commit SHA for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="repo">Repo value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static async Task<string?> GetGitHubDefaultBranchCommitShaAsync(
     string repo,
     ILogger logger)
@@ -1696,8 +1817,11 @@ internal static class Program
        
     }
     /// <summary>
-    /// Reads git hub source cache manifest.
+    /// Reads GitHub source cache manifest for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="manifestPath">Manifest path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The GitHub source cache manifest produced by the operation.</returns>
     private static GitHubSourceCacheManifest? ReadGitHubSourceCacheManifest(
     string manifestPath,
     ILogger logger)
@@ -1718,8 +1842,11 @@ internal static class Program
     }
 
     /// <summary>
-    /// Writes git hub source cache manifest.
+    /// Writes GitHub source cache manifest for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="manifestPath">Manifest path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="manifest">Manifest value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void WriteGitHubSourceCacheManifest(
         string manifestPath,
         GitHubSourceCacheManifest manifest,
@@ -1744,8 +1871,11 @@ internal static class Program
     }
 
     /// <summary>
-    /// Runs the directory has files operation.
+    /// Performs directory has files for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="path">Path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private static bool DirectoryHasFiles(string path, ILogger logger)
     {
         try
@@ -1761,8 +1891,13 @@ internal static class Program
        
     }
     /// <summary>
-    /// Runs the download file async operation.
+    /// Performs download file for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="url">Url value supplied to the program operation and used when producing its result.</param>
+    /// <param name="outFile">Out file value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private static async Task DownloadFileAsync(string url, string outFile, ILogger logger, CliOptions options)
     {
         try
@@ -1903,8 +2038,13 @@ internal static class Program
 
     }
     /// <summary>
-    /// Runs the move file with retry async operation.
+    /// Performs move file with retry for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="source">Source value supplied to the program operation and used when producing its result.</param>
+    /// <param name="destination">Destination value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private static async Task MoveFileWithRetryAsync(string source, string destination, ILogger logger, CliOptions options)
     {
         try
@@ -1955,8 +2095,11 @@ internal static class Program
 
     }
     /// <summary>
-    /// Runs the format bytes operation.
+    /// Performs format bytes for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="bytes">Bytes value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string FormatBytes(long bytes, ILogger logger)
     {
         try
@@ -1982,8 +2125,10 @@ internal static class Program
     }
 
     /// <summary>
-    /// Deletes if exists.
+    /// Deletes if exists for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="path">Path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void DeleteIfExists(string path, ILogger logger)
     {
         try
@@ -2005,8 +2150,11 @@ internal static class Program
         }
     }
     /// <summary>
-    /// Runs the extract zip with fallback operation.
+    /// Performs extract ZIP with fallback for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="zipPath">Zip path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="targetPath">Target path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void ExtractZipWithFallback(string zipPath, string targetPath, ILogger logger)
     {
         try
@@ -2036,8 +2184,12 @@ internal static class Program
     }
 
     /// <summary>
-    /// Runs the run process async operation.
+    /// Performs run process for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="fileName">File name value supplied to the program operation and used when producing its result.</param>
+    /// <param name="arguments">Arguments value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private static async Task RunProcessAsync(string fileName, string arguments, ILogger logger)
     {
         try
@@ -2075,8 +2227,11 @@ internal static class Program
     }
 
     /// <summary>
-    /// Finds command on path.
+    /// Finds command on path for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="command">Command value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string? FindCommandOnPath(string command, ILogger logger)
     {
         try
@@ -2122,8 +2277,9 @@ internal static class Program
     };
 
     /// <summary>
-    /// Gets platform token.
+    /// Retrieves platform token for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     private static string GetPlatformToken()
     {
 
@@ -2146,8 +2302,11 @@ internal static class Program
     };
 
     /// <summary>
-    /// Runs the sanitize file name operation.
+    /// Performs sanitize file name for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string SanitizeFileName(string value, ILogger logger)
     {
         try
@@ -2166,8 +2325,10 @@ internal static class Program
     }
 
     /// <summary>
-    /// Validates repo.
+    /// Validates repo for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <param name="repo">Repo value supplied to the program operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     private static void ValidateRepo(string repo, ILogger logger)
     {
         try
@@ -2184,8 +2345,9 @@ internal static class Program
     }
 
     /// <summary>
-    /// Creates HTTP client.
+    /// Creates HTTP client for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
     /// </summary>
+    /// <returns>The HTTP client produced by the operation.</returns>
     private static HttpClient CreateHttpClient()
     {
         try
@@ -2205,7 +2367,7 @@ internal static class Program
 
 
 /// <summary>
-/// Lists supported model range values.
+/// Defines the supported model range values used to select or describe behavior in the surrounding workflow.
 /// </summary>
 internal enum ModelRange
 {
@@ -2215,8 +2377,12 @@ internal enum ModelRange
 }
 //To not download already downloaded again and again and again and again and get banned by githubs rate limit
 /// <summary>
-/// Represents a shortcut definition.
+/// Represents a shortcut definition application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="ShortcutName">Shortcut name value supplied to the shortcut definition operation and used when producing its result.</param>
+/// <param name="TargetPath">Target path value supplied to the shortcut definition operation and used when producing its result.</param>
+/// <param name="Arguments">Arguments value supplied to the shortcut definition operation and used when producing its result.</param>
+/// <param name="WorkingDirectory">Working directory value supplied to the shortcut definition operation and used when producing its result.</param>
 internal sealed record ShortcutDefinition(
     string ShortcutName,
     string TargetPath,
@@ -2225,8 +2391,13 @@ internal sealed record ShortcutDefinition(
 );
 
 /// <summary>
-/// Represents a git hub source cache manifest.
+/// Represents a GitHub source cache manifest application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="Repo">Repo value supplied to the GitHub source cache manifest operation and used when producing its result.</param>
+/// <param name="CommitSha">Commit sha value supplied to the GitHub source cache manifest operation and used when producing its result.</param>
+/// <param name="ZipPath">Zip path value supplied to the GitHub source cache manifest operation and used when producing its result.</param>
+/// <param name="TargetPath">Target path value supplied to the GitHub source cache manifest operation and used when producing its result.</param>
+/// <param name="CachedAtUtc">Cached at utc value supplied to the GitHub source cache manifest operation and used when producing its result.</param>
 internal sealed record GitHubSourceCacheManifest(
     string Repo,
     string CommitSha,
@@ -2235,105 +2406,130 @@ internal sealed record GitHubSourceCacheManifest(
     DateTimeOffset CachedAtUtc
 );
 /// <summary>
-/// Represents a cli options.
+/// Carries the configurable CLI settings used to control the associated application behavior without hard-coding policy in consumers.
 /// </summary>
 internal sealed class CliOptions
 {
     /// <summary>
-    /// Gets or sets show help.
+    /// Gets or sets a value indicating whether show help applies to the CLI state.
     /// </summary>
+    /// <value>The show help value exposed by <see cref="CliOptions"/>.</value>
     public bool ShowHelp { get; private set; }
     /// <summary>
-    /// Gets or sets install ollama.
+    /// Gets or sets a value indicating whether install Ollama applies to the CLI state.
     /// </summary>
+    /// <value>The install Ollama value exposed by <see cref="CliOptions"/>.</value>
     public bool InstallOllama { get; private set; }
     /// <summary>
-    /// Gets or sets pull ollama models.
+    /// Gets or sets a value indicating whether pull Ollama models applies to the CLI state.
     /// </summary>
+    /// <value>The pull Ollama models value exposed by <see cref="CliOptions"/>.</value>
     public bool PullOllamaModels { get; private set; }
     /// <summary>
-    /// Gets or sets install local gpt win.
+    /// Gets or sets a value indicating whether install LocalGPT win applies to the CLI state.
     /// </summary>
+    /// <value>The install LocalGPT win value exposed by <see cref="CliOptions"/>.</value>
     public bool InstallLocalGptWin { get; private set; }
     /// <summary>
-    /// Gets or sets setup learning base.
+    /// Gets or sets a value indicating whether setup learning base applies to the CLI state.
     /// </summary>
+    /// <value>The setup learning base value exposed by <see cref="CliOptions"/>.</value>
     public bool SetupLearningBase { get; private set; }
     /// <summary>
-    /// Gets or sets import recommended.
+    /// Gets or sets a value indicating whether import recommended applies to the CLI state.
     /// </summary>
+    /// <value>The import recommended value exposed by <see cref="CliOptions"/>.</value>
     public bool ImportRecommended { get; private set; }
     /// <summary>
-    /// Gets or sets start local gpt.
+    /// Gets or sets a value indicating whether start LocalGPT applies to the CLI state.
     /// </summary>
+    /// <value>The start LocalGPT value exposed by <see cref="CliOptions"/>.</value>
     public bool StartLocalGpt { get; private set; }
     /// <summary>
-    /// Gets or sets force.
+    /// Gets or sets a value indicating whether force applies to the CLI state.
     /// </summary>
+    /// <value>The force value exposed by <see cref="CliOptions"/>.</value>
     public bool Force { get; private set; }
     /// <summary>
-    /// Gets or sets verbose.
+    /// Gets or sets a value indicating whether verbose applies to the CLI state.
     /// </summary>
+    /// <value>The verbose value exposed by <see cref="CliOptions"/>.</value>
     public bool Verbose { get; private set; }
     /// <summary>
-    /// Gets or sets range.
+    /// Gets or sets the range value that forms part of the CLI state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The range value exposed by <see cref="CliOptions"/>.</value>
     public ModelRange Range { get; private set; } = ModelRange.Slim;
     /// <summary>
-    /// Gets or sets learning base path.
+    /// Gets or sets the learning base path used by this CLI instance to locate the associated file-system resource.
     /// </summary>
+    /// <value>The learning base path value exposed by <see cref="CliOptions"/>.</value>
     public string LearningBasePath { get; private set; } = @"C:\learnbaseforlocalgpt";
     /// <summary>
-    /// Gets or sets local gpt zip path.
+    /// Gets or sets the LocalGPT ZIP path used by this CLI instance to locate the associated file-system resource.
     /// </summary>
+    /// <value>The LocalGPT ZIP path value exposed by <see cref="CliOptions"/>.</value>
     public string? LocalGptZipPath { get; private set; }
     /// <summary>
-    /// Gets or sets local gpt exe path.
+    /// Gets or sets the LocalGPT exe path used by this CLI instance to locate the associated file-system resource.
     /// </summary>
+    /// <value>The LocalGPT exe path value exposed by <see cref="CliOptions"/>.</value>
     public string? LocalGptExePath { get; private set; }
     /// <summary>
-    /// Gets or sets ollama exe path.
+    /// Gets or sets the Ollama exe path used by this CLI instance to locate the associated file-system resource.
     /// </summary>
+    /// <value>The Ollama exe path value exposed by <see cref="CliOptions"/>.</value>
     public string? OllamaExePath { get; private set; }
     /// <summary>
-    /// Gets or sets extra repos.
+    /// Gets the extra repos collection maintained or exposed by this CLI instance for downstream processing.
     /// </summary>
+    /// <value>The extra repos value exposed by <see cref="CliOptions"/>.</value>
     public List<string> ExtraRepos { get; } = [];
     /// <summary>
-    /// Gets or sets local gpt port.
+    /// Gets or sets the LocalGPT port value that forms part of the CLI state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The LocalGPT port value exposed by <see cref="CliOptions"/>.</value>
     public int LocalGptPort { get; private set; } = 5000;
     /// <summary>
-    /// Gets or sets open browser.
+    /// Gets or sets a value indicating whether open browser applies to the CLI state.
     /// </summary>
+    /// <value>The open browser value exposed by <see cref="CliOptions"/>.</value>
     public bool OpenBrowser { get; private set; } = true;
     /// <summary>
-    /// Gets or sets force delete.
+    /// Gets or sets a value indicating whether force delete applies to the CLI state.
     /// </summary>
+    /// <value>The force delete value exposed by <see cref="CliOptions"/>.</value>
     public bool ForceDelete { get; private set; }
     /// <summary>
-    /// Gets or sets wait on exit.
+    /// Gets or sets a value indicating whether wait on exit applies to the CLI state.
     /// </summary>
+    /// <value>The wait on exit value exposed by <see cref="CliOptions"/>.</value>
     public bool WaitOnExit { get; private set; }
     /// <summary>
-    /// Gets or sets uninstall.
+    /// Gets or sets a value indicating whether uninstall applies to the CLI state.
     /// </summary>
+    /// <value>The uninstall value exposed by <see cref="CliOptions"/>.</value>
     public bool Uninstall { get; private set; }
     /// <summary>
-    /// Gets or sets desktop shortcuts.
+    /// Gets or sets a value indicating whether desktop shortcuts applies to the CLI state.
     /// </summary>
+    /// <value>The desktop shortcuts value exposed by <see cref="CliOptions"/>.</value>
     public bool DesktopShortcuts { get; private set; }
     /// <summary>
-    /// Gets or sets start menu shortcuts.
+    /// Gets or sets a value indicating whether start menu shortcuts applies to the CLI state.
     /// </summary>
+    /// <value>The start menu shortcuts value exposed by <see cref="CliOptions"/>.</value>
     public bool StartMenuShortcuts { get; private set; }
     /// <summary>
-    /// Gets or sets shortcut group name.
+    /// Gets or sets the shortcut group name value that forms part of the CLI state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The shortcut group name value exposed by <see cref="CliOptions"/>.</value>
     public string ShortcutGroupName { get; private set; } = "LocalGPT by Michi0403";
     /// <summary>
-    /// Runs the parse operation.
+    /// Performs parse for <see cref="CliOptions"/>, keeping the operation consistent with the state and invariants of the surrounding CLI workflow.
     /// </summary>
+    /// <param name="args">Args value supplied to the CLI operation and used when producing its result.</param>
+    /// <returns>The CLI options produced by the operation.</returns>
     public static CliOptions Parse(string[] args)
     {
         List<string> argsList = args.ToList();
@@ -2454,8 +2650,9 @@ internal sealed class CliOptions
         return options;
     }
     /// <summary>
-    /// Runs the to string operation.
+    /// Performs to string for <see cref="CliOptions"/>, keeping the operation consistent with the state and invariants of the surrounding CLI workflow.
     /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     public override string ToString()
     {
         return string.Join(Environment.NewLine,
@@ -2485,8 +2682,9 @@ internal sealed class CliOptions
         ]);
     }
     /// <summary>
-    /// Runs the print help operation.
+    /// Performs print help for <see cref="CliOptions"/>, keeping the operation consistent with the state and invariants of the surrounding CLI workflow.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public static void PrintHelp(ILogger logger)
     {
         logger.LogInformation("""
@@ -2536,8 +2734,12 @@ Options:
     }
 
     /// <summary>
-    /// Runs the next value operation.
+    /// Performs next value for <see cref="CliOptions"/>, keeping the operation consistent with the state and invariants of the surrounding CLI workflow.
     /// </summary>
+    /// <param name="args">Args value supplied to the CLI operation and used when producing its result.</param>
+    /// <param name="index">Index value supplied to the CLI operation and used when producing its result.</param>
+    /// <param name="optionName">Option name value supplied to the CLI operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string NextValue(List<string> args, ref int index, string optionName)
     {
         if (index + 1 >= args.Count)
@@ -2546,8 +2748,11 @@ Options:
     }
 
     /// <summary>
-    /// Parses enum.
+    /// Parses enum for <see cref="CliOptions"/>, keeping the operation consistent with the state and invariants of the surrounding CLI workflow.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="CliOptions"/>.</typeparam>
+    /// <param name="value">Value value supplied to the CLI operation and used when producing its result.</param>
+    /// <returns>The t produced by the operation.</returns>
     private static T ParseEnum<T>(string value) where T : struct
     {
         if (Enum.TryParse<T>(value, ignoreCase: true, out var result))

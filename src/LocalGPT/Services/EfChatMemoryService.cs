@@ -15,8 +15,15 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides ef chat memory service operations.
+    /// Coordinates Entity Framework chat memory behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="dbContextFactory">Local gpt memory database context dependency used by the Entity Framework chat memory workflow to provide the corresponding application capability.</param>
+    /// <param name="databaseInitializer">Database initialization service dependency used by the Entity Framework chat memory workflow to provide the corresponding application capability.</param>
+    /// <param name="databaseOptions">Database options value supplied to the Entity Framework chat memory operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilText">Council text service dependency used by the Entity Framework chat memory workflow to provide the corresponding application capability.</param>
+    /// <param name="messageMapper">Chat memory message mapper dependency used by the Entity Framework chat memory workflow to provide the corresponding application capability.</param>
+    /// <param name="sessionContext">Chat session context dependency used by the Entity Framework chat memory workflow to provide the corresponding application capability.</param>
     public partial class EfChatMemoryService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
@@ -27,18 +34,22 @@ namespace LocalGPT.Services
         IChatSessionContext sessionContext) : IChatMemoryService
     {
         /// <summary>
-        /// Runs the new operation.
+        /// Stores the synchronization primitive that protects concurrent access to save gate state owned by <see cref="EfChatMemoryService"/>.
         /// </summary>
         private readonly SemaphoreSlim saveGate = new(1, 1);
 
         /// <summary>
-        /// Gets or sets database path.
+        /// Gets the database path used by this Entity Framework chat memory instance to locate the associated file-system resource.
         /// </summary>
+        /// <value>The database path value exposed by <see cref="EfChatMemoryService"/>.</value>
         public string DatabasePath => databaseOptions.DatabasePath;
 
         /// <summary>
-        /// Gets conversations async.
+        /// Retrieves conversations as part of the Entity Framework chat memory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="take">Take value supplied to the Entity Framework chat memory operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public async Task<IReadOnlyList<ChatMemoryConversationSummary>> GetConversationsAsync(int take = 50, CancellationToken cancellationToken = default)
         {
             try
@@ -71,8 +82,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Loads conversation async.
+        /// Loads conversation as part of the Entity Framework chat memory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="conversationId">Identifier of the conversation to use for this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The chat memory conversation snapshot produced by the operation.</returns>
         public async Task<ChatMemoryConversationSnapshot?> LoadConversationAsync(Guid conversationId, CancellationToken cancellationToken = default)
         {
             try
@@ -114,8 +128,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Saves conversation async.
+        /// Persists conversation as part of the Entity Framework chat memory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="providerName">Provider name value supplied to the Entity Framework chat memory operation and used when producing its result.</param>
+        /// <param name="messages">Blazor chat message dependency used by the Entity Framework chat memory workflow to provide the corresponding application capability.</param>
+        /// <param name="conversationId">Identifier of the conversation to use for this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The GUID produced by the operation.</returns>
         public async Task<Guid?> SaveConversationAsync(
             string providerName,
             IReadOnlyList<BlazorChatMessage> messages,
@@ -230,8 +249,11 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Gets message feedback async.
+        /// Retrieves message feedback as part of the Entity Framework chat memory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="conversationId">Identifier of the conversation to use for this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public async Task<IReadOnlyList<ChatMessageFeedbackSnapshot>> GetMessageFeedbackAsync(
             Guid conversationId,
             CancellationToken cancellationToken = default)
@@ -276,8 +298,14 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the record message feedback async operation.
+        /// Performs record message feedback as part of the Entity Framework chat memory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="conversationId">Identifier of the conversation to use for this operation.</param>
+        /// <param name="sortOrder">Sort order value supplied to the Entity Framework chat memory operation and used when producing its result.</param>
+        /// <param name="isPositive">Is positive value supplied to the Entity Framework chat memory operation and used when producing its result.</param>
+        /// <param name="comment">Comment value supplied to the Entity Framework chat memory operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public async Task<bool> RecordMessageFeedbackAsync(
             Guid conversationId,
             int sortOrder,
@@ -316,8 +344,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Gets recent thoughts async.
+        /// Retrieves recent thoughts as part of the Entity Framework chat memory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="take">Take value supplied to the Entity Framework chat memory operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public async Task<IReadOnlyList<ChatMemoryThought>> GetRecentThoughtsAsync(int take = 12, CancellationToken cancellationToken = default)
         {
             try
@@ -344,8 +375,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds memory briefing async.
+        /// Builds memory briefing as part of the Entity Framework chat memory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="conversationTake">Conversation take value supplied to the Entity Framework chat memory operation and used when producing its result.</param>
+        /// <param name="thoughtTake">Thought take value supplied to the Entity Framework chat memory operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         public async Task<string> BuildMemoryBriefingAsync(int conversationTake = 5, int thoughtTake = 5, CancellationToken cancellationToken = default)
         {
             try
@@ -386,8 +421,10 @@ namespace LocalGPT.Services
         }
         //Todo get rid of it centralize
         /// <summary>
-        /// Creates db context async.
+        /// Creates database context as part of the Entity Framework chat memory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The LocalGPT memory database context produced by the operation.</returns>
         private async Task<LocalGptMemoryDbContext> CreateDbContextAsync(CancellationToken cancellationToken)
         {
             try

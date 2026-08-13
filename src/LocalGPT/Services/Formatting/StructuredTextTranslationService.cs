@@ -16,34 +16,61 @@ namespace LocalGPT.Services.Formatting;
 public sealed class StructuredTextTranslationService : IStructuredTextTranslationService
 {
     /// <summary>
-    /// Stores JSON fence pattern name.
+    /// Defines the JSON fence pattern name constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string JsonFencePatternName = "builtin.json-fence-pattern";
     /// <summary>
-    /// Stores JSON plain start pattern name.
+    /// Defines the JSON plain start pattern name constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string JsonPlainStartPatternName = "builtin.json-plain-start-pattern";
     /// <summary>
-    /// Stores JSON protected block pattern name.
+    /// Defines the JSON protected block pattern name constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string JsonProtectedBlockPatternName = "builtin.json-protected-block-pattern";
     /// <summary>
-    /// Stores JSON key token pattern name.
+    /// Defines the JSON key token pattern name constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string JsonKeyTokenPatternName = "builtin.json-key-token-pattern";
     /// <summary>
-    /// Stores JSON scalar pattern name.
+    /// Defines the JSON scalar pattern name constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string JsonScalarPatternName = "builtin.json-scalar-pattern";
 
+    /// <summary>
+    /// Defines the maximum input length constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaximumInputLength = 1_000_000;
+    /// <summary>
+    /// Defines the maximum JSON document length constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaximumJsonDocumentLength = 200_000;
+    /// <summary>
+    /// Defines the maximum depth constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaximumDepth = 32;
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to fenced block regex state owned by <see cref="StructuredTextTranslationService"/>.
+    /// </summary>
     private readonly Regex fencedBlockRegex;
+    /// <summary>
+    /// Stores the internal plain start regex state used by <see cref="StructuredTextTranslationService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly Regex plainStartRegex;
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to protected block regex state owned by <see cref="StructuredTextTranslationService"/>.
+    /// </summary>
     private readonly Regex protectedBlockRegex;
+    /// <summary>
+    /// Stores the internal key token regex state used by <see cref="StructuredTextTranslationService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly Regex keyTokenRegex;
+    /// <summary>
+    /// Stores the logger used by <see cref="StructuredTextTranslationService"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger<StructuredTextTranslationService> logger;
+    /// <summary>
+    /// Stores the regex pattern service dependency used by <see cref="StructuredTextTranslationService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IRegexPatternService regexPatternService;
     /// <summary>
     /// Runs the new operation.
@@ -56,8 +83,12 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     };
 
     /// <summary>
-    /// Runs the structured text translation service operation.
+    /// Initializes a new <see cref="StructuredTextTranslationService"/> instance and captures the dependencies or initial state required by its structured text translation workflow.
     /// </summary>
+    /// <param name="initialDataCatalog">Initial data catalog dependency used by the structured text translation workflow to provide the corresponding application capability.</param>
+    /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the structured text translation workflow to provide the corresponding application capability.</param>
+    /// <param name="regexPatterns">Regex pattern service dependency used by the structured text translation workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public StructuredTextTranslationService(
         IInitialDataCatalog initialDataCatalog,
         ILocalGptRuntimePolicyDataService runtimePolicy,
@@ -93,8 +124,10 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 
     /// <summary>
-    /// Runs the translate JSON operation.
+    /// Performs translate JSON as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The structured JSON translation result produced by the operation.</returns>
     public StructuredJsonTranslationResult TranslateJson(StructuredJsonTranslationRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -187,8 +220,10 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 
     /// <summary>
-    /// Runs the translate plain JSON blocks to markdown operation.
+    /// Performs translate plain JSON blocks to markdown as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="text">Text value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string TranslatePlainJsonBlocksToMarkdown(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -211,8 +246,11 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     }
 
     /// <summary>
-    /// Finds JSON candidates.
+    /// Finds JSON candidates as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="text">Text value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="maximumDocuments">Maximum documents value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<StructuredJsonCandidate> FindJsonCandidates(string text, int maximumDocuments)
     {
     try
@@ -253,8 +291,11 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Determines whether inside excluded range.
+    /// Determines whether inside excluded range as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="index">Index value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="excluded">End) dependency used by the structured text translation workflow to provide the corresponding application capability.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsInsideExcludedRange(int index, IReadOnlyList<(int Start, int End)> excluded) {
     try
     {
@@ -271,8 +312,11 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Starts s standalone block.
+    /// Starts s standalone block as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="text">Text value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="index">Index value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool StartsStandaloneBlock(string text, int index)
     {
     try
@@ -298,8 +342,11 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Runs the ends standalone block operation.
+    /// Performs ends standalone block as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="text">Text value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="end">End value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool EndsStandaloneBlock(string text, int end)
     {
     try
@@ -323,8 +370,12 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Attempts to find balanced JSON end.
+    /// Attempts to find balanced JSON end as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="text">Text value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="start">Start value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="end">End value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryFindBalancedJsonEnd(string text, int start, out int end)
     {
     try
@@ -392,8 +443,12 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Runs the render element operation.
+    /// Performs render element as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="element">Element value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="depth">Depth value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RenderElement(JsonElement element, int depth, string? name)
     {
     try
@@ -422,8 +477,12 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Runs the render object operation.
+    /// Performs render object as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="element">Element value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="depth">Depth value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="label">Label value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RenderObject(JsonElement element, int depth, string label)
     {
     try
@@ -455,8 +514,12 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Runs the render array operation.
+    /// Performs render array as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="element">Element value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="depth">Depth value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="label">Label value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RenderArray(JsonElement element, int depth, string label)
     {
     try
@@ -493,8 +556,10 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Runs the render scalar operation.
+    /// Performs render scalar as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="element">Element value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RenderScalar(JsonElement element) {
     try
     {
@@ -519,8 +584,10 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Runs the beautify key operation.
+    /// Performs beautify key as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BeautifyKey(string key)
     {
     try
@@ -544,8 +611,12 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Builds translated block.
+    /// Builds translated block as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="markdown">Markdown value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="normalizedJson">Normalized json value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="includeRawJson">Value indicating whether include raw JSON should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildTranslatedBlock(string markdown, string normalizedJson, bool includeRawJson)
     {
     try
@@ -580,8 +651,14 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Creates catalog regex.
+    /// Creates catalog regex as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="patterns">Regex pattern dto dependency used by the structured text translation workflow to provide the corresponding application capability.</param>
+    /// <param name="name">Name value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="fallbackFlags">Fallback flags value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <param name="timeout">Timeout value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>The regex produced by the operation.</returns>
     private Regex CreateCatalogRegex(
         IReadOnlyList<RegexPatternDto> patterns,
         string name,
@@ -609,8 +686,10 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
 }
 
     /// <summary>
-    /// Runs the encode operation.
+    /// Performs encode as part of the structured text translation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the structured text translation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Encode(string value) {
     try
     {

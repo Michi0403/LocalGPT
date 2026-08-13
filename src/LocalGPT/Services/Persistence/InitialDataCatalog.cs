@@ -7,8 +7,12 @@ using System.Text;
 namespace LocalGPT.Services.Persistence;
 
 /// <summary>
-/// Provides initial data catalog operations.
+/// Maintains the authoritative directory of initial data entries used for discovery, validation, and runtime lookup.
 /// </summary>
+/// <param name="environment">Web host environment dependency used by the initial data workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="systemVariables">System variable definition service dependency used by the initial data workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicySeed">Local gpt runtime policy seed data service dependency used by the initial data workflow to provide the corresponding application capability.</param>
 public sealed class InitialDataCatalog(
     IWebHostEnvironment environment,
     ILogger<InitialDataCatalog> logger,
@@ -16,8 +20,9 @@ public sealed class InitialDataCatalog(
     ILocalGptRuntimePolicySeedDataService runtimePolicySeed) : IInitialDataCatalog
 {
     /// <summary>
-    /// Gets or sets regex patterns.
+    /// Gets the regex patterns collection maintained or exposed by this initial data instance for downstream processing.
     /// </summary>
+    /// <value>The regex patterns value exposed by <see cref="InitialDataCatalog"/>.</value>
     public IReadOnlyList<RegexPatternDto> RegexPatterns { get; } =
     [
         new(nameof(ICouncilTextPatternDataService.FormerThoughtBreakPattern), "<br\\s*/?>", "i,c"),
@@ -116,8 +121,9 @@ public sealed class InitialDataCatalog(
     ];
 
     /// <summary>
-    /// Gets or sets prompts.
+    /// Gets the prompts collection maintained or exposed by this initial data instance for downstream processing.
     /// </summary>
+    /// <value>The prompts value exposed by <see cref="InitialDataCatalog"/>.</value>
     public IReadOnlyList<PromptConfigDto> Prompts { get; } =
     [
         new("RuntimeDecisionPolicy", "en", string.Join(" ", new[]
@@ -172,8 +178,9 @@ public sealed class InitialDataCatalog(
     ];
 
     /// <summary>
-    /// Gets or sets variables.
+    /// Gets the variables collection maintained or exposed by this initial data instance for downstream processing.
     /// </summary>
+    /// <value>The variables value exposed by <see cref="InitialDataCatalog"/>.</value>
     public IReadOnlyList<InitialVariable> Variables { get; } =
     [
         .. systemVariables.InitialValues,
@@ -181,8 +188,10 @@ public sealed class InitialDataCatalog(
     ];
 
     /// <summary>
-    /// Loads knowledge async.
+    /// Loads knowledge in the initial data directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<CouncilKnowledgeEntry>> LoadKnowledgeAsync(CancellationToken cancellationToken = default)
     {
         var root = ResolveKnowledgeRoot(environment.ContentRootPath);
@@ -245,8 +254,11 @@ public sealed class InitialDataCatalog(
     }
 
     /// <summary>
-    /// Determines whether path inside root.
+    /// Determines whether path inside root in the initial data directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="path">Path value supplied to the initial data operation and used when producing its result.</param>
+    /// <param name="root">Root value supplied to the initial data operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsPathInsideRoot(string path, string root)
     {
     try
@@ -268,8 +280,10 @@ public sealed class InitialDataCatalog(
 }
 
     /// <summary>
-    /// Resolves knowledge root.
+    /// Resolves knowledge root in the initial data directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="contentRoot">Content root value supplied to the initial data operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveKnowledgeRoot(string contentRoot)
     {
     try
@@ -295,8 +309,10 @@ public sealed class InitialDataCatalog(
 }
 
     /// <summary>
-    /// Creates deterministic guid.
+    /// Creates deterministic GUID in the initial data directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
+    /// <param name="value">Value value supplied to the initial data operation and used when producing its result.</param>
+    /// <returns>The GUID produced by the operation.</returns>
     private Guid CreateDeterministicGuid(string value)
     {
     try

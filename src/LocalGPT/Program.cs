@@ -42,49 +42,63 @@ using LocalGPT.Services.Helpers;
 namespace LocalGPT
 {
     /// <summary>
-    /// Represents a program.
+    /// Represents a program application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
     public static class Program
     {
         // Installer/WebView compatibility contract. Do not remove or silently change these defaults.
         /// <summary>
-        /// Stores default port.
+        /// Defines the default port constant used by <see cref="Program"/> so callers and internal logic share the same stable value.
         /// </summary>
         public const int DefaultPort = 5000;
         /// <summary>
-        /// Stores default one wire port.
+        /// Defines the default one wire port constant used by <see cref="Program"/> so callers and internal logic share the same stable value.
         /// </summary>
         public const int DefaultOneWirePort = OneWireProtocol.DefaultServicePort;
         /// <summary>
-        /// Stores default one wire discovery port.
+        /// Defines the default one wire discovery port constant used by <see cref="Program"/> so callers and internal logic share the same stable value.
         /// </summary>
         public const int DefaultOneWireDiscoveryPort = OneWireProtocol.DefaultDiscoveryPort;
 
+        /// <summary>
+        /// Stores the internal runtime port state used by <see cref="Program"/> while executing its surrounding workflow.
+        /// </summary>
         private static int runtimePort = DefaultPort;
+        /// <summary>
+        /// Stores the internal runtime one wire port state used by <see cref="Program"/> while executing its surrounding workflow.
+        /// </summary>
         private static int runtimeOneWirePort = DefaultOneWirePort;
+        /// <summary>
+        /// Stores the internal runtime one wire discovery port state used by <see cref="Program"/> while executing its surrounding workflow.
+        /// </summary>
         private static int runtimeOneWireDiscoveryPort = DefaultOneWireDiscoveryPort;
 
         // Public read-only compatibility surface consumed by the WinUI wrapper and installer wiring.
         // Startup updates the private snapshot atomically; callers cannot mutate it.
         /// <summary>
-        /// Gets or sets port.
+        /// Gets the port value that forms part of the program state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The port value exposed by <see cref="Program"/>.</value>
         public static System.Int32 Port => System.Threading.Volatile.Read(ref runtimePort);
         /// <summary>
-        /// Gets or sets one wire port.
+        /// Gets the one wire port value that forms part of the program state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The one wire port value exposed by <see cref="Program"/>.</value>
         public static System.Int32 OneWirePort => System.Threading.Volatile.Read(ref runtimeOneWirePort);
         /// <summary>
-        /// Gets or sets one wire discovery port.
+        /// Gets the one wire discovery port value that forms part of the program state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The one wire discovery port value exposed by <see cref="Program"/>.</value>
         public static System.Int32 OneWireDiscoveryPort => System.Threading.Volatile.Read(ref runtimeOneWireDiscoveryPort);
         /// <summary>
-        /// Gets or sets base URL.
+        /// Gets the base URL that identifies the network or application endpoint associated with this program state.
         /// </summary>
+        /// <value>The base URL value exposed by <see cref="Program"/>.</value>
         public static string BaseUrl => $"http://127.0.0.1:{Port}";
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
+        /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
         [STAThread]
         static void Main(string[] args)
         {
@@ -93,8 +107,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Builds web app.
+        /// Builds web app for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+        /// <returns>The web application produced by the operation.</returns>
         public static WebApplication BuildWebApp(string[]? args = null)
         {
             var exeDir = Path.GetDirectoryName(typeof(Program).Assembly.Location)!;
@@ -196,8 +212,9 @@ namespace LocalGPT
         //}
 
         /// <summary>
-        /// Gets runtime trace directories.
+        /// Retrieves runtime trace directories for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <returns>The collection produced by the operation.</returns>
         private static IEnumerable<string> GetRuntimeTraceDirectories()
         {
             var directories = new[]
@@ -218,8 +235,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Creates web application options.
+        /// Creates web application options for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+        /// <returns>The web application options produced by the operation.</returns>
         private static WebApplicationOptions CreateWebApplicationOptions( string[]? args)
         {
             return new WebApplicationOptions
@@ -232,8 +251,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Runs the configure app configuration operation.
+        /// Performs configure app configuration for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="builder">Builder value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ConfigureAppConfiguration(WebApplicationBuilder builder, ILogger logger)
         {
             try
@@ -287,8 +308,10 @@ namespace LocalGPT
            
         }
         /// <summary>
-        /// Runs the configure options and services operation.
+        /// Performs configure options and services for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="builder">Builder value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ConfigureOptionsAndServices(WebApplicationBuilder builder, ILogger logger)
         {
             try
@@ -531,8 +554,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Runs the configure signal r operation.
+        /// Performs configure signal r for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="services">Service collection dependency used by the program workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ConfigureSignalR(IServiceCollection services, ILogger logger)
         {
             services.AddSignalR(options =>
@@ -556,8 +581,13 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Runs the configure kestrel operation.
+        /// Performs configure kestrel for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="builder">Builder value supplied to the program operation and used when producing its result.</param>
+        /// <param name="requestedPort">Requested port value supplied to the program operation and used when producing its result.</param>
+        /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The int produced by the operation.</returns>
         private static int ConfigureKestrel(WebApplicationBuilder builder, int requestedPort, string[]? args, ILogger logger)
         {
             try
@@ -620,8 +650,14 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Resolves remote web endpoint.
+        /// Resolves remote web endpoint for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+        /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+        /// <param name="contentRootPath">Content root path value supplied to the program operation and used when producing its result.</param>
+        /// <param name="applicationName">Application name value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The remote web endpoint options produced by the operation.</returns>
         private static RemoteWebEndpointOptions? ResolveRemoteWebEndpoint(
             string[]? args,
             IConfiguration configuration,
@@ -695,8 +731,11 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Gets command line value.
+        /// Retrieves command line value for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+        /// <param name="switchName">Switch name value supplied to the program operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private static string? GetCommandLineValue(string[] args, string switchName)
         {
             for (var index = 0; index < args.Length; index++)
@@ -711,14 +750,20 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Runs the first non empty operation.
+        /// Performs first non empty for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="values">Values value supplied to the program operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private static string? FirstNonEmpty(params string?[] values) =>
             values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
         /// <summary>
-        /// Resolves requested port.
+        /// Resolves requested port for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+        /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The int produced by the operation.</returns>
         private static int ResolveRequestedPort(string[]? args, IConfiguration configuration, ILogger logger)
         {
             // The installer historically starts LocalGPT.exe with a positional numeric port.
@@ -742,8 +787,17 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Resolves configured port.
+        /// Resolves configured port for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+        /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+        /// <param name="switchName">Switch name value supplied to the program operation and used when producing its result.</param>
+        /// <param name="environmentName">Environment name value supplied to the program operation and used when producing its result.</param>
+        /// <param name="configurationKey">Configuration key value supplied to the program operation and used when producing its result.</param>
+        /// <param name="fallback">Fallback value supplied to the program operation and used when producing its result.</param>
+        /// <param name="allowDynamic">Value indicating whether allow dynamic should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The int produced by the operation.</returns>
         private static int ResolveConfiguredPort(
             string[]? args,
             IConfiguration configuration,
@@ -780,8 +834,9 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Validates port contracts.
+        /// Validates port contracts for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ValidatePortContracts(ILogger logger)
         {
             // The installer-selected web port is authoritative. Optional organic wiring must adapt
@@ -818,8 +873,11 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Gets free port excluding.
+        /// Retrieves free port excluding for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <param name="excludedPorts">Excluded ports value supplied to the program operation and used when producing its result.</param>
+        /// <returns>The int produced by the operation.</returns>
         private static int GetFreePortExcluding(ILogger logger, params int[] excludedPorts)
         {
             var excluded = excludedPorts.ToHashSet();
@@ -833,8 +891,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Runs the configure response compression operation.
+        /// Performs configure response compression for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="services">Service collection dependency used by the program workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ConfigureResponseCompression(IServiceCollection services, ILogger logger)
         {
             try
@@ -857,8 +917,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Runs the configure blazor and mvc operation.
+        /// Performs configure blazor and mvc for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="builder">Builder value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ConfigureBlazorAndMvc(WebApplicationBuilder builder, ILogger logger)
         {
             try
@@ -910,8 +972,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Runs the configure JSON options operation.
+        /// Performs configure JSON options for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="services">Service collection dependency used by the program workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ConfigureJsonOptions(IServiceCollection services, ILogger logger)
         {
             try
@@ -930,8 +994,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Runs the configure shared JSON serializer options operation.
+        /// Performs configure shared JSON serializer options for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ConfigureSharedJsonSerializerOptions(JsonSerializerOptions options, ILogger logger)
         {
             try
@@ -956,8 +1022,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Runs the configure forwarded headers operation.
+        /// Performs configure forwarded headers for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="services">Service collection dependency used by the program workflow to provide the corresponding application capability.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ConfigureForwardedHeaders(IServiceCollection services, ILogger logger)
         {
             try
@@ -977,8 +1045,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Runs the configure middleware and endpoints operation.
+        /// Performs configure middleware and endpoints for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="app">App value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ConfigureMiddlewareAndEndpoints(WebApplication app, ILogger logger)
         {
             try
@@ -1027,8 +1097,11 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Determines whether generated static web asset root.
+        /// Determines whether generated static web asset root for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="path">Path value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private static bool IsGeneratedStaticWebAssetRoot(string path, ILogger logger)
         {
             try
@@ -1055,8 +1128,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Writes runtime endpoint file.
+        /// Writes runtime endpoint file for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="port">Port value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void WriteRuntimeEndpointFile(int port, ILogger logger)
         {
             try
@@ -1091,8 +1166,9 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Deletes runtime endpoint file.
+        /// Deletes runtime endpoint file for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void DeleteRuntimeEndpointFile(ILogger logger)
         {
             try
@@ -1120,8 +1196,10 @@ namespace LocalGPT
         }
 
         /// <summary>
-        /// Gets free port.
+        /// Retrieves free port for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
         /// </summary>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The int produced by the operation.</returns>
         private static int GetFreePort(ILogger logger)
         {
             try

@@ -5,20 +5,25 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides embedded telemetry bridge service operations.
+/// Coordinates embedded telemetry bridge behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="catalog">Embedded hardware catalog service dependency used by the embedded telemetry bridge workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class EmbeddedTelemetryBridgeService(
     IEmbeddedHardwareCatalogService catalog,
     ILogger<EmbeddedTelemetryBridgeService> logger) : IEmbeddedTelemetryBridgeService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="EmbeddedTelemetryBridgeService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     /// <summary>
-    /// Runs the preview async operation.
+    /// Performs preview as part of the embedded telemetry bridge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded telemetry bridge result produced by the operation.</returns>
     public async Task<EmbeddedTelemetryBridgeResult> PreviewAsync(EmbeddedTelemetryBridgeRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -39,8 +44,11 @@ public sealed class EmbeddedTelemetryBridgeService(
 }
 
     /// <summary>
-    /// Creates one wire envelope async.
+    /// Creates one wire envelope as part of the embedded telemetry bridge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded telemetry bridge result produced by the operation.</returns>
     public async Task<EmbeddedTelemetryBridgeResult> CreateOneWireEnvelopeAsync(EmbeddedTelemetryBridgeRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -61,8 +69,12 @@ public sealed class EmbeddedTelemetryBridgeService(
 }
 
     /// <summary>
-    /// Builds async.
+    /// Performs build as part of the embedded telemetry bridge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="includeOneWireEnvelope">Value indicating whether include one wire envelope should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded telemetry bridge result produced by the operation.</returns>
     private async Task<EmbeddedTelemetryBridgeResult> BuildAsync(EmbeddedTelemetryBridgeRequest request, bool includeOneWireEnvelope, CancellationToken cancellationToken)
     {
     try
@@ -193,8 +205,10 @@ public sealed class EmbeddedTelemetryBridgeService(
 }
 
     /// <summary>
-    /// Parses metadata.
+    /// Parses metadata as part of the embedded telemetry bridge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded telemetry bridge operation and used when producing its result.</param>
+    /// <returns>The JSON element produced by the operation.</returns>
     private JsonElement ParseMetadata(string? value)
     {
     try
@@ -223,8 +237,11 @@ public sealed class EmbeddedTelemetryBridgeService(
 }
 
     /// <summary>
-    /// Normalizes token.
+    /// Normalizes token as part of the embedded telemetry bridge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded telemetry bridge operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the embedded telemetry bridge operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeToken(string? value, int maximum)
     {
     try
@@ -245,8 +262,10 @@ public sealed class EmbeddedTelemetryBridgeService(
 }
 
     /// <summary>
-    /// Runs the safe device for log operation.
+    /// Performs safe device for log as part of the embedded telemetry bridge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded telemetry bridge operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SafeDeviceForLog(string? value) {
     try
     {
@@ -262,8 +281,10 @@ public sealed class EmbeddedTelemetryBridgeService(
     }
 }
     /// <summary>
-    /// Runs the severity status operation.
+    /// Performs severity status as part of the embedded telemetry bridge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="findings">Embedded plan finding dependency used by the embedded telemetry bridge workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SeverityStatus(IEnumerable<EmbeddedPlanFinding> findings) {
     try
     {

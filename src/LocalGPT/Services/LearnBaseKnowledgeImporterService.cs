@@ -9,8 +9,15 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides learn base knowledge importer service operations.
+    /// Coordinates learn base knowledge importer behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="knowledgeService">Council knowledge service dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
+    /// <param name="councilText">Council text service dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
+    /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
+    /// <param name="regexPatterns">Regex pattern service dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
     public sealed partial class LearnBaseKnowledgeImporterService(
         ICouncilKnowledgeService knowledgeService,
         ILogger<LearnBaseKnowledgeImporterService> logger,
@@ -23,8 +30,11 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Imports async.
+        /// Performs import as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The learn base import result produced by the operation.</returns>
         public async Task<LearnBaseImportResult> ImportAsync(
             LearnBaseImportRequest request,
             CancellationToken cancellationToken = default)
@@ -132,8 +142,14 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Imports learning source manifests async.
+        /// Imports learning source manifests as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="selection">Selection value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="result">Result value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task ImportLearningSourceManifestsAsync(
             string rootPath,
             LearnBaseImportRequest request,
@@ -285,8 +301,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the deterministic guid operation.
+        /// Performs deterministic GUID as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="hexadecimalHash">Hexadecimal hash value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <returns>The GUID produced by the operation.</returns>
         private Guid DeterministicGuid(string hexadecimalHash)
         {
     try
@@ -306,8 +324,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the compile manifest regex operation.
+        /// Performs compile manifest regex as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="pattern">Pattern value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="fallback">Fallback value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <returns>The regex produced by the operation.</returns>
         private Regex CompileManifestRegex(string? pattern, string fallback)
         {
     try
@@ -327,8 +348,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the representative rank operation.
+        /// Performs representative rank as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="extension">Extension value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <returns>The int produced by the operation.</returns>
         private int RepresentativeRank(string extension) {
     try
     {
@@ -353,8 +376,12 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the extract manifest file signature async operation.
+        /// Performs extract manifest file signature as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="root">Root value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="file">File value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private async Task<string> ExtractManifestFileSignatureAsync(string root, FileInfo file, CancellationToken cancellationToken)
         {
     try
@@ -385,59 +412,76 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Represents a learning source manifest.
+        /// Represents a learning source manifest helper type nested within <see cref="LearnBaseKnowledgeImporterService"/>, grouping the state or behavior used only by that containing workflow.
         /// </summary>
         private sealed class LearningSourceManifest
         {
             /// <summary>
-            /// Gets or sets schema version.
+            /// Gets or sets the schema version value that forms part of the learning source manifest state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The schema version value exposed by <see cref="LearningSourceManifest"/>.</value>
             public int SchemaVersion { get; set; } = 1;
             /// <summary>
-            /// Gets or sets repository.
+            /// Gets or sets the repository value that forms part of the learning source manifest state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The repository value exposed by <see cref="LearningSourceManifest"/>.</value>
             public string Repository { get; set; } = string.Empty;
             /// <summary>
-            /// Gets or sets source URL.
+            /// Gets or sets the source URL that identifies the network or application endpoint associated with this learning source manifest state.
             /// </summary>
+            /// <value>The source URL value exposed by <see cref="LearningSourceManifest"/>.</value>
             public string SourceUrl { get; set; } = string.Empty;
             /// <summary>
-            /// Gets or sets revision.
+            /// Gets or sets the revision value that forms part of the learning source manifest state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The revision value exposed by <see cref="LearningSourceManifest"/>.</value>
             public string Revision { get; set; } = string.Empty;
             /// <summary>
-            /// Gets or sets include regex.
+            /// Gets or sets a value indicating whether regex applies to the learning source manifest state.
             /// </summary>
+            /// <value>The include regex value exposed by <see cref="LearningSourceManifest"/>.</value>
             public string IncludeRegex { get; set; } = string.Empty;
             /// <summary>
-            /// Gets or sets exclude regex.
+            /// Gets or sets the exclude regex value that forms part of the learning source manifest state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The exclude regex value exposed by <see cref="LearningSourceManifest"/>.</value>
             public string ExcludeRegex { get; set; } = string.Empty;
             /// <summary>
-            /// Gets or sets maximum files.
+            /// Gets or sets the maximum files value that forms part of the learning source manifest state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The maximum files value exposed by <see cref="LearningSourceManifest"/>.</value>
             public int MaximumFiles { get; set; } = 12000;
             /// <summary>
-            /// Gets or sets maximum file bytes.
+            /// Gets or sets the maximum file bytes value that forms part of the learning source manifest state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The maximum file bytes value exposed by <see cref="LearningSourceManifest"/>.</value>
             public int MaximumFileBytes { get; set; } = 2 * 1024 * 1024;
             /// <summary>
-            /// Gets or sets topics.
+            /// Gets or sets the topics collection maintained or exposed by this learning source manifest instance for downstream processing.
             /// </summary>
+            /// <value>The topics value exposed by <see cref="LearningSourceManifest"/>.</value>
             public List<string> Topics { get; set; } = [];
             /// <summary>
-            /// Gets or sets role keys.
+            /// Gets or sets the role keys collection maintained or exposed by this learning source manifest instance for downstream processing.
             /// </summary>
+            /// <value>The role keys value exposed by <see cref="LearningSourceManifest"/>.</value>
             public List<string> RoleKeys { get; set; } = [];
             /// <summary>
-            /// Gets or sets import mode.
+            /// Gets or sets the import mode value that forms part of the learning source manifest state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The import mode value exposed by <see cref="LearningSourceManifest"/>.</value>
             public string ImportMode { get; set; } = "CompactManifestCorpus";
         }
 
         /// <summary>
-        /// Imports known documentation corpora async.
+        /// Imports known documentation corpora as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="selection">Selection value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="result">Result value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task ImportKnownDocumentationCorporaAsync(
             string rootPath,
             LearnBaseImportRequest request,
@@ -464,8 +508,14 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Imports dot net docs corpus async.
+        /// Imports dot net docs corpus as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="selection">Selection value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="result">Result value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task ImportDotNetDocsCorpusAsync(
             string rootPath,
             LearnBaseImportRequest request,
@@ -514,8 +564,14 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Imports windows dev docs corpus async.
+        /// Imports windows dev docs corpus as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="selection">Selection value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="result">Result value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task ImportWindowsDevDocsCorpusAsync(
             string rootPath,
             LearnBaseImportRequest request,
@@ -565,8 +621,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds selection policy.
+        /// Builds selection policy as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <returns>The learn base selection policy produced by the operation.</returns>
         private LearnBaseSelectionPolicy BuildSelectionPolicy(LearnBaseImportRequest request)
         {
     try
@@ -604,8 +662,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Adds extension.
+        /// Adds extension as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="extensions">Extensions value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="value">Value value supplied to the learn base knowledge importer operation and used when producing its result.</param>
         private void AddExtension(HashSet<string> extensions, string? value)
         {
     try
@@ -631,8 +691,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Builds file policy description.
+        /// Builds file policy description as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="selection">Selection value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildFilePolicyDescription(LearnBaseSelectionPolicy selection)
         {
     try
@@ -654,8 +716,13 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Finds selected files.
+        /// Finds selected files as part of the learn base knowledge importer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="selection">Selection value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="maximumFiles">Maximum files value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="result">Result value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private IReadOnlyList<FileInfo> FindSelectedFiles(
             string rootPath,
             LearnBaseSelectionPolicy selection,
@@ -704,8 +771,14 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Represents a learn base selection policy.
+        /// Represents a learn base selection policy helper type nested within <see cref="LearnBaseKnowledgeImporterService"/>, grouping the state or behavior used only by that containing workflow.
         /// </summary>
+        /// <param name="extensions">String dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
+        /// <param name="includeRegex">Include regex value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="excludeRegex">Exclude regex value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="maximumFileBytes">Maximum file bytes value supplied to the learn base knowledge importer operation and used when producing its result.</param>
+        /// <param name="excludedDirectoryNames">String dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
+        /// <param name="binaryExtensions">String dependency used by the learn base knowledge importer workflow to provide the corresponding application capability.</param>
         private sealed class LearnBaseSelectionPolicy(
             IReadOnlySet<string> extensions,
             Regex includeRegex,
@@ -715,33 +788,42 @@ namespace LocalGPT.Services
             IReadOnlySet<string> binaryExtensions)
         {
             /// <summary>
-            /// Gets or sets extensions.
+            /// Gets the extensions value that forms part of the learn base selection policy state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The extensions value exposed by <see cref="LearnBaseSelectionPolicy"/>.</value>
             public IReadOnlySet<string> Extensions { get; } = extensions;
             /// <summary>
-            /// Gets or sets include regex.
+            /// Gets a value indicating whether regex applies to the learn base selection policy state.
             /// </summary>
+            /// <value>The include regex value exposed by <see cref="LearnBaseSelectionPolicy"/>.</value>
             public Regex IncludeRegex { get; } = includeRegex;
             /// <summary>
-            /// Gets or sets exclude regex.
+            /// Gets the exclude regex value that forms part of the learn base selection policy state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The exclude regex value exposed by <see cref="LearnBaseSelectionPolicy"/>.</value>
             public Regex ExcludeRegex { get; } = excludeRegex;
             /// <summary>
-            /// Gets or sets maximum file bytes.
+            /// Gets the maximum file bytes value that forms part of the learn base selection policy state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The maximum file bytes value exposed by <see cref="LearnBaseSelectionPolicy"/>.</value>
             public int MaximumFileBytes { get; } = maximumFileBytes;
             /// <summary>
-            /// Gets or sets excluded directory names.
+            /// Gets the excluded directory names used by this learn base selection policy instance to locate the associated file-system resource.
             /// </summary>
+            /// <value>The excluded directory names value exposed by <see cref="LearnBaseSelectionPolicy"/>.</value>
             public IReadOnlySet<string> ExcludedDirectoryNames { get; } = excludedDirectoryNames;
             /// <summary>
-            /// Gets or sets binary extensions.
+            /// Gets the binary extensions value that forms part of the learn base selection policy state consumed or produced by the surrounding workflow.
             /// </summary>
+            /// <value>The binary extensions value exposed by <see cref="LearnBaseSelectionPolicy"/>.</value>
             public IReadOnlySet<string> BinaryExtensions { get; } = binaryExtensions;
 
             /// <summary>
-            /// Runs the matches operation.
+            /// Performs matches for <see cref="LearnBaseSelectionPolicy"/>, keeping the operation consistent with the state and invariants of the surrounding learn base selection policy workflow.
             /// </summary>
+            /// <param name="relativePath">Relative path value supplied to the learn base selection policy operation and used when producing its result.</param>
+            /// <param name="length">Length value supplied to the learn base selection policy operation and used when producing its result.</param>
+            /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
             public bool Matches(string relativePath, long length)
             {
     try

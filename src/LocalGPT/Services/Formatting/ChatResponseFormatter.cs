@@ -67,42 +67,88 @@ internal sealed class ChatResponseFormatter(
     ILogger<ChatResponseFormatter> logger)
     : IChatResponseFormatter
 {
-    /// <summary>Gets the maintained Harmony analysis-channel extraction pattern.</summary>
+    /// <summary>
+    /// Gets the harmony thinking regex value that forms part of the chat response formatter state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The harmony thinking regex value exposed by <see cref="ChatResponseFormatter"/>.</value>
     private Regex HarmonyThinkingRegex => runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyThinking);
-    /// <summary>Gets the maintained Harmony final-channel extraction pattern.</summary>
+    /// <summary>
+    /// Gets the harmony final regex value that forms part of the chat response formatter state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The harmony final regex value exposed by <see cref="ChatResponseFormatter"/>.</value>
     private Regex HarmonyFinalRegex => runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyFinal);
-    /// <summary>Gets the maintained pattern used to remove Harmony control markers.</summary>
+    /// <summary>
+    /// Gets the harmony marker regex value that forms part of the chat response formatter state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The harmony marker regex value exposed by <see cref="ChatResponseFormatter"/>.</value>
     private Regex HarmonyMarkerRegex => runtimePolicy.GetPattern(LocalGptRuntimePattern.ChatHarmonyMarker);
-    /// <summary>Gets the configured opening think tag.</summary>
+    /// <summary>
+    /// Gets the think start tag value that forms part of the chat response formatter state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The think start tag value exposed by <see cref="ChatResponseFormatter"/>.</value>
     private string ThinkStartTag => runtimePolicy.GetString(LocalGptRuntimeValue.FormattingThinkStartTag);
-    /// <summary>Gets the configured closing think tag.</summary>
+    /// <summary>
+    /// Gets the think end tag value that forms part of the chat response formatter state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The think end tag value exposed by <see cref="ChatResponseFormatter"/>.</value>
     private string ThinkEndTag => runtimePolicy.GetString(LocalGptRuntimeValue.FormattingThinkEndTag);
     /// <summary>Gets the number of trailing characters retained while a streamed tag may be incomplete.</summary>
+    /// <value>The tag lookbehind length value exposed by <see cref="ChatResponseFormatter"/>.</value>
     private int TagLookbehindLength => runtimePolicy.GetInt(LocalGptRuntimeValue.FormattingTagLookbehindLength);
 
     /// <summary>
-    /// Determines whether null or white space.
+    /// Stores the internal missing final answer notice state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
     /// </summary>
     private readonly string missingFinalAnswerNotice = string.IsNullOrWhiteSpace(configuredMissingFinalAnswerNotice)
         ? runtimePolicy.GetString(LocalGptRuntimeValue.FormattingMissingFinalAnswerNotice)
         : configuredMissingFinalAnswerNotice.Trim();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal content buffer state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
     /// </summary>
     private readonly StringBuilder contentBuffer = new();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal harmony buffer state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
     /// </summary>
     private readonly StringBuilder harmonyBuffer = new();
+    /// <summary>
+    /// Stores the internal active protocol state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
+    /// </summary>
     private ChatResponseProtocol activeProtocol = protocol;
+    /// <summary>
+    /// Stores the chat protocol profile dependency used by <see cref="ChatResponseFormatter"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private IChatProtocolProfile activeProfile = protocolProfile;
+    /// <summary>
+    /// Stores the internal emitted harmony thinking length state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
+    /// </summary>
     private int emittedHarmonyThinkingLength;
+    /// <summary>
+    /// Stores the internal emitted harmony final length state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
+    /// </summary>
     private int emittedHarmonyFinalLength;
+    /// <summary>
+    /// Stores the internal in tagged thinking state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
+    /// </summary>
     private bool inTaggedThinking;
+    /// <summary>
+    /// Stores the internal emitted explicit thinking state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
+    /// </summary>
     private bool emittedExplicitThinking;
+    /// <summary>
+    /// Stores the internal emitted visible content state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
+    /// </summary>
     private bool emittedVisibleContent;
+    /// <summary>
+    /// Stores the internal emitted missing final notice state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
+    /// </summary>
     private bool emittedMissingFinalNotice;
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to thinking block open state owned by <see cref="ChatResponseFormatter"/>.
+    /// </summary>
     private bool thinkingBlockOpen;
+    /// <summary>
+    /// Stores the internal harmony protocol detected state used by <see cref="ChatResponseFormatter"/> while executing its surrounding workflow.
+    /// </summary>
     private bool harmonyProtocolDetected;
 
     /// <summary>Appends a provider-owned thinking delta to the current disclosure panel.</summary>
@@ -273,7 +319,9 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
-    /// <summary>Parses plain text containing optional configured think tags.</summary>
+    /// <summary>
+    /// Performs append tagged content for <see cref="ChatResponseFormatter"/>, keeping the operation consistent with the state and invariants of the surrounding chat response formatter workflow.
+    /// </summary>
     /// <param name="text">Normalized provider content.</param>
     /// <returns>Incremental thinking or visible fragments.</returns>
     private IEnumerable<string> AppendTaggedContent(string text)
@@ -417,7 +465,9 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
-    /// <summary>Finds the first Harmony start or channel marker.</summary>
+    /// <summary>
+    /// Finds harmony marker index for <see cref="ChatResponseFormatter"/>, keeping the operation consistent with the state and invariants of the surrounding chat response formatter workflow.
+    /// </summary>
     /// <param name="text">Candidate provider text.</param>
     /// <returns>The zero-based marker index, or -1 when no marker is present.</returns>
     private int FindHarmonyMarkerIndex(string text)
@@ -496,7 +546,9 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
-    /// <summary>Opens the LocalGPT-owned model-thinking disclosure once.</summary>
+    /// <summary>
+    /// Opens thinking block for <see cref="ChatResponseFormatter"/>, keeping the operation consistent with the state and invariants of the surrounding chat response formatter workflow.
+    /// </summary>
     /// <returns>An opening fragment, or no fragment when already open.</returns>
     private IEnumerable<string> OpenThinkingBlock()
     {
@@ -515,7 +567,9 @@ internal sealed class ChatResponseFormatter(
         }
     }
 
-    /// <summary>Closes the LocalGPT-owned model-thinking disclosure once.</summary>
+    /// <summary>
+    /// Closes thinking block for <see cref="ChatResponseFormatter"/>, keeping the operation consistent with the state and invariants of the surrounding chat response formatter workflow.
+    /// </summary>
     /// <returns>A closing fragment, or no fragment when already closed.</returns>
     private IEnumerable<string> CloseThinkingBlock()
     {

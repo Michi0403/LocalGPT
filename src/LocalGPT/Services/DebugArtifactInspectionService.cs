@@ -5,13 +5,20 @@ using System.Reflection.Metadata;
 namespace LocalGPT.Services;
 
 /// <summary>Reads bounded metadata from portable PDB and other debug files without loading or executing them.</summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DebugArtifactInspectionService(ILogger<DebugArtifactInspectionService> logger) : IDebugArtifactInspectionService
 {
+    /// <summary>
+    /// Defines the maximum inspection bytes constant used by <see cref="DebugArtifactInspectionService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const long MaximumInspectionBytes = 1024L * 1024L * 1024L;
 
     /// <summary>
-    /// Runs the inspect async operation.
+    /// Performs inspect as part of the debug artifact inspection service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="filePath">File path value supplied to the debug artifact inspection operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The debug artifact inspection result produced by the operation.</returns>
     public async Task<DebugArtifactInspectionResult> InspectAsync(string filePath, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);

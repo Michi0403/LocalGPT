@@ -8,15 +8,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace LocalGPT.Migrations;
 
 /// <summary>
-/// Represents an add database first project architecture.
+/// Defines the Entity Framework Core migration AddDatabaseFirstProjectArchitecture, applying and reverting the schema changes represented by this versioned database step.
 /// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260726010000_AddDatabaseFirstProjectArchitecture")]
 public partial class AddDatabaseFirstProjectArchitecture : Migration
 {
     /// <summary>
-    /// Runs the up operation.
+    /// Applies the schema changes defined by the <see cref="AddDatabaseFirstProjectArchitecture"/> Entity Framework Core migration to move the database forward.
     /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the add database first project architecture operation and used when producing its result.</param>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.Sql("""
@@ -174,8 +175,9 @@ public partial class AddDatabaseFirstProjectArchitecture : Migration
     }
 
     /// <summary>
-    /// Runs the down operation.
+    /// Reverts the schema changes defined by the <see cref="AddDatabaseFirstProjectArchitecture"/> Entity Framework Core migration to return the database to its preceding shape.
     /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the add database first project architecture operation and used when producing its result.</param>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable(name: "CouncilKnowledgeUserRatings");

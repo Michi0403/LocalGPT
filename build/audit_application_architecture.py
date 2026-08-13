@@ -125,7 +125,7 @@ def allowed_static(rel: str, product: str) -> bool:
 
 def static_audit(app_root: Path, product: str):
     failures=[]
-    decl_re=re.compile(r'(?m)^\s*(?:public|private|protected|internal)\s+(?:(?:sealed|partial|new|unsafe|readonly|abstract)\s+)*static\s+[^\r\n]+')
+    decl_re=re.compile(r'(?m)^[ \t]*(?:public|private|protected|internal)\s+(?:(?:sealed|partial|new|unsafe|readonly|abstract)\s+)*static\s+[^\r\n]+')
     for path,rel in iter_sources(app_root):
         text=path.read_text(encoding='utf-8-sig',errors='replace'); masked=mask_csharp(text) if path.suffix=='.cs' else text
         if path.suffix=='.cs':
@@ -234,7 +234,7 @@ def runtime_value_audit(app_root: Path, product: str):
         if re.search(r'\bnew\s+Regex\s*\(',code) and rel not in allowed_regex_compilers:
             failures.append(f'{rel}: compiles a Regex outside an approved policy/data service')
         # Static collections and regex fields are forbidden even in otherwise allowed files.
-        if rel != 'Program.cs' and re.search(r'(?m)^\s*(?:public|private|protected|internal)\s+(?:static\s+|readonly\s+)*static\s+[^\n]*(?:Regex|List<|Dictionary<|HashSet<|FrozenSet<|\[\])',code):
+        if rel != 'Program.cs' and re.search(r'(?m)^[ \t]*(?:public|private|protected|internal)\s+(?:static\s+|readonly\s+)*static\s+[^\n]*(?:Regex|List<|Dictionary<|HashSet<|FrozenSet<|\[\])',code):
             failures.append(f'{rel}: contains static runtime collection or Regex state')
     if product=='localgpt':
         required={

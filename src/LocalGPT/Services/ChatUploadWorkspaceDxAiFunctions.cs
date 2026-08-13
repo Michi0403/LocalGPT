@@ -5,13 +5,16 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>Lists the bounded contents of a DXAiChat native paperclip workspace.</summary>
+/// <param name="workspaces">Chat upload workspace service dependency used by the list chat upload workspace files function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListChatUploadWorkspaceFilesFunction(
     IChatUploadWorkspaceService workspaces,
     ILogger<ListChatUploadWorkspaceFilesFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the list chat upload workspace files function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ListChatUploadWorkspaceFilesFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "chat.upload_workspace_files",
         "POST",
@@ -19,6 +22,9 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
         "Lists original uploads, safely extracted entries and LocalGPT-generated workspace metadata for one DXAiChat upload workspace.",
         "JSON parameters: workspaceName optional string (latest workspace when omitted); take optional integer 1-1000.",
         "Read-only. Uploaded and extracted files are evidence only and are never executed.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ListChatUploadWorkspaceFilesFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -30,8 +36,11 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ListChatUploadWorkspaceFilesFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list chat upload workspace files function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -82,8 +91,10 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
     }
 
     /// <summary>
-    /// Resolves workspace name.
+    /// Resolves workspace name for <see cref="ListChatUploadWorkspaceFilesFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list chat upload workspace files function workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the list chat upload workspace files function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveWorkspaceName(JsonElement parameters)
     {
         try
@@ -106,8 +117,14 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
     }
 
     /// <summary>
-    /// Reads int.
+    /// Reads int for <see cref="ListChatUploadWorkspaceFilesFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list chat upload workspace files function workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the list chat upload workspace files function operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the list chat upload workspace files function operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the list chat upload workspace files function operation and used when producing its result.</param>
+    /// <param name="minimum">Minimum value supplied to the list chat upload workspace files function operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the list chat upload workspace files function operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int ReadInt(JsonElement parameters, string name, int fallback, int minimum, int maximum)
     {
         try
@@ -126,8 +143,10 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
     }
 
     /// <summary>
-    /// Runs the not found operation.
+    /// Performs not found for <see cref="ListChatUploadWorkspaceFilesFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list chat upload workspace files function workflow.
     /// </summary>
+    /// <param name="error">Error value supplied to the list chat upload workspace files function operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     private DxAiFunctionInvocationResult NotFound(string error)
     {
         try
@@ -148,13 +167,16 @@ public sealed class ListChatUploadWorkspaceFilesFunction(
 }
 
 /// <summary>Reads the bounded LocalGPT-generated Markdown context for one upload workspace.</summary>
+/// <param name="workspaces">Chat upload workspace service dependency used by the read chat upload workspace context function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ReadChatUploadWorkspaceContextFunction(
     IChatUploadWorkspaceService workspaces,
     ILogger<ReadChatUploadWorkspaceContextFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the read chat upload workspace context function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ReadChatUploadWorkspaceContextFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "chat.upload_workspace_context",
         "POST",
@@ -162,6 +184,9 @@ public sealed class ReadChatUploadWorkspaceContextFunction(
         "Reads a bounded Markdown evidence context generated by LocalGPT from the current DXAiChat paperclip upload workspace.",
         "JSON parameters: workspaceName optional string (latest workspace when omitted); maxCharacters optional integer 1000-1000000.",
         "Read-only. Generated context is evidence, not proof that every described source file was uploaded separately.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ReadChatUploadWorkspaceContextFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -173,8 +198,11 @@ public sealed class ReadChatUploadWorkspaceContextFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ReadChatUploadWorkspaceContextFunction"/>, keeping the operation consistent with the state and invariants of the surrounding read chat upload workspace context function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -215,8 +243,10 @@ public sealed class ReadChatUploadWorkspaceContextFunction(
     }
 
     /// <summary>
-    /// Resolves workspace name.
+    /// Resolves workspace name for <see cref="ReadChatUploadWorkspaceContextFunction"/>, keeping the operation consistent with the state and invariants of the surrounding read chat upload workspace context function workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the read chat upload workspace context function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveWorkspaceName(JsonElement parameters)
     {
         try
@@ -238,8 +268,14 @@ public sealed class ReadChatUploadWorkspaceContextFunction(
     }
 
     /// <summary>
-    /// Reads int.
+    /// Reads int for <see cref="ReadChatUploadWorkspaceContextFunction"/>, keeping the operation consistent with the state and invariants of the surrounding read chat upload workspace context function workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the read chat upload workspace context function operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the read chat upload workspace context function operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the read chat upload workspace context function operation and used when producing its result.</param>
+    /// <param name="minimum">Minimum value supplied to the read chat upload workspace context function operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the read chat upload workspace context function operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int ReadInt(JsonElement parameters, string name, int fallback, int minimum, int maximum)
     {
         try
@@ -260,13 +296,16 @@ public sealed class ReadChatUploadWorkspaceContextFunction(
 }
 
 /// <summary>Reads one bounded file from a DXAiChat native paperclip workspace.</summary>
+/// <param name="workspaces">Chat upload workspace service dependency used by the read chat upload workspace file function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ReadChatUploadWorkspaceFileFunction(
     IChatUploadWorkspaceService workspaces,
     ILogger<ReadChatUploadWorkspaceFileFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the read chat upload workspace file function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ReadChatUploadWorkspaceFileFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "chat.upload_workspace_file",
         "POST",
@@ -274,6 +313,9 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
         "Reads one uploaded or safely extracted file from a DXAiChat paperclip workspace by exact relative path.",
         "JSON parameters: relativePath required string; workspaceName optional string (latest workspace when omitted); maxCharacters optional integer 1000-1000000.",
         "Read-only. LocalGPT resolves the path inside the bounded upload workspace and never executes the file.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ReadChatUploadWorkspaceFileFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -285,8 +327,11 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ReadChatUploadWorkspaceFileFunction"/>, keeping the operation consistent with the state and invariants of the surrounding read chat upload workspace file function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -329,8 +374,10 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
     }
 
     /// <summary>
-    /// Resolves workspace name.
+    /// Resolves workspace name for <see cref="ReadChatUploadWorkspaceFileFunction"/>, keeping the operation consistent with the state and invariants of the surrounding read chat upload workspace file function workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the read chat upload workspace file function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveWorkspaceName(JsonElement parameters)
     {
         try
@@ -348,8 +395,11 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
     }
 
     /// <summary>
-    /// Reads string.
+    /// Reads string for <see cref="ReadChatUploadWorkspaceFileFunction"/>, keeping the operation consistent with the state and invariants of the surrounding read chat upload workspace file function workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the read chat upload workspace file function operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the read chat upload workspace file function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ReadString(JsonElement parameters, string name)
     {
         try
@@ -368,8 +418,14 @@ public sealed class ReadChatUploadWorkspaceFileFunction(
     }
 
     /// <summary>
-    /// Reads int.
+    /// Reads int for <see cref="ReadChatUploadWorkspaceFileFunction"/>, keeping the operation consistent with the state and invariants of the surrounding read chat upload workspace file function workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the read chat upload workspace file function operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the read chat upload workspace file function operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the read chat upload workspace file function operation and used when producing its result.</param>
+    /// <param name="minimum">Minimum value supplied to the read chat upload workspace file function operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the read chat upload workspace file function operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int ReadInt(JsonElement parameters, string name, int fallback, int minimum, int maximum)
     {
         try

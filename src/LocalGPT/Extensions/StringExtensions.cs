@@ -4,14 +4,17 @@ using System.Text.Json.Serialization;
 namespace LocalGPT.Extensions
 {
     /// <summary>
-    /// Represents a string extensions.
+    /// Represents a string extensions application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
     public static class StringExtensions
     {
 
         /// <summary>
-        /// Runs the to JSON string operation.
+        /// Performs to JSON string for <see cref="StringExtensions"/>, keeping the operation consistent with the state and invariants of the surrounding string extensions workflow.
         /// </summary>
+        /// <param name="obj">Obj value supplied to the string extensions operation and used when producing its result.</param>
+        /// <param name="jsonOptions">Json options value supplied to the string extensions operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public static string ToJsonString(this object obj, JsonSerializerOptions? jsonOptions = null)
         {
             try

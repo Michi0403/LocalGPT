@@ -7,16 +7,22 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides local gpt project service operations.
+/// Coordinates LocalGPT project behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the LocalGPT project workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the LocalGPT project workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalGptProjectService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<LocalGptProjectService> logger) : ILocalGptProjectService
 {
     /// <summary>
-    /// Gets projects async.
+    /// Retrieves projects as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="includeArchived">Value indicating whether include archived should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<LocalGptProjectSummary>> GetProjectsAsync(
         bool includeArchived = false,
         CancellationToken cancellationToken = default)
@@ -61,8 +67,11 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Gets project async.
+    /// Retrieves project as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project details produced by the operation.</returns>
     public async Task<LocalGptProjectDetails?> GetProjectAsync(
         Guid projectId,
         CancellationToken cancellationToken = default)
@@ -167,8 +176,11 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Saves project async.
+    /// Persists project as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project produced by the operation.</returns>
     public async Task<LocalGptProject> SaveProjectAsync(
         SaveLocalGptProjectRequest request,
         CancellationToken cancellationToken = default)
@@ -231,8 +243,12 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Adds topic async.
+    /// Adds topic as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project topic produced by the operation.</returns>
     public async Task<LocalGptProjectTopic> AddTopicAsync(
         Guid projectId,
         AddLocalGptProjectTopicRequest request,
@@ -276,8 +292,12 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Adds version async.
+    /// Adds version as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The LocalGPT project version produced by the operation.</returns>
     public async Task<LocalGptProjectVersion> AddVersionAsync(
         Guid projectId,
         AddLocalGptProjectVersionRequest request,
@@ -336,8 +356,12 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Runs the link knowledge async operation.
+    /// Links knowledge as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectTopicId">Identifier of the project topic to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task LinkKnowledgeAsync(
         Guid projectTopicId,
         LinkProjectTopicKnowledgeRequest request,
@@ -397,8 +421,12 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Builds project briefing async.
+    /// Builds project briefing as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="projectTopicId">Identifier of the project topic to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> BuildProjectBriefingAsync(
         Guid? projectId,
         Guid? projectTopicId,
@@ -481,8 +509,10 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Runs the require human confirmation operation.
+    /// Performs require human confirmation as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="operation">Operation value supplied to the LocalGPT project operation and used when producing its result.</param>
     private void RequireHumanConfirmation(bool userConfirmed, string operation)
     {
     try
@@ -502,8 +532,12 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Runs the require text operation.
+    /// Performs require text as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the LocalGPT project operation and used when producing its result.</param>
+    /// <param name="parameterName">Parameter name value supplied to the LocalGPT project operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the LocalGPT project operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RequireText(string? value, string parameterName, int maxLength)
     {
     try
@@ -525,8 +559,12 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Runs the trim or fallback operation.
+    /// Performs trim or fallback as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the LocalGPT project operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the LocalGPT project operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the LocalGPT project operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string TrimOrFallback(string? value, int maxLength, string fallback)
     {
     try
@@ -546,8 +584,11 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Runs the trim operation.
+    /// Performs trim as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the LocalGPT project operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the LocalGPT project operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Trim(string? value, int maxLength)
     {
     try
@@ -567,8 +608,10 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
-    /// Normalizes stored path.
+    /// Normalizes stored path as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the LocalGPT project operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeStoredPath(string? value)
     {
     try
@@ -593,8 +636,10 @@ public sealed class LocalGptProjectService(
     }
 }
     /// <summary>
-    /// Validates regex.
+    /// Validates regex as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="pattern">Pattern value supplied to the LocalGPT project operation and used when producing its result.</param>
+    /// <param name="parameterName">Parameter name value supplied to the LocalGPT project operation and used when producing its result.</param>
     private void ValidateRegex(string? pattern, string parameterName)
     {
     try

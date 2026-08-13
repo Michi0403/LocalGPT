@@ -5,10 +5,17 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace LocalGPT.Migrations
 {
+    /// <summary>
+    /// Defines the Entity Framework Core migration addingGeneralConfigTables, applying and reverting the schema changes represented by this versioned database step.
+    /// </summary>
     /// <inheritdoc />
     public partial class addingGeneralConfigTables : Migration
     {
+        /// <summary>
+        /// Applies the schema changes defined by the <see cref="addingGeneralConfigTables"/> Entity Framework Core migration to move the database forward.
+        /// </summary>
         /// <inheritdoc />
+        /// <param name="migrationBuilder">Migration builder value supplied to the adding general config tables operation and used when producing its result.</param>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -79,7 +86,11 @@ namespace LocalGPT.Migrations
                 unique: true);
         }
 
+        /// <summary>
+        /// Reverts the schema changes defined by the <see cref="addingGeneralConfigTables"/> Entity Framework Core migration to return the database to its preceding shape.
+        /// </summary>
         /// <inheritdoc />
+        /// <param name="migrationBuilder">Migration builder value supplied to the adding general config tables operation and used when producing its result.</param>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

@@ -16,51 +16,93 @@ namespace LocalGPT.Components.Layout;
 public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequestDispatcher, IAsyncDisposable, IDisposable
 {
     /// <summary>
-    /// Gets or sets initial shell theme name.
+    /// Gets or sets the initial shell theme name value that forms part of the theme JavaScript change dispatcher state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The initial shell theme name value exposed by <see cref="ThemeJsChangeDispatcher"/>.</value>
     [Parameter]
     public required string InitialShellThemeName { get; set; }
 
     /// <summary>
-    /// Gets or sets initial component theme name.
+    /// Gets or sets the initial component theme name value that forms part of the theme JavaScript change dispatcher state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The initial component theme name value exposed by <see cref="ThemeJsChangeDispatcher"/>.</value>
     [Parameter]
     public required string InitialComponentThemeName { get; set; }
 
+    /// <summary>
+    /// Gets or sets the JavaScript runtime value that forms part of the theme JavaScript change dispatcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The JavaScript runtime value exposed by <see cref="ThemeJsChangeDispatcher"/>.</value>
     [Inject]
     private IJSRuntime JsRuntime { get; set; } = default!;
 
+    /// <summary>
+    /// Gets or sets the navigation manager value that forms part of the theme JavaScript change dispatcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The navigation manager value exposed by <see cref="ThemeJsChangeDispatcher"/>.</value>
     [Inject]
     private NavigationManager NavigationManager { get; set; } = default!;
 
+    /// <summary>
+    /// Gets or sets the file version provider value that forms part of the theme JavaScript change dispatcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The file version provider value exposed by <see cref="ThemeJsChangeDispatcher"/>.</value>
     [Inject]
     private IFileVersionProvider FileVersionProvider { get; set; } = default!;
 
+    /// <summary>
+    /// Gets or sets the DevExpress theme change service value that forms part of the theme JavaScript change dispatcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The DevExpress theme change service value exposed by <see cref="ThemeJsChangeDispatcher"/>.</value>
     [Inject]
     private IThemeChangeService DevExpressThemeChangeService { get; set; } = default!;
 
+    /// <summary>
+    /// Gets or sets the themes value that forms part of the theme JavaScript change dispatcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The themes value exposed by <see cref="ThemeJsChangeDispatcher"/>.</value>
     [Inject]
     private ThemeService Themes { get; set; } = default!;
 
+    /// <summary>
+    /// Gets or sets the logger value that forms part of the theme JavaScript change dispatcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The logger value exposed by <see cref="ThemeJsChangeDispatcher"/>.</value>
     [Inject]
     private ILogger<ThemeJsChangeDispatcher> Logger { get; set; } = default!;
 
+    /// <summary>
+    /// Gets or sets the notifier value that forms part of the theme JavaScript change dispatcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The notifier value exposed by <see cref="ThemeJsChangeDispatcher"/>.</value>
     [Inject]
     private INotificationService Notifier { get; set; } = default!;
 
+    /// <summary>
+    /// Gets or sets the component activity value that forms part of the theme JavaScript change dispatcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The component activity value exposed by <see cref="ThemeJsChangeDispatcher"/>.</value>
     [Inject]
     private IComponentActivityService ComponentActivity { get; set; } = default!;
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to change gate state owned by <see cref="ThemeJsChangeDispatcher"/>.
     /// </summary>
     private readonly SemaphoreSlim _changeGate = new(1, 1);
+    /// <summary>
+    /// Stores the JavaScript object reference dependency used by <see cref="ThemeJsChangeDispatcher"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private IJSObjectReference? _module;
+    /// <summary>
+    /// Stores the internal disposed state used by <see cref="ThemeJsChangeDispatcher"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _disposed;
 
     /// <summary>
-    /// Runs the on after render async operation.
+    /// Handles the after render async lifecycle or event notification for <see cref="ThemeJsChangeDispatcher"/>, updating the state required by the surrounding workflow.
     /// </summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
@@ -129,8 +171,11 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     }
 
     /// <summary>
-    /// Runs the request theme change async operation.
+    /// Performs request theme change for <see cref="ThemeJsChangeDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding theme JavaScript change dispatcher workflow.
     /// </summary>
+    /// <param name="theme">Theme value supplied to the theme JavaScript change dispatcher operation and used when producing its result.</param>
+    /// <param name="target">Target value supplied to the theme JavaScript change dispatcher operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task RequestThemeChangeAsync(Theme theme, ThemeApplicationTarget target)
     {
         ArgumentNullException.ThrowIfNull(theme);
@@ -201,8 +246,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     }
 
     /// <summary>
-    /// Runs the reset fusion route async operation.
+    /// Performs reset fusion route for <see cref="ThemeJsChangeDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding theme JavaScript change dispatcher workflow.
     /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task ResetFusionRouteAsync()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -244,8 +290,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     }
 
     /// <summary>
-    /// Ensures module async.
+    /// Ensures module for <see cref="ThemeJsChangeDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding theme JavaScript change dispatcher workflow.
     /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EnsureModuleAsync()
     {
         try
@@ -276,6 +323,7 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     /// <summary>
     /// Applies client theme state async.
     /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ApplyClientThemeStateAsync()
     {
         try
@@ -301,8 +349,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     }
 
     /// <summary>
-    /// Runs the persist fusion route async operation.
+    /// Persists fusion route for <see cref="ThemeJsChangeDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding theme JavaScript change dispatcher workflow.
     /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PersistFusionRouteAsync()
     {
         try
@@ -324,8 +373,10 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     }
 
     /// <summary>
-    /// Converts browser fusion route.
+    /// Converts browser fusion route for <see cref="ThemeJsChangeDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding theme JavaScript change dispatcher workflow.
     /// </summary>
+    /// <param name="browserSteps">Browser theme fusion step dependency used by the theme JavaScript change dispatcher workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<ThemeFusionStep> ConvertBrowserFusionRoute(
         IReadOnlyList<BrowserThemeFusionStep>? browserSteps)
     {
@@ -357,8 +408,11 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     }
 
     /// <summary>
-    /// Runs the notify loaded async operation.
+    /// Performs notify loaded for <see cref="ThemeJsChangeDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding theme JavaScript change dispatcher workflow.
     /// </summary>
+    /// <param name="theme">Theme value supplied to the theme JavaScript change dispatcher operation and used when producing its result.</param>
+    /// <param name="target">Target value supplied to the theme JavaScript change dispatcher operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task NotifyLoadedAsync(Theme theme, ThemeApplicationTarget target)
     {
         try
@@ -378,8 +432,13 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     }
 
     /// <summary>
-    /// Runs the restore theme layer async operation.
+    /// Performs restore theme layer for <see cref="ThemeJsChangeDispatcher"/>, keeping the operation consistent with the state and invariants of the surrounding theme JavaScript change dispatcher workflow.
     /// </summary>
+    /// <param name="target">Target value supplied to the theme JavaScript change dispatcher operation and used when producing its result.</param>
+    /// <param name="previousShellTheme">Previous shell theme value supplied to the theme JavaScript change dispatcher operation and used when producing its result.</param>
+    /// <param name="previousComponentTheme">Previous component theme value supplied to the theme JavaScript change dispatcher operation and used when producing its result.</param>
+    /// <param name="originalException">Original exception value supplied to the theme JavaScript change dispatcher operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RestoreThemeLayerAsync(
         ThemeApplicationTarget target,
         Theme previousShellTheme,
@@ -431,8 +490,9 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
     }
 
     /// <summary>
-    /// Runs the dispose async operation.
+    /// Releases resources owned by <see cref="ThemeJsChangeDispatcher"/> and leaves the theme JavaScript change dispatcher workflow in a safely disposed state.
     /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
@@ -471,6 +531,10 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
         }
     }
 
+    /// <summary>
+    /// Releases resources owned by <see cref="ThemeJsChangeDispatcher"/> and leaves the theme JavaScript change dispatcher workflow in a safely disposed state.
+    /// </summary>
+    /// <returns>The void i disposable produced by the operation.</returns>
     void IDisposable.Dispose()
     {
         if (_disposed)

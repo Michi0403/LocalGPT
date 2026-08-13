@@ -12,17 +12,24 @@ namespace LocalGPT.Services.OneWire;
 /// Owns the runtime-generated LocalGPT 1-Wire identity. Private keys and the MFA seed are created only at runtime,
 /// are never compiled into the application, and can be discarded from the frontend to reset every trusted link.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireRuntimeSecurityService(
     ILogger<OneWireRuntimeSecurityService> logger) : IOneWireRuntimeSecurityService
 {
+    /// <summary>
+    /// Defines the schema version constant used by <see cref="OneWireRuntimeSecurityService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int SchemaVersion = 1;
+    /// <summary>
+    /// Defines the totp period seconds constant used by <see cref="OneWireRuntimeSecurityService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int TotpPeriodSeconds = 30;
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to gate state owned by <see cref="OneWireRuntimeSecurityService"/>.
     /// </summary>
     private readonly SemaphoreSlim gate = new(1, 1);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="OneWireRuntimeSecurityService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new()
     {
@@ -32,11 +39,16 @@ public sealed class OneWireRuntimeSecurityService(
         Converters = { new JsonStringEnumConverter() }
     };
     private OneWireRuntimeSecretFile? cached;
+    /// <summary>
+    /// Stores the internal resolved path state used by <see cref="OneWireRuntimeSecurityService"/> while executing its surrounding workflow.
+    /// </summary>
     private string? resolvedPath;
 
     /// <summary>
-    /// Gets status async.
+    /// Retrieves status as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The one wire runtime security status produced by the operation.</returns>
     public async Task<OneWireRuntimeSecurityStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -61,8 +73,10 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Ensures created async.
+    /// Ensures created as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task EnsureCreatedAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -79,8 +93,10 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Runs the regenerate async operation.
+    /// Performs regenerate as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task RegenerateAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -101,8 +117,10 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Deletes async.
+    /// Performs delete as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task DeleteAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -122,8 +140,10 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Gets public descriptor async.
+    /// Retrieves public descriptor as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The one wire security descriptor produced by the operation.</returns>
     public async Task<OneWireSecurityDescriptor> GetPublicDescriptorAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -141,8 +161,11 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Creates pairing ticket async.
+    /// Creates pairing ticket as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="lifetime">Lifetime value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The one wire pairing ticket produced by the operation.</returns>
     public async Task<OneWirePairingTicket> CreatePairingTicketAsync(TimeSpan lifetime, CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -180,8 +203,10 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Gets otp auth URI async.
+    /// Retrieves otp auth URI as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> GetOtpAuthUriAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -202,8 +227,11 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Runs the establish trust async operation.
+    /// Performs establish trust as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public async Task<bool> EstablishTrustAsync(OneWireTrustEstablishmentRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -248,8 +276,11 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Runs the revoke trust async operation.
+    /// Performs revoke trust as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public async Task<bool> RevokeTrustAsync(string peerId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
@@ -276,8 +307,10 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Gets trusted peers async.
+    /// Retrieves trusted peers as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<OneWireTrustedPeerDescriptor>> GetTrustedPeersAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -295,8 +328,11 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Runs the protect outgoing async operation.
+    /// Performs protect outgoing as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task ProtectOutgoingAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(envelope);
@@ -343,8 +379,11 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Runs the unprotect incoming async operation.
+    /// Performs unprotect incoming as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task UnprotectIncomingAsync(OneWireEnvelope envelope, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(envelope);
@@ -385,8 +424,11 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Loads core async.
+    /// Loads core as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="createWhenMissing">Value indicating whether create when missing should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The one wire runtime secret file produced by the operation.</returns>
     private async Task<OneWireRuntimeSecretFile?> LoadCoreAsync(bool createWhenMissing, CancellationToken cancellationToken)
     {
     try
@@ -421,8 +463,11 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Runs the persist core async operation.
+    /// Persists core as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="file">File value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PersistCoreAsync(OneWireRuntimeSecretFile file, CancellationToken cancellationToken)
     {
     try
@@ -448,8 +493,9 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Attempts to restrict secret permissions.
+    /// Attempts to restrict secret permissions as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="path">Path value supplied to the one wire runtime security operation and used when producing its result.</param>
     private void TryRestrictSecretPermissions(string path)
     {
         if (OperatingSystem.IsWindows()) return;
@@ -466,8 +512,9 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Resolves secret path.
+    /// Resolves secret path as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveSecretPath()
     {
     try
@@ -492,8 +539,10 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Determines whether write directory.
+    /// Determines whether write directory as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="directory">Directory value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool CanWriteDirectory(string directory)
     {
         try
@@ -512,8 +561,11 @@ public sealed class OneWireRuntimeSecurityService(
     }
 
     /// <summary>
-    /// Creates secret.
+    /// Creates secret as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="createdUtc">Created utc value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="rotatedUtc">Rotated utc value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>The one wire runtime secret file produced by the operation.</returns>
     private OneWireRuntimeSecretFile CreateSecret(DateTimeOffset createdUtc, DateTimeOffset? rotatedUtc)
     {
     try
@@ -551,8 +603,9 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Validates secret.
+    /// Validates secret as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="file">File value supplied to the one wire runtime security operation and used when producing its result.</param>
     private void ValidateSecret(OneWireRuntimeSecretFile file)
     {
     try
@@ -574,8 +627,10 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Creates status.
+    /// Creates status as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="file">File value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>The one wire runtime security status produced by the operation.</returns>
     private OneWireRuntimeSecurityStatus CreateStatus(OneWireRuntimeSecretFile file) {
     try
     {
@@ -602,8 +657,10 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Creates public descriptor.
+    /// Creates public descriptor as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="file">File value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>The one wire security descriptor produced by the operation.</returns>
     private OneWireSecurityDescriptor CreatePublicDescriptor(OneWireRuntimeSecretFile file) {
     try
     {
@@ -627,8 +684,9 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Validates pairing ticket.
+    /// Validates pairing ticket as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="ticket">Ticket value supplied to the one wire runtime security operation and used when producing its result.</param>
     private void ValidatePairingTicket(OneWirePairingTicket ticket)
     {
     try
@@ -660,8 +718,10 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Builds ticket bytes.
+    /// Builds ticket bytes as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="ticket">Ticket value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>The byte produced by the operation.</returns>
     private byte[] BuildTicketBytes(OneWirePairingTicket ticket) {
     try
     {
@@ -682,8 +742,10 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Builds signature bytes.
+    /// Builds signature bytes as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>The byte produced by the operation.</returns>
     private byte[] BuildSignatureBytes(OneWireEnvelope envelope) {
     try
     {
@@ -710,8 +772,10 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Builds associated data.
+    /// Builds associated data as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>The byte produced by the operation.</returns>
     private byte[] BuildAssociatedData(OneWireEnvelope envelope) {
     try
     {
@@ -729,8 +793,13 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Runs the derive peer key operation.
+    /// Performs derive peer key as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="file">File value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="peer">Peer value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="sourcePeerId">Identifier of the source peer to use for this operation.</param>
+    /// <param name="targetPeerId">Identifier of the target peer to use for this operation.</param>
+    /// <returns>The byte produced by the operation.</returns>
     private byte[] DerivePeerKey(OneWireRuntimeSecretFile file, OneWireTrustedPeerDescriptor peer, string sourcePeerId, string targetPeerId)
     {
     try
@@ -762,8 +831,13 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Runs the hkdf sha256 operation.
+    /// Performs hkdf SHA-256 as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="inputKeyMaterial">Input key material value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="salt">Salt value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="info">Info value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="outputLength">Output length value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>The byte produced by the operation.</returns>
     private byte[] HkdfSha256(ReadOnlySpan<byte> inputKeyMaterial, ReadOnlySpan<byte> salt, ReadOnlySpan<byte> info, int outputLength)
     {
     try
@@ -805,8 +879,11 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Runs the verify totp operation.
+    /// Verifies totp as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="seedBase64">Seed base64 value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="code">Code value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool VerifyTotp(string seedBase64, string code)
     {
     try
@@ -840,8 +917,10 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Runs the base32 encode operation.
+    /// Performs base32 encode as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="data">Data value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Base32Encode(ReadOnlySpan<byte> data)
     {
     try
@@ -875,8 +954,11 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Determines whether current trust.
+    /// Determines whether current trust as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="peer">Peer value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsCurrentTrust(OneWireTrustedPeerDescriptor peer, string peerId) {
     try
     {
@@ -896,8 +978,10 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Determines whether security bootstrap.
+    /// Determines whether security bootstrap as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="type">Type value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsSecurityBootstrap(OneWireMessageType type) {
     try
     {
@@ -917,8 +1001,12 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Runs the clamp operation.
+    /// Performs clamp as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="minimum">Minimum value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>The time span produced by the operation.</returns>
     private TimeSpan Clamp(TimeSpan value, TimeSpan minimum, TimeSpan maximum) {
     try
     {
@@ -935,8 +1023,10 @@ public sealed class OneWireRuntimeSecurityService(
 }
 
     /// <summary>
-    /// Runs the clone trusted peer operation.
+    /// Performs clone trusted peer as part of the one wire runtime security service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="peer">Peer value supplied to the one wire runtime security operation and used when producing its result.</param>
+    /// <returns>The one wire trusted peer descriptor produced by the operation.</returns>
     private OneWireTrustedPeerDescriptor CloneTrustedPeer(OneWireTrustedPeerDescriptor peer) {
     try
     {

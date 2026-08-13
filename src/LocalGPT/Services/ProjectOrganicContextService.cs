@@ -6,22 +6,34 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides project organic context service operations.
+/// Coordinates project organic context behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="projectArchitecture">Project architecture service dependency used by the project organic context workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProjectOrganicContextService(
     IProjectArchitectureService projectArchitecture,
     ILogger<ProjectOrganicContextService> logger) : IProjectOrganicContextService
 {
+    /// <summary>
+    /// Defines the artifact kind constant used by <see cref="ProjectOrganicContextService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string ArtifactKind = "OrganicProjectContext";
+    /// <summary>
+    /// Defines the artifact name constant used by <see cref="ProjectOrganicContextService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string ArtifactName = "LocalGPT organic project wiring";
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="ProjectOrganicContextService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
 
     /// <summary>
-    /// Gets async.
+    /// Performs get as part of the project organic context service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="revisionId">Identifier of the revision to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project organic context produced by the operation.</returns>
     public async Task<ProjectOrganicContext> GetAsync(Guid projectId, Guid? revisionId, CancellationToken cancellationToken = default)
     {
         var artifacts = await projectArchitecture.GetArtifactsAsync(projectId, cancellationToken).ConfigureAwait(false);
@@ -49,8 +61,12 @@ public sealed class ProjectOrganicContextService(
     }
 
     /// <summary>
-    /// Saves async.
+    /// Performs save as part of the project organic context service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project organic context produced by the operation.</returns>
     public async Task<ProjectOrganicContext> SaveAsync(Guid projectId, SaveProjectOrganicContextRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -94,8 +110,12 @@ public sealed class ProjectOrganicContextService(
 }
 
     /// <summary>
-    /// Builds briefing async.
+    /// Builds briefing as part of the project organic context service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="revisionId">Identifier of the revision to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> BuildBriefingAsync(Guid projectId, Guid? revisionId, CancellationToken cancellationToken = default)
     {
     try
@@ -128,8 +148,10 @@ public sealed class ProjectOrganicContextService(
 }
 
     /// <summary>
-    /// Runs the join operation.
+    /// Performs join as part of the project organic context service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="values">String dependency used by the project organic context workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Join(IEnumerable<string> values)
     {
     try
@@ -149,8 +171,10 @@ public sealed class ProjectOrganicContextService(
 }
 
     /// <summary>
-    /// Runs the value or unknown operation.
+    /// Performs value or unknown as part of the project organic context service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the project organic context operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ValueOrUnknown(string value) {
     try
     {

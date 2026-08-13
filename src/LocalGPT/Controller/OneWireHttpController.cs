@@ -13,6 +13,15 @@ namespace LocalGPT.Controller;
 /// Transport-neutral JSON adapter for small user-built organic clients such as ESP32 firmware.
 /// It uses the same envelope, permissions, MFA trust and work spool as the TCP transport.
 /// </summary>
+/// <param name="codec">One wire envelope codec dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
+/// <param name="security">One wire runtime security service dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
+/// <param name="dispatcher">One wire message dispatcher dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
+/// <param name="transportSecurityPolicy">One wire transport security policy dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
+/// <param name="dispatchContextFactory">One wire dispatch context factory dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
+/// <param name="capabilities">One wire capability catalog dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
+/// <param name="configuredOptions">One wire options dependency used by the one wire HTTP workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/onewire/http-json")]
 public sealed class OneWireHttpController(
@@ -27,8 +36,10 @@ public sealed class OneWireHttpController(
     ILogger<OneWireHttpController> logger) : ControllerBase
 {
     /// <summary>
-    /// Runs the profile operation.
+    /// Returns the profile projection for the one wire HTTP API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("profile")]
     public async Task<ActionResult<OneWireProtocolProfile>> Profile(CancellationToken cancellationToken)
     {
@@ -66,8 +77,11 @@ public sealed class OneWireHttpController(
     }
 
     /// <summary>
-    /// Runs the dispatch operation.
+    /// Returns the dispatch projection for the one wire HTTP API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="body">Body value supplied to the one wire HTTP operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost]
     [RequestSizeLimit(OneWireProtocol.MaximumMessageBytes)]
     public async Task<IActionResult> Dispatch([FromBody] JsonElement body, CancellationToken cancellationToken)
@@ -113,8 +127,11 @@ public sealed class OneWireHttpController(
     }
 
     /// <summary>
-    /// Runs the work operation.
+    /// Returns the work projection for the one wire HTTP API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("work/{correlationId:guid}")]
     public async Task<IActionResult> Work(Guid correlationId, CancellationToken cancellationToken)
     {

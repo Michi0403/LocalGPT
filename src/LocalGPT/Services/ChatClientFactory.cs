@@ -14,8 +14,24 @@ namespace LocalGPT.Services
 {
 
     /// <summary>
-    /// Provides chat client factory operations.
+    /// Creates configured chat client instances from the application's current dependencies and runtime settings.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="loggerFactory">Logger factory dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="optionsRoot">Business objects.configuration root dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="featureReportService">Ai feature report service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="bootstrapService">Ai context bootstrap service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="knowledgeService">Council knowledge service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="chatUploadWorkspaces">Chat upload workspace service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="promptConfigService">Prompt config service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="variableStoreService">Variable store service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="systemVariables">System variable definition service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="functionRegistry">Devexpress ai function registry dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="functionCallRecovery">Devexpress ai function call recovery service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="formatterFactory">Chat response formatter factory dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="protocolResolver">Chat protocol resolver dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the chat client workflow to provide the corresponding application capability.</param>
+    /// <param name="councilText">Council text service dependency used by the chat client workflow to provide the corresponding application capability.</param>
     public class ChatClientFactory(
           ILogger<ChatClientFactory> logger,
           ILoggerFactory loggerFactory,
@@ -36,8 +52,9 @@ namespace LocalGPT.Services
         CouncilTextService councilText) : IChatClientFactory
     {
         /// <summary>
-        /// Runs the build operation.
+        /// Performs build using the configuration and dependencies owned by <see cref="ChatClientFactory"/>.
         /// </summary>
+        /// <returns>The composite chat client produced by the operation.</returns>
         public CompositeChatClient Build()
         {
             try
@@ -232,8 +249,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the enumerate open ai compatible providers operation.
+        /// Performs enumerate OpenAI compatible providers using the configuration and dependencies owned by <see cref="ChatClientFactory"/>.
         /// </summary>
+        /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private IReadOnlyList<ChatGPTLocalCoreOptions> EnumerateOpenAiCompatibleProviders(AICoreOptions options)
         {
             try
@@ -272,8 +291,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Resolves open ai compatible model.
+        /// Resolves OpenAI compatible model using the configuration and dependencies owned by <see cref="ChatClientFactory"/>.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the chat client operation and used when producing its result.</param>
+        /// <param name="configuredModel">Configured model value supplied to the chat client operation and used when producing its result.</param>
+        /// <param name="apiKey">Api key value supplied to the chat client operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string? ResolveOpenAiCompatibleModel(string endpoint, string? configuredModel, string? apiKey, ILogger logger)
         {
             try
@@ -305,8 +329,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Gets local provider name.
+        /// Retrieves local provider name using the configuration and dependencies owned by <see cref="ChatClientFactory"/>.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the chat client operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string GetLocalProviderName(string endpoint) {
     try
     {
@@ -325,8 +351,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Normalizes provider identity.
+        /// Normalizes provider identity using the configuration and dependencies owned by <see cref="ChatClientFactory"/>.
         /// </summary>
+        /// <param name="value">Value value supplied to the chat client operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string NormalizeProviderIdentity(string value)
         {
     try
@@ -348,8 +376,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Normalizes open ai compatible endpoint.
+        /// Normalizes OpenAI compatible endpoint using the configuration and dependencies owned by <see cref="ChatClientFactory"/>.
         /// </summary>
+        /// <param name="value">Value value supplied to the chat client operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string NormalizeOpenAiCompatibleEndpoint(string value)
         {
     try

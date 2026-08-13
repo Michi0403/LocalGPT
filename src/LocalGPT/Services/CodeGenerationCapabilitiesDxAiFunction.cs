@@ -6,13 +6,16 @@ namespace LocalGPT.Services;
 /// <summary>
 /// Describes the source-generation and generated-workspace write paths available to DXAiChat and the AI Council.
 /// </summary>
+/// <param name="catalog">Local gpt catalog service dependency used by the code generation capabilities function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CodeGenerationCapabilitiesFunction(
     LocalGptCatalogService catalog,
     ILogger<CodeGenerationCapabilitiesFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets the AI-visible capability descriptor.
+    /// Gets the descriptor value that forms part of the code generation capabilities function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="CodeGenerationCapabilitiesFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "codegen.capabilities",
         "POST",
@@ -20,6 +23,9 @@ public sealed class CodeGenerationCapabilitiesFunction(
         "Returns the exact LocalGPT source-generation routes, output kinds, plain-file fallback behavior and database-backed scale policies the AI Council can use.",
         "No parameters.",
         "Read-only. This function describes capability; generation remains review/approval-gated and generated workspace writes require their own fresh approval.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="CodeGenerationCapabilitiesFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -33,6 +39,9 @@ public sealed class CodeGenerationCapabilitiesFunction(
     /// <summary>
     /// Returns the maintained capability map without executing or writing source code.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -63,6 +72,7 @@ public sealed class CodeGenerationCapabilitiesFunction(
     /// <summary>
     /// Builds the capability object from immutable output identifiers and database-provisioned runtime policy.
     /// </summary>
+    /// <returns>The object produced by the operation.</returns>
     private object BuildCapabilitySummary()
     {
         try

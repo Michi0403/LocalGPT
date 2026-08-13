@@ -10,6 +10,12 @@ namespace LocalGPT.Services;
 /// Gives AI chat and Council members an explicit clock and a compact, current runtime-state snapshot.
 /// The function is read-only and intentionally returns only the three newest bounded log/council rows.
 /// </summary>
+/// <param name="applicationLogs">Application log reader service dependency used by the get time and state now function workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the get time and state now function workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the get time and state now function workflow to provide the corresponding application capability.</param>
+/// <param name="councilSpooler">Council spooler service dependency used by the get time and state now function workflow to provide the corresponding application capability.</param>
+/// <param name="hardwareInventory">Hardware inventory service dependency used by the get time and state now function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetTimeAndStateNowFunction(
     IApplicationLogReaderService applicationLogs,
     IOneWirePeerRegistry peers,
@@ -19,8 +25,9 @@ public sealed class GetTimeAndStateNowFunction(
     ILogger<GetTimeAndStateNowFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the get time and state now function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetTimeAndStateNowFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.time_state.now",
         "POST",
@@ -28,6 +35,9 @@ public sealed class GetTimeAndStateNowFunction(
         "Returns LocalGPT's current UTC/local time, process state, the three newest operational logs, the three newest Council spool entries, hardware inventory and linked 1-Wire peers.",
         "No parameters are required.",
         "Read-only, bounded and safe for automatic Council preflight use. Log messages and exceptions are truncated; no chat prompts, generated source, secrets or whole databases are returned.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="GetTimeAndStateNowFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -37,8 +47,11 @@ public sealed class GetTimeAndStateNowFunction(
         ParameterSchemaJson: "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="GetTimeAndStateNowFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get time and state now function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -138,8 +151,11 @@ public sealed class GetTimeAndStateNowFunction(
 }
 
     /// <summary>
-    /// Runs the limit operation.
+    /// Performs limit for <see cref="GetTimeAndStateNowFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get time and state now function workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the get time and state now function operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the get time and state now function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Limit(string value, int maximum) {
     try
     {

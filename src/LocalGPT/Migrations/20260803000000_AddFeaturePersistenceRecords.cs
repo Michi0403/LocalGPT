@@ -7,15 +7,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace LocalGPT.Migrations;
 
 /// <summary>
-/// Represents an add feature persistence records.
+/// Defines the Entity Framework Core migration AddFeaturePersistenceRecords, applying and reverting the schema changes represented by this versioned database step.
 /// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260803000000_AddFeaturePersistenceRecords")]
 public partial class AddFeaturePersistenceRecords : Migration
 {
     /// <summary>
-    /// Runs the up operation.
+    /// Applies the schema changes defined by the <see cref="AddFeaturePersistenceRecords"/> Entity Framework Core migration to move the database forward.
     /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the add feature persistence records operation and used when producing its result.</param>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.CreateTable(
@@ -123,8 +124,9 @@ public partial class AddFeaturePersistenceRecords : Migration
     }
 
     /// <summary>
-    /// Runs the down operation.
+    /// Reverts the schema changes defined by the <see cref="AddFeaturePersistenceRecords"/> Entity Framework Core migration to return the database to its preceding shape.
     /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the add feature persistence records operation and used when producing its result.</param>
     protected override void Down(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.DropTable("CouncilGameSessionRecords");

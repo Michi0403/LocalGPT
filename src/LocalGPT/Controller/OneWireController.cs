@@ -8,8 +8,20 @@ using System.Text.Json;
 namespace LocalGPT.Controller;
 
 /// <summary>
-/// Provides one wire controller operations.
+/// Exposes the one wire application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
+/// <param name="capabilities">One wire capability catalog dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="work">One wire work spooler dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="codec">One wire envelope codec dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="dispatcher">One wire message dispatcher dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="transportSecurityPolicy">One wire transport security policy dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="dispatchContextFactory">One wire dispatch context factory dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="replayPolicy">One wire replay policy data service dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="teams">Organic council blueprint service dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="teamConfigurations">Council team configuration service dependency used by the one wire workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/onewire")]
 public sealed class OneWireController(
@@ -27,8 +39,9 @@ public sealed class OneWireController(
     ILogger<OneWireController> logger) : ControllerBase
 {
     /// <summary>
-    /// Runs the status operation.
+    /// Returns the status projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("status")]
     public IActionResult Status() => Ok(new
     {
@@ -95,33 +108,42 @@ public sealed class OneWireController(
         Ok(await capabilities.GetLocalCapabilitiesAsync(cancellationToken).ConfigureAwait(false));
 
     /// <summary>
-    /// Runs the peers operation.
+    /// Returns the peers projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("peers")]
     public ActionResult<IReadOnlyList<OneWirePeerAdvertisement>> Peers() => Ok(peers.GetPeers());
 
     /// <summary>
-    /// Runs the work operation.
+    /// Returns the work projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("work")]
     public ActionResult<IReadOnlyList<OneWireWorkItem>> Work() => Ok(work.GetSnapshot());
 
     /// <summary>
-    /// Runs the work operation.
+    /// Returns the work projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("work/{id:guid}")]
     public ActionResult<OneWireWorkItem> Work(Guid id) => work.Get(id) is { } item ? Ok(item) : NotFound();
 
     /// <summary>
-    /// Runs the council teams operation.
+    /// Returns the council teams projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("council/teams")]
     public async Task<ActionResult<IReadOnlyList<OrganicCouncilTeamDefinition>>> CouncilTeams(CancellationToken cancellationToken) =>
         Ok(await teams.GetTeamsAsync(cancellationToken).ConfigureAwait(false));
 
     /// <summary>
-    /// Saves council team.
+    /// Persists council team for the one wire API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("council/teams")]
     [HumanApprovalRequired(
         "onewire.council-team.save",
@@ -147,8 +169,11 @@ public sealed class OneWireController(
     }
 
     /// <summary>
-    /// Runs the dispatch operation.
+    /// Returns the dispatch projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("dispatch")]
     public async Task<IActionResult> Dispatch([FromBody] OneWireEnvelope envelope, CancellationToken cancellationToken)
     {
@@ -161,8 +186,12 @@ public sealed class OneWireController(
     }
 
     /// <summary>
-    /// Runs the invoke peer operation.
+    /// Invokes peer for the one wire API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="envelope">Envelope value supplied to the one wire operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("peers/{peerId}/invoke")]
     [HumanApprovalRequired(
         "onewire.peer.invoke",
@@ -189,8 +218,10 @@ public sealed class OneWireController(
     }
 
     /// <summary>
-    /// Runs the validate operation.
+    /// Returns the validate projection for the one wire API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="error">Error value supplied to the one wire operation and used when producing its result.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("validate")]
     public IActionResult Validate([FromBody] OneWireEnvelope envelope) => codec.Validate(envelope, out var error)
         ? Ok(new { valid = true })
@@ -198,8 +229,10 @@ public sealed class OneWireController(
 }
 
 /// <summary>
-/// Provides project organic context controller operations.
+/// Exposes the project organic context application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
+/// <param name="context">Project organic context service dependency used by the project organic context workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/projects/{projectId:guid}/organic-context")]
 public sealed class ProjectOrganicContextController(
@@ -207,15 +240,23 @@ public sealed class ProjectOrganicContextController(
     ILogger<ProjectOrganicContextController> logger) : ControllerBase
 {
     /// <summary>
-    /// Runs the get operation.
+    /// Returns the get projection for the project organic context API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="revisionId">Identifier of the revision to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet]
     public async Task<ActionResult<ProjectOrganicContext>> Get(Guid projectId, [FromQuery] Guid? revisionId, CancellationToken cancellationToken) =>
         Ok(await context.GetAsync(projectId, revisionId, cancellationToken).ConfigureAwait(false));
 
     /// <summary>
-    /// Runs the save operation.
+    /// Returns the save projection for the project organic context API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost]
     [HumanApprovalRequired(
         "project.organic-context.save",

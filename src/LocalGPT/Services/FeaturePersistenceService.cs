@@ -17,7 +17,13 @@ public sealed class FeaturePersistenceService(
     LocalGptCatalogService catalog,
     ILogger<FeaturePersistenceService> logger) : IFeaturePersistenceService
 {
+    /// <summary>
+    /// Retrieves council prompt starters as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="includeDisabled">Value indicating whether include disabled should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<CouncilPromptStarterConfiguration>> GetCouncilPromptStartersAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)
     {
         try
@@ -37,7 +43,13 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Retrieves council prompt starter as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council prompt starter configuration produced by the operation.</returns>
     public async Task<CouncilPromptStarterConfiguration?> GetCouncilPromptStarterAsync(Guid id, CancellationToken cancellationToken = default)
     {
         try
@@ -54,7 +66,13 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Persists council prompt starter as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council prompt starter configuration produced by the operation.</returns>
     public async Task<CouncilPromptStarterConfiguration> SaveCouncilPromptStarterAsync(SaveFeatureRecordRequest<CouncilPromptStarterConfiguration> request, CancellationToken cancellationToken = default)
     {
         try
@@ -97,7 +115,14 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Deletes council prompt starter as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public Task<bool> DeleteCouncilPromptStarterAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) {
     try
     {
@@ -113,7 +138,13 @@ public sealed class FeaturePersistenceService(
     }
 }
 
+    /// <summary>
+    /// Retrieves localization catalogs as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="includeDisabled">Value indicating whether include disabled should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<LocalizationCatalogRegistration>> GetLocalizationCatalogsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)
     {
         try
@@ -132,7 +163,13 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Retrieves localization catalog as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The localization catalog registration produced by the operation.</returns>
     public Task<LocalizationCatalogRegistration?> GetLocalizationCatalogAsync(Guid id, CancellationToken cancellationToken = default) {
     try
     {
@@ -148,7 +185,13 @@ public sealed class FeaturePersistenceService(
     }
 }
 
+    /// <summary>
+    /// Persists localization catalog as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The localization catalog registration produced by the operation.</returns>
     public async Task<LocalizationCatalogRegistration> SaveLocalizationCatalogAsync(SaveFeatureRecordRequest<LocalizationCatalogRegistration> request, CancellationToken cancellationToken = default)
     {
         try
@@ -190,7 +233,14 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Deletes localization catalog as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public Task<bool> DeleteLocalizationCatalogAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) {
     try
     {
@@ -206,7 +256,12 @@ public sealed class FeaturePersistenceService(
     }
 }
 
+    /// <summary>
+    /// Retrieves documentation builds as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<DocumentationBuildRecord>> GetDocumentationBuildsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -223,7 +278,13 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Retrieves documentation build as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The documentation build record produced by the operation.</returns>
     public Task<DocumentationBuildRecord?> GetDocumentationBuildAsync(Guid id, CancellationToken cancellationToken = default) {
     try
     {
@@ -239,7 +300,13 @@ public sealed class FeaturePersistenceService(
     }
 }
 
+    /// <summary>
+    /// Persists documentation build as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The documentation build record produced by the operation.</returns>
     public async Task<DocumentationBuildRecord> SaveDocumentationBuildAsync(SaveFeatureRecordRequest<DocumentationBuildRecord> request, CancellationToken cancellationToken = default)
     {
         try
@@ -285,7 +352,14 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Deletes documentation build as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public Task<bool> DeleteDocumentationBuildAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) {
     try
     {
@@ -301,7 +375,12 @@ public sealed class FeaturePersistenceService(
     }
 }
 
+    /// <summary>
+    /// Retrieves embedded firmware plans as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<EmbeddedFirmwarePlanRecord>> GetEmbeddedFirmwarePlansAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -318,7 +397,13 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Retrieves embedded firmware plan as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded firmware plan record produced by the operation.</returns>
     public Task<EmbeddedFirmwarePlanRecord?> GetEmbeddedFirmwarePlanAsync(Guid id, CancellationToken cancellationToken = default) {
     try
     {
@@ -334,7 +419,13 @@ public sealed class FeaturePersistenceService(
     }
 }
 
+    /// <summary>
+    /// Persists embedded firmware plan as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded firmware plan record produced by the operation.</returns>
     public async Task<EmbeddedFirmwarePlanRecord> SaveEmbeddedFirmwarePlanAsync(SaveFeatureRecordRequest<EmbeddedFirmwarePlanRecord> request, CancellationToken cancellationToken = default)
     {
         try
@@ -379,7 +470,14 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Deletes embedded firmware plan as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public Task<bool> DeleteEmbeddedFirmwarePlanAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) {
     try
     {
@@ -395,7 +493,12 @@ public sealed class FeaturePersistenceService(
     }
 }
 
+    /// <summary>
+    /// Retrieves council game sessions as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<CouncilGameSessionRecord>> GetCouncilGameSessionsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -412,7 +515,13 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Retrieves council game session as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session record produced by the operation.</returns>
     public Task<CouncilGameSessionRecord?> GetCouncilGameSessionAsync(Guid id, CancellationToken cancellationToken = default) {
     try
     {
@@ -428,7 +537,13 @@ public sealed class FeaturePersistenceService(
     }
 }
 
+    /// <summary>
+    /// Persists council game session as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game session record produced by the operation.</returns>
     public async Task<CouncilGameSessionRecord> SaveCouncilGameSessionAsync(SaveFeatureRecordRequest<CouncilGameSessionRecord> request, CancellationToken cancellationToken = default)
     {
         try
@@ -473,7 +588,14 @@ public sealed class FeaturePersistenceService(
         }
     }
 
+    /// <summary>
+    /// Deletes council game session as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public Task<bool> DeleteCouncilGameSessionAsync(Guid id, bool userConfirmed, CancellationToken cancellationToken = default) {
     try
     {
@@ -539,7 +661,9 @@ public sealed class FeaturePersistenceService(
     }
 }
 
-    /// <summary>Ensures database migrations and seeds are ready.</summary>
+    /// <summary>
+    /// Ensures ready as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="cancellationToken">Cancels initialization.</param>
     /// <returns>A task that completes when persistence is ready.</returns>
     private Task EnsureReadyAsync(CancellationToken cancellationToken) {
@@ -585,7 +709,9 @@ public sealed class FeaturePersistenceService(
         }
     }
 
-    /// <summary>Deletes one EF record after explicit confirmation.</summary>
+    /// <summary>
+    /// Performs delete as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <typeparam name="TRecord">Entity type.</typeparam>
     /// <param name="id">Entity identifier.</param>
     /// <param name="userConfirmed">Whether the user approved deletion.</param>
@@ -607,6 +733,9 @@ public sealed class FeaturePersistenceService(
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             var record = await selector(db).FindAsync(new object?[] { id }, cancellationToken).ConfigureAwait(false);
+            /// <summary>
+            /// Represents an is helper type nested within <see cref="FeaturePersistenceService"/>, grouping the state or behavior used only by that containing workflow.
+            /// </summary>
             if (record is null)
                 return false;
             selector(db).Remove(record);
@@ -633,7 +762,9 @@ public sealed class FeaturePersistenceService(
             throw new InvalidOperationException("Fresh human confirmation is required before changing persistent feature data.");
     }
 
-    /// <summary>Normalizes and validates a prompt starter.</summary>
+    /// <summary>
+    /// Normalizes starter as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="record">Record to normalize.</param>
     private void NormalizeStarter(CouncilPromptStarterConfiguration record)
     {
@@ -644,7 +775,9 @@ public sealed class FeaturePersistenceService(
         record.TeamKeysJson = RequireJson(record.TeamKeysJson, nameof(record.TeamKeysJson));
     }
 
-    /// <summary>Normalizes and validates a localization catalog registration.</summary>
+    /// <summary>
+    /// Normalizes localization as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="record">Record to normalize.</param>
     private void NormalizeLocalization(LocalizationCatalogRegistration record)
     {
@@ -704,7 +837,9 @@ public sealed class FeaturePersistenceService(
     }
 }
 
-    /// <summary>Validates and returns a JSON object or array string.</summary>
+    /// <summary>
+    /// Performs require JSON as part of the feature persistence service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="value">JSON text.</param>
     /// <param name="name">Parameter name used by the exception.</param>
     /// <returns>The validated JSON text.</returns>

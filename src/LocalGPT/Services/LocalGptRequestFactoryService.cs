@@ -4,13 +4,15 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides local gpt request factory service operations.
+/// Coordinates LocalGPT request factory behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactoryService> logger) : ILocalGptRequestFactoryService
 {
     /// <summary>
-    /// Creates project request.
+    /// Creates project request as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The save LocalGPT project request produced by the operation.</returns>
     public SaveLocalGptProjectRequest CreateProjectRequest() {
     try
     {
@@ -36,8 +38,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
 }
 
     /// <summary>
-    /// Creates topic request.
+    /// Creates topic request as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The add LocalGPT project topic request produced by the operation.</returns>
     public AddLocalGptProjectTopicRequest CreateTopicRequest() {
     try
     {
@@ -57,8 +60,10 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
 }
 
     /// <summary>
-    /// Creates version request.
+    /// Creates version request as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="path">Path value supplied to the LocalGPT request factory operation and used when producing its result.</param>
+    /// <returns>The add LocalGPT project version request produced by the operation.</returns>
     public AddLocalGptProjectVersionRequest CreateVersionRequest(string path = "") {
     try
     {
@@ -79,8 +84,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
 }
 
     /// <summary>
-    /// Creates revision request.
+    /// Creates revision request as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The save project revision request produced by the operation.</returns>
     public SaveProjectRevisionRequest CreateRevisionRequest() {
     try
     {
@@ -103,8 +109,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
 }
 
     /// <summary>
-    /// Creates requirement request.
+    /// Creates requirement request as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The save project requirement request produced by the operation.</returns>
     public SaveProjectRequirementRequest CreateRequirementRequest() {
     try
     {
@@ -126,8 +133,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
 }
 
     /// <summary>
-    /// Creates requirement link request.
+    /// Creates requirement link request as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The save project requirement link request produced by the operation.</returns>
     public SaveProjectRequirementLinkRequest CreateRequirementLinkRequest() {
     try
     {
@@ -147,8 +155,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
 }
 
     /// <summary>
-    /// Creates artifact request.
+    /// Creates artifact request as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The save project artifact request produced by the operation.</returns>
     public SaveProjectArtifactRequest CreateArtifactRequest() {
     try
     {
@@ -169,8 +178,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
 }
 
     /// <summary>
-    /// Creates workspace root request.
+    /// Creates workspace root request as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The save project workspace root request produced by the operation.</returns>
     public SaveProjectWorkspaceRootRequest CreateWorkspaceRootRequest() {
     try
     {
@@ -197,8 +207,9 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
 }
 
     /// <summary>
-    /// Creates compiler installation request.
+    /// Creates compiler installation request as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The save project compiler installation request produced by the operation.</returns>
     public SaveProjectCompilerInstallationRequest CreateCompilerInstallationRequest() {
     try
     {
@@ -220,8 +231,12 @@ public sealed class LocalGptRequestFactoryService(ILogger<LocalGptRequestFactory
 }
 
     /// <summary>
-    /// Creates d.
+    /// Creates d as part of the LocalGPT request factory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="LocalGptRequestFactoryService"/>.</typeparam>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="operation">Operation value supplied to the LocalGPT request factory operation and used when producing its result.</param>
+    /// <returns>The t produced by the operation.</returns>
     private T Created<T>(T request, string operation)
     {
         logger.LogTrace("Created default request model for {Operation}.", operation);

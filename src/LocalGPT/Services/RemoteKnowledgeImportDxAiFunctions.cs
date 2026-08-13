@@ -5,14 +5,19 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides remote import DevExpress parameter reader operations.
+/// Represents a remote import DevExpress parameter application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RemoteImportDxParameterReader(
     ILogger<RemoteImportDxParameterReader> logger)
 {
     /// <summary>
-    /// Runs the string operation.
+    /// Performs string for <see cref="RemoteImportDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding remote import DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string String(JsonElement parameters, string name, string fallback = "")
     {
         try
@@ -31,8 +36,12 @@ public sealed class RemoteImportDxParameterReader(
     }
 
     /// <summary>
-    /// Runs the boolean operation.
+    /// Performs boolean for <see cref="RemoteImportDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding remote import DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="fallback">Value indicating whether fallback should apply to this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool Boolean(JsonElement parameters, string name, bool fallback = false)
     {
         try
@@ -51,8 +60,12 @@ public sealed class RemoteImportDxParameterReader(
     }
 
     /// <summary>
-    /// Runs the integer operation.
+    /// Performs integer for <see cref="RemoteImportDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding remote import DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     public int Integer(JsonElement parameters, string name, int fallback)
     {
         try
@@ -71,8 +84,11 @@ public sealed class RemoteImportDxParameterReader(
     }
 
     /// <summary>
-    /// Runs the strings operation.
+    /// Performs strings for <see cref="RemoteImportDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding remote import DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public List<string> Strings(JsonElement parameters, string name)
     {
         try
@@ -95,8 +111,12 @@ public sealed class RemoteImportDxParameterReader(
     }
 
     /// <summary>
-    /// Runs the build operation.
+    /// Performs build for <see cref="RemoteImportDxParameterReader"/>, keeping the operation consistent with the state and invariants of the surrounding remote import DevExpress parameter workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the remote import DevExpress parameter operation and used when producing its result.</param>
+    /// <param name="preview">Value indicating whether preview should apply to this operation.</param>
+    /// <param name="confirmed">Value indicating whether confirmed should apply to this operation.</param>
+    /// <returns>The remote knowledge import request produced by the operation.</returns>
     public RemoteKnowledgeImportRequest Build(JsonElement parameters, bool preview, bool confirmed)
     {
         try
@@ -125,28 +145,38 @@ public sealed class RemoteImportDxParameterReader(
 }
 
 /// <summary>
-/// Represents an inspect remote knowledge function.
+/// Represents an inspect remote knowledge function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="importer">Remote knowledge import service dependency used by the inspect remote knowledge function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the inspect remote knowledge function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class InspectRemoteKnowledgeFunction(
     IRemoteKnowledgeImportService importer,
     RemoteImportDxParameterReader parameters,
     ILogger<InspectRemoteKnowledgeFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the inspect remote knowledge function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="InspectRemoteKnowledgeFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.knowledge.remote.inspect", "POST", "/api/dxai/functions/localgpt.knowledge.remote.inspect/invoke",
         "Downloads a user-selected public GitHub repository or webpage into the bounded cache and returns the exact file list plus regex matches without saving knowledge.",
         "JSON parameters: sourceUrl required; sourceKind, branch, fileIncludeRegex, maxFiles and maxLinkedPages optional. Omit maxFiles/maxLinkedPages or use non-positive values to use the database-backed MaxFiles policy; LocalGPT no longer imposes source-code repository or 50-page crawl ceilings.",
         "Network read with size, ZIP traversal and private-network protections. No database mutation.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="InspectRemoteKnowledgeFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true, AvailableToAi: true, RequiresHumanConfirmation: false,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sourceUrl"],"properties":{"sourceUrl":{"type":"string"},"sourceKind":{"type":"string"},"branch":{"type":"string"},"fileIncludeRegex":{"type":"string"},"maxFiles":{"type":"integer"},"maxLinkedPages":{"type":"integer"}},"additionalProperties":false}""");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="InspectRemoteKnowledgeFunction"/>, keeping the operation consistent with the state and invariants of the surrounding inspect remote knowledge function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -163,28 +193,38 @@ public sealed class InspectRemoteKnowledgeFunction(
 }
 
 /// <summary>
-/// Represents an import remote knowledge function.
+/// Represents an import remote knowledge function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="importer">Remote knowledge import service dependency used by the import remote knowledge function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Parameters value supplied to the import remote knowledge function operation and used when producing its result.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ImportRemoteKnowledgeFunction(
     IRemoteKnowledgeImportService importer,
     RemoteImportDxParameterReader parameters,
     ILogger<ImportRemoteKnowledgeFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the import remote knowledge function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ImportRemoteKnowledgeFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.knowledge.remote.import", "POST", "/api/dxai/functions/localgpt.knowledge.remote.import/invoke",
         "Imports a reviewed public GitHub repository or webpage through the existing learn-base service and associates resulting knowledge with role/topic tags.",
         "JSON parameters: sourceUrl required; sourceKind, branch, fileIncludeRegex, maxFiles, roleKeys, topics and saveToKnowledge optional. Omit maxFiles or use a non-positive value to use the database-backed MaxFiles policy.",
         "Requires fresh human confirmation before database writes. Source files remain in the local bounded cache and commercial game assets are not supplied.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ImportRemoteKnowledgeFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["sourceUrl"],"properties":{"sourceUrl":{"type":"string"},"sourceKind":{"type":"string"},"branch":{"type":"string"},"fileIncludeRegex":{"type":"string"},"maxFiles":{"type":"integer"},"maxLinkedPages":{"type":"integer"},"roleKeys":{"type":"array","items":{"type":"string"}},"topics":{"type":"array","items":{"type":"string"}},"saveToKnowledge":{"type":"boolean"}},"additionalProperties":false}""");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ImportRemoteKnowledgeFunction"/>, keeping the operation consistent with the state and invariants of the surrounding import remote knowledge function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try

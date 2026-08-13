@@ -7,16 +7,22 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides model preset service operations.
+/// Coordinates model preset behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the model preset workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the model preset workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ModelPresetService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ILogger<ModelPresetService> logger) : IModelPresetService
 {
     /// <summary>
-    /// Gets presets async.
+    /// Retrieves presets as part of the model preset service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="includeArchived">Value indicating whether include archived should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<CouncilModelPreset>> GetPresetsAsync(bool includeArchived = false, CancellationToken cancellationToken = default)
     {
     try
@@ -48,8 +54,12 @@ public sealed class ModelPresetService(
 }
 
     /// <summary>
-    /// Saves preset async.
+    /// Persists preset as part of the model preset service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="preset">Preset value supplied to the model preset operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council model preset produced by the operation.</returns>
     public async Task<CouncilModelPreset> SavePresetAsync(CouncilModelPreset preset, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         if (!userConfirmed)
@@ -121,8 +131,9 @@ public sealed class ModelPresetService(
     }
 
     /// <summary>
-    /// Normalizes loaded preset.
+    /// Normalizes loaded preset as part of the model preset service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="preset">Preset value supplied to the model preset operation and used when producing its result.</param>
     private void NormalizeLoadedPreset(CouncilModelPreset preset)
     {
         try
@@ -145,8 +156,10 @@ public sealed class ModelPresetService(
     }
 
     /// <summary>
-    /// Normalizes route.
+    /// Normalizes route as part of the model preset service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="route">Route value supplied to the model preset operation and used when producing its result.</param>
+    /// <returns>The one wire council model route produced by the operation.</returns>
     private OneWireCouncilModelRoute NormalizeRoute(OneWireCouncilModelRoute route)
     {
     try
@@ -203,8 +216,10 @@ public sealed class ModelPresetService(
 }
 
     /// <summary>
-    /// Normalizes values.
+    /// Normalizes values as part of the model preset service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="values">String dependency used by the model preset workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> NormalizeValues(IEnumerable<string>? values) {
     try
     {
@@ -226,8 +241,12 @@ public sealed class ModelPresetService(
 }
 
     /// <summary>
-    /// Runs the archive preset async operation.
+    /// Performs archive preset as part of the model preset service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="presetId">Identifier of the preset to use for this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task ArchivePresetAsync(Guid presetId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try

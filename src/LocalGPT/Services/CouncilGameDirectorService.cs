@@ -7,16 +7,28 @@ namespace LocalGPT.Services;
 /// Provides deterministic final authority for game controls and coordinates replaceable creature/object subdirectors.
 /// A configured low-parameter Council model may review the proposal later, but cannot bypass this service.
 /// </summary>
+/// <param name="subdirectors">Council game subdirector dependency used by the council game director workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilGameDirectorService(
     IEnumerable<ICouncilGameSubdirector> subdirectors,
     ILogger<CouncilGameDirectorService> logger) : ICouncilGameDirectorService
 {
+    /// <summary>
+    /// Gets the actor directors collection maintained or exposed by this council game director instance for downstream processing.
+    /// </summary>
+    /// <value>The actor directors value exposed by <see cref="CouncilGameDirectorService"/>.</value>
     private readonly IReadOnlyList<ICouncilGameSubdirector> actorDirectors = subdirectors
         .OrderBy(item => item.ActorKind)
         .ThenBy(item => item.Key, StringComparer.Ordinal)
         .ToArray();
 
+    /// <summary>
+    /// Performs evaluate as part of the council game director service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="context">Context value supplied to the council game director operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game director decision produced by the operation.</returns>
     public async Task<CouncilGameDirectorDecision> EvaluateAsync(
         CouncilGameDirectorContext context,
         CancellationToken cancellationToken = default)
@@ -73,21 +85,27 @@ public sealed class CouncilGameDirectorService(
 }
 
 /// <summary>Predicts bounded creature reactions for the next authoritative world step.</summary>
+/// <param name="actorFactory">Council game actor runtime factory dependency used by the creature council game subdirector workflow to provide the corresponding application capability.</param>
 public sealed class CreatureCouncilGameSubdirector(
     ICouncilGameActorRuntimeFactory actorFactory) : ICouncilGameSubdirector
 {
     /// <summary>
-    /// Gets or sets key.
+    /// Gets the stable key used to identify or correlate this creature council game subdirector instance with related application state.
     /// </summary>
+    /// <value>The key value exposed by <see cref="CreatureCouncilGameSubdirector"/>.</value>
     public string Key => "creature-council";
     /// <summary>
-    /// Gets or sets actor kind.
+    /// Gets the actor kind value that forms part of the creature council game subdirector state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The actor kind value exposed by <see cref="CreatureCouncilGameSubdirector"/>.</value>
     public CouncilGameActorKind ActorKind => CouncilGameActorKind.Creature;
 
     /// <summary>
-    /// Runs the predict async operation.
+    /// Performs predict for <see cref="CreatureCouncilGameSubdirector"/>, keeping the operation consistent with the state and invariants of the surrounding creature council game subdirector workflow.
     /// </summary>
+    /// <param name="context">Context value supplied to the creature council game subdirector operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game subdirector prediction produced by the operation.</returns>
     public Task<CouncilGameSubdirectorPrediction> PredictAsync(
         CouncilGameDirectorContext context,
         CancellationToken cancellationToken = default)
@@ -119,21 +137,27 @@ public sealed class CreatureCouncilGameSubdirector(
 }
 
 /// <summary>Predicts bounded reactions from doors, switches, pickups and hazards.</summary>
+/// <param name="actorFactory">Council game actor runtime factory dependency used by the reactive object council game subdirector workflow to provide the corresponding application capability.</param>
 public sealed class ReactiveObjectCouncilGameSubdirector(
     ICouncilGameActorRuntimeFactory actorFactory) : ICouncilGameSubdirector
 {
     /// <summary>
-    /// Gets or sets key.
+    /// Gets the stable key used to identify or correlate this reactive object council game subdirector instance with related application state.
     /// </summary>
+    /// <value>The key value exposed by <see cref="ReactiveObjectCouncilGameSubdirector"/>.</value>
     public string Key => "reactive-object-council";
     /// <summary>
-    /// Gets or sets actor kind.
+    /// Gets the actor kind value that forms part of the reactive object council game subdirector state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The actor kind value exposed by <see cref="ReactiveObjectCouncilGameSubdirector"/>.</value>
     public CouncilGameActorKind ActorKind => CouncilGameActorKind.ReactiveObject;
 
     /// <summary>
-    /// Runs the predict async operation.
+    /// Performs predict for <see cref="ReactiveObjectCouncilGameSubdirector"/>, keeping the operation consistent with the state and invariants of the surrounding reactive object council game subdirector workflow.
     /// </summary>
+    /// <param name="context">Context value supplied to the reactive object council game subdirector operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council game subdirector prediction produced by the operation.</returns>
     public Task<CouncilGameSubdirectorPrediction> PredictAsync(
         CouncilGameDirectorContext context,
         CancellationToken cancellationToken = default)
@@ -165,10 +189,17 @@ public sealed class ReactiveObjectCouncilGameSubdirector(
 }
 
 /// <summary>Creates stable per-turn actor descriptors without granting them state-mutation authority.</summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilGameActorRuntimeFactory(
     ILogger<CouncilGameActorRuntimeFactory> logger) : ICouncilGameActorRuntimeFactory
 {
+    /// <summary>
+    /// Creates actors using the configuration and dependencies owned by <see cref="CouncilGameActorRuntimeFactory"/>.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="context">Context value supplied to the council game actor runtime operation and used when producing its result.</param>
+    /// <param name="actorKind">Actor kind value supplied to the council game actor runtime operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<CouncilGameActorRuntimeDescriptor> CreateActors(
         CouncilGameDirectorContext context,
         CouncilGameActorKind actorKind)

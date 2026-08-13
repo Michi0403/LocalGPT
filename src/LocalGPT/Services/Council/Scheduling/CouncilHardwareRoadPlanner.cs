@@ -4,15 +4,24 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services.Council.Scheduling;
 
 /// <summary>
-/// Represents a council hardware road planner.
+/// Represents a council hardware road planner application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilHardwareRoadPlanner(
     ICouncilHardwareRoadConfigurationService configuration,
     ILogger<CouncilHardwareRoadPlanner> logger) : ICouncilHardwareRoadPlanner
 {
     /// <summary>
-    /// Builds plans.
+    /// Builds plans for <see cref="CouncilHardwareRoadPlanner"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road planner workflow.
     /// </summary>
+    /// <param name="configuredRoutes">One wire council model route dependency used by the council hardware road planner workflow to provide the corresponding application capability.</param>
+    /// <param name="participants">String dependency used by the council hardware road planner workflow to provide the corresponding application capability.</param>
+    /// <param name="requestedMaxOutputTokens">Requested max output tokens value supplied to the council hardware road planner operation and used when producing its result.</param>
+    /// <param name="requestedMaxContextTokens">Requested max context tokens value supplied to the council hardware road planner operation and used when producing its result.</param>
+    /// <param name="resourceLoadPercent">Resource load percent value supplied to the council hardware road planner operation and used when producing its result.</param>
+    /// <param name="fallbackOllamaNumGpu">Fallback ollama num gpu value supplied to the council hardware road planner operation and used when producing its result.</param>
+    /// <returns>The i read only dictionary string council hardware road plan produced by the operation.</returns>
     public IReadOnlyDictionary<string, CouncilHardwareRoadPlan> BuildPlans(
         IReadOnlyCollection<OneWireCouncilModelRoute>? configuredRoutes,
         IReadOnlyCollection<string> participants,

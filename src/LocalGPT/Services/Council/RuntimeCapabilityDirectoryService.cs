@@ -10,6 +10,13 @@ namespace LocalGPT.Services.Council;
 /// Owns the boot- and run-time DXFunction/organic-skill directory feed. The database copy is discovery
 /// metadata only; the DI handler and its declared interaction policy remain authoritative for execution.
 /// </summary>
+/// <param name="databaseInitialization">Database initialization service dependency used by the runtime capability directory workflow to provide the corresponding application capability.</param>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the runtime capability directory workflow to provide the corresponding application capability.</param>
+/// <param name="dxFunctions">Devexpress ai function registry dependency used by the runtime capability directory workflow to provide the corresponding application capability.</param>
+/// <param name="functionCatalog">Devexpress ai function catalog service dependency used by the runtime capability directory workflow to provide the corresponding application capability.</param>
+/// <param name="organicSkills">Organic skill registry service dependency used by the runtime capability directory workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the runtime capability directory workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RuntimeCapabilityDirectoryService(
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -20,20 +27,22 @@ public sealed class RuntimeCapabilityDirectoryService(
     ILogger<RuntimeCapabilityDirectoryService> logger) : IRuntimeCapabilityDirectoryService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="RuntimeCapabilityDirectoryService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     // The service itself is scoped because its function/catalog dependencies are scoped. Boot synchronization
     // and Council preflight may nevertheless overlap, so their derived database writes need one process-wide gate.
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to synchronization gate state owned by <see cref="RuntimeCapabilityDirectoryService"/>.
     /// </summary>
     private readonly SemaphoreSlim SynchronizationGate = new(1, 1);
 
     /// <summary>
-    /// Runs the synchronize async operation.
+    /// Performs synchronize as part of the runtime capability directory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The runtime capability directory snapshot produced by the operation.</returns>
     public async Task<RuntimeCapabilityDirectorySnapshot> SynchronizeAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -80,8 +89,11 @@ public sealed class RuntimeCapabilityDirectoryService(
 }
 
     /// <summary>
-    /// Runs the persist snapshot with retry async operation.
+    /// Persists snapshot with retry as part of the runtime capability directory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="snapshot">Snapshot value supplied to the runtime capability directory operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PersistSnapshotWithRetryAsync(
         RuntimeCapabilityDirectorySnapshot snapshot,
         CancellationToken cancellationToken)
@@ -129,8 +141,11 @@ public sealed class RuntimeCapabilityDirectoryService(
     }
 
     /// <summary>
-    /// Runs the persist snapshot async operation.
+    /// Persists snapshot as part of the runtime capability directory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="snapshot">Snapshot value supplied to the runtime capability directory operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private async Task<bool> PersistSnapshotAsync(
         RuntimeCapabilityDirectorySnapshot snapshot,
         CancellationToken cancellationToken)
@@ -189,8 +204,15 @@ public sealed class RuntimeCapabilityDirectoryService(
 }
 
     /// <summary>
-    /// Runs the upsert artifact async operation.
+    /// Performs upsert artifact as part of the runtime capability directory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the runtime capability directory operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the runtime capability directory operation and used when producing its result.</param>
+    /// <param name="kind">Kind value supplied to the runtime capability directory operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the runtime capability directory operation and used when producing its result.</param>
+    /// <param name="description">Description value supplied to the runtime capability directory operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task UpsertArtifactAsync(
         LocalGptMemoryDbContext db,
         string name,
@@ -237,13 +259,17 @@ public sealed class RuntimeCapabilityDirectoryService(
 }
 
 /// <summary>Feeds the runtime directory once per application boot after lossless database initialization.</summary>
+/// <param name="scopeFactory">Service scope factory dependency used by the runtime capability directory workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RuntimeCapabilityDirectoryHostedService(
     IServiceScopeFactory scopeFactory,
     ILogger<RuntimeCapabilityDirectoryHostedService> logger) : IHostedService
 {
     /// <summary>
-    /// Starts async.
+    /// Performs start as part of the runtime capability directory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
@@ -260,8 +286,10 @@ public sealed class RuntimeCapabilityDirectoryHostedService(
     }
 
     /// <summary>
-    /// Stops async.
+    /// Performs stop as part of the runtime capability directory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public Task StopAsync(CancellationToken cancellationToken) {
     try
     {

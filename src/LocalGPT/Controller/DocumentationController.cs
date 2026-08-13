@@ -8,6 +8,8 @@ namespace LocalGPT.Controller;
 /// <summary>
 /// Exposes availability metadata, searchable XML comments and the versioned PDF produced by the DocFX build pipeline.
 /// </summary>
+/// <param name="documentation">Documentation catalog service dependency used by the documentation workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/documentation")]
 [DocumentationUpdated("2.3.6")]
@@ -16,6 +18,7 @@ public sealed class DocumentationController(
     ILogger<DocumentationController> logger) : ControllerBase
 {
     /// <summary>Returns the current generated-documentation and XML-comment availability.</summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("status")]
     public ActionResult<LocalGptDocumentationStatus> Status()
     {
@@ -31,6 +34,7 @@ public sealed class DocumentationController(
     }
 
     /// <summary>Returns the documentation routes and accessible viewer features exposed by the running application.</summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("profile")]
     public ActionResult<LocalGptDocumentationProfile> Profile()
     {
@@ -52,6 +56,10 @@ public sealed class DocumentationController(
     }
 
     /// <summary>Searches localized compiler-generated XML comments by member id, summary or remarks.</summary>
+    /// <param name="query">Query value supplied to the documentation operation and used when producing its result.</param>
+    /// <param name="limit">Limit value supplied to the documentation operation and used when producing its result.</param>
+    /// <param name="culture">Culture value supplied to the documentation operation and used when producing its result.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("comments")]
     public ActionResult<IReadOnlyList<LocalGptDocumentationComment>> Comments(
         [FromQuery] string? query = null,
@@ -70,6 +78,9 @@ public sealed class DocumentationController(
     }
 
     /// <summary>Returns one localized XML documentation member by its compiler member id.</summary>
+    /// <param name="memberId">Identifier of the member to use for this operation.</param>
+    /// <param name="culture">Culture value supplied to the documentation operation and used when producing its result.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("comment")]
     public ActionResult<LocalGptDocumentationComment> Comment(
         [FromQuery] string memberId,
@@ -89,6 +100,8 @@ public sealed class DocumentationController(
 
 
     /// <summary>Serves generated DocFX HTML and supporting assets from the canonical installed documentation root.</summary>
+    /// <param name="relativePath">Relative path value supplied to the documentation operation and used when producing its result.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("/help-docs")]
     [HttpGet("/help-docs/{**relativePath}")]
     public IActionResult Html([FromRoute] string? relativePath = null)
@@ -112,6 +125,7 @@ public sealed class DocumentationController(
     }
 
     /// <summary>Downloads the versioned LocalGPT PDF generated for the running build.</summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("pdf")]
     public IActionResult Pdf()
     {

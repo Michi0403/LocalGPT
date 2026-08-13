@@ -8,8 +8,14 @@ using System.Text;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides human collaboration service operations.
+/// Coordinates human collaboration behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the human collaboration workflow to provide the corresponding application capability.</param>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the human collaboration workflow to provide the corresponding application capability.</param>
+/// <param name="ambientContext">Ambient local gpt context dependency used by the human collaboration workflow to provide the corresponding application capability.</param>
+/// <param name="componentActivity">Component activity service dependency used by the human collaboration workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the human collaboration workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabulary,
     
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -18,13 +24,16 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<HumanCollaborationService> logger) : IHumanCollaborationService
 {
+    /// <summary>
+    /// Defines the max text length constant used by <see cref="HumanCollaborationService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxTextLength = 1_000_000;
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to database gate state owned by <see cref="HumanCollaborationService"/>.
     /// </summary>
     private readonly SemaphoreSlim databaseGate = new(1, 1);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory active runs collection maintained internally by <see cref="HumanCollaborationService"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<Guid, HumanCouncilRunSnapshot> activeRuns = new();
     /// <summary>Tracks the single active-model consumer that claimed each direct user message for immediate interruption.</summary>
@@ -34,22 +43,26 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     /// <summary>Tracks the participant currently owning ordered live presentation for each Council run so a direct heartbeat interrupts the model the user is actually watching instead of an arbitrary parallel subscriber.</summary>
     private readonly ConcurrentDictionary<Guid, string> preferredDirectUserMessageConsumers = new();
     /// <summary>
-    /// Runs the new guid operation.
+    /// Stores the internal approval session identifier state used by <see cref="HumanCollaborationService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Guid approvalSessionId = Guid.NewGuid();
 
     /// <summary>
-    /// Occurs when changed.
+    /// Occurs when changed changes or completes in <see cref="HumanCollaborationService"/>, allowing interested callers to react without polling internal state.
     /// </summary>
     public event Action? Changed;
     /// <summary>
-    /// Occurs when direct user message queued.
+    /// Occurs when direct user message queued changes or completes in <see cref="HumanCollaborationService"/>, allowing interested callers to react without polling internal state.
     /// </summary>
     public event Action<HumanCouncilContribution>? DirectUserMessageQueued;
 
     /// <summary>
-    /// Gets snapshot async.
+    /// Retrieves snapshot as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="includeResolved">Value indicating whether include resolved should apply to this operation.</param>
+    /// <param name="take">Take value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human collaboration snapshot produced by the operation.</returns>
     public async Task<HumanCollaborationSnapshot> GetSnapshotAsync(
         bool includeResolved = true,
         int take = 80,
@@ -97,8 +110,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Runs the authorize or enqueue async operation.
+    /// Performs authorize or enqueue as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="directHumanConfirmation">Value indicating whether direct human confirmation should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human approval gate result produced by the operation.</returns>
     public async Task<HumanApprovalGateResult> AuthorizeOrEnqueueAsync(
         HumanApprovalRequestSpec request,
         bool directHumanConfirmation = false,
@@ -304,8 +321,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Resolves request async.
+    /// Resolves request as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="requestId">Identifier of the request to use for this operation.</param>
+    /// <param name="submission">Submission value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human collaboration request produced by the operation.</returns>
     public async Task<HumanCollaborationRequest?> ResolveRequestAsync(
         Guid requestId,
         HumanDecisionSubmission submission,
@@ -418,8 +439,10 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Gets profile async.
+    /// Retrieves profile as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human council participant profile produced by the operation.</returns>
     public async Task<HumanCouncilParticipantProfile> GetProfileAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -442,8 +465,11 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Saves profile async.
+    /// Persists profile as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="profile">Profile value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human council participant profile produced by the operation.</returns>
     public async Task<HumanCouncilParticipantProfile> SaveProfileAsync(
         HumanCouncilParticipantProfile profile,
         CancellationToken cancellationToken = default)
@@ -501,8 +527,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Runs the queue contribution async operation.
+    /// Performs queue contribution as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="content">Content value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human council contribution produced by the operation.</returns>
     public Task<HumanCouncilContribution> QueueContributionAsync(
         Guid councilRunId,
         string content,
@@ -527,8 +557,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Runs the queue user message async operation.
+    /// Performs queue user message as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="content">Content value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human council contribution produced by the operation.</returns>
     public Task<HumanCouncilContribution> QueueUserMessageAsync(
         Guid councilRunId,
         string content,
@@ -552,7 +586,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 }
 
+    /// <summary>
+    /// Sets preferred direct user message consumer as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="consumerKey">Consumer key value supplied to the human collaboration operation and used when producing its result.</param>
     public void SetPreferredDirectUserMessageConsumer(Guid councilRunId, string consumerKey)
     {
         try
@@ -567,7 +606,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         }
     }
 
+    /// <summary>
+    /// Performs clear preferred direct user message consumer as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="consumerKey">Consumer key value supplied to the human collaboration operation and used when producing its result.</param>
     public void ClearPreferredDirectUserMessageConsumer(Guid councilRunId, string consumerKey)
     {
         try
@@ -586,7 +630,14 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
         }
     }
 
+    /// <summary>
+    /// Attempts to claim direct user message as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="contributionId">Identifier of the contribution to use for this operation.</param>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="consumerKey">Consumer key value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool TryClaimDirectUserMessage(Guid contributionId, Guid councilRunId, string consumerKey)
     {
         try
@@ -610,8 +661,14 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 
     /// <summary>
-    /// Runs the queue contribution core async operation.
+    /// Performs queue contribution core as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="content">Content value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="requireEnabledProfile">Value indicating whether require enabled profile should apply to this operation.</param>
+    /// <param name="directUserMessage">Value indicating whether direct user message should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human council contribution produced by the operation.</returns>
     private async Task<HumanCouncilContribution> QueueContributionCoreAsync(
         Guid councilRunId,
         string content,
@@ -686,8 +743,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Reads queued contributions async.
+    /// Reads queued contributions as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="currentRound">Current round value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<HumanCouncilContribution>> ReadQueuedContributionsAsync(
         Guid councilRunId,
         int currentRound,
@@ -724,8 +785,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Runs the drain contributions async operation.
+    /// Performs drain contributions as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="currentRound">Current round value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<HumanCouncilContribution>> DrainContributionsAsync(
         Guid councilRunId,
         int currentRound,
@@ -777,8 +842,13 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Runs the mark contributions evaluated async operation.
+    /// Performs mark contributions evaluated as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="afterRound">After round value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="evaluation">Evaluation value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task MarkContributionsEvaluatedAsync(
         Guid councilRunId,
         int afterRound,
@@ -828,8 +898,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Builds council briefing async.
+    /// Builds council briefing as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="currentRound">Current round value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public async Task<string> BuildCouncilBriefingAsync(
         Guid councilRunId,
         int currentRound,
@@ -911,8 +985,14 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Gets gate status async.
+    /// Retrieves gate status as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="upcomingRound">Upcoming round value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="upcomingPhase">Upcoming phase value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="boundary">Boundary value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human collaboration gate status produced by the operation.</returns>
     public async Task<HumanCollaborationGateStatus> GetGateStatusAsync(
         Guid councilRunId,
         int upcomingRound,
@@ -953,8 +1033,11 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Determines whether required pending input async.
+    /// Determines whether required pending input as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public async Task<bool> HasRequiredPendingInputAsync(Guid councilRunId, CancellationToken cancellationToken = default)
     {
     try
@@ -980,8 +1063,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 
 
     /// <summary>
-    /// Runs the synchronize active human membership operation.
+    /// Performs synchronize active human membership as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="profile">Profile value supplied to the human collaboration operation and used when producing its result.</param>
     private void SynchronizeActiveHumanMembership(HumanCouncilParticipantProfile profile)
     {
     try
@@ -1014,8 +1098,10 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Runs the begin council run operation.
+    /// Performs begin council run as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="members">String dependency used by the human collaboration workflow to provide the corresponding application capability.</param>
     public void BeginCouncilRun(Guid runId, IReadOnlyList<string> members)
     {
     try
@@ -1035,8 +1121,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Updates council run.
+    /// Updates council run as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="currentRound">Current round value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="isWaitingForFinalHumanInput">Value indicating whether is waiting for final human input should apply to this operation.</param>
     public void UpdateCouncilRun(Guid runId, int currentRound, string phase, bool isWaitingForFinalHumanInput = false)
     {
     try
@@ -1063,8 +1153,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Runs the end council run operation.
+    /// Performs end council run as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
     public void EndCouncilRun(Guid runId)
     {
     try
@@ -1090,8 +1181,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Ensures trusted human interaction.
+    /// Ensures trusted human interaction as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="operation">Operation value supplied to the human collaboration operation and used when producing its result.</param>
     private void EnsureTrustedHumanInteraction(string operation)
     {
     try
@@ -1111,8 +1203,9 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Runs the notify direct user message queued operation.
+    /// Performs notify direct user message queued as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="contribution">Contribution value supplied to the human collaboration operation and used when producing its result.</param>
     private void NotifyDirectUserMessageQueued(HumanCouncilContribution contribution)
     {
         var listeners = DirectUserMessageQueued?.GetInvocationList()
@@ -1132,7 +1225,7 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 
     /// <summary>
-    /// Runs the notify changed operation.
+    /// Performs notify changed as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     private void NotifyChanged()
     {
@@ -1151,8 +1244,10 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
     }
 
     /// <summary>
-    /// Runs the determine evaluation verdict operation.
+    /// Performs determine evaluation verdict as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="evaluation">Evaluation value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string DetermineEvaluationVerdict(string evaluation)
     {
     try
@@ -1177,8 +1272,13 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Runs the blocks boundary operation.
+    /// Performs blocks boundary as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="upcomingRound">Upcoming round value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="upcomingPhase">Upcoming phase value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="boundary">Boundary value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool BlocksBoundary(
         HumanCollaborationRequest request,
         int upcomingRound,
@@ -1220,8 +1320,10 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Determines whether reusable decision.
+    /// Determines whether reusable decision as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsReusableDecision(HumanCollaborationRequest request)
     {
     try
@@ -1255,8 +1357,11 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Gets default reuse scope.
+    /// Retrieves default reuse scope as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="requestKind">Request kind value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="riskLevel">Risk level value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <returns>The human approval reuse scope produced by the operation.</returns>
     private HumanApprovalReuseScope GetDefaultReuseScope(string requestKind, string? riskLevel)
     {
     try
@@ -1279,8 +1384,11 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Gets default consume approval.
+    /// Retrieves default consume approval as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="requestKind">Request kind value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="riskLevel">Risk level value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool GetDefaultConsumeApproval(string requestKind, string? riskLevel) {
     try
     {
@@ -1297,8 +1405,10 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Determines whether high impact risk.
+    /// Determines whether high impact risk as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="riskLevel">Risk level value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsHighImpactRisk(string? riskLevel) {
     try
     {
@@ -1316,8 +1426,10 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Normalizes question scope.
+    /// Normalizes question scope as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeQuestionScope(string? value)
     {
     try
@@ -1340,8 +1452,11 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Normalizes gate mode.
+    /// Normalizes gate mode as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="requiredBeforeCompletion">Value indicating whether required before completion should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeGateMode(string? value, bool requiredBeforeCompletion)
     {
     try
@@ -1366,8 +1481,10 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Normalizes request kind.
+    /// Normalizes request kind as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeRequestKind(string? value)
     {
     try
@@ -1390,8 +1507,12 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Runs the normalize operation.
+    /// Performs normalize as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Normalize(string? value, int maxLength, string fallback = "")
     {
     try
@@ -1413,8 +1534,11 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 }
 
     /// <summary>
-    /// Normalizes multiline.
+    /// Normalizes multiline as part of the human collaboration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the human collaboration operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeMultiline(string? value, int maxLength)
     {
     try

@@ -12,6 +12,12 @@ namespace LocalGPT.Services.Council;
 /// Deterministic seed gaps are filled by database initialization; missing volatile facts are returned as
 /// explicit questions instead of being guessed.
 /// </summary>
+/// <param name="databaseInitialization">Database initialization service dependency used by the council preflight workflow to provide the corresponding application capability.</param>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the council preflight workflow to provide the corresponding application capability.</param>
+/// <param name="capabilityDirectory">Runtime capability directory service dependency used by the council preflight workflow to provide the corresponding application capability.</param>
+/// <param name="oneWirePeers">One wire peer registry dependency used by the council preflight workflow to provide the corresponding application capability.</param>
+/// <param name="teams">Council team configuration service dependency used by the council preflight workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilPreflightService(
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -21,8 +27,13 @@ public sealed class CouncilPreflightService(
     ILogger<CouncilPreflightService> logger) : ICouncilPreflightService
 {
     /// <summary>
-    /// Runs the prepare async operation.
+    /// Performs prepare as part of the council preflight service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="participants">String dependency used by the council preflight workflow to provide the corresponding application capability.</param>
+    /// <param name="modelRoutes">Council hardware road plan dependency used by the council preflight workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council preflight report produced by the operation.</returns>
     public async Task<CouncilPreflightReport> PrepareAsync(
         MultiModelCouncilRequest request,
         IReadOnlyList<string> participants,
@@ -206,8 +217,12 @@ public sealed class CouncilPreflightService(
 }
 
     /// <summary>
-    /// Builds member readiness prompt.
+    /// Builds member readiness prompt as part of the council preflight service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="modelName">Model name value supplied to the council preflight operation and used when producing its result.</param>
+    /// <param name="participants">String dependency used by the council preflight workflow to provide the corresponding application capability.</param>
+    /// <param name="report">Report value supplied to the council preflight operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string BuildMemberReadinessPrompt(
         string modelName,
         IReadOnlyList<string> participants,
@@ -265,8 +280,13 @@ public sealed class CouncilPreflightService(
 }
 
     /// <summary>
-    /// Runs the render introduction template operation.
+    /// Performs render introduction template as part of the council preflight service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="template">Template value supplied to the council preflight operation and used when producing its result.</param>
+    /// <param name="modelName">Model name value supplied to the council preflight operation and used when producing its result.</param>
+    /// <param name="participants">String dependency used by the council preflight workflow to provide the corresponding application capability.</param>
+    /// <param name="report">Report value supplied to the council preflight operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RenderIntroductionTemplate(string template, string modelName, IReadOnlyList<string> participants, CouncilPreflightReport report)
     {
     try
@@ -292,8 +312,11 @@ public sealed class CouncilPreflightService(
 }
 
     /// <summary>
-    /// Builds prompt context.
+    /// Builds prompt context as part of the council preflight service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="report">Report value supplied to the council preflight operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildPromptContext(CouncilPreflightReport report, MultiModelCouncilRequest request)
     {
     try
@@ -329,8 +352,11 @@ public sealed class CouncilPreflightService(
 }
 
     /// <summary>
-    /// Runs the select relevant regexes operation.
+    /// Performs select relevant regexes as part of the council preflight service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="names">String dependency used by the council preflight workflow to provide the corresponding application capability.</param>
+    /// <param name="prompt">Prompt value supplied to the council preflight operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> SelectRelevantRegexes(IReadOnlyList<string> names, string prompt)
     {
     try
@@ -360,8 +386,10 @@ public sealed class CouncilPreflightService(
 }
 
     /// <summary>
-    /// Parses string array.
+    /// Parses string array as part of the council preflight service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="json">Json value supplied to the council preflight operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> ParseStringArray(string? json)
     {
     try

@@ -8,18 +8,21 @@ namespace LocalGPT.Services.Persistence;
 public sealed class DatabaseLoggerReadiness : IDatabaseLoggerReadiness
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal ready state used by <see cref="DatabaseLoggerReadiness"/> while executing its surrounding workflow.
     /// </summary>
     private readonly TaskCompletionSource<bool> ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
-    /// Gets or sets is ready.
+    /// Gets a value indicating whether ready applies to the database logger readiness state.
     /// </summary>
+    /// <value>The is ready value exposed by <see cref="DatabaseLoggerReadiness"/>.</value>
     public bool IsReady => ready.Task.IsCompletedSuccessfully;
 
     /// <summary>
-    /// Runs the wait until ready async operation.
+    /// Performs wait until ready for <see cref="DatabaseLoggerReadiness"/>, keeping the operation consistent with the state and invariants of the surrounding database logger readiness workflow.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public Task WaitUntilReadyAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -38,7 +41,7 @@ public sealed class DatabaseLoggerReadiness : IDatabaseLoggerReadiness
 }
 
     /// <summary>
-    /// Runs the mark ready operation.
+    /// Performs mark ready for <see cref="DatabaseLoggerReadiness"/>, keeping the operation consistent with the state and invariants of the surrounding database logger readiness workflow.
     /// </summary>
     public void MarkReady() {
     try

@@ -7,8 +7,12 @@ using System.Text.Json;
 namespace LocalGPT.Services.Persistence;
 
 /// <summary>
-/// Provides local gpt runtime policy store service operations.
+/// Coordinates LocalGPT runtime policy store behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the LocalGPT runtime policy store workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the LocalGPT runtime policy store workflow to provide the corresponding application capability.</param>
+/// <param name="seedData">Local gpt runtime policy seed data service dependency used by the LocalGPT runtime policy store workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalGptRuntimePolicyStoreService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -16,8 +20,9 @@ public sealed class LocalGptRuntimePolicyStoreService(
     ILogger<LocalGptRuntimePolicyStoreService> logger) : ILocalGptRuntimePolicyStoreService
 {
     /// <summary>
-    /// Gets definition.
+    /// Retrieves definition as part of the LocalGPT runtime policy store service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The LocalGPT runtime policy definition produced by the operation.</returns>
     public LocalGptRuntimePolicyDefinition? GetDefinition()
     {
         try

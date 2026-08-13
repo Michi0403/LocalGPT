@@ -11,15 +11,21 @@ using System.Text.Json.Serialization;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents an ollama thinking chat client.
+/// Represents an Ollama thinking chat application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 public sealed class OllamaThinkingChatClient : IChatClient
 {
+    /// <summary>
+    /// Defines the max automatic tool rounds constant used by <see cref="OllamaThinkingChatClient"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxAutomaticToolRounds = 3;
+    /// <summary>
+    /// Defines the max tool result characters constant used by <see cref="OllamaThinkingChatClient"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxToolResultCharacters = 16_000;
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -28,24 +34,80 @@ public sealed class OllamaThinkingChatClient : IChatClient
     };
 
     private readonly HttpClient http;
+    /// <summary>
+    /// Stores the internal model state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string model;
+    /// <summary>
+    /// Stores the internal keep alive state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string keepAlive;
+    /// <summary>
+    /// Stores the internal context length state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly int? contextLength;
+    /// <summary>
+    /// Stores the internal num GPU state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly int? numGpu;
+    /// <summary>
+    /// Stores the logger used by <see cref="OllamaThinkingChatClient"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger logger;
+    /// <summary>
+    /// Stores the internal provider options state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly OllamaCoreOptions providerOptions;
+    /// <summary>
+    /// Stores the chat response formatter factory dependency used by <see cref="OllamaThinkingChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IChatResponseFormatterFactory formatterFactory;
+    /// <summary>
+    /// Stores the chat protocol resolver dependency used by <see cref="OllamaThinkingChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IChatProtocolResolver protocolResolver;
+    /// <summary>
+    /// Stores the prompt config service dependency used by <see cref="OllamaThinkingChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IPromptConfigService? promptConfigService;
+    /// <summary>
+    /// Stores the DevExpress AI function registry dependency used by <see cref="OllamaThinkingChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IDxAiFunctionRegistry? functionRegistry;
+    /// <summary>
+    /// Stores the DevExpress AI function call recovery service dependency used by <see cref="OllamaThinkingChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IDxAiFunctionCallRecoveryService? functionCallRecovery;
+    /// <summary>
+    /// Stores the internal automatic tools enabled state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly bool automaticToolsEnabled;
+    /// <summary>
+    /// Stores the internal throw on failure state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly bool throwOnFailure;
+    /// <summary>
+    /// Stores the council runtime service dependency used by <see cref="OllamaThinkingChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly CouncilRuntimeService councilRuntime;
 
     /// <summary>
-    /// Runs the ollama thinking chat client operation.
+    /// Initializes a new <see cref="OllamaThinkingChatClient"/> instance and captures the dependencies or initial state required by its Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="keepAlive">Keep alive value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="contextLength">Context length value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="timeout">Timeout value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="numGpu">Num gpu value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="formatterFactory">Chat response formatter factory dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="protocolResolver">Chat protocol resolver dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="promptConfigService">Prompt config service dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="functionRegistry">Devexpress ai function registry dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="functionCallRecovery">Devexpress ai function call recovery service dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="enableAutomaticTools">Value indicating whether enable automatic tools should apply to this operation.</param>
+    /// <param name="throwOnFailure">Value indicating whether throw on failure should apply to this operation.</param>
     public OllamaThinkingChatClient(
         OllamaCoreOptions options,
         ILogger logger,
@@ -99,8 +161,12 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 
     /// <summary>
-    /// Gets response async.
+    /// Retrieves response for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="messages">Chat message dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The chat response produced by the operation.</returns>
     public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -170,8 +236,12 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 
     /// <summary>
-    /// Gets streaming response async.
+    /// Retrieves streaming response for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="messages">Chat message dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The i async enumerable chat response update produced by the operation.</returns>
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -360,8 +430,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 
     /// <summary>
-    /// Creates failure response.
+    /// Creates failure response for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="message">Message value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The chat response produced by the operation.</returns>
     private ChatResponse CreateFailureResponse(string message) {
     try
     {
@@ -378,8 +450,11 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Gets service.
+    /// Retrieves service for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="serviceType">Service type value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="serviceKey">Service key value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The object produced by the operation.</returns>
     public object? GetService(Type serviceType, object? serviceKey = null) {
     try
     {
@@ -396,7 +471,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the dispose operation.
+    /// Releases resources owned by <see cref="OllamaThinkingChatClient"/> and leaves the Ollama thinking chat workflow in a safely disposed state.
     /// </summary>
     public void Dispose() {
     try
@@ -414,8 +489,13 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the send async operation.
+    /// Performs send for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="messages">Ollama chat message dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="stream">Value indicating whether stream should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The Ollama chat response produced by the operation.</returns>
     private async Task<OllamaChatResponse?> SendAsync(
         IReadOnlyList<OllamaChatMessage> messages,
         ChatOptions? options,
@@ -448,8 +528,12 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 
     /// <summary>
-    /// Runs the send request with tool fallback async operation.
+    /// Performs send request with tool fallback for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="completionOption">Completion option value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP response message produced by the operation.</returns>
     private async Task<HttpResponseMessage> SendRequestWithToolFallbackAsync(
         OllamaChatRequest request,
         HttpCompletionOption completionOption,
@@ -496,8 +580,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Ensures textual DevExpress function fallback prompt.
+    /// Ensures textual DevExpress function fallback prompt for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     private void EnsureTextualDxFunctionFallbackPrompt(OllamaChatRequest request)
     {
         try
@@ -544,8 +629,12 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 
     /// <summary>
-    /// Runs the send request once async operation.
+    /// Performs send request once for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="completionOption">Completion option value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP response message produced by the operation.</returns>
     private async Task<HttpResponseMessage> SendRequestOnceAsync(
         OllamaChatRequest request,
         HttpCompletionOption completionOption,
@@ -571,8 +660,11 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Creates conversation async.
+    /// Creates conversation for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="messages">Chat message dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<List<OllamaChatMessage>> CreateConversationAsync(
         IEnumerable<ChatMessage> messages,
         CancellationToken cancellationToken)
@@ -607,8 +699,13 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Creates request async.
+    /// Creates request for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="messages">Ollama chat message dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="stream">Value indicating whether stream should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The Ollama chat request produced by the operation.</returns>
     private Task<OllamaChatRequest> CreateRequestAsync(
         IReadOnlyList<OllamaChatMessage> messages,
         ChatOptions? options,
@@ -647,8 +744,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Builds automatic tools.
+    /// Builds automatic tools for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private List<OllamaToolDefinition>? BuildAutomaticTools()
     {
     try
@@ -692,8 +790,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Gets automatic functions.
+    /// Retrieves automatic functions for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<DxaichatFunctionInfo> GetAutomaticFunctions() {
     try
     {
@@ -719,8 +818,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the to ollama tool calls operation.
+    /// Performs to Ollama tool calls for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="calls">Recovered devexpress ai function call dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<OllamaToolCall> ToOllamaToolCalls(IEnumerable<RecoveredDxAiFunctionCall> calls) {
     try
     {
@@ -744,8 +845,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the to transport tool name operation.
+    /// Performs to transport tool name for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="registryName">Registry name value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ToTransportToolName(string registryName)
     {
     try
@@ -767,8 +870,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the deduplicate tool calls operation.
+    /// Performs deduplicate tool calls for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="toolCalls">Ollama tool call dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<OllamaToolCall> DeduplicateToolCalls(IEnumerable<OllamaToolCall> toolCalls)
     {
     try
@@ -795,8 +900,12 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the append automatic tool results async operation.
+    /// Performs append automatic tool results for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="conversation">Conversation value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="toolCalls">Ollama tool call dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task AppendAutomaticToolResultsAsync(
         List<OllamaChatMessage> conversation,
         IReadOnlyList<OllamaToolCall> toolCalls,
@@ -854,8 +963,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Resolves registry function name.
+    /// Resolves registry function name for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="toolName">Tool name value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? ResolveRegistryFunctionName(string toolName) {
     try
     {
@@ -874,8 +985,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the to ollama tool name operation.
+    /// Performs to Ollama tool name for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="registryName">Registry name value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ToOllamaToolName(string registryName)
     {
     try
@@ -897,8 +1010,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Builds parameters schema.
+    /// Builds parameters schema for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="function">Function value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The JSON element produced by the operation.</returns>
     private JsonElement BuildParametersSchema(DxaichatFunctionInfo function)
     {
         try
@@ -917,8 +1032,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
     }
 
     /// <summary>
-    /// Normalizes arguments.
+    /// Normalizes arguments for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="arguments">Arguments value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The JSON element produced by the operation.</returns>
     private JsonElement NormalizeArguments(JsonElement arguments) {
     try
     {
@@ -937,8 +1054,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the serialize tool result operation.
+    /// Performs serialize tool result for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="result">Result value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SerializeToolResult(DxAiFunctionInvocationResult result)
     {
     try
@@ -960,8 +1079,11 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Creates contents async.
+    /// Creates contents for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="response">Response value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<List<AIContent>> CreateContentsAsync(
         OllamaChatResponse response,
         CancellationToken cancellationToken)
@@ -1001,8 +1123,11 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Gets prompt async.
+    /// Retrieves prompt for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="key">Key value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> GetPromptAsync(string key, CancellationToken cancellationToken)
     {
     try
@@ -1024,8 +1149,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the clone message operation.
+    /// Performs clone message for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="message">Message value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The Ollama chat message produced by the operation.</returns>
     private OllamaChatMessage CloneMessage(OllamaChatMessage message) {
     try
     {
@@ -1056,8 +1183,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Runs the to ollama message operation.
+    /// Performs to Ollama message for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="message">Message value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The Ollama chat message produced by the operation.</returns>
     private OllamaChatMessage ToOllamaMessage(ChatMessage message) {
     try
     {
@@ -1082,8 +1211,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Adds system prompt.
+    /// Adds system prompt for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="messages">Messages value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <param name="prompt">Prompt value supplied to the Ollama thinking chat operation and used when producing its result.</param>
     private void AddSystemPrompt(List<OllamaChatMessage> messages, string prompt)
     {
     try
@@ -1113,8 +1244,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
 }
 
     /// <summary>
-    /// Creates streaming update.
+    /// Creates streaming update for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
+    /// <param name="text">Text value supplied to the Ollama thinking chat operation and used when producing its result.</param>
+    /// <returns>The chat response update produced by the operation.</returns>
     private ChatResponseUpdate CreateStreamingUpdate(string text)
     {
     try

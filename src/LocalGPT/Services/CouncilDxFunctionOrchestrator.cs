@@ -10,6 +10,12 @@ namespace LocalGPT.Services;
 /// scoped function client. Catalog exposure and invocation metadata remain the source of truth.
 /// A failed function call becomes a readable Council step instead of aborting the whole run.
 /// </summary>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the council DevExpress function orchestrator workflow to provide the corresponding application capability.</param>
+/// <param name="patterns">Council text pattern data service dependency used by the council DevExpress function orchestrator workflow to provide the corresponding application capability.</param>
+/// <param name="policies">Council devexpress function policy data service dependency used by the council DevExpress function orchestrator workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Devexpress ai function catalog service dependency used by the council DevExpress function orchestrator workflow to provide the corresponding application capability.</param>
+/// <param name="functionClient">Devexpress ai function service client dependency used by the council DevExpress function orchestrator workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService vocabulary,
     
     ICouncilTextPatternDataService patterns,
@@ -19,8 +25,12 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
     ILogger<CouncilDxFunctionOrchestrator> logger) : ICouncilDxFunctionOrchestrator
 {
     /// <summary>
-    /// Runs the execute requested calls async operation.
+    /// Executes requested calls for <see cref="CouncilDxFunctionOrchestrator"/>, keeping the operation consistent with the state and invariants of the surrounding council DevExpress function orchestrator workflow.
     /// </summary>
+    /// <param name="result">Result value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
+    /// <param name="sourceStep">Source step value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<MultiModelCouncilStep>> ExecuteRequestedCallsAsync(
         MultiModelCouncilResult result,
         MultiModelCouncilStep sourceStep,
@@ -189,8 +199,13 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
     }
 
     /// <summary>
-    /// Creates gateway step.
+    /// Creates gateway step for <see cref="CouncilDxFunctionOrchestrator"/>, keeping the operation consistent with the state and invariants of the surrounding council DevExpress function orchestrator workflow.
     /// </summary>
+    /// <param name="sourceStep">Source step value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
+    /// <param name="title">Title value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
+    /// <param name="message">Message value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
+    /// <param name="error">Error value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
+    /// <returns>The multi model council step produced by the operation.</returns>
     private MultiModelCouncilStep CreateGatewayStep(
         MultiModelCouncilStep sourceStep,
         string title,
@@ -227,8 +242,11 @@ public sealed class CouncilDxFunctionOrchestrator(ILocalGptVocabularyService voc
 }
 
     /// <summary>
-    /// Runs the truncate operation.
+    /// Performs truncate for <see cref="CouncilDxFunctionOrchestrator"/>, keeping the operation consistent with the state and invariants of the surrounding council DevExpress function orchestrator workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
+    /// <param name="maximumCharacters">Maximum characters value supplied to the council DevExpress function orchestrator operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Truncate(string value, int maximumCharacters) {
     try
     {

@@ -7,7 +7,9 @@ namespace LocalGPT.Interfaces;
 public interface IDatabaseMigrationCompatibilityService
 {
     /// <summary>
-    /// Runs the prepare async operation.
+    /// Performs prepare as part of the database migration compatibility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task PrepareAsync(CancellationToken cancellationToken = default);
 }

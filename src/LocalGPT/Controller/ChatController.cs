@@ -6,14 +6,17 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller
 {
     /// <summary>
-    /// Provides chat controller operations.
+    /// Exposes the chat application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
     /// </summary>
+    /// <param name="regexSvc">Regex pattern service dependency used by the chat workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public class ChatController(IRegexPatternService regexSvc, ILogger<ChatController> logger) : ControllerBase
     {
         // New service-based implementation
         /// <summary>
-        /// Gets help message.
+        /// Retrieves help message for the chat API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("help-message")]
         public async Task<IActionResult> GetHelpMessage()
         {

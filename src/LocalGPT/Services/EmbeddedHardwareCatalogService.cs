@@ -5,8 +5,10 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides embedded hardware catalog service operations.
+/// Coordinates embedded hardware catalog behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="environment">Web host environment dependency used by the embedded hardware catalog workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class EmbeddedHardwareCatalogService(
     IWebHostEnvironment environment,
     ILogger<EmbeddedHardwareCatalogService> logger) : IEmbeddedHardwareCatalogService
@@ -20,8 +22,10 @@ public sealed class EmbeddedHardwareCatalogService(
     };
 
     /// <summary>
-    /// Gets catalog async.
+    /// Retrieves catalog as part of the embedded hardware catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded board catalog produced by the operation.</returns>
     public async Task<EmbeddedBoardCatalog> GetCatalogAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -43,8 +47,10 @@ public sealed class EmbeddedHardwareCatalogService(
 }
 
     /// <summary>
-    /// Gets board profiles async.
+    /// Retrieves board profiles as part of the embedded hardware catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<EmbeddedBoardProfile>> GetBoardProfilesAsync(CancellationToken cancellationToken = default)
     {
         var profiles = new Dictionary<string, EmbeddedBoardProfile>(StringComparer.OrdinalIgnoreCase);
@@ -88,8 +94,11 @@ public sealed class EmbeddedHardwareCatalogService(
     }
 
     /// <summary>
-    /// Gets board profile async.
+    /// Retrieves board profile as part of the embedded hardware catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="boardProfileKey">Board profile key value supplied to the embedded hardware catalog operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded board profile produced by the operation.</returns>
     public async Task<EmbeddedBoardProfile?> GetBoardProfileAsync(string boardProfileKey, CancellationToken cancellationToken = default)
     {
     try
@@ -111,8 +120,10 @@ public sealed class EmbeddedHardwareCatalogService(
 }
 
     /// <summary>
-    /// Gets protocol descriptors async.
+    /// Retrieves protocol descriptors as part of the embedded hardware catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public Task<IReadOnlyList<EmbeddedProtocolDescriptor>> GetProtocolDescriptorsAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -150,8 +161,9 @@ public sealed class EmbeddedHardwareCatalogService(
 }
 
     /// <summary>
-    /// Gets publisher workbench contract.
+    /// Retrieves publisher workbench contract as part of the embedded hardware catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The embedded publisher workbench contract produced by the operation.</returns>
     public EmbeddedPublisherWorkbenchContract GetPublisherWorkbenchContract() {
     try
     {
@@ -168,8 +180,9 @@ public sealed class EmbeddedHardwareCatalogService(
 }
 
     /// <summary>
-    /// Gets profile directories.
+    /// Retrieves profile directories as part of the embedded hardware catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> GetProfileDirectories()
     {
     try
@@ -193,8 +206,9 @@ public sealed class EmbeddedHardwareCatalogService(
 }
 
     /// <summary>
-    /// Runs the normalize operation.
+    /// Performs normalize as part of the embedded hardware catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="profile">Profile value supplied to the embedded hardware catalog operation and used when producing its result.</param>
     private void Normalize(EmbeddedBoardProfile profile)
     {
     try
@@ -236,8 +250,10 @@ public sealed class EmbeddedHardwareCatalogService(
 }
 
     /// <summary>
-    /// Normalizes list.
+    /// Normalizes list as part of the embedded hardware catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="values">String dependency used by the embedded hardware catalog workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> NormalizeList(IEnumerable<string>? values) {
     try
     {
@@ -259,8 +275,19 @@ public sealed class EmbeddedHardwareCatalogService(
 }
 
     /// <summary>
-    /// Runs the protocol operation.
+    /// Performs protocol as part of the embedded hardware catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="key">Key value supplied to the embedded hardware catalog operation and used when producing its result.</param>
+    /// <param name="displayName">Display name value supplied to the embedded hardware catalog operation and used when producing its result.</param>
+    /// <param name="layer">Layer value supplied to the embedded hardware catalog operation and used when producing its result.</param>
+    /// <param name="purpose">Purpose value supplied to the embedded hardware catalog operation and used when producing its result.</param>
+    /// <param name="requiredRoles">Required roles value supplied to the embedded hardware catalog operation and used when producing its result.</param>
+    /// <param name="shared">Value indicating whether shared should apply to this operation.</param>
+    /// <param name="externalHardware">Value indicating whether external hardware should apply to this operation.</param>
+    /// <param name="gateway">Value indicating whether gateway should apply to this operation.</param>
+    /// <param name="generated">Value indicating whether generated should apply to this operation.</param>
+    /// <param name="safetyNote">Safety note value supplied to the embedded hardware catalog operation and used when producing its result.</param>
+    /// <returns>The embedded protocol descriptor produced by the operation.</returns>
     private EmbeddedProtocolDescriptor Protocol(
         string key,
         string displayName,
@@ -299,8 +326,9 @@ public sealed class EmbeddedHardwareCatalogService(
 }
 
     /// <summary>
-    /// Creates fallback profiles.
+    /// Creates fallback profiles as part of the embedded hardware catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<EmbeddedBoardProfile> CreateFallbackProfiles()
     {
     try

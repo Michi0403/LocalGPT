@@ -7,23 +7,37 @@ using System.Text.Json;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides deferred DevExpress ai invocation service operations.
+/// Coordinates deferred DevExpress AI invocation behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the deferred DevExpress AI invocation workflow to provide the corresponding application capability.</param>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the deferred DevExpress AI invocation workflow to provide the corresponding application capability.</param>
+/// <param name="scopeFactory">Service scope factory dependency used by the deferred DevExpress AI invocation workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService vocabulary,
     
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IServiceScopeFactory scopeFactory,
     ILogger<DeferredDxAiInvocationService> logger) : IDeferredDxAiInvocationService
 {
+    /// <summary>
+    /// Defines the max result characters constant used by <see cref="DeferredDxAiInvocationService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxResultCharacters = 8_000;
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to database gate state owned by <see cref="DeferredDxAiInvocationService"/>.
     /// </summary>
     private readonly SemaphoreSlim databaseGate = new(1, 1);
 
     /// <summary>
-    /// Runs the queue async operation.
+    /// Performs queue as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="functionName">Function name value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="approvalRequestId">Identifier of the approval request to use for this operation.</param>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task QueueAsync(
         string functionName,
         DxAiFunctionInvocationRequest request,
@@ -94,8 +108,12 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
 }
 
     /// <summary>
-    /// Runs the execute approved for heartbeat async operation.
+    /// Executes approved for heartbeat as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="councilRound">Council round value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<DeferredDxAiExecutionOutcome>> ExecuteApprovedForHeartbeatAsync(
         Guid councilRunId,
         int councilRound,
@@ -127,8 +145,12 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
 }
 
     /// <summary>
-    /// Runs the execute approved for approval request async operation.
+    /// Executes approved for approval request as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="approvalRequestId">Identifier of the approval request to use for this operation.</param>
+    /// <param name="councilRound">Council round value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<DeferredDxAiExecutionOutcome>> ExecuteApprovedForApprovalRequestAsync(
         Guid approvalRequestId,
         int councilRound = 0,
@@ -156,8 +178,11 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
 }
 
     /// <summary>
-    /// Runs the claim candidates for approval request async operation.
+    /// Performs claim candidates for approval request as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="approvalRequestId">Identifier of the approval request to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<List<DeferredDxAiInvocation>> ClaimCandidatesForApprovalRequestAsync(
         Guid approvalRequestId,
         CancellationToken cancellationToken)
@@ -225,8 +250,11 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
 }
 
     /// <summary>
-    /// Runs the claim candidates async operation.
+    /// Performs claim candidates as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<List<DeferredDxAiInvocation>> ClaimCandidatesAsync(
         Guid councilRunId,
         CancellationToken cancellationToken)
@@ -305,8 +333,12 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
 }
 
     /// <summary>
-    /// Runs the execute candidate async operation.
+    /// Executes candidate as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="candidate">Candidate value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <param name="councilRound">Council round value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The deferred DevExpress AI execution outcome produced by the operation.</returns>
     private async Task<DeferredDxAiExecutionOutcome> ExecuteCandidateAsync(
         DeferredDxAiInvocation candidate,
         int councilRound,
@@ -366,8 +398,13 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     }
 
     /// <summary>
-    /// Runs the complete async operation.
+    /// Performs complete as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="deferredInvocationId">Identifier of the deferred invocation to use for this operation.</param>
+    /// <param name="result">Result value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <param name="summary">Summary value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CompleteAsync(
         Guid deferredInvocationId,
         DxAiFunctionInvocationResult result,
@@ -415,8 +452,10 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
 }
 
     /// <summary>
-    /// Builds result summary.
+    /// Builds result summary as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="result">Result value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildResultSummary(DxAiFunctionInvocationResult result)
     {
     try
@@ -473,8 +512,10 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
 }
 
     /// <summary>
-    /// Runs the clone operation.
+    /// Performs clone as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <returns>The deferred DevExpress AI invocation produced by the operation.</returns>
     private DeferredDxAiInvocation Clone(DeferredDxAiInvocation value) {
     try
     {
@@ -511,8 +552,11 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
 }
 
     /// <summary>
-    /// Runs the limit operation.
+    /// Performs limit as part of the deferred DevExpress AI invocation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the deferred DevExpress AI invocation operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Limit(string? value, int maxLength)
     {
     try

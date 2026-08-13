@@ -6,8 +6,22 @@ using System.Text.Json;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides ai context bootstrap service operations.
+    /// Coordinates AI context bootstrap behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="chatMemory">Chat memory service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="councilKnowledge">Council knowledge service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="applicationLogs">Application log reader service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="componentActivity">Component activity service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="libraryInventory">Project library inventory service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="buildDebugInventory">Build debug inventory service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="councilArtifacts">Council artifact service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="chatUploadWorkspaces">Chat upload workspace service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="httpContextAccessor">Http context accessor dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="councilText">Council text service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="devExpressChat">Dev express chat service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the AI context bootstrap workflow to provide the corresponding application capability.</param>
     public class AiContextBootstrapService(
         IChatMemoryService chatMemory,
         ICouncilKnowledgeService councilKnowledge,
@@ -27,8 +41,10 @@ namespace LocalGPT.Services
        
 
         /// <summary>
-        /// Builds bootstrap prompt async.
+        /// Builds bootstrap prompt as part of the AI context bootstrap service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         public async Task<string> BuildBootstrapPromptAsync(CancellationToken cancellationToken = default)
         {
             try
@@ -121,8 +137,9 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds runtime identity briefing.
+        /// Builds runtime identity briefing as part of the AI context bootstrap service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildRuntimeIdentityBriefing()
         {
             try
@@ -204,8 +221,9 @@ namespace LocalGPT.Services
  
 
         /// <summary>
-        /// Finds latest artifact workspace.
+        /// Finds latest artifact workspace as part of the AI context bootstrap service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The directory info produced by the operation.</returns>
         private DirectoryInfo? FindLatestArtifactWorkspace()
         {
             try
@@ -227,8 +245,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Reads project knowledge index async.
+        /// Reads project knowledge index as part of the AI context bootstrap service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private async Task<string> ReadProjectKnowledgeIndexAsync(CancellationToken cancellationToken)
         {
             try

@@ -5,8 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
 /// <summary>
-/// Provides DevExpress ai functions controller operations.
+/// Exposes the DevExpress AI functions application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
+/// <param name="functionClient">Devexpress ai function service client dependency used by the DevExpress AI functions workflow to provide the corresponding application capability.</param>
+/// <param name="recovery">Devexpress ai function call recovery service dependency used by the DevExpress AI functions workflow to provide the corresponding application capability.</param>
+/// <param name="deferredInvocations">Deferred devexpress ai invocation service dependency used by the DevExpress AI functions workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/dxai/functions")]
 public sealed class DxAiFunctionsController(
@@ -16,8 +20,9 @@ public sealed class DxAiFunctionsController(
     ILogger<DxAiFunctionsController> logger) : ControllerBase
 {
     /// <summary>
-    /// Runs the list functions operation.
+    /// Lists functions for the DevExpress AI functions API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet]
     public IResult ListFunctions()
     {
@@ -35,8 +40,11 @@ public sealed class DxAiFunctionsController(
     }
 
     /// <summary>
-    /// Runs the recover function text operation.
+    /// Returns the recover function text projection for the DevExpress AI functions API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("recover")]
     public async Task<IResult> RecoverFunctionText(
         [FromBody] DxAiFunctionTextRecoveryRequest request,
@@ -68,15 +76,22 @@ public sealed class DxAiFunctionsController(
     }
 
     /// <summary>
-    /// Runs the execute approved deferred operation.
+    /// Executes approved deferred for the DevExpress AI functions API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="approvalRequestId">Identifier of the approval request to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("deferred/{approvalRequestId:guid}/execute")]
     public async Task<IResult> ExecuteApprovedDeferred(Guid approvalRequestId, CancellationToken cancellationToken) =>
         Results.Ok(await deferredInvocations.ExecuteApprovedForApprovalRequestAsync(approvalRequestId, cancellationToken: cancellationToken).ConfigureAwait(false));
 
     /// <summary>
-    /// Runs the invoke function operation.
+    /// Invokes function for the DevExpress AI functions API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="functionName">Function name value supplied to the DevExpress AI functions operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("{functionName}/invoke")]
     public async Task<IResult> InvokeFunction(
         string functionName,

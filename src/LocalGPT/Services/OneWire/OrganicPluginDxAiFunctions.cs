@@ -8,6 +8,11 @@ namespace LocalGPT.Services.OneWire;
 /// Generic escape hatch for explicitly advertised organic capabilities. Dedicated handlers below keep the
 /// common spreadsheet workflow discoverable to every normal LocalGPT chat without requiring a Council run.
 /// </summary>
+/// <param name="organicSupport">Organic devexpress function support dependency used by the invoke organic plugin function workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the invoke organic plugin function workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the invoke organic plugin function workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the invoke organic plugin function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class InvokeOrganicPluginFunction(
     IOrganicDxFunctionSupport organicSupport,
     IOneWireConnectionRegistry connections,
@@ -16,9 +21,13 @@ public sealed class InvokeOrganicPluginFunction(
     ILogger<InvokeOrganicPluginFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the invoke organic plugin function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="InvokeOrganicPluginFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
+        /// <summary>
+        /// Stores the internal true state used by <see cref="InvokeOrganicPluginFunction"/> while executing its surrounding workflow.
+        /// </summary>
         Name: "organic.plugin.invoke",
         Method: "POST",
         Route: "/api/onewire/peers/{peerId}/invoke",
@@ -39,8 +48,11 @@ public sealed class InvokeOrganicPluginFunction(
         ApprovalRequiredBeforeCompletion: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="InvokeOrganicPluginFunction"/>, keeping the operation consistent with the state and invariants of the surrounding invoke organic plugin function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -87,8 +99,11 @@ public sealed class InvokeOrganicPluginFunction(
 }
 
     /// <summary>
-    /// Runs the queue and send async operation.
+    /// Performs queue and send for <see cref="InvokeOrganicPluginFunction"/>, keeping the operation consistent with the state and invariants of the surrounding invoke organic plugin function workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the invoke organic plugin function operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     private async Task<DxAiFunctionInvocationResult> QueueAndSendAsync(OneWireEnvelope envelope, CancellationToken cancellationToken)
     {
     try
@@ -118,6 +133,11 @@ public sealed class InvokeOrganicPluginFunction(
 /// Chat-level spreadsheet entry point. It intentionally does not require a Council run: a normal local model can
 /// discover this function, ask for the active PublisherStudio session id, and request bounded read-only evidence.
 /// </summary>
+/// <param name="organicSupport">Organic devexpress function support dependency used by the inspect publisher spreadsheet function workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the inspect publisher spreadsheet function workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the inspect publisher spreadsheet function workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the inspect publisher spreadsheet function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class InspectPublisherSpreadsheetFunction(
     IOrganicDxFunctionSupport organicSupport,
     IOneWireConnectionRegistry connections,
@@ -125,12 +145,19 @@ public sealed class InspectPublisherSpreadsheetFunction(
     IOneWireWorkSpooler spooler,
     ILogger<InspectPublisherSpreadsheetFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Defines the capability key constant used by <see cref="InspectPublisherSpreadsheetFunction"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string CapabilityKey = "publisher.spreadsheet.inspect";
 
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the inspect publisher spreadsheet function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="InspectPublisherSpreadsheetFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
+        /// <summary>
+        /// Stores the internal true state used by <see cref="InspectPublisherSpreadsheetFunction"/> while executing its surrounding workflow.
+        /// </summary>
         Name: "publisher.spreadsheet.inspect",
         Method: "POST",
         Route: "/api/onewire/peers/connected/spreadsheet/inspect",
@@ -151,8 +178,11 @@ public sealed class InspectPublisherSpreadsheetFunction(
         ApprovalRequiredBeforeCompletion: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="InspectPublisherSpreadsheetFunction"/>, keeping the operation consistent with the state and invariants of the surrounding inspect publisher spreadsheet function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -214,6 +244,11 @@ public sealed class InspectPublisherSpreadsheetFunction(
 /// Creates a bounded, reviewable PublisherStudio text proposal from ordinary chat or a Council round.
 /// The unique connected PublisherStudio peer is selected automatically when peerId is omitted.
 /// </summary>
+/// <param name="organicSupport">Organic devexpress function support dependency used by the propose publisher text function workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the propose publisher text function workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the propose publisher text function workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the propose publisher text function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ProposePublisherTextFunction(
     IOrganicDxFunctionSupport organicSupport,
     IOneWireConnectionRegistry connections,
@@ -221,12 +256,19 @@ public sealed class ProposePublisherTextFunction(
     IOneWireWorkSpooler spooler,
     ILogger<ProposePublisherTextFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Defines the capability key constant used by <see cref="ProposePublisherTextFunction"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string CapabilityKey = "publisher.text.insert.propose";
 
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the propose publisher text function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ProposePublisherTextFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
+        /// <summary>
+        /// Stores the internal true state used by <see cref="ProposePublisherTextFunction"/> while executing its surrounding workflow.
+        /// </summary>
         Name: "publisher.text.proposal.request",
         Method: "POST",
         Route: "/api/onewire/peers/connected/text/propose",
@@ -247,8 +289,11 @@ public sealed class ProposePublisherTextFunction(
         ApprovalRequiredBeforeCompletion: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ProposePublisherTextFunction"/>, keeping the operation consistent with the state and invariants of the surrounding propose publisher text function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -309,12 +354,19 @@ public sealed class ProposePublisherTextFunction(
 }
 
 /// <summary>Reads the eventual result of a queued organic operation without reissuing it.</summary>
+/// <param name="spooler">One wire work spooler dependency used by the read organic plugin work result function workflow to provide the corresponding application capability.</param>
+/// <param name="organicSupport">Organic devexpress function support dependency used by the read organic plugin work result function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spooler, IOrganicDxFunctionSupport organicSupport, ILogger<ReadOrganicPluginWorkResultFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the read organic plugin work result function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ReadOrganicPluginWorkResultFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
+        /// <summary>
+        /// Stores the internal false state used by <see cref="ReadOrganicPluginWorkResultFunction"/> while executing its surrounding workflow.
+        /// </summary>
         Name: "organic.plugin.work.read",
         Method: "GET",
         Route: "/api/onewire/work/{workItemId}",
@@ -333,8 +385,11 @@ public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spoo
         ApprovalRequiredBeforeCompletion: false);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ReadOrganicPluginWorkResultFunction"/>, keeping the operation consistent with the state and invariants of the surrounding read organic plugin work result function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -366,13 +421,18 @@ public sealed class ReadOrganicPluginWorkResultFunction(IOneWireWorkSpooler spoo
 }
 
 /// <summary>
-/// Represents an organic DevExpress function support.
+/// Represents an organic DevExpress function support application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> logger) : IOrganicDxFunctionSupport
 {
     /// <summary>
-    /// Gets string.
+    /// Retrieves string for <see cref="OrganicDxFunctionSupport"/>, keeping the operation consistent with the state and invariants of the surrounding organic DevExpress function support workflow.
     /// </summary>
+    /// <param name="element">Element value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string GetString(JsonElement element, string name, string fallback = "")
     {
     try
@@ -394,8 +454,11 @@ public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> l
 }
 
     /// <summary>
-    /// Finds capability.
+    /// Finds capability for <see cref="OrganicDxFunctionSupport"/>, keeping the operation consistent with the state and invariants of the surrounding organic DevExpress function support workflow.
     /// </summary>
+    /// <param name="peer">Peer value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <param name="key">Key value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <returns>The one wire capability descriptor produced by the operation.</returns>
     public OneWireCapabilityDescriptor? FindCapability(OneWirePeerAdvertisement peer, string key) {
     try
     {
@@ -412,8 +475,17 @@ public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> l
 }
 
     /// <summary>
-    /// Creates invoke envelope.
+    /// Creates invoke envelope for <see cref="OrganicDxFunctionSupport"/>, keeping the operation consistent with the state and invariants of the surrounding organic DevExpress function support workflow.
     /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="capability">Capability value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <param name="payload">Payload value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <param name="executionMode">Execution mode value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <param name="workOrderKey">Work order key value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <param name="notBeforeUtc">Not before utc value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="interactionValueJson">Interaction value json value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <returns>The one wire envelope produced by the operation.</returns>
     public OneWireEnvelope CreateInvokeEnvelope(
         string peerId,
         OneWireCapabilityDescriptor capability,
@@ -462,8 +534,12 @@ public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> l
 }
 
     /// <summary>
-    /// Runs the queued operation.
+    /// Performs queued for <see cref="OrganicDxFunctionSupport"/>, keeping the operation consistent with the state and invariants of the surrounding organic DevExpress function support workflow.
     /// </summary>
+    /// <param name="work">Work value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <param name="capabilityKey">Capability key value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public DxAiFunctionInvocationResult Queued(OneWireWorkItem work, string peerId, string capabilityKey) {
     try
     {
@@ -485,8 +561,10 @@ public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> l
 }
 
     /// <summary>
-    /// Runs the invalid operation.
+    /// Performs invalid for <see cref="OrganicDxFunctionSupport"/>, keeping the operation consistent with the state and invariants of the surrounding organic DevExpress function support workflow.
     /// </summary>
+    /// <param name="error">Error value supplied to the organic DevExpress function support operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public DxAiFunctionInvocationResult Invalid(string error) {
     try
     {
@@ -504,6 +582,12 @@ public sealed class OrganicDxFunctionSupport(ILogger<OrganicDxFunctionSupport> l
 }
 
 /// <summary>Asks the PublisherStudio user for reviewed text and returns it through the queued work result.</summary>
+/// <param name="organicSupport">Organic devexpress function support dependency used by the request publisher reviewed text function workflow to provide the corresponding application capability.</param>
+/// <param name="publisherInteractionSupport">Publisher interaction devexpress support dependency used by the request publisher reviewed text function workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the request publisher reviewed text function workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the request publisher reviewed text function workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the request publisher reviewed text function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RequestPublisherReviewedTextFunction(
     IOrganicDxFunctionSupport organicSupport,
     IPublisherInteractionDxSupport publisherInteractionSupport,
@@ -512,12 +596,19 @@ public sealed class RequestPublisherReviewedTextFunction(
     IOneWireWorkSpooler spooler,
     ILogger<RequestPublisherReviewedTextFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Defines the capability key constant used by <see cref="RequestPublisherReviewedTextFunction"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string CapabilityKey = "publisher.text.edit.request";
 
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the request publisher reviewed text function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="RequestPublisherReviewedTextFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
+        /// <summary>
+        /// Stores the internal true state used by <see cref="RequestPublisherReviewedTextFunction"/> while executing its surrounding workflow.
+        /// </summary>
         Name: "publisher.text.feedback.request",
         Method: "POST",
         Route: "/api/onewire/peers/connected/text/review",
@@ -536,8 +627,11 @@ public sealed class RequestPublisherReviewedTextFunction(
         ApprovalRequiredBeforeCompletion: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="RequestPublisherReviewedTextFunction"/>, keeping the operation consistent with the state and invariants of the surrounding request publisher reviewed text function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -567,6 +661,12 @@ public sealed class RequestPublisherReviewedTextFunction(
 }
 
 /// <summary>Requests one fresh browser-mediated screenshot from PublisherStudio.</summary>
+/// <param name="organicSupport">Organic devexpress function support dependency used by the request publisher screen capture function workflow to provide the corresponding application capability.</param>
+/// <param name="publisherInteractionSupport">Publisher interaction devexpress support dependency used by the request publisher screen capture function workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the request publisher screen capture function workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the request publisher screen capture function workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the request publisher screen capture function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RequestPublisherScreenCaptureFunction(
     IOrganicDxFunctionSupport organicSupport,
     IPublisherInteractionDxSupport publisherInteractionSupport,
@@ -575,11 +675,18 @@ public sealed class RequestPublisherScreenCaptureFunction(
     IOneWireWorkSpooler spooler,
     ILogger<RequestPublisherScreenCaptureFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Defines the capability key constant used by <see cref="RequestPublisherScreenCaptureFunction"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string CapabilityKey = "publisher.screen.capture";
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the request publisher screen capture function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="RequestPublisherScreenCaptureFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
+        /// <summary>
+        /// Stores the internal true state used by <see cref="RequestPublisherScreenCaptureFunction"/> while executing its surrounding workflow.
+        /// </summary>
         Name: "publisher.screen.capture.request", Method: "POST", Route: "/api/onewire/peers/connected/screen/capture",
         Purpose: "Requests one user-selected PublisherStudio/browser screenshot for visual Council evidence.",
         Parameters: "reason, peerId, workOrderKey",
@@ -589,8 +696,11 @@ public sealed class RequestPublisherScreenCaptureFunction(
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="RequestPublisherScreenCaptureFunction"/>, keeping the operation consistent with the state and invariants of the surrounding request publisher screen capture function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -609,6 +719,12 @@ public sealed class RequestPublisherScreenCaptureFunction(
 }
 
 /// <summary>Requests one short browser-mediated screen recording from PublisherStudio.</summary>
+/// <param name="organicSupport">Organic devexpress function support dependency used by the request publisher screen record function workflow to provide the corresponding application capability.</param>
+/// <param name="publisherInteractionSupport">Publisher interaction devexpress support dependency used by the request publisher screen record function workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the request publisher screen record function workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the request publisher screen record function workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the request publisher screen record function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RequestPublisherScreenRecordFunction(
     IOrganicDxFunctionSupport organicSupport,
     IPublisherInteractionDxSupport publisherInteractionSupport,
@@ -617,11 +733,18 @@ public sealed class RequestPublisherScreenRecordFunction(
     IOneWireWorkSpooler spooler,
     ILogger<RequestPublisherScreenRecordFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Defines the capability key constant used by <see cref="RequestPublisherScreenRecordFunction"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string CapabilityKey = "publisher.screen.record";
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the request publisher screen record function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="RequestPublisherScreenRecordFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
+        /// <summary>
+        /// Stores the internal true state used by <see cref="RequestPublisherScreenRecordFunction"/> while executing its surrounding workflow.
+        /// </summary>
         Name: "publisher.screen.record.request", Method: "POST", Route: "/api/onewire/peers/connected/screen/record",
         Purpose: "Requests a short user-selected PublisherStudio/browser screen recording for temporal Council evidence.",
         Parameters: "reason, maximumSeconds, includeAudio, peerId, workOrderKey",
@@ -631,8 +754,11 @@ public sealed class RequestPublisherScreenRecordFunction(
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="RequestPublisherScreenRecordFunction"/>, keeping the operation consistent with the state and invariants of the surrounding request publisher screen record function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -656,6 +782,12 @@ public sealed class RequestPublisherScreenRecordFunction(
 }
 
 /// <summary>Requests bounded user-approved HTML/DIV/document content from PublisherStudio.</summary>
+/// <param name="organicSupport">Organic devexpress function support dependency used by the request publisher website content function workflow to provide the corresponding application capability.</param>
+/// <param name="publisherInteractionSupport">Publisher interaction devexpress support dependency used by the request publisher website content function workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the request publisher website content function workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the request publisher website content function workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the request publisher website content function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RequestPublisherWebsiteContentFunction(
     IOrganicDxFunctionSupport organicSupport,
     IPublisherInteractionDxSupport publisherInteractionSupport,
@@ -664,11 +796,18 @@ public sealed class RequestPublisherWebsiteContentFunction(
     IOneWireWorkSpooler spooler,
     ILogger<RequestPublisherWebsiteContentFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Defines the capability key constant used by <see cref="RequestPublisherWebsiteContentFunction"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string CapabilityKey = "publisher.website.content.request";
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the request publisher website content function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="RequestPublisherWebsiteContentFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
+        /// <summary>
+        /// Stores the internal true state used by <see cref="RequestPublisherWebsiteContentFunction"/> while executing its surrounding workflow.
+        /// </summary>
         Name: "publisher.website.content.request", Method: "POST", Route: "/api/onewire/peers/connected/web-content/request",
         Purpose: "Asks PublisherStudio for bounded user-approved HTML, DIV or document content that can be shown in LocalGPT chat or reused by another organic add-on.",
         Parameters: "question, initialContent, format, sourceUrl, maximumCharacters, peerId, workOrderKey",
@@ -678,8 +817,11 @@ public sealed class RequestPublisherWebsiteContentFunction(
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="RequestPublisherWebsiteContentFunction"/>, keeping the operation consistent with the state and invariants of the surrounding request publisher website content function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -711,6 +853,13 @@ public sealed class RequestPublisherWebsiteContentFunction(
 
 
 /// <summary>Requests PublisherStudio's future embedded wiring canvas for a LocalGPT board/pin draft.</summary>
+/// <param name="organicSupport">Organic devexpress function support dependency used by the request publisher embedded wiring editor function workflow to provide the corresponding application capability.</param>
+/// <param name="publisherInteractionSupport">Publisher interaction devexpress support dependency used by the request publisher embedded wiring editor function workflow to provide the corresponding application capability.</param>
+/// <param name="embeddedCatalog">Embedded hardware catalog service dependency used by the request publisher embedded wiring editor function workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the request publisher embedded wiring editor function workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the request publisher embedded wiring editor function workflow to provide the corresponding application capability.</param>
+/// <param name="spooler">One wire work spooler dependency used by the request publisher embedded wiring editor function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RequestPublisherEmbeddedWiringEditorFunction(
     IOrganicDxFunctionSupport organicSupport,
     IPublisherInteractionDxSupport publisherInteractionSupport,
@@ -720,12 +869,19 @@ public sealed class RequestPublisherEmbeddedWiringEditorFunction(
     IOneWireWorkSpooler spooler,
     ILogger<RequestPublisherEmbeddedWiringEditorFunction> logger) : IDxAiFunctionHandler
 {
+    /// <summary>
+    /// Defines the capability key constant used by <see cref="RequestPublisherEmbeddedWiringEditorFunction"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string CapabilityKey = "publisher.embedded.wiring.edit.request";
 
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the request publisher embedded wiring editor function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="RequestPublisherEmbeddedWiringEditorFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
+        /// <summary>
+        /// Stores the internal true state used by <see cref="RequestPublisherEmbeddedWiringEditorFunction"/> while executing its surrounding workflow.
+        /// </summary>
         Name: "publisher.embedded.wiring.edit.request",
         Method: "POST",
         Route: "/api/onewire/peers/connected/embedded/wiring/edit",
@@ -737,8 +893,11 @@ public sealed class RequestPublisherEmbeddedWiringEditorFunction(
         IsCoordinationOnly: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="RequestPublisherEmbeddedWiringEditorFunction"/>, keeping the operation consistent with the state and invariants of the surrounding request publisher embedded wiring editor function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default) {
     try
     {
@@ -765,15 +924,27 @@ public sealed class RequestPublisherEmbeddedWiringEditorFunction(
 }
 
 /// <summary>
-/// Represents a publisher interaction DevExpress support.
+/// Represents a publisher interaction DevExpress support application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="organicSupport">Organic devexpress function support dependency used by the publisher interaction DevExpress support workflow to provide the corresponding application capability.</param>
+/// <param name="serviceLogger">Publisher interaction devexpress support dependency used by the publisher interaction DevExpress support workflow to provide the corresponding application capability.</param>
 public sealed class PublisherInteractionDxSupport(
     IOrganicDxFunctionSupport organicSupport,
     ILogger<PublisherInteractionDxSupport> serviceLogger) : IPublisherInteractionDxSupport
 {
     /// <summary>
-    /// Runs the queue async operation.
+    /// Performs queue for <see cref="PublisherInteractionDxSupport"/>, keeping the operation consistent with the state and invariants of the surrounding publisher interaction DevExpress support workflow.
     /// </summary>
+    /// <typeparam name="TLogger">Type used for t logger values handled by <see cref="PublisherInteractionDxSupport"/>.</typeparam>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="capabilityKey">Capability key value supplied to the publisher interaction DevExpress support operation and used when producing its result.</param>
+    /// <param name="connections">One wire connection registry dependency used by the publisher interaction DevExpress support workflow to provide the corresponding application capability.</param>
+    /// <param name="peers">One wire peer registry dependency used by the publisher interaction DevExpress support workflow to provide the corresponding application capability.</param>
+    /// <param name="spooler">One wire work spooler dependency used by the publisher interaction DevExpress support workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="createPayload">Create payload value supplied to the publisher interaction DevExpress support operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> QueueAsync<TLogger>(
         DxAiFunctionInvocationRequest request,
         string capabilityKey,

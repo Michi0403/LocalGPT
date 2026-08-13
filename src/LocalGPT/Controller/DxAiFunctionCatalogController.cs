@@ -8,6 +8,8 @@ namespace LocalGPT.Controller;
 /// <summary>
 /// User-owned catalog for deciding which LocalGPT DX functions and public service methods are visible to AI chat or securely linked 1-Wire peers.
 /// </summary>
+/// <param name="catalog">Devexpress ai function catalog service dependency used by the DevExpress AI function catalog workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/dxai/catalog")]
 public sealed class DxAiFunctionCatalogController(
@@ -15,8 +17,10 @@ public sealed class DxAiFunctionCatalogController(
     ILogger<DxAiFunctionCatalogController> logger) : ControllerBase
 {
     /// <summary>
-    /// Gets async.
+    /// Returns the get projection for the DevExpress AI function catalog API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet]
     public async Task<IResult> GetAsync(CancellationToken cancellationToken)
     {
@@ -32,8 +36,10 @@ public sealed class DxAiFunctionCatalogController(
     }
 
     /// <summary>
-    /// Runs the synchronize async operation.
+    /// Returns the synchronize projection for the DevExpress AI function catalog API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("synchronize")]
     public async Task<IResult> SynchronizeAsync(CancellationToken cancellationToken)
     {
@@ -49,8 +55,11 @@ public sealed class DxAiFunctionCatalogController(
     }
 
     /// <summary>
-    /// Saves policy async.
+    /// Persists policy for the DevExpress AI function catalog API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPut("policy")]
     public async Task<IResult> SavePolicyAsync([FromBody] DxAiFunctionCatalogSaveRequest request, CancellationToken cancellationToken)
     {

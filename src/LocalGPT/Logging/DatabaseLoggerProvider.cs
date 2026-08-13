@@ -10,29 +10,50 @@ using System.Threading.Channels;
 namespace LocalGPT.Logging
 {
     /// <summary>
-    /// Provides database logger provider operations.
+    /// Provides database logger data or behavior to callers while hiding the underlying acquisition and configuration details.
     /// </summary>
     public sealed class DatabaseLoggerProvider : ILoggerProvider
     {
+        /// <summary>
+        /// Stores the internal excluded category prefixes state used by <see cref="DatabaseLoggerProvider"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly string[] ExcludedCategoryPrefixes =
         [
             "LocalGPT.Logging.DatabaseLogger",
             "Microsoft.EntityFrameworkCore"
         ];
 
+        /// <summary>
+        /// Stores the database context factory dependency used by <see cref="DatabaseLoggerProvider"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory;
+        /// <summary>
+        /// Stores the options monitor dependency used by <see cref="DatabaseLoggerProvider"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly IOptionsMonitor<DatabaseLoggerCoreOptions> options;
+        /// <summary>
+        /// Stores the database logger readiness dependency used by <see cref="DatabaseLoggerProvider"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly IDatabaseLoggerReadiness databaseLoggerReadiness;
+        /// <summary>
+        /// Stores the internal channel state used by <see cref="DatabaseLoggerProvider"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly Channel<ApplicationLogEntry> channel;
         /// <summary>
-        /// Runs the new operation.
+        /// Stores the cancellation source used by <see cref="DatabaseLoggerProvider"/> to stop its current background or asynchronous operation.
         /// </summary>
         private readonly CancellationTokenSource stop = new();
+        /// <summary>
+        /// Stores the internal processing task state used by <see cref="DatabaseLoggerProvider"/> while executing its surrounding workflow.
+        /// </summary>
         private readonly Task processingTask;
 
         /// <summary>
-        /// Runs the database logger provider operation.
+        /// Initializes a new <see cref="DatabaseLoggerProvider"/> instance and captures the dependencies or initial state required by its database logger workflow.
         /// </summary>
+        /// <param name="dbContextFactory">Local gpt memory database context dependency used by the database logger workflow to provide the corresponding application capability.</param>
+        /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+        /// <param name="databaseLoggerReadiness">Database logger readiness dependency used by the database logger workflow to provide the corresponding application capability.</param>
         public DatabaseLoggerProvider(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
             IOptionsMonitor<DatabaseLoggerCoreOptions> options,
@@ -52,13 +73,18 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>
-        /// Creates logger.
+        /// Creates logger for <see cref="DatabaseLoggerProvider"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
+        /// <param name="categoryName">Category name value supplied to the database logger operation and used when producing its result.</param>
+        /// <returns>The i logger produced by the operation.</returns>
         public ILogger CreateLogger(string categoryName) => new DatabaseLogger(categoryName, this);
 
         /// <summary>
-        /// Determines whether enabled.
+        /// Determines whether enabled for <see cref="DatabaseLoggerProvider"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
+        /// <param name="categoryName">Category name value supplied to the database logger operation and used when producing its result.</param>
+        /// <param name="logLevel">Log level value supplied to the database logger operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         internal bool IsEnabled(string categoryName, LogLevel logLevel)
         {
             var current = options.CurrentValue;
@@ -72,16 +98,18 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>
-        /// Runs the enqueue operation.
+        /// Performs enqueue for <see cref="DatabaseLoggerProvider"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
+        /// <param name="entry">Entry value supplied to the database logger operation and used when producing its result.</param>
         internal void Enqueue(ApplicationLogEntry entry)
         {
             _ = channel.Writer.TryWrite(entry);
         }
 
         /// <summary>
-        /// Runs the process queue async operation.
+        /// Processes queue for <see cref="DatabaseLoggerProvider"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task ProcessQueueAsync()
         {
             try
@@ -143,8 +171,10 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>
-        /// Runs the drain batch operation.
+        /// Performs drain batch for <see cref="DatabaseLoggerProvider"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
+        /// <param name="batch">Batch value supplied to the database logger operation and used when producing its result.</param>
+        /// <param name="maxItems">Max items value supplied to the database logger operation and used when producing its result.</param>
         private void DrainBatch(List<ApplicationLogEntry> batch, int? maxItems = null)
         {
             var maxBatchSize = maxItems ?? Math.Clamp(options.CurrentValue.BatchSize, 1, 500);
@@ -155,8 +185,11 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>
-        /// Runs the flush async operation.
+        /// Performs flush for <see cref="DatabaseLoggerProvider"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
+        /// <param name="batch">Batch value supplied to the database logger operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task FlushAsync(List<ApplicationLogEntry> batch, CancellationToken cancellationToken)
         {
             if (batch.Count == 0)
@@ -181,7 +214,7 @@ namespace LocalGPT.Logging
         //}
 
         /// <summary>
-        /// Runs the dispose operation.
+        /// Releases resources owned by <see cref="DatabaseLoggerProvider"/> and leaves the database logger workflow in a safely disposed state.
         /// </summary>
         public void Dispose()
         {

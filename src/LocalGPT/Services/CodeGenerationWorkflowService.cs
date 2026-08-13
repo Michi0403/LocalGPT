@@ -14,8 +14,14 @@ using Microsoft.CSharp;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides code generation workflow service operations.
+/// Coordinates code generation workflow behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the code generation workflow workflow to provide the corresponding application capability.</param>
+/// <param name="councilArtifacts">Council artifact service dependency used by the code generation workflow workflow to provide the corresponding application capability.</param>
+/// <param name="artifactBuildExecutor">Artifact build executor dependency used by the code generation workflow workflow to provide the corresponding application capability.</param>
+/// <param name="projectMaintenance">Project maintenance service dependency used by the code generation workflow workflow to provide the corresponding application capability.</param>
+/// <param name="regexPatterns">Regex pattern service dependency used by the code generation workflow workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CodeGenerationWorkflowService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     ICouncilArtifactService councilArtifacts,
@@ -35,8 +41,11 @@ public sealed class CodeGenerationWorkflowService(
     };
 
     /// <summary>
-    /// Creates review async.
+    /// Creates review as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The code generation review snapshot produced by the operation.</returns>
     public async Task<CodeGenerationReviewSnapshot> CreateReviewAsync(
         CreateCodeGenerationReviewRequest request,
         CancellationToken cancellationToken = default)
@@ -117,8 +126,11 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Gets review async.
+    /// Retrieves review as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="reviewId">Identifier of the review to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The code generation review snapshot produced by the operation.</returns>
     public async Task<CodeGenerationReviewSnapshot?> GetReviewAsync(
         Guid reviewId,
         CancellationToken cancellationToken = default)
@@ -152,8 +164,12 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the list reviews async operation.
+    /// Lists reviews as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="take">Take value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<CodeGenerationReviewSnapshot>> ListReviewsAsync(
         Guid? projectId = null,
         int take = 20,
@@ -195,8 +211,12 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the execute review async operation.
+    /// Executes review as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="reviewId">Identifier of the review to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The code generation execution result produced by the operation.</returns>
     public async Task<CodeGenerationExecutionResult> ExecuteReviewAsync(
         Guid reviewId,
         ExecuteCodeGenerationReviewRequest request,
@@ -427,8 +447,12 @@ public sealed class CodeGenerationWorkflowService(
     }
 
     /// <summary>
-    /// Runs the reject review async operation.
+    /// Rejects review as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="reviewId">Identifier of the review to use for this operation.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The code generation review snapshot produced by the operation.</returns>
     public async Task<CodeGenerationReviewSnapshot> RejectReviewAsync(
         Guid reviewId,
         RejectCodeGenerationReviewRequest request,
@@ -472,8 +496,11 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the begin review scope operation.
+    /// Performs begin review scope as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="operation">Operation value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="reviewId">Identifier of the review to use for this operation.</param>
+    /// <returns>The i disposable produced by the operation.</returns>
     private IDisposable? BeginReviewScope(string operation, Guid reviewId) {
     try
     {
@@ -495,8 +522,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the enrich output intent async operation.
+    /// Performs enrich output intent as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EnrichOutputIntentAsync(CreateCodeGenerationReviewRequest request)
     {
     try
@@ -550,8 +579,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the extract quoted literal async operation.
+    /// Performs extract quoted literal as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="text">Text value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string?> ExtractQuotedLiteralAsync(string text)
     {
         try
@@ -569,8 +600,11 @@ public sealed class CodeGenerationWorkflowService(
     }
 
     /// <summary>
-    /// Runs the match intent async operation.
+    /// Performs match intent as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="patternName">Pattern name value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="text">Text value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private async Task<bool> MatchIntentAsync(string patternName, string text)
     {
         try
@@ -586,8 +620,11 @@ public sealed class CodeGenerationWorkflowService(
     }
 
     /// <summary>
-    /// Builds generated output name.
+    /// Builds generated output name as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="title">Title value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="goal">Goal value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildGeneratedOutputName(string? title, string? goal)
     {
     try
@@ -623,8 +660,9 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Validates review request.
+    /// Validates review request as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     private void ValidateReviewRequest(CreateCodeGenerationReviewRequest request)
     {
     try
@@ -652,8 +690,14 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Validates project references async.
+    /// Validates project references as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="projectRevisionId">Identifier of the project revision to use for this operation.</param>
+    /// <param name="projectTopicId">Identifier of the project topic to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ValidateProjectReferencesAsync(
         LocalGptMemoryDbContext db,
         Guid? projectId,
@@ -705,8 +749,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Normalizes file.
+    /// Normalizes file as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="file">File value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The code generation file spec produced by the operation.</returns>
     private CodeGenerationFileSpec NormalizeFile(CodeGenerationFileSpec file) {
     try
     {
@@ -728,8 +774,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Normalizes code dom type.
+    /// Normalizes code DOM type as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="type">Type value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The code DOM type spec produced by the operation.</returns>
     private CodeDomTypeSpec NormalizeCodeDomType(CodeDomTypeSpec type) {
     try
     {
@@ -754,8 +802,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Normalizes output.
+    /// Normalizes output as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="output">Output value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The code generation output spec produced by the operation.</returns>
     private CodeGenerationOutputSpec NormalizeOutput(CodeGenerationOutputSpec output) {
     try
     {
@@ -780,8 +830,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Normalizes output kind.
+    /// Normalizes output kind as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="kind">Kind value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeOutputKind(string? kind)
     {
     try
@@ -815,8 +867,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Normalizes target framework.
+    /// Normalizes target framework as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeTargetFramework(string? value)
     {
     try
@@ -838,8 +892,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Builds default change summary.
+    /// Builds default change summary as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="payload">Payload value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildDefaultChangeSummary(CodeGenerationReviewPayload payload) {
     try
     {
@@ -856,8 +912,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Computes review hash.
+    /// Computes review hash as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="entity">Entity value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ComputeReviewHash(CodeGenerationChangeReview entity)
     {
     try
@@ -888,8 +946,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the deserialize payload operation.
+    /// Performs deserialize payload as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="payloadJson">Payload json value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The code generation review payload produced by the operation.</returns>
     private CodeGenerationReviewPayload DeserializePayload(string payloadJson)
     {
     try
@@ -912,8 +972,11 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the to snapshot operation.
+    /// Performs to snapshot as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="entity">Entity value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="payload">Payload value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The code generation review snapshot produced by the operation.</returns>
     private CodeGenerationReviewSnapshot ToSnapshot(
         CodeGenerationChangeReview entity,
         CodeGenerationReviewPayload payload) {
@@ -965,8 +1028,13 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Writes review document async.
+    /// Writes review document as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="workspaceRoot">Workspace root value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="review">Review value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="payload">Payload value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task WriteReviewDocumentAsync(
         string workspaceRoot,
         CodeGenerationChangeReview review,
@@ -1028,8 +1096,14 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the copy tracked project into workspace async operation.
+    /// Performs copy tracked project into workspace as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="workspaceRoot">Workspace root value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="revisionId">Identifier of the revision to use for this operation.</param>
+    /// <param name="result">Result value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> CopyTrackedProjectIntoWorkspaceAsync(
         string workspaceRoot,
         Guid projectId,
@@ -1088,8 +1162,11 @@ public sealed class CodeGenerationWorkflowService(
 
 
     /// <summary>
-    /// Computes file hash async.
+    /// Computes file hash as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="path">Path value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> ComputeFileHashAsync(string path, CancellationToken cancellationToken)
     {
     try
@@ -1109,8 +1186,11 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Finds preferred solution path.
+    /// Finds preferred solution path as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="workspaceRoot">Workspace root value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="clonedSolutionPath">Cloned solution path value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FindPreferredSolutionPath(string workspaceRoot, string clonedSolutionPath)
     {
         if (!string.IsNullOrWhiteSpace(clonedSolutionPath) && File.Exists(clonedSolutionPath))
@@ -1131,8 +1211,10 @@ public sealed class CodeGenerationWorkflowService(
     }
 
     /// <summary>
-    /// Runs the generate code dom source operation.
+    /// Generates code DOM source as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="spec">Spec value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GenerateCodeDomSource(CodeDomTypeSpec spec)
     {
     try
@@ -1187,6 +1269,8 @@ public sealed class CodeGenerationWorkflowService(
     /// <summary>
     /// Generates the deterministic plain-text C# fallback used when the platform CodeDOM provider is unavailable.
     /// </summary>
+    /// <param name="spec">Spec value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GeneratePlainCSharpFallbackSource(CodeDomTypeSpec spec)
     {
         try
@@ -1211,8 +1295,15 @@ public sealed class CodeGenerationWorkflowService(
     }
 
     /// <summary>
-    /// Runs the scaffold output async operation.
+    /// Performs scaffold output as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="workspaceRoot">Workspace root value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="output">Output value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="reviewedSources">Reviewed source artifact dependency used by the code generation workflow workflow to provide the corresponding application capability.</param>
+    /// <param name="writtenFiles">Written files value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="buildTargets">Build targets value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ScaffoldOutputAsync(
         string workspaceRoot,
         CodeGenerationOutputSpec output,
@@ -1396,8 +1487,14 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the copy reviewed sources async operation.
+    /// Performs copy reviewed sources as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="workspaceRoot">Workspace root value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="destinationRoot">Destination root value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="sources">Reviewed source artifact dependency used by the code generation workflow workflow to provide the corresponding application capability.</param>
+    /// <param name="writtenFiles">Written files value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private async Task<bool> CopyReviewedSourcesAsync(
         string workspaceRoot,
         string destinationRoot,
@@ -1451,8 +1548,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Builds library source.
+    /// Builds library source as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="output">Output value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildLibrarySource(CodeGenerationOutputSpec output) {
     try
     {
@@ -1476,8 +1575,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Builds addon source.
+    /// Builds addon source as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="output">Output value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildAddonSource(CodeGenerationOutputSpec output) {
     try
     {
@@ -1508,8 +1609,11 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Builds solution file.
+    /// Builds solution file as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="relativeProjectPath">Relative project path value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildSolutionFile(string name, string relativeProjectPath)
     {
     try
@@ -1554,8 +1658,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Builds completed successfully.
+    /// Builds completed successfully as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="buildStatus">Build status value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool BuildCompletedSuccessfully(string buildStatus)
     {
     try
@@ -1575,8 +1681,11 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Determines whether inside directory.
+    /// Determines whether inside directory as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="path">Path value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="directory">Directory value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsInsideDirectory(string path, string directory)
     {
     try
@@ -1599,8 +1708,11 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Resolves inside root.
+    /// Resolves inside root as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="relativePath">Relative path value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveInsideRoot(string root, string relativePath)
     {
     try
@@ -1627,8 +1739,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Normalizes relative path.
+    /// Normalizes relative path as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeRelativePath(string? value)
     {
     try
@@ -1667,8 +1781,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Determines whether windows reserved name.
+    /// Determines whether windows reserved name as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsWindowsReservedName(string name)
     {
     try
@@ -1694,8 +1810,11 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Normalizes identifier.
+    /// Normalizes identifier as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeIdentifier(string? value, string fallback)
     {
     try
@@ -1725,8 +1844,11 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Normalizes identifier path.
+    /// Normalizes identifier path as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeIdentifierPath(string? value, string fallback) {
     try
     {
@@ -1745,8 +1867,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the escape csharp operation.
+    /// Performs escape c sharp as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string EscapeCSharp(string? value) {
     try
     {
@@ -1763,8 +1887,11 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Runs the value or fallback operation.
+    /// Performs value or fallback as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ValueOrFallback(string? value, string fallback)
     {
     try
@@ -1783,8 +1910,10 @@ public sealed class CodeGenerationWorkflowService(
 }
 
     /// <summary>
-    /// Determines whether h prefix.
+    /// Determines whether h prefix as part of the code generation workflow service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="hash">Hash value supplied to the code generation workflow operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string HashPrefix(string hash) {
     try
     {

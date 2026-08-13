@@ -8,8 +8,12 @@ using LocalGPT.WireProtocol;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides organic skill registry service operations.
+/// Coordinates organic skill registry behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the organic skill registry workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the organic skill registry workflow to provide the corresponding application capability.</param>
+/// <param name="addonManifests">Organic addon manifest service dependency used by the organic skill registry workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OrganicSkillRegistryService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -17,8 +21,11 @@ public sealed class OrganicSkillRegistryService(
     ILogger<OrganicSkillRegistryService> logger) : IOrganicSkillRegistryService
 {
     /// <summary>
-    /// Gets skills async.
+    /// Retrieves skills as part of the organic skill registry service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="includeDisabled">Value indicating whether include disabled should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<OrganicSkillDefinition>> GetSkillsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)
     {
     try
@@ -41,8 +48,11 @@ public sealed class OrganicSkillRegistryService(
 }
 
     /// <summary>
-    /// Saves skill async.
+    /// Persists skill as part of the organic skill registry service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The organic skill definition produced by the operation.</returns>
     public async Task<OrganicSkillDefinition> SaveSkillAsync(SaveOrganicSkillRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -87,8 +97,11 @@ public sealed class OrganicSkillRegistryService(
 }
 
     /// <summary>
-    /// Runs the link project async operation.
+    /// Links project as part of the organic skill registry service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The project organic skill link produced by the operation.</returns>
     public async Task<ProjectOrganicSkillLink> LinkProjectAsync(LinkProjectOrganicSkillRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -124,8 +137,11 @@ public sealed class OrganicSkillRegistryService(
 }
 
     /// <summary>
-    /// Runs the report member skill async operation.
+    /// Performs report member skill as part of the organic skill registry service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The council member organic skill link produced by the operation.</returns>
     public async Task<CouncilMemberOrganicSkillLink> ReportMemberSkillAsync(ReportCouncilMemberSkillRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -166,8 +182,11 @@ public sealed class OrganicSkillRegistryService(
 }
 
     /// <summary>
-    /// Runs the record untrusted self assessment async operation.
+    /// Performs record untrusted self assessment as part of the organic skill registry service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="assessment">Assessment value supplied to the organic skill registry operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task RecordUntrustedSelfAssessmentAsync(LocalGPT.WireProtocol.OneWireModelSelfAssessment assessment, CancellationToken cancellationToken = default)
     {
     try
@@ -246,8 +265,10 @@ public sealed class OrganicSkillRegistryService(
 }
 
     /// <summary>
-    /// Gets wire skills async.
+    /// Retrieves wire skills as part of the organic skill registry service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<OneWireSkillDescriptor>> GetWireSkillsAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -280,8 +301,10 @@ public sealed class OrganicSkillRegistryService(
 }
 
     /// <summary>
-    /// Runs the map to wire operation.
+    /// Performs map to wire as part of the organic skill registry service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="item">Item value supplied to the organic skill registry operation and used when producing its result.</param>
+    /// <returns>The one wire skill descriptor produced by the operation.</returns>
     private OneWireSkillDescriptor MapToWire(OrganicSkillDefinition item) {
     try
     {
@@ -310,8 +333,10 @@ public sealed class OrganicSkillRegistryService(
 }
 
     /// <summary>
-    /// Runs the serialize distinct operation.
+    /// Performs serialize distinct as part of the organic skill registry service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="values">String dependency used by the organic skill registry workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SerializeDistinct(IEnumerable<string>? values) {
     try
     {
@@ -327,8 +352,10 @@ public sealed class OrganicSkillRegistryService(
     }
 }
     /// <summary>
-    /// Runs the deserialize operation.
+    /// Performs deserialize as part of the organic skill registry service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="json">Json value supplied to the organic skill registry operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> Deserialize(string json) {
     try
     {

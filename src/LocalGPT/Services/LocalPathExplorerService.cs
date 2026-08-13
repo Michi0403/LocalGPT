@@ -4,13 +4,15 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides local path explorer service operations.
+/// Coordinates local path explorer behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> logger) : ILocalPathExplorerService
 {
     /// <summary>
-    /// Gets suggested roots.
+    /// Retrieves suggested roots as part of the local path explorer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<string> GetSuggestedRoots()
     {
         var roots = new List<string>();
@@ -42,8 +44,10 @@ public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> l
     }
 
     /// <summary>
-    /// Runs the format warnings operation.
+    /// Performs format warnings as part of the local path explorer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="warnings">String dependency used by the local path explorer workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string FormatWarnings(IEnumerable<string> warnings)
     {
         try
@@ -59,8 +63,10 @@ public sealed class LocalPathExplorerService(ILogger<LocalPathExplorerService> l
     }
 
     /// <summary>
-    /// Runs the browse operation.
+    /// Performs browse as part of the local path explorer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The local path browse result produced by the operation.</returns>
     public LocalPathBrowseResult Browse(LocalPathBrowseRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

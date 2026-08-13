@@ -9,8 +9,19 @@ using System.Text.Json;
 namespace LocalGPT.Services.OneWire;
 
 /// <summary>
-/// Provides one wire TCP hosted service operations.
+/// Coordinates one wire TCP behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+/// <param name="codec">One wire envelope codec dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+/// <param name="security">One wire runtime security service dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+/// <param name="dispatcher">One wire message dispatcher dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+/// <param name="connections">One wire connection registry dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+/// <param name="peers">One wire peer registry dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+/// <param name="transportSecurityPolicy">One wire transport security policy dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+/// <param name="dispatchContextFactory">One wire dispatch context factory dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+/// <param name="listenAddressResolver">One wire listen address resolver dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+/// <param name="taskRunner">Supervised task runner dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireTcpHostedService(
     IOptions<OneWireOptions> options,
     IOneWireEnvelopeCodec codec,
@@ -25,8 +36,10 @@ public sealed class OneWireTcpHostedService(
     ILogger<OneWireTcpHostedService> logger) : BackgroundService
 {
     /// <summary>
-    /// Runs the execute async operation.
+    /// Performs execute as part of the one wire TCP service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="stoppingToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!options.Value.Enabled)
@@ -58,8 +71,11 @@ public sealed class OneWireTcpHostedService(
     }
 
     /// <summary>
-    /// Handles client async.
+    /// Handles client as part of the one wire TCP service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="client">Tcp client dependency used by the one wire TCP workflow to provide the corresponding application capability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
     {
         string peerId = string.Empty;
@@ -140,8 +156,12 @@ public sealed class OneWireTcpHostedService(
 }
 
 /// <summary>
-/// Provides one wire discovery hosted service operations.
+/// Coordinates one wire discovery behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+/// <param name="security">One wire runtime security service dependency used by the one wire discovery workflow to provide the corresponding application capability.</param>
+/// <param name="codec">One wire envelope codec dependency used by the one wire discovery workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireDiscoveryHostedService(
     IOptions<OneWireOptions> options,
     IOneWireRuntimeSecurityService security,
@@ -149,8 +169,10 @@ public sealed class OneWireDiscoveryHostedService(
     ILogger<OneWireDiscoveryHostedService> logger) : BackgroundService
 {
     /// <summary>
-    /// Runs the execute async operation.
+    /// Performs execute as part of the one wire discovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="stoppingToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!options.Value.Enabled || !options.Value.EnableDiscovery)

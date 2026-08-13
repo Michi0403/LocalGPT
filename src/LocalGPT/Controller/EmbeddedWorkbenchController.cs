@@ -6,8 +6,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace LocalGPT.Controller;
 
 /// <summary>
-/// Provides embedded workbench controller operations.
+/// Exposes the embedded workbench application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
 /// </summary>
+/// <param name="catalog">Embedded hardware catalog service dependency used by the embedded workbench workflow to provide the corresponding application capability.</param>
+/// <param name="wiring">Embedded wiring service dependency used by the embedded workbench workflow to provide the corresponding application capability.</param>
+/// <param name="planning">Embedded firmware planning service dependency used by the embedded workbench workflow to provide the corresponding application capability.</param>
+/// <param name="telemetryBridge">Embedded telemetry bridge service dependency used by the embedded workbench workflow to provide the corresponding application capability.</param>
+/// <param name="telemetryIngress">Embedded telemetry ingress service dependency used by the embedded workbench workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [ApiController]
 [Route("api/embedded")]
 public sealed class EmbeddedWorkbenchController(
@@ -19,22 +25,29 @@ public sealed class EmbeddedWorkbenchController(
     ILogger<EmbeddedWorkbenchController> logger) : ControllerBase
 {
     /// <summary>
-    /// Gets catalog.
+    /// Retrieves catalog for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("catalog")]
     public async Task<IResult> GetCatalog(CancellationToken cancellationToken) =>
         Results.Ok(await catalog.GetCatalogAsync(cancellationToken).ConfigureAwait(false));
 
     /// <summary>
-    /// Gets boards.
+    /// Retrieves boards for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("boards")]
     public async Task<IResult> GetBoards(CancellationToken cancellationToken) =>
         Results.Ok(await catalog.GetBoardProfilesAsync(cancellationToken).ConfigureAwait(false));
 
     /// <summary>
-    /// Gets board.
+    /// Retrieves board for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="boardProfileKey">Board profile key value supplied to the embedded workbench operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("boards/{boardProfileKey}")]
     public async Task<IResult> GetBoard(string boardProfileKey, CancellationToken cancellationToken)
     {
@@ -43,78 +56,110 @@ public sealed class EmbeddedWorkbenchController(
     }
 
     /// <summary>
-    /// Gets protocols.
+    /// Retrieves protocols for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("protocols")]
     public async Task<IResult> GetProtocols(CancellationToken cancellationToken) =>
         Results.Ok(await catalog.GetProtocolDescriptorsAsync(cancellationToken).ConfigureAwait(false));
 
     /// <summary>
-    /// Gets publisher workbench contract.
+    /// Retrieves publisher workbench contract for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <returns>The i result get publisher workbench contract results ok catalog produced by the operation.</returns>
     [HttpGet("publisher-workbench-contract")]
     public IResult GetPublisherWorkbenchContract() => Results.Ok(catalog.GetPublisherWorkbenchContract());
 
     /// <summary>
-    /// Creates wiring draft.
+    /// Creates wiring draft for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("wiring/drafts")]
     public async Task<IResult> CreateWiringDraft([FromBody] EmbeddedWiringDraftCreateRequest request, CancellationToken cancellationToken) =>
         await ExecuteAsync(() => wiring.CreateDraftAsync(request.BoardProfileKey, request.Name, cancellationToken), "wiring draft creation").ConfigureAwait(false);
 
     /// <summary>
-    /// Validates wiring.
+    /// Validates wiring for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("wiring/validate")]
     public async Task<IResult> ValidateWiring([FromBody] EmbeddedWiringValidationRequest request, CancellationToken cancellationToken) =>
         await ExecuteAsync(() => wiring.ValidateAsync(request, cancellationToken), "wiring validation").ConfigureAwait(false);
 
     /// <summary>
-    /// Creates firmware plan.
+    /// Creates firmware plan for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("firmware/plan")]
     public async Task<IResult> CreateFirmwarePlan([FromBody] EmbeddedFirmwarePlanRequest request, CancellationToken cancellationToken) =>
         await ExecuteAsync(() => planning.CreatePlanAsync(request, cancellationToken), "firmware planning").ConfigureAwait(false);
 
     /// <summary>
-    /// Creates firmware artifacts.
+    /// Creates firmware artifacts for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("firmware/artifacts")]
     [HumanApprovalRequired("embedded.firmware.artifacts.create", "Create embedded firmware artifacts", "Write the reviewed sketch, PlatformIO configuration, wiring contract and plan archive. No compiler or flashing tool is executed.", "High", "Embedded firmware reviewer")]
     public async Task<IResult> CreateFirmwareArtifacts([FromBody] EmbeddedFirmwarePlanRequest request, [FromQuery] bool userConfirmed, CancellationToken cancellationToken) =>
         await ExecuteAsync(() => planning.CreateArtifactsAsync(request, userConfirmed, cancellationToken), "firmware artifact creation").ConfigureAwait(false);
 
     /// <summary>
-    /// Runs the preview telemetry operation.
+    /// Previews telemetry for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("telemetry/preview")]
     public async Task<IResult> PreviewTelemetry([FromBody] EmbeddedTelemetryBridgeRequest request, CancellationToken cancellationToken) =>
         await ExecuteAsync(() => telemetryBridge.PreviewAsync(request, cancellationToken), "telemetry preview").ConfigureAwait(false);
 
     /// <summary>
-    /// Runs the preview one wire envelope operation.
+    /// Previews one wire envelope for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("telemetry/onewire-envelope")]
     public async Task<IResult> PreviewOneWireEnvelope([FromBody] EmbeddedTelemetryBridgeRequest request, CancellationToken cancellationToken) =>
         await ExecuteAsync(() => telemetryBridge.CreateOneWireEnvelopeAsync(request, cancellationToken), "logical 1-Wire envelope preview").ConfigureAwait(false);
 
     /// <summary>
-    /// Publishes telemetry.
+    /// Publishes telemetry for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("telemetry/ingress")]
     public async Task<IResult> PublishTelemetry([FromBody] EmbeddedTelemetryBridgeRequest request, CancellationToken cancellationToken) =>
         await ExecuteAsync(() => telemetryIngress.PublishAsync(request, cancellationToken), "telemetry ingress").ConfigureAwait(false);
 
     /// <summary>
-    /// Gets recent telemetry.
+    /// Retrieves recent telemetry for the embedded workbench API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
+    /// <param name="deviceId">Identifier of the device to use for this operation.</param>
+    /// <param name="maximum">Maximum value supplied to the embedded workbench operation and used when producing its result.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpGet("telemetry/recent")]
     public IResult GetRecentTelemetry([FromQuery] string? deviceId, [FromQuery] int maximum = 100) =>
         Results.Ok(telemetryIngress.GetRecent(deviceId, maximum));
 
     /// <summary>
-    /// Runs the execute async operation.
+    /// Returns the execute projection for the embedded workbench API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="EmbeddedWorkbenchController"/>.</typeparam>
+    /// <param name="action">Action value supplied to the embedded workbench operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the embedded workbench operation and used when producing its result.</param>
+    /// <returns>The HTTP-facing result produced for the caller.</returns>
     private async Task<IResult> ExecuteAsync<T>(Func<Task<T>> action, string operation)
     {
         try

@@ -9,14 +9,18 @@ using Microsoft.Extensions.Options;
 namespace LocalGPT.Services;
 
 /// <summary>Configures the optional LocalGPT logging providers during composition-root startup.</summary>
+/// <param name="services">Service collection dependency used by the logging configuration workflow to provide the corresponding application capability.</param>
+/// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LoggingConfigurationService(
     IServiceCollection services,
     IConfiguration configuration,
     ILogger logger)
 {
     /// <summary>
-    /// Runs the configure operation.
+    /// Performs configure as part of the logging configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="loggingBuilder">Logging builder dependency used by the logging configuration workflow to provide the corresponding application capability.</param>
     public void Configure(ILoggingBuilder loggingBuilder)
     {
         ArgumentNullException.ThrowIfNull(loggingBuilder);
@@ -52,8 +56,9 @@ public sealed class LoggingConfigurationService(
     }
 
     /// <summary>
-    /// Adds email logger if configured.
+    /// Adds email logger if configured as part of the logging configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="loggingOptions">Logging options value supplied to the logging configuration operation and used when producing its result.</param>
     private void AddEmailLoggerIfConfigured(LoggingCoreOptions loggingOptions)
     {
         try
@@ -83,8 +88,9 @@ public sealed class LoggingConfigurationService(
     }
 
     /// <summary>
-    /// Adds file logger if configured.
+    /// Adds file logger if configured as part of the logging configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="loggingOptions">Logging options value supplied to the logging configuration operation and used when producing its result.</param>
     private void AddFileLoggerIfConfigured(LoggingCoreOptions loggingOptions)
     {
         try
@@ -110,8 +116,10 @@ public sealed class LoggingConfigurationService(
     }
 
     /// <summary>
-    /// Adds database logger if configured.
+    /// Adds database logger if configured as part of the logging configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="loggingBuilder">Logging builder dependency used by the logging configuration workflow to provide the corresponding application capability.</param>
+    /// <param name="loggingOptions">Logging options value supplied to the logging configuration operation and used when producing its result.</param>
     private void AddDatabaseLoggerIfConfigured(ILoggingBuilder loggingBuilder, LoggingCoreOptions loggingOptions)
     {
         try

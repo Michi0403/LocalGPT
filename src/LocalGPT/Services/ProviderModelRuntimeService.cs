@@ -18,6 +18,15 @@ namespace LocalGPT.Services;
 /// Discovers and opens provider-qualified model sessions. A model name is never treated as a globally
 /// unique address: provider kind and endpoint are always retained with it.
 /// </summary>
+/// <param name="optionsRoot">Configuration root dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
+/// <param name="loggerFactory">Logger factory dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="councilRuntime">Council runtime service dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
+/// <param name="formatterFactory">Chat response formatter factory dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
+/// <param name="protocolResolver">Chat protocol resolver dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
+/// <param name="promptConfigService">Prompt config service dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
+/// <param name="functionRegistry">Devexpress ai function registry dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
+/// <param name="functionCallRecovery">Devexpress ai function call recovery service dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
 public sealed class ProviderModelRuntimeService(
     IOptionsMonitor<ConfigurationRoot> optionsRoot,
     ILoggerFactory loggerFactory,
@@ -30,13 +39,15 @@ public sealed class ProviderModelRuntimeService(
     IDxAiFunctionCallRecoveryService functionCallRecovery) : IProviderModelRuntimeService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory reference cache collection maintained internally by <see cref="ProviderModelRuntimeService"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<string, ProviderModelReference> referenceCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets candidates async.
+    /// Retrieves candidates as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -148,8 +159,11 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Resolves async.
+    /// Performs resolve as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="selectionOrModelName">Selection or model name value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The provider model reference produced by the operation.</returns>
     public async Task<ProviderModelReference> ResolveAsync(string selectionOrModelName, CancellationToken cancellationToken = default)
     {
     try
@@ -217,8 +231,9 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Runs the remember operation.
+    /// Performs remember as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="model">Model value supplied to the provider model runtime operation and used when producing its result.</param>
     public void Remember(ProviderModelReference model)
     {
     try
@@ -242,8 +257,10 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Runs the from session operation.
+    /// Performs from session as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="session">Session value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <returns>The provider model reference produced by the operation.</returns>
     public ProviderModelReference FromSession(ChatClientSession session)
     {
     try
@@ -274,8 +291,16 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Creates chat client.
+    /// Creates chat client as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="model">Model value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="keepAlive">Keep alive value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="maxContextTokens">Max context tokens value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="timeout">Timeout value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="enableAutomaticTools">Value indicating whether enable automatic tools should apply to this operation.</param>
+    /// <param name="throwOnFailure">Value indicating whether throw on failure should apply to this operation.</param>
+    /// <returns>The i chat client produced by the operation.</returns>
     public IChatClient CreateChatClient(
         ProviderModelReference model,
         string keepAlive,
@@ -398,8 +423,11 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Creates session async.
+    /// Creates session as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="model">Model value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The chat client session produced by the operation.</returns>
     public Task<ChatClientSession> CreateSessionAsync(ProviderModelReference model, CancellationToken cancellationToken = default)
     {
     try
@@ -425,8 +453,9 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Creates logging options.
+    /// Creates logging options as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The client logging options produced by the operation.</returns>
     private ClientLoggingOptions CreateLoggingOptions() {
     try
     {
@@ -449,8 +478,10 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Runs the enumerate open ai compatible operation.
+    /// Performs enumerate OpenAI compatible as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<ChatGPTLocalCoreOptions> EnumerateOpenAiCompatible(AICoreOptions options)
     {
         try
@@ -488,8 +519,10 @@ public sealed class ProviderModelRuntimeService(
     }
 
     /// <summary>
-    /// Runs the enumerate ollama operation.
+    /// Performs enumerate Ollama as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<OllamaCoreOptions> EnumerateOllama(AICoreOptions options)
     {
         try
@@ -520,8 +553,10 @@ public sealed class ProviderModelRuntimeService(
     }
 
     /// <summary>
-    /// Runs the enumerate ollama probe endpoints operation.
+    /// Performs enumerate Ollama probe endpoints as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> EnumerateOllamaProbeEndpoints(AICoreOptions options)
     {
         try
@@ -555,8 +590,11 @@ public sealed class ProviderModelRuntimeService(
     }
 
     /// <summary>
-    /// Runs the probe ollama async operation.
+    /// Performs probe Ollama as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> ProbeOllamaAsync(string endpoint, CancellationToken cancellationToken)
     {
         try
@@ -617,8 +655,15 @@ public sealed class ProviderModelRuntimeService(
     }
 
     /// <summary>
-    /// Runs the probe open ai compatible async operation.
+    /// Performs probe OpenAI compatible as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="providerName">Provider name value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="endpoint">Endpoint value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="apiKey">Api key value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="providerKind">Provider kind value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="isLocal">Value indicating whether is local should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> ProbeOpenAiCompatibleAsync(
         string providerName,
         string endpoint,
@@ -657,8 +702,10 @@ public sealed class ProviderModelRuntimeService(
     }
 
     /// <summary>
-    /// Adds candidate.
+    /// Adds candidate as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="candidates">Multi model council model candidate dependency used by the provider model runtime workflow to provide the corresponding application capability.</param>
+    /// <param name="candidate">Candidate value supplied to the provider model runtime operation and used when producing its result.</param>
     private void AddCandidate(
         IDictionary<string, MultiModelCouncilModelCandidate> candidates,
         MultiModelCouncilModelCandidate candidate)
@@ -691,8 +738,10 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Normalizes ollama endpoint.
+    /// Normalizes Ollama endpoint as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeOllamaEndpoint(string endpoint)
     {
     try
@@ -715,8 +764,10 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Normalizes open ai endpoint.
+    /// Normalizes OpenAI endpoint as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeOpenAiEndpoint(string endpoint)
     {
     try
@@ -741,8 +792,10 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Gets local provider name.
+    /// Retrieves local provider name as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetLocalProviderName(string endpoint) {
     try
     {
@@ -761,8 +814,11 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Ensures credential endpoint match.
+    /// Ensures credential endpoint match as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="requestedEndpoint">Requested endpoint value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="configuredEndpoint">Configured endpoint value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="providerName">Provider name value supplied to the provider model runtime operation and used when producing its result.</param>
     private void EnsureCredentialEndpointMatch(string requestedEndpoint, string configuredEndpoint, string providerName)
     {
     try
@@ -788,8 +844,10 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Determines whether real API key.
+    /// Determines whether real API key as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="apiKey">Api key value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool HasRealApiKey(string? apiKey) {
     try
     {
@@ -808,8 +866,10 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Determines whether local endpoint.
+    /// Determines whether local endpoint as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsLocalEndpoint(string endpoint) {
     try
     {
@@ -827,8 +887,11 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
-    /// Runs the infer provider kind operation.
+    /// Performs infer provider kind as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="provider">Provider value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <param name="endpoint">Endpoint value supplied to the provider model runtime operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string InferProviderKind(string provider, string endpoint)
     {
     try

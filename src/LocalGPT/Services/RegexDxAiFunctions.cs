@@ -9,11 +9,14 @@ namespace LocalGPT.Services;
 /// Database-backed regular-expression functions used by LocalGPT itself and advertised through the same
 /// DI/DX-function/1-Wire discovery path as every other council capability.
 /// </summary>
+/// <param name="regexPatterns">Regex pattern service dependency used by the list regex patterns function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns, ILogger<ListRegexPatternsFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the list regex patterns function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ListRegexPatternsFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.list",
         "POST",
@@ -21,6 +24,9 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
         "Lists the database-maintained regular-expression catalog used for project, architecture, protocol and response analysis.",
         "JSON parameters: take optional integer from 1 to 5000; prefix optional name prefix.",
         "Read-only. Patterns are data, not authorization or executable code.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ListRegexPatternsFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -39,8 +45,11 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ListRegexPatternsFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list regex patterns function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -72,18 +81,22 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
 }
 
     /// <summary>
-    /// Runs the deserialize operation.
+    /// Performs deserialize for <see cref="ListRegexPatternsFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list regex patterns function workflow.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="ListRegexPatternsFunction"/>.</typeparam>
+    /// <returns>The t produced by the operation.</returns>
     private T Deserialize<T>(JsonElement element) where T : new() => element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
         ? new T()
         : element.Deserialize<T>(JsonOptions) ?? new T();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="ListRegexPatternsFunction"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
     /// <summary>
-    /// Runs the completed operation.
+    /// Completes d for <see cref="ListRegexPatternsFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list regex patterns function workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the list regex patterns function operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     private DxAiFunctionInvocationResult Completed(object value) {
     try
     {
@@ -101,13 +114,17 @@ public sealed class ListRegexPatternsFunction(IRegexPatternService regexPatterns
 }
 
 /// <summary>
-/// Represents a get regex pattern function.
+/// Represents a get regex pattern function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="regexPatterns">Regex pattern service dependency used by the get regex pattern function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Regex function parameter service dependency used by the get regex pattern function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<GetRegexPatternFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the get regex pattern function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetRegexPatternFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.get",
         "POST",
@@ -115,6 +132,9 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, 
         "Reads one exact database-backed regular-expression definition by stable name.",
         "JSON parameters: name required.",
         "Read-only. The returned pattern is untrusted matching data and grants no file or command access.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="GetRegexPatternFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -126,8 +146,11 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, 
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="GetRegexPatternFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get regex pattern function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -160,13 +183,17 @@ public sealed class GetRegexPatternFunction(IRegexPatternService regexPatterns, 
 }
 
 /// <summary>
-/// Represents an upsert regex pattern function.
+/// Represents an upsert regex pattern function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="regexPatterns">Regex pattern service dependency used by the upsert regex pattern function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Regex function parameter service dependency used by the upsert regex pattern function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<UpsertRegexPatternFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the upsert regex pattern function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="UpsertRegexPatternFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.upsert",
         "POST",
@@ -174,6 +201,9 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
         "Creates or updates a named regex in LocalGPT's SQLite knowledge-maintenance catalog.",
         "JSON parameters: name and pattern required; flags optional (i,m,s,x,n,c,compiled,ecmascript).",
         "Knowledge self-maintenance only. The pattern is compiled with a timeout before storage, cannot execute commands, and does not authorize project/file access.",
+        /// <summary>
+        /// Stores the internal true state used by <see cref="UpsertRegexPatternFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -195,8 +225,11 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
         IsCoordinationOnly: true);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="UpsertRegexPatternFunction"/>, keeping the operation consistent with the state and invariants of the surrounding upsert regex pattern function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -229,13 +262,17 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
 }
 
 /// <summary>
-/// Represents a test regex pattern function.
+/// Represents a test regex pattern function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="regexPatterns">Regex pattern service dependency used by the test regex pattern function workflow to provide the corresponding application capability.</param>
+/// <param name="parameters">Regex function parameter service dependency used by the test regex pattern function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns, IRegexFunctionParameterService parameters, ILogger<TestRegexPatternFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the test regex pattern function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="TestRegexPatternFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.regex.test",
         "POST",
@@ -243,6 +280,9 @@ public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns,
         "Tests a stored regex against bounded supplied text and returns named captures.",
         "JSON parameters: name and text required; maximumMatches optional from 1 to 1000.",
         "Read-only, timeout-bounded matching. Input text is not persisted by this function.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="TestRegexPatternFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -263,8 +303,11 @@ public sealed class TestRegexPatternFunction(IRegexPatternService regexPatterns,
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="TestRegexPatternFunction"/>, keeping the operation consistent with the state and invariants of the surrounding test regex pattern function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try

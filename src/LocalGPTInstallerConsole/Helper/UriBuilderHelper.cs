@@ -3,7 +3,7 @@ using System.Text;
 namespace LocalGPT.Helper
 {
     /// <summary>
-    /// Represents an URI builder helper.
+    /// Represents an URI builder helper application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
     public static class UriBuilderHelper
     {
@@ -34,8 +34,10 @@ namespace LocalGPT.Helper
             return new Uri(combined, UriKind.Absolute);
         }
         /// <summary>
-        /// Builds odata query.
+        /// Builds o data query for <see cref="UriBuilderHelper"/>, keeping the operation consistent with the state and invariants of the surrounding URI builder helper workflow.
         /// </summary>
+        /// <param name="parts">Parts value supplied to the URI builder helper operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         public static string BuildODataQuery(params (string Key, string? Value)[] parts)
         {
             var sb = new StringBuilder();

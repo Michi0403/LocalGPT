@@ -5,8 +5,14 @@ using System.IO.Compression;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides council artifact service operations.
+    /// Coordinates council artifact behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="minecraftWorkspaceService">Minecraft mod workspace service dependency used by the council artifact workflow to provide the corresponding application capability.</param>
+    /// <param name="artifactBuildExecutor">Artifact build executor dependency used by the council artifact workflow to provide the corresponding application capability.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the council artifact workflow to provide the corresponding application capability.</param>
+    /// <param name="councilText">Council text service dependency used by the council artifact workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the council artifact workflow to provide the corresponding application capability.</param>
     public partial class CouncilArtifactService(
         ILogger<CouncilArtifactService> logger,
         IMinecraftModWorkspaceService minecraftWorkspaceService,
@@ -16,16 +22,25 @@ namespace LocalGPT.Services
         LocalGptCatalogService catalog) : ICouncilArtifactService
     {
         /// <summary>
-        /// Gets or sets artifact root.
+        /// Gets the artifact root value that forms part of the council artifact state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The artifact root value exposed by <see cref="CouncilArtifactService"/>.</value>
         public string ArtifactRoot { get; } = Path.Combine(
+            /// <summary>
+            /// Retrieves folder path as part of the council artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+            /// </summary>
+            /// <returns>The environment produced by the operation.</returns>
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "CouncilArtifacts");
 
         /// <summary>
-        /// Creates implementation artifacts async.
+        /// Creates implementation artifacts as part of the council artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council artifact operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public async Task<IReadOnlyList<CouncilArtifact>> CreateImplementationArtifactsAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -132,8 +147,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates minecraft datapack artifacts async.
+        /// Creates minecraft datapack artifacts as part of the council artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council artifact operation and used when producing its result.</param>
+        /// <param name="timestamp">Timestamp value supplied to the council artifact operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public async Task<IReadOnlyList<CouncilArtifact>> CreateMinecraftDatapackArtifactsAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -202,8 +222,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates minecraft skeleton matrix artifacts async.
+        /// Creates minecraft skeleton matrix artifacts as part of the council artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council artifact operation and used when producing its result.</param>
+        /// <param name="timestamp">Timestamp value supplied to the council artifact operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public async Task<IReadOnlyList<CouncilArtifact>> CreateMinecraftSkeletonMatrixArtifactsAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -297,8 +322,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates solution zip artifact async.
+        /// Creates solution ZIP artifact as part of the council artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the council artifact operation and used when producing its result.</param>
+        /// <param name="timestamp">Timestamp value supplied to the council artifact operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The council artifact produced by the operation.</returns>
         public async Task<CouncilArtifact> CreateSolutionZipArtifactAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -430,8 +460,14 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Attempts to create dll artifact async.
+        /// Attempts to create dll artifact as part of the council artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="sourceFileName">Source file name value supplied to the council artifact operation and used when producing its result.</param>
+        /// <param name="source">Source value supplied to the council artifact operation and used when producing its result.</param>
+        /// <param name="targetArea">Target area value supplied to the council artifact operation and used when producing its result.</param>
+        /// <param name="userConfirmedArtifactBuild">Value indicating whether user confirmed artifact build should apply to this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The council artifact produced by the operation.</returns>
         public async Task<CouncilArtifact?> TryCreateDllArtifactAsync(
             string sourceFileName,
             string source,

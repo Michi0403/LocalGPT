@@ -4,32 +4,39 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a chat session context.
+/// Represents a chat session context application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="version">Custom version dependency used by the chat session context workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ChatSessionContext(
     ICustomVersion version,
     ILogger<ChatSessionContext> logger) : IChatSessionContext
 {
     /// <summary>
-    /// Gets or sets conversation identifier.
+    /// Gets or sets the stable conversation identifier used to identify or correlate this chat session context instance with related application state.
     /// </summary>
+    /// <value>The conversation identifier value exposed by <see cref="ChatSessionContext"/>.</value>
     public Guid? ConversationId { get; private set; }
     /// <summary>
-    /// Gets or sets project identifier.
+    /// Gets or sets the stable project identifier used to identify or correlate this chat session context instance with related application state.
     /// </summary>
+    /// <value>The project identifier value exposed by <see cref="ChatSessionContext"/>.</value>
     public Guid? ProjectId { get; private set; }
     /// <summary>
-    /// Gets or sets project version identifier.
+    /// Gets or sets the stable project version identifier used to identify or correlate this chat session context instance with related application state.
     /// </summary>
+    /// <value>The project version identifier value exposed by <see cref="ChatSessionContext"/>.</value>
     public Guid? ProjectVersionId { get; private set; }
     /// <summary>
-    /// Gets or sets application version.
+    /// Gets the application version value that forms part of the chat session context state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The application version value exposed by <see cref="ChatSessionContext"/>.</value>
     public string ApplicationVersion => version.Version;
 
     /// <summary>
-    /// Runs the snapshot operation.
+    /// Performs snapshot for <see cref="ChatSessionContext"/>, keeping the operation consistent with the state and invariants of the surrounding chat session context workflow.
     /// </summary>
+    /// <returns>The chat session context snapshot produced by the operation.</returns>
     public ChatSessionContextSnapshot Snapshot()
     {
     try
@@ -49,8 +56,9 @@ public sealed class ChatSessionContext(
 }
 
     /// <summary>
-    /// Sets conversation.
+    /// Sets conversation for <see cref="ChatSessionContext"/>, keeping the operation consistent with the state and invariants of the surrounding chat session context workflow.
     /// </summary>
+    /// <param name="conversationId">Identifier of the conversation to use for this operation.</param>
     public void SetConversation(Guid? conversationId)
     {
     try
@@ -70,8 +78,10 @@ public sealed class ChatSessionContext(
 }
 
     /// <summary>
-    /// Sets project.
+    /// Sets project for <see cref="ChatSessionContext"/>, keeping the operation consistent with the state and invariants of the surrounding chat session context workflow.
     /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="projectVersionId">Identifier of the project version to use for this operation.</param>
     public void SetProject(Guid? projectId, Guid? projectVersionId)
     {
     try
@@ -94,8 +104,9 @@ public sealed class ChatSessionContext(
 }
 
     /// <summary>
-    /// Runs the restore operation.
+    /// Performs restore for <see cref="ChatSessionContext"/>, keeping the operation consistent with the state and invariants of the surrounding chat session context workflow.
     /// </summary>
+    /// <param name="snapshot">Snapshot value supplied to the chat session context operation and used when producing its result.</param>
     public void Restore(ChatSessionContextSnapshot snapshot)
     {
     try

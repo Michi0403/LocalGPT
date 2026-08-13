@@ -5,14 +5,17 @@ using System.Net;
 namespace LocalGPT.Services.OneWire;
 
 /// <summary>
-/// Provides one wire listen address resolver operations.
+/// Resolves one wire listen address choices from the available runtime state and returns the application-appropriate result to callers.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireListenAddressResolver(
     ILogger<OneWireListenAddressResolver> logger) : IOneWireListenAddressResolver
 {
     /// <summary>
-    /// Runs the resolve operation.
+    /// Performs resolve for <see cref="OneWireListenAddressResolver"/>, keeping the operation consistent with the state and invariants of the surrounding one wire listen address workflow.
     /// </summary>
+    /// <param name="configured">Configured value supplied to the one wire listen address operation and used when producing its result.</param>
+    /// <returns>The IP address produced by the operation.</returns>
     public IPAddress Resolve(OneWireOptions configured)
     {
         try

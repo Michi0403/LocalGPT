@@ -8,20 +8,28 @@ namespace LocalGPT.Services.Persistence;
 /// Performs bounded SQLite integrity checks and preserves confirmed malformed files before recreation.
 /// It deliberately does not treat locks, permission errors, or migration differences as corruption.
 /// </summary>
+/// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DatabaseFileHealthService(
     LocalGptDatabaseOptions options,
     ILogger<DatabaseFileHealthService> logger) : IDatabaseFileHealthService
 {
+    /// <summary>
+    /// Stores the internal database suffixes state used by <see cref="DatabaseFileHealthService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string[] DatabaseSuffixes = [string.Empty, "-wal", "-shm"];
 
     /// <summary>
-    /// Gets or sets database path.
+    /// Gets the database path used by this database file health instance to locate the associated file-system resource.
     /// </summary>
+    /// <value>The database path value exposed by <see cref="DatabaseFileHealthService"/>.</value>
     public string DatabasePath => options.DatabasePath;
 
     /// <summary>
-    /// Ensures healthy or recover async.
+    /// Ensures healthy or recover as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task EnsureHealthyOrRecoverAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -78,8 +86,10 @@ public sealed class DatabaseFileHealthService(
 }
 
     /// <summary>
-    /// Determines whether sqlite corruption.
+    /// Determines whether sqlite corruption as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="exception">Exception value supplied to the database file health operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool IsSqliteCorruption(Exception exception)
     {
     try
@@ -111,8 +121,10 @@ public sealed class DatabaseFileHealthService(
 }
 
     /// <summary>
-    /// Runs the recover malformed database async operation.
+    /// Performs recover malformed database as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task RecoverMalformedDatabaseAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -160,8 +172,10 @@ public sealed class DatabaseFileHealthService(
 }
 
     /// <summary>
-    /// Runs the run quick check async operation.
+    /// Performs run quick check as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The database probe result produced by the operation.</returns>
     private async Task<DatabaseProbeResult> RunQuickCheckAsync(CancellationToken cancellationToken)
     {
         try
@@ -198,8 +212,10 @@ public sealed class DatabaseFileHealthService(
     }
 
     /// <summary>
-    /// Runs the run write probe async operation.
+    /// Performs run write probe as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The database probe result produced by the operation.</returns>
     private async Task<DatabaseProbeResult> RunWriteProbeAsync(CancellationToken cancellationToken)
     {
         try
@@ -243,8 +259,10 @@ public sealed class DatabaseFileHealthService(
     }
 
     /// <summary>
-    /// Runs the contains corruption text operation.
+    /// Performs contains corruption text as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="message">Message value supplied to the database file health operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool ContainsCorruptionText(string? message) {
     try
     {
@@ -263,8 +281,11 @@ public sealed class DatabaseFileHealthService(
 }
 
     /// <summary>
-    /// Attempts to move to backup.
+    /// Attempts to move to backup as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sourcePath">Source path value supplied to the database file health operation and used when producing its result.</param>
+    /// <param name="backupPath">Backup path value supplied to the database file health operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryMoveToBackup(string sourcePath, string backupPath)
     {
         try
@@ -280,8 +301,10 @@ public sealed class DatabaseFileHealthService(
     }
 
     /// <summary>
-    /// Attempts to quarantine or delete.
+    /// Attempts to quarantine or delete as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sourcePath">Source path value supplied to the database file health operation and used when producing its result.</param>
+    /// <param name="fallbackPath">Fallback path value supplied to the database file health operation and used when producing its result.</param>
     private void TryQuarantineOrDelete(string sourcePath, string fallbackPath)
     {
         try
@@ -303,8 +326,9 @@ public sealed class DatabaseFileHealthService(
     }
 
     /// <summary>
-    /// Gets recovery marker path.
+    /// Retrieves recovery marker path as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     private string GetRecoveryMarkerPath() {
     try
     {
@@ -321,7 +345,7 @@ public sealed class DatabaseFileHealthService(
 }
 
     /// <summary>
-    /// Writes recovery marker.
+    /// Writes recovery marker as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     private void WriteRecoveryMarker()
     {
@@ -336,7 +360,7 @@ public sealed class DatabaseFileHealthService(
     }
 
     /// <summary>
-    /// Attempts to delete recovery marker.
+    /// Attempts to delete recovery marker as part of the database file health service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     private void TryDeleteRecoveryMarker()
     {

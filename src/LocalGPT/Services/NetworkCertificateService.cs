@@ -7,11 +7,13 @@ using System.Security.Cryptography.X509Certificates;
 namespace LocalGPT.Services;
 
 /// <summary>Creates explicit user-requested self-signed PFX certificates for the optional LocalGPT LAN/VPN Kestrel endpoint.</summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class NetworkCertificateService(ILogger<NetworkCertificateService> logger) : INetworkCertificateService
 {
     /// <summary>
-    /// Creates default request.
+    /// Creates default request as part of the network certificate service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The network certificate create request produced by the operation.</returns>
     public NetworkCertificateCreateRequest CreateDefaultRequest()
     {
         try
@@ -44,8 +46,11 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
     }
 
     /// <summary>
-    /// Creates async.
+    /// Performs create as part of the network certificate service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The network certificate create result produced by the operation.</returns>
     public async Task<NetworkCertificateCreateResult> CreateAsync(NetworkCertificateCreateRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -126,8 +131,11 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
     }
 
     /// <summary>
-    /// Parses subject alternative names.
+    /// Parses subject alternative names as part of the network certificate service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="text">Text value supplied to the network certificate operation and used when producing its result.</param>
+    /// <param name="commonName">Common name value supplied to the network certificate operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> ParseSubjectAlternativeNames(string? text, string commonName)
     {
         try
@@ -147,8 +155,10 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
     }
 
     /// <summary>
-    /// Runs the escape distinguished name value operation.
+    /// Performs escape distinguished name value as part of the network certificate service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the network certificate operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string EscapeDistinguishedNameValue(string value)
     {
         try

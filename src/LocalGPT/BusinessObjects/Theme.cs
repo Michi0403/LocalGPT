@@ -4,7 +4,7 @@ using System.Globalization;
 namespace LocalGPT.BusinessObjects;
 
 /// <summary>
-/// Lists supported theme application target values.
+/// Defines the supported theme application target values used to select or describe behavior in the surrounding workflow.
 /// </summary>
 public enum ThemeApplicationTarget
 {
@@ -20,8 +20,11 @@ public enum ThemeApplicationTarget
 public sealed class ThemeFusionStep
 {
     /// <summary>
-    /// Runs the theme fusion step operation.
+    /// Initializes a new <see cref="ThemeFusionStep"/> instance and captures the dependencies or initial state required by its theme fusion step workflow.
     /// </summary>
+    /// <param name="sequence">Sequence value supplied to the theme fusion step operation and used when producing its result.</param>
+    /// <param name="target">Target value supplied to the theme fusion step operation and used when producing its result.</param>
+    /// <param name="themeName">Theme name value supplied to the theme fusion step operation and used when producing its result.</param>
     public ThemeFusionStep(int sequence, ThemeApplicationTarget target, string themeName)
     {
         if (sequence < 1)
@@ -34,29 +37,41 @@ public sealed class ThemeFusionStep
     }
 
     /// <summary>
-    /// Gets or sets sequence.
+    /// Gets the sequence value that forms part of the theme fusion step state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The sequence value exposed by <see cref="ThemeFusionStep"/>.</value>
     public int Sequence { get; }
     /// <summary>
-    /// Gets or sets target.
+    /// Gets the target value that forms part of the theme fusion step state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The target value exposed by <see cref="ThemeFusionStep"/>.</value>
     public ThemeApplicationTarget Target { get; }
     /// <summary>
-    /// Gets or sets theme name.
+    /// Gets the theme name value that forms part of the theme fusion step state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The theme name value exposed by <see cref="ThemeFusionStep"/>.</value>
     public string ThemeName { get; }
 }
 
 /// <summary>
-/// Represents a theme.
+/// Represents a theme application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 public sealed class Theme
 {
+    /// <summary>
+    /// Defines the bootstrap dark mode postfix constant used by <see cref="Theme"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string BootstrapDarkModePostfix = "-dark";
 
     /// <summary>
-    /// Runs the theme operation.
+    /// Initializes a new <see cref="Theme"/> instance and captures the dependencies or initial state required by its theme workflow.
     /// </summary>
+    /// <param name="name">Name value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="devExpressTheme">Theme dependency used by the theme workflow to provide the corresponding application capability.</param>
+    /// <param name="isBootstrapNative">Value indicating whether is bootstrap native should apply to this operation.</param>
+    /// <param name="title">Title value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="bootstrapThemeMode">Bootstrap theme mode value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="themePath">Theme path value supplied to the theme operation and used when producing its result.</param>
     public Theme(
         string name,
         ITheme devExpressTheme,
@@ -83,42 +98,54 @@ public sealed class Theme
     }
 
     /// <summary>
-    /// Gets or sets name.
+    /// Gets the name value that forms part of the theme state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The name value exposed by <see cref="Theme"/>.</value>
     public string Name { get; }
     /// <summary>
-    /// Gets or sets title.
+    /// Gets the title value that forms part of the theme state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The title value exposed by <see cref="Theme"/>.</value>
     public string Title { get; }
     /// <summary>
-    /// Gets or sets icon CSS class.
+    /// Gets the icon CSS class value that forms part of the theme state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The icon CSS class value exposed by <see cref="Theme"/>.</value>
     public string IconCssClass => Name.ToLowerInvariant();
     /// <summary>
-    /// Gets or sets is bootstrap native.
+    /// Gets a value indicating whether bootstrap native applies to the theme state.
     /// </summary>
+    /// <value>The is bootstrap native value exposed by <see cref="Theme"/>.</value>
     public bool IsBootstrapNative { get; }
     /// <summary>
-    /// Gets or sets bootstrap theme mode.
+    /// Gets the bootstrap theme mode value that forms part of the theme state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The bootstrap theme mode value exposed by <see cref="Theme"/>.</value>
     public string BootstrapThemeMode { get; }
     /// <summary>
-    /// Gets or sets theme path.
+    /// Gets the theme path used by this theme instance to locate the associated file-system resource.
     /// </summary>
+    /// <value>The theme path value exposed by <see cref="Theme"/>.</value>
     public string ThemePath { get; }
     /// <summary>
-    /// Gets or sets dev express theme.
+    /// Gets the DevExpress theme value that forms part of the theme state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The DevExpress theme value exposed by <see cref="Theme"/>.</value>
     public ITheme DevExpressTheme { get; }
 
     /// <summary>
-    /// Gets CSS class.
+    /// Retrieves CSS class for <see cref="Theme"/>, keeping the operation consistent with the state and invariants of the surrounding theme workflow.
     /// </summary>
+    /// <param name="isActive">Value indicating whether is active should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string GetCssClass(bool isActive) => isActive ? "active" : "text-body";
 
     /// <summary>
-    /// Runs the infer bootstrap theme mode operation.
+    /// Performs infer bootstrap theme mode for <see cref="Theme"/>, keeping the operation consistent with the state and invariants of the surrounding theme workflow.
     /// </summary>
+    /// <param name="name">Name value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="isBootstrapNative">Value indicating whether is bootstrap native should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string InferBootstrapThemeMode(string name, bool isBootstrapNative)
     {
         if (name.Equals("blazing-dark", StringComparison.OrdinalIgnoreCase)
@@ -132,8 +159,11 @@ public sealed class Theme
     }
 
     /// <summary>
-    /// Runs the infer theme path operation.
+    /// Performs infer theme path for <see cref="Theme"/>, keeping the operation consistent with the state and invariants of the surrounding theme workflow.
     /// </summary>
+    /// <param name="name">Name value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="isBootstrapNative">Value indicating whether is bootstrap native should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string InferThemePath(string name, bool isBootstrapNative)
     {
         if (!isBootstrapNative)
@@ -146,13 +176,15 @@ public sealed class Theme
 }
 
 /// <summary>
-/// Represents a theme set.
+/// Represents a theme set application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 public sealed class ThemeSet
 {
     /// <summary>
-    /// Runs the theme set operation.
+    /// Initializes a new <see cref="ThemeSet"/> instance and captures the dependencies or initial state required by its theme set workflow.
     /// </summary>
+    /// <param name="title">Title value supplied to the theme set operation and used when producing its result.</param>
+    /// <param name="themes">Themes value supplied to the theme set operation and used when producing its result.</param>
     public ThemeSet(string title, params Theme[] themes)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -163,11 +195,13 @@ public sealed class ThemeSet
     }
 
     /// <summary>
-    /// Gets or sets title.
+    /// Gets the title value that forms part of the theme set state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The title value exposed by <see cref="ThemeSet"/>.</value>
     public string Title { get; }
     /// <summary>
-    /// Gets or sets themes.
+    /// Gets the themes value that forms part of the theme set state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The themes value exposed by <see cref="ThemeSet"/>.</value>
     public Theme[] Themes { get; }
 }

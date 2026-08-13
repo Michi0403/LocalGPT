@@ -9,27 +9,37 @@ namespace LocalGPT.BusinessObjects;
 public sealed class PromptSuggestion
 {
     /// <summary>Gets the stable prompt key used by direct Council starter routes.</summary>
+    /// <value>The key value exposed by <see cref="PromptSuggestion"/>.</value>
     public string Key { get; }
 
-    /// <summary>Gets or sets the visible prompt title.</summary>
+    /// <summary>
+    /// Gets or sets the title value that forms part of the prompt suggestion state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The title value exposed by <see cref="PromptSuggestion"/>.</value>
     public string Title { get; set; }
 
-    /// <summary>Gets or sets the compact prompt description.</summary>
+    /// <summary>
+    /// Gets or sets the text value that forms part of the prompt suggestion state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The text value exposed by <see cref="PromptSuggestion"/>.</value>
     [Column(TypeName = "TEXT")]
     public string Text { get; set; }
 
     /// <summary>Gets or sets the full text submitted to the selected chat or Council session.</summary>
+    /// <value>The prompt message value exposed by <see cref="PromptSuggestion"/>.</value>
     [Column(TypeName = "TEXT")]
     public string PromptMessage { get; set; }
 
     /// <summary>Gets the Council-team keys for which this prompt is recommended.</summary>
+    /// <value>The team keys value exposed by <see cref="PromptSuggestion"/>.</value>
     public IReadOnlyList<string> TeamKeys { get; }
 
     /// <summary>Gets whether the prompt is intended to create a fresh AI Council run rather than a normal single-model reply.</summary>
+    /// <value>The starts council directly value exposed by <see cref="PromptSuggestion"/>.</value>
     public bool StartsCouncilDirectly { get; }
 
     /// <summary>
-    /// Creates one prompt suggestion.
+    /// Initializes a new <see cref="PromptSuggestion"/> instance and captures the dependencies or initial state required by its prompt suggestion workflow.
     /// </summary>
     /// <param name="title">Visible prompt title.</param>
     /// <param name="text">Compact prompt description.</param>

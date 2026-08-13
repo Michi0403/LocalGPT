@@ -6,21 +6,26 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services.Helpers;
 
 /// <summary>
-/// Provides DevExpress ai function JSON service operations.
+/// Coordinates DevExpress AI function JSON behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> logger) : IDxAiFunctionJsonService
 {
     /// <summary>
-    /// Gets or sets options.
+    /// Gets the options value that forms part of the DevExpress AI function JSON state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The options value exposed by <see cref="DxAiFunctionJsonService"/>.</value>
     public JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true
     };
 
     /// <summary>
-    /// Runs the deserialize operation.
+    /// Performs deserialize as part of the DevExpress AI function JSON service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="DxAiFunctionJsonService"/>.</typeparam>
+    /// <param name="element">Element value supplied to the DevExpress AI function JSON operation and used when producing its result.</param>
+    /// <returns>The t produced by the operation.</returns>
     public T Deserialize<T>(JsonElement element) where T : new()
     {
         var binding = Bind<T>(element);
@@ -31,8 +36,11 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
     }
 
     /// <summary>
-    /// Runs the bind operation.
+    /// Performs bind as part of the DevExpress AI function JSON service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="DxAiFunctionJsonService"/>.</typeparam>
+    /// <param name="element">Element value supplied to the DevExpress AI function JSON operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function parameter binding t produced by the operation.</returns>
     public DxAiFunctionParameterBinding<T> Bind<T>(JsonElement element) where T : new()
     {
         try
@@ -74,8 +82,10 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
     }
 
     /// <summary>
-    /// Runs the invalid parameters operation.
+    /// Performs invalid parameters as part of the DevExpress AI function JSON service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="error">Error value supplied to the DevExpress AI function JSON operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public DxAiFunctionInvocationResult InvalidParameters(string error)
     {
     try
@@ -103,8 +113,11 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
 }
 
     /// <summary>
-    /// Runs the success operation.
+    /// Performs success as part of the DevExpress AI function JSON service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the DevExpress AI function JSON operation and used when producing its result.</param>
+    /// <param name="status">Status value supplied to the DevExpress AI function JSON operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public DxAiFunctionInvocationResult Success(object? value = null, string status = "Completed")
     {
         try
@@ -123,6 +136,10 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
     /// Runs the failed operation.
     /// </summary>
     private DxAiFunctionParameterBinding<T> Failed<T>(string error) where T : new() =>
+        /// <summary>
+        /// Gets the new value that forms part of the DevExpress AI function JSON state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The new value exposed by <see cref="DxAiFunctionJsonService"/>.</value>
         new()
         {
             Succeeded = false,
@@ -131,8 +148,10 @@ internal sealed class DxAiFunctionJsonService(ILogger<DxAiFunctionJsonService> l
         };
 
     /// <summary>
-    /// Builds parameter error.
+    /// Builds parameter error as part of the DevExpress AI function JSON service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="exception">Exception value supplied to the DevExpress AI function JSON operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildParameterError(JsonException exception)
     {
     try

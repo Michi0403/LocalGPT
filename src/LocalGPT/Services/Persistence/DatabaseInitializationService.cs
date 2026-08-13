@@ -10,6 +10,15 @@ namespace LocalGPT.Services.Persistence;
 /// Coordinates database health, compatibility reconciliation, EF migration, and deterministic seeding.
 /// Low-level migration-history inspection belongs to <see cref="IDatabaseMigrationCompatibilityService"/>.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+/// <param name="databaseFileHealth">Database file health service dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+/// <param name="migrationCompatibility">Database migration compatibility service dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Initial data catalog dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicySeed">Local gpt runtime policy seed data service dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+/// <param name="serviceActivity">Service activity service dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+/// <param name="databaseLoggerReadiness">Database logger readiness dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+/// <param name="hostEnvironment">Host environment dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DatabaseInitializationService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseFileHealthService databaseFileHealth,
@@ -22,14 +31,19 @@ public sealed class DatabaseInitializationService(
     ILogger<DatabaseInitializationService> logger) : IDatabaseInitializationService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to gate state owned by <see cref="DatabaseInitializationService"/>.
     /// </summary>
     private readonly SemaphoreSlim gate = new(1, 1);
+    /// <summary>
+    /// Stores the internal initialized state used by <see cref="DatabaseInitializationService"/> while executing its surrounding workflow.
+    /// </summary>
     private volatile bool initialized;
 
     /// <summary>
-    /// Runs the initialize async operation.
+    /// Performs initialize as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public Task InitializeAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -51,8 +65,10 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Runs the initialize core async operation.
+    /// Performs initialize core as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task InitializeCoreAsync(CancellationToken cancellationToken)
     {
     try
@@ -100,8 +116,10 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Runs the run migration async operation.
+    /// Performs run migration as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunMigrationAsync(CancellationToken cancellationToken)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -122,8 +140,12 @@ public sealed class DatabaseInitializationService(
     }
 
     /// <summary>
-    /// Runs the run seed stage async operation.
+    /// Performs run seed stage as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="stageName">Stage name value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="seed">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunSeedStageAsync(
         string stageName,
         Func<LocalGptMemoryDbContext, CancellationToken, Task> seed,
@@ -180,8 +202,14 @@ public sealed class DatabaseInitializationService(
     }
 
     /// <summary>
-    /// Attempts to reconcile seed concurrency async.
+    /// Attempts to reconcile seed concurrency as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="stageName">Stage name value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="attempt">Attempt value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="exception">Exception value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private async Task<bool> TryReconcileSeedConcurrencyAsync(
         LocalGptMemoryDbContext db,
         string stageName,
@@ -228,8 +256,9 @@ public sealed class DatabaseInitializationService(
     }
 
     /// <summary>
-    /// Determines whether initialized store present.
+    /// Determines whether initialized store present as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsInitializedStorePresent() {
     try
     {
@@ -246,8 +275,11 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Runs the seed regex async operation.
+    /// Performs seed regex as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="token">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SeedRegexAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -287,8 +319,11 @@ public sealed class DatabaseInitializationService(
     }
 }
     /// <summary>
-    /// Runs the seed prompts async operation.
+    /// Performs seed prompts as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="token">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SeedPromptsAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -324,8 +359,11 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Runs the seed variables async operation.
+    /// Performs seed variables as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="token">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SeedVariablesAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -386,8 +424,10 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Determines whether JSON string array.
+    /// Determines whether JSON string array as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the database initialization operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsJsonStringArray(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -409,8 +449,11 @@ public sealed class DatabaseInitializationService(
     }
 
     /// <summary>
-    /// Runs the seed knowledge async operation.
+    /// Performs seed knowledge as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="token">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SeedKnowledgeAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -467,8 +510,11 @@ public sealed class DatabaseInitializationService(
 
 
     /// <summary>
-    /// Runs the seed core projects async operation.
+    /// Performs seed core projects as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="token">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SeedCoreProjectsAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -795,8 +841,16 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Runs the track missing project seed records operation.
+    /// Performs track missing project seed records as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="project">Project value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="isNewProject">Value indicating whether is new project should apply to this operation.</param>
+    /// <param name="existingTopicIds">Guid dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+    /// <param name="existingVersionIds">Guid dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+    /// <param name="existingRevisionIds">Guid dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+    /// <param name="existingRequirementIds">Guid dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+    /// <param name="existingArtifactIds">Guid dependency used by the database initialization workflow to provide the corresponding application capability.</param>
     private void TrackMissingProjectSeedRecords(
         LocalGptMemoryDbContext db,
         LocalGptProject project,
@@ -833,8 +887,11 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Runs the seed council model presets async operation.
+    /// Performs seed council model presets as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="db">Database value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="token">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SeedCouncilModelPresetsAsync(LocalGptMemoryDbContext db, CancellationToken token)
     {
     try
@@ -947,8 +1004,17 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Builds preset.
+    /// Builds preset as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="description">Description value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="models">Models value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="routes">Routes value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="isDefault">Value indicating whether is default should apply to this operation.</param>
+    /// <param name="maxParallel">Max parallel value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="includeMemory">Value indicating whether include memory should apply to this operation.</param>
+    /// <param name="createProjectPerRun">Value indicating whether create project per run should apply to this operation.</param>
+    /// <returns>The council model preset produced by the operation.</returns>
     private CouncilModelPreset BuildPreset(
         string name,
         string description,
@@ -990,8 +1056,18 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Runs the route operation.
+    /// Performs route as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="model">Model value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="kind">Kind value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="index">Index value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="minOutput">Min output value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="maxOutput">Max output value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="minContext">Min context value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="maxContext">Max context value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="numGpu">Num gpu value supplied to the database initialization operation and used when producing its result.</param>
+    /// <returns>The one wire council model route produced by the operation.</returns>
     private OneWireCouncilModelRoute Route(
         string model,
         OneWireHardwareKind kind,
@@ -1030,8 +1106,11 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Ensures topic.
+    /// Ensures topic as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="project">Project value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="description">Description value supplied to the database initialization operation and used when producing its result.</param>
     private void EnsureTopic(LocalGptProject project, string name, string description)
     {
     try
@@ -1060,8 +1139,12 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Ensures version.
+    /// Ensures version as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="project">Project value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="version">Version value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="path">Path value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="notes">Notes value supplied to the database initialization operation and used when producing its result.</param>
     private void EnsureVersion(LocalGptProject project, string version, string path, string notes)
     {
     try
@@ -1091,8 +1174,13 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Ensures revision.
+    /// Ensures revision as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="project">Project value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="branch">Branch value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="revision">Revision value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="root">Root value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="summary">Summary value supplied to the database initialization operation and used when producing its result.</param>
     private void EnsureRevision(LocalGptProject project, string branch, string revision, string root, string summary)
     {
     try
@@ -1125,8 +1213,13 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Ensures requirement.
+    /// Ensures requirement as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="project">Project value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="description">Description value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="capability">Capability value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="priority">Priority value supplied to the database initialization operation and used when producing its result.</param>
     private void EnsureRequirement(LocalGptProject project, string name, string description, string capability, string priority)
     {
     try
@@ -1160,8 +1253,14 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Ensures artifact.
+    /// Ensures artifact as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="project">Project value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="kind">Kind value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="dataType">Data type value supplied to the database initialization operation and used when producing its result.</param>
+    /// <param name="description">Description value supplied to the database initialization operation and used when producing its result.</param>
     private void EnsureArtifact(LocalGptProject project, string name, string kind, string value, string dataType, string description)
     {
     try
@@ -1193,8 +1292,10 @@ public sealed class DatabaseInitializationService(
 }
 
     /// <summary>
-    /// Resolves repository root.
+    /// Resolves repository root as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="contentRoot">Content root value supplied to the database initialization operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveRepositoryRoot(string contentRoot)
     {
     try
@@ -1223,15 +1324,19 @@ public sealed class DatabaseInitializationService(
 }
 
 /// <summary>
-/// Provides database initialization hosted service operations.
+/// Coordinates database initialization behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="initializer">Database initialization service dependency used by the database initialization workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DatabaseInitializationHostedService(
     IDatabaseInitializationService initializer,
     ILogger<DatabaseInitializationHostedService> logger) : IHostedService
 {
     /// <summary>
-    /// Starts async.
+    /// Performs start as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
@@ -1246,8 +1351,10 @@ public sealed class DatabaseInitializationHostedService(
     }
 
     /// <summary>
-    /// Stops async.
+    /// Performs stop as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public Task StopAsync(CancellationToken cancellationToken) {
     try
     {

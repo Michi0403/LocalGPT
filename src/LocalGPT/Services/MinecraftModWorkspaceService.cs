@@ -6,8 +6,12 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides minecraft mod workspace service operations.
+    /// Coordinates minecraft mod workspace behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the minecraft mod workspace workflow to provide the corresponding application capability.</param>
+    /// <param name="councilText">Council text service dependency used by the minecraft mod workspace workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the minecraft mod workspace workflow to provide the corresponding application capability.</param>
     public partial class MinecraftModWorkspaceService(ILogger<MinecraftModWorkspaceService> logger,
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
@@ -15,16 +19,24 @@ namespace LocalGPT.Services
     {
     
         /// <summary>
-        /// Gets or sets workspace root.
+        /// Gets the workspace root value that forms part of the minecraft mod workspace state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The workspace root value exposed by <see cref="MinecraftModWorkspaceService"/>.</value>
         public string WorkspaceRoot { get; } = Path.Combine(
+            /// <summary>
+            /// Retrieves folder path as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+            /// </summary>
+            /// <returns>The environment produced by the operation.</returns>
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "MinecraftModWorkspaces");
 
         /// <summary>
-        /// Creates workspace async.
+        /// Creates workspace as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The minecraft mod workspace produced by the operation.</returns>
         public async Task<MinecraftModWorkspace> CreateWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -54,8 +66,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates fabric workspace async.
+        /// Creates fabric workspace as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The minecraft mod workspace produced by the operation.</returns>
         public async Task<MinecraftModWorkspace> CreateFabricWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -90,8 +105,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates paper plugin workspace async.
+        /// Creates paper plugin workspace as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The minecraft mod workspace produced by the operation.</returns>
         public async Task<MinecraftModWorkspace> CreatePaperPluginWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -124,8 +142,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates datapack workspace async.
+        /// Creates datapack workspace as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The minecraft mod workspace produced by the operation.</returns>
         public async Task<MinecraftModWorkspace> CreateDatapackWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -193,8 +214,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates neo forge workspace async.
+        /// Creates neo forge workspace as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The minecraft mod workspace produced by the operation.</returns>
         public async Task<MinecraftModWorkspace> CreateNeoForgeWorkspaceAsync(MinecraftModBuildRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -229,8 +253,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Determines whether path inside workspace root.
+        /// Determines whether path inside workspace root as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="path">Path value supplied to the minecraft mod workspace operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsPathInsideWorkspaceRoot(string path)
         {
             try
@@ -247,8 +273,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates workspace layout.
+        /// Creates workspace layout as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <returns>The workspace layout produced by the operation.</returns>
         private WorkspaceLayout CreateWorkspaceLayout(MinecraftModBuildRequest request)
         {
             try
@@ -306,8 +334,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates datapack layout.
+        /// Creates datapack layout as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <returns>The workspace layout produced by the operation.</returns>
         private WorkspaceLayout CreateDatapackLayout(MinecraftModBuildRequest request)
         {
             try
@@ -343,8 +373,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Writes common resource files async.
+        /// Writes common resource files as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="context">Context value supplied to the minecraft mod workspace operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task WriteCommonResourceFilesAsync(MinecraftModBuildRequest request, WorkspaceContext context, CancellationToken cancellationToken)
         {
             try
@@ -369,8 +403,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Writes build helper async.
+        /// Writes build helper as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="context">Context value supplied to the minecraft mod workspace operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task WriteBuildHelperAsync(MinecraftModBuildRequest request, WorkspaceContext context, CancellationToken cancellationToken)
         {
             try
@@ -390,8 +428,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Gets unique project path.
+        /// Retrieves unique project path as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="projectName">Project name value supplied to the minecraft mod workspace operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string GetUniqueProjectPath(string projectName)
         {
             try

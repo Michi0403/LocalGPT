@@ -14,6 +14,11 @@ namespace LocalGPT.Services;
 /// cache used by LocalGPT, lists every returned file, applies a regex file policy, and then delegates
 /// database extraction to the existing learn-base importer.
 /// </summary>
+/// <param name="learnBaseImporter">Learn base knowledge importer service dependency used by the remote knowledge import workflow to provide the corresponding application capability.</param>
+/// <param name="knowledge">Council knowledge service dependency used by the remote knowledge import workflow to provide the corresponding application capability.</param>
+/// <param name="regexPatterns">Regex pattern service dependency used by the remote knowledge import workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Local gpt catalog service dependency used by the remote knowledge import workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RemoteKnowledgeImportService(
     ILearnBaseKnowledgeImporterService learnBaseImporter,
     ICouncilKnowledgeService knowledge,
@@ -21,6 +26,9 @@ public sealed class RemoteKnowledgeImportService(
     LocalGptCatalogService catalog,
     ILogger<RemoteKnowledgeImportService> logger) : IRemoteKnowledgeImportService, IDisposable
 {
+    /// <summary>
+    /// Stores the internal dispose state state used by <see cref="RemoteKnowledgeImportService"/> while executing its surrounding workflow.
+    /// </summary>
     private int disposeState;
     /// <summary>
     /// Runs the new operation.
@@ -37,8 +45,10 @@ public sealed class RemoteKnowledgeImportService(
 
 
     /// <summary>
-    /// Parses labels.
+    /// Parses labels as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="values">Values value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public List<string> ParseLabels(params string?[] values)
     {
         try
@@ -68,8 +78,11 @@ public sealed class RemoteKnowledgeImportService(
     }
 
     /// <summary>
-    /// Imports async.
+    /// Performs import as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The remote knowledge import result produced by the operation.</returns>
     public async Task<RemoteKnowledgeImportResult> ImportAsync(
         RemoteKnowledgeImportRequest request,
         CancellationToken cancellationToken = default)
@@ -160,8 +173,15 @@ public sealed class RemoteKnowledgeImportService(
     }
 
     /// <summary>
-    /// Runs the download git hub async operation.
+    /// Performs download GitHub as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sourceUri">Source uri value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="result">Result value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="includeRegex">Include regex value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="maxFiles">Max files value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DownloadGitHubAsync(
         Uri sourceUri,
         RemoteKnowledgeImportRequest request,
@@ -218,8 +238,15 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the download web async operation.
+    /// Performs download web as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sourceUri">Source uri value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="result">Result value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="includeRegex">Include regex value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="maxFiles">Max files value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DownloadWebAsync(
         Uri sourceUri,
         RemoteKnowledgeImportRequest request,
@@ -308,8 +335,12 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Saves limited response async.
+    /// Persists limited response as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="response">Response value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="path">Path value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveLimitedResponseAsync(HttpResponseMessage response, string path, CancellationToken cancellationToken)
     {
     try
@@ -342,8 +373,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the extract zip safely operation.
+    /// Performs extract ZIP safely as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="zipPath">Zip path value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="targetRoot">Target root value supplied to the remote knowledge import operation and used when producing its result.</param>
     private void ExtractZipSafely(string zipPath, string targetRoot)
     {
     try
@@ -387,8 +420,13 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Builds file result list.
+    /// Builds file result list as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="root">Root value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="sourceUri">Source uri value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="result">Result value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="includeRegex">Include regex value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="maxFiles">Max files value supplied to the remote knowledge import operation and used when producing its result.</param>
     private void BuildFileResultList(string root, Uri sourceUri, RemoteKnowledgeImportResult result, Regex includeRegex, int maxFiles)
     {
     try
@@ -419,8 +457,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the prepare matched import root operation.
+    /// Performs prepare matched import root as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="result">Result value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string PrepareMatchedImportRoot(RemoteKnowledgeImportResult result)
     {
     try
@@ -458,8 +498,11 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Applies role and topic tags async.
+    /// Applies role and topic tags as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="result">Result value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ApplyRoleAndTopicTagsAsync(RemoteKnowledgeImportResult result, CancellationToken cancellationToken)
     {
     try
@@ -497,8 +540,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Builds tags.
+    /// Builds tags as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> BuildTags(RemoteKnowledgeImportRequest request) {
     try
     {
@@ -519,8 +564,11 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Resolves kind.
+    /// Resolves kind as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="requested">Requested value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="sourceUri">Source uri value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveKind(string? requested, Uri sourceUri)
     {
     try
@@ -541,8 +589,11 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Resolves branch.
+    /// Resolves branch as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="segments">Segments value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="requested">Requested value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveBranch(string[] segments, string? requested)
     {
     try
@@ -563,8 +614,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Builds include regex.
+    /// Builds include regex as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="pattern">Pattern value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The regex produced by the operation.</returns>
     private Regex BuildIncludeRegex(string? pattern)
     {
     try
@@ -586,8 +639,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Builds cache root.
+    /// Builds cache root as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sourceUri">Source uri value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildCacheRoot(Uri sourceUri)
     {
     try
@@ -608,8 +663,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the safe segment operation.
+    /// Performs safe segment as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SafeSegment(string value)
     {
     try
@@ -630,8 +687,11 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the sanitize segment operation.
+    /// Performs sanitize segment as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="allowLeadingDot">Value indicating whether allow leading dot should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SanitizeSegment(string? value, bool allowLeadingDot)
     {
     try
@@ -658,8 +718,9 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the clear directory operation.
+    /// Performs clear directory as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="directory">Directory value supplied to the remote knowledge import operation and used when producing its result.</param>
     private void ClearDirectory(string directory)
     {
     try
@@ -680,8 +741,11 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the extension for operation.
+    /// Performs extension for as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="uri">Uri value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="mediaType">Media type value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ExtensionFor(Uri uri, string mediaType)
     {
     try
@@ -710,8 +774,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the HTML to text operation.
+    /// Performs HTML to text as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="html">Html value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string HtmlToText(string html)
     {
     try
@@ -733,8 +799,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the extract href values operation.
+    /// Performs extract href values as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="html">Html value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> ExtractHrefValues(string html)
     {
         try
@@ -781,8 +849,11 @@ public sealed class RemoteKnowledgeImportService(
     }
 
     /// <summary>
-    /// Removes element blocks.
+    /// Removes element blocks as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="html">Html value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="elementName">Element name value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RemoveElementBlocks(string html, string elementName)
     {
     try
@@ -819,8 +890,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Removes tags.
+    /// Removes tags as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="html">Html value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RemoveTags(string html)
     {
     try
@@ -858,8 +931,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the collapse whitespace operation.
+    /// Performs collapse whitespace as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string CollapseWhitespace(string value)
     {
     try
@@ -893,8 +968,11 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the send public async operation.
+    /// Performs send public as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="initialUri">Initial uri value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The HTTP response message produced by the operation.</returns>
     private async Task<HttpResponseMessage> SendPublicAsync(Uri initialUri, CancellationToken cancellationToken)
     {
     try
@@ -930,8 +1008,11 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Ensures public host async.
+    /// Ensures public host as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="uri">Uri value supplied to the remote knowledge import operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EnsurePublicHostAsync(Uri uri, CancellationToken cancellationToken)
     {
     try
@@ -954,8 +1035,10 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Determines whether private address.
+    /// Determines whether private address as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="address">P address dependency used by the remote knowledge import workflow to provide the corresponding application capability.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsPrivateAddress(IPAddress address)
     {
     try
@@ -984,7 +1067,7 @@ public sealed class RemoteKnowledgeImportService(
 
 
     /// <summary>
-    /// Runs the throw if disposed operation.
+    /// Performs throw if disposed as part of the remote knowledge import service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     private void ThrowIfDisposed()
     {
@@ -1005,7 +1088,7 @@ public sealed class RemoteKnowledgeImportService(
 }
 
     /// <summary>
-    /// Runs the dispose operation.
+    /// Releases resources owned by <see cref="RemoteKnowledgeImportService"/> and leaves the remote knowledge import workflow in a safely disposed state.
     /// </summary>
     public void Dispose()
     {

@@ -19,8 +19,14 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Controller
 {
     /// <summary>
-    /// Provides local gpt diagnostic controller operations.
+    /// Exposes the LocalGPT diagnostic application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+    /// <param name="councilText">Council text service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+    /// <param name="devExpressChat">Dev express chat service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+    /// <param name="dxAiFunctionRegistry">Devexpress ai function registry dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
     [ApiController]
     [Route("")]
     public class LocalGptDiagnosticController(ILogger<LocalGptDiagnosticController> logger,
@@ -34,6 +40,11 @@ namespace LocalGPT.Controller
         /// Runs the require human confirmation operation.
         /// </summary>
         private IResult? RequireHumanConfirmation(bool userConfirmed, string operation) =>
+            /// <summary>
+            /// Returns the bad request projection for the LocalGPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
+            /// </summary>
+            /// <param name="Error">Error value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+            /// <returns>The user confirmed null results produced by the operation.</returns>
             userConfirmed
                 ? null
                 : Results.BadRequest(new
@@ -59,8 +70,10 @@ namespace LocalGPT.Controller
 
         }
         /// <summary>
-        /// Gets root.
+        /// Retrieves root for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="env">Web host environment dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag")]
         public IResult GetRoot(
             [FromServices] IWebHostEnvironment env)
@@ -84,8 +97,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets component activity.
+        /// Retrieves component activity for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="componentActivity">Component activity service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="take">Take value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/component-activity")]
         public IResult GetComponentActivity(
             [FromServices] IComponentActivityService componentActivity,
@@ -112,8 +128,13 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets ai smoke.
+        /// Retrieves AI smoke for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="chatClient">Chat client dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="prompt">Prompt value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/ai-smoke")]
         [HumanApprovalRequired("diagnostic.ai.smoke", "Call configured AI client", "Send one exact diagnostic prompt to the configured AI client.", "Medium", "AI connectivity reviewer")]
         public async Task<IResult> GetAiSmoke(
@@ -156,8 +177,19 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets ollama compatible smoke.
+        /// Retrieves Ollama compatible smoke for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="model">Model value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="prompt">Prompt value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="numGpu">Num gpu value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="maxOutputTokens">Max output tokens value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="promptConfigService">Prompt config service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="formatterFactory">Chat response formatter factory dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="protocolResolver">Chat protocol resolver dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/ollama-compatible-smoke")]
         [HumanApprovalRequired("diagnostic.ollama.smoke", "Call Ollama-compatible endpoint", "Send one exact diagnostic request to the selected Ollama-compatible endpoint.", "Medium", "AI connectivity reviewer")]
         public async Task<IResult> GetOllamaCompatibleSmoke(
@@ -229,8 +261,14 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Runs the post dxaichat smoke operation.
+        /// Returns the post dxaichat smoke projection for the LocalGPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="chatClient">Chat client dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="memory">Chat memory service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpPost("/__diag/dxaichat-smoke")]
         [HumanApprovalRequired("diagnostic.dxaichat.smoke", "Run DXAiChat diagnostic", "Call the configured chat client and optionally persist the exact diagnostic exchange.", "Medium", "Chat workflow reviewer")]
         public async Task<IResult> PostDxaichatSmoke(
@@ -314,8 +352,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets memory.
+        /// Retrieves memory for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="memory">Chat memory service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/memory")]
         public async Task<IResult> GetMemory(
             [FromServices] IChatMemoryService memory,
@@ -346,8 +387,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets council file name.
+        /// Retrieves council file name for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="fileName">File name value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="artifacts">Council artifact service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__artifacts/council/{fileName}")]
         public IResult GetCouncilFileName(
             string fileName,
@@ -383,8 +427,15 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets logs.
+        /// Retrieves logs for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="logs">Application log reader service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="loggerFactory">Logger factory dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="minimumLevel">Minimum level value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="take">Take value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="writeSmoke">Write smoke value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/logs")]
         public async Task<IResult> GetLogs(
             [FromServices] IApplicationLogReaderService logs,
@@ -429,8 +480,13 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets knowledge.
+        /// Retrieves knowledge for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="knowledge">Council knowledge service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="includeArchived">Include archived value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="take">Take value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/knowledge")]
         public async Task<IResult> GetKnowledge(
             [FromServices] ICouncilKnowledgeService knowledge,
@@ -459,8 +515,14 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets sqlite tables.
+        /// Retrieves sqlite tables for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="memory">Chat memory service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="logs">Application log reader service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="knowledge">Council knowledge service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="tableEditor">Sqlite table editor service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/sqlite/tables")]
         public async Task<IResult> GetSqliteTables(
             [FromServices] IChatMemoryService memory,
@@ -489,8 +551,16 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets sqlite table table name.
+        /// Retrieves sqlite table table name for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="tableName">Table name value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="take">Take value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="memory">Chat memory service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="logs">Application log reader service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="knowledge">Council knowledge service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="tableEditor">Sqlite table editor service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/sqlite/table/{tableName}")]
         public async Task<IResult> GetSqliteTableTableName(
             string tableName,
@@ -514,8 +584,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets devexpress.
+        /// Retrieves devexpress for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="inventory">Project library inventory service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/devexpress")]
         public async Task<IResult> GetDevexpress(
             [FromServices] IProjectLibraryInventoryService inventory,
@@ -537,8 +610,12 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets build debug files.
+        /// Retrieves build debug files for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="inventory">Build debug inventory service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="copy">Copy value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/build-debug-files")]
         public async Task<IResult> GetBuildDebugFiles(
             [FromServices] IBuildDebugInventoryService inventory,
@@ -568,8 +645,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets artifact workspaces.
+        /// Retrieves artifact workspaces for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="artifacts">Council artifact service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="take">Take value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/artifact-workspaces")]
         public IResult GetArtifactWorkspaces(
             [FromServices] ICouncilArtifactService artifacts,
@@ -608,8 +688,12 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets artifact workspace workspace name files.
+        /// Retrieves artifact workspace workspace name files for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="workspaceName">Workspace name value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="artifacts">Council artifact service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="take">Take value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/artifact-workspace/{workspaceName}/files")]
         public IResult GetArtifactWorkspaceWorkspaceNameFiles(
             string workspaceName,
@@ -638,8 +722,13 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets artifact workspace workspace name file.
+        /// Retrieves artifact workspace workspace name file for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="workspaceName">Workspace name value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="path">Path value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="artifacts">Council artifact service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/artifact-workspace/{workspaceName}/file")]
         public async Task<IResult> GetArtifactWorkspaceWorkspaceNameFile(
             string workspaceName,
@@ -682,8 +771,14 @@ namespace LocalGPT.Controller
 
 
         /// <summary>
-        /// Runs the post artifact workspace workspace name file operation.
+        /// Returns the post artifact workspace workspace name file projection for the LocalGPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
         /// </summary>
+        /// <param name="workspaceName">Workspace name value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="artifacts">Council artifact service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpPost("/__diag/artifact-workspace/{workspaceName}/file")]
         [HumanApprovalRequired("artifact.workspace.file.write", "Write generated workspace file", "Write the reviewed text content to one bounded file inside a generated artifact workspace.", "High", "Source workspace reviewer")]
         public async Task<IResult> PostArtifactWorkspaceWorkspaceNameFile(
@@ -733,8 +828,12 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets artifact workspace workspace name zip.
+        /// Retrieves artifact workspace workspace name ZIP for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="workspaceName">Workspace name value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="artifacts">Council artifact service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/artifact-workspace/{workspaceName}/zip")]
         [HumanApprovalRequired("artifact.workspace.zip.refresh", "Refresh generated workspace ZIP", "Replace the downloadable ZIP for one bounded generated artifact workspace.", "Medium", "Artifact reviewer")]
         public IResult GetArtifactWorkspaceWorkspaceNameZip(
@@ -777,8 +876,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets chat upload workspaces.
+        /// Retrieves chat upload workspaces for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="uploads">Chat upload workspace service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="take">Take value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/chat-upload-workspaces")]
         public IResult GetChatUploadWorkspaces(
             [FromServices] IChatUploadWorkspaceService uploads,
@@ -817,8 +919,12 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets chat upload workspace workspace name files.
+        /// Retrieves chat upload workspace workspace name files for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="workspaceName">Workspace name value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="uploads">Chat upload workspace service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="take">Take value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/chat-upload-workspace/{workspaceName}/files")]
         public IResult GetChatUploadWorkspaceWorkspaceNameFiles(
             string workspaceName,
@@ -847,8 +953,13 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets chat upload workspace workspace name context.
+        /// Retrieves chat upload workspace workspace name context for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="workspaceName">Workspace name value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="uploads">Chat upload workspace service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="maxCharacters">Max characters value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/chat-upload-workspace/{workspaceName}/context")]
         public async Task<IResult> GetChatUploadWorkspaceWorkspaceNameContext(
             string workspaceName,
@@ -875,8 +986,14 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets chat upload workspace workspace name file.
+        /// Retrieves chat upload workspace workspace name file for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="workspaceName">Workspace name value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="path">Path value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="uploads">Chat upload workspace service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="maxCharacters">Max characters value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/chat-upload-workspace/{workspaceName}/file")]
         public async Task<IResult> GetChatUploadWorkspaceWorkspaceNameFile(
             string workspaceName,
@@ -905,8 +1022,13 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Runs the post chat upload workspace smoke operation.
+        /// Returns the post chat upload workspace smoke projection for the LocalGPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
         /// </summary>
+        /// <param name="uploads">Chat upload workspace service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="prompt">Prompt value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpPost("/__diag/chat-upload-workspace/smoke")]
         [HumanApprovalRequired("diagnostic.upload.workspace.create", "Create upload workspace", "Create a bounded diagnostic workspace from generated upload fixtures.", "High", "Workspace reviewer")]
         public async Task<IResult> PostChatUploadWorkspaceSmoke(
@@ -983,8 +1105,13 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets memory smoke.
+        /// Retrieves memory smoke for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="memory">Chat memory service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="chatClient">Chat client dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/memory-smoke")]
         [HumanApprovalRequired("diagnostic.memory.smoke", "Write diagnostic memory", "Persist a bounded diagnostic conversation and call the configured model.", "High", "Memory reviewer")]
         public async Task<IResult> GetMemorySmoke(
@@ -1037,8 +1164,14 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Runs the post process review operation.
+        /// Returns the post process review projection for the LocalGPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="memory">Chat memory service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="chatClient">Chat client dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpPost("/__diag/process-review")]
         [HumanApprovalRequired("diagnostic.process.review", "Run grounded process review", "Run the submitted grounded process review through the configured model and memory workflow.", "Medium", "Process reviewer")]
         public async Task<IResult> PostProcessReview(
@@ -1126,8 +1259,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets council models.
+        /// Retrieves council models for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="council">Multi model council service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/council/models")]
         public async Task<IResult> GetCouncilModels(
             [FromServices] IMultiModelCouncilService council,
@@ -1145,8 +1281,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets council benchmark plan.
+        /// Retrieves council benchmark plan for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="council">Multi model council service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/council/benchmark-plan")]
         public async Task<IResult> GetCouncilBenchmarkPlan(
             [FromServices] IMultiModelCouncilService council,
@@ -1247,8 +1386,9 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets dxaichat functions.
+        /// Retrieves dxaichat functions for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/dxaichat-functions")]
         public IResult GetDxaichatFunctions()
         {
@@ -1265,8 +1405,12 @@ namespace LocalGPT.Controller
 
 
         /// <summary>
-        /// Runs the invoke DevExpress function operation.
+        /// Invokes DevExpress function for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="functionName">Function name value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpPost("/__diag/dxaichat-functions/{functionName}/invoke")]
         public async Task<IResult> InvokeDxFunction(
             string functionName,
@@ -1290,8 +1434,11 @@ namespace LocalGPT.Controller
 
 
         /// <summary>
-        /// Gets blazor devexpress guidance.
+        /// Retrieves blazor devexpress guidance for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="env">Web host environment dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/blazor-devexpress-guidance")]
         public async Task<IResult> GetBlazorDevexpressGuidance(
             [FromServices] IWebHostEnvironment env,
@@ -1321,8 +1468,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets frontend design guidance.
+        /// Retrieves frontend design guidance for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="env">Web host environment dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/frontend-design-guidance")]
         public async Task<IResult> GetFrontendDesignGuidance(
             [FromServices] IWebHostEnvironment env,
@@ -1352,8 +1502,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets dotnet sample curriculum.
+        /// Retrieves dotnet sample curriculum for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="env">Web host environment dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/dotnet-sample-curriculum")]
         public async Task<IResult> GetDotnetSampleCurriculum(
             [FromServices] IWebHostEnvironment env,
@@ -1383,8 +1536,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets ai host rebuild guidance.
+        /// Retrieves AI host rebuild guidance for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="env">Web host environment dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/ai-host-rebuild-guidance")]
         public async Task<IResult> GetAiHostRebuildGuidance(
             [FromServices] IWebHostEnvironment env,
@@ -1418,8 +1574,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets frontend test guidance.
+        /// Retrieves frontend test guidance for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="env">Web host environment dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/frontend-test-guidance")]
         public async Task<IResult> GetFrontendTestGuidance(
             [FromServices] IWebHostEnvironment env,
@@ -1450,8 +1609,11 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets capability gap contract.
+        /// Retrieves capability gap contract for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="env">Web host environment dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/capability-gap-contract")]
         public async Task<IResult> GetCapabilityGapContract(
             [FromServices] IWebHostEnvironment env,
@@ -1483,8 +1645,13 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Runs the post learn base import operation.
+        /// Returns the post learn base import projection for the LocalGPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="importer">Learn base knowledge importer service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpPost("/__diag/learn-base/import")]
         [HumanApprovalRequired("learnbase.import", "Import local learn-base", "Read the selected local source tree and optionally persist normalized knowledge entries.", "High", "Knowledge curator")]
         public async Task<IResult> PostLearnBaseImport(
@@ -1509,8 +1676,22 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets learn base import.
+        /// Retrieves learn base import for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="rootPath">Root path value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="maxProjects">Max projects value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="saveToKnowledge">Save to knowledge value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="fileExtensions">File extensions value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="includeRegex">Include regex value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="excludeRegex">Exclude regex value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="maximumFileBytes">Maximum file bytes value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="importLearningSourceManifests">Import learning source manifests value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="importKnownDocumentationCorpora">Import known documentation corpora value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="importProjectArchitecture">Import project architecture value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="importer">Learn base knowledge importer service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/learn-base/import")]
         [HumanApprovalRequired("learnbase.import", "Import local learn-base", "Read the selected local source tree and optionally persist normalized knowledge entries.", "High", "Knowledge curator")]
         public async Task<IResult> GetLearnBaseImport(
@@ -1558,8 +1739,13 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Runs the post benchmark engineering operation.
+        /// Returns the post benchmark engineering projection for the LocalGPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="benchmark">Engineering benchmark service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpPost("/__diag/benchmark/engineering")]
         [HumanApprovalRequired("diagnostic.engineering.benchmark", "Run engineering benchmark", "Run the bounded engineering benchmark and persist its reviewed diagnostic result.", "High", "Engineering benchmark reviewer")]
         public async Task<IResult> PostBenchmarkEngineering(
@@ -1584,8 +1770,17 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets benchmark engineering.
+        /// Retrieves benchmark engineering for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="importLearnBaseFirst">Import learn base first value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="saveToKnowledge">Save to knowledge value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="validateBuildableArtifacts">Validate buildable artifacts value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="maxBuildArtifacts">Max build artifacts value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="taskSet">Task set value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="benchmark">Engineering benchmark service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/benchmark/engineering")]
         [HumanApprovalRequired("diagnostic.engineering.benchmark", "Run engineering benchmark", "Run the bounded engineering benchmark and persist its reviewed diagnostic result.", "High", "Engineering benchmark reviewer")]
         public async Task<IResult> GetBenchmarkEngineering(
@@ -1621,8 +1816,17 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets council development feedback talk.
+        /// Retrieves council development feedback talk for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="modelNames">Model names value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="maxOutputTokens">Max output tokens value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="maxContextTokens">Max context tokens value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="maxRounds">Max rounds value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="council">Multi model council service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/council/development-feedback-talk")]
         [HumanApprovalRequired("diagnostic.council.feedback", "Run council development feedback", "Start the requested local council feedback session and persist its bounded result.", "Medium", "Council facilitator")]
         public async Task<IResult> GetCouncilDevelopmentFeedbackTalk(
@@ -1705,8 +1909,15 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Gets council artifact smoke.
+        /// Retrieves council artifact smoke for the LocalGPT diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="target">Target value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="prompt">Prompt value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="finalAnswer">Final answer value supplied to the LocalGPT diagnostic operation and used when producing its result.</param>
+        /// <param name="artifacts">Council artifact service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("/__diag/council/artifact-smoke")]
         [HumanApprovalRequired("diagnostic.council.artifact.create", "Create council artifact workspace", "Create one deterministic bounded council artifact workspace for diagnostics.", "High", "Artifact reviewer")]
         public async Task<IResult> GetCouncilArtifactSmoke(
@@ -1794,8 +2005,12 @@ namespace LocalGPT.Controller
         }
 
         /// <summary>
-        /// Runs the post council operation.
+        /// Returns the post council projection for the LocalGPT diagnostic API surface, obtaining current application state from the controller's collaborators and translating it into the HTTP-facing result.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="council">Multi model council service dependency used by the LocalGPT diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="ct">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpPost("/__diag/council")]
         public async Task<IResult> PostCouncil(
             [FromBody] MultiModelCouncilRequest request,

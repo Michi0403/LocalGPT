@@ -4,27 +4,39 @@ using Microsoft.Extensions.Logging;
 namespace LocalGPT.Logging
 {
     /// <summary>
-    /// Represents a database logger.
+    /// Represents a database logger application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
+    /// <param name="categoryName">Category name value supplied to the database logger operation and used when producing its result.</param>
+    /// <param name="provider">Database logger provider dependency used by the database logger workflow to provide the corresponding application capability.</param>
     public sealed class DatabaseLogger(string categoryName, DatabaseLoggerProvider provider) : ILogger
     {
         /// <summary>
-        /// Runs the new operation.
+        /// Stores the internal null scope state used by <see cref="DatabaseLogger"/> while executing its surrounding workflow.
         /// </summary>
         private readonly LoggerNullScope nullScope = new();
         /// <summary>
-        /// Runs the begin scope operation.
+        /// Performs begin scope for <see cref="DatabaseLogger"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
+        /// <typeparam name="TState">Type used for t state values handled by <see cref="DatabaseLogger"/>.</typeparam>
+        /// <param name="state">State value supplied to the database logger operation and used when producing its result.</param>
+        /// <returns>The i disposable produced by the operation.</returns>
         public IDisposable BeginScope<TState>(TState state) where TState : notnull => nullScope;
 
         /// <summary>
-        /// Determines whether enabled.
+        /// Determines whether enabled for <see cref="DatabaseLogger"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
+        /// <returns>The bool is enabled log level log level provider produced by the operation.</returns>
         public bool IsEnabled(LogLevel logLevel) => provider.IsEnabled(categoryName, logLevel);
 
         /// <summary>
-        /// Runs the log operation.
+        /// Performs log for <see cref="DatabaseLogger"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
+        /// <typeparam name="TState">Type used for t state values handled by <see cref="DatabaseLogger"/>.</typeparam>
+        /// <param name="logLevel">Log level value supplied to the database logger operation and used when producing its result.</param>
+        /// <param name="eventId">Identifier of the event to use for this operation.</param>
+        /// <param name="state">State value supplied to the database logger operation and used when producing its result.</param>
+        /// <param name="exception">Exception value supplied to the database logger operation and used when producing its result.</param>
+        /// <param name="formatter">Formatter value supplied to the database logger operation and used when producing its result.</param>
         public void Log<TState>(
             LogLevel logLevel,
             EventId eventId,
@@ -56,8 +68,11 @@ namespace LocalGPT.Logging
         }
 
         /// <summary>
-        /// Runs the trim operation.
+        /// Performs trim for <see cref="DatabaseLogger"/>, keeping the operation consistent with the state and invariants of the surrounding database logger workflow.
         /// </summary>
+        /// <param name="value">Value value supplied to the database logger operation and used when producing its result.</param>
+        /// <param name="maxLength">Max length value supplied to the database logger operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string Trim(string value, int maxLength)
         {
             if (value.Length <= maxLength)

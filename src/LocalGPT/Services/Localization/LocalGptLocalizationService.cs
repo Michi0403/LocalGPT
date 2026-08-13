@@ -13,16 +13,28 @@ namespace LocalGPT.Services.Localization;
 [DocumentationUpdated("2.2.8")]
 public interface ILocalGptLocalizationService
 {
-    /// <summary>Gets all cultures represented by built-in or user catalogs.</summary>
+    /// <summary>
+    /// Retrieves available cultures as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     IReadOnlyList<string> GetAvailableCultures();
 
-    /// <summary>Gets effective catalog descriptors for installer and diagnostic surfaces.</summary>
+    /// <summary>
+    /// Retrieves catalogs as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     IReadOnlyList<LocalizationCatalogDescriptor> GetCatalogs();
 
     /// <summary>Gets the effective strings for a culture after English fallback and user overrides are merged.</summary>
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The i read only dictionary string string produced by the operation.</returns>
     IReadOnlyDictionary<string, string> GetStrings(string? culture = null);
 
     /// <summary>Gets one localized value with English and caller-provided fallback behavior.</summary>
+    /// <param name="key">Key value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string Get(string key, string? culture = null, string? fallback = null);
 
     /// <summary>Gets a localized UI sentence by deriving its maintained text-catalog key.</summary>
@@ -31,12 +43,16 @@ public interface ILocalGptLocalizationService
     /// <returns>The localized sentence, or the source text when no catalog value exists.</returns>
     string GetText(string source, string? culture = null);
 
-    /// <summary>Resolves a requested culture to one available LocalGPT catalog.</summary>
+    /// <summary>
+    /// Resolves available culture as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="culture">Requested culture name.</param>
     /// <returns>The normalized available culture or en-US.</returns>
     string ResolveAvailableCulture(string? culture);
 
-    /// <summary>Builds a local return URL without stale culture query values.</summary>
+    /// <summary>
+    /// Builds culture return URL as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="absoluteUri">Current absolute application URI.</param>
     /// <returns>A local path and query suitable for culture selection.</returns>
     string BuildCultureReturnUrl(string absoluteUri);
@@ -53,7 +69,9 @@ public interface ILocalGptLocalizationService
     /// <returns>A local culture-selection endpoint URL that performs a full page reload.</returns>
     string BuildCultureSelectionUrl(string absoluteUri, string culture);
 
-    /// <summary>Validates a user localization JSON dictionary without writing it.</summary>
+    /// <summary>
+    /// Validates catalog as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="culture">Requested .NET culture name, for example fr-FR.</param>
     /// <param name="json">UTF-8 JSON object containing string keys and values.</param>
     /// <returns>The validation result, including missing baseline keys.</returns>
@@ -64,7 +82,9 @@ public interface ILocalGptLocalizationService
     /// <returns>A single bounded human-readable error sentence.</returns>
     string FormatValidationErrors(LocalizationCatalogValidationResult validation);
 
-    /// <summary>Validates and atomically imports a persistent user localization catalog.</summary>
+    /// <summary>
+    /// Imports catalog as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="culture">Requested .NET culture name.</param>
     /// <param name="json">JSON object containing string keys and values.</param>
     /// <param name="overwrite">Allows replacement of an existing user catalog.</param>
@@ -92,16 +112,26 @@ public sealed class LocalGptLocalizationService(
     /// <summary>Caches effective merged catalogs by normalized culture name.</summary>
     private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, string>> cache = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets the application directory containing shipped localization catalogs.</summary>
+    /// <summary>
+    /// Gets the built in localization path used by this LocalGPT localization instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The built in localization path value exposed by <see cref="LocalGptLocalizationService"/>.</value>
     private string BuiltInLocalizationPath => Path.Combine(environment.ContentRootPath, "Localization");
 
-    /// <summary>Gets the persistent per-user directory containing imported catalog overrides.</summary>
+    /// <summary>
+    /// Gets the user localization path used by this LocalGPT localization instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The user localization path value exposed by <see cref="LocalGptLocalizationService"/>.</value>
     private string UserLocalizationPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "LocalGPT",
         "Localization");
 
+    /// <summary>
+    /// Retrieves available cultures as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<string> GetAvailableCultures()
     {
         try
@@ -118,7 +148,11 @@ public sealed class LocalGptLocalizationService(
         }
     }
 
+    /// <summary>
+    /// Retrieves catalogs as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<LocalizationCatalogDescriptor> GetCatalogs()
     {
     try
@@ -143,7 +177,12 @@ public sealed class LocalGptLocalizationService(
     }
 }
 
+    /// <summary>
+    /// Retrieves strings as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The i read only dictionary string string produced by the operation.</returns>
     public IReadOnlyDictionary<string, string> GetStrings(string? culture = null)
     {
     try
@@ -162,7 +201,14 @@ public sealed class LocalGptLocalizationService(
     }
 }
 
+    /// <summary>
+    /// Performs get as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="key">Key value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string Get(string key, string? culture = null, string? fallback = null)
     {
     try
@@ -183,7 +229,13 @@ public sealed class LocalGptLocalizationService(
     }
 }
 
+    /// <summary>
+    /// Retrieves text as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="source">Source value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string GetText(string source, string? culture = null)
     {
     try
@@ -204,7 +256,12 @@ public sealed class LocalGptLocalizationService(
 }
 
 
+    /// <summary>
+    /// Resolves available culture as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string ResolveAvailableCulture(string? culture)
     {
     try
@@ -224,7 +281,12 @@ public sealed class LocalGptLocalizationService(
     }
 }
 
+    /// <summary>
+    /// Builds culture return URL as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="absoluteUri">Absolute uri value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string BuildCultureReturnUrl(string absoluteUri)
     {
     try
@@ -243,7 +305,13 @@ public sealed class LocalGptLocalizationService(
     }
 }
 
+    /// <summary>
+    /// Builds culture redirect URL as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="returnUrl">Return url value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string BuildCultureRedirectUrl(string? returnUrl, string culture)
     {
     try
@@ -267,7 +335,13 @@ public sealed class LocalGptLocalizationService(
     }
 }
 
+    /// <summary>
+    /// Builds culture selection URL as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="absoluteUri">Absolute uri value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string BuildCultureSelectionUrl(string absoluteUri, string culture)
     {
     try
@@ -289,6 +363,10 @@ public sealed class LocalGptLocalizationService(
 }
 
     /// <summary>Builds one local route while preserving non-localization query values.</summary>
+    /// <param name="absolutePath">Absolute path value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="query">Query value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildCultureUrl(string absolutePath, string query, string? culture)
     {
     try
@@ -323,7 +401,13 @@ public sealed class LocalGptLocalizationService(
     }
 }
 
+    /// <summary>
+    /// Validates catalog as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="json">Json value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The localization catalog validation result produced by the operation.</returns>
     public LocalizationCatalogValidationResult ValidateCatalog(string culture, string json)
     {
         var result = new LocalizationCatalogValidationResult();
@@ -382,7 +466,12 @@ public sealed class LocalGptLocalizationService(
         return result;
     }
 
+    /// <summary>
+    /// Performs format validation errors as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="validation">Validation value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string FormatValidationErrors(LocalizationCatalogValidationResult validation)
     {
     try
@@ -403,7 +492,15 @@ public sealed class LocalGptLocalizationService(
     }
 }
 
+    /// <summary>
+    /// Imports catalog as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="culture">Culture value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="json">Json value supplied to the LocalGPT localization operation and used when producing its result.</param>
+    /// <param name="overwrite">Value indicating whether overwrite should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The localization catalog import result produced by the operation.</returns>
     public async Task<LocalizationCatalogImportResult> ImportCatalogAsync(string culture, string json, bool overwrite, CancellationToken cancellationToken = default)
     {
     try
@@ -574,7 +671,9 @@ public sealed class LocalGptLocalizationService(
         }
     }
 
-    /// <summary>Normalizes a required culture name and rejects unknown cultures.</summary>
+    /// <summary>
+    /// Normalizes required culture as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="culture">Required .NET culture name.</param>
     /// <returns>The normalized culture name.</returns>
     private string NormalizeRequiredCulture(string culture)

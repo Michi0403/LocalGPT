@@ -10,19 +10,33 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides sqlite utility service operations.
+    /// Coordinates sqlite utility behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="text">Council text service dependency used by the sqlite utility workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the sqlite utility workflow to provide the corresponding application capability.</param>
+    /// <param name="serviceLogger">Sqlite utility service dependency used by the sqlite utility workflow to provide the corresponding application capability.</param>
     public sealed class SqliteUtilityService(
         CouncilTextService text,
         LocalGptCatalogService catalog,
         ILogger<SqliteUtilityService> serviceLogger)
     {
+        /// <summary>
+        /// Stores the council text service dependency used by <see cref="SqliteUtilityService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly CouncilTextService _text = text;
+        /// <summary>
+        /// Stores the LocalGPT catalog service dependency used by <see cref="SqliteUtilityService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly LocalGptCatalogService _catalog = catalog;
 
         /// <summary>
-        /// Parses value.
+        /// Parses value as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <typeparam name="T">Type used for t values handled by <see cref="SqliteUtilityService"/>.</typeparam>
+        /// <param name="valueString">Value string value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="dataType">Data type value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The t produced by the operation.</returns>
         public T ParseValue<T>(string valueString, string? dataType, ILogger logger)
         {
             try
@@ -51,8 +65,11 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Determines whether power shell.
+        /// Determines whether power shell as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="executable">Executable value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsPowerShell(string executable, ILogger logger)
         {
             try
@@ -68,8 +85,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Determines whether gradle.
+        /// Determines whether gradle as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="executable">Executable value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsGradle(string executable, ILogger logger)
         {
             try
@@ -87,8 +107,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the classify command profile operation.
+        /// Performs classify command profile as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="executable">Executable value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="arguments">Arguments value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ClassifyCommandProfile(string executable, string arguments, ILogger logger)
         {
             try
@@ -120,8 +144,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the contains path segment operation.
+        /// Performs contains path segment as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="fileName">File name value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool ContainsPathSegment(string fileName, ILogger logger)
         {
             try
@@ -138,8 +165,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the sanitize file name operation.
+        /// Performs sanitize file name as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string SanitizeFileName(string value, ILogger logger)
         {
             try
@@ -155,8 +185,13 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Ensures valid table async.
+        /// Ensures valid table as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="connection">Connection value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="tableName">Table name value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         public async Task EnsureValidTableAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
     try
@@ -197,8 +232,13 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Gets columns async.
+        /// Retrieves columns as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="connection">Connection value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="tableName">Table name value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public async Task<List<SqliteColumnSummary>> GetColumnsAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
     try
@@ -248,8 +288,13 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Gets row count async.
+        /// Retrieves row count as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="connection">Connection value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="tableName">Table name value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The long produced by the operation.</returns>
         public async Task<long> GetRowCountAsync(SqliteConnection connection, string tableName, CancellationToken cancellationToken, ILogger? logger = null)
         {
     try
@@ -280,8 +325,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the to sqlite value operation.
+        /// Performs to sqlite value as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The object produced by the operation.</returns>
         public object? ToSqliteValue(string? value, ILogger? logger = null)
         {
             try
@@ -305,8 +353,11 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Runs the to sqlite value operation.
+        /// Performs to sqlite value as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="column">Column value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <returns>The object produced by the operation.</returns>
         public object ToSqliteValue(string? value, SqliteColumnSummary column)
         {
     try
@@ -358,8 +409,13 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Creates sqlite edit error.
+        /// Creates sqlite edit error as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="operation">Operation value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="tableName">Table name value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="exception">Exception value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string CreateSqliteEditError(string operation, string tableName, SqliteException exception, ILogger? logger = null)
         {
     try
@@ -390,8 +446,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the quote identifier operation.
+        /// Performs quote identifier as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="identifier">Identifier value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string QuoteIdentifier(string identifier, ILogger? logger = null)
         {
     try
@@ -426,8 +485,11 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Computes source hash.
+        /// Computes source hash as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="entry">Entry value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ComputeSourceHash(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -1178,8 +1240,11 @@ namespace LocalGPT.Services
         //}
 
         /// <summary>
-        /// Builds council knowledge content.
+        /// Builds council knowledge content as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildCouncilKnowledgeContent(MultiModelCouncilResult result, ILogger logger)
         {
             try
@@ -1216,8 +1281,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds topic.
+        /// Builds topic as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="prompt">Prompt value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildTopic(string prompt, ILogger logger)
         {
             try
@@ -1236,8 +1304,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds tags.
+        /// Builds tags as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="nonSubstantive">Value indicating whether non substantive should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildTags(MultiModelCouncilResult result, bool nonSubstantive, ILogger logger)
         {
             try
@@ -1270,8 +1342,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Determines whether non substantive council knowledge.
+        /// Determines whether non substantive council knowledge as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsNonSubstantiveCouncilKnowledge(MultiModelCouncilResult result, ILogger logger)
         {
             try
@@ -1289,8 +1364,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the looks like non substantive content operation.
+        /// Performs looks like non substantive content as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool LooksLikeNonSubstantiveContent(string content, ILogger logger)
         {
             try
@@ -1310,8 +1388,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the extract helpful sources operation.
+        /// Performs extract helpful sources as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string ExtractHelpfulSources(string text, ILogger logger)
         {
             try
@@ -1337,8 +1418,13 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Runs the trim or fallback operation.
+        /// Performs trim or fallback as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="maxLength">Max length value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="fallback">Fallback value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string TrimOrFallback(string value, int maxLength, string fallback, ILogger logger)
         {
             try
@@ -1355,8 +1441,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the trim operation.
+        /// Performs trim as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="maxLength">Max length value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string Trim(string value, int maxLength, ILogger logger)
         {
             try
@@ -1375,8 +1465,10 @@ namespace LocalGPT.Services
     
 
         /// <summary>
-        /// Runs the normalize operation.
+        /// Performs normalize as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="entry">Entry value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         public void Normalize(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -1407,8 +1499,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds trust label.
+        /// Builds trust label as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="entry">Entry value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildTrustLabel(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -1447,8 +1542,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Normalizes verification status.
+        /// Normalizes verification status as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="entry">Entry value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizeVerificationStatus(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -1479,8 +1577,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Determines whether known verification status.
+        /// Determines whether known verification status as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsKnownVerificationStatus(string value, ILogger logger)
         {
             try
@@ -1495,8 +1596,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Normalizes review status.
+        /// Normalizes review status as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="entry">Entry value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string NormalizeReviewStatus(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try
@@ -1541,8 +1645,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Determines whether known review status.
+        /// Determines whether known review status as part of the sqlite utility service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsKnownReviewStatus(string value, ILogger logger)
         {
             try
@@ -1559,6 +1666,9 @@ namespace LocalGPT.Services
         /// <summary>
         /// Determines whether usable for briefing.
         /// </summary>
+        /// <param name="entry">Entry value supplied to the sqlite utility operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsUsableForBriefing(CouncilKnowledgeEntry entry, ILogger logger)
         {
             try

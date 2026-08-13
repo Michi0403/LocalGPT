@@ -3,8 +3,11 @@ using LocalGPT.Interfaces;
 namespace TacosPortal.Services
 {
     /// <summary>
-    /// Provides notification service operations.
+    /// Coordinates notification behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="toastService">Toast notification service dependency used by the notification workflow to provide the corresponding application capability.</param>
+    /// <param name="componentActivity">Component activity service dependency used by the notification workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public class NotificationService(
         IToastNotificationService toastService,
         IComponentActivityService componentActivity,
@@ -12,8 +15,12 @@ namespace TacosPortal.Services
     {
 
         /// <summary>
-        /// Runs the show operation.
+        /// Performs show as part of the notification service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="providerName">Provider name value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="title">Title value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="message">Message value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="renderStyle">Render style value supplied to the notification operation and used when producing its result.</param>
         public void Show(string providerName, string title, string message, ToastRenderStyle renderStyle)
         {
             var safeProvider = NormalizeText(providerName, "ComponentSafetyToasts", 120);
@@ -53,8 +60,12 @@ namespace TacosPortal.Services
         }
 
         /// <summary>
-        /// Normalizes text.
+        /// Normalizes text as part of the notification service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="fallback">Fallback value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="maxLength">Max length value supplied to the notification operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string NormalizeText(string? value, string fallback, int maxLength)
         {
     try
@@ -76,8 +87,11 @@ namespace TacosPortal.Services
 }
 
         /// <summary>
-        /// Runs the show info operation.
+        /// Performs show info as part of the notification service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="providerName">Provider name value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="message">Message value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="title">Title value supplied to the notification operation and used when producing its result.</param>
         public void ShowInfo(string providerName, string message, string title = "Info") {
     try
     {
@@ -93,8 +107,11 @@ namespace TacosPortal.Services
     }
 }
         /// <summary>
-        /// Runs the show success operation.
+        /// Performs show success as part of the notification service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="providerName">Provider name value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="message">Message value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="title">Title value supplied to the notification operation and used when producing its result.</param>
         public void ShowSuccess(string providerName, string message, string title = "Success") {
     try
     {
@@ -110,8 +127,11 @@ namespace TacosPortal.Services
     }
 }
         /// <summary>
-        /// Runs the show warning operation.
+        /// Performs show warning as part of the notification service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="providerName">Provider name value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="message">Message value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="title">Title value supplied to the notification operation and used when producing its result.</param>
         public void ShowWarning(string providerName, string message, string title = "Warning") {
     try
     {
@@ -127,8 +147,11 @@ namespace TacosPortal.Services
     }
 }
         /// <summary>
-        /// Runs the show error operation.
+        /// Performs show error as part of the notification service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="providerName">Provider name value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="message">Message value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="title">Title value supplied to the notification operation and used when producing its result.</param>
         public void ShowError(string providerName, string message, string title = "Error") {
     try
     {
@@ -144,8 +167,11 @@ namespace TacosPortal.Services
     }
 }
         /// <summary>
-        /// Runs the show regular operation.
+        /// Performs show regular as part of the notification service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="providerName">Provider name value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="message">Message value supplied to the notification operation and used when producing its result.</param>
+        /// <param name="title">Title value supplied to the notification operation and used when producing its result.</param>
         public void ShowRegular(string providerName, string message, string title = "Error") {
     try
     {

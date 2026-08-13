@@ -9,6 +9,10 @@ namespace LocalGPT.Services;
 /// Invokes only a public method that the local user explicitly enabled in the database-backed catalog.
 /// Parameter binding is typed from the method signature; the caller cannot choose an arbitrary CLR type or method name.
 /// </summary>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the public service method invoker workflow to provide the corresponding application capability.</param>
+/// <param name="serviceProvider">Service provider dependency used by the public service method invoker workflow to provide the corresponding application capability.</param>
+/// <param name="catalog">Devexpress ai function catalog service dependency used by the public service method invoker workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabulary,
     
     IServiceProvider serviceProvider,
@@ -16,13 +20,16 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
     ILogger<PublicServiceMethodInvoker> logger) : IPublicServiceMethodInvoker
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="PublicServiceMethodInvoker"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="PublicServiceMethodInvoker"/>, keeping the operation consistent with the state and invariants of the surrounding public service method invoker workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The object produced by the operation.</returns>
     public async Task<object?> InvokeAsync(PublicServiceMethodInvocationRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -63,8 +70,12 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
     }
 
     /// <summary>
-    /// Runs the bind arguments operation.
+    /// Performs bind arguments for <see cref="PublicServiceMethodInvoker"/>, keeping the operation consistent with the state and invariants of the surrounding public service method invoker workflow.
     /// </summary>
+    /// <param name="method">Method value supplied to the public service method invoker operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the public service method invoker operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The object produced by the operation.</returns>
     private object?[] BindArguments(MethodInfo method, JsonElement parameters, CancellationToken cancellationToken)
     {
     try
@@ -94,8 +105,11 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Runs the await result async operation.
+    /// Performs await result for <see cref="PublicServiceMethodInvoker"/>, keeping the operation consistent with the state and invariants of the surrounding public service method invoker workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the public service method invoker operation and used when producing its result.</param>
+    /// <param name="returnType">Return type value supplied to the public service method invoker operation and used when producing its result.</param>
+    /// <returns>The object produced by the operation.</returns>
     private async Task<object?> AwaitResultAsync(object? value, Type returnType)
     {
     try
@@ -131,8 +145,11 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
 }
 
     /// <summary>
-    /// Resolves type.
+    /// Resolves type for <see cref="PublicServiceMethodInvoker"/>, keeping the operation consistent with the state and invariants of the surrounding public service method invoker workflow.
     /// </summary>
+    /// <param name="typeName">Type name value supplied to the public service method invoker operation and used when producing its result.</param>
+    /// <param name="assembly">Assembly value supplied to the public service method invoker operation and used when producing its result.</param>
+    /// <returns>The type produced by the operation.</returns>
     private Type? ResolveType(string typeName, Assembly assembly) {
     try
     {
@@ -150,15 +167,18 @@ public sealed class PublicServiceMethodInvoker(ILocalGptVocabularyService vocabu
 }
 
 /// <summary>
-/// Represents an invoke configured public service method function.
+/// Represents an invoke configured public service method function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="invoker">Public service method invoker dependency used by the invoke configured public service method function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class InvokeConfiguredPublicServiceMethodFunction(
     IPublicServiceMethodInvoker invoker,
     ILogger<InvokeConfiguredPublicServiceMethodFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the invoke configured public service method function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="InvokeConfiguredPublicServiceMethodFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.public_service.invoke",
         "POST",
@@ -166,6 +186,9 @@ public sealed class InvokeConfiguredPublicServiceMethodFunction(
         "Invokes one public service method that the local user explicitly enabled in the database-backed DX Function Catalog.",
         "catalogKey is required; parameters is an object matching the selected method signature.",
         "The catalog entry controls exposure. Frontend confirmation is required before this generic bridge executes a configured service method.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="InvokeConfiguredPublicServiceMethodFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -175,8 +198,11 @@ public sealed class InvokeConfiguredPublicServiceMethodFunction(
         ParameterSchemaJson: "{\"type\":\"object\",\"required\":[\"catalogKey\"],\"properties\":{\"catalogKey\":{\"type\":\"string\"},\"parameters\":{\"type\":\"object\"}}}");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="InvokeConfiguredPublicServiceMethodFunction"/>, keeping the operation consistent with the state and invariants of the surrounding invoke configured public service method function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

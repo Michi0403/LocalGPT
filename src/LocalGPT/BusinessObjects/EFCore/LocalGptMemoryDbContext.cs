@@ -5,170 +5,211 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.BusinessObjects.EFCore
 {
     /// <summary>
-    /// Represents a local gpt memory db context.
+    /// Represents a LocalGPT memory database context application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
     public class LocalGptMemoryDbContext(DbContextOptions<LocalGptMemoryDbContext> options) : DbContext(options)
     {
         /// <summary>
-        /// Gets or sets conversations.
+        /// Gets the conversations value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The conversations value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<ChatMemoryConversation> Conversations => Set<ChatMemoryConversation>();
         /// <summary>
-        /// Gets or sets messages.
+        /// Gets the messages value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The messages value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<ChatMemoryMessage> Messages => Set<ChatMemoryMessage>();
         /// <summary>
-        /// Gets or sets application logs.
+        /// Gets the application logs value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The application logs value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<ApplicationLogEntry> ApplicationLogs => Set<ApplicationLogEntry>();
         /// <summary>
-        /// Gets or sets council knowledge entries.
+        /// Gets the council knowledge entries value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council knowledge entries value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CouncilKnowledgeEntry> CouncilKnowledgeEntries => Set<CouncilKnowledgeEntry>();
         /// <summary>
-        /// Gets or sets native command logs.
+        /// Gets the native command logs value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The native command logs value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<NativeCommandLogEntry> NativeCommandLogs => Set<NativeCommandLogEntry>();
         /// <summary>
-        /// Gets or sets regex patterns.
+        /// Gets or sets the regex patterns value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The regex patterns value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<RegexPattern> RegexPatterns { get; set; }
         /// <summary>
-        /// Gets or sets prompts.
+        /// Gets or sets the prompts value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The prompts value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<PromptConfig> Prompts { get; set; }
         /// <summary>
-        /// Gets or sets system variables.
+        /// Gets or sets the system variables value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The system variables value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<SystemVariable> SystemVariables { get; set; }
         /// <summary>
-        /// Gets or sets local gpt projects.
+        /// Gets the LocalGPT projects value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The LocalGPT projects value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProject> LocalGptProjects => Set<LocalGptProject>();
         /// <summary>
-        /// Gets or sets local gpt project topics.
+        /// Gets the LocalGPT project topics value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The LocalGPT project topics value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProjectTopic> LocalGptProjectTopics => Set<LocalGptProjectTopic>();
         /// <summary>
-        /// Gets or sets local gpt project versions.
+        /// Gets the LocalGPT project versions value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The LocalGPT project versions value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProjectVersion> LocalGptProjectVersions => Set<LocalGptProjectVersion>();
         /// <summary>
-        /// Gets or sets local gpt project topic knowledge links.
+        /// Gets the LocalGPT project topic knowledge links value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The LocalGPT project topic knowledge links value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProjectTopicKnowledgeLink> LocalGptProjectTopicKnowledgeLinks => Set<LocalGptProjectTopicKnowledgeLink>();
         /// <summary>
-        /// Gets or sets code generation change reviews.
+        /// Gets the code generation change reviews value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The code generation change reviews value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CodeGenerationChangeReview> CodeGenerationChangeReviews => Set<CodeGenerationChangeReview>();
         /// <summary>
-        /// Gets or sets human collaboration requests.
+        /// Gets the human collaboration requests value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The human collaboration requests value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<HumanCollaborationRequest> HumanCollaborationRequests => Set<HumanCollaborationRequest>();
         /// <summary>
-        /// Gets or sets human council participant profiles.
+        /// Gets the human council participant profiles value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The human council participant profiles value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<HumanCouncilParticipantProfile> HumanCouncilParticipantProfiles => Set<HumanCouncilParticipantProfile>();
         /// <summary>
-        /// Gets or sets human council contributions.
+        /// Gets the human council contributions value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The human council contributions value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<HumanCouncilContribution> HumanCouncilContributions => Set<HumanCouncilContribution>();
         /// <summary>
-        /// Gets or sets deferred DevExpress ai invocations.
+        /// Gets the deferred DevExpress AI invocations value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The deferred DevExpress AI invocations value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<DeferredDxAiInvocation> DeferredDxAiInvocations => Set<DeferredDxAiInvocation>();
         /// <summary>
-        /// Gets or sets local gpt project revisions.
+        /// Gets the LocalGPT project revisions value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The LocalGPT project revisions value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProjectRevision> LocalGptProjectRevisions => Set<LocalGptProjectRevision>();
         /// <summary>
-        /// Gets or sets local gpt project requirements.
+        /// Gets the LocalGPT project requirements value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The LocalGPT project requirements value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProjectRequirement> LocalGptProjectRequirements => Set<LocalGptProjectRequirement>();
         /// <summary>
-        /// Gets or sets local gpt project requirement links.
+        /// Gets the LocalGPT project requirement links value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The LocalGPT project requirement links value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProjectRequirementLink> LocalGptProjectRequirementLinks => Set<LocalGptProjectRequirementLink>();
         /// <summary>
-        /// Gets or sets local gpt project artifacts.
+        /// Gets the LocalGPT project artifacts value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The LocalGPT project artifacts value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProjectArtifact> LocalGptProjectArtifacts => Set<LocalGptProjectArtifact>();
         /// <summary>
-        /// Gets or sets project document imports.
+        /// Gets the project document imports value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The project document imports value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<ProjectDocumentImport> ProjectDocumentImports => Set<ProjectDocumentImport>();
         /// <summary>
-        /// Gets or sets council model presets.
+        /// Gets the council model presets value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council model presets value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CouncilModelPreset> CouncilModelPresets => Set<CouncilModelPreset>();
         /// <summary>
-        /// Gets or sets sqlite editor field overrides.
+        /// Gets the sqlite editor field overrides value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The sqlite editor field overrides value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<SqliteEditorFieldOverride> SqliteEditorFieldOverrides => Set<SqliteEditorFieldOverride>();
         /// <summary>
-        /// Gets or sets council knowledge user ratings.
+        /// Gets the council knowledge user ratings value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council knowledge user ratings value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CouncilKnowledgeUserRating> CouncilKnowledgeUserRatings => Set<CouncilKnowledgeUserRating>();
         /// <summary>
-        /// Gets or sets organic skills.
+        /// Gets the organic skills value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The organic skills value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<OrganicSkillDefinition> OrganicSkills => Set<OrganicSkillDefinition>();
         /// <summary>
-        /// Gets or sets project organic skill links.
+        /// Gets the project organic skill links value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The project organic skill links value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<ProjectOrganicSkillLink> ProjectOrganicSkillLinks => Set<ProjectOrganicSkillLink>();
         /// <summary>
-        /// Gets or sets council member organic skill links.
+        /// Gets the council member organic skill links value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council member organic skill links value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CouncilMemberOrganicSkillLink> CouncilMemberOrganicSkillLinks => Set<CouncilMemberOrganicSkillLink>();
         /// <summary>
-        /// Gets or sets council team configurations.
+        /// Gets the council team configurations value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council team configurations value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CouncilTeamConfiguration> CouncilTeamConfigurations => Set<CouncilTeamConfiguration>();
         /// <summary>
-        /// Gets or sets council runtime class configurations.
+        /// Gets the council runtime class configurations value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council runtime class configurations value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CouncilRuntimeClassConfiguration> CouncilRuntimeClassConfigurations => Set<CouncilRuntimeClassConfiguration>();
         /// <summary>
-        /// Gets or sets project workspace roots.
+        /// Gets the project workspace roots value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The project workspace roots value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<ProjectWorkspaceRoot> ProjectWorkspaceRoots => Set<ProjectWorkspaceRoot>();
         /// <summary>
-        /// Gets or sets project compiler installations.
+        /// Gets the project compiler installations value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The project compiler installations value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<ProjectCompilerInstallation> ProjectCompilerInstallations => Set<ProjectCompilerInstallation>();
         /// <summary>
-        /// Gets or sets local gpt project tracked files.
+        /// Gets the LocalGPT project tracked files value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The LocalGPT project tracked files value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProjectTrackedFile> LocalGptProjectTrackedFiles => Set<LocalGptProjectTrackedFile>();
         /// <summary>
-        /// Gets or sets project build verifications.
+        /// Gets the project build verifications value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The project build verifications value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<ProjectBuildVerification> ProjectBuildVerifications => Set<ProjectBuildVerification>();
         /// <summary>
-        /// Gets or sets council prompt starter configurations.
+        /// Gets the council prompt starter configurations value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council prompt starter configurations value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CouncilPromptStarterConfiguration> CouncilPromptStarterConfigurations => Set<CouncilPromptStarterConfiguration>();
         /// <summary>
-        /// Gets or sets localization catalog registrations.
+        /// Gets the localization catalog registrations value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The localization catalog registrations value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalizationCatalogRegistration> LocalizationCatalogRegistrations => Set<LocalizationCatalogRegistration>();
         /// <summary>
-        /// Gets or sets documentation build records.
+        /// Gets the documentation build records value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The documentation build records value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<DocumentationBuildRecord> DocumentationBuildRecords => Set<DocumentationBuildRecord>();
         /// <summary>
-        /// Gets or sets embedded firmware plan records.
+        /// Gets the embedded firmware plan records value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The embedded firmware plan records value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<EmbeddedFirmwarePlanRecord> EmbeddedFirmwarePlanRecords => Set<EmbeddedFirmwarePlanRecord>();
         /// <summary>
-        /// Gets or sets council game session records.
+        /// Gets the council game session records value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council game session records value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<CouncilGameSessionRecord> CouncilGameSessionRecords => Set<CouncilGameSessionRecord>();
 
         /// <summary>
-        /// Runs the on model creating operation.
+        /// Handles the model creating lifecycle or event notification for <see cref="LocalGptMemoryDbContext"/>, updating the state required by the surrounding workflow.
         /// </summary>
+        /// <param name="modelBuilder">Model builder value supplied to the LocalGPT memory database context operation and used when producing its result.</param>
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Configure unique indexes and properties

@@ -10,31 +10,45 @@ namespace LocalGPT.Services;
 /// One scoped client permits one active call, which gives the UI deterministic
 /// cancellation and prevents overlapping mutation confirmations.
 /// </summary>
+/// <param name="registry">Devexpress ai function registry dependency used by the DevExpress AI function service workflow to provide the corresponding application capability.</param>
+/// <param name="sessionContext">Chat session context dependency used by the DevExpress AI function service workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DxAiFunctionServiceClient(
     IDxAiFunctionRegistry registry,
     IChatSessionContext sessionContext,
     ILogger<DxAiFunctionServiceClient> logger) : IDxAiFunctionServiceClient, IDisposable
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to call gate state owned by <see cref="DxAiFunctionServiceClient"/>.
     /// </summary>
     private readonly SemaphoreSlim callGate = new(1, 1);
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal state gate state used by <see cref="DxAiFunctionServiceClient"/> while executing its surrounding workflow.
     /// </summary>
     private readonly object stateGate = new();
+    /// <summary>
+    /// Stores the cancellation source used by <see cref="DxAiFunctionServiceClient"/> to stop its current background or asynchronous operation.
+    /// </summary>
     private CancellationTokenSource? activeCall;
+    /// <summary>
+    /// Stores the internal cancellation reason state used by <see cref="DxAiFunctionServiceClient"/> while executing its surrounding workflow.
+    /// </summary>
     private string? cancellationReason;
+    /// <summary>
+    /// Stores the internal disposed state used by <see cref="DxAiFunctionServiceClient"/> while executing its surrounding workflow.
+    /// </summary>
     private bool disposed;
 
     /// <summary>
-    /// Gets or sets current operation identifier.
+    /// Gets or sets the stable current operation identifier used to identify or correlate this DevExpress AI function service instance with related application state.
     /// </summary>
+    /// <value>The current operation identifier value exposed by <see cref="DxAiFunctionServiceClient"/>.</value>
     public Guid? CurrentOperationId { get; private set; }
 
     /// <summary>
-    /// Gets functions.
+    /// Retrieves functions for <see cref="DxAiFunctionServiceClient"/>, keeping the operation consistent with the state and invariants of the surrounding DevExpress AI function service workflow.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<DxaichatFunctionInfo> GetFunctions() {
     try
     {
@@ -51,8 +65,15 @@ public sealed class DxAiFunctionServiceClient(
 }
 
     /// <summary>
-    /// Runs the call async operation.
+    /// Performs call for <see cref="DxAiFunctionServiceClient"/>, keeping the operation consistent with the state and invariants of the surrounding DevExpress AI function service workflow.
     /// </summary>
+    /// <param name="functionName">Function name value supplied to the DevExpress AI function service operation and used when producing its result.</param>
+    /// <param name="parameters">Parameters value supplied to the DevExpress AI function service operation and used when producing its result.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="automaticInvocation">Value indicating whether automatic invocation should apply to this operation.</param>
+    /// <param name="requestedBy">Requested by value supplied to the DevExpress AI function service operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public Task<DxAiFunctionInvocationResult> CallAsync(
         string functionName,
         object? parameters = null,
@@ -86,8 +107,12 @@ public sealed class DxAiFunctionServiceClient(
 }
 
     /// <summary>
-    /// Runs the call async operation.
+    /// Performs call for <see cref="DxAiFunctionServiceClient"/>, keeping the operation consistent with the state and invariants of the surrounding DevExpress AI function service workflow.
     /// </summary>
+    /// <param name="functionName">Function name value supplied to the DevExpress AI function service operation and used when producing its result.</param>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> CallAsync(
         string functionName,
         DxAiFunctionInvocationRequest request,
@@ -156,7 +181,7 @@ public sealed class DxAiFunctionServiceClient(
     }
 
     /// <summary>
-    /// Determines whether cel.
+    /// Determines whether cel for <see cref="DxAiFunctionServiceClient"/>, keeping the operation consistent with the state and invariants of the surrounding DevExpress AI function service workflow.
     /// </summary>
     public void Cancel() {
     try
@@ -174,8 +199,9 @@ public sealed class DxAiFunctionServiceClient(
 }
 
     /// <summary>
-    /// Determines whether cel with reason.
+    /// Determines whether cel with reason for <see cref="DxAiFunctionServiceClient"/>, keeping the operation consistent with the state and invariants of the surrounding DevExpress AI function service workflow.
     /// </summary>
+    /// <param name="reason">Reason value supplied to the DevExpress AI function service operation and used when producing its result.</param>
     public void CancelWithReason(string reason)
     {
     try
@@ -200,7 +226,7 @@ public sealed class DxAiFunctionServiceClient(
 }
 
     /// <summary>
-    /// Runs the dispose operation.
+    /// Releases resources owned by <see cref="DxAiFunctionServiceClient"/> and leaves the DevExpress AI function service workflow in a safely disposed state.
     /// </summary>
     public void Dispose()
     {

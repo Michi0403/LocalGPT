@@ -8,16 +8,23 @@ using System.Text.Json.Serialization;
 namespace LocalGPT.Services.OneWire;
 
 /// <summary>
-/// Represents an one wire envelope codec.
+/// Represents an one wire envelope codec application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
 {
+    /// <summary>
+    /// Stores the logger used by <see cref="OneWireEnvelopeCodec"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger<OneWireEnvelopeCodec> logger;
+    /// <summary>
+    /// Stores the internal serializer options state used by <see cref="OneWireEnvelopeCodec"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions serializerOptions;
 
     /// <summary>
-    /// Runs the one wire envelope codec operation.
+    /// Initializes a new <see cref="OneWireEnvelopeCodec"/> instance and captures the dependencies or initial state required by its one wire envelope codec workflow.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public OneWireEnvelopeCodec(ILogger<OneWireEnvelopeCodec> logger)
     {
         this.logger = logger;
@@ -25,13 +32,17 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
     }
 
     /// <summary>
-    /// Gets or sets JSON options.
+    /// Gets the JSON options value that forms part of the one wire envelope codec state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The JSON options value exposed by <see cref="OneWireEnvelopeCodec"/>.</value>
     public JsonSerializerOptions JsonOptions => serializerOptions;
 
     /// <summary>
-    /// Runs the serialize operation.
+    /// Performs serialize for <see cref="OneWireEnvelopeCodec"/>, keeping the operation consistent with the state and invariants of the surrounding one wire envelope codec workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire envelope codec operation and used when producing its result.</param>
+    /// <param name="seal">Value indicating whether seal should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string Serialize(OneWireEnvelope envelope, bool seal = true)
     {
     try
@@ -59,8 +70,10 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
 }
 
     /// <summary>
-    /// Runs the deserialize and validate operation.
+    /// Performs deserialize and validate for <see cref="OneWireEnvelopeCodec"/>, keeping the operation consistent with the state and invariants of the surrounding one wire envelope codec workflow.
     /// </summary>
+    /// <param name="json">Json value supplied to the one wire envelope codec operation and used when producing its result.</param>
+    /// <returns>The one wire envelope produced by the operation.</returns>
     public OneWireEnvelope DeserializeAndValidate(string json)
     {
     try
@@ -86,8 +99,11 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
 }
 
     /// <summary>
-    /// Runs the validate operation.
+    /// Performs validate for <see cref="OneWireEnvelopeCodec"/>, keeping the operation consistent with the state and invariants of the surrounding one wire envelope codec workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire envelope codec operation and used when producing its result.</param>
+    /// <param name="error">Error value supplied to the one wire envelope codec operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool Validate(OneWireEnvelope envelope, out string error)
     {
     try
@@ -133,8 +149,9 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
 }
 
     /// <summary>
-    /// Validates payload shape.
+    /// Validates payload shape for <see cref="OneWireEnvelopeCodec"/>, keeping the operation consistent with the state and invariants of the surrounding one wire envelope codec workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire envelope codec operation and used when producing its result.</param>
     private void ValidatePayloadShape(OneWireEnvelope envelope)
     {
     try
@@ -156,8 +173,10 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
 }
 
     /// <summary>
-    /// Builds integrity bytes.
+    /// Builds integrity bytes for <see cref="OneWireEnvelopeCodec"/>, keeping the operation consistent with the state and invariants of the surrounding one wire envelope codec workflow.
     /// </summary>
+    /// <param name="envelope">Envelope value supplied to the one wire envelope codec operation and used when producing its result.</param>
+    /// <returns>The byte produced by the operation.</returns>
     private byte[] BuildIntegrityBytes(OneWireEnvelope envelope)
     {
     try
@@ -217,8 +236,10 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
 }
 
     /// <summary>
-    /// Computes crc32.
+    /// Computes crc32 for <see cref="OneWireEnvelopeCodec"/>, keeping the operation consistent with the state and invariants of the surrounding one wire envelope codec workflow.
     /// </summary>
+    /// <param name="data">Data value supplied to the one wire envelope codec operation and used when producing its result.</param>
+    /// <returns>The uint produced by the operation.</returns>
     private uint ComputeCrc32(ReadOnlySpan<byte> data)
     {
     try
@@ -244,8 +265,9 @@ public sealed class OneWireEnvelopeCodec : IOneWireEnvelopeCodec
 }
 
     /// <summary>
-    /// Creates options.
+    /// Creates options for <see cref="OneWireEnvelopeCodec"/>, keeping the operation consistent with the state and invariants of the surrounding one wire envelope codec workflow.
     /// </summary>
+    /// <returns>The JSON serializer options produced by the operation.</returns>
     private JsonSerializerOptions CreateOptions()
     {
         try

@@ -13,22 +13,38 @@ namespace LocalGPT.Diagnostics;
 /// </summary>
 public class ServiceMethodLoggingDispatchProxy : DispatchProxy
 {
+    /// <summary>
+    /// Stores the internal target state used by <see cref="ServiceMethodLoggingDispatchProxy"/> while executing its surrounding workflow.
+    /// </summary>
     private object? target;
+    /// <summary>
+    /// Stores the logger used by <see cref="ServiceMethodLoggingDispatchProxy"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private ILogger? logger;
+    /// <summary>
+    /// Stores the internal development state used by <see cref="ServiceMethodLoggingDispatchProxy"/> while executing its surrounding workflow.
+    /// </summary>
     private bool development;
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory operation batches collection maintained internally by <see cref="ServiceMethodLoggingDispatchProxy"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<string, ServiceOperationBatch> operationBatches = new(StringComparer.Ordinal);
     /// <summary>
-    /// Runs the from seconds operation.
+    /// Stores the internal batch window state used by <see cref="ServiceMethodLoggingDispatchProxy"/> while executing its surrounding workflow.
     /// </summary>
     private readonly TimeSpan batchWindow = TimeSpan.FromSeconds(30);
+    /// <summary>
+    /// Gets the batch size that quantifies the associated service method logging dispatch proxy data.
+    /// </summary>
+    /// <value>The batch size value exposed by <see cref="ServiceMethodLoggingDispatchProxy"/>.</value>
     private int BatchSize => development ? 65_536 : 262_144;
 
     /// <summary>
-    /// Runs the initialize operation.
+    /// Performs initialize for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="serviceTarget">Service target value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="loggerFactory">Logger factory dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="isDevelopment">Value indicating whether is development should apply to this operation.</param>
     public void Initialize(object serviceTarget, ILoggerFactory loggerFactory, bool isDevelopment)
     {
         ILogger? initializationLogger = null;
@@ -74,8 +90,11 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the invoke operation.
+    /// Performs invoke for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="targetMethod">Target method value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <returns>The object produced by the operation.</returns>
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
     {
         /// <summary>
@@ -179,8 +198,15 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the invoke generic observer operation.
+    /// Invokes generic observer for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="methodName">Method name value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="resultType">Result type value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="result">Result value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="stopwatch">Stopwatch value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <returns>The object produced by the operation.</returns>
     private object InvokeGenericObserver(
         string methodName,
         Type resultType,
@@ -209,8 +235,13 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the observe task async operation.
+    /// Performs observe task for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="task">Task value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="stopwatch">Stopwatch value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ObserveTaskAsync(Task task, ILogger currentLogger, string operation, Stopwatch stopwatch)
     {
         try
@@ -255,8 +286,14 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the observe task async operation.
+    /// Performs observe task for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="ServiceMethodLoggingDispatchProxy"/>.</typeparam>
+    /// <param name="task">Task value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="stopwatch">Stopwatch value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <returns>The t produced by the operation.</returns>
     private async Task<T> ObserveTaskAsync<T>(Task<T> task, ILogger currentLogger, string operation, Stopwatch stopwatch)
     {
         try
@@ -302,8 +339,13 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the observe value task async operation.
+    /// Performs observe value task for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="task">Task value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="stopwatch">Stopwatch value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ObserveValueTaskAsync(ValueTask task, ILogger currentLogger, string operation, Stopwatch stopwatch)
     {
         try
@@ -348,8 +390,14 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the observe value task async operation.
+    /// Performs observe value task for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="ServiceMethodLoggingDispatchProxy"/>.</typeparam>
+    /// <param name="task">Task value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="stopwatch">Stopwatch value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <returns>The t produced by the operation.</returns>
     private async ValueTask<T> ObserveValueTaskAsync<T>(ValueTask<T> task, ILogger currentLogger, string operation, Stopwatch stopwatch)
     {
         try
@@ -395,8 +443,14 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the observe async enumerable operation.
+    /// Performs observe async enumerable for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="ServiceMethodLoggingDispatchProxy"/>.</typeparam>
+    /// <param name="source">T dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="stopwatch">Stopwatch value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <returns>The i async enumerable t produced by the operation.</returns>
     private async IAsyncEnumerable<T> ObserveAsyncEnumerable<T>(
         IAsyncEnumerable<T> source,
         ILogger currentLogger,
@@ -519,8 +573,10 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the log started operation.
+    /// Performs log started for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
     private void LogStarted(ILogger currentLogger, string operation)
     {
         // Per-call diagnostics remain available at Trace, while the normal Development log receives
@@ -535,8 +591,11 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the log completed operation.
+    /// Performs log completed for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="elapsedMilliseconds">Elapsed milliseconds value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
     private void LogCompleted(ILogger currentLogger, string operation, long elapsedMilliseconds)
     {
         /// <summary>
@@ -554,8 +613,12 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the log cancellation operation.
+    /// Performs log cancellation for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="elapsedMilliseconds">Elapsed milliseconds value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="exception">Exception value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
     private void LogCancellation(ILogger currentLogger, string operation, long elapsedMilliseconds, OperationCanceledException exception)
     {
        /// <summary>
@@ -573,8 +636,12 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the log failure operation.
+    /// Performs log failure for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="elapsedMilliseconds">Elapsed milliseconds value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="exception">Exception value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
     private void LogFailure(ILogger currentLogger, string operation, long elapsedMilliseconds, Exception exception)
     {
         if (exception is OperationCanceledException cancellation)
@@ -601,8 +668,12 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the record successful call operation.
+    /// Performs record successful call for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="elapsedMilliseconds">Elapsed milliseconds value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="forceFlush">Value indicating whether force flush should apply to this operation.</param>
     private void RecordSuccessfulCall(
         ILogger currentLogger,
         string operation,
@@ -653,8 +724,10 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the flush batch operation.
+    /// Performs flush batch for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
     private void FlushBatch(ILogger currentLogger, string operation)
     {
         if (!operationBatches.TryGetValue(operation, out var batch))
@@ -690,8 +763,9 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Runs the reset batch operation.
+    /// Performs reset batch for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="batch">Batch value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
     private void ResetBatch(ServiceOperationBatch batch)
     {
         batch.Count = 0;
@@ -701,8 +775,11 @@ public class ServiceMethodLoggingDispatchProxy : DispatchProxy
     }
 
     /// <summary>
-    /// Writes batch.
+    /// Writes batch for <see cref="ServiceMethodLoggingDispatchProxy"/>, keeping the operation consistent with the state and invariants of the surrounding service method logging dispatch proxy workflow.
     /// </summary>
+    /// <param name="currentLogger">Logger dependency used by the service method logging dispatch proxy workflow to provide the corresponding application capability.</param>
+    /// <param name="operation">Operation value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
+    /// <param name="snapshot">Snapshot value supplied to the service method logging dispatch proxy operation and used when producing its result.</param>
     private void WriteBatch(ILogger currentLogger, string operation, ServiceOperationBatchSnapshot snapshot)
     {
         var average = snapshot.Count == 0

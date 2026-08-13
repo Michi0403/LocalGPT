@@ -4,18 +4,20 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents an ambient local gpt context.
+/// Represents an ambient LocalGPT context application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="vocabulary">Local gpt vocabulary service dependency used by the ambient LocalGPT context workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary,
     ILogger<AmbientLocalGptContext> logger)
     : IAmbientLocalGptContext, ILocalHumanInteractionContext, IHumanApprovalExecutionContext
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal current holder state used by <see cref="AmbientLocalGptContext"/> while executing its surrounding workflow.
     /// </summary>
     private readonly AsyncLocal<AmbientLocalGptContextHolder?> CurrentHolder = new();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal fallback state used by <see cref="AmbientLocalGptContext"/> while executing its surrounding workflow.
     /// </summary>
     private readonly AmbientLocalGptContextSnapshot Fallback = new(
         "ambient-unset",
@@ -24,13 +26,16 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
         Source: "AmbientFallback");
 
     /// <summary>
-    /// Gets or sets current.
+    /// Gets the current value that forms part of the ambient LocalGPT context state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The current value exposed by <see cref="AmbientLocalGptContext"/>.</value>
     public AmbientLocalGptContextSnapshot Current => CurrentHolder.Value?.Snapshot ?? Fallback;
 
     /// <summary>
-    /// Runs the push operation.
+    /// Performs push for <see cref="AmbientLocalGptContext"/>, keeping the operation consistent with the state and invariants of the surrounding ambient LocalGPT context workflow.
     /// </summary>
+    /// <param name="snapshot">Snapshot value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <returns>The i disposable produced by the operation.</returns>
     private IDisposable Push(AmbientLocalGptContextSnapshot snapshot)
     {
     try
@@ -63,8 +68,11 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
 }
 
     /// <summary>
-    /// Runs the push system operation.
+    /// Performs push system for <see cref="AmbientLocalGptContext"/>, keeping the operation consistent with the state and invariants of the surrounding ambient LocalGPT context workflow.
     /// </summary>
+    /// <param name="source">Source value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <returns>The i disposable produced by the operation.</returns>
     public IDisposable PushSystem(string source, string? correlationId = null) {
     try
     {
@@ -85,8 +93,16 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
 }
 
     /// <summary>
-    /// Runs the push human interaction operation.
+    /// Performs push human interaction for <see cref="AmbientLocalGptContext"/>, keeping the operation consistent with the state and invariants of the surrounding ambient LocalGPT context workflow.
     /// </summary>
+    /// <param name="humanProfileId">Identifier of the human profile to use for this operation.</param>
+    /// <param name="displayName">Display name value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="source">Source value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="councilRound">Council round value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <returns>The i disposable produced by the operation.</returns>
     public IDisposable PushHumanInteraction(
         Guid humanProfileId,
         string displayName,
@@ -119,8 +135,17 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
 }
 
     /// <summary>
-    /// Runs the push human approval operation.
+    /// Performs push human approval for <see cref="AmbientLocalGptContext"/>, keeping the operation consistent with the state and invariants of the surrounding ambient LocalGPT context workflow.
     /// </summary>
+    /// <param name="humanProfileId">Identifier of the human profile to use for this operation.</param>
+    /// <param name="displayName">Display name value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="approvalRequestId">Identifier of the approval request to use for this operation.</param>
+    /// <param name="source">Source value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="councilRound">Council round value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <returns>The i disposable produced by the operation.</returns>
     public IDisposable PushHumanApproval(
         Guid humanProfileId,
         string displayName,
@@ -155,8 +180,13 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
 }
 
     /// <summary>
-    /// Runs the push council operation.
+    /// Performs push council for <see cref="AmbientLocalGptContext"/>, keeping the operation consistent with the state and invariants of the surrounding ambient LocalGPT context workflow.
     /// </summary>
+    /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+    /// <param name="councilRound">Council round value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="correlationId">Identifier of the correlation to use for this operation.</param>
+    /// <returns>The i disposable produced by the operation.</returns>
     public IDisposable PushCouncil(
         Guid councilRunId,
         int councilRound,
@@ -184,8 +214,10 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
 }
 
     /// <summary>
-    /// Normalizes correlation identifier.
+    /// Normalizes correlation identifier for <see cref="AmbientLocalGptContext"/>, keeping the operation consistent with the state and invariants of the surrounding ambient LocalGPT context workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeCorrelationId(string? value) {
     try
     {
@@ -202,8 +234,12 @@ public sealed class AmbientLocalGptContext(ILocalGptVocabularyService vocabulary
 }
 
     /// <summary>
-    /// Runs the normalize operation.
+    /// Performs normalize for <see cref="AmbientLocalGptContext"/>, keeping the operation consistent with the state and invariants of the surrounding ambient LocalGPT context workflow.
     /// </summary>
+    /// <param name="value">Value value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="maxLength">Max length value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the ambient LocalGPT context operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Normalize(string? value, int maxLength, string fallback = "")
     {
     try

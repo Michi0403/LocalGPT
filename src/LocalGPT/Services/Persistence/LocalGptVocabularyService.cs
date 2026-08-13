@@ -4,15 +4,18 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services.Persistence;
 
 /// <summary>
-/// Provides local gpt vocabulary service operations.
+/// Coordinates LocalGPT vocabulary behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the LocalGPT vocabulary workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LocalGptVocabularyService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalGptVocabularyService> logger) : ILocalGptVocabularyService
 {
     /// <summary>
-    /// Runs the get operation.
+    /// Performs get as part of the LocalGPT vocabulary service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The LocalGPT vocabulary snapshot produced by the operation.</returns>
     public LocalGptVocabularySnapshot Get()
     {
         try

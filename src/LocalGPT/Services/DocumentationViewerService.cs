@@ -4,18 +4,33 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Coordinates one focus-managed same-origin documentation modal per Blazor circuit.</summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [DocumentationUpdated("2.3.6")]
 public sealed class DocumentationViewerService(ILogger<DocumentationViewerService> logger) : IDocumentationViewerService
 {
+    /// <summary>
+    /// Stores the internal revision state used by <see cref="DocumentationViewerService"/> while executing its surrounding workflow.
+    /// </summary>
     private long revision;
 
+    /// <summary>
+    /// Occurs when state changed changes or completes in <see cref="DocumentationViewerService"/>, allowing interested callers to react without polling internal state.
+    /// </summary>
     /// <inheritdoc />
     public event Action? StateChanged;
 
+    /// <summary>
+    /// Gets or sets the state value that forms part of the documentation viewer state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
+    /// <value>The state value exposed by <see cref="DocumentationViewerService"/>.</value>
     public LocalGptDocumentationViewerState State { get; private set; } = new();
 
+    /// <summary>
+    /// Performs open as part of the documentation viewer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     public void Open(LocalGptDocumentationViewerRequest request)
     {
     try
@@ -44,6 +59,9 @@ public sealed class DocumentationViewerService(ILogger<DocumentationViewerServic
     }
 }
 
+    /// <summary>
+    /// Performs close as part of the documentation viewer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public void Close()
     {
@@ -70,8 +88,10 @@ public sealed class DocumentationViewerService(ILogger<DocumentationViewerServic
 }
 
     /// <summary>
-    /// Normalizes URL.
+    /// Normalizes URL as part of the documentation viewer service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="url">Url value supplied to the documentation viewer operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeUrl(string url)
     {
     try

@@ -9,24 +9,34 @@ using System.Text;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides sqlite table editor service operations.
+    /// Coordinates sqlite table editor behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="databaseInitializer">Database initialization service dependency used by the sqlite table editor workflow to provide the corresponding application capability.</param>
+    /// <param name="databaseOptions">Database options value supplied to the sqlite table editor operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="sqliteUtility">Sqlite utility service dependency used by the sqlite table editor workflow to provide the corresponding application capability.</param>
     public sealed class SqliteTableEditorService(
         IDatabaseInitializationService databaseInitializer,
         LocalGptDatabaseOptions databaseOptions,
         ILogger<SqliteTableEditorService> logger,
         SqliteUtilityService sqliteUtility) : ISqliteTableEditorService
     {
+        /// <summary>
+        /// Defines the max rows constant used by <see cref="SqliteTableEditorService"/> so callers and internal logic share the same stable value.
+        /// </summary>
         private const int MaxRows = 500;
 
         /// <summary>
-        /// Gets or sets database path.
+        /// Gets the database path used by this sqlite table editor instance to locate the associated file-system resource.
         /// </summary>
+        /// <value>The database path value exposed by <see cref="SqliteTableEditorService"/>.</value>
         public string DatabasePath => databaseOptions.DatabasePath;
 
         /// <summary>
-        /// Gets tables async.
+        /// Retrieves tables as part of the sqlite table editor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public async Task<IReadOnlyList<SqliteTableSummary>> GetTablesAsync(CancellationToken cancellationToken = default)
         {
             try
@@ -78,8 +88,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Gets table async.
+        /// Retrieves table as part of the sqlite table editor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="tableName">Table name value supplied to the sqlite table editor operation and used when producing its result.</param>
+        /// <param name="take">Take value supplied to the sqlite table editor operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The sqlite table snapshot produced by the operation.</returns>
         public async Task<SqliteTableSnapshot> GetTableAsync(string tableName, int take = 100, CancellationToken cancellationToken = default)
         {
             try
@@ -141,8 +155,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Updates row async.
+        /// Updates row as part of the sqlite table editor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="tableName">Table name value supplied to the sqlite table editor operation and used when producing its result.</param>
+        /// <param name="rowId">Identifier of the row to use for this operation.</param>
+        /// <param name="updates">Sqlite cell update dependency used by the sqlite table editor workflow to provide the corresponding application capability.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         public async Task UpdateRowAsync(string tableName, long rowId, IReadOnlyList<SqliteCellUpdate> updates, CancellationToken cancellationToken = default)
         {
             try
@@ -205,8 +224,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the insert row async operation.
+        /// Performs insert row as part of the sqlite table editor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="tableName">Table name value supplied to the sqlite table editor operation and used when producing its result.</param>
+        /// <param name="values">String dependency used by the sqlite table editor workflow to provide the corresponding application capability.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         public async Task InsertRowAsync(string tableName, IReadOnlyDictionary<string, string?> values, CancellationToken cancellationToken = default)
         {
             try
@@ -267,8 +290,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Deletes row async.
+        /// Deletes row as part of the sqlite table editor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="tableName">Table name value supplied to the sqlite table editor operation and used when producing its result.</param>
+        /// <param name="rowId">Identifier of the row to use for this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         public async Task DeleteRowAsync(string tableName, long rowId, CancellationToken cancellationToken = default)
         {
             try
@@ -302,8 +329,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Ensures database file async.
+        /// Ensures database file as part of the sqlite table editor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task EnsureDatabaseFileAsync(CancellationToken cancellationToken)
         {
     try
@@ -322,8 +351,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Opens connection async.
+        /// Opens connection as part of the sqlite table editor service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The sqlite connection produced by the operation.</returns>
         private async Task<SqliteConnection> OpenConnectionAsync(CancellationToken cancellationToken)
         {
             try

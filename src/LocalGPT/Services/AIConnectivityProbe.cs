@@ -4,16 +4,23 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents an ai connectivity probe.
+/// Represents an AI connectivity probe application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="aiDiscovery">Ai discovery service dependency used by the AI connectivity probe workflow to provide the corresponding application capability.</param>
+/// <param name="councilText">Council text service dependency used by the AI connectivity probe workflow to provide the corresponding application capability.</param>
+/// <param name="optionsRoot">Options root value supplied to the AI connectivity probe operation and used when producing its result.</param>
 public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
         AiDiscoveryService aiDiscovery,
         CouncilTextService councilText,
         Microsoft.Extensions.Options.IOptionsMonitor<global::LocalGPT.BusinessObjects.ConfigurationRoot> optionsRoot) : IAiConnectivityProbe
 {
     /// <summary>
-    /// Runs the test azure async operation.
+    /// Performs test azure for <see cref="AiConnectivityProbe"/>, keeping the operation consistent with the state and invariants of the surrounding AI connectivity probe workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The bool ok string message produced by the operation.</returns>
     public async Task<(bool ok, string message)> TestAzureAsync(OpenAIServiceCoreOptions options, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(options.Endpoint) || string.IsNullOrWhiteSpace(options.Key))
@@ -37,8 +44,11 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
     }
 
     /// <summary>
-    /// Runs the test open aiasync operation.
+    /// Performs test OpenAI for <see cref="AiConnectivityProbe"/>, keeping the operation consistent with the state and invariants of the surrounding AI connectivity probe workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The bool ok string message produced by the operation.</returns>
     public async Task<(bool ok, string message)> TestOpenAIAsync(OpenAICompatOptions options, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(options.ApiKey))
@@ -66,8 +76,11 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
     }
 
     /// <summary>
-    /// Runs the test ollama async operation.
+    /// Performs test Ollama for <see cref="AiConnectivityProbe"/>, keeping the operation consistent with the state and invariants of the surrounding AI connectivity probe workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The bool ok string message produced by the operation.</returns>
     public async Task<(bool ok, string message)> TestOllamaAsync(OllamaCoreOptions options, CancellationToken cancellationToken)
     {
         try
@@ -87,8 +100,11 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
     }
 
     /// <summary>
-    /// Runs the test local open aicompat async operation.
+    /// Performs test local OpenAI compat for <see cref="AiConnectivityProbe"/>, keeping the operation consistent with the state and invariants of the surrounding AI connectivity probe workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The bool ok string message produced by the operation.</returns>
     public async Task<(bool ok, string message)> TestLocalOpenAICompatAsync(ChatGPTLocalCoreOptions options, CancellationToken cancellationToken)
     {
         try
@@ -118,8 +134,11 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
     }
 
     /// <summary>
-    /// Attempts to start local async.
+    /// Attempts to start local for <see cref="AiConnectivityProbe"/>, keeping the operation consistent with the state and invariants of the surrounding AI connectivity probe workflow.
     /// </summary>
+    /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The bool ok string message produced by the operation.</returns>
     public Task<(bool ok, string message)> TryStartLocalAsync(ChatGPTLocalCoreOptions options, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -135,8 +154,10 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
     }
 
     /// <summary>
-    /// Runs the discover local hosts async operation.
+    /// Discovers local hosts for <see cref="AiConnectivityProbe"/>, keeping the operation consistent with the state and invariants of the surrounding AI connectivity probe workflow.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<LocalAiHostDiscoveryResult>> DiscoverLocalHostsAsync(CancellationToken cancellationToken)
     {
         try
@@ -189,8 +210,11 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
     }
 
     /// <summary>
-    /// Attempts to normalize authority.
+    /// Attempts to normalize authority for <see cref="AiConnectivityProbe"/>, keeping the operation consistent with the state and invariants of the surrounding AI connectivity probe workflow.
     /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the AI connectivity probe operation and used when producing its result.</param>
+    /// <param name="normalized">Normalized value supplied to the AI connectivity probe operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryNormalizeAuthority(string? endpoint, out string normalized)
     {
         try
@@ -219,8 +243,10 @@ public sealed class AiConnectivityProbe(ILogger<AiConnectivityProbe> logger,
     }
 
     /// <summary>
-    /// Gets endpoint host.
+    /// Retrieves endpoint host for <see cref="AiConnectivityProbe"/>, keeping the operation consistent with the state and invariants of the surrounding AI connectivity probe workflow.
     /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the AI connectivity probe operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetEndpointHost(string? endpoint) {
     try
     {

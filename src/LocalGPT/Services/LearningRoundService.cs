@@ -12,6 +12,11 @@ namespace LocalGPT.Services;
 /// Builds a database-grounded learning-round snapshot and persists model-suggested facts/regexes as
 /// untrusted self-maintenance knowledge. It never promotes model output to user-approved authority.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the learning round workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the learning round workflow to provide the corresponding application capability.</param>
+/// <param name="knowledgeService">Council knowledge service dependency used by the learning round workflow to provide the corresponding application capability.</param>
+/// <param name="regexPatternService">Regex pattern service dependency used by the learning round workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class LearningRoundService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -20,8 +25,11 @@ public sealed class LearningRoundService(
     ILogger<LearningRoundService> logger) : ILearningRoundService
 {
     /// <summary>
-    /// Builds snapshot async.
+    /// Builds snapshot as part of the learning round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="takePerSource">Take per source value supplied to the learning round operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The learning round snapshot produced by the operation.</returns>
     public async Task<LearningRoundSnapshot> BuildSnapshotAsync(int takePerSource = 200, CancellationToken cancellationToken = default)
     {
     try
@@ -168,8 +176,11 @@ public sealed class LearningRoundService(
 }
 
     /// <summary>
-    /// Runs the maintain async operation.
+    /// Performs maintain as part of the learning round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The learning maintenance result produced by the operation.</returns>
     public async Task<LearningMaintenanceResult> MaintainAsync(LearningMaintenanceRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -235,8 +246,11 @@ public sealed class LearningRoundService(
 }
 
     /// <summary>
-    /// Runs the truncate operation.
+    /// Performs truncate as part of the learning round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the learning round operation and used when producing its result.</param>
+    /// <param name="maximumCharacters">Maximum characters value supplied to the learning round operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Truncate(string? value, int maximumCharacters)
     {
     try
@@ -257,8 +271,11 @@ public sealed class LearningRoundService(
 }
 
     /// <summary>
-    /// Runs the truncate nullable operation.
+    /// Performs truncate nullable as part of the learning round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the learning round operation and used when producing its result.</param>
+    /// <param name="maximumCharacters">Maximum characters value supplied to the learning round operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? TruncateNullable(string? value, int maximumCharacters) {
     try
     {
@@ -275,8 +292,10 @@ public sealed class LearningRoundService(
 }
 
     /// <summary>
-    /// Creates deterministic guid.
+    /// Creates deterministic GUID as part of the learning round service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the learning round operation and used when producing its result.</param>
+    /// <returns>The GUID produced by the operation.</returns>
     private Guid CreateDeterministicGuid(string value)
     {
     try

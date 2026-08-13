@@ -21,11 +21,29 @@ public sealed class CouncilTeamConfigurationService(
     IOrganicCouncilBlueprintSeedDataService seedData,
     ILogger<CouncilTeamConfigurationService> logger) : ICouncilTeamConfigurationService
 {
+    /// <summary>
+    /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int CurrentSeedVersion = 18;
+    /// <summary>
+    /// Defines the max roles constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxRoles = 100;
+    /// <summary>
+    /// Defines the max workflow steps constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxWorkflowSteps = 100;
+    /// <summary>
+    /// Defines the max expanded workflow steps constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxExpandedWorkflowSteps = 100;
+    /// <summary>
+    /// Defines the max AI participants per role constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxAiParticipantsPerRole = 100;
+    /// <summary>
+    /// Stores the in-memory supported execution modes collection maintained internally by <see cref="CouncilTeamConfigurationService"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<string> SupportedExecutionModes =
     [
         "AllMembersParallel",
@@ -36,11 +54,17 @@ public sealed class CouncilTeamConfigurationService(
         "AssignedModelSingle"
     ];
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="CouncilTeamConfigurationService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    /// <summary>
+    /// Retrieves teams as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="includeDisabled">Value indicating whether include disabled should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<OrganicCouncilTeamDefinition>> GetTeamsAsync(bool includeDisabled = false, CancellationToken cancellationToken = default)
     {
     try
@@ -64,7 +88,13 @@ public sealed class CouncilTeamConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Finds team as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="key">Key value supplied to the council team configuration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The organic council team definition produced by the operation.</returns>
     public async Task<OrganicCouncilTeamDefinition?> FindTeamAsync(string? key, CancellationToken cancellationToken = default)
     {
     try
@@ -88,7 +118,13 @@ public sealed class CouncilTeamConfigurationService(
     }
 }
 
+    /// <summary>
+    /// Performs save as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The organic council team definition produced by the operation.</returns>
     public async Task<OrganicCouncilTeamDefinition> SaveAsync(SaveCouncilTeamConfigurationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -218,7 +254,9 @@ public sealed class CouncilTeamConfigurationService(
     }
 }
 
-    /// <summary>Normalizes one source-controlled seed definition before database comparison.</summary>
+    /// <summary>
+    /// Normalizes seed defaults as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="team">Seed definition to normalize in place.</param>
     private void NormalizeSeedDefaults(OrganicCouncilTeamDefinition team)
     {
@@ -336,7 +374,9 @@ public sealed class CouncilTeamConfigurationService(
     }
 }
 
-    /// <summary>Normalizes and validates a user-confirmed editable team definition.</summary>
+    /// <summary>
+    /// Normalizes and validate user definition as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="team">Definition to validate in place.</param>
     private void NormalizeAndValidateUserDefinition(OrganicCouncilTeamDefinition team)
     {
@@ -621,7 +661,9 @@ public sealed class CouncilTeamConfigurationService(
     }
 }
 
-    /// <summary>Normalizes loop-group names and loop bounds.</summary>
+    /// <summary>
+    /// Normalizes loop groups as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="steps">Workflow steps to normalize.</param>
     private void NormalizeLoopGroups(IReadOnlyList<CouncilWorkflowStepDefinition> steps)
     {
@@ -696,7 +738,9 @@ public sealed class CouncilTeamConfigurationService(
     }
 }
 
-    /// <summary>Calculates the maximum number of runtime rounds after loop expansion.</summary>
+    /// <summary>
+    /// Calculates maximum expanded rounds as part of the council team configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="steps">Normalized workflow steps.</param>
     /// <returns>The bounded maximum expanded-round count.</returns>
     private int CalculateMaximumExpandedRounds(IReadOnlyList<CouncilWorkflowStepDefinition> steps)

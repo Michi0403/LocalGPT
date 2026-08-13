@@ -6,27 +6,38 @@ using LocalGPT.Services.Helpers;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a get project maintenance function.
+/// Represents a get project maintenance function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the get project maintenance function workflow to provide the corresponding application capability.</param>
+/// <param name="projects">Local gpt project service dependency used by the get project maintenance function workflow to provide the corresponding application capability.</param>
+/// <param name="maintenance">Project maintenance service dependency used by the get project maintenance function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
     ILocalGptProjectService projects,
     IProjectMaintenanceService maintenance,
     ILogger<GetProjectMaintenanceFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the get project maintenance function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetProjectMaintenanceFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.maintenance.get", "POST", "/api/dxai/functions/project.maintenance.get/invoke",
         "Read one project's solution path, workspace resolution, tracked file paths and regex metadata, compiler installations, revisions, and build verification state before maintaining source.",
         "JSON parameters: projectId required; revisionId optional.",
         "Read-only metadata. Absolute paths are returned only for the user-selected local project and remain reference data, not permission to read or write files.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="GetProjectMaintenanceFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true, AvailableToAi: true, SupportsDirectInvocation: true, SupportsAutomaticInvocation: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","properties":{"projectId":{"type":"string","format":"uuid"},"revisionId":{"type":["string","null"],"format":"uuid"}},"required":["projectId"],"additionalProperties":false}""");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="GetProjectMaintenanceFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get project maintenance function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -62,23 +73,33 @@ public sealed class GetProjectMaintenanceFunction(IDxAiFunctionJsonService json,
 }
 
 /// <summary>
-/// Represents a save project workspace environment function.
+/// Represents a save project workspace environment function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the save project workspace environment function workflow to provide the corresponding application capability.</param>
+/// <param name="maintenance">Project maintenance service dependency used by the save project workspace environment function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SaveProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<SaveProjectWorkspaceEnvironmentFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the save project workspace environment function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="SaveProjectWorkspaceEnvironmentFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.workspace.environment.save", "POST", "/api/dxai/functions/project.workspace.environment.save/invoke",
         "Save one project/global workspace local-environment definition, preferred compiler, expected subdirectories, structure regex, and Council-maintainable access-policy regex rules.",
         "JSON parameters: request containing SaveProjectWorkspaceRootRequest.",
         "Metadata-only change after one-use human approval. Paths and regex rules grant no execution authority; assess and validate before build use.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="SaveProjectWorkspaceEnvironmentFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="SaveProjectWorkspaceEnvironmentFunction"/>, keeping the operation consistent with the state and invariants of the surrounding save project workspace environment function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -103,24 +124,34 @@ public sealed class SaveProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonSer
 }
 
 /// <summary>
-/// Represents an assess project workspace environment function.
+/// Represents an assess project workspace environment function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the assess project workspace environment function workflow to provide the corresponding application capability.</param>
+/// <param name="maintenance">Project maintenance service dependency used by the assess project workspace environment function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class AssessProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<AssessProjectWorkspaceEnvironmentFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the assess project workspace environment function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="AssessProjectWorkspaceEnvironmentFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.workspace.environment.assess", "POST", "/api/dxai/functions/project.workspace.environment.assess/invoke",
         "Assess whether the current LocalGPT process has too broad or insufficient rights for a configured workspace, verify expected directories/regex rules, and check the assigned compiler state.",
         "JSON parameters: workspaceRootId.",
         "Requires fresh human approval because it creates and immediately removes one bounded probe file in the selected workspace. It does not compile or edit project sources.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="AssessProjectWorkspaceEnvironmentFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler",
         ParameterSchemaJson: """{"type":"object","required":["workspaceRootId"],"properties":{"workspaceRootId":{"type":"string","format":"uuid"}},"additionalProperties":false}""");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="AssessProjectWorkspaceEnvironmentFunction"/>, keeping the operation consistent with the state and invariants of the surrounding assess project workspace environment function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -144,23 +175,33 @@ public sealed class AssessProjectWorkspaceEnvironmentFunction(IDxAiFunctionJsonS
 }
 
 /// <summary>
-/// Represents a register project revision workspace function.
+/// Represents a register project revision workspace function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the register project revision workspace function workflow to provide the corresponding application capability.</param>
+/// <param name="maintenance">Project maintenance service dependency used by the register project revision workspace function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RegisterProjectRevisionWorkspaceFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<RegisterProjectRevisionWorkspaceFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the register project revision workspace function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="RegisterProjectRevisionWorkspaceFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.workspace.register", "POST", "/api/dxai/functions/project.revision.workspace.register/invoke",
         "Associate one existing isolated source workspace and optional solution path with a selected project revision before scanning or compiling it.",
         "JSON parameters: projectId, revisionId, sourceRootPath, optional solutionPath.",
         "High-impact path registration after one-use human approval. The operation stores helper paths only and never copies, deletes, or edits project files.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="RegisterProjectRevisionWorkspaceFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="RegisterProjectRevisionWorkspaceFunction"/>, keeping the operation consistent with the state and invariants of the surrounding register project revision workspace function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -193,22 +234,32 @@ public sealed class RegisterProjectRevisionWorkspaceFunction(IDxAiFunctionJsonSe
 }
 
 /// <summary>
-/// Represents a scan project files function.
+/// Represents a scan project files function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the scan project files function workflow to provide the corresponding application capability.</param>
+/// <param name="maintenance">Project maintenance service dependency used by the scan project files function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ScanProjectFilesFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<ScanProjectFilesFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the scan project files function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ScanProjectFilesFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.files.scan", "POST", "/api/dxai/functions/project.files.scan/invoke",
         "Scan one explicitly selected project root, detect the solution, and store stable absolute/relative paths, hashes, roles, and per-file structure/content regex metadata.",
         "JSON parameters: projectId plus optional revisionId, maximumFiles, maximumFileBytes, and maximumTextFileBytes. Omit maximumFiles/maximumFileBytes (or use non-positive values) to use the database-backed MaxFiles/MaxSingleFileBytes runtime policies instead of hard-coded source limits.",
         "Reads project files only after one-use human approval. Does not modify source, Git, or build outputs.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="ScanProjectFilesFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ScanProjectFilesFunction"/>, keeping the operation consistent with the state and invariants of the surrounding scan project files function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -235,23 +286,33 @@ public sealed class ScanProjectFilesFunction(IDxAiFunctionJsonService json, IPro
 }
 
 /// <summary>
-/// Represents a save project file patterns function.
+/// Represents a save project file patterns function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the save project file patterns function workflow to provide the corresponding application capability.</param>
+/// <param name="maintenance">Project maintenance service dependency used by the save project file patterns function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class SaveProjectFilePatternsFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<SaveProjectFilePatternsFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the save project file patterns function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="SaveProjectFilePatternsFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.file.patterns.save", "POST", "/api/dxai/functions/project.file.patterns.save/invoke",
         "Store approved structure and content-format regular expressions plus the file role for one tracked project file.",
         "JSON parameters: trackedFileId plus SaveTrackedFilePatternRequest.",
         "Metadata-only write after one-use human approval. It never edits the project file itself.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="SaveProjectFilePatternsFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="SaveProjectFilePatternsFunction"/>, keeping the operation consistent with the state and invariants of the surrounding save project file patterns function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -279,22 +340,32 @@ public sealed class SaveProjectFilePatternsFunction(IDxAiFunctionJsonService jso
 }
 
 /// <summary>
-/// Represents a verify project revision build function.
+/// Represents a verify project revision build function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the verify project revision build function workflow to provide the corresponding application capability.</param>
+/// <param name="maintenance">Project maintenance service dependency used by the verify project revision build function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class VerifyProjectRevisionBuildFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<VerifyProjectRevisionBuildFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the verify project revision build function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="VerifyProjectRevisionBuildFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.build.verify", "POST", "/api/dxai/functions/project.revision.build.verify/invoke",
         "Run the user-selected compiler against one project revision and store bounded build/test evidence for council review.",
         "JSON parameters: projectId plus RunProjectBuildVerificationRequest.",
         "Executes a local compiler only after one-use human approval. It does not approve the revision or write source files.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="VerifyProjectRevisionBuildFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="VerifyProjectRevisionBuildFunction"/>, keeping the operation consistent with the state and invariants of the surrounding verify project revision build function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -321,22 +392,32 @@ public sealed class VerifyProjectRevisionBuildFunction(IDxAiFunctionJsonService 
 }
 
 /// <summary>
-/// Represents a record project council build review function.
+/// Represents a record project council build review function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the record project council build review function workflow to provide the corresponding application capability.</param>
+/// <param name="maintenance">Project maintenance service dependency used by the record project council build review function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RecordProjectCouncilBuildReviewFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<RecordProjectCouncilBuildReviewFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the record project council build review function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="RecordProjectCouncilBuildReviewFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.council-review", "POST", "/api/dxai/functions/project.revision.council-review/invoke",
         "Record the council's review of an existing build verification after members inspected the bounded compile/test evidence.",
         "JSON parameters: verificationId plus summary and compileErrorsAbsent.",
         "Stores review metadata only and requires human approval. It cannot mark a revision ready for testing.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="RecordProjectCouncilBuildReviewFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, Source: "DIHandler");
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="RecordProjectCouncilBuildReviewFunction"/>, keeping the operation consistent with the state and invariants of the surrounding record project council build review function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -363,22 +444,32 @@ public sealed class RecordProjectCouncilBuildReviewFunction(IDxAiFunctionJsonSer
 }
 
 /// <summary>
-/// Represents an approve project revision ready function.
+/// Represents an approve project revision ready function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the approve project revision ready function workflow to provide the corresponding application capability.</param>
+/// <param name="maintenance">Project maintenance service dependency used by the approve project revision ready function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ApproveProjectRevisionReadyFunction(IDxAiFunctionJsonService json, IProjectMaintenanceService maintenance, ILogger<ApproveProjectRevisionReadyFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the approve project revision ready function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ApproveProjectRevisionReadyFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.revision.ready.approve", "POST", "/api/dxai/functions/project.revision.ready.approve/invoke",
         "After successful compile, requested tests, and council review, create a lossless source snapshot and mark the revision ready for human testing.",
         "JSON parameters: projectId, revisionId, verificationId, requireTests, createLosslessSnapshot.",
         "High-impact final gate. Requires one-use human approval and never overwrites the source project.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="ApproveProjectRevisionReadyFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true, SupportsDirectInvocation: true, SupportsDeferredApprovalRequest: true, ApprovalRequiredBeforeCompletion: true, Source: "DIHandler");
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ApproveProjectRevisionReadyFunction"/>, keeping the operation consistent with the state and invariants of the surrounding approve project revision ready function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

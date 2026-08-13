@@ -14,335 +14,419 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides local gpt catalog service operations.
+    /// Coordinates LocalGPT catalog behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the LocalGPT catalog workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public sealed class LocalGptCatalogService(
         ILocalGptRuntimePolicyDataService runtimePolicy,
         ILogger<LocalGptCatalogService> logger)
     {
+        /// <summary>
+        /// Stores the LocalGPT runtime policy data service dependency used by <see cref="LocalGptCatalogService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
         private readonly ILocalGptRuntimePolicyDataService _runtimePolicy =
             runtimePolicy ?? throw new ArgumentNullException(nameof(runtimePolicy));
+        /// <summary>
+        /// Stores the logger used by <see cref="LocalGptCatalogService"/> to record operational diagnostics without coupling callers to logging details.
+        /// </summary>
         private readonly ILogger<LocalGptCatalogService> _logger =
             logger ?? throw new ArgumentNullException(nameof(logger));
 
         /// <summary>
-        /// Gets or sets default gradle version.
+        /// Gets the default gradle version value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The default gradle version value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string DefaultGradleVersion => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultGradleVersion);
         /// <summary>
-        /// Gets or sets utf8 no bom.
+        /// Gets the utf8 no bom value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The utf8 no bom value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Encoding Utf8NoBom { get; } =
             /// <summary>
-            /// Runs the utf8 encoding operation.
+            /// Performs utf8 encoding as part of the LocalGPT catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
             /// </summary>
+            /// <param name="false">False value supplied to the LocalGPT catalog operation and used when producing its result.</param>
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
         /// <summary>
-        /// Gets or sets name cleaner.
+        /// Gets the name cleaner value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The name cleaner value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex NameCleaner => _runtimePolicy.GetPattern(LocalGptRuntimePattern.NameCleaner);
         /// <summary>
-        /// Gets or sets mod identifier cleaner.
+        /// Gets the mod identifier cleaner value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The mod identifier cleaner value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex ModIdCleaner => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ModIdCleaner);
         /// <summary>
-        /// Gets or sets package part cleaner.
+        /// Gets the package part cleaner value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The package part cleaner value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex PackagePartCleaner => _runtimePolicy.GetPattern(LocalGptRuntimePattern.PackagePartCleaner);
 
         /// <summary>
-        /// Gets or sets default minecraft version.
+        /// Gets the default minecraft version value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The default minecraft version value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string DefaultMinecraftVersion => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultMinecraftVersion);
 
         /// <summary>
-        /// Gets or sets default java version.
+        /// Gets the default java version value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The default java version value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string DefaultJavaVersion => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultJavaVersion);
         /// <summary>
-        /// Gets or sets fabric loader version.
+        /// Gets the fabric loader version value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The fabric loader version value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string FabricLoaderVersion => _runtimePolicy.GetString(LocalGptRuntimeValue.FabricLoaderVersion);
 
 
 
 
         /// <summary>
-        /// Gets or sets max DevExpress ai chat prompt characters.
+        /// Gets the max DevExpress AI chat prompt characters value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max DevExpress AI chat prompt characters value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxDxAiChatPromptCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxDxAiChatPromptCharacters);
         /// <summary>
-        /// Gets or sets max visible prompt characters.
+        /// Gets the max visible prompt characters value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max visible prompt characters value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxVisiblePromptCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxVisiblePromptCharacters);
         /// <summary>
-        /// Gets or sets missing feature pattern.
+        /// Gets the missing feature pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The missing feature pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex MissingFeaturePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.MissingFeaturePattern);
         /// <summary>
-        /// Gets or sets capability gap block pattern.
+        /// Gets the capability gap block pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The capability gap block pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex CapabilityGapBlockPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.CapabilityGapBlockPattern);
         /// <summary>
-        /// Gets or sets truncated tail pattern.
+        /// Gets the truncated tail pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The truncated tail pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex TruncatedTailPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.TruncatedTailPattern);
         /// <summary>
-        /// Gets or sets thinking block pattern.
+        /// Gets the thinking block pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The thinking block pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex ThinkingBlockPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ThinkingBlockPattern);
         /// <summary>
-        /// Gets or sets council prompt fence pattern.
+        /// Gets the council prompt fence pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council prompt fence pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex CouncilPromptFencePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilPromptFencePattern);
         /// <summary>
-        /// Gets or sets council request block pattern.
+        /// Gets the council request block pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council request block pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex CouncilRequestBlockPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.CouncilRequestBlockPattern);
 
         /// <summary>
-        /// Gets or sets debug extensions.
+        /// Gets the debug extensions value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The debug extensions value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public FrozenSet<string> DebugExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.DebugExtensions);
         /// <summary>
-        /// Gets or sets text extensions.
+        /// Gets the text extensions value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The text extensions value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public FrozenSet<string> TextExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.TextExtensions);
         /// <summary>
-        /// Gets or sets learn base known extensions.
+        /// Gets the learn base known extensions value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The learn base known extensions value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public FrozenSet<string> LearnBaseKnownExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.LearnBaseKnownExtensions);
 
         /// <summary>
-        /// Gets or sets binary diagnostic extensions.
+        /// Gets the binary diagnostic extensions value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The binary diagnostic extensions value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public FrozenSet<string> BinaryDiagnosticExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.BinaryDiagnosticExtensions);
         /// <summary>
-        /// Gets or sets target framework pattern.
+        /// Gets the target framework pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The target framework pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex TargetFrameworkPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.TargetFrameworkPattern);
         /// <summary>
-        /// Gets or sets package reference pattern.
+        /// Gets the package reference pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The package reference pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex PackageReferencePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.PackageReferencePattern);
         /// <summary>
-        /// Gets or sets sensitive name pattern.
+        /// Gets the sensitive name pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The sensitive name pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex SensitiveNamePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.SensitiveNamePattern);
         /// <summary>
-        /// Gets or sets excluded directory names.
+        /// Gets the excluded directory names used by this LocalGPT catalog instance to locate the associated file-system resource.
         /// </summary>
+        /// <value>The excluded directory names value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public FrozenSet<string> ExcludedDirectoryNames => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ExcludedDirectoryNames);
 
         /// <summary>
-        /// Gets or sets binary extensions.
+        /// Gets the binary extensions value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The binary extensions value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public FrozenSet<string> BinaryExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.BinaryExtensions);
 
         /// <summary>
-        /// Gets or sets source extensions.
+        /// Gets the source extensions value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The source extensions value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public FrozenSet<string> SourceExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.SourceExtensions);
         /// <summary>
-        /// Gets or sets default ollama URI.
+        /// Gets the default Ollama URI that identifies the network or application endpoint associated with this LocalGPT catalog state.
         /// </summary>
+        /// <value>The default Ollama URI value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string DefaultOllamaUri => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaUri);
         /// <summary>
-        /// Gets or sets max participants.
+        /// Gets the max participants value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max participants value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxParticipants => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxParticipants);
         /// <summary>
-        /// Gets or sets default max parallel models.
+        /// Gets the default max parallel models value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The default max parallel models value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int DefaultMaxParallelModels => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultMaxParallelModels);
         /// <summary>
-        /// Gets or sets default heavy model gpu layers.
+        /// Gets the default heavy model GPU layers value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The default heavy model GPU layers value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int DefaultHeavyModelGpuLayers => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultHeavyModelGpuLayers);
         /// <summary>
-        /// Gets or sets min context tokens.
+        /// Gets the min context tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The min context tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MinContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MinContextTokens);
         /// <summary>
-        /// Gets or sets default context tokens.
+        /// Gets the default context tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The default context tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int DefaultContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultContextTokens);
         /// <summary>
-        /// Gets or sets max context tokens.
+        /// Gets the max context tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max context tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxContextTokens);
         /// <summary>
-        /// Gets or sets min output tokens.
+        /// Gets the min output tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The min output tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MinOutputTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MinOutputTokens);
         /// <summary>
-        /// Gets or sets max output tokens.
+        /// Gets the max output tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max output tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxOutputTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxOutputTokens);
         /// <summary>
-        /// Gets or sets stream status pattern.
+        /// Gets the stream status pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The stream status pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex StreamStatusPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.StreamStatusPattern);
         /// <summary>
-        /// Gets or sets word pattern.
+        /// Gets the word pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The word pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex WordPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.WordPattern);
         /// <summary>
-        /// Gets or sets development request pattern.
+        /// Gets the development request pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The development request pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex DevelopmentRequestPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DevelopmentRequestPattern);
         /// <summary>
-        /// Gets or sets explicit artifact intent pattern.
+        /// Gets the explicit artifact intent pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The explicit artifact intent pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex ExplicitArtifactIntentPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitArtifactIntentPattern);
         /// <summary>
-        /// Gets or sets advice only prompt pattern.
+        /// Gets the advice only prompt pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The advice only prompt pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex AdviceOnlyPromptPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.AdviceOnlyPromptPattern);
         /// <summary>
-        /// Gets or sets explicit artifact creation command pattern.
+        /// Gets the explicit artifact creation command pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The explicit artifact creation command pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex ExplicitArtifactCreationCommandPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitArtifactCreationCommandPattern);
         /// <summary>
-        /// Gets or sets concrete minecraft artifact pattern.
+        /// Gets the concrete minecraft artifact pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The concrete minecraft artifact pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex ConcreteMinecraftArtifactPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ConcreteMinecraftArtifactPattern);
         /// <summary>
-        /// Gets or sets concrete dot net artifact pattern.
+        /// Gets the concrete dot net artifact pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The concrete dot net artifact pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex ConcreteDotNetArtifactPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ConcreteDotNetArtifactPattern);
         /// <summary>
-        /// Gets or sets ai host setup pattern.
+        /// Gets the AI host setup pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The AI host setup pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex AiHostSetupPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.AiHostSetupPattern);
         /// <summary>
-        /// Gets or sets implementation decision pattern.
+        /// Gets the implementation decision pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The implementation decision pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex ImplementationDecisionPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ImplementationDecisionPattern);
         /// <summary>
-        /// Gets or sets implementation choice pattern.
+        /// Gets the implementation choice pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The implementation choice pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex ImplementationChoicePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ImplementationChoicePattern);
         /// <summary>
-        /// Gets or sets blocking artifact decision pattern.
+        /// Gets the blocking artifact decision pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The blocking artifact decision pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex BlockingArtifactDecisionPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.BlockingArtifactDecisionPattern);
         /// <summary>
-        /// Gets or sets safe sandbox consent pattern.
+        /// Gets the safe sandbox consent pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The safe sandbox consent pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex SafeSandboxConsentPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.SafeSandboxConsentPattern);
         /// <summary>
         /// Gets or sets explicit do not generate until user decision pattern.
         /// </summary>
+        /// <value>The explicit do not generate until user decision pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex ExplicitDoNotGenerateUntilUserDecisionPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ExplicitDoNotGenerateUntilUserDecisionPattern);
         /// <summary>
-        /// Gets or sets developer execution intent pattern.
+        /// Gets the developer execution intent pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The developer execution intent pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex DeveloperExecutionIntentPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DeveloperExecutionIntentPattern);
 
  
 
 
         /// <summary>
-        /// Gets or sets dev express import pattern.
+        /// Gets the DevExpress import pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The DevExpress import pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex DevExpressImportPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressImportPattern);
         /// <summary>
-        /// Gets or sets dev express registration pattern.
+        /// Gets the DevExpress registration pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The DevExpress registration pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex DevExpressRegistrationPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressRegistrationPattern);
         /// <summary>
-        /// Gets or sets artifact text extensions.
+        /// Gets the artifact text extensions value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The artifact text extensions value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public FrozenSet<string> ArtifactTextExtensions => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArtifactTextExtensions);
 
         /// <summary>
-        /// Gets or sets max artifact text file bytes.
+        /// Gets the max artifact text file bytes value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max artifact text file bytes value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public long MaxArtifactTextFileBytes => _runtimePolicy.GetLong(LocalGptRuntimeValue.MaxArtifactTextFileBytes);
      
 
 
         /// <summary>
-        /// Gets or sets max files.
+        /// Gets the max files value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max files value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxFiles => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxFiles);
         /// <summary>
-        /// Gets or sets max single file bytes.
+        /// Gets the max single file bytes value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max single file bytes value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public long MaxSingleFileBytes => _runtimePolicy.GetLong(LocalGptRuntimeValue.MaxSingleFileBytes);
         /// <summary>
-        /// Gets or sets max total file bytes.
+        /// Gets the max total file bytes value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max total file bytes value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public long MaxTotalFileBytes => _runtimePolicy.GetLong(LocalGptRuntimeValue.MaxTotalFileBytes);
         /// <summary>
-        /// Gets or sets max zip entries.
+        /// Gets the max ZIP entries value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max ZIP entries value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxZipEntries => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxZipEntries);
         /// <summary>
-        /// Gets or sets max zip entry bytes.
+        /// Gets the max ZIP entry bytes value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max ZIP entry bytes value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public long MaxZipEntryBytes => _runtimePolicy.GetLong(LocalGptRuntimeValue.MaxZipEntryBytes);
         /// <summary>
-        /// Gets or sets max extracted bytes.
+        /// Gets the max extracted bytes value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max extracted bytes value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public long MaxExtractedBytes => _runtimePolicy.GetLong(LocalGptRuntimeValue.MaxExtractedBytes);
         /// <summary>
-        /// Gets or sets max context characters.
+        /// Gets the max context characters value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max context characters value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxContextCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxContextCharacters);
         /// <summary>
-        /// Gets or sets max excerpt characters per file.
+        /// Gets the max excerpt characters per file value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max excerpt characters per file value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxExcerptCharactersPerFile => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxExcerptCharactersPerFile);
         /// <summary>
-        /// Gets or sets max binary string characters.
+        /// Gets the max binary string characters value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max binary string characters value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxBinaryStringCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxBinaryStringCharacters);
         /// <summary>
-        /// Gets or sets knowledge files.
+        /// Gets the knowledge files value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The knowledge files value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string[] KnowledgeFiles => _runtimePolicy.GetCollection(LocalGptRuntimeCollection.KnowledgeFiles).Select(value => value.Replace('/', Path.DirectorySeparatorChar)).ToArray();
         /// <summary>
-        /// Gets or sets omission.
+        /// Gets the omission value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The omission value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string omission => _runtimePolicy.GetString(LocalGptRuntimeValue.ContextOmission);
 
         /// <summary>
-        /// Gets or sets short omission.
+        /// Gets the short omission value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The short omission value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string shortOmission => _runtimePolicy.GetString(LocalGptRuntimeValue.ShortContextOmission);
         /// <summary>
-        /// Gets or sets download URL pattern.
+        /// Gets the download URL pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The download URL pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex DownloadUrlPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DownloadUrl);
         /// <summary>
-        /// Gets or sets learn base file policy summary.
+        /// Gets the learn base file policy summary value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The learn base file policy summary value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string LearnBaseFilePolicySummary => _runtimePolicy.GetString(LocalGptRuntimeValue.LearnBaseFilePolicySummary);
         /// <summary>
-        /// Gets or sets learn base duplicate policy summary.
+        /// Gets the learn base duplicate policy summary value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The learn base duplicate policy summary value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string LearnBaseDuplicatePolicySummary => _runtimePolicy.GetString(LocalGptRuntimeValue.LearnBaseDuplicatePolicySummary);
         /// <summary>
-        /// Gets or sets learn base preset list.
+        /// Gets the learn base preset list value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The learn base preset list value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string LearnBasePresetList => string.Join(", ", LearnBasePresets.Select(preset => preset.Label));
 
         /// <summary>
-        /// Gets or sets learn base presets.
+        /// Gets the learn base presets collection maintained or exposed by this LocalGPT catalog instance for downstream processing.
         /// </summary>
+        /// <value>The learn base presets value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public IReadOnlyList<LearnBasePreset> LearnBasePresets => _runtimePolicy.GetJson<LearnBasePreset[]>(LocalGptRuntimeValue.LearnBasePresetsJson);
         /// <summary>
-        /// Gets or sets learn base scan profiles.
+        /// Gets the learn base scan profiles collection maintained or exposed by this LocalGPT catalog instance for downstream processing.
         /// </summary>
+        /// <value>The learn base scan profiles value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public IReadOnlyList<LearnBaseScanProfile> LearnBaseScanProfiles => _runtimePolicy.GetJson<LearnBaseScanProfile[]>(LocalGptRuntimeValue.LearnBaseScanProfilesJson);
 
         /// <summary>
-        /// Gets or sets routes.
+        /// Gets the routes collection maintained or exposed by this LocalGPT catalog instance for downstream processing.
         /// </summary>
+        /// <value>The routes value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public List<TestLabRoute> Routes => [.. _runtimePolicy.GetJson<TestLabRoute[]>(LocalGptRuntimeValue.TestLabRoutesJson)];
-        /// <summary>Creates the maintained generic and Council-team prompt suggestion catalog.</summary>
+        /// <summary>
+        /// Retrieves suggestion as part of the LocalGPT catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// </summary>
         /// <returns>Prompt suggestions with stable keys and optional direct-Council ownership.</returns>
         public List<PromptSuggestion> GetSuggestion()
         {
@@ -383,8 +467,9 @@ namespace LocalGPT.Services
     }
 }
         /// <summary>
-        /// Gets or sets living cities prompt.
+        /// Gets the living cities prompt value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The living cities prompt value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string LivingCitiesPrompt =>
          string.Join(Environment.NewLine, new[]
 {
@@ -433,8 +518,9 @@ namespace LocalGPT.Services
             </Router>
             """;
         /// <summary>
-        /// Gets or sets generate solution app razor.
+        /// Gets the generate solution app razor value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate solution app razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateSolutionAppRazor =>
             """
             <!DOCTYPE html>
@@ -454,8 +540,9 @@ namespace LocalGPT.Services
             </html>
             """;
         /// <summary>
-        /// Gets or sets generate solution project file.
+        /// Gets the generate solution project file value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate solution project file value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateSolutionProjectFile =>
            """
             <Project Sdk="Microsoft.NET.Sdk.Web">
@@ -471,8 +558,9 @@ namespace LocalGPT.Services
             </Project>
             """;
         /// <summary>
-        /// Gets or sets generate source fidelity razor.
+        /// Gets the generate source fidelity razor value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate source fidelity razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateSourceFidelityRazor =>
             """
             @page "/source-fidelity"
@@ -526,8 +614,9 @@ namespace LocalGPT.Services
             }
             """;
         /// <summary>
-        /// Gets or sets generate solution CSS.
+        /// Gets the generate solution CSS value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate solution CSS value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateSolutionCss =>
             """
             :root {
@@ -689,8 +778,9 @@ namespace LocalGPT.Services
             }
             """;
         /// <summary>
-        /// Gets or sets generate ai host settings razor.
+        /// Gets the generate AI host settings razor value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate AI host settings razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateAiHostSettingsRazor =>
             """
             @page "/settings"
@@ -753,8 +843,9 @@ namespace LocalGPT.Services
             }
             """;
         /// <summary>
-        /// Gets or sets generate ai host logs razor.
+        /// Gets the generate AI host logs razor value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate AI host logs razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateAiHostLogsRazor =>
             """
             @page "/logs"
@@ -787,8 +878,9 @@ namespace LocalGPT.Services
             </main>
             """;
         /// <summary>
-        /// Gets or sets generate ai host runner plugins razor.
+        /// Gets the generate AI host runner plugins razor value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate AI host runner plugins razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateAiHostRunnerPluginsRazor =>
             """
             @page "/runner-plugins"
@@ -889,8 +981,9 @@ namespace LocalGPT.Services
             }
             """;
         /// <summary>
-        /// Gets or sets generate ai host hardware razor.
+        /// Gets the generate AI host hardware razor value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate AI host hardware razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateAiHostHardwareRazor =>
            """
             @page "/hardware"
@@ -923,8 +1016,9 @@ namespace LocalGPT.Services
             </main>
             """;
         /// <summary>
-        /// Gets or sets generate ai host templates razor.
+        /// Gets the generate AI host templates razor value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate AI host templates razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateAiHostTemplatesRazor =>
             """
             @page "/templates"
@@ -957,8 +1051,9 @@ namespace LocalGPT.Services
             </main>
             """;
         /// <summary>
-        /// Gets or sets generate ai host model downloads razor.
+        /// Gets the generate AI host model downloads razor value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate AI host model downloads razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateAiHostModelDownloadsRazor =>
             """
             @page "/model-downloads"
@@ -1027,8 +1122,9 @@ namespace LocalGPT.Services
             }
             """;
         /// <summary>
-        /// Gets or sets generate ai host running models razor.
+        /// Gets the generate AI host running models razor value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate AI host running models razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateAiHostRunningModelsRazor =>
          """
             @page "/running-models"
@@ -1061,8 +1157,9 @@ namespace LocalGPT.Services
             </main>
             """;
         /// <summary>
-        /// Gets or sets generate ai host chat razor.
+        /// Gets the generate AI host chat razor value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The generate AI host chat razor value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string GenerateAiHostChatRazor =>
              """
             @page "/chat"
@@ -1112,82 +1209,101 @@ namespace LocalGPT.Services
             }
             """;
         /// <summary>
-        /// Gets or sets dev express document pattern.
+        /// Gets the DevExpress document pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The DevExpress document pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex DevExpressDocumentPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DevExpressDocumentPattern);
         /// <summary>
-        /// Gets or sets export format pattern.
+        /// Gets the export format pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The export format pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex ExportFormatPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.ExportFormatPattern);
         /// <summary>
-        /// Gets or sets blazor frontend pattern.
+        /// Gets the blazor frontend pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The blazor frontend pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex BlazorFrontendPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.BlazorFrontendPattern);
         /// <summary>
-        /// Gets or sets dot net pattern.
+        /// Gets the dot net pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The dot net pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex DotNetPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DotNetPattern);
         /// <summary>
-        /// Gets or sets minecraft pattern.
+        /// Gets the minecraft pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The minecraft pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex MinecraftPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftPattern);
         /// <summary>
-        /// Gets or sets datapack pattern.
+        /// Gets the datapack pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The datapack pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex DatapackPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.DatapackPattern);
         /// <summary>
-        /// Gets or sets minecraft skeleton matrix pattern.
+        /// Gets the minecraft skeleton matrix pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The minecraft skeleton matrix pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex MinecraftSkeletonMatrixPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftSkeletonMatrixPattern);
         /// <summary>
-        /// Gets or sets minecraft version pattern.
+        /// Gets the minecraft version pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The minecraft version pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex MinecraftVersionPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.MinecraftVersionPattern);
         /// <summary>
-        /// Gets or sets leading slash command pattern.
+        /// Gets the leading slash command pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The leading slash command pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex LeadingSlashCommandPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.LeadingSlashCommandPattern);
         /// <summary>
-        /// Gets or sets root storage remove pattern.
+        /// Gets the root storage remove pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The root storage remove pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex RootStorageRemovePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.RootStorageRemovePattern);
         /// <summary>
-        /// Gets or sets malformed storage target pattern.
+        /// Gets the malformed storage target pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The malformed storage target pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex MalformedStorageTargetPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.MalformedStorageTargetPattern);
         /// <summary>
-        /// Gets or sets frontend pattern.
+        /// Gets the frontend pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The frontend pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex FrontendPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.FrontendPattern);
         /// <summary>
-        /// Gets or sets whole solution pattern.
+        /// Gets the whole solution pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The whole solution pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex WholeSolutionPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.WholeSolutionPattern);
         /// <summary>
-        /// Gets or sets ai host experiment pattern.
+        /// Gets the AI host experiment pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The AI host experiment pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex AiHostExperimentPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.AiHostExperimentPattern);
         /// <summary>
-        /// Gets or sets local gpt replacement pattern.
+        /// Gets the LocalGPT replacement pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The LocalGPT replacement pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex LocalGptReplacementPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.LocalGptReplacementPattern);
         /// <summary>
-        /// Gets or sets tacos portal pattern.
+        /// Gets the tacos portal pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The tacos portal pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex TacosPortalPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.TacosPortalPattern);
         /// <summary>
-        /// Gets or sets bot backend pattern.
+        /// Gets the bot backend pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The bot backend pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex BotBackendPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.BotBackendPattern);
         /// <summary>
-        /// Gets or sets logging pattern.
+        /// Gets the logging pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The logging pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex LoggingPattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.LoggingPattern);
 
 
         /// <summary>
-        /// Gets or sets JSON options.
+        /// Gets the JSON options value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The JSON options value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public JsonSerializerOptions JsonOptions { get; } = new(JsonSerializerDefaults.Web)
         {
             PropertyNameCaseInsensitive = true,
@@ -1195,114 +1311,141 @@ namespace LocalGPT.Services
         };
 
         /// <summary>
-        /// Gets or sets whitespace pattern.
+        /// Gets the whitespace pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The whitespace pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex WhitespacePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.WhitespacePattern);
         /// <summary>
-        /// Gets or sets helpful source line pattern.
+        /// Gets the helpful source line pattern value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The helpful source line pattern value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public Regex HelpfulSourceLinePattern => _runtimePolicy.GetPattern(LocalGptRuntimePattern.HelpfulSourceLinePattern);
 
         /// <summary>
-        /// Gets or sets min council output tokens.
+        /// Gets the min council output tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The min council output tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MinCouncilOutputTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MinCouncilOutputTokens);
         /// <summary>
-        /// Gets or sets default council output tokens.
+        /// Gets the default council output tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The default council output tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int DefaultCouncilOutputTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultCouncilOutputTokens);
         /// <summary>
-        /// Gets or sets max council output tokens.
+        /// Gets the max council output tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max council output tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxCouncilOutputTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxCouncilOutputTokens);
         /// <summary>
-        /// Gets or sets min council context tokens.
+        /// Gets the min council context tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The min council context tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MinCouncilContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MinCouncilContextTokens);
         /// <summary>
-        /// Gets or sets default council context tokens.
+        /// Gets the default council context tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The default council context tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int DefaultCouncilContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultCouncilContextTokens);
         /// <summary>
-        /// Gets or sets max council context tokens.
+        /// Gets the max council context tokens value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max council context tokens value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxCouncilContextTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxCouncilContextTokens);
         /// <summary>
-        /// Gets or sets council session name.
+        /// Gets the council session name value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The council session name value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string CouncilSessionName => _runtimePolicy.GetString(LocalGptRuntimeValue.CouncilSessionName);
         /// <summary>
-        /// Gets or sets max upload files.
+        /// Gets the max upload files value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max upload files value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxUploadFiles => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxUploadFiles);
         /// <summary>
-        /// Gets or sets max upload bytes.
+        /// Gets the max upload bytes value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max upload bytes value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxUploadBytes => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxUploadBytes);
         /// <summary>
-        /// Gets or sets allowed upload extensions.
+        /// Gets the allowed upload extensions collection maintained or exposed by this LocalGPT catalog instance for downstream processing.
         /// </summary>
+        /// <value>The allowed upload extensions value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public List<string> AllowedUploadExtensions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.AllowedUploadExtensions)];
         /// <summary>
-        /// Gets or sets allowed upload mime types.
+        /// Gets the allowed upload MIME types collection maintained or exposed by this LocalGPT catalog instance for downstream processing.
         /// </summary>
+        /// <value>The allowed upload MIME types value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public List<string> AllowedUploadMimeTypes => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.AllowedUploadMimeTypes)];
         /// <summary>
-        /// Gets or sets ollama mode auto gpu.
+        /// Gets the Ollama mode auto GPU value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The Ollama mode auto GPU value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string OllamaModeAutoGpu => _runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeAutoGpu);
         /// <summary>
-        /// Gets or sets ollama mode safe cpu.
+        /// Gets the Ollama mode safe CPU value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The Ollama mode safe CPU value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string OllamaModeSafeCpu => _runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeSafeCpu);
         /// <summary>
-        /// Gets or sets ollama mode limited gpu.
+        /// Gets the Ollama mode limited GPU value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The Ollama mode limited GPU value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string OllamaModeLimitedGpu => _runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeLimitedGpu);
  
         /// <summary>
-        /// Gets or sets detected ollama session prefix.
+        /// Gets the detected Ollama session prefix value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The detected Ollama session prefix value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string DetectedOllamaSessionPrefix => _runtimePolicy.GetString(LocalGptRuntimeValue.DetectedOllamaSessionPrefix);
         /// <summary>
-        /// Gets or sets default ollama endpoint.
+        /// Gets the default Ollama endpoint that identifies the network or application endpoint associated with this LocalGPT catalog state.
         /// </summary>
+        /// <value>The default Ollama endpoint value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string DefaultOllamaEndpoint => _runtimePolicy.GetString(LocalGptRuntimeValue.DefaultOllamaEndpoint);
         /// <summary>
         /// Gets the database-provisioned language and toolchain choices for architecture guidance.
         /// </summary>
+        /// <value>The architecture language toolchain options value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string[] ArchitectureLanguageToolchainOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureLanguageToolchainOptions)];
         /// <summary>
-        /// Gets or sets architecture UI stack options.
+        /// Gets the architecture UI stack options value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The architecture UI stack options value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string[] ArchitectureUiStackOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureUiStackOptions)];
         /// <summary>
-        /// Gets or sets architecture solution shape options.
+        /// Gets the architecture solution shape options value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The architecture solution shape options value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string[] ArchitectureSolutionShapeOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureSolutionShapeOptions)];
         /// <summary>
-        /// Gets or sets architecture render mode options.
+        /// Gets the architecture render mode options value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The architecture render mode options value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string[] ArchitectureRenderModeOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureRenderModeOptions)];
         /// <summary>
-        /// Gets or sets architecture reference look options.
+        /// Gets the architecture reference look options value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The architecture reference look options value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string[] ArchitectureReferenceLookOptions => [.. _runtimePolicy.GetCollection(LocalGptRuntimeCollection.ArchitectureReferenceLookOptions)];
         /// <summary>
-        /// Gets or sets default max prompt characters.
+        /// Gets the default max prompt characters value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The default max prompt characters value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int DefaultMaxPromptCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.DefaultMaxPromptCharacters);
         /// <summary>
-        /// Gets or sets max prompt characters.
+        /// Gets the max prompt characters value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max prompt characters value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxPromptCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxPromptCharacters);
         /// <summary>
-        /// Gets or sets max bootstrap characters.
+        /// Gets the max bootstrap characters value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max bootstrap characters value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxBootstrapCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxBootstrapCharacters);
         /// <summary>
-        /// Gets or sets max single conversation message characters.
+        /// Gets the max single conversation message characters value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The max single conversation message characters value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxSingleConversationMessageCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxSingleConversationMessageCharacters);
 
     }

@@ -8,8 +8,14 @@ using System.Text;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides council knowledge service operations.
+    /// Coordinates council knowledge behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="dbContextFactory">Local gpt memory database context dependency used by the council knowledge workflow to provide the corresponding application capability.</param>
+    /// <param name="databaseInitializer">Database initialization service dependency used by the council knowledge workflow to provide the corresponding application capability.</param>
+    /// <param name="databaseFileHealth">Database file health service dependency used by the council knowledge workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilText">Council text service dependency used by the council knowledge workflow to provide the corresponding application capability.</param>
+    /// <param name="sqliteUtility">Sqlite utility service dependency used by the council knowledge workflow to provide the corresponding application capability.</param>
     public partial class CouncilKnowledgeService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
@@ -19,13 +25,16 @@ namespace LocalGPT.Services
         SqliteUtilityService sqliteUtility) : ICouncilKnowledgeService
     {
         /// <summary>
-        /// Gets or sets database path.
+        /// Gets the database path used by this council knowledge instance to locate the associated file-system resource.
         /// </summary>
+        /// <value>The database path value exposed by <see cref="CouncilKnowledgeService"/>.</value>
         public string DatabasePath => databaseFileHealth.DatabasePath;
 
         /// <summary>
-        /// Ensures created async.
+        /// Ensures created as part of the council knowledge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         public async Task EnsureCreatedAsync(CancellationToken cancellationToken = default)
         {
             try
@@ -39,8 +48,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Gets entries async.
+        /// Retrieves entries as part of the council knowledge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="includeArchived">Value indicating whether include archived should apply to this operation.</param>
+        /// <param name="take">Take value supplied to the council knowledge operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public async Task<IReadOnlyList<CouncilKnowledgeEntry>> GetEntriesAsync(bool includeArchived = false, int take = 100, CancellationToken cancellationToken = default)
         {
             try
@@ -75,8 +88,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Saves entry async.
+        /// Persists entry as part of the council knowledge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="entry">Entry value supplied to the council knowledge operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The council knowledge entry produced by the operation.</returns>
         public async Task<CouncilKnowledgeEntry> SaveEntryAsync(CouncilKnowledgeEntry entry, CancellationToken cancellationToken = default)
         {
             try
@@ -133,8 +149,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Deletes entry async.
+        /// Deletes entry as part of the council knowledge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="id">Identifier of the resource to use for this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         public async Task DeleteEntryAsync(Guid id, CancellationToken cancellationToken = default)
         {
             try
@@ -158,6 +177,9 @@ namespace LocalGPT.Services
         /// <summary>
         /// Saves from council run async.
         /// </summary>
+        /// <param name="result">Result value supplied to the council knowledge operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The GUID produced by the operation.</returns>
         public async Task<Guid> SaveFromCouncilRunAsync(MultiModelCouncilResult result, CancellationToken cancellationToken = default)
         {
             try
@@ -193,8 +215,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds knowledge briefing async.
+        /// Builds knowledge briefing as part of the council knowledge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="take">Take value supplied to the council knowledge operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         public async Task<string> BuildKnowledgeBriefingAsync( int take = 8, CancellationToken cancellationToken = default)
         {
             try
@@ -247,8 +272,12 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the mark entries used async operation.
+        /// Performs mark entries used as part of the council knowledge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="entryIds">Guid dependency used by the council knowledge workflow to provide the corresponding application capability.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         public async Task MarkEntriesUsedAsync(IEnumerable<Guid> entryIds, CancellationToken cancellationToken, ILogger logger)
         {
             try

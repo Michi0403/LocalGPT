@@ -5,30 +5,38 @@ using System.Collections.Concurrent;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides council run configuration service operations.
+/// Coordinates council run configuration behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="hardwareRoadPlanner">Council hardware road planner dependency used by the council run configuration workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilRunConfigurationService(
     ICouncilHardwareRoadPlanner hardwareRoadPlanner,
     ILogger<CouncilRunConfigurationService> logger) : ICouncilRunConfigurationService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory runs collection maintained internally by <see cref="CouncilRunConfigurationService"/> for its current workflow state.
     /// </summary>
     private readonly ConcurrentDictionary<Guid, CouncilRunState> runs = new();
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal preparation sync root state used by <see cref="CouncilRunConfigurationService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly object preparationSyncRoot = new();
+    /// <summary>
+    /// Stores the internal preparation configuration state used by <see cref="CouncilRunConfigurationService"/> while executing its surrounding workflow.
+    /// </summary>
     private CouncilPreparationConfiguration? preparationConfiguration;
 
     /// <summary>
-    /// Occurs when changed.
+    /// Occurs when changed changes or completes in <see cref="CouncilRunConfigurationService"/>, allowing interested callers to react without polling internal state.
     /// </summary>
     public event Action<Guid>? Changed;
 
     /// <summary>
-    /// Runs the ensure operation.
+    /// Performs ensure as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="participants">String dependency used by the council run configuration workflow to provide the corresponding application capability.</param>
+    /// <returns>The council run configuration snapshot produced by the operation.</returns>
     public CouncilRunConfigurationSnapshot Ensure(
         MultiModelCouncilRequest request,
         IReadOnlyCollection<string> participants)
@@ -79,8 +87,9 @@ public sealed class CouncilRunConfigurationService(
 
 
     /// <summary>
-    /// Gets preparation.
+    /// Retrieves preparation as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The council preparation configuration produced by the operation.</returns>
     public CouncilPreparationConfiguration? GetPreparation()
     {
     try
@@ -100,8 +109,10 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Saves preparation.
+    /// Persists preparation as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+    /// <returns>The council preparation configuration produced by the operation.</returns>
     public CouncilPreparationConfiguration SavePreparation(CouncilPreparationConfiguration configuration)
     {
     try
@@ -128,8 +139,10 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Runs the get operation.
+    /// Performs get as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The council run configuration snapshot produced by the operation.</returns>
     public CouncilRunConfigurationSnapshot? Get(Guid runId)
     {
     try
@@ -152,8 +165,18 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Runs the update operation.
+    /// Performs update as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="routes">One wire council model route dependency used by the council run configuration workflow to provide the corresponding application capability.</param>
+    /// <param name="resourceLoadPercent">Resource load percent value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="requestedMaxOutputTokens">Requested max output tokens value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="requestedMaxContextTokens">Requested max context tokens value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="fallbackOllamaNumGpu">Fallback ollama num gpu value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="allowParallelHardwareRoads">Value indicating whether allow parallel hardware roads should apply to this operation.</param>
+    /// <param name="maxParallelModels">Max parallel models value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool Update(
         Guid runId,
         IReadOnlyCollection<OneWireCouncilModelRoute> routes,
@@ -208,8 +231,11 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Runs the begin round operation.
+    /// Performs begin round as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="round">Round value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the council run configuration operation and used when producing its result.</param>
     public void BeginRound(Guid runId, int round, string phase)
     {
         if (!runs.TryGetValue(runId, out var state))
@@ -257,8 +283,12 @@ public sealed class CouncilRunConfigurationService(
     }
 
     /// <summary>
-    /// Gets round cancellation token.
+    /// Retrieves round cancellation token as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="round">Round value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <returns>The cancellation token produced by the operation.</returns>
     public CancellationToken GetRoundCancellationToken(Guid runId, int round, string phase)
     {
     try
@@ -287,8 +317,12 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Determines whether round skip requested.
+    /// Determines whether round skip requested as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="round">Round value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="phase">Phase value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool IsRoundSkipRequested(Guid runId, int round, string phase)
     {
     try
@@ -316,8 +350,10 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Runs the request skip current round operation.
+    /// Performs request skip current round as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     public bool RequestSkipCurrentRound(Guid runId)
     {
         if (!runs.TryGetValue(runId, out var state))
@@ -357,8 +393,13 @@ public sealed class CouncilRunConfigurationService(
     }
 
     /// <summary>
-    /// Runs the acquire model request async operation.
+    /// Performs acquire model request as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="modelName">Model name value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="fallbackPlan">Fallback plan value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The i council model request lease produced by the operation.</returns>
     public async ValueTask<ICouncilModelRequestLease> AcquireModelRequestAsync(
         Guid runId,
         string modelName,
@@ -421,8 +462,10 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Gets council execution host key.
+    /// Retrieves council execution host key as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="modelName">Model name value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetCouncilExecutionHostKey(string modelName)
     {
         try
@@ -449,8 +492,9 @@ public sealed class CouncilRunConfigurationService(
     }
 
     /// <summary>
-    /// Runs the complete operation.
+    /// Performs complete as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
     public void Complete(Guid runId)
     {
         if (!runs.TryRemove(runId, out var state))
@@ -476,8 +520,12 @@ public sealed class CouncilRunConfigurationService(
     }
 
     /// <summary>
-    /// Builds candidate locked.
+    /// Builds candidate locked as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="state">State value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="modelName">Model name value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="fallbackPlan">Fallback plan value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <returns>The council run plan candidate produced by the operation.</returns>
     private CouncilRunPlanCandidate BuildCandidateLocked(
         CouncilRunState state,
         string modelName,
@@ -512,8 +560,10 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Runs the release operation.
+    /// Performs release as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="state">State value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <param name="laneKey">Lane key value supplied to the council run configuration operation and used when producing its result.</param>
     private void Release(CouncilRunState state, string laneKey)
     {
     try
@@ -540,8 +590,9 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Runs the pulse locked operation.
+    /// Performs pulse locked as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="state">State value supplied to the council run configuration operation and used when producing its result.</param>
     private void PulseLocked(CouncilRunState state)
     {
     try
@@ -562,8 +613,9 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Creates signal.
+    /// Creates signal as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The task completion source bool produced by the operation.</returns>
     private TaskCompletionSource<bool> CreateSignal() {
     try
     {
@@ -580,8 +632,10 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Creates snapshot locked.
+    /// Creates snapshot locked as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="state">State value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <returns>The council run configuration snapshot produced by the operation.</returns>
     private CouncilRunConfigurationSnapshot CreateSnapshotLocked(CouncilRunState state) {
     try
     {
@@ -614,8 +668,10 @@ public sealed class CouncilRunConfigurationService(
 
 
     /// <summary>
-    /// Normalizes preparation.
+    /// Normalizes preparation as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+    /// <returns>The council preparation configuration produced by the operation.</returns>
     private CouncilPreparationConfiguration NormalizePreparation(CouncilPreparationConfiguration configuration)
     {
     try
@@ -656,8 +712,10 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Runs the clone preparation operation.
+    /// Performs clone preparation as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+    /// <returns>The council preparation configuration produced by the operation.</returns>
     private CouncilPreparationConfiguration ClonePreparation(CouncilPreparationConfiguration configuration) {
     try
     {
@@ -687,8 +745,10 @@ public sealed class CouncilRunConfigurationService(
 }
 
     /// <summary>
-    /// Runs the clone route operation.
+    /// Performs clone route as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="route">Route value supplied to the council run configuration operation and used when producing its result.</param>
+    /// <returns>The one wire council model route produced by the operation.</returns>
     private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) {
     try
     {

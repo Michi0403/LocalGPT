@@ -6,18 +6,34 @@ using System.Diagnostics;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents an artifact build executor.
+/// Represents an artifact build executor application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ArtifactBuildExecutor(
     IOptionsMonitor<ArtifactBuildOptions> options,
     ILogger<ArtifactBuildExecutor> logger) : IArtifactBuildExecutor
 {
+    /// <summary>
+    /// Defines the minimum timeout seconds constant used by <see cref="ArtifactBuildExecutor"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MinimumTimeoutSeconds = 5;
+    /// <summary>
+    /// Defines the maximum timeout seconds constant used by <see cref="ArtifactBuildExecutor"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaximumTimeoutSeconds = 900;
 
     /// <summary>
-    /// Builds async.
+    /// Performs build for <see cref="ArtifactBuildExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding artifact build executor workflow.
     /// </summary>
+    /// <param name="targetPath">Target path value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <param name="allowedRoot">Allowed root value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
+    /// <param name="outputDirectory">Output directory value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <param name="requestedTimeout">Requested timeout value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <returns>The artifact build execution result produced by the operation.</returns>
     public async Task<ArtifactBuildExecutionResult> BuildAsync(
         string targetPath,
         string allowedRoot,
@@ -124,8 +140,10 @@ public sealed class ArtifactBuildExecutor(
     }
 
     /// <summary>
-    /// Normalizes directory.
+    /// Normalizes directory for <see cref="ArtifactBuildExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding artifact build executor workflow.
     /// </summary>
+    /// <param name="path">Path value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeDirectory(string path)
     {
     try
@@ -146,8 +164,11 @@ public sealed class ArtifactBuildExecutor(
 }
 
     /// <summary>
-    /// Determines whether inside root.
+    /// Determines whether inside root for <see cref="ArtifactBuildExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding artifact build executor workflow.
     /// </summary>
+    /// <param name="path">Path value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <param name="root">Root value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsInsideRoot(string path, string root)
     {
     try
@@ -167,8 +188,9 @@ public sealed class ArtifactBuildExecutor(
 }
 
     /// <summary>
-    /// Runs the kill process tree operation.
+    /// Performs kill process tree for <see cref="ArtifactBuildExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding artifact build executor workflow.
     /// </summary>
+    /// <param name="process">Process value supplied to the artifact build executor operation and used when producing its result.</param>
     private void KillProcessTree(Process process)
     {
     try
@@ -194,8 +216,14 @@ public sealed class ArtifactBuildExecutor(
 }
 
     /// <summary>
-    /// Runs the result operation.
+    /// Performs result for <see cref="ArtifactBuildExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding artifact build executor workflow.
     /// </summary>
+    /// <param name="status">Status value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <param name="exitCode">Exit code value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <param name="startedAt">Started at value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <param name="output">Output value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <param name="error">Error value supplied to the artifact build executor operation and used when producing its result.</param>
+    /// <returns>The artifact build execution result produced by the operation.</returns>
     private ArtifactBuildExecutionResult Result(
         string status,
         int? exitCode,

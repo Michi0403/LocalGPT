@@ -29,13 +29,17 @@ namespace LocalGPT.Services
     public sealed class CouncilRuntimeService(CouncilTextService text, LocalGptCatalogService catalog, ILogger<CouncilRuntimeService> serviceLogger)
     {
         /// <summary>
-        /// Runs the new operation.
+        /// Stores the in-memory Ollama models without native tool metadata collection maintained internally by <see cref="CouncilRuntimeService"/> for its current workflow state.
         /// </summary>
         private readonly ConcurrentDictionary<string, byte> ollamaModelsWithoutNativeToolMetadata = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Runs the ollama thinking chat client should skip native tools operation.
+        /// Performs Ollama thinking chat client should skip native tools as part of the council runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the council runtime operation and used when producing its result.</param>
+        /// <param name="modelName">Model name value supplied to the council runtime operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool OllamaThinkingChatClientShouldSkipNativeTools(Uri? endpoint, string modelName, ILogger logger)
         {
             try
@@ -53,8 +57,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the ollama thinking chat client remember native tools rejected operation.
+        /// Performs Ollama thinking chat client remember native tools rejected as part of the council runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the council runtime operation and used when producing its result.</param>
+        /// <param name="modelName">Model name value supplied to the council runtime operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         public void OllamaThinkingChatClientRememberNativeToolsRejected(Uri? endpoint, string modelName, ILogger logger)
         {
             try
@@ -1979,8 +1986,10 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Gets search roots.
+        /// Retrieves search roots as part of the council runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public IEnumerable<(string Area, string Path)> GetSearchRoots(ILogger<BuildDebugInventoryService> logger)
         {
             try
@@ -3164,8 +3173,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service current user text for signal classification operation.
+        /// Performs multi model council service current user text for signal classification as part of the council runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="prompt">Prompt value supplied to the council runtime operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string MultiModelCouncilServiceCurrentUserTextForSignalClassification(string prompt, ILogger logger)
         {
             try
@@ -3472,8 +3484,11 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Determines whether local gpt streaming status update.
+        /// Determines whether LocalGPT streaming status update as part of the council runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="text">Text value supplied to the council runtime operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsLocalGptStreamingStatusUpdate(string? text, ILogger logger)
         {
             try
@@ -3505,7 +3520,7 @@ namespace LocalGPT.Services
             }
         }
 
-        /// <summary>Executes the append dev express imports async operation.</summary>
+        /// <summary>Executes the append DevExpress imports async operation.</summary>
         /// <param name="builder">Input value for builder.</param>
         /// <param name="root">Input value for root.</param>
         /// <param name="cancellationToken">Input value for cancellationToken.</param>
@@ -3541,7 +3556,7 @@ namespace LocalGPT.Services
 
         }
 
-        /// <summary>Executes the append dev express registrations async operation.</summary>
+        /// <summary>Executes the append DevExpress registrations async operation.</summary>
         /// <param name="builder">Input value for builder.</param>
         /// <param name="root">Input value for root.</param>
         /// <param name="cancellationToken">Input value for cancellationToken.</param>
@@ -3577,7 +3592,7 @@ namespace LocalGPT.Services
             
         }
 
-        /// <summary>Executes the append loaded dev express assemblies operation.</summary>
+        /// <summary>Executes the append loaded DevExpress assemblies operation.</summary>
         /// <param name="builder">Input value for builder.</param>
         /// <param name="logger">Input value for logger.</param>
         public void AppendLoadedDevExpressAssemblies(StringBuilder builder, ILogger logger)

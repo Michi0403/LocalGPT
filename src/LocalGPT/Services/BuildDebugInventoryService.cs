@@ -8,8 +8,11 @@ using System.Text;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides build debug inventory service operations.
+    /// Coordinates build debug inventory behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the build debug inventory workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the build debug inventory workflow to provide the corresponding application capability.</param>
     public sealed class BuildDebugInventoryService(ILogger<BuildDebugInventoryService> logger,
         CouncilRuntimeService councilRuntime,
         LocalGptCatalogService catalog) : IBuildDebugInventoryService
@@ -17,16 +20,24 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Gets or sets artifact root.
+        /// Gets the artifact root value that forms part of the build debug inventory state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The artifact root value exposed by <see cref="BuildDebugInventoryService"/>.</value>
         public string ArtifactRoot { get; } = Path.Combine(
+            /// <summary>
+            /// Retrieves folder path as part of the build debug inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+            /// </summary>
+            /// <returns>The environment produced by the operation.</returns>
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "BuildDebugFiles");
 
         /// <summary>
-        /// Runs the capture async operation.
+        /// Performs capture as part of the build debug inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="copyFiles">Value indicating whether copy files should apply to this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The build debug inventory produced by the operation.</returns>
         public async Task<BuildDebugInventory> CaptureAsync(bool copyFiles = false, CancellationToken cancellationToken = default)
         {
             try
@@ -84,8 +95,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds briefing async.
+        /// Builds briefing as part of the build debug inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         public async Task<string> BuildBriefingAsync(CancellationToken cancellationToken = default)
         {
             try
@@ -132,8 +145,9 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the enumerate debug files operation.
+        /// Performs enumerate debug files as part of the build debug inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The collection produced by the operation.</returns>
         private IEnumerable<(FileInfo File, string SourceArea)> EnumerateDebugFiles()
         {
             try

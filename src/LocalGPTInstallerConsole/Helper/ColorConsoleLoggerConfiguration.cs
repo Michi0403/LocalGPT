@@ -10,22 +10,24 @@ using System.Text.Json.Serialization;
 namespace LocalGPT.Helper
 {
     /// <summary>
-    /// Represents a color console logger configuration.
+    /// Carries the configurable color console logger settings used to control the associated application behavior without hard-coding policy in consumers.
     /// </summary>
     public class ColorConsoleLoggerConfiguration
     {
         /// <summary>
-        /// Stores color console logger configuration core.
+        /// Defines the color console logger configuration core constant used by <see cref="ColorConsoleLoggerConfiguration"/> so callers and internal logic share the same stable value.
         /// </summary>
         public const string ColorConsoleLoggerConfigurationCore = "ColorConsoleLoggerConfigurationCore";
 
         /// <summary>
-        /// Gets or sets event identifier.
+        /// Gets or sets the stable event identifier used to identify or correlate this color console logger instance with related application state.
         /// </summary>
+        /// <value>The event identifier value exposed by <see cref="ColorConsoleLoggerConfiguration"/>.</value>
         public int EventId { get; set; }
         /// <summary>
-        /// Gets or sets log level to color map.
+        /// Gets or sets the log level to color map collection maintained or exposed by this color console logger instance for downstream processing.
         /// </summary>
+        /// <value>The log level to color map value exposed by <see cref="ColorConsoleLoggerConfiguration"/>.</value>
         public Dictionary<LogLevel, ConsoleColor> LogLevelToColorMap { get; set; } = new()
         {
             [LogLevel.Information] = ConsoleColor.Cyan,

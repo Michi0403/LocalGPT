@@ -4,13 +4,18 @@ using System.Dynamic;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides sqlite grid presentation service operations.
+    /// Coordinates sqlite grid presentation behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="serviceLogger">Sqlite grid presentation service dependency used by the sqlite grid presentation workflow to provide the corresponding application capability.</param>
     public sealed class SqliteGridPresentationService(ILogger<SqliteGridPresentationService> serviceLogger)
     {
         /// <summary>
-        /// Determines whether long text column.
+        /// Determines whether long text column as part of the sqlite grid presentation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="columnName">Column name value supplied to the sqlite grid presentation operation and used when producing its result.</param>
+        /// <param name="value">Value value supplied to the sqlite grid presentation operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool IsLongTextColumn(string columnName, string value, ILogger logger)
         {
             try
@@ -30,8 +35,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds column title.
+        /// Builds column title as part of the sqlite grid presentation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="column">Column value supplied to the sqlite grid presentation operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string BuildColumnTitle(SqliteColumnSummary column, ILogger logger)
         {
             try
@@ -49,8 +57,11 @@ namespace LocalGPT.Services
 
         }
         /// <summary>
-        /// Builds cell preview.
+        /// Builds cell preview as part of the sqlite grid presentation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="columnName">Column name value supplied to the sqlite grid presentation operation and used when producing its result.</param>
+        /// <param name="value">Value value supplied to the sqlite grid presentation operation and used when producing its result.</param>
+        /// <returns>The object produced by the operation.</returns>
         public object? BuildCellPreview(string columnName, object? value)
         {
             try
@@ -74,8 +85,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the to grid row operation.
+        /// Performs to grid row as part of the sqlite grid presentation service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="row">Row value supplied to the sqlite grid presentation operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The expando object produced by the operation.</returns>
         public ExpandoObject? ToGridRow(SqliteRowSnapshot row, ILogger logger)
         {
             try

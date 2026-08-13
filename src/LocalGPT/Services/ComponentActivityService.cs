@@ -10,20 +10,28 @@ namespace LocalGPT.Services;
 /// It records concise UI and service state only; prompts, message bodies, secrets,
 /// uploaded content, generated source, parameters, and full exception text are excluded.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ComponentActivityService(ILogger<ComponentActivityService> logger) :
     IComponentActivityService,
     IServiceActivityService
 {
+    /// <summary>
+    /// Defines the capacity constant used by <see cref="ComponentActivityService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int Capacity = 192;
+    /// <summary>
+    /// Defines the max summary characters constant used by <see cref="ComponentActivityService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxSummaryCharacters = 320;
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal entries state used by <see cref="ComponentActivityService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly ConcurrentQueue<ComponentActivitySnapshot> entries = new();
 
     /// <summary>
-    /// Runs the record navigation operation.
+    /// Performs record navigation as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="route">Route value supplied to the component activity operation and used when producing its result.</param>
     public void RecordNavigation(string route) {
     try
     {
@@ -40,8 +48,12 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
 }
 
     /// <summary>
-    /// Runs the record information operation.
+    /// Performs record information as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="component">Component value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="summary">Summary value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="route">Route value supplied to the component activity operation and used when producing its result.</param>
     public void RecordInformation(string component, string operation, string summary, string? route = null) {
     try
     {
@@ -58,8 +70,12 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
 }
 
     /// <summary>
-    /// Runs the record warning operation.
+    /// Performs record warning as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="component">Component value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="summary">Summary value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="route">Route value supplied to the component activity operation and used when producing its result.</param>
     public void RecordWarning(string component, string operation, string summary, string? route = null) {
     try
     {
@@ -76,8 +92,12 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
 }
 
     /// <summary>
-    /// Runs the record failure operation.
+    /// Performs record failure as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="component">Component value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="exception">Exception value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="route">Route value supplied to the component activity operation and used when producing its result.</param>
     public void RecordFailure(string component, string operation, Exception exception, string? route = null)
     {
     try
@@ -102,8 +122,14 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
 }
 
     /// <summary>
-    /// Runs the run async operation.
+    /// Performs run as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="serviceName">Service name value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="action">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="successSummary">Success summary value supplied to the component activity operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task RunAsync(
         string serviceName,
         string operation,
@@ -145,8 +171,15 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     }
 
     /// <summary>
-    /// Runs the run async operation.
+    /// Performs run as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="ComponentActivityService"/>.</typeparam>
+    /// <param name="serviceName">Service name value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="action">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="successSummary">Success summary value supplied to the component activity operation and used when producing its result.</param>
+    /// <returns>The t produced by the operation.</returns>
     public async Task<T> RunAsync<T>(
         string serviceName,
         string operation,
@@ -189,8 +222,10 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     }
 
     /// <summary>
-    /// Gets recent.
+    /// Retrieves recent as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="take">Take value supplied to the component activity operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public IReadOnlyList<ComponentActivitySnapshot> GetRecent(int take = 20) {
     try
     {
@@ -207,8 +242,10 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
 }
 
     /// <summary>
-    /// Builds briefing.
+    /// Builds briefing as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="take">Take value supplied to the component activity operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string BuildBriefing(int take = 12)
     {
     try
@@ -247,8 +284,13 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
 }
 
     /// <summary>
-    /// Runs the enqueue operation.
+    /// Performs enqueue as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="component">Component value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="status">Status value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="summary">Summary value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="route">Route value supplied to the component activity operation and used when producing its result.</param>
     private void Enqueue(string component, string operation, string status, string summary, string? route)
     {
     try
@@ -282,8 +324,11 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
 }
 
     /// <summary>
-    /// Runs the normalize operation.
+    /// Performs normalize as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the component activity operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the component activity operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Normalize(string? value, string fallback)
     {
     try
@@ -305,8 +350,10 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
 }
 
     /// <summary>
-    /// Normalizes route.
+    /// Normalizes route as part of the component activity service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="route">Route value supplied to the component activity operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string? NormalizeRoute(string? route)
     {
     try

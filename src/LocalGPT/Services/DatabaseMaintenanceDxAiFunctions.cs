@@ -6,15 +6,19 @@ using LocalGPT.Services.Helpers;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a list sqlite tables function.
+/// Represents a list sqlite tables function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the list sqlite tables function workflow to provide the corresponding application capability.</param>
+/// <param name="editor">Sqlite table editor service dependency used by the list sqlite tables function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListSqliteTablesFunction(IDxAiFunctionJsonService json,
     ISqliteTableEditorService editor,
     ILogger<ListSqliteTablesFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the list sqlite tables function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ListSqliteTablesFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.sqlite.tables.list",
         "POST",
@@ -22,6 +26,9 @@ public sealed class ListSqliteTablesFunction(IDxAiFunctionJsonService json,
         "List every user-maintainable LocalGPT SQLite table with row and schema counts before selecting a targeted read or write operation.",
         "No parameters.",
         "Read-only metadata. Internal sqlite_* tables are excluded.",
+        /// <summary>
+        /// Stores the internal source state used by <see cref="ListSqliteTablesFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         SupportsDirectInvocation: true,
@@ -29,8 +36,11 @@ public sealed class ListSqliteTablesFunction(IDxAiFunctionJsonService json,
         Source: "DIHandler");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ListSqliteTablesFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list sqlite tables function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -52,15 +62,19 @@ public sealed class ListSqliteTablesFunction(IDxAiFunctionJsonService json,
 }
 
 /// <summary>
-/// Represents a preview sqlite table function.
+/// Represents a preview sqlite table function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the preview sqlite table function workflow to provide the corresponding application capability.</param>
+/// <param name="editor">Sqlite table editor service dependency used by the preview sqlite table function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
     ISqliteTableEditorService editor,
     ILogger<PreviewSqliteTableFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the preview sqlite table function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="PreviewSqliteTableFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.sqlite.table.preview",
         "POST",
@@ -68,6 +82,9 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
         "Read a bounded, masked preview of one LocalGPT SQLite table after a structured project/requirement plan identifies why that table is relevant.",
         "JSON parameters: tableName required; take optional 1-100.",
         "Read-only. Values in password, secret, token, key, connection-string, and raw payload columns are masked. Use a separately approved exact read only when the human needs those values.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="PreviewSqliteTableFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         SupportsDirectInvocation: true,
@@ -78,8 +95,11 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="PreviewSqliteTableFunction"/>, keeping the operation consistent with the state and invariants of the surrounding preview sqlite table function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -113,8 +133,10 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
 }
 
     /// <summary>
-    /// Determines whether sensitive column.
+    /// Determines whether sensitive column for <see cref="PreviewSqliteTableFunction"/>, keeping the operation consistent with the state and invariants of the surrounding preview sqlite table function workflow.
     /// </summary>
+    /// <param name="name">Name value supplied to the preview sqlite table function operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsSensitiveColumn(string name) {
     try
     {
@@ -139,15 +161,19 @@ public sealed class PreviewSqliteTableFunction(IDxAiFunctionJsonService json,
 }
 
 /// <summary>
-/// Represents a read exact sqlite table function.
+/// Represents a read exact sqlite table function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the read exact sqlite table function workflow to provide the corresponding application capability.</param>
+/// <param name="editor">Sqlite table editor service dependency used by the read exact sqlite table function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
     ISqliteTableEditorService editor,
     ILogger<ReadExactSqliteTableFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the read exact sqlite table function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ReadExactSqliteTableFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.sqlite.table.read_exact",
         "POST",
@@ -155,6 +181,9 @@ public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
         "Read an exact bounded SQLite table preview when masked values are insufficient for the user's requested maintenance task.",
         "JSON parameters: tableName required; take optional 1-100.",
         "Potentially sensitive database content can be returned. Exact table name and row limit are shown in the Human Collaboration Inbox and require one-use approval.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ReadExactSqliteTableFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -167,8 +196,11 @@ public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ReadExactSqliteTableFunction"/>, keeping the operation consistent with the state and invariants of the surrounding read exact sqlite table function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -196,15 +228,19 @@ public sealed class ReadExactSqliteTableFunction(IDxAiFunctionJsonService json,
 }
 
 /// <summary>
-/// Represents an upsert sqlite row function.
+/// Represents an upsert sqlite row function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the upsert sqlite row function workflow to provide the corresponding application capability.</param>
+/// <param name="editor">Sqlite table editor service dependency used by the upsert sqlite row function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
     ISqliteTableEditorService editor,
     ILogger<UpsertSqliteRowFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the upsert sqlite row function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="UpsertSqliteRowFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.sqlite.row.upsert",
         "POST",
@@ -212,6 +248,9 @@ public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
         "Insert or update one exact LocalGPT SQLite row after the council maps the operation to an approved project requirement.",
         "JSON parameters: tableName required; rowId optional for update; values required object keyed by real column names.",
         "Writes one row only. The Human Collaboration Inbox shows the table, row ID, column names, and redacted sensitive values. Approval is exact and one-use.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="UpsertSqliteRowFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -224,8 +263,11 @@ public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="UpsertSqliteRowFunction"/>, keeping the operation consistent with the state and invariants of the surrounding upsert sqlite row function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -266,15 +308,19 @@ public sealed class UpsertSqliteRowFunction(IDxAiFunctionJsonService json,
 }
 
 /// <summary>
-/// Represents a delete sqlite row function.
+/// Represents a delete sqlite row function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the delete sqlite row function workflow to provide the corresponding application capability.</param>
+/// <param name="editor">Sqlite table editor service dependency used by the delete sqlite row function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
     ISqliteTableEditorService editor,
     ILogger<DeleteSqliteRowFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the delete sqlite row function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="DeleteSqliteRowFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.sqlite.row.delete",
         "POST",
@@ -282,6 +328,9 @@ public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
         "Delete one exact row from a LocalGPT SQLite table after structured requirement mapping and user review.",
         "JSON parameters: tableName and rowId required.",
         "Destructive and one-row bounded. Exact table and row ID require one-use approval. Existing foreign-key restrictions remain active.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="DeleteSqliteRowFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -294,8 +343,11 @@ public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="DeleteSqliteRowFunction"/>, keeping the operation consistent with the state and invariants of the surrounding delete sqlite row function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -323,15 +375,19 @@ public sealed class DeleteSqliteRowFunction(IDxAiFunctionJsonService json,
 }
 
 /// <summary>
-/// Represents an import project text document function.
+/// Represents an import project text document function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="json">Devexpress ai function json service dependency used by the import project text document function workflow to provide the corresponding application capability.</param>
+/// <param name="documents">Safe text document service dependency used by the import project text document function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService json,
     ISafeTextDocumentService documents,
     ILogger<ImportProjectTextDocumentFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the import project text document function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ImportProjectTextDocumentFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "project.document.import_text",
         "POST",
@@ -339,6 +395,9 @@ public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService j
         "Import one harmless allowlisted text document into a database-first project revision as untrusted reference data.",
         "JSON parameters: projectId required; revisionId optional; filePath required.",
         "Reads one local text file only after approval. Binary content, oversized files, unknown extensions, control-byte payloads, and invalid encodings are rejected. Text is never evaluated as regex, command, or instruction authority.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ImportProjectTextDocumentFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -351,8 +410,11 @@ public sealed class ImportProjectTextDocumentFunction(IDxAiFunctionJsonService j
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ImportProjectTextDocumentFunction"/>, keeping the operation consistent with the state and invariants of the surrounding import project text document function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
     {
     try

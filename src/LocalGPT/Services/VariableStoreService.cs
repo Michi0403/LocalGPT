@@ -6,8 +6,12 @@ using Microsoft.EntityFrameworkCore;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides variable store service operations.
+/// Coordinates variable store behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="dbContextFactory">Local gpt memory database context dependency used by the variable store workflow to provide the corresponding application capability.</param>
+/// <param name="databaseInitializer">Database initialization service dependency used by the variable store workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="sqliteUtility">Sqlite utility service dependency used by the variable store workflow to provide the corresponding application capability.</param>
 public sealed class VariableStoreService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -15,8 +19,12 @@ public sealed class VariableStoreService(
     SqliteUtilityService sqliteUtility) : IVariableStoreService
 {
     /// <summary>
-    /// Gets async.
+    /// Performs get as part of the variable store service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="VariableStoreService"/>.</typeparam>
+    /// <param name="name">Name value supplied to the variable store operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The t produced by the operation.</returns>
     public async Task<T> GetAsync<T>(string name, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -29,8 +37,13 @@ public sealed class VariableStoreService(
     }
 
     /// <summary>
-    /// Sets async.
+    /// Performs set as part of the variable store service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="VariableStoreService"/>.</typeparam>
+    /// <param name="name">Name value supplied to the variable store operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the variable store operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task SetAsync<T>(string name, T value, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -50,8 +63,10 @@ public sealed class VariableStoreService(
     }
 
     /// <summary>
-    /// Runs the list all async operation.
+    /// Lists all as part of the variable store service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public Task<IEnumerable<SystemVariable>> ListAllAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -68,8 +83,11 @@ public sealed class VariableStoreService(
 }
 
     /// <summary>
-    /// Runs the list all async operation.
+    /// Lists all as part of the variable store service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="filter">Filter value supplied to the variable store operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IEnumerable<SystemVariable>> ListAllAsync(string filter, CancellationToken cancellationToken = default)
     {
     try

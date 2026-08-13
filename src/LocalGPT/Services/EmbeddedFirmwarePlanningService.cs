@@ -7,8 +7,12 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides embedded firmware planning service operations.
+/// Coordinates embedded firmware planning behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="catalog">Embedded hardware catalog service dependency used by the embedded firmware planning workflow to provide the corresponding application capability.</param>
+/// <param name="wiring">Embedded wiring service dependency used by the embedded firmware planning workflow to provide the corresponding application capability.</param>
+/// <param name="telemetryBridge">Embedded telemetry bridge service dependency used by the embedded firmware planning workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class EmbeddedFirmwarePlanningService(
     IEmbeddedHardwareCatalogService catalog,
     IEmbeddedWiringService wiring,
@@ -16,13 +20,16 @@ public sealed class EmbeddedFirmwarePlanningService(
     ILogger<EmbeddedFirmwarePlanningService> logger) : IEmbeddedFirmwarePlanningService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal artifact JSON options state used by <see cref="EmbeddedFirmwarePlanningService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions artifactJsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     /// <summary>
-    /// Creates plan async.
+    /// Creates plan as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded firmware plan produced by the operation.</returns>
     public async Task<EmbeddedFirmwarePlan> CreatePlanAsync(EmbeddedFirmwarePlanRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -51,8 +58,12 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Creates artifacts async.
+    /// Creates artifacts as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded firmware artifact result produced by the operation.</returns>
     public async Task<EmbeddedFirmwareArtifactResult> CreateArtifactsAsync(EmbeddedFirmwarePlanRequest request, bool userConfirmed, CancellationToken cancellationToken = default)
     {
     try
@@ -111,8 +122,11 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Builds plan async.
+    /// Builds plan as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded firmware plan produced by the operation.</returns>
     private async Task<EmbeddedFirmwarePlan> BuildPlanAsync(EmbeddedFirmwarePlanRequest request, CancellationToken cancellationToken)
     {
     try
@@ -191,8 +205,11 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Normalizes assignments.
+    /// Normalizes assignments as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="profile">Profile value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<EmbeddedPinAssignment> NormalizeAssignments(EmbeddedFirmwarePlanRequest request, EmbeddedBoardProfile? profile)
     {
     try
@@ -254,8 +271,12 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Normalizes bindings.
+    /// Normalizes bindings as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="assignments">Embedded pin assignment dependency used by the embedded firmware planning workflow to provide the corresponding application capability.</param>
+    /// <param name="transport">Transport value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<EmbeddedProtocolBinding> NormalizeBindings(EmbeddedFirmwarePlanRequest request, IReadOnlyList<EmbeddedPinAssignment> assignments, string transport)
     {
     try
@@ -312,8 +333,15 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Runs the review assignments operation.
+    /// Performs review assignments as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="profile">Profile value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="boardFamily">Board family value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="transport">Transport value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="assignments">Embedded pin assignment dependency used by the embedded firmware planning workflow to provide the corresponding application capability.</param>
+    /// <param name="bindings">Embedded protocol binding dependency used by the embedded firmware planning workflow to provide the corresponding application capability.</param>
+    /// <param name="protocols">Embedded protocol descriptor dependency used by the embedded firmware planning workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<EmbeddedPlanFinding> ReviewAssignments(
         EmbeddedBoardProfile? profile,
         string boardFamily,
@@ -391,8 +419,11 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Builds transport contracts async.
+    /// Builds transport contracts as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="plan">Plan value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<List<EmbeddedTransportContract>> BuildTransportContractsAsync(EmbeddedFirmwarePlan plan, CancellationToken cancellationToken)
     {
     try
@@ -465,8 +496,10 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Builds one wire contract.
+    /// Builds one wire contract as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="contracts">Embedded transport contract dependency used by the embedded firmware planning workflow to provide the corresponding application capability.</param>
+    /// <returns>The embedded one wire contract produced by the operation.</returns>
     private EmbeddedOneWireContract BuildOneWireContract(IReadOnlyList<EmbeddedTransportContract> contracts)
     {
     try
@@ -495,8 +528,11 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Builds wiring steps.
+    /// Builds wiring steps as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="plan">Plan value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="profile">Profile value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> BuildWiringSteps(EmbeddedFirmwarePlan plan, EmbeddedBoardProfile? profile)
     {
     try
@@ -527,8 +563,10 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Builds arduino sketch.
+    /// Builds arduino sketch as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="plan">Plan value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildArduinoSketch(EmbeddedFirmwarePlan plan)
     {
     try
@@ -632,8 +670,11 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Builds platform io configuration.
+    /// Builds platform I/O configuration as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="plan">Plan value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="profile">Profile value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildPlatformIoConfiguration(EmbeddedFirmwarePlan plan, EmbeddedBoardProfile? profile)
     {
     try
@@ -673,8 +714,12 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Builds wiring markdown.
+    /// Builds wiring markdown as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="plan">Plan value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="profile">Profile value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="additionalRequirements">Additional requirements value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildWiringMarkdown(EmbeddedFirmwarePlan plan, EmbeddedBoardProfile? profile, string additionalRequirements)
     {
     try
@@ -744,8 +789,11 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Normalizes mode.
+    /// Normalizes mode as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="mode">Mode value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="protocolKey">Protocol key value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeMode(string? mode, string protocolKey)
     {
     try
@@ -769,8 +817,11 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Normalizes protocol.
+    /// Normalizes protocol as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="protocolKey">Protocol key value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="hint">Hint value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeProtocol(string? protocolKey, string? hint)
     {
     try
@@ -802,8 +853,10 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Normalizes transport.
+    /// Normalizes transport as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeTransport(string? value)
     {
     try
@@ -830,8 +883,11 @@ public sealed class EmbeddedFirmwarePlanningService(
 }
 
     /// <summary>
-    /// Resolves pin key.
+    /// Resolves pin key as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="profile">Profile value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="gpio">Gpio value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolvePinKey(EmbeddedBoardProfile? profile, int gpio) {
     try
     {
@@ -847,8 +903,10 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Runs the infer metric operation.
+    /// Performs infer metric as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sensorType">Sensor type value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string InferMetric(string? sensorType) {
     try
     {
@@ -864,8 +922,10 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Runs the default unit operation.
+    /// Performs default unit as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="sensorType">Sensor type value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string DefaultUnit(string? sensorType) {
     try
     {
@@ -881,8 +941,10 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Determines whether esp32 adc2 pin.
+    /// Determines whether esp32 adc2 pin as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="gpio">Gpio value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsEsp32Adc2Pin(int gpio) {
     try
     {
@@ -898,8 +960,10 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Determines whether output mode.
+    /// Determines whether output mode as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="mode">Mode value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsOutputMode(string? mode) {
     try
     {
@@ -915,8 +979,10 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Runs the arduino pin mode operation.
+    /// Performs arduino pin mode as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="mode">Mode value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ArduinoPinMode(string mode) {
     try
     {
@@ -932,8 +998,11 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Runs the matches pin operation.
+    /// Performs matches pin as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="finding">Finding value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="assignment">Assignment value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool MatchesPin(EmbeddedPlanFinding finding, EmbeddedPinAssignment assignment) {
     try
     {
@@ -949,8 +1018,10 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Runs the severity status operation.
+    /// Performs severity status as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="findings">Embedded plan finding dependency used by the embedded firmware planning workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SeverityStatus(IEnumerable<EmbeddedPlanFinding> findings) {
     try
     {
@@ -966,8 +1037,11 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Runs the sanitize identifier operation.
+    /// Performs sanitize identifier as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="index">Index value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SanitizeIdentifier(string value, int index)
     {
     try
@@ -987,8 +1061,10 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Runs the escape cpp operation.
+    /// Performs escape cpp as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string EscapeCpp(string value) {
     try
     {
@@ -1004,8 +1080,10 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Runs the escape ini operation.
+    /// Performs escape ini as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string EscapeIni(string value) {
     try
     {
@@ -1021,8 +1099,10 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Normalizes JSON.
+    /// Normalizes JSON as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeJson(string? value)
     {
     try
@@ -1042,8 +1122,12 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Runs the text operation.
+    /// Performs text as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Text(string? value, string fallback, int maximum)
     {
     try
@@ -1062,8 +1146,10 @@ public sealed class EmbeddedFirmwarePlanningService(
     }
 }
     /// <summary>
-    /// Runs the safe file name operation.
+    /// Performs safe file name as part of the embedded firmware planning service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded firmware planning operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SafeFileName(string value)
     {
     try

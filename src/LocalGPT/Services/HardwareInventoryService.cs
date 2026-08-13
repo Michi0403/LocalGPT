@@ -10,18 +10,27 @@ namespace LocalGPT.Services;
 /// Read-only, cached hardware inventory used for council scheduling. It never changes device state.
 /// GPU discovery is best-effort and falls back to explicit user-configured routes when vendor tools are unavailable.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> logger) : IHardwareInventoryService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the synchronization primitive that protects concurrent access to gate state owned by <see cref="HardwareInventoryService"/>.
     /// </summary>
     private readonly SemaphoreSlim gate = new(1, 1);
+    /// <summary>
+    /// Stores the in-memory cached collection maintained internally by <see cref="HardwareInventoryService"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<OneWireHardwareDescriptor>? cached;
+    /// <summary>
+    /// Stores the internal cache UTC state used by <see cref="HardwareInventoryService"/> while executing its surrounding workflow.
+    /// </summary>
     private DateTimeOffset cacheUtc;
 
     /// <summary>
-    /// Gets hardware async.
+    /// Retrieves hardware as part of the hardware inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<OneWireHardwareDescriptor>> GetHardwareAsync(CancellationToken cancellationToken = default)
     {
     try
@@ -80,8 +89,10 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
 }
 
     /// <summary>
-    /// Runs the probe nvidia async operation.
+    /// Performs probe nvidia as part of the hardware inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeNvidiaAsync(CancellationToken cancellationToken)
     {
     try
@@ -123,8 +134,10 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
 }
 
     /// <summary>
-    /// Runs the probe windows video controllers async operation.
+    /// Performs probe windows video controllers as part of the hardware inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeWindowsVideoControllersAsync(CancellationToken cancellationToken)
     {
     try
@@ -162,8 +175,12 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
 }
 
     /// <summary>
-    /// Runs the run probe async operation.
+    /// Performs run probe as part of the hardware inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="fileName">File name value supplied to the hardware inventory operation and used when producing its result.</param>
+    /// <param name="arguments">Arguments value supplied to the hardware inventory operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<string>> RunProbeAsync(string fileName, string arguments, CancellationToken cancellationToken)
     {
         try
@@ -197,8 +214,10 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
     }
 
     /// <summary>
-    /// Runs the infer vendor operation.
+    /// Performs infer vendor as part of the hardware inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the hardware inventory operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string InferVendor(string name)
     {
     try
@@ -220,8 +239,10 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
 }
 
     /// <summary>
-    /// Runs the clone operation.
+    /// Performs clone as part of the hardware inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="item">Item value supplied to the hardware inventory operation and used when producing its result.</param>
+    /// <returns>The one wire hardware descriptor produced by the operation.</returns>
     private OneWireHardwareDescriptor Clone(OneWireHardwareDescriptor item) {
     try
     {

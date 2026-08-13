@@ -6,15 +6,19 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides council code generation plan service operations.
+/// Coordinates council code generation plan behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilCodeGenerationPlanService(
     ILogger<CouncilCodeGenerationPlanService> logger) : ICouncilCodeGenerationPlanService
 {
+    /// <summary>
+    /// Defines the max embedded plan characters constant used by <see cref="CouncilCodeGenerationPlanService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int MaxEmbeddedPlanCharacters = 4_000_000;
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal tagged plan pattern state used by <see cref="CouncilCodeGenerationPlanService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex taggedPlanPattern = new(
         @"<localgpt-change-review>\s*(?<json>.*?)\s*</localgpt-change-review>",
@@ -22,7 +26,7 @@ public sealed class CouncilCodeGenerationPlanService(
         TimeSpan.FromSeconds(2));
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal fenced plan pattern state used by <see cref="CouncilCodeGenerationPlanService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex fencedPlanPattern = new(
         @"```(?:localgpt-change-review|json\s+localgpt-change-review)\s*(?<json>.*?)\s*```",
@@ -38,8 +42,10 @@ public sealed class CouncilCodeGenerationPlanService(
     };
 
     /// <summary>
-    /// Runs the parse operation.
+    /// Performs parse as part of the council code generation plan service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="councilAnswer">Council answer value supplied to the council code generation plan operation and used when producing its result.</param>
+    /// <returns>The council code generation plan result produced by the operation.</returns>
     public CouncilCodeGenerationPlanResult Parse(string councilAnswer)
     {
         var operationId = Guid.NewGuid();

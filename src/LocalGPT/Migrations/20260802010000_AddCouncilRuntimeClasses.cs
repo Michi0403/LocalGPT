@@ -7,15 +7,16 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace LocalGPT.Migrations;
 
 /// <summary>
-/// Represents an add council runtime classes.
+/// Defines the Entity Framework Core migration AddCouncilRuntimeClasses, applying and reverting the schema changes represented by this versioned database step.
 /// </summary>
 [DbContext(typeof(LocalGptMemoryDbContext))]
 [Migration("20260802010000_AddCouncilRuntimeClasses")]
 public partial class AddCouncilRuntimeClasses : Migration
 {
     /// <summary>
-    /// Runs the up operation.
+    /// Applies the schema changes defined by the <see cref="AddCouncilRuntimeClasses"/> Entity Framework Core migration to move the database forward.
     /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the add council runtime classes operation and used when producing its result.</param>
     protected override void Up(MigrationBuilder migrationBuilder)
     {
         migrationBuilder.Sql("""
@@ -45,8 +46,9 @@ public partial class AddCouncilRuntimeClasses : Migration
     }
 
     /// <summary>
-    /// Runs the down operation.
+    /// Reverts the schema changes defined by the <see cref="AddCouncilRuntimeClasses"/> Entity Framework Core migration to return the database to its preceding shape.
     /// </summary>
+    /// <param name="migrationBuilder">Migration builder value supplied to the add council runtime classes operation and used when producing its result.</param>
     protected override void Down(MigrationBuilder migrationBuilder) =>
         migrationBuilder.DropTable(name: "CouncilRuntimeClassConfigurations");
 }

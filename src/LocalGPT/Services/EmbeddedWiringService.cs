@@ -4,15 +4,21 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Provides embedded wiring service operations.
+/// Coordinates embedded wiring behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="catalog">Embedded hardware catalog service dependency used by the embedded wiring workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class EmbeddedWiringService(
     IEmbeddedHardwareCatalogService catalog,
     ILogger<EmbeddedWiringService> logger) : IEmbeddedWiringService
 {
     /// <summary>
-    /// Creates draft async.
+    /// Creates draft as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="boardProfileKey">Board profile key value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded wiring draft produced by the operation.</returns>
     public async Task<EmbeddedWiringDraft> CreateDraftAsync(string boardProfileKey, string name, CancellationToken cancellationToken = default)
     {
     try
@@ -70,8 +76,11 @@ public sealed class EmbeddedWiringService(
 }
 
     /// <summary>
-    /// Validates async.
+    /// Performs validate as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The embedded wiring validation result produced by the operation.</returns>
     public async Task<EmbeddedWiringValidationResult> ValidateAsync(EmbeddedWiringValidationRequest request, CancellationToken cancellationToken = default)
     {
     try
@@ -188,8 +197,12 @@ public sealed class EmbeddedWiringService(
 }
 
     /// <summary>
-    /// Runs the evaluate electrical connection operation.
+    /// Performs evaluate electrical connection as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="connection">Connection value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="source">Source value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="target">Target value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="findings">Findings value supplied to the embedded wiring operation and used when producing its result.</param>
     private void EvaluateElectricalConnection(
         EmbeddedWiringConnection connection,
         EmbeddedWiringNode source,
@@ -221,8 +234,14 @@ public sealed class EmbeddedWiringService(
 }
 
     /// <summary>
-    /// Runs the evaluate board endpoint operation.
+    /// Performs evaluate board endpoint as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="profile">Profile value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="requireProfileMatch">Value indicating whether require profile match should apply to this operation.</param>
+    /// <param name="connection">Connection value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="node">Node value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="findings">Findings value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="boardPinUse">Board pin use value supplied to the embedded wiring operation and used when producing its result.</param>
     private void EvaluateBoardEndpoint(
         EmbeddedBoardProfile? profile,
         bool requireProfileMatch,
@@ -275,8 +294,14 @@ public sealed class EmbeddedWiringService(
 }
 
     /// <summary>
-    /// Builds council review prompt.
+    /// Builds council review prompt as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="draft">Draft value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="profile">Profile value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <param name="findings">Embedded plan finding dependency used by the embedded wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="protocols">String dependency used by the embedded wiring workflow to provide the corresponding application capability.</param>
+    /// <param name="buses">String dependency used by the embedded wiring workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildCouncilReviewPrompt(
         EmbeddedWiringDraft draft,
         EmbeddedBoardProfile? profile,
@@ -305,8 +330,10 @@ Resolve every danger finding, verify the exact board documentation, describe vol
 }
 
     /// <summary>
-    /// Normalizes protocol.
+    /// Normalizes protocol as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeProtocol(string? value) {
     try
     {
@@ -322,8 +349,10 @@ Resolve every danger finding, verify the exact board documentation, describe vol
     }
 }
     /// <summary>
-    /// Normalizes identifier.
+    /// Normalizes identifier as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="value">Value value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeId(string? value) {
     try
     {
@@ -339,8 +368,10 @@ Resolve every danger finding, verify the exact board documentation, describe vol
     }
 }
     /// <summary>
-    /// Determines whether ground.
+    /// Determines whether ground as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="node">Node value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsGround(EmbeddedWiringNode node) {
     try
     {
@@ -356,8 +387,10 @@ Resolve every danger finding, verify the exact board documentation, describe vol
     }
 }
     /// <summary>
-    /// Determines whether power.
+    /// Determines whether power as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="node">Node value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsPower(EmbeddedWiringNode node) {
     try
     {
@@ -373,8 +406,10 @@ Resolve every danger finding, verify the exact board documentation, describe vol
     }
 }
     /// <summary>
-    /// Determines whether output.
+    /// Determines whether output as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="node">Node value supplied to the embedded wiring operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsOutput(EmbeddedWiringNode node) {
     try
     {
@@ -390,8 +425,10 @@ Resolve every danger finding, verify the exact board documentation, describe vol
     }
 }
     /// <summary>
-    /// Runs the severity status operation.
+    /// Performs severity status as part of the embedded wiring service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="findings">Embedded plan finding dependency used by the embedded wiring workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string SeverityStatus(IEnumerable<EmbeddedPlanFinding> findings) {
     try
     {

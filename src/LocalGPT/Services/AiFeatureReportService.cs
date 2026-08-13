@@ -8,22 +8,33 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides ai feature report service operations.
+    /// Coordinates AI feature report behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilText">Council text service dependency used by the AI feature report workflow to provide the corresponding application capability.</param>
     public partial class AiFeatureReportService(ILogger<AiFeatureReportService> logger,
         CouncilTextService councilText) : IAiFeatureReportService
     {
         /// <summary>
-        /// Gets or sets report root.
+        /// Gets the report root value that forms part of the AI feature report state consumed or produced by the surrounding workflow.
         /// </summary>
+        /// <value>The report root value exposed by <see cref="AiFeatureReportService"/>.</value>
         public string ReportRoot { get; } = Path.Combine(
+            /// <summary>
+            /// Retrieves folder path as part of the AI feature report service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+            /// </summary>
+            /// <returns>The environment produced by the operation.</returns>
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "LocalGPT",
             "AIReports");
 
         /// <summary>
-        /// Writes if missing feature report async.
+        /// Writes if missing feature report as part of the AI feature report service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="source">Source value supplied to the AI feature report operation and used when producing its result.</param>
+        /// <param name="responseText">Response text value supplied to the AI feature report operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         public async Task<string?> WriteIfMissingFeatureReportAsync(string source, string responseText, CancellationToken cancellationToken = default)
         {
             try

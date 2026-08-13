@@ -7,8 +7,10 @@ namespace LocalGPT.Controller
 {
  
     /// <summary>
-    /// Provides database knowledge controller operations.
+    /// Exposes the database knowledge application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
     /// </summary>
+    /// <param name="db">Database value supplied to the database knowledge operation and used when producing its result.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     [ApiController]
     [Route("__diag/knowledge/[controller]")]
     public class DatabaseKnowledgeController(LocalGptMemoryDbContext db, ILogger<DatabaseKnowledgeController> logger) : ControllerBase
@@ -16,8 +18,10 @@ namespace LocalGPT.Controller
 
         // GET /__diag/knowledge/database-configs?take=100
         /// <summary>
-        /// Runs the list configs operation.
+        /// Lists configs for the database knowledge API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="take">Take value supplied to the database knowledge operation and used when producing its result.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("configs")]
         public async Task<IActionResult> ListConfigs([FromQuery] int take = 100)
         {
@@ -40,8 +44,10 @@ namespace LocalGPT.Controller
 
         // GET /__diag/knowledge/database-configs/{id}
         /// <summary>
-        /// Gets config by identifier.
+        /// Retrieves config by identifier for the database knowledge API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
+        /// <param name="id">Identifier of the resource to use for this operation.</param>
+        /// <returns>The HTTP-facing result produced for the caller.</returns>
         [HttpGet("configs/{id:int}")]
         public async Task<IActionResult> GetConfigById(int id)
         {

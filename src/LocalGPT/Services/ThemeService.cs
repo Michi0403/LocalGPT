@@ -13,43 +13,72 @@ namespace LocalGPT.Services;
 public sealed class ThemeService
 {
     /// <summary>
-    /// Stores default theme name.
+    /// Defines the default theme name constant used by <see cref="ThemeService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string DEFAULT_THEME_NAME = "office-white";
     /// <summary>
-    /// Stores legacy theme cookie name.
+    /// Defines the legacy theme cookie name constant used by <see cref="ThemeService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string LegacyThemeCookieName = "ActiveTheme";
     /// <summary>
-    /// Stores shell theme cookie name.
+    /// Defines the shell theme cookie name constant used by <see cref="ThemeService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string ShellThemeCookieName = "ActiveShellTheme";
     /// <summary>
-    /// Stores component theme cookie name.
+    /// Defines the component theme cookie name constant used by <see cref="ThemeService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string ComponentThemeCookieName = "ActiveComponentTheme";
     /// <summary>
-    /// Stores local theme contract path.
+    /// Defines the local theme contract path constant used by <see cref="ThemeService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string LocalThemeContractPath = "css/localgpt-theme-contract.css";
     /// <summary>
-    /// Stores max fusion route steps.
+    /// Defines the max fusion route steps constant used by <see cref="ThemeService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const int MaxFusionRouteSteps = 256;
 
+    /// <summary>
+    /// Stores the logger used by <see cref="ThemeService"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger<ThemeService> logger;
+    /// <summary>
+    /// Stores the service activity service dependency used by <see cref="ThemeService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly IServiceActivityService serviceActivity;
+    /// <summary>
+    /// Stores the in-memory highlight JavaScript theme names collection maintained internally by <see cref="ThemeService"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyDictionary<string, string> highlightJsThemeNames;
+    /// <summary>
+    /// Stores the in-memory themes by name collection maintained internally by <see cref="ThemeService"/> for its current workflow state.
+    /// </summary>
     private readonly Dictionary<string, Theme> themesByName;
+    /// <summary>
+    /// Stores the internal default theme state used by <see cref="ThemeService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly Theme defaultTheme;
+    /// <summary>
+    /// Stores the in-memory fusion route collection maintained internally by <see cref="ThemeService"/> for its current workflow state.
+    /// </summary>
     private readonly List<ThemeFusionStep> fusionRoute = [];
+    /// <summary>
+    /// Stores the internal active shell theme state used by <see cref="ThemeService"/> while executing its surrounding workflow.
+    /// </summary>
     private Theme activeShellTheme;
+    /// <summary>
+    /// Stores the internal active component theme state used by <see cref="ThemeService"/> while executing its surrounding workflow.
+    /// </summary>
     private Theme activeComponentTheme;
+    /// <summary>
+    /// Stores the internal next fusion route sequence state used by <see cref="ThemeService"/> while executing its surrounding workflow.
+    /// </summary>
     private int nextFusionRouteSequence = 1;
 
     /// <summary>
-    /// Runs the theme service operation.
+    /// Initializes a new <see cref="ThemeService"/> instance and captures the dependencies or initial state required by its theme workflow.
     /// </summary>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="serviceActivity">Service activity service dependency used by the theme workflow to provide the corresponding application capability.</param>
     public ThemeService(
         ILogger<ThemeService> logger,
         IServiceActivityService serviceActivity)
@@ -68,56 +97,66 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Gets or sets active shell theme.
+    /// Gets the active shell theme value that forms part of the theme state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The active shell theme value exposed by <see cref="ThemeService"/>.</value>
     public Theme ActiveShellTheme => activeShellTheme;
     /// <summary>
-    /// Gets or sets active component theme.
+    /// Gets the active component theme value that forms part of the theme state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The active component theme value exposed by <see cref="ThemeService"/>.</value>
     public Theme ActiveComponentTheme => activeComponentTheme;
 
     /// <summary>
     /// Compatibility alias for older diagnostics and components. The former single theme now maps
     /// to the DevExpress component theme; new code should select the shell and component layers explicitly.
     /// </summary>
+    /// <value>The active theme value exposed by <see cref="ThemeService"/>.</value>
     public Theme ActiveTheme => ActiveComponentTheme;
 
     /// <summary>
-    /// Gets or sets is initialized.
+    /// Gets or sets a value indicating whether initialized applies to the theme state.
     /// </summary>
+    /// <value>The is initialized value exposed by <see cref="ThemeService"/>.</value>
     public bool IsInitialized { get; private set; }
     /// <summary>
-    /// Gets or sets theme sets.
+    /// Gets the theme sets collection maintained or exposed by this theme instance for downstream processing.
     /// </summary>
+    /// <value>The theme sets value exposed by <see cref="ThemeService"/>.</value>
     public List<ThemeSet> ThemeSets { get; }
     /// <summary>
-    /// Gets or sets fusion route.
+    /// Gets the fusion route collection maintained or exposed by this theme instance for downstream processing.
     /// </summary>
+    /// <value>The fusion route value exposed by <see cref="ThemeService"/>.</value>
     public IReadOnlyList<ThemeFusionStep> FusionRoute => fusionRoute;
     /// <summary>
-    /// Gets or sets theme change request dispatcher.
+    /// Gets or sets the theme change request dispatcher value that forms part of the theme state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The theme change request dispatcher value exposed by <see cref="ThemeService"/>.</value>
     public IThemeChangeRequestDispatcher? ThemeChangeRequestDispatcher { get; set; }
     /// <summary>
-    /// Gets or sets theme load notifier.
+    /// Gets or sets the theme load notifier value that forms part of the theme state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The theme load notifier value exposed by <see cref="ThemeService"/>.</value>
     public IThemeLoadNotifier? ThemeLoadNotifier { get; set; }
     /// <summary>
-    /// Occurs when active shell theme changed.
+    /// Occurs when active shell theme changed changes or completes in <see cref="ThemeService"/>, allowing interested callers to react without polling internal state.
     /// </summary>
     public event Action<Theme>? ActiveShellThemeChanged;
     /// <summary>
-    /// Occurs when active component theme changed.
+    /// Occurs when active component theme changed changes or completes in <see cref="ThemeService"/>, allowing interested callers to react without polling internal state.
     /// </summary>
     public event Action<Theme>? ActiveComponentThemeChanged;
     /// <summary>
-    /// Occurs when active theme changed.
+    /// Occurs when active theme changed changes or completes in <see cref="ThemeService"/>, allowing interested callers to react without polling internal state.
     /// </summary>
     public event Action<Theme>? ActiveThemeChanged;
 
     /// <summary>
-    /// Gets theme or default.
+    /// Retrieves theme or default as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="themeName">Theme name value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The theme produced by the operation.</returns>
     public Theme GetThemeOrDefault(string? themeName) {
     try
     {
@@ -134,8 +173,10 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Gets theme title.
+    /// Retrieves theme title as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="themeName">Theme name value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string GetThemeTitle(string? themeName) {
     try
     {
@@ -153,8 +194,9 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Runs the replace fusion route operation.
+    /// Performs replace fusion route as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="steps">Theme fusion step dependency used by the theme workflow to provide the corresponding application capability.</param>
     public void ReplaceFusionRoute(IEnumerable<ThemeFusionStep>? steps)
     {
         try
@@ -194,7 +236,7 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Ensures fusion route seeded.
+    /// Ensures fusion route seeded as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     public void EnsureFusionRouteSeeded()
     {
@@ -215,8 +257,11 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Runs the record fusion step operation.
+    /// Performs record fusion step as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="target">Target value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="theme">Theme value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The theme fusion step produced by the operation.</returns>
     public ThemeFusionStep RecordFusionStep(ThemeApplicationTarget target, Theme theme)
     {
         ArgumentNullException.ThrowIfNull(theme);
@@ -255,7 +300,7 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Runs the reset fusion route to current selection operation.
+    /// Performs reset fusion route to current selection as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     public void ResetFusionRouteToCurrentSelection()
     {
@@ -279,8 +324,11 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Gets theme layer CSS class.
+    /// Retrieves theme layer CSS class as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="shellThemeName">Shell theme name value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="componentThemeName">Component theme name value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string GetThemeLayerCssClass(string? shellThemeName, string? componentThemeName)
     {
         try
@@ -298,8 +346,10 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Gets theme CSS token.
+    /// Retrieves theme CSS token as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="themeName">Theme name value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetThemeCssToken(string? themeName)
     {
         try
@@ -316,8 +366,10 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Finds theme by name.
+    /// Finds theme by name as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="themeName">Theme name value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The theme produced by the operation.</returns>
     public Theme? FindThemeByName(string? themeName)
     {
         try
@@ -336,8 +388,10 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Runs the initialize themes operation.
+    /// Performs initialize themes as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="shellThemeName">Shell theme name value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="componentThemeName">Component theme name value supplied to the theme operation and used when producing its result.</param>
     public void InitializeThemes(string? shellThemeName, string? componentThemeName)
     {
         try
@@ -369,8 +423,9 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Sets active shell theme by name.
+    /// Sets active shell theme by name as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="themeName">Theme name value supplied to the theme operation and used when producing its result.</param>
     public void SetActiveShellThemeByName(string? themeName) {
     try
     {
@@ -386,8 +441,9 @@ public sealed class ThemeService
     }
 }
     /// <summary>
-    /// Sets active component theme by name.
+    /// Sets active component theme by name as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="themeName">Theme name value supplied to the theme operation and used when producing its result.</param>
     public void SetActiveComponentThemeByName(string? themeName) {
     try
     {
@@ -404,8 +460,9 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Sets active shell theme.
+    /// Sets active shell theme as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="theme">Theme value supplied to the theme operation and used when producing its result.</param>
     public void SetActiveShellTheme(Theme theme) {
     try
     {
@@ -426,8 +483,9 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Sets active component theme.
+    /// Sets active component theme as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="theme">Theme value supplied to the theme operation and used when producing its result.</param>
     public void SetActiveComponentTheme(Theme theme) {
     try
     {
@@ -450,6 +508,7 @@ public sealed class ThemeService
     /// <summary>
     /// Backward-compatible single-theme setter. It intentionally updates both layers.
     /// </summary>
+    /// <param name="themeName">Theme name value supplied to the theme operation and used when producing its result.</param>
     public void SetActiveThemeByName(string? themeName) {
     try
     {
@@ -466,8 +525,9 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Sets active theme.
+    /// Sets active theme as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="theme">Theme value supplied to the theme operation and used when producing its result.</param>
     public void SetActiveTheme(Theme theme)
     {
         ArgumentNullException.ThrowIfNull(theme);
@@ -490,8 +550,12 @@ public sealed class ThemeService
     }
 
     /// <summary>
-    /// Sets active theme core.
+    /// Sets active theme core as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="theme">Theme value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="target">Target value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="activeTheme">Active theme value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="changed">Changed value supplied to the theme operation and used when producing its result.</param>
     private void SetActiveThemeCore(
         Theme theme,
         ThemeApplicationTarget target,
@@ -544,6 +608,8 @@ public sealed class ThemeService
     /// Compatibility helper for diagnostics and older code. Runtime component switching uses
     /// IThemeChangeService and the theme's ITheme instance instead of replacing this link manually.
     /// </summary>
+    /// <param name="theme">Theme value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string GetThemeCssUrl(Theme theme)
     {
     try
@@ -575,6 +641,8 @@ public sealed class ThemeService
     /// Compatibility helper for diagnostics. Bootstrap theme files are registered on the
     /// corresponding DevExpress BootstrapExternal ITheme via AddFilePaths.
     /// </summary>
+    /// <param name="theme">Theme value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string GetBootstrapThemeCssUrl(Theme theme)
     {
     try
@@ -596,8 +664,10 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Gets highlight jstheme CSS URL.
+    /// Retrieves highlight JavaScript theme CSS URL as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="theme">Theme value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     public string GetHighlightJSThemeCssUrl(Theme theme)
     {
     try
@@ -618,8 +688,9 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Creates highlight JavaScript theme names.
+    /// Creates highlight JavaScript theme names as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The i read only dictionary string string produced by the operation.</returns>
     private IReadOnlyDictionary<string, string> CreateHighlightJsThemeNames() {
     try
     {
@@ -647,8 +718,9 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Creates sets.
+    /// Creates sets as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private List<ThemeSet> CreateSets()
     {
     try
@@ -697,8 +769,13 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Creates classic.
+    /// Creates classic as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="title">Title value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="sourceTheme">Source theme value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="bootstrapMode">Bootstrap mode value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The theme produced by the operation.</returns>
     private Theme CreateClassic(string name, string title, DxTheme sourceTheme, string bootstrapMode = "light")
     {
     try
@@ -722,8 +799,12 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Creates fluent.
+    /// Creates fluent as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="title">Title value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="mode">Mode value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The theme produced by the operation.</returns>
     private Theme CreateFluent(string name, string title, ThemeMode mode)
     {
     try
@@ -750,8 +831,13 @@ public sealed class ThemeService
 }
 
     /// <summary>
-    /// Creates bootstrap.
+    /// Creates bootstrap as part of the theme service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="name">Name value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="title">Title value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="themePath">Theme path value supplied to the theme operation and used when producing its result.</param>
+    /// <param name="bootstrapMode">Bootstrap mode value supplied to the theme operation and used when producing its result.</param>
+    /// <returns>The theme produced by the operation.</returns>
     private Theme CreateBootstrap(
         string name,
         string? title = null,

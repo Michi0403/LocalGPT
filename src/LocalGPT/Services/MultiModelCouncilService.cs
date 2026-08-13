@@ -11,8 +11,37 @@ using System.Threading.Channels;
 namespace LocalGPT.Services
 {
     /// <summary>
-    /// Provides multi model council service operations.
+    /// Coordinates multi model council behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
+    /// <param name="vocabulary">Local gpt vocabulary service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="optionsRoot">Business objects.configuration root dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="bootstrapService">Ai context bootstrap service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="chatMemory">Chat memory service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="artifactService">Council artifact service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="knowledgeService">Council knowledge service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="projectService">Local gpt project service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="projectArchitecture">Project architecture service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="codeGenerationWorkflow">Code generation workflow service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="codeGenerationPlanService">Council code generation plan service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="humanCollaboration">Human collaboration service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="councilXRounds">Council x round service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="deferredDxAiInvocations">Deferred devexpress ai invocation service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="organicCouncilBlueprints">Organic council blueprint service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="councilSpooler">Council spooler service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="councilPreflight">Council preflight service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="councilDxPolicy">Council devexpress function policy data service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="councilDxFunctions">Council devexpress function orchestrator dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="hardwareRoadPlanner">Council hardware road planner dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="runConfigurations">Council run configuration service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="modelSelfAssessment">Model capability self assessment service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="featureReports">Ai feature report service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="ambientContext">Ambient local gpt context dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="liveCouncilSessions">Council live session service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="providerModels">Provider model runtime service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="councilRuntime">Council runtime service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="councilText">Council text service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="catalog">Local gpt catalog service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
     public sealed partial class MultiModelCouncilService(ILocalGptVocabularyService vocabulary,
     
         IOptionsMonitor<BusinessObjects.ConfigurationRoot> optionsRoot,
@@ -46,8 +75,10 @@ namespace LocalGPT.Services
     {
 
         /// <summary>
-        /// Gets candidates async.
+        /// Retrieves candidates as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         public Task<IReadOnlyList<MultiModelCouncilModelCandidate>> GetCandidatesAsync(CancellationToken cancellationToken = default) {
     try
     {
@@ -64,8 +95,12 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Applies configured team model bindings async.
+        /// Applies configured team model bindings as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task ApplyConfiguredTeamModelBindingsAsync(
             MultiModelCouncilRequest request,
             OrganicCouncilTeamDefinition team,
@@ -175,8 +210,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Resolves configured team model binding.
+        /// Resolves configured team model binding as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="savedBinding">Saved binding value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="candidates">Multi model council model candidate dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleOrStep">Role or step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string ResolveConfiguredTeamModelBinding(
             string savedBinding,
             IReadOnlyList<MultiModelCouncilModelCandidate> candidates,
@@ -226,8 +266,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the run async operation.
+        /// Performs run as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The multi model council result produced by the operation.</returns>
         public async Task<MultiModelCouncilResult> RunAsync(MultiModelCouncilRequest request, CancellationToken cancellationToken = default)
         {
             Guid? collaborationRunId = null;
@@ -874,8 +917,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the uses built in council workflow operation.
+        /// Performs uses built in council workflow as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private bool UsesBuiltInCouncilWorkflow(OrganicCouncilTeamDefinition team)
         {
     try
@@ -918,8 +963,13 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Builds configured role assignments.
+        /// Builds configured role assignments as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The dictionary string council role runtime assignment produced by the operation.</returns>
         private Dictionary<string, CouncilRoleRuntimeAssignment> BuildConfiguredRoleAssignments(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -967,8 +1017,17 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Resolves configured role assignment.
+        /// Resolves configured role assignment as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleName">Role name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="rolesByName">Organic council role definition dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="assignments">Council role runtime assignment dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="activeRoles">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The council role runtime assignment produced by the operation.</returns>
         private CouncilRoleRuntimeAssignment ResolveConfiguredRoleAssignment(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1164,8 +1223,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds configured role participant pool.
+        /// Builds configured role participant pool as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="assignments">Council role runtime assignment dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private IReadOnlyList<string> BuildConfiguredRoleParticipantPool(
             OrganicCouncilRoleDefinition definition,
             IReadOnlyList<string> participants,
@@ -1198,8 +1261,11 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Gets configured role pairing reservation multiplier.
+        /// Retrieves configured role pairing reservation multiplier as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="rolesByName">Organic council role definition dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The int produced by the operation.</returns>
         private int GetConfiguredRolePairingReservationMultiplier(
             OrganicCouncilRoleDefinition definition,
             IReadOnlyDictionary<string, OrganicCouncilRoleDefinition> rolesByName)
@@ -1236,8 +1302,14 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the deterministically select configured role participants operation.
+        /// Performs deterministically select configured role participants as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="runId">Identifier of the run to use for this operation.</param>
+        /// <param name="teamKey">Team key value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleName">Role name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="pool">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="selectedCount">Selected count value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private IReadOnlyList<string> DeterministicallySelectConfiguredRoleParticipants(
             Guid runId,
             string teamKey,
@@ -1263,8 +1335,15 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Gets configured role assignment.
+        /// Retrieves configured role assignment as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleName">Role name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="assignments">Council role runtime assignment dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The council role runtime assignment produced by the operation.</returns>
         private CouncilRoleRuntimeAssignment GetConfiguredRoleAssignment(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1302,8 +1381,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds configured role pairings.
+        /// Builds configured role pairings as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="assignments">Council role runtime assignment dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private IReadOnlyList<CouncilParticipantPairing> BuildConfiguredRolePairings(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1378,8 +1462,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds configured role pairing summary.
+        /// Builds configured role pairing summary as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="pairings">Council participant pairing dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildConfiguredRolePairingSummary(IReadOnlyList<CouncilParticipantPairing> pairings)
         {
             try
@@ -1401,8 +1487,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the describe configured role ai policy operation.
+        /// Performs describe configured role AI policy as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="role">Role value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string DescribeConfiguredRoleAiPolicy(OrganicCouncilRoleDefinition role)
         {
     try
@@ -1429,8 +1517,12 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Builds configured role performance instruction.
+        /// Builds configured role performance instruction as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="performanceMode">Performance mode value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleName">Role name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildConfiguredRolePerformanceInstruction(
             CouncilRolePerformanceMode performanceMode,
             string modelName,
@@ -1458,8 +1550,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Builds configured role boundary instruction.
+        /// Builds configured role boundary instruction as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="boundaryMode">Boundary mode value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleName">Role name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildConfiguredRoleBoundaryInstruction(CouncilRoleBoundaryMode boundaryMode, string roleName) {
     try
     {
@@ -1484,8 +1579,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Builds configured role language instruction.
+        /// Builds configured role language instruction as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="languageMode">Language mode value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildConfiguredRoleLanguageInstruction(CouncilRoleLanguageMode languageMode) {
     try
     {
@@ -1510,8 +1607,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Builds configured role human participation instruction.
+        /// Builds configured role human participation instruction as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="mode">Mode value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildConfiguredRoleHumanParticipationInstruction(HumanParticipationMode mode) {
     try
     {
@@ -1538,8 +1637,17 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the wait for configured role human participation async operation.
+        /// Performs wait for configured role human participation as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="assignment">Assignment value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="repeatIndex">Repeat index value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task WaitForConfiguredRoleHumanParticipationAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1691,8 +1799,22 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the run configured workflow async operation.
+        /// Performs run configured workflow as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="bootstrap">Bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelRoutes">Council hardware road plan dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="maxParallelModels">Max parallel models value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="keepAlive">Keep alive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxContextTokens">Max context tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private async Task<string> RunConfiguredWorkflowAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -1952,6 +2074,23 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Resolves one accepted X-Round directive after a configured workflow step completes.</summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="sourceDefinition">Source definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="configuredSteps">Council workflow step definition dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="state">State value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="bootstrap">Bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelRoutes">Council hardware road plan dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="keepAlive">Keep alive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxContextTokens">Max context tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="leaderModel">Leader model value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The configured workflow execution state state int jump step index bool stop workflow bool reconsider target string cause produced by the operation.</returns>
         private async Task<(ConfiguredWorkflowExecutionState State, int? JumpStepIndex, bool StopWorkflow, bool ReconsiderTarget, string Cause)> ResolveConfiguredXDirectiveAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2067,6 +2206,21 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Runs one selected parent-Council model as a bounded X-Function subtask and records the returned text as a separate immutable step.</summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="sourceDefinition">Source definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="directive">Directive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="bootstrap">Bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelRoutes">Council hardware road plan dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="keepAlive">Keep alive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxContextTokens">Max context tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="leaderModel">Leader model value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private async Task<string> RunXRoundSingleModelAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2152,6 +2306,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Runs another configured Council team as a bounded child X-Function and records the child run identity plus returned text in the parent transcript.</summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="parentTeam">Parent team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="sourceDefinition">Source definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="directive">Directive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private async Task<string> RunXRoundChildCouncilAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2259,6 +2420,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Waits for the local human when the configured source step requires explicit approval of an X-Round control transition.</summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="sourceDefinition">Source definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="directive">Directive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private async Task<bool> WaitForXRoundApprovalAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2367,8 +2535,33 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the execute configured workflow definition async operation.
+        /// Executes configured workflow definition as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="bootstrap">Bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelRoutes">Council hardware road plan dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="maxParallelModels">Max parallel models value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="keepAlive">Keep alive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxContextTokens">Max context tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="leaderModel">Leader model value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleAssignments">Council role runtime assignment dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="rolePairings">Council participant pairing dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="state">State value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopGroup">Loop group value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopIteration">Loop iteration value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopMaximumIterations">Loop maximum iterations value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="workflowRevision">Workflow revision value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="xRoundCause">X round cause value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="suppressOrganicFunctions">Value indicating whether suppress organic functions should apply to this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The configured workflow execution state produced by the operation.</returns>
         private async Task<ConfiguredWorkflowExecutionState> ExecuteConfiguredWorkflowDefinitionAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2762,6 +2955,12 @@ namespace LocalGPT.Services
         /// <summary>
         /// Builds configured workflow previous step.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleAssignment">Role assignment value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logicalRound">Logical round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="fullCouncilPreviousStep">Full council previous step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildConfiguredWorkflowPreviousStep(
             MultiModelCouncilResult result,
             CouncilWorkflowStepDefinition definition,
@@ -2807,6 +3006,11 @@ namespace LocalGPT.Services
         /// <summary>
         /// Builds configured workflow transcript.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleAssignment">Role assignment value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logicalRound">Logical round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildConfiguredWorkflowTranscript(
             MultiModelCouncilResult result,
             CouncilWorkflowStepDefinition definition,
@@ -2846,8 +3050,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the contains configured loop completion marker operation.
+        /// Performs contains configured loop completion marker as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="steps">Multi model council step dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="completionMarker">Completion marker value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private bool ContainsConfiguredLoopCompletionMarker(
             IEnumerable<MultiModelCouncilStep> steps,
             string completionMarker)
@@ -2868,8 +3075,35 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the run configured participant async operation.
+        /// Performs run configured participant as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="roleAssignment">Role assignment value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="rolePairings">Council participant pairing dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="repeatIndex">Repeat index value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="repeatCount">Repeat count value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopGroup">Loop group value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopIteration">Loop iteration value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopMaximumIterations">Loop maximum iterations value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="transcript">Transcript value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="previousStep">Previous step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="bootstrap">Bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelRoutes">Council hardware road plan dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="keepAlive">Keep alive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxContextTokens">Max context tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="allowDxFunctions">Value indicating whether allow DevExpress functions should apply to this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RunConfiguredParticipantAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -2981,8 +3215,16 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the select configured workflow participant operation.
+        /// Performs select configured workflow participant as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="executionMode">Execution mode value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="leaderModel">Leader model value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="expandedStepIndex">Expanded step index value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string SelectConfiguredWorkflowParticipant(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -3028,8 +3270,24 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the render configured workflow prompt operation.
+        /// Performs render configured workflow prompt as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="roleAssignment">Role assignment value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="rolePairings">Council participant pairing dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="repeatIndex">Repeat index value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="repeatCount">Repeat count value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopGroup">Loop group value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopIteration">Loop iteration value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopMaximumIterations">Loop maximum iterations value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="transcript">Transcript value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="previousStep">Previous step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string RenderConfiguredWorkflowPrompt(
             CouncilWorkflowStepDefinition definition,
             OrganicCouncilTeamDefinition team,
@@ -3191,6 +3449,8 @@ namespace LocalGPT.Services
         /// <summary>
         /// Builds configured workflow stage answer.
         /// </summary>
+        /// <param name="steps">Multi model council step dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildConfiguredWorkflowStageAnswer(IReadOnlyList<MultiModelCouncilStep> steps)
         {
     try
@@ -3223,8 +3483,10 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Determines whether round skipped step.
+        /// Determines whether round skipped step as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="step">Step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private bool IsRoundSkippedStep(MultiModelCouncilStep step) {
     try
     {
@@ -3241,8 +3503,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Normalizes configured execution mode.
+        /// Normalizes configured execution mode as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string NormalizeConfiguredExecutionMode(string? value)
         {
     try
@@ -3283,8 +3547,15 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the wait for human boundary async operation.
+        /// Performs wait for human boundary as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="upcomingRound">Upcoming round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="upcomingPhase">Upcoming phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="boundary">Boundary value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task WaitForHumanBoundaryAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -3408,8 +3679,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the describe question scope operation.
+        /// Performs describe question scope as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string DescribeQuestionScope(HumanCollaborationRequest request) {
     try
     {
@@ -3431,8 +3704,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the describe question gate operation.
+        /// Performs describe question gate as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string DescribeQuestionGate(HumanCollaborationRequest request) {
     try
     {
@@ -3455,8 +3730,15 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the prepare human heartbeat async operation.
+        /// Performs prepare human heartbeat as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="bootstrap">Bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private async Task<string> PrepareHumanHeartbeatAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -3562,8 +3844,16 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the prepare live human input async operation.
+        /// Performs prepare live human input as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="bootstrap">Bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="progressMessage">Progress message value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="stepCompleted">Step completed value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The string produced by the operation.</returns>
         private async Task<string> PrepareLiveHumanInputAsync(
             MultiModelCouncilResult result,
             int round,
@@ -3622,8 +3912,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Builds human contribution briefing.
+        /// Builds human contribution briefing as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="contributions">Human council contribution dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildHumanContributionBriefing(IReadOnlyList<HumanCouncilContribution> contributions)
         {
             try
@@ -3669,8 +3961,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds deferred invocation briefing.
+        /// Builds deferred invocation briefing as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="outcomes">Deferred devexpress ai execution outcome dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildDeferredInvocationBriefing(IReadOnlyList<DeferredDxAiExecutionOutcome> outcomes)
         {
     try
@@ -3702,8 +3996,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Builds human contribution evaluation.
+        /// Builds human contribution evaluation as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildHumanContributionEvaluation(MultiModelCouncilResult result)
         {
             try
@@ -3745,8 +4041,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the append human peer review instruction operation.
+        /// Performs append human peer review instruction as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="prompt">Prompt value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string AppendHumanPeerReviewInstruction(string prompt)
         {
             try
@@ -3772,8 +4070,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates council change review async.
+        /// Creates council change review as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The code generation review snapshot produced by the operation.</returns>
         private async Task<CodeGenerationReviewSnapshot> CreateCouncilChangeReviewAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -3902,8 +4204,10 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Applies hardware plan.
+        /// Applies hardware plan as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="step">Step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="plan">Plan value supplied to the multi model council operation and used when producing its result.</param>
         private void ApplyHardwarePlan(MultiModelCouncilStep step, CouncilHardwareRoadPlan plan)
         {
     try
@@ -3927,8 +4231,14 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Adds council step and execute DevExpress functions async.
+        /// Adds council step and execute DevExpress functions as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="step">Step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="stepCompleted">Step completed value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="progressMessage">Progress message value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private async Task<IReadOnlyList<MultiModelCouncilStep>> AddCouncilStepAndExecuteDxFunctionsAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilStep step,
@@ -3958,8 +4268,15 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Adds council step async.
+        /// Adds council step as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="step">Step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="stepCompleted">Step completed value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="progressMessage">Progress message value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="allowDxFunctions">Value indicating whether allow DevExpress functions should apply to this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private async Task<IReadOnlyList<MultiModelCouncilStep>> AddCouncilStepAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilStep step,
@@ -3990,8 +4307,32 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the run phase async operation.
+        /// Performs run phase as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="role">Role value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="promptFactory">Prompt factory value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="bootstrap">Bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxOutputTokens">Max output tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxParallelModels">Max parallel models value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="keepAlive">Keep alive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxContextTokens">Max context tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="progressMessage">Progress message value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="streamUpdate">Stream update value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="stepCompleted">Step completed value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelRoutes">Council hardware road plan dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="allowParallelHardwareRoads">Value indicating whether allow parallel hardware roads should apply to this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="allowDxFunctions">Value indicating whether allow DevExpress functions should apply to this operation.</param>
+        /// <param name="councilMembers">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="sequentialPerHost">Value indicating whether sequential per host should apply to this operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RunPhaseAsync(
             MultiModelCouncilResult result,
             string baseUri,
@@ -4288,6 +4629,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Builds the stable run-local key used for one participant's live activity card.</summary>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="role">Role value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildCouncilParticipantActivityKey(int round, string phase, string role, string modelName)
         {
             try
@@ -4302,6 +4648,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Builds the stable consumer identity used to route an immediate user heartbeat to the participant currently visible in ordered presentation.</summary>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="role">Role value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildLiveInputConsumerKey(string modelName, string phase, string role)
         {
             try
@@ -4316,8 +4666,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Gets council execution host key.
+        /// Retrieves council execution host key as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string GetCouncilExecutionHostKey(string modelName)
         {
             try
@@ -4342,8 +4694,17 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the pump council participant streams async operation.
+        /// Performs pump council participant streams as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="role">Role value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participantOrder">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="participantStreams">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="streamUpdate">Stream update value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task PumpCouncilParticipantStreamsAsync(
             Guid councilRunId,
             int round,
@@ -4386,8 +4747,15 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates round skipped step.
+        /// Creates round skipped step as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="councilMembers">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="role">Role value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="plan">Plan value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The multi model council step produced by the operation.</returns>
         private MultiModelCouncilStep CreateRoundSkippedStep(
             string modelName,
             IReadOnlyList<string> councilMembers,
@@ -4427,8 +4795,12 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the select participants async operation.
+        /// Performs select participants as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="normalizedLegacyBaseUri">Normalized legacy base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private async Task<List<string>> SelectParticipantsAsync(
             MultiModelCouncilRequest request,
             string normalizedLegacyBaseUri,
@@ -4601,8 +4973,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the qualify model routes operation.
+        /// Performs qualify model routes as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="routes">One wire council model route dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="references">Provider model reference dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private List<OneWireCouncilModelRoute> QualifyModelRoutes(
             IEnumerable<OneWireCouncilModelRoute>? routes,
             IReadOnlyList<ProviderModelReference> references)
@@ -4674,8 +5049,11 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Determines whether reachable provider endpoint.
+        /// Determines whether reachable provider endpoint as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="candidates">Multi model council model candidate dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="model">Model value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private bool HasReachableProviderEndpoint(
             IReadOnlyList<MultiModelCouncilModelCandidate> candidates,
             ProviderModelReference model)
@@ -4706,8 +5084,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Determines whether configured provider endpoint.
+        /// Determines whether configured provider endpoint as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="model">Model value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private bool IsConfiguredProviderEndpoint(ProviderModelReference model)
         {
             try
@@ -4760,8 +5140,28 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the run participant async operation.
+        /// Performs run participant as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="councilMembers">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="role">Role value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="prompt">Prompt value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="bootstrap">Bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxOutputTokens">Max output tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="keepAlive">Keep alive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxContextTokens">Max context tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="streamUpdate">Stream update value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="allowRecovery">Value indicating whether allow recovery should apply to this operation.</param>
+        /// <param name="fallbackPlan">Fallback plan value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="progressMessage">Progress message value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="useRunConfiguration">Value indicating whether use run configuration should apply to this operation.</param>
+        /// <returns>The multi model council step produced by the operation.</returns>
         private async Task<MultiModelCouncilStep?> RunParticipantAsync(
             string baseUri,
             string modelName,
@@ -5243,8 +5643,16 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the monitor live council input async operation.
+        /// Performs monitor live council input as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+        /// <param name="currentRound">Current round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="consumerKey">Consumer key value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="observedContributionIds">Guid dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="signal">Signal value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="streamCancellation">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task MonitorLiveCouncilInputAsync(
             Guid councilRunId,
             int currentRound,
@@ -5314,8 +5722,10 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Builds live council interruption prompt.
+        /// Builds live council interruption prompt as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="contributions">Human council contribution dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string BuildLiveCouncilInterruptionPrompt(IReadOnlyList<HumanCouncilContribution> contributions)
         {
             try
@@ -5349,8 +5759,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the limit live council context operation.
+        /// Performs limit live council context as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="value">Value value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maximumCharacters">Maximum characters value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string LimitLiveCouncilContext(string value, int maximumCharacters)
         {
     try
@@ -5371,8 +5784,24 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the retry participant with safe limits async operation.
+        /// Performs retry participant with safe limits as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="councilMembers">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="role">Role value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="prompt">Prompt value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="bootstrap">Bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxOutputTokens">Max output tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="keepAlive">Keep alive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxContextTokens">Max context tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="streamUpdate">Stream update value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="originalFailure">Original failure value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The multi model council step produced by the operation.</returns>
         private async Task<MultiModelCouncilStep?> RetryParticipantWithSafeLimitsAsync(
             string baseUri,
             string modelName,
@@ -5451,8 +5880,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the select healthy participant operation.
+        /// Performs select healthy participant as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="preferredModel">Preferred model value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string SelectHealthyParticipant(
             MultiModelCouncilResult result,
             IReadOnlyList<string> participants,
@@ -5483,8 +5916,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Applies approved one run model exclusions async.
+        /// Applies approved one run model exclusions as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="selectedParticipants">Selected participants value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private async Task<(List<string> Active, List<string> Excluded)> ApplyApprovedOneRunModelExclusionsAsync(
             List<string> selectedParticipants,
             CancellationToken cancellationToken)
@@ -5519,8 +5955,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the queue model health exclusion review async operation.
+        /// Performs queue model health exclusion review as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task QueueModelHealthExclusionReviewAsync(
             MultiModelCouncilResult result,
             string modelName,
@@ -5545,8 +5985,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Creates model health exclusion request.
+        /// Creates model health exclusion request as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="councilRunId">Identifier of the council run to use for this operation.</param>
+        /// <param name="failureSummary">Failure summary value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>The human approval request spec produced by the operation.</returns>
         private HumanApprovalRequestSpec CreateModelHealthExclusionRequest(
             string modelName,
             Guid? councilRunId,
@@ -5586,8 +6030,11 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the order participants by observed health operation.
+        /// Performs order participants by observed health as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private IEnumerable<string> OrderParticipantsByObservedHealth(
             MultiModelCouncilResult result,
             IEnumerable<string> participants)
@@ -5628,8 +6075,9 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the append runtime benchmark summary operation.
+        /// Performs append runtime benchmark summary as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
         private void AppendRuntimeBenchmarkSummary(MultiModelCouncilResult result)
         {
     try
@@ -5665,8 +6113,12 @@ namespace LocalGPT.Services
 }
 
         /// <summary>
-        /// Runs the request ollama unload async operation.
+        /// Performs request Ollama unload as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RequestOllamaUnloadAsync(string baseUri, string modelName, CancellationToken cancellationToken)
         {
             try
@@ -5695,8 +6147,9 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Gets configured ollama providers.
+        /// Retrieves configured Ollama providers as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <returns>The collection produced by the operation.</returns>
         private IEnumerable<OllamaCoreOptions> GetConfiguredOllamaProviders()
         {
             try
@@ -5724,8 +6177,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the probe ollama models async operation.
+        /// Performs probe Ollama models as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="endpoint">Endpoint value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private async Task<IReadOnlyList<MultiModelCouncilModelCandidate>> ProbeOllamaModelsAsync(string endpoint, CancellationToken cancellationToken)
         {
             try
@@ -5767,8 +6223,17 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the multi model council service run final only recovery async operation.
+        /// Performs multi model council service run final only recovery as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="client">Chat client dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="originalMessages">Chat message dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="maxOutputTokens">Max output tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="streamUpdate">Stream update value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string content string visible content string thinking produced by the operation.</returns>
         public async Task<(string Content, string VisibleContent, string? Thinking)> MultiModelCouncilServiceRunFinalOnlyRecoveryAsync(
             IChatClient client,
             string modelName,
@@ -5831,8 +6296,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service add ordered step operation.
+        /// Performs multi model council service add ordered step as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="step">Step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         public void MultiModelCouncilServiceAddOrderedStep(MultiModelCouncilResult result, MultiModelCouncilStep step, ILogger logger)
         {
             try
@@ -5850,8 +6318,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service select consensus content operation.
+        /// Performs multi model council service select consensus content as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="consensusStep">Consensus step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceSelectConsensusContent(MultiModelCouncilResult result, MultiModelCouncilStep consensusStep , ILogger logger)
         {
             try
@@ -5881,8 +6353,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service is substantive council content operation.
+        /// Performs multi model council service is substantive council content as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool MultiModelCouncilServiceIsSubstantiveCouncilContent(string content, ILogger logger)
         {
             try
@@ -5906,8 +6381,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service is thinking only council content operation.
+        /// Performs multi model council service is thinking only council content as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="content">Content value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool MultiModelCouncilServiceIsThinkingOnlyCouncilContent(string content, ILogger logger)
         {
             try
@@ -5926,8 +6404,13 @@ namespace LocalGPT.Services
             }
         }
         /// <summary>
-        /// Runs the multi model council service get council keep alive operation.
+        /// Performs multi model council service get council keep alive as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="participantCount">Participant count value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxParallelModels">Max parallel models value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceGetCouncilKeepAlive(MultiModelCouncilRequest request, int participantCount, int maxParallelModels, ILogger logger)
         {
             try
@@ -5947,8 +6430,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service should unload after participant operation.
+        /// Performs multi model council service should unload after participant as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="keepAlive">Keep alive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool MultiModelCouncilServiceShouldUnloadAfterParticipant(string keepAlive, ILogger logger)
         {
             try
@@ -5967,8 +6453,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service resolve participant ollama num gpu operation.
+        /// Performs multi model council service resolve participant Ollama num GPU as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="requestedNumGpu">Requested num gpu value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The int produced by the operation.</returns>
         public int? MultiModelCouncilServiceResolveParticipantOllamaNumGpu(string modelName, int? requestedNumGpu, ILogger logger)
         {
             try
@@ -5987,8 +6477,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service is heavy gpu risk model operation.
+        /// Performs multi model council service is heavy GPU risk model as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         public bool MultiModelCouncilServiceIsHeavyGpuRiskModel(string modelName, ILogger logger)
         {
             try
@@ -6006,8 +6499,12 @@ namespace LocalGPT.Services
 
 
         /// <summary>
-        /// Runs the multi model council service probe running model names async operation.
+        /// Performs multi model council service probe running model names as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="http">Http client dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The hash set string produced by the operation.</returns>
         public async Task<HashSet<string>> MultiModelCouncilServiceProbeRunningModelNamesAsync(HttpClient http, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -6027,8 +6524,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Loads continuation conversation async.
+        /// Loads continuation conversation as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="conversationId">Identifier of the conversation to use for this operation.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The chat memory conversation snapshot produced by the operation.</returns>
         public async Task<ChatMemoryConversationSnapshot?> LoadContinuationConversationAsync(Guid? conversationId, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -6055,8 +6556,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service build continuation context operation.
+        /// Performs multi model council service build continuation context as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="conversation">Conversation value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceBuildContinuationContext(ChatMemoryConversationSnapshot? conversation, ILogger logger)
         {
             try
@@ -6094,8 +6598,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service append prompt section operation.
+        /// Performs multi model council service append prompt section as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="existing">Existing value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="title">Title value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="content">Content value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceAppendPromptSection(string existing, string title, string content, ILogger logger)
         {
             try
@@ -6113,8 +6622,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Saves to memory async.
+        /// Persists to memory as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="continuedConversation">Continued conversation value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The GUID produced by the operation.</returns>
         public async Task<Guid?> SaveToMemoryAsync(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -6223,8 +6737,13 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service build council request memory message operation.
+        /// Performs multi model council service build council request memory message as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="isContinuation">Value indicating whether is continuation should apply to this operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceBuildCouncilRequestMemoryMessage(
             MultiModelCouncilRequest request,
             MultiModelCouncilResult result,
@@ -6248,8 +6767,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Runs the multi model council service build memory message operation.
+        /// Performs multi model council service build memory message as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="step">Step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public string MultiModelCouncilServiceBuildMemoryMessage(MultiModelCouncilStep step, ILogger logger)
         {
             try
@@ -6292,8 +6814,12 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Writes log async.
+        /// Writes log as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+        /// <returns>The string produced by the operation.</returns>
         public async Task<string> WriteLogAsync(MultiModelCouncilResult result, CancellationToken cancellationToken, ILogger logger)
         {
             try
@@ -6316,8 +6842,11 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
-        /// Writes missing feature report async.
+        /// Writes missing feature report as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>A task that completes when the operation has finished.</returns>
         private async Task WriteMissingFeatureReportAsync(
             MultiModelCouncilResult result,
             CancellationToken cancellationToken)

@@ -5,15 +5,18 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Represents a list council runtime classes function.
+/// Represents a list council runtime classes function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="runtimeClasses">Council runtime class service dependency used by the list council runtime classes function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ListCouncilRuntimeClassesFunction(
     ICouncilRuntimeClassService runtimeClasses,
     ILogger<ListCouncilRuntimeClassesFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the list council runtime classes function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ListCouncilRuntimeClassesFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.runtime-class.list",
         "POST",
@@ -21,6 +24,9 @@ public sealed class ListCouncilRuntimeClassesFunction(
         "Lists database-backed Council runtime classes, their namespaces, kinds and field/input counts.",
         "JSON parameters: namespace optional; kind optional; includeDisabled optional boolean.",
         "Read-only. Definitions are configuration and source-study metadata; listing them does not execute a game, repository or input binding.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ListCouncilRuntimeClassesFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -32,8 +38,11 @@ public sealed class ListCouncilRuntimeClassesFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ListCouncilRuntimeClassesFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list council runtime classes function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -78,8 +87,11 @@ public sealed class ListCouncilRuntimeClassesFunction(
     }
 
     /// <summary>
-    /// Gets string.
+    /// Retrieves string for <see cref="ListCouncilRuntimeClassesFunction"/>, keeping the operation consistent with the state and invariants of the surrounding list council runtime classes function workflow.
     /// </summary>
+    /// <param name="parameters">Parameters value supplied to the list council runtime classes function operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the list council runtime classes function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetString(JsonElement parameters, string name) {
     try
     {
@@ -99,15 +111,18 @@ public sealed class ListCouncilRuntimeClassesFunction(
 }
 
 /// <summary>
-/// Represents a resolve council runtime class function.
+/// Represents a resolve council runtime class function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="runtimeClasses">Council runtime class service dependency used by the resolve council runtime class function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ResolveCouncilRuntimeClassFunction(
     ICouncilRuntimeClassService runtimeClasses,
     ILogger<ResolveCouncilRuntimeClassFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the resolve council runtime class function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="ResolveCouncilRuntimeClassFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.runtime-class.resolve",
         "POST",
@@ -115,6 +130,9 @@ public sealed class ResolveCouncilRuntimeClassFunction(
         "Resolves a runtime-class key, namespace, display name or common alias without case or punctuation sensitivity.",
         "JSON parameters: query required. Examples: games.ascii.doom.map, LocalGPT.Games.AsciiDoom.Map, doom map.",
         "Read-only. Returns the canonical database-backed definition and stable key so models do not need discovery loops.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="ResolveCouncilRuntimeClassFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -124,8 +142,11 @@ public sealed class ResolveCouncilRuntimeClassFunction(
         ParameterSchemaJson: """{"type":"object","required":["query"],"properties":{"query":{"type":"string","maxLength":240}},"additionalProperties":false}""");
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="ResolveCouncilRuntimeClassFunction"/>, keeping the operation consistent with the state and invariants of the surrounding resolve council runtime class function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
@@ -165,15 +186,18 @@ public sealed class ResolveCouncilRuntimeClassFunction(
 }
 
 /// <summary>
-/// Represents a get council runtime class function.
+/// Represents a get council runtime class function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
+/// <param name="runtimeClasses">Council runtime class service dependency used by the get council runtime class function workflow to provide the corresponding application capability.</param>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetCouncilRuntimeClassFunction(
     ICouncilRuntimeClassService runtimeClasses,
     ILogger<GetCouncilRuntimeClassFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the get council runtime class function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="GetCouncilRuntimeClassFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "localgpt.runtime-class.get",
         "POST",
@@ -181,6 +205,9 @@ public sealed class GetCouncilRuntimeClassFunction(
         "Reads one database-backed Council runtime class including field ownership, human blocking gates, keyboard/gamepad bindings and source references.",
         "JSON parameters: key required.",
         "Read-only. A binding describes permitted configuration; it does not synthesize or send keyboard/gamepad input.",
+        /// <summary>
+        /// Stores the internal parameter schema JSON state used by <see cref="GetCouncilRuntimeClassFunction"/> while executing its surrounding workflow.
+        /// </summary>
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -192,8 +219,11 @@ public sealed class GetCouncilRuntimeClassFunction(
         """);
 
     /// <summary>
-    /// Runs the invoke async operation.
+    /// Performs invoke for <see cref="GetCouncilRuntimeClassFunction"/>, keeping the operation consistent with the state and invariants of the surrounding get council runtime class function workflow.
     /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
     public async Task<DxAiFunctionInvocationResult> InvokeAsync(
         DxAiFunctionInvocationRequest request,
         CancellationToken cancellationToken = default)
