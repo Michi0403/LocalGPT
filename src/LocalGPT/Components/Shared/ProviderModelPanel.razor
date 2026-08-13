@@ -111,13 +111,33 @@
                  class="provider-model-benchmark"
                  aria-label="@($"Benchmark configuration for {Model.DisplayName}")">
             <div class="benchmark-config-grid">
-                <BoundedNumberEditor Label="Profiles" Min="1" Max="6" Value="@maxProfiles" ValueChanged="@(value => maxProfiles = value)" />
+                <label>
+                    <span>Profile plan</span>
+                    <select class="form-select" @bind="profileMode">
+                        <option value="@ProviderModelBenchmarkProfileMode.EvenlySpaced">Evenly spaced to maximum</option>
+                        <option value="@ProviderModelBenchmarkProfileMode.Adaptive">Adaptive named profiles (legacy)</option>
+                    </select>
+                </label>
+                <label>
+                    <span>@(profileMode == ProviderModelBenchmarkProfileMode.EvenlySpaced ? "Even steps" : "Adaptive profiles")</span>
+                    <input class="form-control" type="number" min="1" step="1" @bind="maxProfiles" />
+                </label>
                 <BoundedNumberEditor Label="Tasks" Min="1" Max="4" Value="@maxTasks" ValueChanged="@(value => maxTasks = value)" />
                 <BoundedNumberEditor Label="Timeout seconds" Min="10" Max="900" Step="10" Suffix=" s" Value="@maxSeconds" ValueChanged="@(value => maxSeconds = value)" />
                 <BoundedNumberEditor Label="Stop threshold" Min="0" Max="50" Suffix="%" Value="@improvementThreshold" ValueChanged="@(value => improvementThreshold = value)" />
-                <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="@(value => maximumContext = value)" />
-                <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="@(value => maximumOutput = value)" />
+                @if (profileMode == ProviderModelBenchmarkProfileMode.EvenlySpaced)
+                {
+                    <BoundedNumberEditor Label="Minimum context" Min="2048" Max="@maximumContext" Step="1024" Value="@minimumContext" ValueChanged="@(value => minimumContext = value)" />
+                    <BoundedNumberEditor Label="Minimum output" Min="128" Max="@maximumOutput" Step="128" Value="@minimumOutput" ValueChanged="@(value => minimumOutput = value)" />
+                }
+                <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="OnMaximumContextChanged" />
+                <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="OnMaximumOutputChanged" />
                 <label class="benchmark-check form-check"><input class="form-check-input" type="checkbox" @bind="includeCouncilReview" /> <span>@T("Council review")</span></label>
+                <label class="benchmark-check form-check"><input class="form-check-input" type="checkbox" @bind="stopWhenImprovementStalls" /> <span>Allow early stop</span></label>
+                @if (profileMode == ProviderModelBenchmarkProfileMode.Adaptive)
+                {
+                    <label class="benchmark-check form-check"><input class="form-check-input" type="checkbox" @bind="includeCpuSafeControl" /> <span>CPU-safe control</span></label>
+                }
             </div>
             <p class="benchmark-council-summary">
                 @T("Review council"):@(" " + ReviewerSummary)
@@ -182,10 +202,15 @@
     bool showBenchmark;
     bool isBusy;
     bool includeCouncilReview = true;
+    bool includeCpuSafeControl = true;
+    bool stopWhenImprovementStalls;
+    ProviderModelBenchmarkProfileMode profileMode = ProviderModelBenchmarkProfileMode.EvenlySpaced;
     int maxProfiles = 5;
     int maxTasks = 3;
     int maxSeconds = 180;
     int improvementThreshold = 5;
+    int minimumContext = 2048;
+    int minimumOutput = 128;
     int maximumContext = 32768;
     int maximumOutput = 1024;
     string statusText = string.Empty;
@@ -233,7 +258,12 @@
                 RunId = activeRunId.Value,
                 Targets = [Model],
                 CouncilReviewers = CouncilModels.ToList(),
-                MaxProfilesPerModel = maxProfiles,
+                MaxProfilesPerModel = Math.Max(1, maxProfiles),
+                ProfileMode = profileMode,
+                MinimumContextTokens = minimumContext,
+                MinimumOutputTokens = minimumOutput,
+                IncludeCpuSafeControl = includeCpuSafeControl,
+                StopWhenImprovementStalls = stopWhenImprovementStalls,
                 MaxTasks = maxTasks,
                 MaxCouncilReviewers = 3,
                 MaxSecondsPerCall = maxSeconds,
@@ -296,6 +326,20 @@
         {
             isBusy = false;
         }
+    }
+
+    Task OnMaximumContextChanged(int value)
+    {
+        maximumContext = value;
+        minimumContext = Math.Min(minimumContext, maximumContext);
+        return Task.CompletedTask;
+    }
+
+    Task OnMaximumOutputChanged(int value)
+    {
+        maximumOutput = value;
+        minimumOutput = Math.Min(minimumOutput, maximumOutput);
+        return Task.CompletedTask;
     }
 
     void CancelBenchmark() => benchmarkCts?.Cancel();

@@ -97,7 +97,7 @@ public sealed class TranslateJsonTextFunction(
     }
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="TranslateJsonTextFunction"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {

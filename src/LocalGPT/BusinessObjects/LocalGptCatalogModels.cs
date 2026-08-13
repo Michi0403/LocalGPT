@@ -48,6 +48,10 @@ public sealed class WorkspaceLayout(WorkspaceContext context)
     /// Runs the to result operation.
     /// </summary>
     public MinecraftModWorkspace ToResult(
+        /// <summary>
+        /// Gets the build command value that forms part of the workspace layout state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The build command value exposed by <see cref="WorkspaceLayout"/>.</value>
         string buildCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1",
         string eclipseImportHint = "File > Import > Gradle > Existing Gradle Project") => new()
         {

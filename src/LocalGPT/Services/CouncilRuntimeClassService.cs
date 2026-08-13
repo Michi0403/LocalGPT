@@ -22,7 +22,7 @@ public sealed class CouncilRuntimeClassService(
     /// </summary>
     private const int CurrentSeedVersion = 4;
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="CouncilRuntimeClassService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {

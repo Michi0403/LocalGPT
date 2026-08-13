@@ -73,7 +73,7 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     /// </summary>
     private readonly IRegexPatternService regexPatternService;
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal document options state used by <see cref="StructuredTextTranslationService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonDocumentOptions documentOptions = new()
     {

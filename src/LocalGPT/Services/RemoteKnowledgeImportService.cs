@@ -31,7 +31,7 @@ public sealed class RemoteKnowledgeImportService(
     /// </summary>
     private int disposeState;
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the HTTP client dependency used by <see cref="RemoteKnowledgeImportService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly HttpClient http = new(new HttpClientHandler
     {

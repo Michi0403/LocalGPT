@@ -93,9 +93,6 @@ public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService
         "Stores model-suggested learning facts and validated regex definitions in LocalGPT's SQLite self-maintenance layer.",
         "JSON parameters: facts array and regexPatterns array; both optional.",
         "Knowledge maintenance only. New facts remain ModelSuggested/NeedsUserReview and regexes are timeout-validated. This function cannot run commands or authorize side effects.",
-        /// <summary>
-        /// Stores the internal true state used by <see cref="MaintainLearningRoundKnowledgeFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,

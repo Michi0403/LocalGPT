@@ -437,7 +437,9 @@ internal sealed record CouncilRoleRuntimeAssignment(
             ? $"all {AiParticipants.Count} selected AI member(s)"
             : Definition.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels
                 ? $"{AiParticipants.Count} provider-bound AI member(s)"
-                : $"{AiParticipants.Count} deterministic-random AI member(s)";
+                : Definition.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange
+                    ? $"{AiParticipants.Count} deterministic-random provider-bound AI invocation(s)"
+                    : $"{AiParticipants.Count} deterministic-random AI member(s)";
 }
 
 /// <summary>

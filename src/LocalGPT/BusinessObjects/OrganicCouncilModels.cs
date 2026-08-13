@@ -11,7 +11,9 @@ public enum CouncilRoleAiSelectionMode
     /// <summary>Assigns a bounded random participant count within the role limits.</summary>
     RandomRange,
     /// <summary>Assigns only the exact provider-qualified models saved on the role.</summary>
-    AssignedModels
+    AssignedModels,
+    /// <summary>Chooses a deterministic-random count from the exact provider-qualified role pool, cycling the pool fairly when the requested count exceeds the number of distinct saved models.</summary>
+    AssignedModelsRandomRange
 }
 
 /// <summary>Defines how a human participant may join a Council role.</summary>
@@ -154,14 +156,14 @@ public sealed class OrganicCouncilRoleDefinition
     /// <value>The AI selection mode value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public CouncilRoleAiSelectionMode AiSelectionMode { get; set; } = CouncilRoleAiSelectionMode.AllSelected;
     /// <summary>
-    /// Gets or sets the minimum AI participants value that forms part of the organic council role definition state consumed or produced by the surrounding workflow.
+    /// Gets or sets the lower participant/invocation count used by random role assignment. In provider-bound pool mode this is a number of role invocations, not a limit on how many distinct models may be saved.
     /// </summary>
-    /// <value>The minimum AI participants value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
+    /// <value>The inclusive lower count used when resolving participants for one Council run.</value>
     public int MinimumAiParticipants { get; set; } = 1;
     /// <summary>
-    /// Gets or sets the maximum AI participants value that forms part of the organic council role definition state consumed or produced by the surrounding workflow.
+    /// Gets or sets the upper participant/invocation count used by random role assignment. Provider-bound pool mode may intentionally exceed the number of distinct saved models and then repeats models in shuffled cycles.
     /// </summary>
-    /// <value>The maximum AI participants value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
+    /// <value>The inclusive upper count used when resolving participants for one Council run.</value>
     public int MaximumAiParticipants { get; set; } = 1;
     /// <summary>
     /// Gets or sets the human participation mode value that forms part of the organic council role definition state consumed or produced by the surrounding workflow.
@@ -195,8 +197,8 @@ public sealed class OrganicCouncilRoleDefinition
     /// <summary>Gets or sets runtime-class keys exposed to participants in this role.</summary>
     /// <value>The runtime class keys value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
     public List<string> RuntimeClassKeys { get; set; } = [];
-    /// <summary>Gets or sets exact provider-qualified model identities bound to this role.</summary>
-    /// <value>The assigned model keys value exposed by <see cref="OrganicCouncilRoleDefinition"/>.</value>
+    /// <summary>Gets or sets the exact provider-qualified identities eligible for this role. Exact-assignment mode runs the saved set; provider-pool random mode samples only this set and may deliberately reuse members when the configured invocation count exceeds its distinct size.</summary>
+    /// <value>The provider, endpoint and model selection keys that form the authoritative role pool.</value>
     public List<string> AssignedModelKeys { get; set; } = [];
 }
 

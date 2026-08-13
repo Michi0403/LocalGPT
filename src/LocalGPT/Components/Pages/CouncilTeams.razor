@@ -131,13 +131,25 @@
                                     }
                                 </select>
                             </label>
+                            @if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange && role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
+                            {
+                                <label>
+                                    <span>Exact role invocations</span>
+                                    <input class="form-control"
+                                           type="number"
+                                           min="1"
+                                           value="@(role.MinimumAiParticipants == role.MaximumAiParticipants ? role.MinimumAiParticipants.ToString() : string.Empty)"
+                                           placeholder="Optional · use range below"
+                                           @onchange="args => SetExactRoleInvocationCount(roleIndex, args)" />
+                                </label>
+                            }
                             <label>
-                                <span>Minimum random AIs</span>
-                                <input class="form-control" type="number" min="1" max="100" @bind="role.MinimumAiParticipants" disabled="@(role.AiSelectionMode != CouncilRoleAiSelectionMode.RandomRange || role.HumanParticipationMode == HumanParticipationMode.HumanOnly)" />
+                                <span>@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange ? "Minimum pool invocations" : "Minimum random AI participants")</span>
+                                <input class="form-control" type="number" min="1" @bind="role.MinimumAiParticipants" disabled="@(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly)" />
                             </label>
                             <label>
-                                <span>Maximum random AIs</span>
-                                <input class="form-control" type="number" min="1" max="100" @bind="role.MaximumAiParticipants" disabled="@(role.AiSelectionMode != CouncilRoleAiSelectionMode.RandomRange || role.HumanParticipationMode == HumanParticipationMode.HumanOnly)" />
+                                <span>@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange ? "Maximum pool invocations" : "Maximum random AI participants")</span>
+                                <input class="form-control" type="number" min="1" @bind="role.MaximumAiParticipants" disabled="@(!UsesRandomParticipantCount(role) || role.HumanParticipationMode == HumanParticipationMode.HumanOnly)" />
                             </label>
                             <label>
                                 <span>Human participation</span>
@@ -176,11 +188,17 @@
                                 </select>
                             </label>
                         </div>
-                        @if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels && role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
+                        @if (UsesRandomParticipantCount(role) && role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
+                        {
+                            <p class="wide hint">@(role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange
+                                ? "Set Exact role invocations for a fixed count, or use the minimum/maximum fields for a random count per run. A count larger than the provider-bound pool deliberately reuses members in fair shuffled cycles. "
+                                : string.Empty)The count selects role participants/invocations. The workflow execution mode still decides whether all selected members run or one leader/round-robin member is chosen for that step.</p>
+                        }
+                        @if (UsesProviderBoundRolePool(role) && role.HumanParticipationMode != HumanParticipationMode.HumanOnly)
                         {
                             <details class="wide council-provider-model-picker" open>
                                 <summary>Provider-bound role models (@role.AssignedModelKeys.Count selected)</summary>
-                                <p class="hint">The provider, endpoint and model are one identity. These saved members are automatically added to the run and LocalGPT will not substitute a same-name model from another host.</p>
+                                <p class="hint">The provider, endpoint and model are one identity. These saved members are automatically added to the run and LocalGPT will not substitute a same-name model from another host. In random-pool mode, the saved models form the eligible pool; requesting more invocations than the pool size cycles through another deterministic shuffle instead of imposing a hard ceiling.</p>
                                 @if (_providerModels.Count == 0)
                                 {
                                     <div class="alert alert-warning mb-2">No provider model catalog is currently available. Existing saved bindings remain visible below and are not deleted.</div>
@@ -502,7 +520,8 @@
     [
         (CouncilRoleAiSelectionMode.AllSelected, "All selected council AIs"),
         (CouncilRoleAiSelectionMode.RandomRange, "Random role members within range"),
-        (CouncilRoleAiSelectionMode.AssignedModels, "Exact models from connected providers")
+        (CouncilRoleAiSelectionMode.AssignedModels, "All exact models from connected providers"),
+        (CouncilRoleAiSelectionMode.AssignedModelsRandomRange, "Random count from exact provider pool (repeats allowed)")
     ];
     private readonly IReadOnlyList<(HumanParticipationMode Value, string Label)> HumanParticipationModes =
     [
@@ -798,8 +817,8 @@
     {
         foreach (var role in _editor.Roles)
         {
-            role.MinimumAiParticipants = Math.Clamp(role.MinimumAiParticipants, 1, 100);
-            role.MaximumAiParticipants = Math.Clamp(role.MaximumAiParticipants, 1, 100);
+            role.MinimumAiParticipants = Math.Max(1, role.MinimumAiParticipants);
+            role.MaximumAiParticipants = Math.Max(1, role.MaximumAiParticipants);
             if (role.MinimumAiParticipants > role.MaximumAiParticipants)
                 role.MaximumAiParticipants = role.MinimumAiParticipants;
             if (!Enum.IsDefined(typeof(CouncilRoleAiSelectionMode), role.AiSelectionMode))
@@ -972,6 +991,22 @@
         _confirmed = false;
     }
 
+    /// <summary>Sets a provider-bound role to an exact invocation count without removing the more general minimum/maximum range controls.</summary>
+    /// <param name="roleIndex">Zero-based index of the role being edited.</param>
+    /// <param name="args">Change event containing the requested positive invocation count.</param>
+    private void SetExactRoleInvocationCount(int roleIndex, ChangeEventArgs args)
+    {
+        if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
+            return;
+        if (!int.TryParse(args.Value?.ToString(), out var count) || count < 1)
+            return;
+
+        var role = _editor.Roles[roleIndex];
+        role.MinimumAiParticipants = count;
+        role.MaximumAiParticipants = count;
+        _confirmed = false;
+    }
+
     private void RemoveRoleModel(int roleIndex, string selectionKey)
     {
         if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
@@ -989,11 +1024,23 @@
             .OrderBy(selectionKey => selectionKey, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+    /// <summary>Returns whether a role uses an exact provider-qualified model pool.</summary>
+    /// <param name="role">Role whose AI assignment policy is inspected.</param>
+    /// <returns><see langword="true"/> when the role binds exact provider model identities.</returns>
+    private static bool UsesProviderBoundRolePool(OrganicCouncilRoleDefinition role) =>
+        role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange;
+
+    /// <summary>Returns whether a role exposes the configurable minimum/maximum participant-count controls.</summary>
+    /// <param name="role">Role whose AI assignment policy is inspected.</param>
+    /// <returns><see langword="true"/> for unrestricted random selection or provider-pool random selection.</returns>
+    private static bool UsesRandomParticipantCount(OrganicCouncilRoleDefinition role) =>
+        role.AiSelectionMode is CouncilRoleAiSelectionMode.RandomRange or CouncilRoleAiSelectionMode.AssignedModelsRandomRange;
+
     private IReadOnlyList<MultiModelCouncilModelCandidate> WorkflowModelCandidates(CouncilWorkflowStepDefinition step)
     {
         var role = FindRolePolicy(step.Role);
         IEnumerable<MultiModelCouncilModelCandidate> candidates = _providerModels;
-        if (role is not null && role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels && role.AssignedModelKeys.Count > 0)
+        if (role is not null && UsesProviderBoundRolePool(role) && role.AssignedModelKeys.Count > 0)
         {
             candidates = candidates.Where(candidate =>
                 role.AssignedModelKeys.Contains(candidate.SelectionKey, StringComparer.OrdinalIgnoreCase));
@@ -1055,6 +1102,13 @@
             return "All selected AIs";
         if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels)
             return $"{role.AssignedModelKeys.Count} provider-bound AI" + (role.AssignedModelKeys.Count == 1 ? string.Empty : "s");
+        if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange)
+        {
+            var countText = role.MinimumAiParticipants == role.MaximumAiParticipants
+                ? role.MinimumAiParticipants.ToString()
+                : $"{role.MinimumAiParticipants}–{role.MaximumAiParticipants}";
+            return $"Random {countText} invocation(s) from {role.AssignedModelKeys.Count} provider-bound sage/model(s)";
+        }
         return role.MinimumAiParticipants == role.MaximumAiParticipants
             ? $"Random {role.MinimumAiParticipants} AI" + (role.MinimumAiParticipants == 1 ? string.Empty : "s")
             : $"Random {role.MinimumAiParticipants}–{role.MaximumAiParticipants} AIs";

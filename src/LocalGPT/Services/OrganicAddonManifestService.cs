@@ -22,7 +22,7 @@ public sealed class OrganicAddonManifestService(
     ILogger<OrganicAddonManifestService> logger) : IOrganicAddonManifestService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="OrganicAddonManifestService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {

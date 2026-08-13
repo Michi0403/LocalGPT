@@ -114,7 +114,7 @@ namespace LocalGPT.Services
 
                 var hasSavedBindings = team.Roles.Any(role =>
                         role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
-                        role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels &&
+                        (role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange) &&
                         role.AssignedModelKeys is { Count: > 0 }) ||
                     team.WorkflowSteps.Any(step =>
                         step.IsEnabled &&
@@ -129,7 +129,7 @@ namespace LocalGPT.Services
                     return;
 
                 var candidates = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
-                foreach (var role in team.Roles.Where(role => role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels))
+                foreach (var role in team.Roles.Where(role => role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange))
                 {
                     role.AssignedModelKeys ??= [];
                     role.AssignedModelKeys = role.AssignedModelKeys
@@ -167,7 +167,7 @@ namespace LocalGPT.Services
                 var configuredBindings = team.Roles
                     .Where(role =>
                         role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
-                        role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels)
+                        (role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange))
                     .SelectMany(role => role.AssignedModelKeys)
                     .Concat(team.WorkflowSteps
                         .Where(step =>
@@ -1099,10 +1099,73 @@ namespace LocalGPT.Services
                             .Where(value => participants.Contains(value, StringComparer.OrdinalIgnoreCase))
                             .ToList();
                     }
+                    else if (definition.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange)
+                    {
+                        var configuredModelKeys = definition.AssignedModelKeys
+                            .Where(value => !string.IsNullOrWhiteSpace(value))
+                            .Select(value => value.Trim())
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                        if (configuredModelKeys.Count == 0)
+                            throw new InvalidOperationException($"Role '{normalizedRole}' has random provider-pool assignment enabled but no model identity is saved.");
+
+                        var missingModelKeys = configuredModelKeys
+                            .Where(value => !participants.Contains(value, StringComparer.OrdinalIgnoreCase))
+                            .ToList();
+                        if (missingModelKeys.Count > 0)
+                        {
+                            throw new InvalidOperationException(
+                                $"Role '{normalizedRole}' requires provider-bound model(s) {string.Join(", ", missingModelKeys)}, but they are unavailable in this run. Refresh provider models or update the team assignment; LocalGPT will not substitute another host or model.");
+                        }
+
+                        var rolePool = BuildConfiguredRoleParticipantPool(definition, participants, assignments)
+                            .Where(value => configuredModelKeys.Contains(value, StringComparer.OrdinalIgnoreCase))
+                            .ToList();
+                        if (rolePool.Count == 0)
+                            throw new InvalidOperationException($"Role '{normalizedRole}' has no available provider-bound model after distinct-role exclusions.");
+
+                        var requestedMinimum = Math.Max(1, definition.MinimumAiParticipants);
+                        var requestedMaximum = Math.Max(requestedMinimum, definition.MaximumAiParticipants);
+                        int selectedCount;
+                        if (!string.IsNullOrWhiteSpace(definition.MatchAiParticipantCountToRole))
+                        {
+                            var matched = ResolveConfiguredRoleAssignment(
+                                result,
+                                request,
+                                team,
+                                definition.MatchAiParticipantCountToRole,
+                                participants,
+                                rolesByName,
+                                assignments,
+                                activeRoles);
+                            selectedCount = matched.AiParticipants.Count;
+                            if (selectedCount <= 0)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Role '{normalizedRole}' matches its AI participant count to role '{matched.RoleName}', but that role has no AI participant in this run.");
+                            }
+                        }
+                        else
+                        {
+                            selectedCount = DeterministicallySelectConfiguredRoleCount(
+                                result.RunId, team.Key, normalizedRole, requestedMinimum, requestedMaximum);
+                        }
+
+                        var pairingReservationMultiplier = GetConfiguredRolePairingReservationMultiplier(definition, rolesByName);
+                        if (pairingReservationMultiplier > 1 && selectedCount > rolePool.Count / pairingReservationMultiplier)
+                        {
+                            throw new InvalidOperationException(
+                                $"Role '{normalizedRole}' requests {selectedCount} provider-pool invocation(s), but its paired-role contract requires distinct partner capacity. " +
+                                "Lower this role count, enlarge the exact provider pool, or remove the distinct pairing requirement.");
+                        }
+
+                        selectedAiParticipants = DeterministicallySelectConfiguredRoleParticipantsWithRepeats(
+                            result.RunId, team.Key, normalizedRole, rolePool, selectedCount);
+                    }
                     else
                     {
-                        var requestedMinimum = Math.Clamp(definition.MinimumAiParticipants, 1, 100);
-                        var requestedMaximum = Math.Clamp(definition.MaximumAiParticipants, requestedMinimum, 100);
+                        var requestedMinimum = Math.Max(1, definition.MinimumAiParticipants);
+                        var requestedMaximum = Math.Max(requestedMinimum, definition.MaximumAiParticipants);
                         int selectedCount;
 
                         if (!string.IsNullOrWhiteSpace(definition.MatchAiParticipantCountToRole))
@@ -1158,11 +1221,8 @@ namespace LocalGPT.Services
                             if (effectiveMaximum <= 0)
                                 throw new InvalidOperationException($"Role '{normalizedRole}' has no available AI model in this run after paired-role reservations.");
 
-                            var seed = $"{result.RunId:N}|{team.Key}|{normalizedRole}";
-                            var countHash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(seed + "|count"));
-                            var countValue = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(countHash);
-                            var countRange = Math.Max(1, effectiveMaximum - effectiveMinimum + 1);
-                            selectedCount = effectiveMinimum + (int)(countValue % (uint)countRange);
+                            selectedCount = DeterministicallySelectConfiguredRoleCount(
+                                result.RunId, team.Key, normalizedRole, effectiveMinimum, effectiveMaximum);
                         }
 
                         if (selectedCount > selectablePoolCount)
@@ -1297,6 +1357,88 @@ namespace LocalGPT.Services
                     "Failed to calculate paired-role model reservation for configured role {RoleName} paired with {PairedRoleName}.",
                     definition.Role,
                     definition.PairedRole);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Chooses a stable pseudo-random participant count for one role and run without imposing a product-specific count ceiling.
+        /// </summary>
+        /// <param name="runId">Council run identifier used as deterministic entropy.</param>
+        /// <param name="teamKey">Stable team key that isolates the selection from other teams.</param>
+        /// <param name="roleName">Role name that isolates the selection from other roles.</param>
+        /// <param name="minimum">Inclusive configured minimum participant count.</param>
+        /// <param name="maximum">Inclusive configured maximum participant count.</param>
+        /// <returns>A deterministic count inside the inclusive configured interval.</returns>
+        private int DeterministicallySelectConfiguredRoleCount(
+            Guid runId,
+            string teamKey,
+            string roleName,
+            int minimum,
+            int maximum)
+        {
+            try
+            {
+                var normalizedMinimum = Math.Max(1, minimum);
+                var normalizedMaximum = Math.Max(normalizedMinimum, maximum);
+                var seed = $"{runId:N}|{teamKey}|{roleName}|count";
+                var hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(seed));
+                var value = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(hash);
+                var range = (ulong)((long)normalizedMaximum - normalizedMinimum + 1L);
+                return normalizedMinimum + (int)(value % range);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to select deterministic configured role count for team {TeamKey}, role {RoleName}.", teamKey, roleName);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Selects provider-bound role participants in deterministic shuffled cycles, allowing deliberate repeated invocations when the requested count exceeds the distinct pool size.
+        /// </summary>
+        /// <param name="runId">Council run identifier used as deterministic entropy.</param>
+        /// <param name="teamKey">Stable team key that isolates selection order from other teams.</param>
+        /// <param name="roleName">Role name that isolates selection order from other roles.</param>
+        /// <param name="pool">Exact provider-qualified model identities eligible for the role.</param>
+        /// <param name="selectedCount">Number of role invocations to produce; it may exceed the number of entries in <paramref name="pool"/>.</param>
+        /// <returns>An ordered participant list. Each cycle uses every pool member at most once before another shuffled cycle begins.</returns>
+        private IReadOnlyList<string> DeterministicallySelectConfiguredRoleParticipantsWithRepeats(
+            Guid runId,
+            string teamKey,
+            string roleName,
+            IReadOnlyList<string> pool,
+            int selectedCount)
+        {
+            try
+            {
+                if (selectedCount <= 0)
+                    return [];
+                if (pool.Count == 0)
+                    throw new InvalidOperationException($"Role '{roleName}' cannot select repeated provider-bound participants from an empty pool.");
+
+                var selected = new List<string>(selectedCount);
+                var seed = $"{runId:N}|{teamKey}|{roleName}|provider-pool";
+                for (var cycle = 0; selected.Count < selectedCount; cycle++)
+                {
+                    var cycleSeed = $"{seed}|cycle|{cycle}";
+                    var ordered = pool
+                        .OrderBy(model => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                            Encoding.UTF8.GetBytes(cycleSeed + "|member|" + model))))
+                        .ThenBy(model => model, StringComparer.OrdinalIgnoreCase);
+                    foreach (var model in ordered)
+                    {
+                        selected.Add(model);
+                        if (selected.Count == selectedCount)
+                            break;
+                    }
+                }
+
+                return selected;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to select repeated provider-bound participants for team {TeamKey}, role {RoleName}.", teamKey, roleName);
                 throw;
             }
         }
@@ -1501,6 +1643,13 @@ namespace LocalGPT.Services
                     return "all selected council AIs";
                 if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels)
                     return $"{role.AssignedModelKeys.Count} exact provider-bound AI model(s)";
+                if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModelsRandomRange)
+                {
+                    var countText = role.MinimumAiParticipants == role.MaximumAiParticipants
+                        ? Math.Max(1, role.MinimumAiParticipants).ToString()
+                        : $"{Math.Max(1, role.MinimumAiParticipants)}-{Math.Max(role.MinimumAiParticipants, role.MaximumAiParticipants)}";
+                    return $"deterministic-random {countText} invocation(s) from {role.AssignedModelKeys.Count} exact provider-bound AI model(s), cycling the pool when needed";
+                }
                 return role.MinimumAiParticipants == role.MaximumAiParticipants
                     ? $"deterministic-random {Math.Max(1, role.MinimumAiParticipants)} AI member(s) per run"
                     : $"deterministic-random {Math.Max(1, role.MinimumAiParticipants)}-{Math.Max(role.MinimumAiParticipants, role.MaximumAiParticipants)} AI member(s) per run";
@@ -2662,6 +2811,16 @@ namespace LocalGPT.Services
                         bootstrap,
                         cancellationToken).ConfigureAwait(false);
                     var executionMode = NormalizeConfiguredExecutionMode(definition.ExecutionMode);
+                    var hasRepeatedRoleParticipants = roleParticipants.Count != roleParticipants
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Count();
+                    if (hasRepeatedRoleParticipants &&
+                        executionMode is "AllMembersParallel" or "AllMembersSequentialOnEachAIHostParallel")
+                    {
+                        executionMode = "AllMembersSequential";
+                        request.ProgressMessage?.Invoke(
+                            $"Configured role '{roleAssignment.RoleName}' contains repeated provider-bound invocations. LocalGPT executes those repeated turns sequentially so live-stream, heartbeat and activity identities remain unambiguous.");
+                    }
                     var xRoundActive = definition.XFunctionsEnabled && effectiveAllowDxFunctions;
                     if (xRoundActive)
                     {

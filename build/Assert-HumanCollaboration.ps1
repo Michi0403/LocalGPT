@@ -96,7 +96,7 @@ if (-not ($layout.IndexOf('<HumanCollaborationInbox />', [System.StringCompariso
 
 $humanInbox = Read-RequiredText 'src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor'
 $humanInboxCss = Read-RequiredText 'src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor.css'
-foreach ($token in @('human-approval-bar', 'Review and work through', 'PendingRequests.Count > 0', 'OpenApprovalPanel', 'HideApprovalBar')) {
+foreach ($token in @('human-approval-bar', 'Review and work through', 'PendingRequests.Count > 0', 'OpenApprovalPanel', 'HideApprovalBar', 'QueueDeferredApprovedExecution', 'Approved deferred function calls were queued without blocking')) {
     if (-not ($humanInbox.IndexOf($token, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Human approval work bar must retain '$token'.")
     }
@@ -185,6 +185,12 @@ foreach ($required in @(
     if (-not ($registry.IndexOf($required, [System.StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("DXAI collaboration architecture must retain '$required'.")
     }
+}
+if (-not ($registry.IndexOf('consolidate one missing topic instead of repeating equivalent questions', [System.StringComparison]::Ordinal) -ge 0)) {
+    $errors.Add('Human collaboration DXFunction must instruct Council members to consolidate repeated questions.')
+}
+if ($registry.IndexOf('TargetMembers = targetMembers', [System.StringComparison]::Ordinal) -ge 0) {
+    $errors.Add('Equivalent human collaboration questions must not fingerprint target-member presentation scope as separate human work.')
 }
 
 $descriptor = Read-RequiredText 'src/LocalGPT/BusinessObjects/DxaichatFunctionInfo.cs'

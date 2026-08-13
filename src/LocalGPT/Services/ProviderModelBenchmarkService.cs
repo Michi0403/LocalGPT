@@ -40,13 +40,16 @@ public sealed class ProviderModelBenchmarkService(
             .Where(model => model is not null && model.SupportsBenchmark && !string.IsNullOrWhiteSpace(model.ModelName))
             .GroupBy(model => model.SelectionKey, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
-            .Take(24)
             .ToList();
         var reviewers = request.CouncilReviewers
             .Where(model => model is not null && model.SupportsBenchmark && !string.IsNullOrWhiteSpace(model.ModelName))
             .GroupBy(model => model.SelectionKey, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
-            .Take(Math.Clamp(request.MaxCouncilReviewers, 0, 8))
+            .OrderBy(GetReviewerPriority)
+            .ThenBy(model => model.ProviderName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(model => model.Endpoint, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(model => model.ModelName, StringComparer.OrdinalIgnoreCase)
+            .Take(Math.Max(0, request.MaxCouncilReviewers))
             .ToList();
         report.CouncilMembers = reviewers.Select(model => model.SelectionKey).ToList();
 
@@ -57,17 +60,17 @@ public sealed class ProviderModelBenchmarkService(
             return report;
         }
 
-        var maxProfiles = Math.Clamp(request.MaxProfilesPerModel, 1, 6);
+        var maxProfiles = Math.Max(1, request.MaxProfilesPerModel);
         var maxTasks = Math.Clamp(request.MaxTasks, 1, 4);
         var maxSeconds = Math.Clamp(request.MaxSecondsPerCall, 10, 900);
         var maximumContext = Math.Clamp(request.MaximumContextTokens, 2048, 262144);
         var maximumOutput = Math.Clamp(request.MaximumOutputTokens, 128, 8192);
         var threshold = Math.Clamp(request.ImprovementThresholdPercent, 0d, 50d);
         var tasks = BuildTasks().Take(maxTasks).ToList();
-        var maximumMeasurementCalls = targets.Count * maxProfiles * tasks.Count;
+        var maximumMeasurementCalls = (long)targets.Count * maxProfiles * tasks.Count;
         var maximumReviewCalls = request.IncludeCouncilReview
-            ? targets.Count * Math.Clamp(request.MaxCouncilReviewers, 1, 8)
-            : 0;
+            ? (long)targets.Count * Math.Max(0, request.MaxCouncilReviewers)
+            : 0L;
         var maximumCallCount = maximumMeasurementCalls + maximumReviewCalls;
         var maximumBoundedDuration = TimeSpan.FromSeconds((long)maximumCallCount * maxSeconds);
         var maximumBoundedDurationText = maximumBoundedDuration.TotalHours >= 1d
@@ -78,8 +81,7 @@ public sealed class ProviderModelBenchmarkService(
         sessionMembers.AddRange(targets
             .Concat(reviewers)
             .GroupBy(model => model.SelectionKey, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First().DisplayName)
-            .Take(11));
+            .Select(group => group.First().DisplayName));
 
         var initialTranscript = $"""
             ## Provider Benchmark Council
@@ -88,7 +90,7 @@ public sealed class ProviderModelBenchmarkService(
 
             The benchmark is provider-qualified: every request stays bound to its selected provider endpoint and model identity. Automatic DXFunctions are disabled during measurements so tool negotiation cannot distort latency or quality results.
 
-            Configured upper bound: up to {maximumCallCount} provider calls and {maximumBoundedDurationText} if every call reaches its timeout. Normal responses and the improvement stop rule shorten the run.
+            Configured upper bound: up to {maximumCallCount} provider calls and {maximumBoundedDurationText} if every call reaches its timeout. Normal responses shorten the run{(request.StopWhenImprovementStalls ? ", and the enabled improvement stop rule may stop a target before its final profile" : string.Empty)}.
 
             """;
         var liveCancellation = liveSessions.Begin(
@@ -125,7 +127,7 @@ public sealed class ProviderModelBenchmarkService(
 
                 try
                 {
-                    var profiles = BuildProfiles(target, maximumContext, maximumOutput).Take(maxProfiles).ToList();
+                    var profiles = BuildProfiles(target, request, maxProfiles, maximumContext, maximumOutput).ToList();
                     var bestScore = double.MinValue;
                     var consecutiveNonImprovingProfiles = 0;
                     for (var profileIndex = 0; profileIndex < profiles.Count; profileIndex++)
@@ -173,7 +175,9 @@ public sealed class ProviderModelBenchmarkService(
 
                         // Profiles are cheap and bounded. Run at least four so the Ollama CPU control and a
                         // quality profile are not skipped merely because the low-latency profile was faster.
-                        if (profileIndex >= 3 && consecutiveNonImprovingProfiles >= 2)
+                        if (request.StopWhenImprovementStalls &&
+                            profileIndex >= 3 &&
+                            consecutiveNonImprovingProfiles >= 2)
                         {
                             targetResult.StoppedBecauseImprovementWasBelowThreshold = true;
                             Publish("  - Remaining profiles skipped because two consecutive profiles stayed below the configured improvement threshold.");
@@ -201,7 +205,7 @@ public sealed class ProviderModelBenchmarkService(
                             effectiveReviewers.Add(target);
 
                         var boundedReviewers = effectiveReviewers
-                            .Take(Math.Clamp(request.MaxCouncilReviewers, 1, 8))
+                            .Take(Math.Max(0, request.MaxCouncilReviewers))
                             .ToList();
                         Publish($"- Council review: {boundedReviewers.Count} reviewer(s) will inspect the best profile **{best.ProfileName}**.");
                         for (var reviewerIndex = 0; reviewerIndex < boundedReviewers.Count; reviewerIndex++)
@@ -585,12 +589,16 @@ public sealed class ProviderModelBenchmarkService(
     /// <summary>
     /// Builds profiles as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
-    /// <param name="model">Model value supplied to the provider model benchmark operation and used when producing its result.</param>
-    /// <param name="maximumContext">Maximum context value supplied to the provider model benchmark operation and used when producing its result.</param>
-    /// <param name="maximumOutput">Maximum output value supplied to the provider model benchmark operation and used when producing its result.</param>
-    /// <returns>The collection produced by the operation.</returns>
+    /// <param name="model">Provider-qualified target whose provider capabilities influence adaptive control profiles.</param>
+    /// <param name="request">Benchmark request containing the selected profile-generation policy and lower token bounds.</param>
+    /// <param name="profileCount">Number of generated profile points requested for this target.</param>
+    /// <param name="maximumContext">Inclusive context-token endpoint used by generated profiles.</param>
+    /// <param name="maximumOutput">Inclusive output-token endpoint used by generated profiles.</param>
+    /// <returns>Ordered benchmark profiles that preserve adaptive legacy behavior or evenly divide the requested token interval.</returns>
     private IReadOnlyList<BenchmarkProfile> BuildProfiles(
         ProviderModelReference model,
+        ProviderModelBenchmarkRequest request,
+        int profileCount,
         int maximumContext,
         int maximumOutput)
     {
@@ -608,15 +616,40 @@ public sealed class ProviderModelBenchmarkService(
                 profiles.Add(new BenchmarkProfile(name, context, output, numGpu));
             }
 
+            if (request.ProfileMode == ProviderModelBenchmarkProfileMode.EvenlySpaced)
+            {
+                var minimumContext = Math.Clamp(request.MinimumContextTokens, 2048, maximumContext);
+                var minimumOutput = Math.Clamp(request.MinimumOutputTokens, 128, maximumOutput);
+                var steps = Math.Max(1, profileCount);
+                for (var index = 0; index < steps; index++)
+                {
+                    var ratio = steps == 1 ? 1d : index / (double)(steps - 1);
+                    var context = Math.Clamp(
+                        (int)Math.Round(minimumContext + ((maximumContext - minimumContext) * ratio)),
+                        minimumContext,
+                        maximumContext);
+                    var output = Math.Clamp(
+                        (int)Math.Round(minimumOutput + ((maximumOutput - minimumOutput) * ratio)),
+                        minimumOutput,
+                        maximumOutput);
+                    Add($"Even step {index + 1}/{steps}", context, output);
+                }
+
+                return profiles;
+            }
+
             Add("Low latency", Math.Min(2048, maximumContext), Math.Min(256, maximumOutput));
             Add("Balanced", Math.Min(4096, maximumContext), Math.Min(512, maximumOutput));
-            if (model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+            if (request.IncludeCpuSafeControl &&
+                model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+            {
                 Add("CPU-safe control", Math.Min(4096, maximumContext), Math.Min(512, maximumOutput), 0);
+            }
             Add("Quality", Math.Min(8192, maximumContext), Math.Min(768, maximumOutput));
             Add("Maximum bounded", maximumContext, maximumOutput);
 
-            return profiles;
-    
+            return profiles.Take(profileCount).ToList();
+
     }
     catch (Exception __serviceMethodException)
     {
@@ -627,6 +660,44 @@ public sealed class ProviderModelBenchmarkService(
         throw;
     }
 }
+
+    /// <summary>
+    /// Returns a stable default reviewer priority that prefers capable general/code reviewers over tiny benchmark targets.
+    /// </summary>
+    /// <param name="model">Provider-qualified model candidate being ranked for the reviewer pool.</param>
+    /// <returns>A lower value for models that should be preferred as default reviewers.</returns>
+    private int GetReviewerPriority(ProviderModelReference model)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(model);
+            var name = model.ModelName ?? string.Empty;
+            if (name.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
+                return 0;
+            if (name.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
+                return 1;
+            if (name.Contains("qwen", StringComparison.OrdinalIgnoreCase) &&
+                name.Contains("coder", StringComparison.OrdinalIgnoreCase))
+                return 2;
+            if (name.Contains("deepseek", StringComparison.OrdinalIgnoreCase) &&
+                name.Contains("coder", StringComparison.OrdinalIgnoreCase))
+                return 3;
+            if (name.Contains("openthinker", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("qwen", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("gemma", StringComparison.OrdinalIgnoreCase))
+                return 4;
+            if (name.Contains("deepscaler", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("1.5b", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("0.8b", StringComparison.OrdinalIgnoreCase))
+                return 20;
+            return 10;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Ranking provider benchmark reviewer priority failed; provider identity details were omitted.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs score quality as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.

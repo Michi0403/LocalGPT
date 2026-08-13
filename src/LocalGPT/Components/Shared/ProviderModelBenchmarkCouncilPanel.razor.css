@@ -40,7 +40,8 @@
     font-weight: 650;
 }
 
-.benchmark-council-config input {
+.benchmark-council-config input,
+.benchmark-council-config select {
     min-height: 2.4rem;
     width: 100%;
     padding: .35rem .5rem;
@@ -48,6 +49,58 @@
     background: var(--bs-body-bg, Canvas);
     border: 1px solid var(--bs-border-color, #ccd2da);
     border-radius: .45rem;
+}
+
+
+.benchmark-option {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    align-self: end;
+    min-height: 2.55rem;
+}
+
+.benchmark-option input {
+    width: 1.1rem;
+    min-height: 1.1rem;
+}
+
+.benchmark-reviewer-picker {
+    min-width: 0;
+    padding: .6rem .7rem;
+    border: 1px solid var(--bs-border-color, #ccd2da);
+    border-radius: .6rem;
+    background: var(--bs-body-bg, Canvas);
+}
+
+.benchmark-reviewer-picker > summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.benchmark-reviewer-picker > p {
+    margin: .5rem 0;
+    color: var(--bs-secondary-color, #666);
+}
+
+.benchmark-reviewer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: .35rem .7rem;
+    max-height: 18rem;
+    overflow: auto;
+}
+
+.benchmark-reviewer-grid label {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: .45rem;
+    min-width: 0;
+    font-weight: 500;
+}
+
+.benchmark-reviewer-grid span {
+    overflow-wrap: anywhere;
 }
 
 .benchmark-council-actions {
@@ -80,7 +133,9 @@
 
 .benchmark-council-actions button:focus-visible,
 .benchmark-live-session-link:focus-visible,
-.benchmark-council-config input:focus-visible {
+.benchmark-council-config input:focus-visible,
+.benchmark-council-config select:focus-visible,
+.benchmark-reviewer-picker input:focus-visible {
     outline: .2rem solid color-mix(in srgb, var(--bs-primary, Highlight) 45%, transparent);
     outline-offset: .12rem;
 }

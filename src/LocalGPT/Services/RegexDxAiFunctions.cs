@@ -201,9 +201,6 @@ public sealed class UpsertRegexPatternFunction(IRegexPatternService regexPattern
         "Creates or updates a named regex in LocalGPT's SQLite knowledge-maintenance catalog.",
         "JSON parameters: name and pattern required; flags optional (i,m,s,x,n,c,compiled,ecmascript).",
         "Knowledge self-maintenance only. The pattern is compiled with a timeout before storage, cannot execute commands, and does not authorize project/file access.",
-        /// <summary>
-        /// Stores the internal true state used by <see cref="UpsertRegexPatternFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,

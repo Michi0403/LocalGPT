@@ -24,7 +24,7 @@ public sealed class CouncilTeamConfigurationService(
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 18;
+    private const int CurrentSeedVersion = 19;
     /// <summary>
     /// Defines the max roles constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
@@ -37,10 +37,6 @@ public sealed class CouncilTeamConfigurationService(
     /// Defines the max expanded workflow steps constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     private const int MaxExpandedWorkflowSteps = 100;
-    /// <summary>
-    /// Defines the max AI participants per role constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxAiParticipantsPerRole = 100;
     /// <summary>
     /// Stores the in-memory supported execution modes collection maintained internally by <see cref="CouncilTeamConfigurationService"/> for its current workflow state.
     /// </summary>
@@ -333,8 +329,8 @@ public sealed class CouncilTeamConfigurationService(
                     .Where(value => value.Length > 0)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                role.MinimumAiParticipants = Math.Clamp(role.MinimumAiParticipants, 1, MaxAiParticipantsPerRole);
-                role.MaximumAiParticipants = Math.Clamp(role.MaximumAiParticipants, role.MinimumAiParticipants, MaxAiParticipantsPerRole);
+                role.MinimumAiParticipants = Math.Max(1, role.MinimumAiParticipants);
+                role.MaximumAiParticipants = Math.Max(role.MinimumAiParticipants, role.MaximumAiParticipants);
             }
 
             foreach (var step in team.WorkflowSteps)
@@ -435,20 +431,20 @@ public sealed class CouncilTeamConfigurationService(
                 if (!Enum.IsDefined(typeof(CouncilRoleBoundaryMode), role.BoundaryMode))
                     role.BoundaryMode = CouncilRoleBoundaryMode.Bounded;
 
-                role.MinimumAiParticipants = Math.Clamp(role.MinimumAiParticipants, 1, MaxAiParticipantsPerRole);
-                role.MaximumAiParticipants = Math.Clamp(role.MaximumAiParticipants, 1, MaxAiParticipantsPerRole);
-                if (role.AiSelectionMode == CouncilRoleAiSelectionMode.RandomRange &&
+                role.MinimumAiParticipants = Math.Max(1, role.MinimumAiParticipants);
+                role.MaximumAiParticipants = Math.Max(1, role.MaximumAiParticipants);
+                if ((role.AiSelectionMode is CouncilRoleAiSelectionMode.RandomRange or CouncilRoleAiSelectionMode.AssignedModelsRandomRange) &&
                     role.MinimumAiParticipants > role.MaximumAiParticipants)
                 {
                     throw new InvalidOperationException(
                         $"Role '{role.Role}' has a minimum AI participant count greater than its maximum.");
                 }
-                if (role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels &&
+                if ((role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange) &&
                     role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
                     role.AssignedModelKeys.Count == 0)
                 {
                     throw new InvalidOperationException(
-                        $"Role '{role.Role}' uses provider-bound AI assignment but has no provider-qualified model selected.");
+                        $"Role '{role.Role}' uses a provider-bound AI pool but has no provider-qualified model selected.");
                 }
             }
 
@@ -543,10 +539,10 @@ public sealed class CouncilTeamConfigurationService(
                     {
                         if (stepRole.HumanParticipationMode == HumanParticipationMode.HumanOnly)
                             throw new InvalidOperationException($"Workflow step '{step.DisplayName}' cannot use AssignedModelSingle because role '{step.Role}' is human-only.");
-                        if (stepRole.AiSelectionMode == CouncilRoleAiSelectionMode.RandomRange)
+                        if (stepRole.AiSelectionMode is CouncilRoleAiSelectionMode.RandomRange or CouncilRoleAiSelectionMode.AssignedModelsRandomRange)
                         {
                             throw new InvalidOperationException(
-                                $"Workflow step '{step.DisplayName}' uses AssignedModelSingle, but role '{step.Role}' selects random members. Use provider-bound role models or AllSelected so the exact assigned model is guaranteed to belong to the role.");
+                                $"Workflow step '{step.DisplayName}' uses AssignedModelSingle, but role '{step.Role}' selects a random subset. Use AllSelected or the all-exact-model provider assignment so the exact assigned model is guaranteed to belong to the role.");
                         }
                         if (stepRole.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels &&
                             !stepRole.AssignedModelKeys.Contains(step.AssignedModelName, StringComparer.OrdinalIgnoreCase))

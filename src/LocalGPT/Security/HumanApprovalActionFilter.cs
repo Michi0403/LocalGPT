@@ -37,7 +37,7 @@ public sealed class HumanApprovalActionFilter(
     ILogger<HumanApprovalActionFilter> logger) : IAsyncActionFilter
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal fingerprint JSON options state used by <see cref="HumanApprovalActionFilter"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions FingerprintJsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -45,7 +45,7 @@ public sealed class HumanApprovalActionFilter(
         PropertyNameCaseInsensitive = true
     };
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the in-memory confirmation member names collection maintained internally by <see cref="HumanApprovalActionFilter"/> for its current workflow state.
     /// </summary>
     private readonly HashSet<string> ConfirmationMemberNames = new(StringComparer.OrdinalIgnoreCase)
     {

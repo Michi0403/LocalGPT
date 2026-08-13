@@ -470,16 +470,48 @@
             statusText = resolved is null ? "The request no longer exists." : $"Decision saved as {resolved.Status}.";
             if (approved == true && resolved is not null)
             {
-                var outcomes = await DeferredDxInvocations.ExecuteApprovedForApprovalRequestAsync(request.Id).ConfigureAwait(false);
-                if (outcomes.Count > 0)
-                {
-                    recentDeferredResults.Clear();
-                    recentDeferredResults.AddRange(outcomes.Select(ToDeferredResultView));
-                    statusText += $" Executed {outcomes.Count} approved deferred function call(s) immediately.";
-                }
+                QueueDeferredApprovedExecution(request.Id);
+                statusText += " Approved deferred function calls were queued without blocking this collaboration panel.";
             }
             Notifier.ShowInfo("HumanCollaborationToasts", statusText, "Human decision saved");
         }).ConfigureAwait(false);
+    }
+
+
+    /// <summary>
+    /// Starts approved deferred DXFunction work outside the Blazor renderer so a long-running function cannot hold the Human Collaboration controls in a busy state.
+    /// </summary>
+    /// <param name="approvalRequestId">Identifier of the saved human approval whose deferred operations should execute.</param>
+    private void QueueDeferredApprovedExecution(Guid approvalRequestId)
+    {
+        TaskRunner.Run(
+            nameof(HumanCollaborationInbox),
+            "ExecuteApprovedDeferredCalls",
+            async cancellationToken =>
+            {
+                var outcomes = await DeferredDxInvocations
+                    .ExecuteApprovedForApprovalRequestAsync(approvalRequestId, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+                if (outcomes.Count == 0 || isDisposed)
+                    return;
+
+                try
+                {
+                    await InvokeAsync(() =>
+                    {
+                        recentDeferredResults.Clear();
+                        recentDeferredResults.AddRange(outcomes.Select(ToDeferredResultView));
+                        statusText = $"Completed {outcomes.Count} approved deferred function call(s).";
+                        Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Approved operation completed");
+                        StateHasChanged();
+                    }).ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException) when (isDisposed)
+                {
+                    // The approved operation is complete; only its former circuit disappeared.
+                }
+            },
+            CancellationToken.None);
     }
 
     private async Task RunHumanUiOperationAsync(string operation, Func<Task> action)
@@ -506,6 +538,8 @@
         finally
         {
             isBusy = false;
+            if (!isDisposed)
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
         }
     }
 

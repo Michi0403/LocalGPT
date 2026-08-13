@@ -308,9 +308,6 @@ public sealed class WriteArtifactWorkspaceFileFunction(
         "Writes one reviewed plain-text/source file into an existing generated artifact workspace. This is the direct fallback route for generated C#, JavaScript, PowerShell (.ps1), SQL, Razor and other configured text files when CodeDOM is unsuitable or unavailable.",
         "JSON parameters: workspaceName, relativePath and content are required. The relative extension must exist in the database-provisioned ArtifactTextExtensions collection.",
         "Writes only inside the selected generated workspace and never executes, imports, builds, launches or installs the written file. Fresh human approval is required for the exact write.",
-        /// <summary>
-        /// Stores the internal true state used by <see cref="WriteArtifactWorkspaceFileFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -417,9 +414,6 @@ public sealed class RefreshArtifactWorkspaceZipFunction(
         "Refreshes the downloadable ZIP from the current generated source workspace after reviewed file edits.",
         "JSON parameters: workspaceName required.",
         "Creates a ZIP under CouncilArtifacts without executing workspace content. Fresh human approval is required for this exact filesystem mutation.",
-        /// <summary>
-        /// Stores the internal true state used by <see cref="RefreshArtifactWorkspaceZipFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,

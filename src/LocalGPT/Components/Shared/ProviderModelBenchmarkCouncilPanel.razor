@@ -15,13 +15,59 @@
     </header>
 
     <div class="benchmark-council-config">
-        <BoundedNumberEditor Label="Profiles per model" Min="1" Max="6" Value="@maxProfiles" ValueChanged="@(value => maxProfiles = value)" />
+        <label>
+            <span>Profile plan</span>
+            <select class="form-select" @bind="profileMode">
+                <option value="@ProviderModelBenchmarkProfileMode.EvenlySpaced">Evenly spaced to maximum</option>
+                <option value="@ProviderModelBenchmarkProfileMode.Adaptive">Adaptive named profiles (legacy)</option>
+            </select>
+        </label>
+        <label>
+            <span>@(profileMode == ProviderModelBenchmarkProfileMode.EvenlySpaced ? "Even steps per model" : "Adaptive profiles per model")</span>
+            <input class="form-control" type="number" min="1" step="1" @bind="maxProfiles" />
+        </label>
         <BoundedNumberEditor Label="Tasks per profile" Min="1" Max="4" Value="@maxTasks" ValueChanged="@(value => maxTasks = value)" />
         <BoundedNumberEditor Label="Timeout seconds" Min="10" Max="900" Step="10" Suffix=" s" Value="@maxSeconds" ValueChanged="@(value => maxSeconds = value)" />
         <BoundedNumberEditor Label="Stop threshold" Min="0" Max="50" Suffix="%" Value="@improvementThreshold" ValueChanged="@(value => improvementThreshold = value)" />
-        <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="@(value => maximumContext = value)" />
-        <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="@(value => maximumOutput = value)" />
+        @if (profileMode == ProviderModelBenchmarkProfileMode.EvenlySpaced)
+        {
+            <BoundedNumberEditor Label="Minimum context" Min="2048" Max="@maximumContext" Step="1024" Value="@minimumContext" ValueChanged="@(value => minimumContext = value)" />
+            <BoundedNumberEditor Label="Minimum output" Min="128" Max="@maximumOutput" Step="128" Value="@minimumOutput" ValueChanged="@(value => minimumOutput = value)" />
+        }
+        <BoundedNumberEditor Label="Maximum context" Min="2048" Max="262144" Step="1024" Value="@maximumContext" ValueChanged="OnMaximumContextChanged" />
+        <BoundedNumberEditor Label="Maximum output" Min="128" Max="8192" Step="128" Value="@maximumOutput" ValueChanged="OnMaximumOutputChanged" />
+        <label class="benchmark-option">
+            <input type="checkbox" @bind="stopWhenImprovementStalls" />
+            <span>Allow improvement-based early stop</span>
+        </label>
+        @if (profileMode == ProviderModelBenchmarkProfileMode.Adaptive)
+        {
+            <label class="benchmark-option">
+                <input type="checkbox" @bind="includeCpuSafeControl" />
+                <span>Include Ollama CPU-safe control</span>
+            </label>
+        }
+        <label>
+            <span>Reviewers per recommendation</span>
+            <input class="form-control" type="number" min="0" step="1" @bind="maxCouncilReviewers" />
+        </label>
     </div>
+
+    <details class="benchmark-reviewer-picker">
+        <summary>Benchmark Council reviewer pool (@SelectedReviewerCount selected)</summary>
+        <p>Provider-qualified reviewers are independent from benchmark targets. gpt-oss:20b is preferred by default when available; deepscaler/tiny models are not preferred unless you select them.</p>
+        <div class="benchmark-reviewer-grid">
+            @foreach (var reviewer in Models.OrderBy(DefaultReviewerPriority).ThenBy(model => model.DisplayName, StringComparer.OrdinalIgnoreCase))
+            {
+                <label>
+                    <input type="checkbox"
+                           checked="@reviewerSelectionKeys.Contains(reviewer.SelectionKey)"
+                           @onchange="args => ToggleReviewer(reviewer.SelectionKey, args)" />
+                    <span>@reviewer.DisplayName</span>
+                </label>
+            }
+        </div>
+    </details>
 
     <div class="benchmark-council-actions">
         <button type="button" class="btn btn-primary" disabled="@(isBusy || Models.Count == 0)" @onclick="RunAsync">Benchmark all selected models</button>
@@ -77,12 +123,19 @@
     [Parameter] public EventCallback<Guid> BenchmarkStarted { get; set; }
 
     readonly string HeadingId = $"benchmark-council-{Guid.NewGuid():N}";
+    ProviderModelBenchmarkProfileMode profileMode = ProviderModelBenchmarkProfileMode.EvenlySpaced;
     int maxProfiles = 5;
     int maxTasks = 3;
     int maxSeconds = 180;
     int improvementThreshold = 5;
+    int minimumContext = 2048;
+    int minimumOutput = 128;
     int maximumContext = 32768;
     int maximumOutput = 1024;
+    int maxCouncilReviewers = 2;
+    bool includeCpuSafeControl = true;
+    bool stopWhenImprovementStalls;
+    readonly HashSet<string> reviewerSelectionKeys = new(StringComparer.OrdinalIgnoreCase);
     bool isBusy;
     string statusText = string.Empty;
     ProviderModelBenchmarkReport? report;
@@ -110,6 +163,20 @@
             activeRunId = null;
             statusText = "Selection changed. Run Benchmark Council again before applying recommendations.";
         }
+
+        var availableReviewerKeys = Models.Select(model => model.SelectionKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        reviewerSelectionKeys.RemoveWhere(key => !availableReviewerKeys.Contains(key));
+        if (reviewerSelectionKeys.Count == 0)
+        {
+            foreach (var reviewer in Models
+                .OrderBy(DefaultReviewerPriority)
+                .ThenBy(model => model.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .Take(Math.Min(2, Models.Count)))
+            {
+                reviewerSelectionKeys.Add(reviewer.SelectionKey);
+            }
+        }
+
         modelSignature = nextSignature;
     }
 
@@ -128,15 +195,20 @@
             {
                 RunId = activeRunId.Value,
                 Targets = Models.ToList(),
-                CouncilReviewers = Models.ToList(),
-                MaxProfilesPerModel = maxProfiles,
+                CouncilReviewers = Models.Where(model => reviewerSelectionKeys.Contains(model.SelectionKey)).ToList(),
+                MaxProfilesPerModel = Math.Max(1, maxProfiles),
+                ProfileMode = profileMode,
+                MinimumContextTokens = minimumContext,
+                MinimumOutputTokens = minimumOutput,
+                IncludeCpuSafeControl = includeCpuSafeControl,
+                StopWhenImprovementStalls = stopWhenImprovementStalls,
                 MaxTasks = maxTasks,
-                MaxCouncilReviewers = Math.Min(3, Math.Max(1, Models.Count - 1)),
+                MaxCouncilReviewers = Math.Max(0, maxCouncilReviewers),
                 MaxSecondsPerCall = maxSeconds,
                 ImprovementThresholdPercent = improvementThreshold,
                 MaximumContextTokens = maximumContext,
                 MaximumOutputTokens = maximumOutput,
-                IncludeCouncilReview = true
+                IncludeCouncilReview = maxCouncilReviewers > 0 && reviewerSelectionKeys.Count > 0
             }, benchmarkCts.Token);
             await InvokeAsync(() => BenchmarkStarted.InvokeAsync(activeRunId.Value)).ConfigureAwait(false);
             var completedReport = await benchmarkTask.ConfigureAwait(false);
@@ -195,6 +267,49 @@
         {
             isBusy = false;
         }
+    }
+
+    int SelectedReviewerCount => reviewerSelectionKeys.Count;
+
+    void ToggleReviewer(string selectionKey, ChangeEventArgs args)
+    {
+        var selected = args.Value is bool value && value;
+        if (selected)
+            reviewerSelectionKeys.Add(selectionKey);
+        else
+            reviewerSelectionKeys.Remove(selectionKey);
+    }
+
+    Task OnMaximumContextChanged(int value)
+    {
+        maximumContext = value;
+        minimumContext = Math.Min(minimumContext, maximumContext);
+        return Task.CompletedTask;
+    }
+
+    Task OnMaximumOutputChanged(int value)
+    {
+        maximumOutput = value;
+        minimumOutput = Math.Min(minimumOutput, maximumOutput);
+        return Task.CompletedTask;
+    }
+
+    static int DefaultReviewerPriority(ProviderModelReference model)
+    {
+        var name = model.ModelName ?? string.Empty;
+        if (name.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
+            return 0;
+        if (name.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
+            return 1;
+        if (name.Contains("qwen", StringComparison.OrdinalIgnoreCase) && name.Contains("coder", StringComparison.OrdinalIgnoreCase))
+            return 2;
+        if (name.Contains("deepseek", StringComparison.OrdinalIgnoreCase) && name.Contains("coder", StringComparison.OrdinalIgnoreCase))
+            return 3;
+        if (name.Contains("deepscaler", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("1.5b", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("0.8b", StringComparison.OrdinalIgnoreCase))
+            return 20;
+        return 10;
     }
 
     void Cancel() => benchmarkCts?.Cancel();

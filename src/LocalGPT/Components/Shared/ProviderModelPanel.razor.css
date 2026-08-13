@@ -35,7 +35,7 @@
 .provider-model-benchmark { display: grid; gap: .7rem; padding-top: .6rem; border-top: 1px solid var(--bs-border-color, #7776); }
 .benchmark-config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .55rem; }
 .benchmark-config-grid label { display: grid; gap: .2rem; }
-.benchmark-config-grid input[type="number"] { width: 100%; min-height: 2.2rem; }
+.benchmark-config-grid input[type="number"], .benchmark-config-grid select { width: 100%; min-height: 2.2rem; }
 .benchmark-config-grid .benchmark-check { display: flex; align-items: center; gap: .45rem; }
 .benchmark-council-summary, .benchmark-status { margin: 0; overflow-wrap: anywhere; }
 .benchmark-result { display: grid; gap: .35rem; }

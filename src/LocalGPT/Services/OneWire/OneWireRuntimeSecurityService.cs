@@ -38,6 +38,9 @@ public sealed class OneWireRuntimeSecurityService(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter() }
     };
+    /// <summary>
+    /// Stores the internal cached state used by <see cref="OneWireRuntimeSecurityService"/> while executing its surrounding workflow.
+    /// </summary>
     private OneWireRuntimeSecretFile? cached;
     /// <summary>
     /// Stores the internal resolved path state used by <see cref="OneWireRuntimeSecurityService"/> while executing its surrounding workflow.

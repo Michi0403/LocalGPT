@@ -25,9 +25,6 @@ public sealed class InvokeOrganicPluginFunction(
     /// </summary>
     /// <value>The descriptor value exposed by <see cref="InvokeOrganicPluginFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
-        /// <summary>
-        /// Stores the internal true state used by <see cref="InvokeOrganicPluginFunction"/> while executing its surrounding workflow.
-        /// </summary>
         Name: "organic.plugin.invoke",
         Method: "POST",
         Route: "/api/onewire/peers/{peerId}/invoke",
@@ -155,9 +152,6 @@ public sealed class InspectPublisherSpreadsheetFunction(
     /// </summary>
     /// <value>The descriptor value exposed by <see cref="InspectPublisherSpreadsheetFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
-        /// <summary>
-        /// Stores the internal true state used by <see cref="InspectPublisherSpreadsheetFunction"/> while executing its surrounding workflow.
-        /// </summary>
         Name: "publisher.spreadsheet.inspect",
         Method: "POST",
         Route: "/api/onewire/peers/connected/spreadsheet/inspect",
@@ -266,9 +260,6 @@ public sealed class ProposePublisherTextFunction(
     /// </summary>
     /// <value>The descriptor value exposed by <see cref="ProposePublisherTextFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
-        /// <summary>
-        /// Stores the internal true state used by <see cref="ProposePublisherTextFunction"/> while executing its surrounding workflow.
-        /// </summary>
         Name: "publisher.text.proposal.request",
         Method: "POST",
         Route: "/api/onewire/peers/connected/text/propose",
@@ -606,9 +597,6 @@ public sealed class RequestPublisherReviewedTextFunction(
     /// </summary>
     /// <value>The descriptor value exposed by <see cref="RequestPublisherReviewedTextFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
-        /// <summary>
-        /// Stores the internal true state used by <see cref="RequestPublisherReviewedTextFunction"/> while executing its surrounding workflow.
-        /// </summary>
         Name: "publisher.text.feedback.request",
         Method: "POST",
         Route: "/api/onewire/peers/connected/text/review",
@@ -684,9 +672,6 @@ public sealed class RequestPublisherScreenCaptureFunction(
     /// </summary>
     /// <value>The descriptor value exposed by <see cref="RequestPublisherScreenCaptureFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
-        /// <summary>
-        /// Stores the internal true state used by <see cref="RequestPublisherScreenCaptureFunction"/> while executing its surrounding workflow.
-        /// </summary>
         Name: "publisher.screen.capture.request", Method: "POST", Route: "/api/onewire/peers/connected/screen/capture",
         Purpose: "Requests one user-selected PublisherStudio/browser screenshot for visual Council evidence.",
         Parameters: "reason, peerId, workOrderKey",
@@ -742,9 +727,6 @@ public sealed class RequestPublisherScreenRecordFunction(
     /// </summary>
     /// <value>The descriptor value exposed by <see cref="RequestPublisherScreenRecordFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
-        /// <summary>
-        /// Stores the internal true state used by <see cref="RequestPublisherScreenRecordFunction"/> while executing its surrounding workflow.
-        /// </summary>
         Name: "publisher.screen.record.request", Method: "POST", Route: "/api/onewire/peers/connected/screen/record",
         Purpose: "Requests a short user-selected PublisherStudio/browser screen recording for temporal Council evidence.",
         Parameters: "reason, maximumSeconds, includeAudio, peerId, workOrderKey",
@@ -805,9 +787,6 @@ public sealed class RequestPublisherWebsiteContentFunction(
     /// </summary>
     /// <value>The descriptor value exposed by <see cref="RequestPublisherWebsiteContentFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
-        /// <summary>
-        /// Stores the internal true state used by <see cref="RequestPublisherWebsiteContentFunction"/> while executing its surrounding workflow.
-        /// </summary>
         Name: "publisher.website.content.request", Method: "POST", Route: "/api/onewire/peers/connected/web-content/request",
         Purpose: "Asks PublisherStudio for bounded user-approved HTML, DIV or document content that can be shown in LocalGPT chat or reused by another organic add-on.",
         Parameters: "question, initialContent, format, sourceUrl, maximumCharacters, peerId, workOrderKey",
@@ -879,9 +858,6 @@ public sealed class RequestPublisherEmbeddedWiringEditorFunction(
     /// </summary>
     /// <value>The descriptor value exposed by <see cref="RequestPublisherEmbeddedWiringEditorFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
-        /// <summary>
-        /// Stores the internal true state used by <see cref="RequestPublisherEmbeddedWiringEditorFunction"/> while executing its surrounding workflow.
-        /// </summary>
         Name: "publisher.embedded.wiring.edit.request",
         Method: "POST",
         Route: "/api/onewire/peers/connected/embedded/wiring/edit",

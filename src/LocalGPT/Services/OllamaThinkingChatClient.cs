@@ -33,6 +33,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Stores the HTTP client dependency used by <see cref="OllamaThinkingChatClient"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
     private readonly HttpClient http;
     /// <summary>
     /// Stores the internal model state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.

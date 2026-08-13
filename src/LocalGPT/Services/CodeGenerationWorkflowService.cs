@@ -32,7 +32,7 @@ public sealed class CodeGenerationWorkflowService(
 {
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="CodeGenerationWorkflowService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {

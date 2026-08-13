@@ -802,9 +802,6 @@ public sealed class ExecuteCodeGenerationReviewFunction(
         "Write and optionally build the exact source/addon/solution payload previously shown in a code-generation change review.",
         "JSON parameters: reviewId plus ExecuteCodeGenerationReviewRequest fields expectedReviewHash, userConfirmed, buildAfterGeneration, userConfirmedBuild, and decisionNote.",
         "One-use approval. The exact review hash and fresh human confirmation are mandatory. Files are restricted to a LocalGPT artifact workspace. Scripts and generated programs are never executed or loaded automatically.",
-        /// <summary>
-        /// Stores the internal true state used by <see cref="ExecuteCodeGenerationReviewFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -911,9 +908,6 @@ public sealed class RejectCodeGenerationReviewFunction(
         "Reject a pending code-generation change review without writing or building its payload.",
         "JSON parameters: reviewId plus RejectCodeGenerationReviewRequest fields expectedReviewHash, userConfirmed, and decisionNote.",
         "Requires fresh human confirmation and the exact review hash. Rejection does not delete project files or private knowledge.",
-        /// <summary>
-        /// Stores the internal true state used by <see cref="RejectCodeGenerationReviewFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: true,
@@ -1483,18 +1477,16 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
     };
 
     /// <summary>
-    /// Gets or sets descriptor.
+    /// Gets the descriptor value that forms part of the request human collaboration function state consumed or produced by the surrounding workflow.
     /// </summary>
+    /// <value>The descriptor value exposed by <see cref="RequestHumanCollaborationFunction"/>.</value>
     public DxaichatFunctionInfo Descriptor { get; } = new(
         "human.collaboration.request",
         "POST",
         "/api/dxai/functions/human.collaboration.request/invoke",
-        "Ask the local human participant for bounded feedback or guidance, with an explicit Council scope and execution gate.",
-        "JSON parameters: kind Feedback or Guidance; title and description required. questionScope is Member, SelectedMembers, or Consensus; use Consensus only when all participating members explicitly agreed on the same question. gate is None, NextPhase, NextRound, or Completion. targetMembers identifies affected models. Use a blocking gate only when that boundary genuinely cannot be crossed without the answer.",
+        "Ask the local human participant for bounded feedback or guidance, with an explicit Council scope and execution gate. Reuse authoritative discovery and existing human guidance before asking; consolidate one missing topic instead of repeating equivalent questions from multiple members.",
+        "JSON parameters: kind Feedback or Guidance; title and description required. questionScope is Member, SelectedMembers, or Consensus; use Consensus only when all participating members explicitly agreed on the same question. gate is None, NextPhase, NextRound, or Completion. targetMembers identifies affected models. Use a blocking gate only when that boundary genuinely cannot be crossed without the answer. Do not ask again for facts already present in the current Council briefing, attachments, onboarding discovery, hardware roads, or prior human answers.",
         "Coordination-only. This function may create a persistent inbox question and pause only its declared Council boundary. It cannot approve operations, create trusted human identity, or authorize tools and side effects.",
-        /// <summary>
-        /// Stores the internal true state used by <see cref="RequestHumanCollaborationFunction"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1575,23 +1567,23 @@ public sealed class RequestHumanCollaborationFunction(ILocalGptVocabularyService
             var earliestCouncilRound = gateMode == "NextRound"
                 ? Math.Max(0, ambient.CouncilRound + 1)
                 : Math.Max(0, ambient.CouncilRound);
+            // Equivalent coordination questions inside one Council run share a fingerprint even when
+            // another member or later round asks them. Presentation scope remains stored on the request,
+            // but it must not manufacture duplicate human work for the same question.
             var fingerprintSource = JsonSerializer.Serialize(new
             {
                 kind,
-                parameters.Title,
-                parameters.Description,
-                parameters.RequestedRole,
-                parameters.ResponsePrompt,
+                Title = parameters.Title.Trim(),
+                Description = parameters.Description.Trim(),
+                RequestedRole = parameters.RequestedRole?.Trim(),
+                ResponsePrompt = parameters.ResponsePrompt?.Trim(),
                 Suggestions = suggestions,
-                parameters.PrefillText,
+                PrefillText = parameters.PrefillText?.Trim(),
                 parameters.AllowFreeText,
                 questionScope,
                 gateMode,
-                TargetMembers = targetMembers,
                 parameters.RequiredBeforeCompletion,
-                ambient.CouncilRunId,
-                ambient.CouncilRound,
-                ambient.Phase
+                ambient.CouncilRunId
             }, JsonOptions);
             var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprintSource))).ToLowerInvariant();
             var gate = await collaboration.AuthorizeOrEnqueueAsync(

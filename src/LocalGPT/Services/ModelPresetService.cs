@@ -66,7 +66,7 @@ public sealed class ModelPresetService(
             throw new InvalidOperationException("Fresh human confirmation is required before saving a model preset.");
         ArgumentException.ThrowIfNullOrWhiteSpace(preset.Name);
         var models = JsonSerializer.Deserialize<List<string>>(preset.ModelNamesJson) ?? [];
-        models = models.Where(item => !string.IsNullOrWhiteSpace(item)).Select(item => item.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Take(24).ToList();
+        models = models.Where(item => !string.IsNullOrWhiteSpace(item)).Select(item => item.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (models.Count == 0)
             throw new InvalidOperationException("A model preset must contain at least one model.");
         List<OneWireCouncilModelRoute> routes;
@@ -82,7 +82,6 @@ public sealed class ModelPresetService(
             .Where(route => !string.IsNullOrWhiteSpace(route.ModelName) && models.Contains(route.ModelName, StringComparer.OrdinalIgnoreCase))
             .GroupBy(route => route.ModelName, StringComparer.OrdinalIgnoreCase)
             .Select(group => NormalizeRoute(group.First()))
-            .Take(24)
             .ToList();
 
         await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);

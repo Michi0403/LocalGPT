@@ -34,7 +34,7 @@ public sealed class CouncilCodeGenerationPlanService(
         TimeSpan.FromSeconds(2));
 
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="CouncilCodeGenerationPlanService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {

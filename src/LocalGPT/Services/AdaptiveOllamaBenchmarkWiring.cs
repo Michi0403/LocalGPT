@@ -35,9 +35,6 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         "Benchmarks already-installed local Ollama models with bounded peer-authored and deterministic tasks, stops tuning a model when the next profile improves by less than the configured threshold, and optionally saves a new user-approved model preset.",
         "Optional endpoint, modelNames, maxModels, maxProfilesPerModel, maxTasks, maxSecondsPerCall, improvementThresholdPercent, includePeerAuthoredTask, persistPreset, presetName, makeDefault, maximumContextTokens and maximumOutputTokens.",
         "Calls only a loopback Ollama endpoint, never downloads models, never modifies an existing preset, and requires fresh human confirmation before the benchmark or preset save starts.",
-        /// <summary>
-        /// Stores the internal true state used by <see cref="AdaptiveOllamaBenchmarkWiring"/> while executing its surrounding workflow.
-        /// </summary>
         IsReadOnly: false, AvailableToAi: true, RequiresHumanConfirmation: true,
         SupportsDirectInvocation: true, SupportsAutomaticInvocation: false, Source: "DIHandler",
         ParameterSchemaJson: """

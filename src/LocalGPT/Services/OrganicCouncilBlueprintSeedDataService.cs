@@ -971,7 +971,7 @@ Original learning request:
     {
         Key = "adaptive-model-benchmark",
         DisplayName = "Adaptive Ollama Benchmark Council",
-        Purpose = "Benchmarks user-selected models already installed in loopback Ollama, compares speed and answer value, and lets independent code-curator members recommend a new preset without overwriting an existing one.",
+        Purpose = "Benchmarks user-selected provider-qualified models already available on configured local or LAN AI endpoints, compares speed and answer value, and lets independent reviewers recommend a new preset without overwriting an existing one.",
         Roles =
         [
             new() { Role = "Benchmark Director", Expertise = "bounded benchmark design, fairness, reproducibility and hardware-road constraints", Responsibility = "define the candidate set and ensure every model receives equivalent tasks and limits" },
@@ -982,6 +982,7 @@ Original learning request:
         ],
         PreferredCapabilities =
         [
+            "localgpt.models.benchmark.provider",
             "localgpt.models.benchmark.autotune",
             "localgpt.time_state.now",
             "localgpt.onboarding.status",
@@ -991,13 +992,13 @@ Original learning request:
         WorkflowSteps =
         [
             Step("benchmark-preflight", "Benchmark preflight", 10, "Preparation", "Benchmark Director", """
-Inspect the installed-model and hardware evidence. Select only models the user explicitly included or that are already installed. Define equal output/context/time limits, deterministic task categories and the new-preset name. Do not download, start, stop or remove models.
+Inspect authoritative installed-model discovery, configured hardware roads, attachments and existing human Council guidance before asking anything. Select only models the user explicitly included or that are already discovered on their provider-qualified endpoint. Define equal output/context/time limits, deterministic task categories and the new-preset name. Only the Benchmark Director may create a benchmark-preflight human question, and only when required evidence remains genuinely absent after discovery; consolidate every missing fact into one request and never ask again for a fact already answered. Do not download, start, stop or remove models.
 """, "LeaderSingle"),
             Step("benchmark-task-design", "Deterministic task design", 20, "Task design", "Task Curator", """
-Create a compact task matrix covering at least one architecture/code task and one structured reasoning task. Every task needs a checkable acceptance shape and must fit the configured low-risk benchmark budget. Do not include secrets, repositories outside the approved workspace or destructive commands.
+Create a compact task matrix covering at least one architecture/code task and one structured reasoning task. Consume the Benchmark Director's preflight evidence and all existing human guidance; this role must not reopen model-selection or hardware questions that preflight already resolved. Every task needs a checkable acceptance shape and must fit the configured benchmark budget. Do not include secrets, repositories outside the approved workspace or destructive commands.
 """, "AllMembersSequentialOnEachAIHostParallel"),
             Step("benchmark-execution", "Run installed-model benchmark", 30, "Execution", "Benchmark Director", """
-Use localgpt.models.benchmark.autotune with the exact installed candidate set and reviewed limits. This is the only benchmark execution step. Preserve generated-text privacy in logs and do not save a preset unless the current user explicitly requested it.
+Use localgpt.models.benchmark.provider exactly once with the exact provider-qualified candidate set and reviewed limits already established by preflight. Set allDiscoveredModels=true only when the user explicitly requested every discovered model; otherwise pass the exact modelSelectionKeys. Pass the selected reviewer pool when the user configured one, or let LocalGPT prefer capable default reviewers such as gpt-oss:20b. Do not restart discovery questionnaires during execution. This is the only benchmark execution step. Preserve generated-text privacy in logs; benchmark recommendations are not applied automatically.
 """, "LeaderSingle", canUseOrganicFunctions: true),
             Step("benchmark-curation", "Independent code curation", 40, "Review", "Code Curator", """
 Review the returned bounded results independently. Compare correctness, completeness, architecture quality, instruction following and obvious hallucination risk. Explain why each result is good, bad or inconclusive. Do not change the benchmark measurements.
@@ -1013,9 +1014,9 @@ Synthesize one recommended model/preset configuration plus alternatives for low-
         ArchitectureContracts =
         [
             .. DefaultArchitectureContracts(),
-            "Benchmark only models already installed at the configured loopback Ollama endpoint.",
+            "Benchmark only provider-qualified models already discovered at configured local or LAN AI endpoints; never substitute a same-name model from another endpoint.",
             "Every candidate receives equivalent bounded tasks and runtime limits; failed or incomplete answers remain visible in the result.",
-            "Code-curator judgments and measured performance are separate evidence streams.",
+            "Independent reviewer judgments and measured performance are separate evidence streams; the benchmark reviewer pool is user-selectable and should prefer capable reviewers such as gpt-oss:20b when available rather than tiny models by default.",
             "A benchmark may create a new user-approved preset but never overwrites an existing preset."
         ]
     };

@@ -14,7 +14,7 @@ public sealed class EmbeddedHardwareCatalogService(
     ILogger<EmbeddedHardwareCatalogService> logger) : IEmbeddedHardwareCatalogService
 {
     /// <summary>
-    /// Runs the new operation.
+    /// Stores the internal JSON options state used by <see cref="EmbeddedHardwareCatalogService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web)
     {

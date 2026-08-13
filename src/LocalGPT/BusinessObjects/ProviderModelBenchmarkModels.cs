@@ -1,4 +1,19 @@
+using System.Text.Json.Serialization;
+
 namespace LocalGPT.BusinessObjects;
+
+/// <summary>
+/// Defines how provider benchmark profiles are generated from the caller-selected token bounds.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ProviderModelBenchmarkProfileMode
+{
+    /// <summary>Retains the historical low-latency, balanced, CPU-control, quality and maximum profile plan.</summary>
+    Adaptive,
+    /// <summary>Generates an evenly distributed sequence from the configured minimums through the configured maximums.</summary>
+    EvenlySpaced
+}
+
 
 /// <summary>
 /// Represents the input contract for provider model benchmark, carrying the values a caller supplies to the corresponding application operation.
@@ -25,6 +40,31 @@ public sealed class ProviderModelBenchmarkRequest
     /// </summary>
     /// <value>The max profiles per model value exposed by <see cref="ProviderModelBenchmarkRequest"/>.</value>
     public int MaxProfilesPerModel { get; set; } = 5;
+    /// <summary>
+    /// Gets or sets how benchmark profiles are generated. Adaptive retains the historical named profiles; EvenlySpaced divides the configured token interval into the requested number of steps.
+    /// </summary>
+    /// <value>The profile generation mode used by the provider benchmark.</value>
+    public ProviderModelBenchmarkProfileMode ProfileMode { get; set; } = ProviderModelBenchmarkProfileMode.Adaptive;
+    /// <summary>
+    /// Gets or sets the smallest context window used by evenly spaced profile generation.
+    /// </summary>
+    /// <value>The lower context-token endpoint for evenly spaced profile generation.</value>
+    public int MinimumContextTokens { get; set; } = 2048;
+    /// <summary>
+    /// Gets or sets the smallest output budget used by evenly spaced profile generation.
+    /// </summary>
+    /// <value>The lower output-token endpoint for evenly spaced profile generation.</value>
+    public int MinimumOutputTokens { get; set; } = 128;
+    /// <summary>
+    /// Gets or sets whether Ollama benchmarks add an explicit CPU-only control profile in addition to the generated performance profiles.
+    /// </summary>
+    /// <value><see langword="true"/> when the CPU-only control should be measured.</value>
+    public bool IncludeCpuSafeControl { get; set; } = true;
+    /// <summary>
+    /// Gets or sets whether the benchmark may stop after consecutive profiles fail to improve by the configured threshold.
+    /// </summary>
+    /// <value><see langword="true"/> when improvement-based early stopping is enabled.</value>
+    public bool StopWhenImprovementStalls { get; set; } = true;
     /// <summary>
     /// Gets or sets the max tasks value that forms part of the provider model benchmark state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -60,6 +100,72 @@ public sealed class ProviderModelBenchmarkRequest
     /// </summary>
     /// <value>The include council review value exposed by <see cref="ProviderModelBenchmarkRequest"/>.</value>
     public bool IncludeCouncilReview { get; set; } = true;
+}
+
+/// <summary>
+/// Describes a DXFunction request that invokes the same provider-qualified benchmark service used by the Chat configuration UI, without coupling the benchmark engine to a particular transport or Council workflow.
+/// </summary>
+public sealed class ProviderModelBenchmarkFunctionRequest
+{
+    /// <summary>Gets or sets exact provider-qualified selection keys to benchmark. Each key retains provider, endpoint and model identity so same-named models on different hosts remain distinct.</summary>
+    /// <value>The authoritative provider model identities selected by the caller.</value>
+    public List<string> ModelSelectionKeys { get; set; } = [];
+
+    /// <summary>Gets or sets whether every currently discovered, installed and benchmark-capable provider model should be used when no explicit model selection keys are supplied.</summary>
+    /// <value><see langword="true"/> only when the caller deliberately requests all currently discovered models.</value>
+    public bool AllDiscoveredModels { get; set; }
+
+    /// <summary>Gets or sets exact provider-qualified reviewer identities. An empty list lets LocalGPT rank available reviewers and prefer capable general/code models such as gpt-oss:20b.</summary>
+    /// <value>The optional reviewer pool; provider identity remains authoritative.</value>
+    public List<string> ReviewerSelectionKeys { get; set; } = [];
+
+    /// <summary>Gets or sets the number of generated profile points per model. The value is policy-driven by the caller rather than truncated to a product-specific model/profile ceiling.</summary>
+    /// <value>The positive number of token profiles generated for each target.</value>
+    public int ProfileSteps { get; set; } = 5;
+
+    /// <summary>Gets or sets how token profiles are generated between the configured lower and upper bounds.</summary>
+    /// <value>The benchmark profile-generation strategy.</value>
+    public ProviderModelBenchmarkProfileMode ProfileMode { get; set; } = ProviderModelBenchmarkProfileMode.EvenlySpaced;
+
+    /// <summary>Gets or sets the context-token lower endpoint used by evenly spaced profile generation.</summary>
+    /// <value>The smallest requested context window for the stepping plan.</value>
+    public int MinimumContextTokens { get; set; } = 2048;
+
+    /// <summary>Gets or sets the output-token lower endpoint used by evenly spaced profile generation.</summary>
+    /// <value>The smallest requested output budget for the stepping plan.</value>
+    public int MinimumOutputTokens { get; set; } = 128;
+
+    /// <summary>Gets or sets the context-token upper endpoint reached by the final generated profile.</summary>
+    /// <value>The requested maximum context window.</value>
+    public int MaximumContextTokens { get; set; } = 32768;
+
+    /// <summary>Gets or sets the output-token upper endpoint reached by the final generated profile.</summary>
+    /// <value>The requested maximum output budget.</value>
+    public int MaximumOutputTokens { get; set; } = 1024;
+
+    /// <summary>Gets or sets the number of deterministic benchmark tasks evaluated for each generated profile.</summary>
+    /// <value>The requested deterministic task count.</value>
+    public int TasksPerProfile { get; set; } = 3;
+
+    /// <summary>Gets or sets the maximum duration allowed for an individual provider request before that measurement is treated as timed out.</summary>
+    /// <value>The timeout in seconds for one provider call.</value>
+    public int TimeoutSeconds { get; set; } = 180;
+
+    /// <summary>Gets or sets the number of independent Council reviewers asked to inspect each target's best empirical profile.</summary>
+    /// <value>The requested reviewer count; zero disables Council review.</value>
+    public int ReviewersPerRecommendation { get; set; } = 2;
+
+    /// <summary>Gets or sets whether adaptive Ollama plans should include an explicit CPU-only control measurement.</summary>
+    /// <value><see langword="true"/> when the legacy adaptive plan should include its CPU control.</value>
+    public bool IncludeCpuSafeControl { get; set; } = true;
+
+    /// <summary>Gets or sets whether a model may stop before its final profile after consecutive profiles fail to improve by the configured threshold.</summary>
+    /// <value><see langword="true"/> when improvement-based early stopping is explicitly enabled.</value>
+    public bool StopWhenImprovementStalls { get; set; }
+
+    /// <summary>Gets or sets the percentage improvement required to reset the optional consecutive non-improvement counter.</summary>
+    /// <value>The comparison threshold used only when improvement-based early stopping is enabled.</value>
+    public double ImprovementThresholdPercent { get; set; } = 5d;
 }
 
 /// <summary>

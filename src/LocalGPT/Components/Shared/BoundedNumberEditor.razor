@@ -1,4 +1,5 @@
 @using System.Globalization
+@inject IJSRuntime JS
 
 <div class="bounded-number-editor @CssClass">
     <label for="@InputId">@Label</label>
@@ -24,7 +25,7 @@
         </button>
         @if (sliderOpen)
         {
-            <div class="bounded-number-popover" role="dialog" aria-label="@($"Adjust {Label}")">
+            <div class="bounded-number-popover" @ref="popoverElement" role="dialog" aria-label="@($"Adjust {Label}")">
                 <div class="bounded-number-scale">
                     <span>@Min.ToString("N0")</span>
                     <strong>@Value.ToString("N0")@Suffix</strong>
@@ -57,6 +58,24 @@
 
     readonly string InputId = $"bounded-number-{Guid.NewGuid():N}";
     bool sliderOpen;
+    ElementReference popoverElement;
+
+    /// <summary>Clamps the rendered slider popover back into the current browser viewport after each render that can move or resize it.</summary>
+    /// <param name="firstRender">Indicates whether this is the component's first completed render.</param>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!sliderOpen)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("localGptBoundedNumberEditor.clamp", popoverElement).ConfigureAwait(false);
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit disappeared while a purely visual viewport correction was pending.
+        }
+    }
 
     void OpenSlider() => sliderOpen = true;
     void ToggleSlider() => sliderOpen = !sliderOpen;
