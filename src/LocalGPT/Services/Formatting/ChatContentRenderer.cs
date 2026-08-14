@@ -8,8 +8,9 @@ namespace LocalGPT.Services.Formatting;
 
 /// <summary>
 /// Renders the complete response snapshot supplied by DXAIChat on every stream
-/// update. It deliberately does not decode HTML entities: thinking text is
-/// encoded by <see cref="IChatResponseFormatter"/> and must stay text.
+/// update. Human quote/apostrophe entities are normalized for readable chat and
+/// history output, while markup-significant entities stay encoded so model text
+/// cannot turn into active HTML merely by passing through the display boundary.
 /// </summary>
 /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the chat content workflow to provide the corresponding application capability.</param>
 /// <param name="structuredText">Structured text translation service dependency used by the chat content workflow to provide the corresponding application capability.</param>
@@ -102,6 +103,34 @@ public sealed class ChatContentRenderer(
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.Singleline,
         runtimePolicy.RegexTimeout);
     /// <summary>
+    /// Decodes only human-facing quote and apostrophe entities before structured-text recognition.
+    /// Markup-significant entities such as &amp;lt;, &amp;gt;, and &amp;amp; deliberately remain encoded.
+    /// </summary>
+    /// <param name="text">Text snapshot that may contain HTML-encoded punctuation.</param>
+    /// <returns>The text with quote/apostrophe entities normalized exactly once.</returns>
+    private string DecodeHumanTextEntities(string text)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+
+            return text
+                .Replace("&quot;", "\"", StringComparison.OrdinalIgnoreCase)
+                .Replace("&#34;", "\"", StringComparison.OrdinalIgnoreCase)
+                .Replace("&#x22;", "\"", StringComparison.OrdinalIgnoreCase)
+                .Replace("&apos;", "'", StringComparison.OrdinalIgnoreCase)
+                .Replace("&#39;", "'", StringComparison.OrdinalIgnoreCase)
+                .Replace("&#x27;", "'", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Human-facing quote/apostrophe entity normalization failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Repairs a small set of known prose label/number boundaries emitted without whitespace by some local models.
     /// </summary>
     private readonly Regex ProseLabelBoundaryRegex = new(
@@ -166,6 +195,7 @@ public sealed class ChatContentRenderer(
             // and reject such strings. Repair only malformed code units while
             // preserving valid surrogate pairs and every other character.
             var text = SanitizeInvalidUnicode(content);
+            text = DecodeHumanTextEntities(text);
             text = HarmonyMarkerRegex.Replace(text, string.Empty);
             text = RepairCommonProseSpacing(text);
             text = RenderAsciiFrames(text);

@@ -35,7 +35,7 @@
             <section class="council-spooler-summary">
                 <strong>@Selected.Status · @Selected.CouncilTeamKey</strong>
                 <span>@string.Join(", ", Selected.ModelNames)</span>
-                <p>@Selected.Prompt</p>
+                <p>@System.Net.WebUtility.HtmlDecode(Selected.Prompt)</p>
                 @if (Selected.Status == Vocabulary.Get().CouncilSpoolerRunning)
                 {
                     <a class="council-spooler-rejoin-link" href="@BuildRejoinHref(Selected.RunId)" data-enhance-nav="false">Open or rejoin this live Council in Chat</a>
@@ -47,14 +47,14 @@
                     <details open="@(step.SortOrder == Selected.Steps.Max(item => item.SortOrder))">
                         <summary>Round @step.Round · @step.Phase · @step.ModelName <small>@step.HardwareLane @step.EffectiveLoadPercent%</small></summary>
                         @if (!string.IsNullOrWhiteSpace(step.Error)) { <p class="text-danger">@step.Error</p> }
-                        <pre>@step.VisibleContent</pre>
+                        <pre>@System.Net.WebUtility.HtmlDecode(step.VisibleContent)</pre>
                     </details>
                 }
                 @if (Selected.Steps.Count == 0) { <p>The run has started; no completed member step is available yet.</p> }
             </div>
             @if (!string.IsNullOrWhiteSpace(Selected.FinalAnswer))
             {
-                <details class="council-spooler-final" open><summary>Current final answer</summary><pre>@Selected.FinalAnswer</pre></details>
+                <details class="council-spooler-final" open><summary>Current final answer</summary><pre>@System.Net.WebUtility.HtmlDecode(Selected.FinalAnswer)</pre></details>
             }
         }
     </aside>

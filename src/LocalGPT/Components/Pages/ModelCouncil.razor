@@ -9,6 +9,7 @@
 @inject ILogger<ModelCouncil> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject IChatContentRenderer ChatContentRenderer
 
 <PageTitle>AI Council</PageTitle>
 
@@ -477,13 +478,13 @@
             <h2>Original Prompt</h2>
             <details class="council-prompt" open>
                 <summary>Prompt sent to the AI Council</summary>
-                <pre>@CouncilText.TrimForDisplay(LastResult.Prompt, 12000,Logger)</pre>
+                <pre>@System.Net.WebUtility.HtmlDecode(CouncilText.TrimForDisplay(LastResult.Prompt, 12000,Logger))</pre>
             </details>
         </section>
 
         <section class="final-panel">
             <h2>Consensus Answer</h2>
-            <div class="markdown-output">@((MarkupString)Markdown.ToHtml(LastResult.FinalAnswer).Trim())</div>
+            <div class="markdown-output">@((MarkupString)ChatContentRenderer.Render(LastResult.FinalAnswer))</div>
         </section>
 
         <section class="transcript-panel">
@@ -509,10 +510,10 @@
                     {
                         <details class="thinking-box" open>
                             <summary>Visible model thinking</summary>
-                            <pre>@step.Thinking</pre>
+                            <pre>@System.Net.WebUtility.HtmlDecode(step.Thinking)</pre>
                         </details>
                     }
-                    <div class="markdown-output">@((MarkupString)Markdown.ToHtml(step.VisibleContent).Trim())</div>
+                    <div class="markdown-output">@((MarkupString)ChatContentRenderer.Render(step.VisibleContent))</div>
                 </article>
             }
         </section>
