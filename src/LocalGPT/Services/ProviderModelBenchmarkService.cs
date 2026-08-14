@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net;
+using System.Text;
 using System.Text.Json;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
@@ -780,11 +782,30 @@ public sealed class ProviderModelBenchmarkService(
     {
     try
     {
-            var start = value.IndexOf('{');
-            var end = value.LastIndexOf('}');
-            if (start < 0 || end <= start)
+            var normalized = value ?? string.Empty;
+            for (var decodePass = 0; decodePass < 2; decodePass++)
+            {
+                var decoded = WebUtility.HtmlDecode(normalized);
+                if (string.Equals(decoded, normalized, StringComparison.Ordinal))
+                    break;
+                normalized = decoded;
+            }
+
+            var start = normalized.IndexOf('{');
+            if (start < 0)
                 throw new JsonException("No JSON object was returned.");
-            return JsonDocument.Parse(value[start..(end + 1)]);
+
+            var utf8 = Encoding.UTF8.GetBytes(normalized[start..]);
+            var reader = new Utf8JsonReader(
+                utf8,
+                new JsonReaderOptions
+                {
+                    CommentHandling = JsonCommentHandling.Skip,
+                    AllowTrailingCommas = true
+                });
+            if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
+                throw new JsonException("No JSON object was returned.");
+            return JsonDocument.ParseValue(ref reader);
     
     }
     catch (Exception __serviceMethodException)

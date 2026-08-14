@@ -156,7 +156,6 @@ public sealed class ListHardwarePerformancePresetsFunction(
 }
 
 /// <summary>Lets AI Councils inspect one exact durable hardware-spooler performance profile by identifier or name.</summary>
-/// <param name="presets">Performance-profile service that owns persistence and normalization.</param>
 /// <param name="json">DXFunction JSON binder.</param>
 /// <param name="logger">Logger used for bounded diagnostics.</param>
 /// <param name="support">Support value supplied to the get hardware performance preset function operation and used when producing its result.</param>

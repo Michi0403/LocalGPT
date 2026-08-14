@@ -36,6 +36,25 @@ namespace LocalGPT.Services
    
 
         /// <summary>
+        /// Decodes HTML entities for a plain-text human-visible surface. Callers must render the returned value through an encoding text surface rather than as raw markup.
+        /// </summary>
+        /// <param name="value">Encoded or plain text intended for a human-visible non-markup surface.</param>
+        /// <returns>The once-decoded text, or an empty string when no value was supplied.</returns>
+        public string DecodeHumanVisibleText(string? value)
+        {
+            try
+            {
+                serviceLogger.LogTrace("Council text operation {Operation} started.", nameof(DecodeHumanVisibleText));
+                return string.IsNullOrEmpty(value) ? string.Empty : WebUtility.HtmlDecode(value);
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Council text operation {Operation} failed; returning the original plain text.", nameof(DecodeHumanVisibleText));
+                return value ?? string.Empty;
+            }
+        }
+
+        /// <summary>
         /// Builds the safe visible attachment presentation shared by live and persisted chat messages.
         /// </summary>
         /// <param name="content">Content value supplied to the council text operation and used when producing its result.</param>

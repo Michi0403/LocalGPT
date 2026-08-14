@@ -478,7 +478,7 @@
             <h2>Original Prompt</h2>
             <details class="council-prompt" open>
                 <summary>Prompt sent to the AI Council</summary>
-                <pre>@System.Net.WebUtility.HtmlDecode(CouncilText.TrimForDisplay(LastResult.Prompt, 12000,Logger))</pre>
+                <pre>@CouncilText.DecodeHumanVisibleText(CouncilText.TrimForDisplay(LastResult.Prompt, 12000, Logger))</pre>
             </details>
         </section>
 
@@ -510,7 +510,7 @@
                     {
                         <details class="thinking-box" open>
                             <summary>Visible model thinking</summary>
-                            <pre>@System.Net.WebUtility.HtmlDecode(step.Thinking)</pre>
+                            <pre>@CouncilText.DecodeHumanVisibleText(step.Thinking)</pre>
                         </details>
                     }
                     <div class="markdown-output">@((MarkupString)ChatContentRenderer.Render(step.VisibleContent))</div>

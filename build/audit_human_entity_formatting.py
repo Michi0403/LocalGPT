@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static source audit for LocalGPT 2.8.1 human-visible entity formatting repair."""
+"""Static source audit for LocalGPT 2.8.2 human-visible entity formatting and benchmark/rejoin repair."""
 from pathlib import Path
 import sys
 root = Path(__file__).resolve().parents[1]
@@ -34,22 +34,23 @@ try:
         "@inject IChatContentRenderer ChatContentRenderer",
         "ChatContentRenderer.Render(LastResult.FinalAnswer)",
         "ChatContentRenderer.Render(step.VisibleContent)",
-        "System.Net.WebUtility.HtmlDecode(CouncilText.TrimForDisplay(LastResult.Prompt, 12000,Logger))",
-        "System.Net.WebUtility.HtmlDecode(step.Thinking)",
+        "CouncilText.DecodeHumanVisibleText(CouncilText.TrimForDisplay(LastResult.Prompt, 12000, Logger))",
+        "CouncilText.DecodeHumanVisibleText(step.Thinking)",
     )
     require(
         "src/LocalGPT/Components/Layout/CouncilSpoolerPanel.razor",
-        "System.Net.WebUtility.HtmlDecode(Selected.Prompt)",
-        "System.Net.WebUtility.HtmlDecode(step.VisibleContent)",
-        "System.Net.WebUtility.HtmlDecode(Selected.FinalAnswer)",
+        "@inject CouncilTextService CouncilText",
+        "CouncilText.DecodeHumanVisibleText(Selected.Prompt)",
+        "CouncilText.DecodeHumanVisibleText(step.VisibleContent)",
+        "CouncilText.DecodeHumanVisibleText(Selected.FinalAnswer)",
     )
     for rel in (
         "src/LocalGPT/LocalGPT.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
     ):
-        require(rel, "<Version>2.8.1</Version>")
-    print("LocalGPT 2.8.1 human-visible entity formatting source audit passed: quote/apostrophe entities normalize once through the chat renderer while markup-significant entities stay encoded, Council surfaces use the renderer/text decode boundary, and release versions are aligned.")
+        require(rel, "<Version>2.8.2</Version>")
+    print("LocalGPT 2.8.2 human-visible entity formatting source audit passed: quote/apostrophe entities normalize once through the chat renderer while markup-significant entities stay encoded, Council surfaces use the renderer/text decode boundary, and release versions are aligned.")
 except AssertionError as exc:
-    print(f"LocalGPT 2.8.1 human-visible entity formatting source audit failed: {exc}", file=sys.stderr)
+    print(f"LocalGPT 2.8.2 human-visible entity formatting source audit failed: {exc}", file=sys.stderr)
     sys.exit(1)

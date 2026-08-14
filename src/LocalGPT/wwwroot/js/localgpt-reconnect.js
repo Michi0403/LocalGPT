@@ -51,6 +51,30 @@
       }
     }
 
+    function recoverFromBackForwardCache(event) {
+        try {
+            if (!event?.persisted) return;
+            event.stopImmediatePropagation?.();
+            const target = new URL(buildReloadTarget(), document.baseURI);
+            target.searchParams.set('_localgptBfcacheReload', Date.now().toString());
+            location.replace(target.href);
+        } catch (error) {
+            report('recoverFromBackForwardCache', error);
+            location.reload();
+        }
+    }
+
+    function clearBackForwardCacheMarker() {
+        try {
+            const url = new URL(location.href);
+            if (!url.searchParams.has('_localgptBfcacheReload')) return;
+            url.searchParams.delete('_localgptBfcacheReload');
+            history.replaceState(history.state, '', url.href);
+        } catch (error) {
+            report('clearBackForwardCacheMarker', error);
+        }
+    }
+
     function findModal() {
       try {
                 const modal = document.getElementById('components-reconnect-modal');
@@ -159,6 +183,7 @@
 
     function start() {
       try {
+                clearBackForwardCacheMarker();
                 observeModal();
                 new MutationObserver(observeModal).observe(document.documentElement, { childList: true, subtree: true });
 
@@ -196,6 +221,10 @@
         throw error;
       }
     }
+
+    // This script is loaded before blazor.web.js. Register first so a BFCache restore cannot
+    // hand Blazor/DevExpress a preserved DOM containing stale event-tracker registrations.
+    window.addEventListener('pageshow', recoverFromBackForwardCache, { capture: true });
 
     if (document.readyState === 'loading')
         document.addEventListener('DOMContentLoaded', start, { once: true });
