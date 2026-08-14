@@ -70,43 +70,60 @@ public sealed class ProviderModelRuntimeService(
                     SupportsBenchmark: true));
             }
 
+            // Start every independent provider-host probe before awaiting any of them. A slow or
+            // unreachable remote endpoint must not serialize discovery and make an InteractiveServer
+            // page appear frozen while unrelated providers are healthy.
+            var ollamaProbeTasks = EnumerateOllamaProbeEndpoints(options)
+                .Select(endpoint => (Endpoint: endpoint, Task: ProbeOllamaAsync(endpoint, cancellationToken)))
+                .ToList();
+            var openAiProbeTasks = EnumerateOpenAiCompatible(options)
+                .Select(local =>
+                {
+                    var configuredEndpoint = NormalizeOpenAiEndpoint(local.Endpoint);
+                    var providerName = GetLocalProviderName(configuredEndpoint);
+                    return (
+                        Local: local,
+                        Endpoint: configuredEndpoint,
+                        ProviderName: providerName,
+                        Task: ProbeOpenAiCompatibleAsync(
+                            providerName,
+                            configuredEndpoint,
+                            local.ApiKey,
+                            ProviderModelKinds.OpenAICompatible,
+                            isLocal: IsLocalEndpoint(configuredEndpoint),
+                            cancellationToken));
+                })
+                .ToList();
+
             // Discovery is host-oriented, not primary-slot-oriented. Keep the historical loopback
             // Ollama endpoint discoverable even when the user's primary Ollama binding is remote,
             // and probe every configured endpoint once regardless of how many preferred models it owns.
-            foreach (var endpoint in EnumerateOllamaProbeEndpoints(options))
+            foreach (var probe in ollamaProbeTasks)
             {
-                foreach (var discovered in await ProbeOllamaAsync(endpoint, cancellationToken).ConfigureAwait(false))
+                foreach (var discovered in await probe.Task.ConfigureAwait(false))
                     AddCandidate(candidates, discovered);
             }
 
-            foreach (var local in EnumerateOpenAiCompatible(options))
+            foreach (var probe in openAiProbeTasks)
             {
-                var configuredEndpoint = NormalizeOpenAiEndpoint(local.Endpoint);
                 // Native Ollama and its OpenAI-compatible /v1 surface are deliberately separate
                 // provider identities. Do not suppress one merely because both share host/port.
                 // Council selection keys already include provider + endpoint + model, so both can
                 // coexist without same-name ambiguity.
-                var providerName = GetLocalProviderName(configuredEndpoint);
-                var discovered = await ProbeOpenAiCompatibleAsync(
-                    providerName,
-                    configuredEndpoint,
-                    local.ApiKey,
-                    ProviderModelKinds.OpenAICompatible,
-                    isLocal: IsLocalEndpoint(configuredEndpoint),
-                    cancellationToken).ConfigureAwait(false);
+                var discovered = await probe.Task.ConfigureAwait(false);
                 foreach (var candidate in discovered)
                     AddCandidate(candidates, candidate);
 
-                if (!string.IsNullOrWhiteSpace(local.ModelName))
+                if (!string.IsNullOrWhiteSpace(probe.Local.ModelName))
                 {
                     AddCandidate(candidates, new MultiModelCouncilModelCandidate(
-                        local.ModelName.Trim(), providerName, configuredEndpoint,
-                        IsInstalled: discovered.Any(item => item.ModelName.Equals(local.ModelName, StringComparison.OrdinalIgnoreCase)),
+                        probe.Local.ModelName.Trim(), probe.ProviderName, probe.Endpoint,
+                        IsInstalled: discovered.Any(item => item.ModelName.Equals(probe.Local.ModelName, StringComparison.OrdinalIgnoreCase)),
                         IsConfigured: true,
                         IsLoaded: false,
                         Details: "Configured OpenAI-compatible model.",
                         ProviderKind: ProviderModelKinds.OpenAICompatible,
-                        IsLocal: IsLocalEndpoint(configuredEndpoint),
+                        IsLocal: IsLocalEndpoint(probe.Endpoint),
                         SupportsBenchmark: true));
                 }
             }

@@ -348,8 +348,10 @@ public sealed class RemoteKnowledgeImportService(
             var maximumDownloadBytes = Math.Max(1L, catalog.MaxTotalFileBytes);
             if (response.Content.Headers.ContentLength is long length && length > maximumDownloadBytes)
                 throw new InvalidDataException($"Remote content is larger than the database-backed MaxTotalFileBytes policy ({maximumDownloadBytes:n0} bytes).");
-            await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            await using var destination = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+            var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredSourceAsyncDisposal = source.ConfigureAwait(false);
+            var destination = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+            await using var configuredDestinationAsyncDisposal = destination.ConfigureAwait(false);
             var buffer = new byte[81920];
             long total = 0;
             int read;

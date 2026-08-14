@@ -43,7 +43,8 @@ public sealed class CouncilRuntimeClassService(
         try
         {
             await EnsureSeedDataAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.CouncilRuntimeClassConfigurations.AsNoTracking();
             if (!includeDisabled)
                 query = query.Where(item => item.IsEnabled);
@@ -115,7 +116,8 @@ public sealed class CouncilRuntimeClassService(
         {
             NormalizeAndValidate(request.Definition);
             await EnsureSeedDataAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var row = await db.CouncilRuntimeClassConfigurations
                 .SingleOrDefaultAsync(item => item.Key == request.Definition.Key, cancellationToken)
                 .ConfigureAwait(false);
@@ -161,7 +163,8 @@ public sealed class CouncilRuntimeClassService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var existingRows = await db.CouncilRuntimeClassConfigurations
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);

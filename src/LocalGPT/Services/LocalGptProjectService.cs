@@ -30,7 +30,8 @@ public sealed class LocalGptProjectService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
             var query = db.LocalGptProjects.AsNoTracking();
             if (!includeArchived)
@@ -79,7 +80,8 @@ public sealed class LocalGptProjectService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
             var project = await db.LocalGptProjects
                 .AsNoTracking()
@@ -197,7 +199,8 @@ public sealed class LocalGptProjectService(
             var now = DateTime.UtcNow;
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
             LocalGptProject project;
             if (request.Id is Guid projectId)
@@ -260,7 +263,8 @@ public sealed class LocalGptProjectService(
             var name = RequireText(request.Name, nameof(request.Name), 240);
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             if (!await db.LocalGptProjects.AnyAsync(project => project.Id == projectId && !project.IsArchived, cancellationToken).ConfigureAwait(false))
                 throw new KeyNotFoundException($"Active project {projectId} was not found.");
 
@@ -309,7 +313,8 @@ public sealed class LocalGptProjectService(
             var versionText = RequireText(request.Version, nameof(request.Version), 120);
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var project = await db.LocalGptProjects
                 .SingleOrDefaultAsync(item => item.Id == projectId && !item.IsArchived, cancellationToken)
                 .ConfigureAwait(false)
@@ -372,7 +377,8 @@ public sealed class LocalGptProjectService(
             RequireHumanConfirmation(request.UserConfirmed, "linking council knowledge to a project topic");
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
             if (!await db.LocalGptProjectTopics.AnyAsync(topic => topic.Id == projectTopicId, cancellationToken).ConfigureAwait(false))
                 throw new KeyNotFoundException($"Project topic {projectTopicId} was not found.");

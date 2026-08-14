@@ -31,7 +31,8 @@ public sealed class OrganicSkillRegistryService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.OrganicSkills.AsNoTracking();
             if (!includeDisabled) query = query.Where(item => item.IsEnabled);
             return await query.OrderBy(item => item.Key).ToListAsync(cancellationToken).ConfigureAwait(false);
@@ -61,7 +62,8 @@ public sealed class OrganicSkillRegistryService(
             if (!request.UserConfirmed) throw new InvalidOperationException("Fresh human confirmation is required before changing an organic skill.");
             ArgumentException.ThrowIfNullOrWhiteSpace(request.Key);
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var key = request.Key.Trim().ToLowerInvariant();
             var entity = request.Id is Guid id ? await db.OrganicSkills.SingleOrDefaultAsync(item => item.Id == id, cancellationToken).ConfigureAwait(false) : null;
             entity ??= await db.OrganicSkills.SingleOrDefaultAsync(item => item.Key == key, cancellationToken).ConfigureAwait(false);
@@ -109,7 +111,8 @@ public sealed class OrganicSkillRegistryService(
             ArgumentNullException.ThrowIfNull(request);
             if (!request.UserConfirmed) throw new InvalidOperationException("Fresh human confirmation is required before linking a project skill.");
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             if (!await db.LocalGptProjects.AnyAsync(item => item.Id == request.ProjectId, cancellationToken).ConfigureAwait(false)) throw new KeyNotFoundException("Project not found.");
             if (!await db.OrganicSkills.AnyAsync(item => item.Id == request.SkillId, cancellationToken).ConfigureAwait(false)) throw new KeyNotFoundException("Organic skill not found.");
             var entity = await db.ProjectOrganicSkillLinks.SingleOrDefaultAsync(item => item.ProjectId == request.ProjectId && item.SkillId == request.SkillId, cancellationToken).ConfigureAwait(false);
@@ -150,7 +153,8 @@ public sealed class OrganicSkillRegistryService(
             if (!request.UserConfirmed) throw new InvalidOperationException("Fresh human confirmation is required before accepting a model self-report.");
             ArgumentException.ThrowIfNullOrWhiteSpace(request.MemberKey);
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             if (!await db.OrganicSkills.AnyAsync(item => item.Id == request.SkillId, cancellationToken).ConfigureAwait(false)) throw new KeyNotFoundException("Organic skill not found.");
             var member = request.MemberKey.Trim();
             var entity = await db.CouncilMemberOrganicSkillLinks.SingleOrDefaultAsync(item => item.MemberKey == member && item.SkillId == request.SkillId, cancellationToken).ConfigureAwait(false);
@@ -194,7 +198,8 @@ public sealed class OrganicSkillRegistryService(
             ArgumentNullException.ThrowIfNull(assessment);
             ArgumentException.ThrowIfNullOrWhiteSpace(assessment.MemberKey);
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
             var reportedSkillKeys = assessment.Skills
                 .Concat(assessment.OrganicCapabilities.Select(value => $"capability:{value}"))

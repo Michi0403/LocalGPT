@@ -28,7 +28,8 @@ public sealed class ModelPresetService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.CouncilModelPresets.AsNoTracking();
             if (!includeArchived)
                 query = query.Where(item => !item.IsArchived);
@@ -85,7 +86,8 @@ public sealed class ModelPresetService(
             .ToList();
 
         await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
         var normalizedName = preset.Name.Trim();
         var entity = preset.Id == Guid.Empty
             ? null
@@ -253,7 +255,8 @@ public sealed class ModelPresetService(
             if (!userConfirmed)
                 throw new InvalidOperationException("Fresh human confirmation is required before archiving a model preset.");
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var entity = await db.CouncilModelPresets.SingleOrDefaultAsync(item => item.Id == presetId, cancellationToken).ConfigureAwait(false)
                 ?? throw new KeyNotFoundException($"Model preset {presetId} was not found.");
             entity.IsArchived = true;

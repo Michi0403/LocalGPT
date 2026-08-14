@@ -88,7 +88,8 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     {
     try
     {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             // Catalog rows from earlier versions may carry a legacy DataType or a partially written payload.
             // Load both the owned storage-name range and the current DataType so a unique Name is always reused
             // instead of queued as a second INSERT.
@@ -281,7 +282,8 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
     try
     {
             await databaseInitialization.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var entries = await ReadEntriesAsync(db, cancellationToken).ConfigureAwait(false);
             return entries.Count == 0 ? await SynchronizeAsync(cancellationToken).ConfigureAwait(false) : entries;
     
@@ -363,7 +365,8 @@ public sealed class DxAiFunctionCatalogService(ILocalGptVocabularyService vocabu
             await synchronizationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 var variables = await db.SystemVariables
                     .Where(item => item.DataType == DataType)
                     .ToListAsync(cancellationToken)
@@ -1088,7 +1091,8 @@ public sealed class DxAiFunctionCatalogHostedService(
     {
         try
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
+            var scope = scopeFactory.CreateAsyncScope();
+            await using var configuredScopeAsyncDisposal = scope.ConfigureAwait(false);
             await scope.ServiceProvider.GetRequiredService<IDxAiFunctionCatalogService>()
                 .SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         }

@@ -36,7 +36,8 @@ public sealed class KnowledgeRatingService(
             rating.UpdatedAtUtc = DateTime.UtcNow;
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var knowledge = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == rating.KnowledgeEntryId, cancellationToken).ConfigureAwait(false)
                 ?? throw new KeyNotFoundException($"Knowledge entry {rating.KnowledgeEntryId} was not found.");
             if (rating.Id == Guid.Empty)
@@ -74,7 +75,8 @@ public sealed class KnowledgeRatingService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             return await db.CouncilKnowledgeUserRatings.AsNoTracking()
                 .Where(item => item.KnowledgeEntryId == knowledgeEntryId)
                 .OrderByDescending(item => item.UpdatedAtUtc)

@@ -71,7 +71,8 @@ namespace LocalGPT.Services
 
             try
             {
-                await using var stream = File.OpenRead(projectPath);
+                var stream = File.OpenRead(projectPath);
+                await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
                 var document = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken).ConfigureAwait(false);
                 var packages = document
                     .Descendants()

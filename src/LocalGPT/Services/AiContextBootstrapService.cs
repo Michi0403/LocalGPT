@@ -270,7 +270,8 @@ namespace LocalGPT.Services
                     try
                     {
                         var info = new FileInfo(path);
-                        await using var stream = File.OpenRead(path);
+                        var stream = File.OpenRead(path);
+                        await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
                         using var reader = new StreamReader(stream);
                         var firstLine = (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false))?.Trim() ?? string.Empty;
                         builder.AppendLine($"- {relativePath} ({info.Length:n0} bytes){(string.IsNullOrWhiteSpace(firstLine) ? string.Empty : $": {councilText.TrimForPrompt(firstLine, 140, logger)}")}");

@@ -78,7 +78,8 @@ public sealed class CodeGenerationWorkflowService(
             };
             var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
 
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             await ValidateProjectReferencesAsync(db, request.ProjectId, request.ProjectRevisionId, request.ProjectTopicId, cancellationToken).ConfigureAwait(false);
 
             var entity = new CodeGenerationChangeReview
@@ -138,7 +139,8 @@ public sealed class CodeGenerationWorkflowService(
     try
     {
             using var scope = BeginReviewScope("GetCodeGenerationReview", reviewId);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var entity = await db.CodeGenerationChangeReviews
                 .AsNoTracking()
                 .SingleOrDefaultAsync(review => review.Id == reviewId, cancellationToken)
@@ -185,7 +187,8 @@ public sealed class CodeGenerationWorkflowService(
                 ["ProjectId"] = projectId
             });
 
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.CodeGenerationChangeReviews.AsNoTracking();
             if (projectId is Guid selectedProjectId)
                 query = query.Where(review => review.ProjectId == selectedProjectId);
@@ -225,7 +228,8 @@ public sealed class CodeGenerationWorkflowService(
         ArgumentNullException.ThrowIfNull(request);
         using var scope = BeginReviewScope("ExecuteCodeGenerationReview", reviewId);
 
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
         var entity = await db.CodeGenerationChangeReviews
             .SingleOrDefaultAsync(review => review.Id == reviewId, cancellationToken)
             .ConfigureAwait(false)
@@ -465,7 +469,8 @@ public sealed class CodeGenerationWorkflowService(
             if (!request.UserConfirmed)
                 throw new InvalidOperationException("Fresh human confirmation is required to reject this exact review.");
 
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var entity = await db.CodeGenerationChangeReviews
                 .SingleOrDefaultAsync(review => review.Id == reviewId, cancellationToken)
                 .ConfigureAwait(false)
@@ -1133,9 +1138,11 @@ public sealed class CodeGenerationWorkflowService(
                 var relativePath = NormalizeRelativePath(file.ProjectRelativePath);
                 var destination = ResolveInsideRoot(workspaceRoot, relativePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(destination) ?? workspaceRoot);
-                await using (var source = new FileStream(file.AbsolutePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true))
-                await using (var target = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true))
                 {
+                    var source = new FileStream(file.AbsolutePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+                    await using var configuredSourceAsyncDisposal = source.ConfigureAwait(false);
+                    var target = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+                    await using var configuredTargetAsyncDisposal = target.ConfigureAwait(false);
                     await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
                     await target.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
@@ -1171,7 +1178,8 @@ public sealed class CodeGenerationWorkflowService(
     {
     try
     {
-            await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+            var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+            await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
             return Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false));
     
     }
@@ -1524,8 +1532,10 @@ public sealed class CodeGenerationWorkflowService(
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(destinationPath) ?? destinationRoot);
-                await using var sourceStream = new FileStream(source.FullPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
-                await using var destinationStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+                var sourceStream = new FileStream(source.FullPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+                await using var configuredSourceStreamAsyncDisposal = sourceStream.ConfigureAwait(false);
+                var destinationStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+                await using var configuredDestinationStreamAsyncDisposal = destinationStream.ConfigureAwait(false);
                 await sourceStream.CopyToAsync(destinationStream, cancellationToken).ConfigureAwait(false);
                 var packagedRelativePath = Path.GetRelativePath(workspaceRoot, destinationPath).Replace('\\', '/');
                 if (!writtenFiles.Contains(packagedRelativePath, StringComparer.OrdinalIgnoreCase))

@@ -286,7 +286,8 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
                 Mode = SqliteOpenMode.ReadWrite,
                 Cache = SqliteCacheMode.Private
             }.ToString();
-            await using var connection = new SqliteConnection(sourceConnectionString);
+            var connection = new SqliteConnection(sourceConnectionString);
+            await using var configuredConnectionAsyncDisposal = connection.ConfigureAwait(false);
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
             await ClearAbandonedMigrationLockAsync(connection, cancellationToken).ConfigureAwait(false);
@@ -682,7 +683,8 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     {
     try
     {
-            await using var command = connection.CreateCommand();
+            var command = connection.CreateCommand();
+            await using var configuredCommandAsyncDisposal = command.ConfigureAwait(false);
             command.CommandText = sql;
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     
@@ -902,7 +904,8 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
                 Mode = SqliteOpenMode.ReadWriteCreate,
                 Cache = SqliteCacheMode.Private
             }.ToString();
-            await using var destinationConnection = new SqliteConnection(destinationConnectionString);
+            var destinationConnection = new SqliteConnection(destinationConnectionString);
+            await using var configuredDestinationConnectionAsyncDisposal = destinationConnection.ConfigureAwait(false);
             await destinationConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
             sourceConnection.BackupDatabase(destinationConnection);
             return backupPath;
@@ -931,7 +934,8 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     {
     try
     {
-            await using var tableCommand = connection.CreateCommand();
+            var tableCommand = connection.CreateCommand();
+            await using var configuredTableCommandAsyncDisposal = tableCommand.ConfigureAwait(false);
             tableCommand.CommandText =
                 """
                 SELECT COUNT(*) FROM "sqlite_master"
@@ -942,7 +946,8 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
             if (!tableExists)
                 return;
 
-            await using var readCommand = connection.CreateCommand();
+            var readCommand = connection.CreateCommand();
+            await using var configuredReadCommandAsyncDisposal = readCommand.ConfigureAwait(false);
             readCommand.CommandText =
                 """
                 SELECT "Timestamp" FROM "__EFMigrationsLock" WHERE "Id" = 1 LIMIT 1;
@@ -968,7 +973,8 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
                     $"the lock is older than {abandonedMigrationLockAge.TotalMinutes:0} minutes.");
             }
 
-            await using var clearCommand = connection.CreateCommand();
+            var clearCommand = connection.CreateCommand();
+            await using var configuredClearCommandAsyncDisposal = clearCommand.ConfigureAwait(false);
             clearCommand.CommandText = "DELETE FROM \"__EFMigrationsLock\";";
             await clearCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             logger.LogWarning(
@@ -999,7 +1005,8 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     {
     try
     {
-            await using var command = connection.CreateCommand();
+            var command = connection.CreateCommand();
+            await using var configuredCommandAsyncDisposal = command.ConfigureAwait(false);
             command.CommandText =
                 """
                 CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
@@ -1033,9 +1040,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     try
     {
             var result = new HashSet<string>(StringComparer.Ordinal);
-            await using var command = connection.CreateCommand();
+            var command = connection.CreateCommand();
+            await using var configuredCommandAsyncDisposal = command.ConfigureAwait(false);
             command.CommandText = "SELECT \"MigrationId\" FROM \"__EFMigrationsHistory\" ORDER BY \"MigrationId\";";
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredReaderAsyncDisposal = reader.ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 result.Add(reader.GetString(0));
             return result;
@@ -1066,11 +1075,13 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
             var schema = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             var tableNames = new List<string>();
 
-            await using (var tableCommand = connection.CreateCommand())
+            var tableCommand = connection.CreateCommand();
+            await using (tableCommand.ConfigureAwait(false))
             {
                 tableCommand.CommandText =
                     "SELECT \"name\" FROM \"sqlite_master\" WHERE \"type\" = 'table' ORDER BY \"name\";";
-                await using var reader = await tableCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                var reader = await tableCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredReaderAsyncDisposal = reader.ConfigureAwait(false);
                 while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                     tableNames.Add(reader.GetString(0));
             }
@@ -1078,9 +1089,11 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
             foreach (var tableName in tableNames)
             {
                 var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                await using var columnCommand = connection.CreateCommand();
+                var columnCommand = connection.CreateCommand();
+                await using var configuredColumnCommandAsyncDisposal = columnCommand.ConfigureAwait(false);
                 columnCommand.CommandText = $"PRAGMA table_info({QuoteSqliteIdentifier(tableName)});";
-                await using var reader = await columnCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                var reader = await columnCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredReaderAsyncDisposal = reader.ConfigureAwait(false);
                 while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                     columns.Add(reader.GetString(1));
                 schema[tableName] = columns;
@@ -1113,7 +1126,8 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     {
     try
     {
-            await using var command = connection.CreateCommand();
+            var command = connection.CreateCommand();
+            await using var configuredCommandAsyncDisposal = command.ConfigureAwait(false);
             command.CommandText =
                 "INSERT OR IGNORE INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") " +
                 "VALUES ($migrationId, $productVersion);";

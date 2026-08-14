@@ -33,7 +33,8 @@ public sealed class HardwarePerformancePresetService(
         try
         {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.HardwarePerformancePresets.AsNoTracking();
             if (!includeArchived)
                 query = query.Where(item => !item.IsArchived);
@@ -69,7 +70,8 @@ public sealed class HardwarePerformancePresetService(
         try
         {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var preset = await db.HardwarePerformancePresets.AsNoTracking()
                 .SingleOrDefaultAsync(item => item.Id == presetId, cancellationToken)
                 .ConfigureAwait(false);
@@ -108,7 +110,8 @@ public sealed class HardwarePerformancePresetService(
                 throw new InvalidOperationException("A hardware performance preset must contain at least one provider/model route.");
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var normalizedName = NormalizeName(preset.Name);
             HardwarePerformancePreset? entity = null;
             if (preset.Id != Guid.Empty)
@@ -251,7 +254,8 @@ public sealed class HardwarePerformancePresetService(
             if (!userConfirmed)
                 throw new InvalidOperationException("Fresh human confirmation is required before deleting a hardware performance preset.");
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var entity = await db.HardwarePerformancePresets
                 .SingleOrDefaultAsync(item => item.Id == presetId, cancellationToken)
                 .ConfigureAwait(false)

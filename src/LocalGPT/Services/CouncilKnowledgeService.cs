@@ -59,7 +59,8 @@ namespace LocalGPT.Services
             try
             {
                 await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
                 var now = DateTime.UtcNow;
                 var query = db.CouncilKnowledgeEntries.AsNoTracking();
@@ -98,7 +99,8 @@ namespace LocalGPT.Services
             try
             {
                 await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
                 var now = DateTime.UtcNow;
                 var existing = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == entry.Id, cancellationToken).ConfigureAwait(false);
@@ -159,7 +161,8 @@ namespace LocalGPT.Services
             try
             {
                 await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 var entry = await db.CouncilKnowledgeEntries.SingleOrDefaultAsync(item => item.Id == id, cancellationToken).ConfigureAwait(false);
                 if (entry is null)
                     return;
@@ -289,7 +292,8 @@ namespace LocalGPT.Services
                 try
                 {
                     await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-                    await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                    var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                    await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                     var entries = await db.CouncilKnowledgeEntries
                         .Where(entry => ids.Contains(entry.Id))
                         .ToListAsync(cancellationToken).ConfigureAwait(false);

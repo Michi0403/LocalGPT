@@ -45,7 +45,8 @@ public sealed class DebugArtifactInspectionService(ILogger<DebugArtifactInspecti
             return result;
         }
 
-        await using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
         try
         {
             using var provider = MetadataReaderProvider.FromPortablePdbStream(stream, MetadataStreamOptions.LeaveOpen);

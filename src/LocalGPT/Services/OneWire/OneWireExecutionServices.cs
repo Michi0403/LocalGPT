@@ -30,7 +30,8 @@ public sealed class OneWireOperationExecutor(
     try
     {
             ArgumentNullException.ThrowIfNull(item);
-            await using var scope = scopeFactory.CreateAsyncScope();
+            var scope = scopeFactory.CreateAsyncScope();
+            await using var configuredScopeAsyncDisposal = scope.ConfigureAwait(false);
             if (item.RequestType == OneWireMessageType.CouncilRequest || string.Equals(item.CapabilityKey, "council.run", StringComparison.OrdinalIgnoreCase))
             {
                 var wireRequest = ReadPayload<OneWireCouncilRequest>(item.Request, "CouncilRequest");

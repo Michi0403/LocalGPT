@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 6,
+  "sourceRoot": "src/LocalGPT",
+  "policy": "Every await in maintained C#/Razor source is explicit. Ordinary awaits must end in ConfigureAwait(false/true); ConfigureAwait(false) is the mandatory default. ConfigureAwait(true) is limited to renderer/circuit-affine component continuations. await foreach must configure its async enumerable with ConfigureAwait(false). await using must configure asynchronous disposal explicitly; preconfigured awaitable variables are not an exception.",
+  "requiredDefault": "ConfigureAwait(false)",
+  "rendererAffineLifecycleMethods": [
+    "OnInitializedAsync",
+    "OnParametersSetAsync",
+    "OnAfterRenderAsync"
+  ],
+  "maxUnconfiguredAwaitExpressionCount": 0,
+  "maxConfigureAwaitTrueOutsideComponents": 0,
+  "awaitForeachRequirement": "ConfigureAwait(false)",
+  "awaitUsingPolicy": "Every await using construct must visibly configure the IAsyncDisposable with ConfigureAwait(false/true); raw language-level async disposal is forbidden.",
+  "rendererAffineHelperMethods": {
+    "Components/Pages/Chat.razor": [
+      "AttachToLiveCouncilSessionAsync",
+      "AutoStartRequestedCouncilPromptAsync",
+      "OnProviderSelectionChanged",
+      "StartCouncilPromptAsync"
+    ]
+  },
+  "preconfiguredAwaitablePolicy": "Awaiting ConfiguredTaskAwaitable variables directly is forbidden; await the originating Task with explicit ConfigureAwait(false/true)."
+}

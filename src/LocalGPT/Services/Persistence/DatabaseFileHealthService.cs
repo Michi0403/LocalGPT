@@ -180,9 +180,11 @@ public sealed class DatabaseFileHealthService(
     {
         try
         {
-            await using var connection = new SqliteConnection($"Data Source={DatabasePath};Mode=ReadOnly;Cache=Private");
+            var connection = new SqliteConnection($"Data Source={DatabasePath};Mode=ReadOnly;Cache=Private");
+            await using var configuredConnectionAsyncDisposal = connection.ConfigureAwait(false);
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-            await using var command = connection.CreateCommand();
+            var command = connection.CreateCommand();
+            await using var configuredCommandAsyncDisposal = command.ConfigureAwait(false);
             command.CommandTimeout = options.ProbeCommandTimeoutSeconds;
             command.CommandText = "PRAGMA quick_check;";
             var result = Convert.ToString(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)) ?? string.Empty;
@@ -220,10 +222,13 @@ public sealed class DatabaseFileHealthService(
     {
         try
         {
-            await using var connection = new SqliteConnection($"Data Source={DatabasePath};Mode=ReadWrite;Cache=Private");
+            var connection = new SqliteConnection($"Data Source={DatabasePath};Mode=ReadWrite;Cache=Private");
+            await using var configuredConnectionAsyncDisposal = connection.ConfigureAwait(false);
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-            await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-            await using var command = connection.CreateCommand();
+            var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredTransactionAsyncDisposal = transaction.ConfigureAwait(false);
+            var command = connection.CreateCommand();
+            await using var configuredCommandAsyncDisposal = command.ConfigureAwait(false);
             command.Transaction = transaction;
             command.CommandTimeout = options.ProbeCommandTimeoutSeconds;
             command.CommandText =

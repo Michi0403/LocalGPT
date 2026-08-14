@@ -152,7 +152,8 @@ public sealed class RuntimeCapabilityDirectoryService(
     {
     try
     {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             if (!await db.LocalGptProjects.AsNoTracking()
                     .AnyAsync(item => item.Id == runtimePolicy.LocalGptCoreProjectId, cancellationToken)
                     .ConfigureAwait(false))
@@ -274,7 +275,8 @@ public sealed class RuntimeCapabilityDirectoryHostedService(
     {
         try
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
+            var scope = scopeFactory.CreateAsyncScope();
+            await using var configuredScopeAsyncDisposal = scope.ConfigureAwait(false);
             var service = scope.ServiceProvider.GetRequiredService<IRuntimeCapabilityDirectoryService>();
             await service.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         }

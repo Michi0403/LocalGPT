@@ -387,7 +387,8 @@ namespace LocalGPT.Services
     try
     {
                 const int maximumCharacters = 12000;
-                await using var stream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                var stream = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
                 using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: false);
                 var buffer = new char[Math.Min(maximumCharacters, (int)Math.Min(file.Length + 1, maximumCharacters))];
                 var count = await reader.ReadBlockAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);

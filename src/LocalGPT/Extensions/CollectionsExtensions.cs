@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Runtime.CompilerServices;
 namespace LocalGPT.Extensions
 {
     /// <summary>
@@ -16,13 +15,13 @@ namespace LocalGPT.Extensions
         /// <param name="updated">T dependency used by the observable collection extensions workflow to provide the corresponding application capability.</param>
         /// <param name="keySelector">Key selector value supplied to the observable collection extensions operation and used when producing its result.</param>
         /// <param name="replaceIfDifferent">Value indicating whether replace if different should apply to this operation.</param>
-        /// <param name="configuredTaskAwaitableToInformUpdates">Configured task awaitable to inform updates value supplied to the observable collection extensions operation and used when producing its result.</param>
+        /// <param name="taskToInformUpdates">Optional task awaited after collection mutations so callers can observe each update.</param>
         /// <returns>A task that completes when the operation has finished.</returns>
         public static async Task SyncWith<T, TKey>(
             this IList<T> target,
             IEnumerable<T> updated,
             Func<T, TKey> keySelector,
-            bool replaceIfDifferent = false, ConfiguredTaskAwaitable? configuredTaskAwaitableToInformUpdates = null)
+            bool replaceIfDifferent = false, Task? taskToInformUpdates = null)
         where TKey : notnull
         {
             if (target == null || updated == null || keySelector == null)
@@ -48,9 +47,9 @@ namespace LocalGPT.Extensions
             foreach (var item in toRemove)
             {
                 _ = target.Remove(item);
-                if (configuredTaskAwaitableToInformUpdates != null && configuredTaskAwaitableToInformUpdates.HasValue)
+                if (taskToInformUpdates is not null)
                 {
-                    await configuredTaskAwaitableToInformUpdates.Value;
+                    await taskToInformUpdates.ConfigureAwait(false);
                 }
             }
 
@@ -61,9 +60,9 @@ namespace LocalGPT.Extensions
                 {
 
                     target.Add(kvp.Value);
-                    if (configuredTaskAwaitableToInformUpdates != null && configuredTaskAwaitableToInformUpdates.HasValue)
+                    if (taskToInformUpdates is not null)
                     {
-                        await configuredTaskAwaitableToInformUpdates.Value;
+                        await taskToInformUpdates.ConfigureAwait(false);
                     }
                 }
                 else if (replaceIfDifferent && !Equals(existing, kvp.Value))

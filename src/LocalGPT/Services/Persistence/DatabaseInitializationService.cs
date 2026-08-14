@@ -122,7 +122,8 @@ public sealed class DatabaseInitializationService(
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunMigrationAsync(CancellationToken cancellationToken)
     {
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
         try
         {
             await db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
@@ -154,7 +155,8 @@ public sealed class DatabaseInitializationService(
         const int maximumAttempts = 2;
         for (var attempt = 1; attempt <= maximumAttempts; attempt++)
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             try
             {
                 await seed(db, cancellationToken).ConfigureAwait(false);

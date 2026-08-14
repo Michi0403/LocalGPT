@@ -29,7 +29,8 @@ public sealed class VariableStoreService(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
         var variable = await db.SystemVariables.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Name == name, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException($"Variable '{name}' was not found.");
@@ -48,7 +49,8 @@ public sealed class VariableStoreService(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
         var existing = await db.SystemVariables.SingleOrDefaultAsync(item => item.Name == name, cancellationToken).ConfigureAwait(false);
         if (existing is null)
         {
@@ -93,7 +95,8 @@ public sealed class VariableStoreService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.SystemVariables.AsNoTracking();
             if (!string.IsNullOrWhiteSpace(filter))
             {

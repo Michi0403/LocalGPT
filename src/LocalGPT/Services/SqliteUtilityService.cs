@@ -201,7 +201,8 @@ namespace LocalGPT.Services
                     if (string.IsNullOrWhiteSpace(tableName))
                         throw new InvalidOperationException("Select a table first.");
 
-                    await using var command = connection.CreateCommand();
+                    var command = connection.CreateCommand();
+                    await using var configuredCommandAsyncDisposal = command.ConfigureAwait(false);
                     command.CommandText = """
                     SELECT COUNT(*)
                     FROM sqlite_master
@@ -247,11 +248,13 @@ namespace LocalGPT.Services
                 {
                     await EnsureValidTableAsync(connection, tableName, cancellationToken, logger).ConfigureAwait(false);
 
-                    await using var command = connection.CreateCommand();
+                    var command = connection.CreateCommand();
+                    await using var configuredCommandAsyncDisposal = command.ConfigureAwait(false);
                     command.CommandText = $"PRAGMA table_info({QuoteIdentifier(tableName, logger)});";
 
                     var columns = new List<SqliteColumnSummary>();
-                    await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                    var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                    await using var configuredReaderAsyncDisposal = reader.ConfigureAwait(false);
                     while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
                         var nameOrdinal = reader.GetOrdinal("name");
@@ -303,7 +306,8 @@ namespace LocalGPT.Services
                 {
                     await EnsureValidTableAsync(connection, tableName, cancellationToken, logger).ConfigureAwait(false);
 
-                    await using var command = connection.CreateCommand();
+                    var command = connection.CreateCommand();
+                    await using var configuredCommandAsyncDisposal = command.ConfigureAwait(false);
                     command.CommandText = $"SELECT COUNT(*) FROM {QuoteIdentifier(tableName, logger)};";
                     return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture);
                 }

@@ -374,7 +374,7 @@
                 <div class="council-direct-starter-grid">
                     @foreach (var starter in CouncilStarterSuggestions)
                     {
-                        <button type="button" class="council-direct-starter" @onclick="async () => { await StartCouncilPromptAsync(starter, startFresh: true); }">
+                        <button type="button" class="council-direct-starter" @onclick="async () => { await StartCouncilPromptAsync(starter, startFresh: true).ConfigureAwait(true); }">
                             <strong>@starter.Title</strong>
                             <span>@starter.Text</span>
                         </button>

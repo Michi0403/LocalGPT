@@ -65,7 +65,8 @@ public sealed class EmbeddedHardwareCatalogService(
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    await using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
                     var profile = await JsonSerializer.DeserializeAsync<EmbeddedBoardProfile>(stream, jsonOptions, cancellationToken).ConfigureAwait(false);
                     if (profile is null || string.IsNullOrWhiteSpace(profile.Key))
                     {

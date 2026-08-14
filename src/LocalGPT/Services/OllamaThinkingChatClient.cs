@@ -296,7 +296,8 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 var contentModeDecided = false;
                 var bufferPotentialFunctionText = false;
 
-                await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
                 using var reader = new StreamReader(stream);
 
                 while (!reader.EndOfStream)

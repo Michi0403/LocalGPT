@@ -34,7 +34,8 @@ public sealed class ProjectArchitectureService(
         CancellationToken cancellationToken = default)
     {
         await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
         var revisionName = $"council-{councilRunId:N}";
         var existingRevision = await db.LocalGptProjectRevisions
@@ -95,7 +96,8 @@ public sealed class ProjectArchitectureService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             return await db.LocalGptProjectRevisions.AsNoTracking()
                 .Where(item => item.ProjectId == projectId)
                 .OrderByDescending(item => item.IsCurrent)
@@ -124,7 +126,8 @@ public sealed class ProjectArchitectureService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             return await db.LocalGptProjectRequirements.AsNoTracking()
                 .Where(item => item.ProjectId == projectId)
                 .Include(item => item.Links)
@@ -155,7 +158,8 @@ public sealed class ProjectArchitectureService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             return await db.LocalGptProjectArtifacts.AsNoTracking()
                 .Where(item => item.ProjectId == projectId)
                 .OrderBy(item => item.ArtifactKind)
@@ -190,7 +194,8 @@ public sealed class ProjectArchitectureService(
             ValidateStructureJson(request.ProjectStructureJson);
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var project = await db.LocalGptProjects.SingleOrDefaultAsync(item => item.Id == projectId, cancellationToken).ConfigureAwait(false)
                 ?? throw new KeyNotFoundException($"Project {projectId} was not found.");
 
@@ -251,7 +256,8 @@ public sealed class ProjectArchitectureService(
             RequireConfirmation(request.UserConfirmed, "saving a project requirement");
             var name = RequireText(request.Name, nameof(request.Name), 240);
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             if (!await db.LocalGptProjects.AnyAsync(item => item.Id == projectId, cancellationToken).ConfigureAwait(false))
                 throw new KeyNotFoundException($"Project {projectId} was not found.");
 
@@ -307,7 +313,8 @@ public sealed class ProjectArchitectureService(
             var targetKind = RequireText(request.TargetKind, nameof(request.TargetKind), 80);
             var targetName = RequireText(request.TargetName, nameof(request.TargetName), 240);
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var requirement = await db.LocalGptProjectRequirements.SingleOrDefaultAsync(
                 item => item.Id == request.RequirementId && item.ProjectId == projectId, cancellationToken).ConfigureAwait(false)
                 ?? throw new KeyNotFoundException("The selected requirement does not belong to the active project.");
@@ -362,7 +369,8 @@ public sealed class ProjectArchitectureService(
                 ValidateRegex(request.Value, request.Flags);
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             if (!await db.LocalGptProjects.AnyAsync(item => item.Id == projectId, cancellationToken).ConfigureAwait(false))
                 throw new KeyNotFoundException($"Project {projectId} was not found.");
 

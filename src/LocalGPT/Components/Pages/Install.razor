@@ -1206,7 +1206,8 @@
             var file = args.File;
             if (string.IsNullOrWhiteSpace(LocalizationCulture))
                 LocalizationCulture = Path.GetFileNameWithoutExtension(file.Name);
-            await using var stream = file.OpenReadStream(4 * 1024 * 1024);
+            var stream = file.OpenReadStream(4 * 1024 * 1024);
+            await using var configuredStreamAsyncDisposal = stream.ConfigureAwait(false);
             using var reader = new StreamReader(stream);
             var json = await reader.ReadToEndAsync().ConfigureAwait(false);
             var validation = Localization.ValidateCatalog(LocalizationCulture, json);

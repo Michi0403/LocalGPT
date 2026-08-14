@@ -37,7 +37,8 @@ public sealed class SqliteEditorPreferenceService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             return await db.SqliteEditorFieldOverrides.AsNoTracking()
                 .Where(item => item.TableName == tableName)
                 .ToDictionaryAsync(item => item.ColumnName, StringComparer.OrdinalIgnoreCase, cancellationToken)
@@ -73,7 +74,8 @@ public sealed class SqliteEditorPreferenceService(
             ArgumentException.ThrowIfNullOrWhiteSpace(preference.ColumnName);
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var entity = await db.SqliteEditorFieldOverrides.SingleOrDefaultAsync(
                 item => item.TableName == preference.TableName && item.ColumnName == preference.ColumnName,
                 cancellationToken).ConfigureAwait(false);

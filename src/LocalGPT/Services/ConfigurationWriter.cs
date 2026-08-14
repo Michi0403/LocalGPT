@@ -30,7 +30,8 @@ namespace LocalGPT.Services
 
                 if (File.Exists(file))
                 {
-                    await using var readStream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    var readStream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    await using var configuredReadStreamAsyncDisposal = readStream.ConfigureAwait(false);
                     settings = await JsonNode.ParseAsync(readStream, cancellationToken: ct).ConfigureAwait(false) as JsonObject ?? new JsonObject();
                 }
                 else

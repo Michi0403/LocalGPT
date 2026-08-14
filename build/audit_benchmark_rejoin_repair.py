@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static source audit for LocalGPT 2.8.2 benchmark/rejoin/build-guard repair."""
+"""Static source audit for LocalGPT 2.8.3 benchmark/rejoin/build-guard repair."""
 from pathlib import Path
 import sys
 root = Path(__file__).resolve().parents[1]
@@ -51,8 +51,8 @@ try:
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
     ):
-        require(rel, "<Version>2.8.2</Version>")
-    print("LocalGPT 2.8.2 benchmark/rejoin/build-guard source audit passed.")
+        require(rel, "<Version>2.8.4</Version>")
+    print("LocalGPT 2.8.3 benchmark/rejoin/build-guard source audit passed.")
 except AssertionError as exc:
-    print(f"LocalGPT 2.8.2 benchmark/rejoin/build-guard source audit failed: {exc}", file=sys.stderr)
+    print(f"LocalGPT 2.8.3 benchmark/rejoin/build-guard source audit failed: {exc}", file=sys.stderr)
     sys.exit(1)

@@ -54,7 +54,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(db);
                 return await db.Conversations
                     .AsNoTracking()
@@ -91,7 +92,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 var conversation = await db.Conversations
                     .AsNoTracking()
                     .Include(item => item.Messages)
@@ -151,9 +153,11 @@ namespace LocalGPT.Services
                 if (completeMessages.Count == 0)
                     return conversationId;
 
-                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(db);
-                await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+                var transaction = await db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredTransactionAsyncDisposal = transaction.ConfigureAwait(false);
                 var now = DateTime.UtcNow;
                 ChatMemoryConversation conversation;
 
@@ -260,7 +264,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(db);
                 var values = await db.Messages
                     .AsNoTracking()
@@ -315,7 +320,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(db);
                 var message = await db.Messages.SingleOrDefaultAsync(
                     item => item.ConversationId == conversationId && item.SortOrder == sortOrder,
@@ -353,7 +359,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                await using var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 ArgumentNullException.ThrowIfNull(db);
                 return await db.Messages
                     .AsNoTracking()

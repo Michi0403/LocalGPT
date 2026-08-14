@@ -401,7 +401,8 @@ public sealed class NativeCommandRunner(
     {
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             db.NativeCommandLogs.Add(new NativeCommandLogEntry
             {
                 StartedAtUtc = startedAt,

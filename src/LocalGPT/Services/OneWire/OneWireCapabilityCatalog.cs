@@ -108,7 +108,8 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     {
     try
     {
-            await using var functionScope = scopeFactory.CreateAsyncScope();
+            var functionScope = scopeFactory.CreateAsyncScope();
+            await using var configuredFunctionScopeAsyncDisposal = functionScope.ConfigureAwait(false);
             var functionCatalog = functionScope.ServiceProvider.GetRequiredService<IDxAiFunctionCatalogService>();
             var entries = string.IsNullOrWhiteSpace(peerId)
                 ? await functionCatalog.GetEntriesAsync(cancellationToken).ConfigureAwait(false)
@@ -144,7 +145,8 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
                     Source = entry.Source
                 }).ToList();
 
-            await using var scope = scopeFactory.CreateAsyncScope();
+            var scope = scopeFactory.CreateAsyncScope();
+            await using var configuredScopeAsyncDisposal = scope.ConfigureAwait(false);
             var councilBlueprints = scope.ServiceProvider.GetRequiredService<IOrganicCouncilBlueprintService>();
             functions.Add(new OneWireCapabilityDescriptor
             {
@@ -267,7 +269,8 @@ public sealed class OneWireCapabilityCatalog(ILocalGptVocabularyService vocabula
     {
     try
     {
-            await using var scope = scopeFactory.CreateAsyncScope();
+            var scope = scopeFactory.CreateAsyncScope();
+            await using var configuredScopeAsyncDisposal = scope.ConfigureAwait(false);
             var registry = scope.ServiceProvider.GetRequiredService<IOrganicSkillRegistryService>();
             var persisted = await registry.GetSkillsAsync(includeDisabled: true, cancellationToken).ConfigureAwait(false);
             var mapped = persisted.Select(skill => new OneWireSkillDescriptor

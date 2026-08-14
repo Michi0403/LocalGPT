@@ -1953,8 +1953,10 @@ namespace LocalGPT.Services
                 var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(file.FullName)))[..12];
                 var destination = Path.Combine(captureRoot, $"{area}-{hash}-{file.Name}");
 
-                await using var read = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                await using var write = File.Open(destination, FileMode.Create, FileAccess.Write, FileShare.None);
+                var read = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                await using var configuredReadAsyncDisposal = read.ConfigureAwait(false);
+                var write = File.Open(destination, FileMode.Create, FileAccess.Write, FileShare.None);
+                await using var configuredWriteAsyncDisposal = write.ConfigureAwait(false);
                 await read.CopyToAsync(write, cancellationToken).ConfigureAwait(false);
                 return destination;
             }

@@ -36,7 +36,8 @@ public sealed class LearningRoundService(
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             var take = Math.Clamp(takePerSource, 1, 10_000);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
             // Keep database expressions simple and materialize before truncating/casting to object. This avoids
             // provider-specific translation failures while retaining bounded evidence packages for local models.

@@ -30,7 +30,8 @@ public sealed class PromptConfigService(
     {
             ArgumentException.ThrowIfNullOrWhiteSpace(key);
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var prompt = await db.Prompts.AsNoTracking()
                 .Where(item => item.Key == key && item.Language == language)
                 .OrderByDescending(item => item.LastUpdated)
@@ -87,7 +88,8 @@ public sealed class PromptConfigService(
             ArgumentNullException.ThrowIfNull(dto);
             ArgumentException.ThrowIfNullOrWhiteSpace(dto.Key);
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var entity = await db.Prompts
                 .Where(item => item.Key == dto.Key && item.Language == dto.Language)
                 .OrderByDescending(item => item.LastUpdated)
@@ -123,7 +125,8 @@ public sealed class PromptConfigService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.Prompts.AsNoTracking();
             if (!string.IsNullOrWhiteSpace(language))
                 query = query.Where(prompt => prompt.Language == language);

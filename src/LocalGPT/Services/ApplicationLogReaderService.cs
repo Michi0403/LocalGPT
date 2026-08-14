@@ -40,7 +40,8 @@ namespace LocalGPT.Services
             try
             {
                 await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
 
                 return await db.ApplicationLogs
                     .AsNoTracking()

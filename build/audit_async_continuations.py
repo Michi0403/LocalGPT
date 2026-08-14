@@ -419,9 +419,7 @@ def source_files(source_root: Path):
     for path in source_root.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in {".cs", ".razor"}:
             continue
-        if any(part in {"bin", "obj", "Migrations", ".git", ".vs"} for part in path.parts):
-            continue
-        if path.name.endswith(".Designer.cs"):
+        if any(part in {"bin", "obj", ".git", ".vs"} for part in path.parts):
             continue
         yield path
 
@@ -433,13 +431,14 @@ def audit(source_root: Path) -> tuple[list[Finding], dict[str, int]]:
         "awaits": 0,
         "configure_false": 0,
         "configure_true": 0,
-        "configured_awaitables": 0,
         "async_disposals": 0,
+        "async_disposals_false": 0,
+        "async_disposals_true": 0,
         "async_streams": 0,
     }
     configuration_pattern = re.compile(r"\.ConfigureAwait\s*\(\s*(true|false)\s*\)\s*!?\s*$")
-    baseline_path = source_root.parents[1] / "build" / "async-continuation-baseline.json"
-    baseline = json.loads(baseline_path.read_text(encoding="utf-8-sig"))
+    policy_path = source_root.parents[1] / "build" / "async-continuation-policy.json"
+    baseline = json.loads(policy_path.read_text(encoding="utf-8-sig"))
     lifecycle_names = tuple(baseline.get(
         "rendererAffineLifecycleMethods",
         ("OnInitializedAsync", "OnParametersSetAsync", "OnAfterRenderAsync"),
@@ -493,6 +492,27 @@ def audit(source_root: Path) -> tuple[list[Finding], dict[str, int]]:
                 following = tokens[index + 1].value
                 if following == "using":
                     totals["async_disposals"] += 1
+                    line_start = region_text.rfind("\n", 0, token.start) + 1
+                    line_end = region_text.find("\n", token.start)
+                    if line_end < 0:
+                        line_end = len(region_text)
+                    using_line = region_text[line_start:line_end]
+                    using_configuration = re.search(r"\.ConfigureAwait\s*\(\s*(true|false)\s*\)", using_line)
+                    if using_configuration is None:
+                        findings.append(Finding(
+                            relative,
+                            current_line,
+                            "Every await using construct must explicitly configure asynchronous disposal with ConfigureAwait(true/false).",
+                        ))
+                        continue
+                    using_true = using_configuration.group(1) == "true"
+                    totals["async_disposals_true" if using_true else "async_disposals_false"] += 1
+                    if using_true and not is_component:
+                        findings.append(Finding(
+                            relative,
+                            current_line,
+                            "ConfigureAwait(true) on async disposal is forbidden outside Components; use ConfigureAwait(false).",
+                        ))
                     continue
                 if following == "foreach":
                     totals["async_streams"] += 1
@@ -516,9 +536,6 @@ def audit(source_root: Path) -> tuple[list[Finding], dict[str, int]]:
                 expression = region_text[tokens[index + 1].start : tokens[expression_end - 1].end]
                 configuration = configuration_pattern.search(expression)
                 if configuration is None:
-                    if "configuredTaskAwaitable" in expression:
-                        totals["configured_awaitables"] += 1
-                        continue
                     findings.append(Finding(
                         relative,
                         current_line,
@@ -545,8 +562,32 @@ def audit(source_root: Path) -> tuple[list[Finding], dict[str, int]]:
                     findings.append(Finding(
                         relative,
                         current_line,
-                        "ConfigureAwait(true) is allowed only in a Blazor lifecycle method or an exact renderer-affine loading helper listed in async-continuation-baseline.json.",
+                        "ConfigureAwait(true) is allowed only in a Blazor lifecycle method or an exact renderer-affine loading helper listed in async-continuation-policy.json.",
                     ))
+
+        if path.suffix.lower() == ".razor":
+            code_starts = [match.start() for match in re.finditer(r"(?m)^\s*@(code|functions)\s*\{", text)]
+            markup_end = min(code_starts) if code_starts else len(text)
+            for markup_match in re.finditer(r"\bawait\s+[^;\"]+", text[:markup_end]):
+                markup_expression = markup_match.group(0)
+                markup_line = line_number(text, markup_match.start())
+                totals["awaits"] += 1
+                markup_configuration = re.search(r"\.ConfigureAwait\s*\(\s*(true|false)\s*\)", markup_expression)
+                if markup_configuration is None:
+                    findings.append(Finding(
+                        relative,
+                        markup_line,
+                        "Every Razor markup await must explicitly use ConfigureAwait(true/false).",
+                    ))
+                else:
+                    markup_true = markup_configuration.group(1) == "true"
+                    totals["configure_true" if markup_true else "configure_false"] += 1
+                    if markup_true and "@on" not in text[text.rfind("<", 0, markup_match.start()) : markup_match.start()]:
+                        findings.append(Finding(
+                            relative,
+                            markup_line,
+                            "ConfigureAwait(true) in Razor markup is reserved for connected UI event flows.",
+                        ))
 
         if file_has_await:
             totals["files"] += 1
@@ -584,8 +625,8 @@ def main() -> int:
         f"{totals['files']} source files ({totals['awaits']} await tokens, "
         f"{totals['configure_false']} ConfigureAwait(false), "
         f"{totals['configure_true']} renderer-affine ConfigureAwait(true), "
-        f"{totals['configured_awaitables']} preconfigured awaitables, "
-        f"{totals['async_disposals']} reviewed await-using disposals, "
+        f"{totals['async_disposals']} explicitly configured await-using disposals "
+        f"({totals['async_disposals_false']} false, {totals['async_disposals_true']} true), "
         f"{totals['async_streams']} configured async streams)."
     )
     return 0

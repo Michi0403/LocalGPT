@@ -27,7 +27,8 @@ public sealed class FeaturePersistenceService(
         {
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
             await EnsureBuiltInCouncilStartersAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.CouncilPromptStarterConfigurations.AsNoTracking();
             if (!includeDisabled)
                 query = query.Where(item => item.IsEnabled);
@@ -49,7 +50,8 @@ public sealed class FeaturePersistenceService(
         try
         {
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             return await db.CouncilPromptStarterConfigurations.AsNoTracking()
                 .SingleOrDefaultAsync(item => item.Id == id, cancellationToken).ConfigureAwait(false);
         }
@@ -71,7 +73,8 @@ public sealed class FeaturePersistenceService(
             ValidateWrite(request);
             NormalizeStarter(request.Record);
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var existing = await db.CouncilPromptStarterConfigurations
                 .SingleOrDefaultAsync(item => item.Id == request.Record.Id || item.Key == request.Record.Key, cancellationToken)
                 .ConfigureAwait(false);
@@ -134,7 +137,8 @@ public sealed class FeaturePersistenceService(
         try
         {
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.LocalizationCatalogRegistrations.AsNoTracking();
             if (!includeDisabled)
                 query = query.Where(item => item.IsEnabled);
@@ -177,7 +181,8 @@ public sealed class FeaturePersistenceService(
             ValidateWrite(request);
             NormalizeLocalization(request.Record);
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var existing = await db.LocalizationCatalogRegistrations
                 .SingleOrDefaultAsync(item => item.Id == request.Record.Id || item.CultureName == request.Record.CultureName, cancellationToken)
                 .ConfigureAwait(false);
@@ -239,7 +244,8 @@ public sealed class FeaturePersistenceService(
         try
         {
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             return await db.DocumentationBuildRecords.AsNoTracking().OrderByDescending(item => item.GeneratedAtUtc)
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -285,7 +291,8 @@ public sealed class FeaturePersistenceService(
             request.Record.OutputRoot = Trim(request.Record.OutputRoot, 2048);
             request.Record.Warning = Trim(request.Record.Warning, 4000);
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var existing = await db.DocumentationBuildRecords
                 .SingleOrDefaultAsync(item => item.Id == request.Record.Id, cancellationToken).ConfigureAwait(false);
             if (existing is null)
@@ -346,7 +353,8 @@ public sealed class FeaturePersistenceService(
         try
         {
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             return await db.EmbeddedFirmwarePlanRecords.AsNoTracking().OrderByDescending(item => item.UpdatedAtUtc)
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -391,7 +399,8 @@ public sealed class FeaturePersistenceService(
             request.Record.Status = Trim(request.Record.Status, 80);
             request.Record.PlanJson = RequireJson(request.Record.PlanJson, nameof(request.Record.PlanJson));
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var existing = await db.EmbeddedFirmwarePlanRecords
                 .SingleOrDefaultAsync(item => item.Id == request.Record.Id || item.PlanKey == request.Record.PlanKey, cancellationToken)
                 .ConfigureAwait(false);
@@ -452,7 +461,8 @@ public sealed class FeaturePersistenceService(
         try
         {
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             return await db.CouncilGameSessionRecords.AsNoTracking().OrderByDescending(item => item.UpdatedAtUtc)
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -497,7 +507,8 @@ public sealed class FeaturePersistenceService(
             request.Record.Status = Trim(request.Record.Status, 80);
             request.Record.SnapshotJson = RequireJson(request.Record.SnapshotJson, nameof(request.Record.SnapshotJson));
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var existing = await db.CouncilGameSessionRecords
                 .SingleOrDefaultAsync(item => item.Id == request.Record.Id || item.SessionKey == request.Record.SessionKey, cancellationToken)
                 .ConfigureAwait(false);
@@ -556,7 +567,8 @@ public sealed class FeaturePersistenceService(
     {
     try
     {
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var existingKeys = await db.CouncilPromptStarterConfigurations.AsNoTracking()
                 .Select(item => item.Key)
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
@@ -635,7 +647,8 @@ public sealed class FeaturePersistenceService(
         try
         {
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             return await selector(db).AsNoTracking()
                 .SingleOrDefaultAsync(item => EF.Property<Guid>(item, "Id") == id, cancellationToken)
                 .ConfigureAwait(false);
@@ -669,7 +682,8 @@ public sealed class FeaturePersistenceService(
             if (!userConfirmed)
                 throw new InvalidOperationException($"Fresh human confirmation is required before deleting a {recordName}.");
             await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var record = await selector(db).FindAsync(new object?[] { id }, cancellationToken).ConfigureAwait(false);
             if (record is null)
                 return false;

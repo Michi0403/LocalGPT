@@ -53,7 +53,8 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
             await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 if (await db.DeferredDxAiInvocations.AnyAsync(
                         item => item.ApprovalRequestId == approvalRequestId,
                         cancellationToken).ConfigureAwait(false))
@@ -192,7 +193,8 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
             await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 var candidates = await db.DeferredDxAiInvocations
                     .Where(item => item.ApprovalRequestId == approvalRequestId && item.Status == vocabulary.Get().DeferredPendingApproval)
                     .OrderBy(item => item.CreatedAtUtc)
@@ -264,7 +266,8 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
             await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 var candidates = await db.DeferredDxAiInvocations
                     .Where(item => item.CouncilRunId == councilRunId &&
                         item.Status == vocabulary.Get().DeferredPendingApproval)
@@ -416,7 +419,8 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
             await databaseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+                await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
                 var entity = await db.DeferredDxAiInvocations
                     .SingleAsync(item => item.Id == deferredInvocationId, cancellationToken)
                     .ConfigureAwait(false);

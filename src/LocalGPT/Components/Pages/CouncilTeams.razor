@@ -63,23 +63,34 @@
             </div>
 
             <details class="council-best-use-functions">
-                <summary>Best-use DXFunctions (@_editor.PreferredCapabilities.Count selected)</summary>
-                <p class="hint">Select the functions this team should prefer. The list is grouped by function namespace; entries recommended by assigned runtime classes are marked.</p>
-                @foreach (var group in AvailableDxFunctions.GroupBy(FunctionNamespace).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+                <summary @onclick="ToggleDxFunctionPickerAsync">Best-use DXFunctions (@_editor.PreferredCapabilities.Count selected)</summary>
+                @if (!_dxFunctionPickerExpanded)
                 {
-                    <fieldset class="council-runtime-class-group">
-                        <legend>@group.Key</legend>
-                        @foreach (var entry in group.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
-                        {
-                            var recommended = RecommendedRuntimeFunctions.Contains(entry.FunctionName);
-                            <label class="form-check council-runtime-class-option">
-                                <input class="form-check-input" type="checkbox"
-                                       checked="@_editor.PreferredCapabilities.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
-                                       @onchange="args => TogglePreferredCapability(entry.FunctionName, args)" />
-                                <span><strong>@entry.DisplayName</strong> <small>@entry.FunctionName@(recommended ? " · runtime-class recommendation" : string.Empty)</small></span>
-                            </label>
-                        }
-                    </fieldset>
+                    <p class="hint">Open this section to load the DXFunction catalog. The large catalog is intentionally not rendered during Council Teams startup.</p>
+                }
+                else if (_dxFunctionsLoading)
+                {
+                    <p class="hint">Loading DXFunctions…</p>
+                }
+                else
+                {
+                    <p class="hint">Select the functions this team should prefer. The list is grouped by function namespace; entries recommended by assigned runtime classes are marked.</p>
+                    @foreach (var group in AvailableDxFunctions.GroupBy(FunctionNamespace).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+                    {
+                        <fieldset class="council-runtime-class-group">
+                            <legend>@group.Key</legend>
+                            @foreach (var entry in group.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
+                            {
+                                var recommended = RecommendedRuntimeFunctions.Contains(entry.FunctionName);
+                                <label class="form-check council-runtime-class-option">
+                                    <input class="form-check-input" type="checkbox"
+                                           checked="@_editor.PreferredCapabilities.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
+                                           @onchange="args => TogglePreferredCapability(entry.FunctionName, args)" />
+                                    <span><strong>@entry.DisplayName</strong> <small>@entry.FunctionName@(recommended ? " · runtime-class recommendation" : string.Empty)</small></span>
+                                </label>
+                            }
+                        </fieldset>
+                    }
                 }
             </details>
 
@@ -561,6 +572,10 @@
     private bool _hasError;
     private bool _confirmed;
     private bool _busy;
+    private bool _dxFunctionPickerExpanded;
+    private bool _dxFunctionsLoading;
+    private bool _dxFunctionsLoaded;
+    private bool _providerModelsRefreshing;
 
     private int EnabledRoundCount => _editor.WorkflowSteps.Count(step => step.IsEnabled);
     private int ExpandedRoundCount => CalculateExpandedRoundCount(_editor.WorkflowSteps);
@@ -578,42 +593,129 @@
         _busy = true;
         try
         {
-            _runtimeClasses = await RuntimeClasses.GetDefinitionsAsync(includeDisabled: true).ConfigureAwait(false);
-            _dxFunctions = await FunctionCatalog.GetEntriesAsync().ConfigureAwait(false);
-            try
+            var runtimeClassesTask = RuntimeClasses.GetDefinitionsAsync(includeDisabled: true);
+            var teamsTask = TeamConfigurations.GetTeamsAsync(includeDisabled: true);
+            var runtimeClasses = await runtimeClassesTask.ConfigureAwait(false);
+            var teams = await teamsTask.ConfigureAwait(false);
+
+            await InvokeAsync(() =>
             {
-                _providerModels = (await CouncilService.GetCandidatesAsync().ConfigureAwait(false))
-                    .OrderBy(candidate => candidate.Provider, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-            catch (Exception providerEx)
-            {
-                Logger.LogWarning(providerEx, "Could not refresh provider-qualified Council model candidates; team definitions remain editable with saved bindings.");
-                _providerModels = [];
-            }
-            _teams = await TeamConfigurations.GetTeamsAsync(includeDisabled: true).ConfigureAwait(false);
-            var selected = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
-            if (selected is not null)
-                SelectTeam(selected);
-            else
-                CreateTeam();
-            _status = $"Loaded {_teams.Count} database-backed team configuration(s).";
-            _hasError = false;
-            Notifier.ShowInfo(nameof(CouncilTeams), _status, "Council Teams");
+                _runtimeClasses = runtimeClasses;
+                _teams = teams;
+                var selected = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
+                if (selected is not null)
+                    SelectTeam(selected);
+                else
+                    CreateTeam();
+                _status = $"Loaded {_teams.Count} database-backed team configuration(s). Provider discovery continues in the background.";
+                _hasError = false;
+                Notifier.ShowInfo(nameof(CouncilTeams), _status, "Council Teams");
+            }).ConfigureAwait(false);
+
+            _ = RefreshProviderModelsAsync();
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Could not load AI Council team configurations.");
             ComponentActivity.RecordFailure(nameof(CouncilTeams), nameof(ReloadAsync), ex);
-            _status = ex.Message;
-            _hasError = true;
-            Notifier.ShowError(nameof(CouncilTeams), ex.Message, "Council Teams");
+            try
+            {
+                await InvokeAsync(() =>
+                {
+                    _status = ex.Message;
+                    _hasError = true;
+                    Notifier.ShowError(nameof(CouncilTeams), ex.Message, "Council Teams");
+                }).ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                Logger.LogDebug("Council Teams was disposed while reporting a load failure.");
+            }
         }
         finally
         {
-            _busy = false;
+            try
+            {
+                await InvokeAsync(() => _busy = false).ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                Logger.LogDebug("Council Teams was disposed before its busy state could be cleared.");
+            }
+        }
+    }
+
+    private async Task RefreshProviderModelsAsync()
+    {
+        if (_providerModelsRefreshing)
+            return;
+
+        _providerModelsRefreshing = true;
+        try
+        {
+            var candidates = (await CouncilService.GetCandidatesAsync().ConfigureAwait(false))
+                .OrderBy(candidate => candidate.Provider, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(candidate => candidate.Endpoint, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(candidate => candidate.ModelName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            await InvokeAsync(() => _providerModels = candidates).ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            Logger.LogDebug("Council Teams provider discovery completed after the component was disposed.");
+        }
+        catch (Exception providerEx)
+        {
+            Logger.LogWarning(providerEx, "Could not refresh provider-qualified Council model candidates; team definitions remain editable with saved bindings.");
+            try
+            {
+                await InvokeAsync(() => _providerModels = []).ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                Logger.LogDebug("Council Teams was disposed while provider discovery failure state was being applied.");
+            }
+        }
+        finally
+        {
+            _providerModelsRefreshing = false;
+        }
+    }
+
+    private async Task ToggleDxFunctionPickerAsync()
+    {
+        _dxFunctionPickerExpanded = !_dxFunctionPickerExpanded;
+        if (!_dxFunctionPickerExpanded || _dxFunctionsLoaded || _dxFunctionsLoading)
+            return;
+
+        _dxFunctionsLoading = true;
+        try
+        {
+            var entries = await FunctionCatalog.GetEntriesAsync().ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                _dxFunctions = entries;
+                _dxFunctionsLoaded = true;
+                _dxFunctionsLoading = false;
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not load the Council Teams DXFunction picker.");
+            ComponentActivity.RecordFailure(nameof(CouncilTeams), nameof(ToggleDxFunctionPickerAsync), ex);
+            try
+            {
+                await InvokeAsync(() =>
+                {
+                    _dxFunctionsLoading = false;
+                    _status = "The DXFunction catalog could not be loaded. Team editing remains available.";
+                    _hasError = true;
+                }).ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                Logger.LogDebug("Council Teams was disposed while the DXFunction picker failure was being applied.");
+            }
         }
     }
 

@@ -513,9 +513,11 @@ namespace LocalGPT.Services
                     }
 
                     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                    await using (var entryStream = entry.Open())
-                    await using (var destinationStream = System.IO.File.Create(destination))
                     {
+                        var entryStream = entry.Open();
+                        await using var configuredEntryStreamAsyncDisposal = entryStream.ConfigureAwait(false);
+                        var destinationStream = System.IO.File.Create(destination);
+                        await using var configuredDestinationStreamAsyncDisposal = destinationStream.ConfigureAwait(false);
                         await entryStream.CopyToAsync(destinationStream, cancellationToken).ConfigureAwait(false);
                     }
 

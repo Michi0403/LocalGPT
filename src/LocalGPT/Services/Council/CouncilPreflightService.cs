@@ -53,7 +53,8 @@ public sealed class CouncilPreflightService(
             var team = await teams.FindTeamAsync(request.CouncilTeamKey, cancellationToken).ConfigureAwait(false)
                 ?? await teams.FindTeamAsync("general", cancellationToken).ConfigureAwait(false);
 
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var regexNames = await db.RegexPatterns.AsNoTracking()
                 .OrderBy(item => item.Name)
                 .Select(item => item.Name)

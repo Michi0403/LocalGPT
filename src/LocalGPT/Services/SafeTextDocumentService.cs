@@ -108,7 +108,8 @@ public sealed class SafeTextDocumentService(
             var document = await ReadAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             if (!await db.LocalGptProjects.AnyAsync(item => item.Id == projectId, cancellationToken).ConfigureAwait(false))
                 throw new KeyNotFoundException($"Project {projectId} was not found.");
             if (revisionId is Guid id && !await db.LocalGptProjectRevisions.AnyAsync(item => item.Id == id && item.ProjectId == projectId, cancellationToken).ConfigureAwait(false))

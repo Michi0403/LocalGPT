@@ -63,7 +63,8 @@ public sealed class CouncilTeamConfigurationService(
     try
     {
             await EnsureSeededAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.CouncilTeamConfigurations.AsNoTracking();
             if (!includeDisabled)
                 query = query.Where(item => item.IsEnabled);
@@ -91,7 +92,8 @@ public sealed class CouncilTeamConfigurationService(
     {
             var normalized = string.IsNullOrWhiteSpace(key) ? "general" : key.Trim().ToLowerInvariant();
             await EnsureSeededAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var row = await db.CouncilTeamConfigurations.AsNoTracking()
                 .SingleOrDefaultAsync(item => item.Key == normalized && item.IsEnabled, cancellationToken)
                 .ConfigureAwait(false);
@@ -124,7 +126,8 @@ public sealed class CouncilTeamConfigurationService(
             NormalizeAndValidateUserDefinition(request.Team);
 
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var key = request.Team.Key;
             var row = await db.CouncilTeamConfigurations.SingleOrDefaultAsync(item => item.Key == key, cancellationToken).ConfigureAwait(false);
             if (row is null)
@@ -173,7 +176,8 @@ public sealed class CouncilTeamConfigurationService(
     try
     {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var existingRows = await db.CouncilTeamConfigurations.ToListAsync(cancellationToken).ConfigureAwait(false);
             var changed = false;
 

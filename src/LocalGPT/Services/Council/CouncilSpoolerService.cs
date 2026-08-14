@@ -323,7 +323,8 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
                 var snapshots = GetSnapshots(includeCompleted: true, take: 50);
                 Directory.CreateDirectory(Path.GetDirectoryName(CheckpointPath)!);
                 var temporary = CheckpointPath + ".tmp";
-                await using (var stream = File.Create(temporary))
+                var stream = File.Create(temporary);
+                await using (stream.ConfigureAwait(false))
                     await JsonSerializer.SerializeAsync(stream, snapshots, JsonOptions, cancellationToken).ConfigureAwait(false);
                 File.Move(temporary, CheckpointPath, overwrite: true);
             }

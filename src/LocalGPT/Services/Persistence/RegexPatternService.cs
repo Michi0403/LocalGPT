@@ -31,7 +31,8 @@ public sealed class RegexPatternService(
             ArgumentException.ThrowIfNullOrWhiteSpace(dto.Name);
             ValidatePattern(dto.Pattern, dto.Flags);
             await databaseInitializer.InitializeAsync().ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var entity = await db.RegexPatterns.SingleOrDefaultAsync(item => item.Name == dto.Name).ConfigureAwait(false);
             if (entity is null)
             {
@@ -62,7 +63,8 @@ public sealed class RegexPatternService(
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(name);
             await databaseInitializer.InitializeAsync().ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var pattern = await db.RegexPatterns.AsNoTracking().SingleOrDefaultAsync(item => item.Name == name).ConfigureAwait(false)
                 ?? throw new KeyNotFoundException($"Regex '{name}' was not found.");
             return Compile(pattern.Pattern, pattern.Flags);
@@ -146,7 +148,8 @@ public sealed class RegexPatternService(
         try
         {
             await databaseInitializer.InitializeAsync().ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.RegexPatterns.AsNoTracking().OrderBy(item => item.Name).AsQueryable();
             if (take.HasValue)
                 query = query.Take(Math.Clamp(take.Value, 1, 1000));
@@ -191,7 +194,8 @@ public sealed class RegexPatternService(
             if (!confirm)
                 throw new InvalidOperationException("Deletion requires explicit confirmation.");
             await databaseInitializer.InitializeAsync().ConfigureAwait(false);
-            await using var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var entity = await db.RegexPatterns.SingleOrDefaultAsync(item => item.Name == name).ConfigureAwait(false);
             if (entity is null)
                 return;
