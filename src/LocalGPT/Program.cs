@@ -562,6 +562,13 @@ namespace LocalGPT
                     // document attachments without an arbitrary cloud-style message ceiling.
                     options.MaximumReceiveMessageSize = null;
                     options.EnableDetailedErrors = true;
+                    // A large local Council can temporarily keep the browser main thread busy while
+                    // rendering provider output. Give transient stalls more room before SignalR
+                    // declares the client dead; a genuinely lost browser can still rejoin through
+                    // the server-owned Council live-session snapshot.
+                    options.ClientTimeoutInterval = TimeSpan.FromMinutes(2);
+                    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+                    options.HandshakeTimeout = TimeSpan.FromSeconds(30);
                 })
                 .AddMessagePackProtocol(options =>
                 {

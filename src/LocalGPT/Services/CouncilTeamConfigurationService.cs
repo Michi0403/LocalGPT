@@ -333,6 +333,9 @@ public sealed class CouncilTeamConfigurationService(
                 step.LogicalRoundNumber = Math.Clamp(step.LogicalRoundNumber, 0, MaxExpandedWorkflowSteps);
                 if (!Enum.IsDefined(typeof(CouncilTranscriptVisibilityMode), step.TranscriptVisibility))
                     step.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
+                if (!Enum.IsDefined(typeof(CouncilRoleResultSynthesisMemberMode), step.RoleResultSynthesisMemberMode))
+                    step.RoleResultSynthesisMemberMode = CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember;
+                step.RoleResultSynthesisModelName = step.RoleResultSynthesisModelName?.Trim() ?? string.Empty;
                 step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
                 step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
                 step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
@@ -497,6 +500,9 @@ public sealed class CouncilTeamConfigurationService(
                 step.LogicalRoundNumber = Math.Clamp(step.LogicalRoundNumber, 0, MaxExpandedWorkflowSteps);
                 if (!Enum.IsDefined(typeof(CouncilTranscriptVisibilityMode), step.TranscriptVisibility))
                     step.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
+                if (!Enum.IsDefined(typeof(CouncilRoleResultSynthesisMemberMode), step.RoleResultSynthesisMemberMode))
+                    step.RoleResultSynthesisMemberMode = CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember;
+                step.RoleResultSynthesisModelName = step.RoleResultSynthesisModelName?.Trim() ?? string.Empty;
                 step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
                 step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
                 step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
@@ -526,6 +532,22 @@ public sealed class CouncilTeamConfigurationService(
                     throw new InvalidOperationException($"Workflow step '{step.DisplayName}' enables X-Rounds but grants no X action.");
                 if (team.Roles.Count > 0 && !rolesByName.ContainsKey(step.Role))
                     throw new InvalidOperationException($"Workflow step '{step.DisplayName}' references role '{step.Role}', but that role is not defined in the team.");
+                if (step.SummarizeRoleResults &&
+                    step.RoleResultSynthesisMemberMode == CouncilRoleResultSynthesisMemberMode.AssignedRoleMember &&
+                    string.IsNullOrWhiteSpace(step.RoleResultSynthesisModelName))
+                {
+                    throw new InvalidOperationException(
+                        $"Workflow step '{step.DisplayName}' uses a selected role-result summarizer but no provider-qualified role member is selected.");
+                }
+                if (step.SummarizeRoleResults &&
+                    step.RoleResultSynthesisMemberMode == CouncilRoleResultSynthesisMemberMode.AssignedRoleMember &&
+                    rolesByName.TryGetValue(step.Role, out var synthesisRole) &&
+                    synthesisRole.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels &&
+                    !synthesisRole.AssignedModelKeys.Contains(step.RoleResultSynthesisModelName, StringComparer.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"Workflow step '{step.DisplayName}' selects role-result summarizer '{step.RoleResultSynthesisModelName}', but that model is not bound to role '{step.Role}'.");
+                }
                 if (step.ExecutionMode == "AssignedModelSingle")
                 {
                     if (string.IsNullOrWhiteSpace(step.AssignedModelName))

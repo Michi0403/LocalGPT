@@ -64,6 +64,16 @@ public enum CouncilRoleBoundaryMode
     Strict
 }
 
+/// <summary>Defines how one role member is selected to consolidate multiple role-member results.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilRoleResultSynthesisMemberMode
+{
+    /// <summary>Selects one of the role members with a stable run-local pseudo-random choice.</summary>
+    DeterministicRandomRoleMember,
+    /// <summary>Uses the exact provider-qualified role member selected on the workflow step.</summary>
+    AssignedRoleMember
+}
+
 /// <summary>Defines which prior Council output a configured workflow step may receive.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum CouncilTranscriptVisibilityMode
@@ -336,6 +346,18 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets how many times the step is expanded outside a loop group.</summary>
     /// <value>The repeat count value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public int RepeatCount { get; set; } = 1;
+    /// <summary>Gets or sets whether role members review each other's answers and record usefulness plus a role-local vote after the primary step.</summary>
+    /// <value><see langword="true"/> to run the optional role-local peer review; otherwise the historical workflow behavior is preserved.</value>
+    public bool EnableRolePeerReview { get; set; }
+    /// <summary>Gets or sets whether multiple role-member answers are consolidated into one role result before the next workflow step.</summary>
+    /// <value><see langword="true"/> to create a role-local synthesis result; otherwise every primary member answer remains the step result as before.</value>
+    public bool SummarizeRoleResults { get; set; }
+    /// <summary>Gets or sets how the role-result synthesizer is selected when role-result consolidation is enabled.</summary>
+    /// <value>The role-result synthesis member mode used for this workflow step.</value>
+    public CouncilRoleResultSynthesisMemberMode RoleResultSynthesisMemberMode { get; set; } = CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember;
+    /// <summary>Gets or sets the exact provider-qualified role member used when assigned-member role synthesis is enabled.</summary>
+    /// <value>The provider-qualified model selection key preferred for role-result synthesis.</value>
+    public string RoleResultSynthesisModelName { get; set; } = string.Empty;
     /// <summary>Gets or sets whether prior step output is included in the prompt.</summary>
     /// <value>The include prior transcript value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool IncludePriorTranscript { get; set; } = true;

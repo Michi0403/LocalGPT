@@ -124,7 +124,12 @@ namespace LocalGPT.Services
                         step.IsEnabled &&
                         step.XFunctionsEnabled &&
                         step.XCanStartSingleModel &&
-                        !string.IsNullOrWhiteSpace(step.XChildModelName));
+                        !string.IsNullOrWhiteSpace(step.XChildModelName)) ||
+                    team.WorkflowSteps.Any(step =>
+                        step.IsEnabled &&
+                        step.SummarizeRoleResults &&
+                        step.RoleResultSynthesisMemberMode == CouncilRoleResultSynthesisMemberMode.AssignedRoleMember &&
+                        !string.IsNullOrWhiteSpace(step.RoleResultSynthesisModelName));
                 if (!hasSavedBindings)
                     return;
 
@@ -164,6 +169,19 @@ namespace LocalGPT.Services
                         $"X-Function single-model target for {step.DisplayName}");
                 }
 
+                foreach (var step in team.WorkflowSteps.Where(step =>
+                             step.IsEnabled &&
+                             step.SummarizeRoleResults &&
+                             step.RoleResultSynthesisMemberMode == CouncilRoleResultSynthesisMemberMode.AssignedRoleMember &&
+                             !string.IsNullOrWhiteSpace(step.RoleResultSynthesisModelName)))
+                {
+                    step.RoleResultSynthesisModelName = ResolveConfiguredTeamModelBinding(
+                        step.RoleResultSynthesisModelName,
+                        candidates,
+                        team,
+                        $"role-result summarizer for {step.DisplayName}");
+                }
+
                 var configuredBindings = team.Roles
                     .Where(role =>
                         role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
@@ -180,6 +198,12 @@ namespace LocalGPT.Services
                             step.XFunctionsEnabled &&
                             step.XCanStartSingleModel)
                         .Select(step => step.XChildModelName))
+                    .Concat(team.WorkflowSteps
+                        .Where(step =>
+                            step.IsEnabled &&
+                            step.SummarizeRoleResults &&
+                            step.RoleResultSynthesisMemberMode == CouncilRoleResultSynthesisMemberMode.AssignedRoleMember)
+                        .Select(step => step.RoleResultSynthesisModelName))
                     .Where(value => !string.IsNullOrWhiteSpace(value))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -3049,6 +3073,147 @@ namespace LocalGPT.Services
                     }
 
                     var stageAnswer = BuildConfiguredWorkflowStageAnswer(roundSteps);
+                    var distinctAiRoleParticipants = roleParticipants
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    var usablePrimaryAiSteps = roundSteps
+                        .Where(step =>
+                            distinctAiRoleParticipants.Contains(step.ModelName, StringComparer.OrdinalIgnoreCase) &&
+                            string.IsNullOrWhiteSpace(step.Error) &&
+                            !string.IsNullOrWhiteSpace(step.VisibleContent) &&
+                            !IsRoundSkippedStep(step))
+                        .GroupBy(step => step.ModelName, StringComparer.OrdinalIgnoreCase)
+                        .Select(group => group.Last())
+                        .ToList();
+
+                    IReadOnlyList<MultiModelCouncilStep> rolePeerReviewSteps = [];
+                    if (definition.EnableRolePeerReview && usablePrimaryAiSteps.Count >= 2)
+                    {
+                        var rolePeerReviewPhase = $"{phase} · role peer review {repeatIndex + 1}";
+                        request.ProgressMessage?.Invoke(
+                            $"Configured role '{roleAssignment.RoleName}' is running the optional peer usefulness/voting round across {usablePrimaryAiSteps.Count} role members.");
+                        var roleEvidence = BuildConfiguredRoleEvidence(roundSteps);
+                        await RunPhaseAsync(
+                            result,
+                            baseUri,
+                            usablePrimaryAiSteps.Select(step => step.ModelName).ToList(),
+                            round,
+                            rolePeerReviewPhase,
+                            $"{definition.Role} · Peer review",
+                            reviewerModelName => BuildConfiguredRolePeerReviewPrompt(
+                                team,
+                                request,
+                                definition,
+                                roleAssignment,
+                                reviewerModelName,
+                                usablePrimaryAiSteps,
+                                roleEvidence),
+                            heartbeatBootstrap,
+                            Math.Min(request.MaxOutputTokens, 4096),
+                            maxParallelModels,
+                            keepAlive,
+                            ollamaNumGpu,
+                            maxContextTokens,
+                            modelTimeoutSeconds,
+                            request.ProgressMessage,
+                            request.StreamUpdate,
+                            request.StepCompleted,
+                            modelRoutes,
+                            request.AllowParallelHardwareRoads,
+                            cancellationToken,
+                            allowDxFunctions: false,
+                            councilMembers: participants).ConfigureAwait(false);
+
+                        rolePeerReviewSteps = result.Steps
+                            .Where(step =>
+                                step.Round == round &&
+                                string.Equals(step.Phase, rolePeerReviewPhase, StringComparison.Ordinal) &&
+                                usablePrimaryAiSteps.Any(primary => string.Equals(primary.ModelName, step.ModelName, StringComparison.OrdinalIgnoreCase)))
+                            .ToList();
+                        foreach (var reviewStep in rolePeerReviewSteps)
+                        {
+                            reviewStep.WorkflowStepKey = definition.Key;
+                            reviewStep.WorkflowRevision = Math.Max(1, workflowRevision);
+                            reviewStep.XRoundCause = xRoundCause ?? string.Empty;
+                        }
+                    }
+
+                    if (definition.SummarizeRoleResults && usablePrimaryAiSteps.Count >= 2)
+                    {
+                        var synthesisParticipant = SelectConfiguredRoleSynthesisParticipant(
+                            result,
+                            team,
+                            definition,
+                            roleAssignment,
+                            usablePrimaryAiSteps.Select(step => step.ModelName).ToList(),
+                            round,
+                            repeatIndex);
+                        var roleSynthesisPhase = $"{phase} · role synthesis {repeatIndex + 1}";
+                        request.ProgressMessage?.Invoke(
+                            $"Configured role '{roleAssignment.RoleName}' is consolidating {usablePrimaryAiSteps.Count} member results through {synthesisParticipant}.");
+                        var roleEvidence = BuildConfiguredRoleEvidence(roundSteps);
+                        var peerReviewEvidence = BuildConfiguredRoleEvidence(rolePeerReviewSteps);
+                        await RunPhaseAsync(
+                            result,
+                            baseUri,
+                            [synthesisParticipant],
+                            round,
+                            roleSynthesisPhase,
+                            $"{definition.Role} · Role synthesis",
+                            _ => BuildConfiguredRoleSynthesisPrompt(
+                                team,
+                                request,
+                                definition,
+                                roleAssignment,
+                                synthesisParticipant,
+                                roleEvidence,
+                                peerReviewEvidence),
+                            heartbeatBootstrap,
+                            Math.Min(request.MaxOutputTokens, 4096),
+                            1,
+                            keepAlive,
+                            ollamaNumGpu,
+                            maxContextTokens,
+                            modelTimeoutSeconds,
+                            request.ProgressMessage,
+                            request.StreamUpdate,
+                            request.StepCompleted,
+                            modelRoutes,
+                            request.AllowParallelHardwareRoads,
+                            cancellationToken,
+                            allowDxFunctions: false,
+                            councilMembers: participants).ConfigureAwait(false);
+
+                        var synthesisSteps = result.Steps
+                            .Where(step =>
+                                step.Round == round &&
+                                string.Equals(step.Phase, roleSynthesisPhase, StringComparison.Ordinal) &&
+                                string.Equals(step.ModelName, synthesisParticipant, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                        foreach (var synthesisStep in synthesisSteps)
+                        {
+                            synthesisStep.WorkflowStepKey = definition.Key;
+                            synthesisStep.WorkflowRevision = Math.Max(1, workflowRevision);
+                            synthesisStep.XRoundCause = xRoundCause ?? string.Empty;
+                        }
+
+                        var synthesizedAnswer = BuildConfiguredWorkflowStageAnswer(synthesisSteps);
+                        if (!string.IsNullOrWhiteSpace(synthesizedAnswer))
+                            stageAnswer = synthesizedAnswer;
+                        else
+                            result.Warnings.Add($"Configured role '{roleAssignment.RoleName}' requested role-result synthesis, but the synthesis turn did not produce a usable visible response. The original role-member results remain authoritative for this step.");
+                    }
+                    else if (definition.EnableRolePeerReview && rolePeerReviewSteps.Count > 0)
+                    {
+                        var peerReviewAnswer = BuildConfiguredWorkflowStageAnswer(rolePeerReviewSteps);
+                        if (!string.IsNullOrWhiteSpace(peerReviewAnswer))
+                        {
+                            stageAnswer = string.IsNullOrWhiteSpace(stageAnswer)
+                                ? $"## Role peer review{Environment.NewLine}{peerReviewAnswer}"
+                                : $"{stageAnswer.Trim()}{Environment.NewLine}{Environment.NewLine}## Role peer review{Environment.NewLine}{peerReviewAnswer}";
+                        }
+                    }
+
                     if (!string.IsNullOrWhiteSpace(stageAnswer))
                     {
                         previousStep = stageAnswer;
@@ -3489,6 +3654,13 @@ namespace LocalGPT.Services
                 var roleMembers = roleAssignment.AiParticipants.Count == 0
                     ? "No AI members; the role is performed by the human participant."
                     : string.Join(", ", roleAssignment.AiParticipants);
+                var rolePeerMembers = roleAssignment.AiParticipants
+                    .Where(participant => !string.Equals(participant, modelName, StringComparison.OrdinalIgnoreCase))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var rolePeerMembersText = rolePeerMembers.Count == 0
+                    ? "No other AI role members are assigned for this step."
+                    : string.Join(", ", rolePeerMembers);
                 var roleExpertise = roleAssignment.Definition?.Expertise ?? string.Empty;
                 var roleResponsibility = roleAssignment.Definition?.Responsibility ?? string.Empty;
                 var runtimeClasses = roleAssignment.Definition?.RuntimeClassKeys is { Count: > 0 } keys
@@ -3522,6 +3694,8 @@ namespace LocalGPT.Services
                     .Replace("{{ModelName}}", modelName, StringComparison.Ordinal)
                     .Replace("{{CouncilMembers}}", string.Join(", ", participants), StringComparison.Ordinal)
                     .Replace("{{RoleMembers}}", roleMembers, StringComparison.Ordinal)
+                    .Replace("{{ExecutingRoleMember}}", modelName, StringComparison.Ordinal)
+                    .Replace("{{RolePeerMembers}}", rolePeerMembersText, StringComparison.Ordinal)
                     .Replace("{{RoleAiSelection}}", roleAssignment.AiSelectionDescription, StringComparison.Ordinal)
                     .Replace("{{HumanParticipationMode}}", roleAssignment.HumanParticipationMode.ToString(), StringComparison.Ordinal)
                     .Replace("{{RolePerformanceMode}}", performanceMode.ToString(), StringComparison.Ordinal)
@@ -3560,6 +3734,7 @@ namespace LocalGPT.Services
                     .Append("- Role: ").AppendLine(roleAssignment.RoleName)
                     .Append("- Executing provider-qualified model: ").AppendLine(modelName)
                     .Append("- Assigned AI role members: ").AppendLine(roleMembers)
+                    .Append("- Other AI members in your current role: ").AppendLine(rolePeerMembersText)
                     .Append("- AI selection policy: ").AppendLine(roleAssignment.AiSelectionDescription)
                     .Append("- Human participation mode: ").AppendLine(roleAssignment.HumanParticipationMode.ToString())
                     .Append("- Role performance mode: ").AppendLine(performanceMode.ToString())
@@ -3575,6 +3750,8 @@ namespace LocalGPT.Services
                     assignmentBriefing.Append("- Loop: ").Append(loopGroup).Append(' ').Append(loopIteration).Append('/').AppendLine(loopMaximumIterations.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 assignmentBriefing.AppendLine("Treat the role assignment as workflow structure, not as proof that any participant's answer is correct.");
                 assignmentBriefing.AppendLine("The executing model-to-role binding is authoritative for this workflow step. Do not switch identity, impersonate another role, or substitute another model/host.");
+                assignmentBriefing.AppendLine("Model names mentioned in the user request, benchmark targets, prior transcript, tool arguments, or another role's output are task data unless they are also listed above under Assigned AI role members. Do not mistake those names for your current role teammates.");
+                assignmentBriefing.AppendLine("When discussing another current role member, use its provider-qualified identity from Assigned AI role members so same-name models on different hosts stay distinct.");
                 assignmentBriefing.Append("- Performance instruction: ").AppendLine(performanceInstruction);
                 assignmentBriefing.Append("- Boundary instruction: ").AppendLine(boundaryInstruction);
                 assignmentBriefing.Append("- Language instruction: ").AppendLine(languageInstruction);
@@ -3610,6 +3787,247 @@ namespace LocalGPT.Services
         throw;
     }
 }
+
+        /// <summary>
+        /// Builds bounded provider-qualified evidence for one configured role coordination turn.
+        /// </summary>
+        /// <param name="steps">Council steps whose visible outputs should be supplied as role evidence.</param>
+        /// <returns>Provider-qualified role evidence suitable for a peer-review or synthesis prompt.</returns>
+        private string BuildConfiguredRoleEvidence(IReadOnlyList<MultiModelCouncilStep> steps)
+        {
+            try
+            {
+                var usable = steps
+                    .Where(step =>
+                        string.IsNullOrWhiteSpace(step.Error) &&
+                        !string.IsNullOrWhiteSpace(step.VisibleContent) &&
+                        !IsRoundSkippedStep(step))
+                    .ToList();
+                if (usable.Count == 0)
+                    return string.Empty;
+
+                const int perMemberLimit = 48000;
+                const int totalLimit = 160000;
+                var builder = new StringBuilder();
+                foreach (var step in usable)
+                {
+                    var content = step.VisibleContent.Trim();
+                    if (content.Length > perMemberLimit)
+                        content = content[^perMemberLimit..];
+                    builder
+                        .Append("### ").Append(step.ModelName).Append(" — ").AppendLine(step.Role)
+                        .AppendLine(content)
+                        .AppendLine();
+                    if (builder.Length >= totalLimit)
+                        break;
+                }
+
+                var evidence = builder.ToString().Trim();
+                return evidence.Length <= totalLimit ? evidence : evidence[^totalLimit..];
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to build configured role coordination evidence.");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Builds the optional same-role peer usefulness and voting prompt without authorizing function execution.
+        /// </summary>
+        /// <param name="team">Configured team that owns the workflow step.</param>
+        /// <param name="request">Council request containing the original user goal.</param>
+        /// <param name="definition">Workflow step whose role members are being reviewed.</param>
+        /// <param name="roleAssignment">Runtime role assignment for the current run.</param>
+        /// <param name="reviewerModelName">Provider-qualified role member performing this peer review.</param>
+        /// <param name="primaryRoleSteps">Usable primary AI answers produced by the current role.</param>
+        /// <param name="roleEvidence">Bounded primary role-member evidence.</param>
+        /// <returns>A prompt that requires explicit provider-qualified peer usefulness feedback and one role vote.</returns>
+        private string BuildConfiguredRolePeerReviewPrompt(
+            OrganicCouncilTeamDefinition team,
+            MultiModelCouncilRequest request,
+            CouncilWorkflowStepDefinition definition,
+            CouncilRoleRuntimeAssignment roleAssignment,
+            string reviewerModelName,
+            IReadOnlyList<MultiModelCouncilStep> primaryRoleSteps,
+            string roleEvidence)
+        {
+            try
+            {
+                var peers = primaryRoleSteps
+                    .Select(step => step.ModelName)
+                    .Where(model => !string.Equals(model, reviewerModelName, StringComparison.OrdinalIgnoreCase))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var peerList = peers.Count == 0 ? "none" : string.Join(Environment.NewLine, peers.Select(peer => $"- {peer}"));
+                var expertise = roleAssignment.Definition?.Expertise ?? string.Empty;
+                var responsibility = roleAssignment.Definition?.Responsibility ?? string.Empty;
+
+                return $"""
+                    You are {reviewerModelName}, one provider-qualified member of role "{roleAssignment.RoleName}" in Council team "{team.DisplayName}".
+                    This is an optional SAME-ROLE coordination turn after the normal role-member answers. Do not call functions or repeat side effects. Do not redo another role's work.
+
+                    Original user request:
+                    {request.Prompt}
+
+                    Current workflow step: {definition.DisplayName} / {definition.Phase}
+                    Current role: {roleAssignment.RoleName}
+                    Role expertise: {expertise}
+                    Role responsibility: {responsibility}
+                    Your exact identity: {reviewerModelName}
+                    Other AI members of THIS role that you must review:
+                    {peerList}
+
+                    Identity rule:
+                    Names appearing in the user request, benchmark candidate lists, tool arguments, earlier-role outputs, or the transcript are task SUBJECTS unless they exactly match the provider-qualified role members listed above. Never call a benchmark target or another role's model your teammate merely because its name appears in the evidence.
+
+                    Primary role-member results:
+                    {roleEvidence}
+
+                    Review every OTHER role member, not yourself. For each peer, output exactly one concise line in this shape:
+                    Peer usefulness — <exact provider-qualified peer identity>: <0-100>% — useful: <what materially helped> — correction: <what is wrong, missing, risky, or "none">
+
+                    Then output exactly one vote line choosing the strongest CURRENT-ROLE result:
+                    Role vote: <exact provider-qualified role member identity>
+
+                    Base the percentage and vote on correctness, relevance to this role, evidence, complementarity, and usefulness for the next workflow step. Disagreement is allowed. Do not invent peer identities.
+                    """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to build configured role peer-review prompt for role {RoleName} and reviewer {ReviewerModelName}.", roleAssignment.RoleName, reviewerModelName);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Builds the optional role-result synthesis prompt that consolidates primary role-member answers and any peer review into one downstream result.
+        /// </summary>
+        /// <param name="team">Configured team that owns the workflow step.</param>
+        /// <param name="request">Council request containing the original user goal.</param>
+        /// <param name="definition">Workflow step whose result is being consolidated.</param>
+        /// <param name="roleAssignment">Runtime role assignment for the current run.</param>
+        /// <param name="synthesisParticipant">Provider-qualified role member selected to consolidate the result.</param>
+        /// <param name="roleEvidence">Bounded primary role-member evidence.</param>
+        /// <param name="peerReviewEvidence">Optional bounded usefulness/voting evidence from the same role.</param>
+        /// <returns>A prompt for one consolidated role result.</returns>
+        private string BuildConfiguredRoleSynthesisPrompt(
+            OrganicCouncilTeamDefinition team,
+            MultiModelCouncilRequest request,
+            CouncilWorkflowStepDefinition definition,
+            CouncilRoleRuntimeAssignment roleAssignment,
+            string synthesisParticipant,
+            string roleEvidence,
+            string peerReviewEvidence)
+        {
+            try
+            {
+                var expertise = roleAssignment.Definition?.Expertise ?? string.Empty;
+                var responsibility = roleAssignment.Definition?.Responsibility ?? string.Empty;
+                var assignedMembers = roleAssignment.AiParticipants.Count == 0
+                    ? "none"
+                    : string.Join(Environment.NewLine, roleAssignment.AiParticipants.Distinct(StringComparer.OrdinalIgnoreCase).Select(member => $"- {member}"));
+                var reviewBlock = string.IsNullOrWhiteSpace(peerReviewEvidence)
+                    ? "No optional peer-review round was enabled or no peer-review result was available."
+                    : peerReviewEvidence;
+
+                return $"""
+                    You are {synthesisParticipant}, selected to produce ONE consolidated result for role "{roleAssignment.RoleName}" in Council team "{team.DisplayName}".
+                    This is a result-consolidation turn only. Do not call functions, repeat side effects, start unrelated work, or impersonate another role.
+
+                    Original user request:
+                    {request.Prompt}
+
+                    Workflow step: {definition.DisplayName} / {definition.Phase}
+                    Role expertise: {expertise}
+                    Role responsibility: {responsibility}
+                    Assigned AI members of THIS role:
+                    {assignedMembers}
+
+                    Identity rule:
+                    Provider/model names mentioned as benchmark targets, user-selected candidates, tool data, or earlier-role outputs are task SUBJECTS unless they also occur in the assigned-role list above. Keep those concepts separate in the consolidated result.
+
+                    Primary results from this role:
+                    {roleEvidence}
+
+                    Optional same-role peer usefulness reports and votes:
+                    {reviewBlock}
+
+                    Produce one final result for THIS ROLE that will replace the parallel member bundle as the downstream workflow input while all original member outputs remain visible in the transcript.
+                    Reconcile compatible points, explicitly resolve material disagreements, preserve important minority evidence when it changes risk or correctness, and remove duplicate material.
+                    Treat peer percentages/votes as advisory evidence, not authority. Prefer technically supported content over popularity.
+                    Stay within this role's responsibility and answer in normal prose/Markdown appropriate for the next workflow step. Output only the consolidated role result; do not output coordination instructions or raw voting metadata unless it materially explains an unresolved disagreement.
+                    """;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to build configured role synthesis prompt for role {RoleName} and synthesizer {SynthesisParticipant}.", roleAssignment.RoleName, synthesisParticipant);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Selects the configured same-role synthesizer, honoring an exact saved member when it participates in this run and otherwise using a stable run-local pseudo-random role member.
+        /// </summary>
+        /// <param name="result">Council result whose run identity and observed failures influence selection.</param>
+        /// <param name="team">Configured team that owns the workflow step.</param>
+        /// <param name="definition">Workflow step containing the role-result synthesis policy.</param>
+        /// <param name="roleAssignment">Runtime assignment for the role being consolidated.</param>
+        /// <param name="roleParticipants">Distinct usable provider-qualified role members for this turn.</param>
+        /// <param name="round">Logical round number used as deterministic selection entropy.</param>
+        /// <param name="repeatIndex">Zero-based repeat index used as deterministic selection entropy.</param>
+        /// <returns>The exact provider-qualified member selected to synthesize the role result.</returns>
+        private string SelectConfiguredRoleSynthesisParticipant(
+            MultiModelCouncilResult result,
+            OrganicCouncilTeamDefinition team,
+            CouncilWorkflowStepDefinition definition,
+            CouncilRoleRuntimeAssignment roleAssignment,
+            IReadOnlyList<string> roleParticipants,
+            int round,
+            int repeatIndex)
+        {
+            try
+            {
+                var distinctParticipants = roleParticipants
+                    .Where(model => !string.IsNullOrWhiteSpace(model))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (distinctParticipants.Count == 0)
+                    throw new InvalidOperationException($"Role '{roleAssignment.RoleName}' has no usable AI member available for role-result synthesis.");
+
+                if (definition.RoleResultSynthesisMemberMode == CouncilRoleResultSynthesisMemberMode.AssignedRoleMember)
+                {
+                    var exact = distinctParticipants.FirstOrDefault(model =>
+                        string.Equals(model, definition.RoleResultSynthesisModelName, StringComparison.OrdinalIgnoreCase));
+                    if (exact is not null)
+                    {
+                        var healthy = SelectHealthyParticipant(result, distinctParticipants, exact);
+                        if (string.Equals(healthy, exact, StringComparison.OrdinalIgnoreCase))
+                            return exact;
+
+                        result.Warnings.Add(
+                            $"Configured role-result summarizer '{exact}' for role '{roleAssignment.RoleName}' failed earlier in this run. LocalGPT fell back to healthy role member '{healthy}' for this consolidation only.");
+                        return healthy;
+                    }
+
+                    result.Warnings.Add(
+                        $"Configured role-result summarizer '{definition.RoleResultSynthesisModelName}' is not one of the role members selected for '{roleAssignment.RoleName}' in this run. LocalGPT used the step's stable random-role-member fallback without changing the saved team configuration.");
+                }
+
+                var seed = $"{result.RunId:N}|{team.Key}|{definition.Key}|{roleAssignment.RoleName}|{round}|{repeatIndex}|role-synthesis";
+                var ordered = distinctParticipants
+                    .OrderBy(model => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                        Encoding.UTF8.GetBytes(seed + "|member|" + model))))
+                    .ThenBy(model => model, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                return SelectHealthyParticipant(result, ordered, ordered[0]);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to select configured role-result synthesizer for team {TeamKey}, step {StepKey}, role {RoleName}.", team.Key, definition.Key, roleAssignment.RoleName);
+                throw;
+            }
+        }
 
         /// <summary>
         /// Builds configured workflow stage answer.

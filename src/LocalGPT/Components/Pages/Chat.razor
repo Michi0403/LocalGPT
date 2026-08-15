@@ -593,7 +593,10 @@
                         var liveCouncilMessage = ResolveLiveCouncilMessage(context.Content);
                     }
                     <div class="demo-chat-content" data-localgpt-details-host data-localgpt-copyable="true">
-                        @(new MarkupString(ChatContentRenderer.Render(context.Content)))
+                        @(new MarkupString(ChatContentRenderer.Render(
+                            liveCouncilMessage is not null
+                                ? LiveCouncilTranscript(liveCouncilMessage.RunId, context.Content)
+                                : context.Content)))
                         @if (liveCouncilMessage?.IsRunning == true)
                         {
                             var participantActivities = LiveCouncilParticipantActivities(liveCouncilMessage.RunId);
@@ -672,7 +675,9 @@
                     ? $"Round {ActiveCouncilRun.CurrentRound} · {ActiveCouncilRun.Phase}"
                     : ActiveLiveCouncilSession is not null
                         ? $"Live run {ShortCouncilRunId(ActiveLiveCouncilSession.RunId)}"
-                        : "No Council heartbeat is running")</small>
+                        : RunningLiveCouncilSessions.Count > 0
+                            ? $"{RunningLiveCouncilSessions.Count} live Council run(s) available to rejoin"
+                            : "No Council heartbeat is running")</small>
             </summary>
             <div class="chat-session-tools-content">
         <div class="memory-toolbar human-live-contribution" aria-label="Join and add information to a running AI Council" data-testid="live-council-participation">
@@ -1034,6 +1039,8 @@
     int liveCouncilListRefreshScheduled;
     bool ownsLiveCouncilStream;
     DateTime lastAttachedLiveCouncilUpdatedAtUtc;
+    CouncilLiveSessionSnapshot? attachedLiveCouncilSnapshot;
+    readonly SemaphoreSlim liveCouncilAttachGate = new(1, 1);
     const string LiveCouncilMessageMarkerPrefix = "<!-- localgpt-live-council:";
     string SelectedCouncilRunValue => SelectedCouncilRunId?.ToString() ?? string.Empty;
     /// <summary>
@@ -1043,6 +1050,8 @@
     {
         try
         {
+            if (attachedLiveCouncilSnapshot is { RunId: var attachedRunId } snapshot && attachedRunId == runId)
+                return snapshot.ParticipantActivities;
             return CouncilLiveSessions.Get(runId)?.ParticipantActivities ?? [];
         }
         catch (Exception ex)
@@ -1050,6 +1059,13 @@
             Logger.LogWarning(ex, "Could not read live participant activities for Council run {RunId}.", runId);
             return [];
         }
+    }
+
+    private string LiveCouncilTranscript(Guid runId, string fallbackContent)
+    {
+        if (attachedLiveCouncilSnapshot is { RunId: var attachedRunId } snapshot && attachedRunId == runId)
+            return snapshot.Transcript;
+        return fallbackContent;
     }
 
     IReadOnlyList<CouncilLiveSessionSummary> RunningLiveCouncilSessions => CouncilLiveSessions.GetActiveSummaries();
@@ -1459,8 +1475,13 @@
         {
             ApplyDiagnosticQueryOptions(selectSession: true);
             var initialMessages = ChatClientProvider?.SelectedSession?.Messages?.ToList() ?? [];
-            if (initialMessages.Count > 0)
+            var explicitRejoinRequested = RejoinCouncilRunId is not null;
+            var initialMessagesLoaded = false;
+            if (!explicitRejoinRequested && initialMessages.Count > 0)
+            {
                 DxAiChat.LoadMessages(initialMessages);
+                initialMessagesLoaded = true;
+            }
             RefreshFeedbackTargets(initialMessages);
 
             var selectedSessionIsCouncil = string.Equals(
@@ -1479,7 +1500,7 @@
             }
 
             if (RejoinCouncilRunId is Guid rejoinRunId)
-                await AttachToLiveCouncilSessionAsync(rejoinRunId).ConfigureAwait(false);
+                await AttachToLiveCouncilSessionAsync(rejoinRunId, reloadChatControl: !initialMessagesLoaded).ConfigureAwait(false);
 
             StartAutoSaveLoop();
             StartInitialModelRefresh();
@@ -1522,6 +1543,7 @@
             DxAiChat.LoadMessages(ChatClientProvider.SelectedSession.Messages);
             RejoinCouncilRunId = null;
             AttachedLiveCouncilRunId = null;
+            attachedLiveCouncilSnapshot = null;
             ownsLiveCouncilStream = false;
             lastAttachedLiveCouncilUpdatedAtUtc = default;
             SelectedCouncilRunId = null;
@@ -1675,6 +1697,7 @@
             {
                 AttachedLiveCouncilRunId = null;
                 RejoinCouncilRunId = null;
+                attachedLiveCouncilSnapshot = null;
                 ownsLiveCouncilStream = false;
                 lastAttachedLiveCouncilUpdatedAtUtc = default;
             }
@@ -1962,6 +1985,7 @@
             lastSavedSignature = string.Empty;
             RejoinCouncilRunId = null;
             AttachedLiveCouncilRunId = null;
+            attachedLiveCouncilSnapshot = null;
             SelectedCouncilRunId = null;
             ownsLiveCouncilStream = false;
             lastAttachedLiveCouncilUpdatedAtUtc = default;
@@ -3796,10 +3820,42 @@
                 return;
 
             captured = DxAiChat.SaveMessages().ToList();
+            MergeAuthoritativeLiveCouncilMessage(captured);
             SaveMessagesForSelectedSession(captured);
         }).ConfigureAwait(false);
 
         return captured;
+    }
+
+    private void MergeAuthoritativeLiveCouncilMessage(List<BlazorChatMessage> captured)
+    {
+        if (AttachedLiveCouncilRunId is not Guid runId || ChatClientProvider?.SelectedSession is null)
+            return;
+
+        var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
+        var authoritative = ChatClientProvider.SelectedSession.Messages.FirstOrDefault(message =>
+            message.Role == ChatMessageRole.Assistant
+            && message.Content.Contains(marker, StringComparison.Ordinal));
+        if (authoritative is null)
+            return;
+
+        var capturedIndex = captured.FindIndex(message =>
+            message.Role == ChatMessageRole.Assistant
+            && message.Content.Contains(marker, StringComparison.Ordinal));
+        if (capturedIndex >= 0)
+            captured[capturedIndex] = authoritative;
+        else
+            captured.Add(authoritative);
+
+        foreach (var pending in PendingLiveCouncilUserMessages)
+        {
+            if (!captured.Any(message =>
+                message.Role == pending.Role
+                && string.Equals(message.Content, pending.Content, StringComparison.Ordinal)))
+            {
+                captured.Add(pending);
+            }
+        }
     }
 
     private async Task PersistMessagesAsync(IReadOnlyList<BlazorChatMessage> messages, bool force, bool showToast)
@@ -4228,6 +4284,7 @@
         SelectedCouncilRunId = runId;
         RejoinCouncilRunId = runId;
         AttachedLiveCouncilRunId = null;
+        attachedLiveCouncilSnapshot = null;
         lastAttachedLiveCouncilUpdatedAtUtc = default;
         await RefreshHumanCollaborationAsync().ConfigureAwait(false);
         await AttachToLiveCouncilSessionAsync(runId).ConfigureAwait(false);
@@ -4256,6 +4313,7 @@
 
         RejoinCouncilRunId = selectedRunId;
         AttachedLiveCouncilRunId = null;
+        attachedLiveCouncilSnapshot = null;
         lastAttachedLiveCouncilUpdatedAtUtc = default;
         await AttachToLiveCouncilSessionAsync(selectedRunId).ConfigureAwait(false);
         await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.refreshCouncilComposer", true).AsTask()).ConfigureAwait(false);
@@ -4473,7 +4531,7 @@
                 {
                     try
                     {
-                        await Task.Delay(750, cancellationToken).ConfigureAwait(false);
+                        await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
                         if (cancellationToken.IsCancellationRequested || isDisposed)
                             return;
                         await InvokeAsync(() => AttachToLiveCouncilSessionAsync(runId)).ConfigureAwait(false);
@@ -4536,124 +4594,180 @@
         }
     }
 
-    private async Task AttachToLiveCouncilSessionAsync(Guid runId)
+    private async Task AttachToLiveCouncilSessionAsync(Guid runId, bool reloadChatControl = false)
     {
         if (isDisposed || DxAiChat is null || ChatClientProvider is null)
             return;
 
-        var snapshot = CouncilLiveSessions.Get(runId);
-        if (snapshot is null)
-            return;
-        if (AttachedLiveCouncilRunId == runId && snapshot.UpdatedAtUtc == lastAttachedLiveCouncilUpdatedAtUtc)
-            return;
-
-        var composerDraft = string.Empty;
         try
         {
-            composerDraft = await JS.InvokeAsync<string>("localGptChatUi.readComposerDraft").ConfigureAwait(true) /* renderer-affine loading continuation */;
+            await liveCouncilAttachGate.WaitAsync(componentLifetimeCts.Token).ConfigureAwait(false);
         }
-        catch (JSException ex)
+        catch (OperationCanceledException) when (componentLifetimeCts.IsCancellationRequested || isDisposed)
         {
-            Logger.LogDebug(ex, "The live Council composer draft was not available before transcript refresh.");
-        }
-
-        var councilSession = ChatClientProvider.AvailableChatClients
-            .FirstOrDefault(session => string.Equals(session.Name, Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase));
-        if (councilSession is null)
             return;
+        }
 
-        AttachedLiveCouncilRunId = runId;
-        RejoinCouncilRunId = runId;
-        ownsLiveCouncilStream = false;
-        lastAttachedLiveCouncilUpdatedAtUtc = snapshot.UpdatedAtUtc;
-        SelectedCouncilRunId = runId;
-        LoadCouncilRunConfiguration(runId);
-        ChatClientProvider.SelectedSession = councilSession;
-        hasUserSelectedSession = true;
-
-        var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
-        var content = $"{marker}\n{snapshot.Transcript}";
-        var replacement = new BlazorChatMessage(
-            ChatRole.Assistant,
-            content,
-            new List<AIChatUploadFileInfo>());
-
-        var markerMessageIndices = councilSession.Messages
-            .Select((message, index) => new { message, index })
-            .Where(item => item.message.Role == ChatMessageRole.Assistant
-                && item.message.Content.Contains(marker, StringComparison.Ordinal))
-            .Select(item => item.index)
-            .ToList();
-        var messageIndex = markerMessageIndices.FirstOrDefault(-1);
-        for (var duplicateIndex = markerMessageIndices.Count - 1; duplicateIndex >= 1; duplicateIndex--)
-            councilSession.Messages.RemoveAt(markerMessageIndices[duplicateIndex]);
-
-        var initiatingMessageAlreadyPresent = messageIndex > 0
-            && councilSession.Messages[messageIndex - 1].Role == ChatMessageRole.User
-            && string.Equals(
-                councilSession.Messages[messageIndex - 1].Content,
-                snapshot.UserMessage,
-                StringComparison.Ordinal);
-        if (!string.IsNullOrWhiteSpace(snapshot.UserMessage) && !initiatingMessageAlreadyPresent)
+        try
         {
-            var userMessage = new BlazorChatMessage(
-                ChatRole.User,
-                snapshot.UserMessage,
-                new List<AIChatUploadFileInfo>());
-            if (messageIndex >= 0)
+            if (isDisposed || DxAiChat is null || ChatClientProvider is null)
+                return;
+
+            var snapshot = CouncilLiveSessions.Get(runId);
+            if (snapshot is null)
+                return;
+
+            var firstAttachmentToRun = AttachedLiveCouncilRunId != runId;
+            if (!firstAttachmentToRun
+                && snapshot.UpdatedAtUtc == lastAttachedLiveCouncilUpdatedAtUtc
+                && attachedLiveCouncilSnapshot?.RunId == runId)
             {
-                councilSession.Messages.Insert(messageIndex, userMessage);
-                messageIndex++;
+                return;
             }
+
+            var shouldReloadChatControl = reloadChatControl || firstAttachmentToRun;
+            var composerDraft = string.Empty;
+            if (shouldReloadChatControl)
+            {
+                try
+                {
+                    string? capturedComposerDraft = null;
+                    await InvokeAsync(async () =>
+                    {
+                        capturedComposerDraft = await JS
+                            .InvokeAsync<string>("localGptChatUi.readComposerDraft")
+                            .ConfigureAwait(true);
+                    }).ConfigureAwait(false);
+                    composerDraft = capturedComposerDraft ?? string.Empty;
+                }
+                catch (JSDisconnectedException)
+                {
+                    return;
+                }
+                catch (JSException ex)
+                {
+                    Logger.LogDebug(ex, "The live Council composer draft was not available before the initial transcript bind.");
+                }
+            }
+
+            var councilSession = ChatClientProvider.AvailableChatClients
+                .FirstOrDefault(session => string.Equals(session.Name, Catalog.CouncilSessionName, StringComparison.OrdinalIgnoreCase));
+            if (councilSession is null)
+                return;
+
+            AttachedLiveCouncilRunId = runId;
+            RejoinCouncilRunId = runId;
+            ownsLiveCouncilStream = false;
+            lastAttachedLiveCouncilUpdatedAtUtc = snapshot.UpdatedAtUtc;
+            attachedLiveCouncilSnapshot = snapshot;
+            SelectedCouncilRunId = runId;
+            LoadCouncilRunConfiguration(runId);
+            ChatClientProvider.SelectedSession = councilSession;
+            hasUserSelectedSession = true;
+
+            var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
+            var content = $"{marker}\n{snapshot.Transcript}";
+            var replacement = new BlazorChatMessage(
+                ChatRole.Assistant,
+                content,
+                new List<AIChatUploadFileInfo>());
+
+            var markerMessageIndices = councilSession.Messages
+                .Select((message, index) => new { message, index })
+                .Where(item => item.message.Role == ChatMessageRole.Assistant
+                    && item.message.Content.Contains(marker, StringComparison.Ordinal))
+                .Select(item => item.index)
+                .ToList();
+            var messageIndex = markerMessageIndices.FirstOrDefault(-1);
+            for (var duplicateIndex = markerMessageIndices.Count - 1; duplicateIndex >= 1; duplicateIndex--)
+                councilSession.Messages.RemoveAt(markerMessageIndices[duplicateIndex]);
+
+            var initiatingMessageAlreadyPresent = messageIndex > 0
+                && councilSession.Messages[messageIndex - 1].Role == ChatMessageRole.User
+                && string.Equals(
+                    councilSession.Messages[messageIndex - 1].Content,
+                    snapshot.UserMessage,
+                    StringComparison.Ordinal);
+            if (!string.IsNullOrWhiteSpace(snapshot.UserMessage) && !initiatingMessageAlreadyPresent)
+            {
+                var userMessage = new BlazorChatMessage(
+                    ChatRole.User,
+                    snapshot.UserMessage,
+                    new List<AIChatUploadFileInfo>());
+                if (messageIndex >= 0)
+                {
+                    councilSession.Messages.Insert(messageIndex, userMessage);
+                    messageIndex++;
+                }
+                else
+                {
+                    councilSession.Messages.Add(userMessage);
+                }
+            }
+
+            if (messageIndex >= 0)
+                councilSession.Messages[messageIndex] = replacement;
             else
             {
-                councilSession.Messages.Add(userMessage);
+                councilSession.Messages.Add(replacement);
+                messageIndex = councilSession.Messages.Count - 1;
+            }
+
+            var insertionIndex = messageIndex + 1;
+            foreach (var additionalUserMessage in snapshot.AdditionalUserMessages)
+            {
+                var existingIndex = councilSession.Messages.FindIndex(
+                    insertionIndex,
+                    message => message.Role == ChatMessageRole.User
+                        && string.Equals(message.Content, additionalUserMessage, StringComparison.Ordinal));
+                if (existingIndex >= 0)
+                {
+                    insertionIndex = existingIndex + 1;
+                    continue;
+                }
+
+                councilSession.Messages.Insert(
+                    insertionIndex++,
+                    new BlazorChatMessage(
+                        ChatRole.User,
+                        additionalUserMessage,
+                        new List<AIChatUploadFileInfo>()));
+            }
+
+            await InvokeAsync(() =>
+            {
+                if (shouldReloadChatControl
+                    && ReferenceEquals(ChatClientProvider.SelectedSession, councilSession)
+                    && DxAiChat is not null)
+                {
+                    // DevExpress message binding is intentionally performed only for the first join/rejoin.
+                    // Subsequent Council heartbeats update the cached live snapshot and normal Blazor template
+                    // state instead of repeatedly rebuilding DxAIChat's client event graph.
+                    DxAiChat.LoadMessages(councilSession.Messages);
+                }
+                StateHasChanged();
+            }).ConfigureAwait(false);
+
+            if (shouldReloadChatControl && !string.IsNullOrWhiteSpace(composerDraft))
+            {
+                try
+                {
+                    await InvokeAsync(() =>
+                        JS.InvokeVoidAsync("localGptChatUi.restoreComposerDraft", composerDraft).AsTask()).ConfigureAwait(false);
+                }
+                catch (JSDisconnectedException)
+                {
+                    // The Council remains server-owned; a future circuit can rejoin from the snapshot.
+                }
+                catch (JSException ex)
+                {
+                    Logger.LogDebug(ex, "The live Council composer draft could not be restored after the initial transcript bind.");
+                }
             }
         }
-
-        if (messageIndex >= 0)
-            councilSession.Messages[messageIndex] = replacement;
-        else
+        finally
         {
-            councilSession.Messages.Add(replacement);
-            messageIndex = councilSession.Messages.Count - 1;
-        }
-
-        var insertionIndex = messageIndex + 1;
-        foreach (var additionalUserMessage in snapshot.AdditionalUserMessages)
-        {
-            var existingIndex = councilSession.Messages.FindIndex(
-                insertionIndex,
-                message => message.Role == ChatMessageRole.User
-                    && string.Equals(message.Content, additionalUserMessage, StringComparison.Ordinal));
-            if (existingIndex >= 0)
-            {
-                insertionIndex = existingIndex + 1;
-                continue;
-            }
-
-            councilSession.Messages.Insert(
-                insertionIndex++,
-                new BlazorChatMessage(
-                    ChatRole.User,
-                    additionalUserMessage,
-                    new List<AIChatUploadFileInfo>()));
-        }
-
-        if (ReferenceEquals(ChatClientProvider.SelectedSession, councilSession))
-            DxAiChat.LoadMessages(councilSession.Messages);
-
-        await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine loading continuation */;
-        if (!string.IsNullOrWhiteSpace(composerDraft))
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("localGptChatUi.restoreComposerDraft", composerDraft).ConfigureAwait(true) /* renderer-affine loading continuation */;
-            }
-            catch (JSException ex)
-            {
-                Logger.LogDebug(ex, "The live Council composer draft could not be restored after transcript refresh.");
-            }
+            liveCouncilAttachGate.Release();
         }
     }
 

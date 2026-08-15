@@ -322,7 +322,7 @@
                 <header>
                     <div>
                         <h2>Rounds and workflow</h2>
-                        <p>Each enabled entry is a workflow step. Multiple steps may share one logical Council round, and every role/model binding is authoritative for that run. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{RuntimeClasses}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{RolePerformanceMode}}</code>, <code>{{RoleBoundaryMode}}</code>, <code>{{RoleLanguageMode}}</code>, <code>{{RolePerformanceInstruction}}</code>, <code>{{RoleBoundaryInstruction}}</code>, <code>{{RoleLanguageInstruction}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
+                        <p>Each enabled entry is a workflow step. Multiple steps may share one logical Council round, and every role/model binding is authoritative for that run. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{ExecutingRoleMember}}</code>, <code>{{RolePeerMembers}}</code>, <code>{{RuntimeClasses}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{RolePerformanceMode}}</code>, <code>{{RoleBoundaryMode}}</code>, <code>{{RoleLanguageMode}}</code>, <code>{{RolePerformanceInstruction}}</code>, <code>{{RoleBoundaryInstruction}}</code>, <code>{{RoleLanguageInstruction}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
                     </div>
                     <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddWorkflowStep">Add round</button>
                 </header>
@@ -407,6 +407,43 @@
                             }
                             <label class="wide"><span>Round prompt</span><textarea class="form-control council-script" rows="7" @bind="step.PromptTemplate"></textarea></label>
                         </div>
+                        <details class="council-advanced-section" open="@(step.EnableRolePeerReview || step.SummarizeRoleResults)">
+                            <summary>Role-member coordination @(step.EnableRolePeerReview || step.SummarizeRoleResults ? "· enabled" : "· disabled")</summary>
+                            <p class="hint">Optional and off by default. Primary role members still execute exactly as configured above. Peer review adds a small role-local usefulness/vote pass without DX side effects. Role synthesis can then ask one assigned role member to merge the primary answers into one authoritative result for this role before the next workflow step.</p>
+                            <div class="council-step-options">
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.EnableRolePeerReview" /><span>Peer-review role-member answers, report usefulness and vote for the strongest role result</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.SummarizeRoleResults" /><span>Summarize multiple role-member answers into one final result of this role</span></label>
+                            </div>
+                            @if (step.SummarizeRoleResults)
+                            {
+                                <div class="council-workflow-fields">
+                                    <label>
+                                        <span>Role result summarizer</span>
+                                        <select class="form-select" @bind="step.RoleResultSynthesisMemberMode">
+                                            @foreach (var mode in RoleResultSynthesisMemberModes)
+                                            {
+                                                <option value="@mode.Value">@mode.Label</option>
+                                            }
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span>Selected role member</span>
+                                        <select class="form-select" @bind="step.RoleResultSynthesisModelName" disabled="@(step.RoleResultSynthesisMemberMode != CouncilRoleResultSynthesisMemberMode.AssignedRoleMember)">
+                                            <option value="">Choose one exact role member</option>
+                                            @if (!string.IsNullOrWhiteSpace(step.RoleResultSynthesisModelName) && !IsWorkflowModelAvailable(step.RoleResultSynthesisModelName))
+                                            {
+                                                <option value="@step.RoleResultSynthesisModelName">Saved but unavailable · @step.RoleResultSynthesisModelName</option>
+                                            }
+                                            @foreach (var candidate in WorkflowModelCandidates(step))
+                                            {
+                                                <option value="@candidate.SelectionKey">@candidate.Provider · @candidate.ModelName · @candidate.Endpoint</option>
+                                            }
+                                        </select>
+                                    </label>
+                                </div>
+                                <p class="hint mb-0">Random selection is stable for one run/round so rejoin and replay diagnostics stay understandable. A selected model is used only when it is actually assigned to this role in the run; otherwise LocalGPT safely falls back to a deterministic role member and records a warning.</p>
+                            }
+                        </details>
                         <div class="council-step-options">
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.IsEnabled" /><span>Enabled</span></label>
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.IncludePriorTranscript" /><span>Include prior transcript according to visibility policy</span></label>
@@ -518,6 +555,11 @@
         ("LeaderSingle", "Council leader or one role member"),
         ("RoundRobinSingle", "One rotating role member"),
         ("AssignedModelSingle", "Assigned model only")
+    ];
+    private readonly IReadOnlyList<(CouncilRoleResultSynthesisMemberMode Value, string Label)> RoleResultSynthesisMemberModes =
+    [
+        (CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember, "Random assigned role member (stable per run)"),
+        (CouncilRoleResultSynthesisMemberMode.AssignedRoleMember, "One selected role member")
     ];
     private readonly IReadOnlyList<(CouncilTranscriptVisibilityMode Value, string Label)> TranscriptVisibilityModes =
     [
