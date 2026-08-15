@@ -1771,7 +1771,7 @@
         }
     }
 
-    private static string GetEndpointHostLabel(string? endpoint)
+    private string GetEndpointHostLabel(string? endpoint)
     {
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
             return string.IsNullOrWhiteSpace(endpoint) ? "unknown" : "invalid-endpoint";
@@ -1987,7 +1987,7 @@
         }
     }
 
-    private static string NormalizeProviderEndpoint(string? endpoint)
+    private string NormalizeProviderEndpoint(string? endpoint)
         => string.IsNullOrWhiteSpace(endpoint)
             ? string.Empty
             : new ProviderModelIdentity().NormalizeEndpoint(endpoint);

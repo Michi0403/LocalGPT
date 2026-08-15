@@ -346,7 +346,7 @@
             _dirtyGridCatalogKeys.Add(entry.CatalogKey);
     }
 
-    private static string FunctionNamespace(DxAiFunctionCatalogEntry entry)
+    private string FunctionNamespace(DxAiFunctionCatalogEntry entry)
     {
         var name = entry.FunctionName?.Trim() ?? string.Empty;
         var separator = name.LastIndexOf('.');

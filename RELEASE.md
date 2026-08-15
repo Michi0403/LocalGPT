@@ -1,14 +1,14 @@
-# LocalGPT 2.9.0 Council rejoin compile repair
+# LocalGPT 2.9.1 live Council transcript-status repair
 
-LocalGPT 2.9.0 is a focused source compile repair for the 2.8.9 Council rejoin/circuit-recovery release. The rejoin design remains intact; only the renderer-dispatched composer-draft capture is corrected so the result is not treated as the return value of `ComponentBase.InvokeAsync(Func<Task>)`.
+LocalGPT 2.9.1 removes the transient orange/animated Council waiting box from generated chat content and renders the same live progress as a normal inline transcript paragraph. This avoids repeated layout/scrollbar jumps while preserving the Council progress information.
 
-No Council membership, workflow, provider routing, role coordination, function policy, trace visibility, SignalR timing, or render-mode behavior is intentionally changed by this release.
+Council execution, 2.8.8 optional role coordination, 2.8.9/2.9.0 rejoin recovery, reasoning/function traces and provider routing are intentionally unchanged. Razor component helper statics were also converted to instance members and are now covered by the architecture audit.
 
 ## Versions
 
-- LocalGPT: 2.9.0
-- LocalGPTWebviewWrapper: 2.9.0
-- LocalGPTInstallerConsole: 2.9.0
+- LocalGPT: 2.9.1
+- LocalGPTWebviewWrapper: 2.9.1
+- LocalGPTInstallerConsole: 2.9.1
 - LocalGPT Wire Protocol: 2.1.1 (unchanged)
 
-See `CHANGELOG-v2.9.0-REJOIN-COMPILE-REPAIR.md` and `VALIDATION-v2.9.0-source.md`.
+See `CHANGELOG-v2.9.1-LIVE-COUNCIL-TRANSCRIPT-STATUS.md` and `VALIDATION-v2.9.1-source.md`.

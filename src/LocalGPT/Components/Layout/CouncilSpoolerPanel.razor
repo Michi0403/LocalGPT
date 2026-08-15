@@ -86,7 +86,7 @@
         _selectedRunId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
         Refresh();
     }
-    private static string BuildRejoinHref(Guid runId) => $"/Chat?rejoinCouncilRunId={Uri.EscapeDataString(runId.ToString())}";
+    private string BuildRejoinHref(Guid runId) => $"/Chat?rejoinCouncilRunId={Uri.EscapeDataString(runId.ToString())}";
 
     private void OnSpoolerChanged()
     {

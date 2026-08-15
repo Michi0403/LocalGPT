@@ -218,7 +218,7 @@
 </main>
 
 @code {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private readonly CancellationTokenSource lifetimeCts = new();
     private string ActiveOneWireSection { get; set; } = "identity";
     private IReadOnlyList<WorkbenchNavItem> OneWireSections =>

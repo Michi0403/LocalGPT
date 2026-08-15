@@ -109,14 +109,14 @@
         left.Count == right.Count && left.Select(route => route.ModelName).SequenceEqual(right.Select(route => route.ModelName), StringComparer.OrdinalIgnoreCase);
 
 
-    private static string GetRouteDisplayName(OneWireCouncilModelRoute route)
+    private string GetRouteDisplayName(OneWireCouncilModelRoute route)
     {
         var model = string.IsNullOrWhiteSpace(route.ProviderModelName) ? route.ModelName : route.ProviderModelName;
         var provider = string.IsNullOrWhiteSpace(route.ProviderName) ? "AI provider" : route.ProviderName;
         return $"{model} — {provider}";
     }
 
-    private static string GetRouteEndpointLabel(OneWireCouncilModelRoute route)
+    private string GetRouteEndpointLabel(OneWireCouncilModelRoute route)
     {
         if (string.IsNullOrWhiteSpace(route.ProviderEndpoint))
             return "Legacy/default provider route";

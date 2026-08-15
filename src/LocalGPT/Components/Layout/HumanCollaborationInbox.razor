@@ -543,7 +543,7 @@
         }
     }
 
-    private static DeferredResultView ToDeferredResultView(DeferredDxAiExecutionOutcome outcome)
+    private DeferredResultView ToDeferredResultView(DeferredDxAiExecutionOutcome outcome)
     {
         var summary = outcome.Status;
         var downloadUrl = string.Empty;
@@ -604,7 +604,7 @@
                 .ToArray());
         return $"human-request-card risk-{(string.IsNullOrWhiteSpace(risk) ? "medium" : risk)}";
     }
-    private static string GetContributionEditorId(Guid runId) => $"localgpt-heartbeat-draft-{runId:N}";
+    private string GetContributionEditorId(Guid runId) => $"localgpt-heartbeat-draft-{runId:N}";
 
     private void OnCollaborationChanged()
     {

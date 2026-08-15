@@ -138,7 +138,7 @@
             await BrowseTypedAsync().ConfigureAwait(false);
     }
 
-    private static string ShortRoot(string root)
+    private string ShortRoot(string root)
     {
         var trimmed = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var name = Path.GetFileName(trimmed);

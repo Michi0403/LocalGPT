@@ -146,11 +146,17 @@ def static_audit(app_root: Path, product: str):
                     if re.search(r'\bpublic\s+static\b', declaration) and re.search(r'\(\s*this\s+', signature_window):
                         continue
                 failures.append(f'{rel}:{line_of(text,m.start())}: {declaration}')
-        elif rel.endswith('_Imports.razor'):
-            # RenderMode import is framework syntax, not application state.
-            for i,line in enumerate(text.splitlines(),1):
-                if '@using static' in line and 'Microsoft.AspNetCore.Components.Web.RenderMode' not in line:
-                    failures.append(f'{rel}:{i}: unsupported static Razor import')
+        elif path.suffix=='.razor':
+            if rel.endswith('_Imports.razor'):
+                # RenderMode import is framework syntax, not application state.
+                for i,line in enumerate(text.splitlines(),1):
+                    if '@using static' in line and 'Microsoft.AspNetCore.Components.Web.RenderMode' not in line:
+                        failures.append(f'{rel}:{i}: unsupported static Razor import')
+            else:
+                razor_decl_re=re.compile(r'(?m)^[ \t]*(?:public|private|protected|internal)\s+(?:(?:sealed|partial|new|unsafe|readonly|abstract|async)\s+)*static\s+[^\r\n]+')
+                for m in razor_decl_re.finditer(text):
+                    declaration=re.sub(r'\s+',' ',text[m.start():m.end()]).strip()
+                    failures.append(f'{rel}:{line_of(text,m.start())}: {declaration}')
     if product=='publisherstudio':
         for rel in ('PublisherStudioServiceCollectionExtensions.cs','StreamingServiceCollectionExtensions.cs'):
             p=app_root/rel

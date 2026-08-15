@@ -1111,7 +1111,7 @@
         _confirmed = false;
     }
 
-    private static string FunctionNamespace(DxAiFunctionCatalogEntry entry)
+    private string FunctionNamespace(DxAiFunctionCatalogEntry entry)
     {
         var name = entry.FunctionName?.Trim() ?? string.Empty;
         var separator = name.LastIndexOf('.');
@@ -1171,13 +1171,13 @@
     /// <summary>Returns whether a role uses an exact provider-qualified model pool.</summary>
     /// <param name="role">Role whose AI assignment policy is inspected.</param>
     /// <returns><see langword="true"/> when the role binds exact provider model identities.</returns>
-    private static bool UsesProviderBoundRolePool(OrganicCouncilRoleDefinition role) =>
+    private bool UsesProviderBoundRolePool(OrganicCouncilRoleDefinition role) =>
         role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange;
 
     /// <summary>Returns whether a role exposes the configurable minimum/maximum participant-count controls.</summary>
     /// <param name="role">Role whose AI assignment policy is inspected.</param>
     /// <returns><see langword="true"/> for unrestricted random selection or provider-pool random selection.</returns>
-    private static bool UsesRandomParticipantCount(OrganicCouncilRoleDefinition role) =>
+    private bool UsesRandomParticipantCount(OrganicCouncilRoleDefinition role) =>
         role.AiSelectionMode is CouncilRoleAiSelectionMode.RandomRange or CouncilRoleAiSelectionMode.AssignedModelsRandomRange;
 
     private IReadOnlyList<MultiModelCouncilModelCandidate> WorkflowModelCandidates(CouncilWorkflowStepDefinition step)
