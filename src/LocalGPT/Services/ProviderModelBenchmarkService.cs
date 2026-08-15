@@ -97,24 +97,33 @@ public sealed class ProviderModelBenchmarkService(
             Configured upper bound: up to {maximumCallCount} provider calls and {maximumBoundedDurationText} if every call reaches its timeout. Normal responses shorten the run{(request.StopWhenImprovementStalls ? ", and the enabled improvement stop rule may stop a target before its final profile" : string.Empty)}.
 
             """;
-        var liveCancellation = liveSessions.Begin(
-            report.RunId,
-            sessionMembers,
-            $"Run bounded provider benchmark for {targets.Count} selected model(s).",
-            initialTranscript);
+        var liveCancellation = request.OwnLiveSession
+            ? liveSessions.Begin(
+                report.RunId,
+                sessionMembers,
+                $"Run bounded provider benchmark for {targets.Count} selected model(s).",
+                initialTranscript)
+            : CancellationToken.None;
         logger.LogInformation(
-            "Started Provider Benchmark Council run {RunId} for {TargetCount} target(s), {ProfileLimit} profile(s) and {TaskCount} task(s).",
+            "Started Provider Benchmark Council run {RunId} for {TargetCount} target(s), {ProfileLimit} profile(s) and {TaskCount} task(s); standalone live session ownership is {OwnLiveSession}.",
             report.RunId,
             targets.Count,
             maxProfiles,
-            tasks.Count);
-        using var runCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, liveCancellation);
+            tasks.Count,
+            request.OwnLiveSession);
+        using var runCts = request.OwnLiveSession
+            ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, liveCancellation)
+            : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var runToken = runCts.Token;
 
         void Publish(string text)
         {
-            if (!string.IsNullOrWhiteSpace(text))
-                liveSessions.Append(report.RunId, text.EndsWith('\n') ? text : text + Environment.NewLine);
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+            var normalized = text.EndsWith('\n') ? text : text + Environment.NewLine;
+            request.ProgressMessage?.Invoke(normalized);
+            if (request.OwnLiveSession)
+                liveSessions.Append(report.RunId, normalized);
         }
 
         try
@@ -291,7 +300,8 @@ public sealed class ProviderModelBenchmarkService(
         }
         finally
         {
-            liveSessions.Complete(report.RunId);
+            if (request.OwnLiveSession)
+                liveSessions.Complete(report.RunId);
         }
     }
 

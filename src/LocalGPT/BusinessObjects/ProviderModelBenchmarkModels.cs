@@ -100,6 +100,15 @@ public sealed class ProviderModelBenchmarkRequest
     /// </summary>
     /// <value>The include council review value exposed by <see cref="ProviderModelBenchmarkRequest"/>.</value>
     public bool IncludeCouncilReview { get; set; } = true;
+
+    /// <summary>Gets or sets whether this benchmark owns a standalone live-session entry. Embedded Council calibration sets this to false so the parent Council remains authoritative.</summary>
+    /// <value><see langword="true"/> for the historical standalone benchmark behavior; otherwise the caller owns live-session presentation and cancellation.</value>
+    public bool OwnLiveSession { get; set; } = true;
+
+    /// <summary>Gets or sets an optional user-visible progress callback used when the benchmark is embedded inside another supervised workflow.</summary>
+    /// <value>The progress callback, or null when only the benchmark's own live session should receive progress.</value>
+    [JsonIgnore]
+    public Action<string>? ProgressMessage { get; set; }
 }
 
 /// <summary>

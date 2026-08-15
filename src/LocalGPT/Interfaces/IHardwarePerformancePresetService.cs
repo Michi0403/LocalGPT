@@ -49,6 +49,21 @@ public interface IHardwarePerformancePresetService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Converts one completed four-point provider benchmark into measured Low, Middle, High and Expert hardware-spooler profiles.
+    /// Each profile preserves exact provider/endpoint/model identity and uses only successful measured points; failed models stay absent instead of receiving invented settings.
+    /// </summary>
+    /// <param name="report">Completed provider-qualified benchmark report.</param>
+    /// <param name="presetBaseName">Base name shared by the four user-visible tier profiles.</param>
+    /// <param name="userConfirmed">Whether the initiating workflow's human checkpoint approved persistence.</param>
+    /// <param name="cancellationToken">Cancels profile synthesis and persistence.</param>
+    /// <returns>The four stored profiles in Low, Middle, High and Expert order.</returns>
+    Task<IReadOnlyList<HardwarePerformancePreset>> SaveBenchmarkProfileSetAsync(
+        ProviderModelBenchmarkReport report,
+        string presetBaseName,
+        bool userConfirmed,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Deletes preset as part of the hardware performance preset service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="presetId">Identifier of the preset to use for this operation.</param>

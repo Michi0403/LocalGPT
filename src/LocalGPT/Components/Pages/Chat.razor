@@ -563,7 +563,7 @@
         @if (RunningLiveCouncilSessions.Count > 0 && ActiveLiveCouncilSession is null)
         {
             var newestLiveSession = RunningLiveCouncilSessions[0];
-            <div class="chat-live-session-banner" role="status" aria-live="polite">
+            <div class="chat-live-session-inline-info" aria-live="off">
                 <span><strong>Live Council @ShortCouncilRunId(newestLiveSession.RunId)</strong> is running and can be joined without stopping it.</span>
                 <DxButton CssClass="localgpt-rounded-action" Text="Join live transcript"
                           RenderStyle="ButtonRenderStyle.Primary"
@@ -648,10 +648,15 @@
                                     }
                                 </section>
                             }
-                            <p class="localgpt-live-transcript-status" aria-live="off">
-                                <strong>@LiveCouncilRunningTitle(liveCouncilMessage)</strong><br />
-                                <span>@LiveCouncilRunningDetail(liveCouncilMessage)</span>
-                            </p>
+                            <div class="localgpt-message-utility-row localgpt-live-update-footer">
+                                <span class="localgpt-rejoined-live-status" role="status" aria-live="polite">
+                                    <span class="localgpt-rejoined-live-spinner" aria-hidden="true"></span>
+                                    <span>
+                                        <strong>@LiveCouncilRunningTitle(liveCouncilMessage)</strong><br />
+                                        <small>@LiveCouncilRunningDetail(liveCouncilMessage)</small>
+                                    </span>
+                                </span>
+                            </div>
                         }
                     </div>
                 </MessageContentTemplate>

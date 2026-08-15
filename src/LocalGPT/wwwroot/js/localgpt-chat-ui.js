@@ -407,10 +407,10 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             takeScrollOwnership(state.region);
 
             const startTop = state.region.scrollTop;
-            const targetTop = Math.max(0, state.region.scrollHeight - state.region.clientHeight);
-            const initialDistance = Math.max(0, targetTop - startTop);
+            const initialTargetTop = Math.max(0, state.region.scrollHeight - state.region.clientHeight);
+            const initialDistance = Math.max(0, initialTargetTop - startTop);
             if (initialDistance <= 1.5) {
-                setRegionScrollTop(state, targetTop);
+                setRegionScrollTop(state, Math.max(0, state.region.scrollHeight - state.region.clientHeight));
                 return;
             }
 
@@ -423,13 +423,22 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 const eased = progress < .5
                     ? 4 * progress * progress * progress
                     : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-                setRegionScrollTop(state, startTop + ((targetTop - startTop) * eased));
+                // Streaming Council content can grow while the follow animation is already running.
+                // Recalculate the true inner-container bottom on every frame instead of chasing a
+                // stale target captured before the latest model/tool/status content arrived.
+                const liveTargetTop = Math.max(0, state.region.scrollHeight - state.region.clientHeight);
+                setRegionScrollTop(state, startTop + ((liveTargetTop - startTop) * eased));
 
                 if (progress < 1) {
                     state.frame = requestAnimationFrame(animate);
                     return;
                 }
-                setRegionScrollTop(state, targetTop);
+                setRegionScrollTop(state, Math.max(0, state.region.scrollHeight - state.region.clientHeight));
+                state.measureFrame = requestAnimationFrame(diagnostics.guard('localgpt-chat-ui.scroll.settleAtBottom', () => {
+                    state.measureFrame = 0;
+                    if (!state.userInteracting && state.follow && state.region.isConnected)
+                        setRegionScrollTop(state, Math.max(0, state.region.scrollHeight - state.region.clientHeight));
+                }));
             });
             state.frame = requestAnimationFrame(animate);
         } catch (error) {

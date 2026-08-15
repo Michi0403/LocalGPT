@@ -37,6 +37,7 @@ namespace LocalGPT.Services
     /// <param name="featureReports">Ai feature report service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
     /// <param name="ambientContext">Ambient local gpt context dependency used by the multi model council workflow to provide the corresponding application capability.</param>
     /// <param name="liveCouncilSessions">Council live session service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="benchmarkCalibration">Deterministic all-selected-member benchmark calibration service used by maintained calibration workflows.</param>
     /// <param name="providerModels">Provider model runtime service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     /// <param name="councilRuntime">Council runtime service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
@@ -67,6 +68,7 @@ namespace LocalGPT.Services
         IAiFeatureReportService featureReports,
         IAmbientLocalGptContext ambientContext,
         ICouncilLiveSessionService liveCouncilSessions,
+        ICouncilBenchmarkCalibrationService benchmarkCalibration,
         IProviderModelRuntimeService providerModels,
         ILogger<MultiModelCouncilService> logger,
         CouncilRuntimeService councilRuntime,
@@ -2231,11 +2233,20 @@ namespace LocalGPT.Services
                     stepIndex += loopSteps.Count;
                 }
 
-                if (!string.IsNullOrWhiteSpace(state.FinalAnswer))
-                    return state.FinalAnswer;
-                if (!string.IsNullOrWhiteSpace(state.FallbackAnswer))
-                    return state.FallbackAnswer;
-                return "The configured council workflow completed without a substantive visible answer. Review the round prompts, role policies, selected models and local logs.";
+                var configuredAnswer = !string.IsNullOrWhiteSpace(state.FinalAnswer)
+                    ? state.FinalAnswer
+                    : !string.IsNullOrWhiteSpace(state.FallbackAnswer)
+                        ? state.FallbackAnswer
+                        : "The configured council workflow completed without a substantive visible answer. Review the round prompts, role policies, selected models and local logs.";
+                if (team.Key.StartsWith("adaptive-model-benchmark", StringComparison.OrdinalIgnoreCase))
+                {
+                    var completionNotice =
+                        $"Council benchmark workflow `{result.RunId:N}` completed normally after {state.ExpandedStepIndex} configured round execution(s). " +
+                        "The deterministic measurement/coverage evidence above remains part of the saved transcript.";
+                    request.ProgressMessage?.Invoke(completionNotice);
+                    configuredAnswer = $"{configuredAnswer.Trim()}{Environment.NewLine}{Environment.NewLine}---{Environment.NewLine}_{completionNotice}_";
+                }
+                return configuredAnswer;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -2886,6 +2897,51 @@ namespace LocalGPT.Services
                     {
                         switch (executionMode)
                         {
+                            case "SystemBenchmarkCalibration":
+                                {
+                                    var calibrationStartedAtUtc = DateTime.UtcNow;
+                                    request.ProgressMessage?.Invoke(
+                                        $"Configured round {round} is entering the deterministic LocalGPT all-member benchmark engine. The selected provider-qualified Council membership is authoritative; model-generated sampling decisions are ignored.");
+                                    var calibration = await benchmarkCalibration.RunAsync(
+                                        new CouncilBenchmarkCalibrationRequest
+                                        {
+                                            CouncilRunId = result.RunId,
+                                            Targets = result.ModelSelections.ToList(),
+                                            MaximumContextTokens = maxContextTokens,
+                                            MaximumOutputTokens = request.MaxOutputTokens,
+                                            MaxSecondsPerCall = modelTimeoutSeconds,
+                                            PresetBaseName = $"Initial calibration {DateTimeOffset.Now:yyyy-MM-dd HHmmss}",
+                                            UserConfirmed = true
+                                        },
+                                        progress =>
+                                        {
+                                            request.ProgressMessage?.Invoke(progress);
+                                            request.StreamUpdate?.Invoke(progress.EndsWith('\n') ? progress : progress + Environment.NewLine);
+                                        },
+                                        cancellationToken).ConfigureAwait(false);
+                                    var systemStep = new MultiModelCouncilStep
+                                    {
+                                        SortOrder = result.Steps.Count + 1,
+                                        Round = round,
+                                        Phase = phase,
+                                        ModelName = "LocalGPT Benchmark Engine",
+                                        ProviderName = "LocalGPT",
+                                        ProviderEndpoint = "in-process",
+                                        ProviderModelName = "benchmark-calibration",
+                                        CouncilMembers = participants.ToList(),
+                                        Role = definition.Role,
+                                        Content = calibration.SummaryMarkdown,
+                                        VisibleContent = calibration.SummaryMarkdown,
+                                        StartedAtUtc = calibrationStartedAtUtc,
+                                        CompletedAtUtc = DateTime.UtcNow
+                                    };
+                                    systemStep.DurationSeconds = Math.Max(
+                                        0d,
+                                        (systemStep.CompletedAtUtc - systemStep.StartedAtUtc).TotalSeconds);
+                                    MultiModelCouncilServiceAddOrderedStep(result, systemStep, logger);
+                                    request.StepCompleted?.Invoke(systemStep);
+                                    break;
+                                }
                             case "AllMembersParallel":
                                 {
                                     var transcript = BuildConfiguredWorkflowTranscript(result, definition, roleAssignment, round);
@@ -3056,7 +3112,9 @@ namespace LocalGPT.Services
                             step.Round == round &&
                             string.Equals(step.Phase, phase, StringComparison.Ordinal) &&
                             (roleParticipants.Contains(step.ModelName, StringComparer.OrdinalIgnoreCase) ||
-                             step.ModelName.StartsWith("Human:", StringComparison.OrdinalIgnoreCase)))
+                             step.ModelName.StartsWith("Human:", StringComparison.OrdinalIgnoreCase) ||
+                             (executionMode == "SystemBenchmarkCalibration" &&
+                              string.Equals(step.ModelName, "LocalGPT Benchmark Engine", StringComparison.OrdinalIgnoreCase))))
                         .ToList();
                     foreach (var roundStep in roundSteps)
                     {
@@ -4116,6 +4174,8 @@ namespace LocalGPT.Services
                     return "RoundRobinSingle";
                 if (value.Equals("AssignedModelSingle", StringComparison.OrdinalIgnoreCase))
                     return "AssignedModelSingle";
+                if (value.Equals("SystemBenchmarkCalibration", StringComparison.OrdinalIgnoreCase))
+                    return "SystemBenchmarkCalibration";
                 throw new InvalidOperationException($"Configured council execution mode '{value}' is not supported.");
         
     }

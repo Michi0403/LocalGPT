@@ -1381,25 +1381,34 @@
     margin: 0 0 .45rem;
 }
 
-.demo-chat ::deep .localgpt-live-transcript-status {
-    display: block;
-    margin: 1rem 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
+.demo-chat ::deep .localgpt-rejoined-live-status {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    margin-right: auto;
     color: var(--bs-secondary-color);
     font-size: .82rem;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
-}
-
-.demo-chat ::deep .localgpt-live-transcript-status strong {
     font-weight: 650;
 }
 
-.demo-chat ::deep .localgpt-live-transcript-status span {
+.demo-chat ::deep .localgpt-rejoined-live-status small {
+    display: inline-block;
+    margin-top: .08rem;
     font-weight: 500;
     opacity: .86;
+}
+
+.demo-chat ::deep .localgpt-rejoined-live-spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid color-mix(in srgb, var(--bs-primary, #ff6b00) 28%, transparent);
+    border-top-color: var(--bs-primary, #ff6b00);
+    border-radius: 50%;
+    animation: localgpt-rejoined-live-spin .85s linear infinite;
+}
+
+@keyframes localgpt-rejoined-live-spin {
+    to { transform: rotate(360deg); }
 }
 
 .demo-chat ::deep .localgpt-native-copy-always-visible {
@@ -2076,21 +2085,23 @@
     justify-self: start;
 }
 
-.chat-live-session-banner {
+.chat-live-session-inline-info {
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: .65rem;
     min-width: 0;
-    padding: .55rem .7rem;
-    border: 1px solid color-mix(in srgb, var(--bs-primary) 38%, var(--bs-border-color));
-    border-radius: .65rem;
-    color: var(--bs-body-color);
-    background: color-mix(in srgb, var(--bs-primary) 8%, var(--bs-body-bg));
+    margin: .65rem .15rem;
+    padding: .15rem 0;
+    border: 0;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    font-size: .86rem;
+    line-height: 1.4;
 }
 
-.chat-live-session-banner span {
+.chat-live-session-inline-info span {
     min-width: 0;
     overflow-wrap: anywhere;
 }
@@ -2133,7 +2144,7 @@
     .chat-actions-menu { width: 100%; }
     .chat-actions-menu > summary { width: 100%; justify-content: center; }
     .chat-actions-menu-items { position: fixed; inset-inline: .5rem; inset-block: auto .5rem; }
-    .chat-live-session-banner { align-items: stretch; flex-direction: column; }
+    .chat-live-session-inline-info { align-items: stretch; flex-direction: column; }
 }
 
 

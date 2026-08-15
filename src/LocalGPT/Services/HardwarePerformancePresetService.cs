@@ -123,7 +123,9 @@ public sealed class HardwarePerformancePresetService(
             if (entity is null && preset.SourceRunId is Guid sourceRunId)
             {
                 entity = await db.HardwarePerformancePresets
-                    .SingleOrDefaultAsync(item => item.SourceRunId == sourceRunId, cancellationToken)
+                    .SingleOrDefaultAsync(
+                        item => item.SourceRunId == sourceRunId && item.Name == normalizedName,
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             entity ??= await db.HardwarePerformancePresets
@@ -236,6 +238,92 @@ public sealed class HardwarePerformancePresetService(
                 logger.LogDebug(exception, "Converting benchmark {BenchmarkRunId} into a hardware performance preset was cancelled.", report?.RunId);
             else
                 logger.LogError(exception, "Converting benchmark {BenchmarkRunId} into a hardware performance preset failed.", report?.RunId);
+            throw;
+        }
+    }
+
+
+    /// <summary>
+    /// Persists the four measured calibration tiers from one provider benchmark without inventing unmeasured routes.
+    /// </summary>
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<HardwarePerformancePreset>> SaveBenchmarkProfileSetAsync(
+        ProviderModelBenchmarkReport report,
+        string presetBaseName,
+        bool userConfirmed,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!userConfirmed)
+                throw new InvalidOperationException("Fresh human confirmation is required before benchmark calibration profiles are stored.");
+            ArgumentNullException.ThrowIfNull(report);
+
+            var successfulTargets = report.Targets
+                .Where(target => string.IsNullOrWhiteSpace(target.Error))
+                .Select(target => new
+                {
+                    Target = target,
+                    Profiles = target.Profiles
+                        .Where(profile => profile.Tasks.Any(task => task.Succeeded))
+                        .OrderBy(profile => profile.ContextTokens)
+                        .ThenBy(profile => profile.OutputTokens)
+                        .ToList()
+                })
+                .Where(item => item.Profiles.Count > 0)
+                .ToList();
+            if (successfulTargets.Count == 0)
+                throw new InvalidOperationException("The benchmark report contains no successful measured profile points to store.");
+
+            var baseName = string.IsNullOrWhiteSpace(presetBaseName)
+                ? $"Initial calibration {DateTimeOffset.Now:yyyy-MM-dd HHmmss}"
+                : presetBaseName.Trim();
+            var tiers = new[]
+            {
+                (Name: "Low", Position: 0d),
+                (Name: "Middle", Position: 1d / 3d),
+                (Name: "High", Position: 2d / 3d),
+                (Name: "Expert", Position: 1d)
+            };
+            var saved = new List<HardwarePerformancePreset>(tiers.Length);
+            foreach (var tier in tiers)
+            {
+                var routes = successfulTargets
+                    .Select(item =>
+                    {
+                        var profileIndex = Math.Clamp(
+                            (int)Math.Round((item.Profiles.Count - 1) * tier.Position),
+                            0,
+                            item.Profiles.Count - 1);
+                        return BuildBenchmarkTierRoute(item.Target, item.Profiles, profileIndex, tier.Name);
+                    })
+                    .ToList();
+                var preset = new HardwarePerformancePreset
+                {
+                    Name = NormalizeName($"{baseName} · {tier.Name}"),
+                    Description = $"Measured {tier.Name} calibration profile from provider benchmark {report.RunId}. Every route comes from a successful measured profile point; selected members without successful evidence are intentionally not assigned invented settings.",
+                    ModelRoutesJson = JsonSerializer.Serialize(routes),
+                    ResourceLoadPercent = 100,
+                    SourceRunId = report.RunId,
+                    SourceKind = $"ProviderBenchmark{tier.Name}",
+                    IsDefault = false,
+                    IsUserApproved = true
+                };
+                saved.Add(await SavePresetAsync(preset, userConfirmed: true, cancellationToken).ConfigureAwait(false));
+            }
+
+            logger.LogInformation(
+                "Saved four measured benchmark calibration profiles for run {BenchmarkRunId} covering {TargetCount} provider-qualified target(s).",
+                report.RunId,
+                successfulTargets.Count);
+            return saved;
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Saving four benchmark calibration profiles for run {BenchmarkRunId} was cancelled.", report?.RunId);
+            else
+                logger.LogError(exception, "Saving four benchmark calibration profiles for run {BenchmarkRunId} failed.", report?.RunId);
             throw;
         }
     }
@@ -501,6 +589,59 @@ public sealed class HardwarePerformancePresetService(
         catch (Exception exception)
         {
             logger.LogError(exception, "Cloning a hardware performance route failed for model {ModelName}.", route.ModelName);
+            throw;
+        }
+    }
+
+
+    /// <summary>Builds one measured tier route from successful benchmark points for a provider-qualified target.</summary>
+    /// <param name="target">Provider-qualified benchmark target.</param>
+    /// <param name="successfulProfiles">Successful measured points ordered from low to high token budgets.</param>
+    /// <param name="profileIndex">Measured point selected for this tier.</param>
+    /// <param name="tierName">User-visible tier label.</param>
+    /// <returns>A normalized hardware road whose maximums equal the selected measured point.</returns>
+    private OneWireCouncilModelRoute BuildBenchmarkTierRoute(
+        ProviderModelBenchmarkTargetResult target,
+        IReadOnlyList<ProviderModelBenchmarkProfileResult> successfulProfiles,
+        int profileIndex,
+        string tierName)
+    {
+        try
+        {
+            if (successfulProfiles.Count == 0)
+                throw new InvalidOperationException("A measured benchmark tier route requires at least one successful profile.");
+            var selected = successfulProfiles[Math.Clamp(profileIndex, 0, successfulProfiles.Count - 1)];
+            var minimum = successfulProfiles[0];
+            var route = new OneWireCouncilModelRoute
+            {
+                ModelName = target.Model.SelectionKey,
+                ProviderKind = target.Model.ProviderKind,
+                ProviderName = target.Model.ProviderName,
+                ProviderEndpoint = target.Model.Endpoint,
+                ProviderModelName = target.Model.ModelName,
+                HardwareKind = OneWireHardwareKind.Auto,
+                HardwareIndex = -1,
+                HardwareName = $"Benchmark · {tierName} · {selected.ProfileName}",
+                MinOutputTokens = minimum.OutputTokens,
+                MaxOutputTokens = selected.OutputTokens,
+                MinContextTokens = minimum.ContextTokens,
+                MaxContextTokens = selected.ContextTokens,
+                OllamaNumGpu = target.Model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
+                    ? selected.OllamaNumGpu
+                    : null,
+                LoadPercentOverride = 100,
+                IsEnabled = true,
+                MaxConcurrentModelsOnLane = 1
+            };
+            return roadConfiguration.Normalize(route);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                exception,
+                "Building measured benchmark tier {TierName} failed for provider-qualified model {ModelIdentity}.",
+                tierName,
+                target.Model.StableId);
             throw;
         }
     }

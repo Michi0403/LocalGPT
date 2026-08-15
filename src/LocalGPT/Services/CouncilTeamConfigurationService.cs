@@ -14,7 +14,7 @@ namespace LocalGPT.Services;
 /// <param name="databaseInitializer">Ensures migrations and prerequisite seed data are ready.</param>
 /// <param name="seedData">Creates maintained default team definitions.</param>
 /// <param name="logger">Writes bounded configuration diagnostics.</param>
-[DocumentationUpdated("2.1.20")]
+[DocumentationUpdated("2.1.21")]
 public sealed class CouncilTeamConfigurationService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
@@ -24,7 +24,7 @@ public sealed class CouncilTeamConfigurationService(
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 20;
+    private const int CurrentSeedVersion = 21;
     /// <summary>
     /// Defines the max roles constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
@@ -47,7 +47,8 @@ public sealed class CouncilTeamConfigurationService(
         "AllMembersSequential",
         "LeaderSingle",
         "RoundRobinSingle",
-        "AssignedModelSingle"
+        "AssignedModelSingle",
+        "SystemBenchmarkCalibration"
     ];
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="CouncilTeamConfigurationService"/> while executing its surrounding workflow.
@@ -128,33 +129,55 @@ public sealed class CouncilTeamConfigurationService(
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
-            var key = request.Team.Key;
-            var row = await db.CouncilTeamConfigurations.SingleOrDefaultAsync(item => item.Key == key, cancellationToken).ConfigureAwait(false);
-            if (row is null)
+            var requestedKey = request.Team.Key;
+            var row = await db.CouncilTeamConfigurations.SingleOrDefaultAsync(item => item.Key == requestedKey, cancellationToken).ConfigureAwait(false);
+            var definitionToSave = request.Team;
+            if (row is { IsSystemSeed: true })
+            {
+                var existingKeys = await db.CouncilTeamConfigurations
+                    .Select(item => item.Key)
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                var customKey = CreateUniqueUserCopyKey(requestedKey, existingKeys);
+                definitionToSave = CloneAsUserOwnedDefinition(request.Team, customKey);
+                row = new CouncilTeamConfiguration
+                {
+                    Id = Guid.NewGuid(),
+                    Key = customKey,
+                    IsSystemSeed = false,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+                db.CouncilTeamConfigurations.Add(row);
+                logger.LogInformation(
+                    "Preserved supplied Council seed {SeedKey} and redirected the confirmed edit to user-owned team {CustomKey}.",
+                    requestedKey,
+                    customKey);
+            }
+            else if (row is null)
             {
                 row = new CouncilTeamConfiguration
                 {
                     Id = Guid.NewGuid(),
-                    Key = key,
+                    Key = requestedKey,
                     IsSystemSeed = false,
                     CreatedAtUtc = DateTime.UtcNow
                 };
                 db.CouncilTeamConfigurations.Add(row);
             }
 
-            ApplyDefinition(row, request.Team);
+            ApplyDefinition(row, definitionToSave);
             row.IsEnabled = request.IsEnabled;
-            row.IsSystemSeed = row.IsSystemSeed && seedData.CreateDefaultTeams().Any(team => string.Equals(team.Key, key, StringComparison.OrdinalIgnoreCase));
+            row.IsSystemSeed = false;
             row.IsUserModified = true;
             row.SeedVersion = CurrentSeedVersion;
             row.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             logger.LogInformation(
                 "Saved editable council team {TeamKey} with {RoleCount} role(s), {WorkflowStepCount} workflow step(s) and {ExpandedStepCount} expanded round(s).",
-                key,
-                request.Team.Roles.Count,
-                request.Team.WorkflowSteps.Count,
-                CalculateMaximumExpandedRounds(request.Team.WorkflowSteps));
+                row.Key,
+                definitionToSave.Roles.Count,
+                definitionToSave.WorkflowSteps.Count,
+                CalculateMaximumExpandedRounds(definitionToSave.WorkflowSteps));
             return ToDefinition(row);
     
     }
@@ -218,13 +241,52 @@ public sealed class CouncilTeamConfigurationService(
                     continue;
                 }
 
-                // Lossless seed evolution: an explicitly edited row is never rewritten by later defaults.
+                if (row.IsSystemSeed && row.IsUserModified)
+                {
+                    var customKey = CreateUniqueUserCopyKey(
+                        row.Key,
+                        existingRows
+                            .Select(item => item.Key)
+                            .Concat(db.CouncilTeamConfigurations.Local.Select(item => item.Key))
+                            .ToList());
+                    var preservedDefinition = ToDefinition(row);
+                    var preservedCopy = CloneAsUserOwnedDefinition(preservedDefinition, customKey);
+                    var customRow = new CouncilTeamConfiguration
+                    {
+                        Id = Guid.NewGuid(),
+                        Key = customKey,
+                        IsSystemSeed = false,
+                        IsUserModified = true,
+                        IsEnabled = row.IsEnabled,
+                        SeedVersion = CurrentSeedVersion,
+                        CreatedAtUtc = DateTime.UtcNow,
+                        UpdatedAtUtc = DateTime.UtcNow
+                    };
+                    ApplyDefinition(customRow, preservedCopy);
+                    db.CouncilTeamConfigurations.Add(customRow);
+
+                    ApplyDefinition(row, definition);
+                    row.IsEnabled = true;
+                    row.IsSystemSeed = true;
+                    row.IsUserModified = false;
+                    row.SeedVersion = CurrentSeedVersion;
+                    row.UpdatedAtUtc = DateTime.UtcNow;
+                    changed = true;
+                    logger.LogInformation(
+                        "Recovered supplied Council seed {SeedKey}; the previously edited seed content was preserved as user-owned team {CustomKey}.",
+                        row.Key,
+                        customKey);
+                    continue;
+                }
+
+                // Lossless seed evolution: normal seed updates replace only the maintained system row.
                 if (row.SeedVersion < CurrentSeedVersion && !row.IsUserModified)
                 {
                     var enabled = row.IsEnabled;
                     ApplyDefinition(row, definition);
                     row.IsEnabled = enabled;
                     row.IsSystemSeed = true;
+                    row.IsUserModified = false;
                     row.SeedVersion = CurrentSeedVersion;
                     row.UpdatedAtUtc = DateTime.UtcNow;
                     changed = true;
@@ -831,6 +893,60 @@ public sealed class CouncilTeamConfigurationService(
         throw;
     }
 }
+
+    /// <summary>Creates a unique user-owned key derived from a supplied system-seed key.</summary>
+    /// <param name="seedKey">Stable supplied seed key being preserved.</param>
+    /// <param name="existingKeys">Keys already present in the configuration store.</param>
+    /// <returns>A normalized key that does not collide with an existing team.</returns>
+    private string CreateUniqueUserCopyKey(string seedKey, IReadOnlyCollection<string> existingKeys)
+    {
+        try
+        {
+            var baseKey = $"{seedKey.Trim().ToLowerInvariant()}-custom";
+            var existing = new HashSet<string>(existingKeys, StringComparer.OrdinalIgnoreCase);
+            if (!existing.Contains(baseKey))
+                return baseKey;
+            for (var suffix = 2; suffix <= 10000; suffix++)
+            {
+                var candidate = $"{baseKey}-{suffix}";
+                if (!existing.Contains(candidate))
+                    return candidate;
+            }
+            throw new InvalidOperationException($"Could not allocate a unique user-owned Council team key for supplied seed '{seedKey}'.");
+        }
+        catch (Exception __serviceMethodException)
+        {
+            logger.LogError(__serviceMethodException, "Allocating a user-owned Council team key for seed {SeedKey} failed.", seedKey);
+            throw;
+        }
+    }
+
+    /// <summary>Clones a supplied or edited definition as an explicit user-owned literal workflow.</summary>
+    /// <param name="source">Definition whose content should be preserved.</param>
+    /// <param name="customKey">Unique custom key allocated for the user-owned copy.</param>
+    /// <returns>A deep-cloned user-owned team definition.</returns>
+    private OrganicCouncilTeamDefinition CloneAsUserOwnedDefinition(OrganicCouncilTeamDefinition source, string customKey)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(source, JsonOptions);
+            var clone = JsonSerializer.Deserialize<OrganicCouncilTeamDefinition>(json, JsonOptions)
+                ?? throw new InvalidOperationException("Council team cloning returned no definition.");
+            clone.Key = customKey;
+            if (!clone.DisplayName.Contains("custom", StringComparison.OrdinalIgnoreCase))
+                clone.DisplayName = $"{clone.DisplayName} custom";
+            clone.IsSystemSeed = false;
+            clone.IsUserModified = true;
+            foreach (var step in clone.WorkflowSteps)
+                step.UseBuiltInBehavior = false;
+            return clone;
+        }
+        catch (Exception __serviceMethodException)
+        {
+            logger.LogError(__serviceMethodException, "Cloning supplied Council team {TeamKey} into user-owned configuration {CustomKey} failed.", source.Key, customKey);
+            throw;
+        }
+    }
 
     /// <summary>Copies a normalized definition into its persistence row.</summary>
     /// <param name="row">Target persistence row.</param>

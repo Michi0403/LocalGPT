@@ -516,6 +516,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<ICouncilRunConfigurationService, CouncilRunConfigurationService>();
                 builder.Services.AddScoped<IProviderModelRuntimeService, ProviderModelRuntimeService>();
                 builder.Services.AddScoped<IProviderModelBenchmarkService, ProviderModelBenchmarkService>();
+                builder.Services.AddScoped<ICouncilBenchmarkCalibrationService, CouncilBenchmarkCalibrationService>();
                 builder.Services.AddScoped<IMultiModelCouncilService, MultiModelCouncilService>();
                 builder.Services.AddScoped<IChatClientFactory, ChatClientFactory>();
                 builder.Services.AddScoped<IChatClient>(sp =>

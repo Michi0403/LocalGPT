@@ -970,15 +970,62 @@ Original learning request:
         return new()
     {
         Key = "adaptive-model-benchmark",
-        DisplayName = "Adaptive Ollama Benchmark Council",
-        Purpose = "Benchmarks user-selected provider-qualified models already available on configured local or LAN AI endpoints, compares speed and answer value, and stores the measured result as a reusable hardware-spooler performance profile without changing Council membership.",
+        DisplayName = "Initial Hardware Calibration Benchmark",
+        Purpose = "First-run benchmark social structure for all selected provider-qualified Council members. Every selected member receives a bounded readiness turn, every benchmark-capable member is then measured by LocalGPT itself at four profile points, and only after coverage evidence exists do independent Council roles review the results and synthesize measured Low, Middle, High and Expert hardware-spooler profiles.",
         Roles =
         [
-            new() { Role = "Benchmark Director", Expertise = "bounded benchmark design, fairness, reproducibility and hardware-road constraints", Responsibility = "define the candidate set and ensure every model receives equivalent tasks and limits" },
-            new() { Role = "Task Curator", Expertise = "small checkable C#, PowerShell, Java, Minecraft and ASCII-game tasks", Responsibility = "prepare deterministic tasks with explicit acceptance evidence rather than subjective style prompts" },
-            new() { Role = "Code Curator", Expertise = "Qwen/DeepSeek/code-model review, correctness, maintainability and generated-artifact quality", Responsibility = "score candidate answers independently and explain good or bad generation value" },
-            new() { Role = "Performance Analyst", Expertise = "latency, token throughput, context/output budgets, CPU/GPU routing and timeout evidence", Responsibility = "compare speed and resource behavior without treating the fastest incomplete answer as the winner" },
-            new() { Role = "Preset Synthesizer", Expertise = "LocalGPT hardware performance presets and safe token ranges", Responsibility = "verify the benchmark-created hardware-spooler profile, explain its measured ranges and identify whether additional named benchmark profiles are worth creating" }
+            new()
+            {
+                Role = "Benchmark Director",
+                Expertise = "benchmark inventory, fairness, reproducibility, provider-qualified identity and hardware-road constraints",
+                Responsibility = "freeze the exact selected member set and limits; never replace an all-member request with representative sampling",
+                AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                MinimumAiParticipants = 1,
+                MaximumAiParticipants = 1
+            },
+            new()
+            {
+                Role = "Benchmark Subject",
+                Expertise = "bounded readiness evidence from the model that will later be measured",
+                Responsibility = "respond once to the common readiness probe so every selected Council member is visibly exercised before measurements begin",
+                AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected
+            },
+            new()
+            {
+                Role = "Task Curator",
+                Expertise = "small deterministic C#, provider-identity, structured-settings and accessibility benchmark tasks",
+                Responsibility = "review the maintained deterministic benchmark contract and identify only genuine acceptance-shape problems",
+                AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                MinimumAiParticipants = 2,
+                MaximumAiParticipants = 2
+            },
+            new()
+            {
+                Role = "Coverage Auditor",
+                Expertise = "provider-qualified coverage accounting, failure classification and anti-extrapolation review",
+                Responsibility = "verify that every benchmark-capable selected member was attempted and preserve failed or unsupported members as explicit inconclusive evidence",
+                AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                MinimumAiParticipants = 2,
+                MaximumAiParticipants = 2
+            },
+            new()
+            {
+                Role = "Performance Analyst",
+                Expertise = "latency, token throughput, context/output budgets, CPU/GPU routing and timeout evidence",
+                Responsibility = "compare the four measured points without treating fast incomplete answers as winners or inventing measurements for failed members",
+                AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                MinimumAiParticipants = 2,
+                MaximumAiParticipants = 2
+            },
+            new()
+            {
+                Role = "Profile Synthesizer",
+                Expertise = "LocalGPT hardware performance presets, measured token ranges and conservative first-run defaults",
+                Responsibility = "jointly explain the stored Low, Middle, High and Expert profiles and recommend when each should be selected without changing Council membership",
+                AiSelectionMode = CouncilRoleAiSelectionMode.RandomRange,
+                MinimumAiParticipants = 2,
+                MaximumAiParticipants = 2
+            }
         ],
         PreferredCapabilities =
         [
@@ -995,33 +1042,38 @@ Original learning request:
         ],
         WorkflowSteps =
         [
-            Step("benchmark-preflight", "Benchmark preflight", 10, "Preparation", "Benchmark Director", """
-Inspect authoritative installed-model discovery, configured hardware roads, attachments and existing human Council guidance before asking anything. Select only models the user explicitly included or that are already discovered on their provider-qualified endpoint. Define equal output/context/time limits, deterministic task categories and the new-preset name. Only the Benchmark Director may create a benchmark-preflight human question, and only when required evidence remains genuinely absent after discovery; consolidate every missing fact into one request and never ask again for a fact already answered. Do not download, start, stop or remove models.
+            Step("benchmark-inventory", "Freeze calibration inventory", 10, "Inventory", "Benchmark Director", """
+Inspect the exact provider-qualified Council membership, installed-model discovery, hardware roads and the user's requested limits. The selected Council membership is authoritative. If the user asked to benchmark all selected members, do not sample, bracket, extrapolate or replace members with representatives. State the exact number of selected members and flag any identity that is not provider-qualified. Do not run the benchmark yet and do not create presets.
 """, "LeaderSingle"),
-            Step("benchmark-task-design", "Deterministic task design", 20, "Task design", "Task Curator", """
-Create a compact task matrix covering at least one architecture/code task and one structured reasoning task. Consume the Benchmark Director's preflight evidence and all existing human guidance; this role must not reopen model-selection or hardware questions that preflight already resolved. Every task needs a checkable acceptance shape and must fit the configured benchmark budget. Do not include secrets, repositories outside the approved workspace or destructive commands.
+            Step("benchmark-readiness", "Exercise every selected member", 20, "Readiness", "Benchmark Subject", """
+You are one benchmark subject, not a benchmark planner. Respond once and concisely with: READY, your exact executing provider-qualified identity, whether you can answer a tiny C# correctness task and a structured JSON task, and any immediate runtime limitation you can actually observe. Do not choose other models, do not summarize the Council, do not call tools and do not propose profiles. This round exists so every selected Council member is visibly exercised before LocalGPT starts measurements.
 """, "AllMembersSequentialOnEachAIHostParallel"),
-            Step("benchmark-execution", "Run installed-model benchmark", 30, "Execution", "Benchmark Director", """
-Use localgpt.models.benchmark.provider exactly once with the exact provider-qualified candidate set and reviewed limits already established by preflight. Set allDiscoveredModels=true only when the user explicitly requested every discovered model; otherwise pass the exact modelSelectionKeys. Pass the selected reviewer pool when the user configured one, or let LocalGPT prefer capable default reviewers such as gpt-oss:20b. Pass the agreed performancePresetName. After the already required human approval, every successful benchmark automatically becomes a durable Hardware spooler performance profile. Do not restart discovery questionnaires during execution. This is the only benchmark execution step. Preserve generated-text privacy in logs; saving the profile must not change Council membership or provider-global settings.
-""", "LeaderSingle", canUseOrganicFunctions: true),
-            Step("benchmark-curation", "Independent code curation", 40, "Review", "Code Curator", """
-Review the returned bounded results independently. Compare correctness, completeness, architecture quality, instruction following and obvious hallucination risk. Explain why each result is good, bad or inconclusive. Do not change the benchmark measurements.
-""", "AllMembersParallel"),
-            Step("benchmark-performance", "Performance analysis", 50, "Review", "Performance Analyst", """
-Compare first-token/total latency, throughput, timeout behavior, context/output limits and hardware roads. Penalize incomplete or invalid output even when it is fast. Separate measured facts from inferred hardware explanations.
-""", "AllMembersSequentialOnEachAIHostParallel"),
-            Step("benchmark-preset", "Preset recommendation", 60, "Synthesis", "Preset Synthesizer", """
-Call localgpt.hardware.performance.presets.list and then localgpt.hardware.performance.presets.get for the profile created by this benchmark. Summarize which provider-qualified models it covers, the measured token ranges, recommended per-model load points and remaining uncertainty. Do not invent a second unsaved preset in prose. If the evidence supports a materially different low-latency or high-value profile, use localgpt.hardware.performance.presets.save only after fresh human approval. Existing profiles remain untouched unless the user explicitly chooses to replace or delete one. Use localgpt.hardware.performance.presets.apply only when the user explicitly asks to apply a profile to preparation or a running Council.
-""", "LeaderSingle", producesFinalAnswer: true)
+            Step("benchmark-contract-review", "Review deterministic task contract", 30, "Task contract", "Task Curator", """
+Review the maintained deterministic LocalGPT benchmark task contract for fairness and checkability. The benchmark engine owns the actual tasks and all selected benchmark-capable targets; you may not reduce the target list. Identify only concrete acceptance-shape risks. If the other Task Curator has useful corrections, coordinate them into one role result.
+""", "AllMembersParallel", enableRolePeerReview: true, summarizeRoleResults: true),
+            Step("benchmark-calibration", "Measure all benchmark-capable members", 40, "Measurement", "Benchmark Director", """
+This step is executed by the LocalGPT benchmark calibration service, not by a model. It deterministically measures every distinct benchmark-capable provider-qualified member selected for this Council at four bounded profile points and stores measured Low, Middle, High and Expert hardware-spooler profiles after the configured human checkpoint. No model may replace the target set with a representative sample.
+""", "SystemBenchmarkCalibration", requiresHumanCheckpoint: true),
+            Step("benchmark-coverage", "Audit measured member coverage", 50, "Coverage review", "Coverage Auditor", """
+Audit the deterministic calibration evidence from the previous step. Compare requested distinct members, benchmark-capable attempted members, successful measured members and explicit skipped/failed members. A failed measurement is evidence, not permission to extrapolate. State PASS only when every benchmark-capable selected member produced measured evidence; otherwise state PARTIAL and list the unresolved identities. Coordinate peer usefulness/votes into one role result.
+""", "AllMembersParallel", enableRolePeerReview: true, summarizeRoleResults: true),
+            Step("benchmark-performance", "Analyze four measured tiers", 60, "Performance review", "Performance Analyst", """
+Analyze only measured profile points from the deterministic calibration evidence. Compare successful Low/Middle/High/Expert routes, latency, throughput, timeout behavior and quality. Keep provider endpoint plus model identity authoritative. Never infer an unmeasured model's limits from family name or parameter size. Coordinate the role members' usefulness/votes into one consolidated analysis.
+""", "AllMembersSequentialOnEachAIHostParallel", enableRolePeerReview: true, summarizeRoleResults: true),
+            Step("benchmark-profiles", "Explain initial calibration profiles", 70, "Synthesis", "Profile Synthesizer", """
+Produce the final visible calibration handoff. Name the four profiles that LocalGPT actually stored: Low, Middle, High and Expert. Explain that they contain only successful measured provider-qualified routes, that failed/unsupported selected members remain explicit coverage gaps, and that applying a hardware profile never changes Council membership. Recommend Low as the conservative first-run baseline, Middle for normal use, High for higher-value work, and Expert only when its measured route exists and the workload justifies it. Do not claim that a missing route was benchmarked. Consolidate the two synthesizer members into one final role result.
+""", "AllMembersParallel", producesFinalAnswer: true, enableRolePeerReview: true, summarizeRoleResults: true)
         ],
-        MainRoundInstructionTemplate = "Treat benchmark measurements as evidence, not reputation. Code curators judge answer value independently; the Benchmark Director remains responsible for fairness, and every successful approved benchmark must surface as a selectable Hardware spooler performance profile rather than prose-only token advice.",
+        MainRoundInstructionTemplate = "This maintained first-run calibration team tests membership before analysis. The exact selected provider-qualified members are authoritative; representative sampling and size-bracket extrapolation are forbidden. LocalGPT itself owns the measurement step, while social roles design, audit, vote and explain the measured evidence.",
         ArchitectureContracts =
         [
             .. DefaultArchitectureContracts(),
-            "Benchmark only provider-qualified models already discovered at configured local or LAN AI endpoints; never substitute a same-name model from another endpoint.",
-            "Every candidate receives equivalent bounded tasks and runtime limits; failed or incomplete answers remain visible in the result.",
-            "Independent reviewer judgments and measured performance are separate evidence streams; the benchmark reviewer pool is user-selectable and should prefer capable reviewers such as gpt-oss:20b when available rather than tiny models by default.",
-            "A successful approved benchmark creates or updates only its own hardware performance profile. Performance profiles are selectable and deletable in Chat Hardware spooler and never change Council membership when applied."
+            "The supplied benchmark seed is immutable configuration data. Saving edits creates a user-owned literal copy; later seed versions restore and evolve the supplied default without deleting the user's copy.",
+            "Every selected Council member receives one bounded readiness turn before measurement begins.",
+            "Every distinct selected provider-qualified member that supports the maintained benchmark contract is attempted by the deterministic LocalGPT benchmark engine. Models cannot reduce the target set.",
+            "The deterministic benchmark uses four measured profile points with early-stop disabled. Failed or unsupported members remain explicit coverage evidence and are never assigned invented token limits.",
+            "Successful calibration stores four separate measured hardware-spooler profiles named Low, Middle, High and Expert. Applying a profile never changes Council membership or provider-global settings.",
+            "Coverage review and performance/profile synthesis occur only after the deterministic measurement step has returned evidence."
         ]
     };
     }
@@ -1313,6 +1365,9 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
     /// <param name="executionMode">Council execution mode.</param>
     /// <param name="canUseOrganicFunctions">Whether the round may request registered functions.</param>
     /// <param name="producesFinalAnswer">Whether the round produces the visible final answer.</param>
+    /// <param name="requiresHumanCheckpoint">Whether the round waits at the maintained human collaboration boundary before execution.</param>
+    /// <param name="enableRolePeerReview">Whether same-role members run the optional usefulness/vote pass after their primary answers.</param>
+    /// <param name="summarizeRoleResults">Whether one role member consolidates the same-role results before downstream workflow steps.</param>
     /// <returns>The configured workflow step.</returns>
     private CouncilWorkflowStepDefinition Step(
         string key,
@@ -1323,7 +1378,10 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         string prompt,
         string executionMode,
         bool canUseOrganicFunctions = false,
-        bool producesFinalAnswer = false) {
+        bool producesFinalAnswer = false,
+        bool requiresHumanCheckpoint = false,
+        bool enableRolePeerReview = false,
+        bool summarizeRoleResults = false) {
     try
     {
         return new()
@@ -1339,6 +1397,9 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         IsEnabled = true,
         CanUseOrganicFunctions = canUseOrganicFunctions,
         ProducesFinalAnswer = producesFinalAnswer,
+        RequiresHumanCheckpoint = requiresHumanCheckpoint,
+        EnableRolePeerReview = enableRolePeerReview,
+        SummarizeRoleResults = summarizeRoleResults,
         UseBuiltInBehavior = false
     };
     }
