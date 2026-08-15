@@ -49,7 +49,7 @@ try:
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
     ):
-        require(rel, "<Version>2.9.3</Version>")
+        require(rel, "<Version>2.9.4</Version>")
     print("LocalGPT 2.8.3 human-visible entity formatting source audit passed: quote/apostrophe entities normalize once through the chat renderer while markup-significant entities stay encoded, Council surfaces use the renderer/text decode boundary, and release versions are aligned.")
 except AssertionError as exc:
     print(f"LocalGPT 2.8.3 human-visible entity formatting source audit failed: {exc}", file=sys.stderr)

@@ -189,7 +189,7 @@ public sealed class FirstRunOnboardingService(
     try
     {
         return [
-        QuickStart("benchmark", "Calibrate installed models first", "Recommended after installation: exercises every selected Council member, measures every benchmark-capable provider-qualified member at four bounded points, and stores measured Low, Middle, High and Expert hardware profiles before later work.", "adaptive-model-benchmark", "Initial Calibration Pool", "benchmark-council-start"),
+        QuickStart("benchmark", "Calibrate installed models first", "Recommended after installation: Task Curators prepare one checkable four-task pack, every selected Council member executes that assigned role task pack, LocalGPT measures every benchmark-capable provider-qualified member across four bounded profile points using the full maintained task suite, and stores measured Low, Middle, High and Expert hardware profiles before later work.", "adaptive-model-benchmark", "Initial Calibration Pool", "benchmark-council-start"),
         QuickStart("game", "Fast GameDirector council", "Uses small models while the deterministic GameDirector remains authoritative.", "game-director-runtime", "Fast Game Council (Low-B)", "game-director-council-start"),
         QuickStart("csharp", "Modern C# host team", "Plans and verifies a hosted .NET solution through architecture, implementation, regex, build and curator rounds.", "csharp-modern-host-development", "Code Curator Council", "csharp-host-council-start"),
         QuickStart("powershell", "PowerShell build-system team", "Uses LocalGPT's repository-validation round order as the reference workflow.", "powershell-build-development", "Code Curator Council", "powershell-build-council-start"),

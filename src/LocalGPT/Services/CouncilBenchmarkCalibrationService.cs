@@ -18,7 +18,7 @@ public sealed class CouncilBenchmarkCalibrationService(
     ILogger<CouncilBenchmarkCalibrationService> logger) : ICouncilBenchmarkCalibrationService
 {
     /// <summary>
-    /// Executes the maintained four-point calibration across every distinct benchmark-capable provider-qualified target,
+    /// Executes the maintained four-point/four-task calibration across every distinct benchmark-capable provider-qualified target,
     /// streams bounded progress to the parent Council, stores the four measured tier profiles and returns coverage evidence.
     /// </summary>
     /// <inheritdoc />
@@ -58,7 +58,7 @@ public sealed class CouncilBenchmarkCalibrationService(
             progressMessage?.Invoke(
                 $"## Deterministic all-member calibration started\n\n" +
                 $"LocalGPT, not a model prompt, will benchmark every one of the {benchmarkTargets.Count} benchmark-capable provider-qualified member(s) selected for this Council. " +
-                $"No representative sampling or size-bracket extrapolation is allowed. Four measured profile points are attempted per target.");
+                $"No representative sampling or size-bracket extrapolation is allowed. Four measured profile points are attempted per target, and every point runs the complete maintained four-task benchmark suite.");
 
             var report = await benchmark.RunAsync(
                 new ProviderModelBenchmarkRequest
@@ -74,7 +74,7 @@ public sealed class CouncilBenchmarkCalibrationService(
                     MaximumOutputTokens = maximumOutputTokens,
                     IncludeCpuSafeControl = false,
                     StopWhenImprovementStalls = false,
-                    MaxTasks = 1,
+                    MaxTasks = 4,
                     MaxCouncilReviewers = 0,
                     MaxSecondsPerCall = timeoutSeconds,
                     ImprovementThresholdPercent = 0d,

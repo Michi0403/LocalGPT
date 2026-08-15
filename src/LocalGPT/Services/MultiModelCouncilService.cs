@@ -3696,7 +3696,7 @@ namespace LocalGPT.Services
     try
     {
                 var template = string.IsNullOrWhiteSpace(definition.PromptTemplate)
-                    ? "Contribute to {{TeamName}} as {{Role}} during {{Phase}}. Address the user's request directly."
+                    ? "Perform the current workflow step for {{TeamName}} as {{Role}} during {{Phase}}. Your assigned responsibility is: {{RoleResponsibility}}. Produce only the result required by this role and phase. Use the overall user request only as background context unless this role explicitly owns the final answer."
                     : definition.PromptTemplate;
                 var hasUserPromptPlaceholder = template.Contains("{{UserPrompt}}", StringComparison.Ordinal);
                 var hasTranscriptPlaceholder = template.Contains("{{Transcript}}", StringComparison.Ordinal);
@@ -3782,10 +3782,24 @@ namespace LocalGPT.Services
                     .Replace("{{Preparation}}", boundedPreviousStep, StringComparison.Ordinal)
                     .Replace("{{ExternalProjectContextJson}}", request.ExternalProjectContextJson, StringComparison.Ordinal);
 
+                var authoritativeRoleTask = rendered.Trim();
+                var contextBuilder = new StringBuilder();
                 if (!hasUserPromptPlaceholder)
-                    rendered = $"{rendered.Trim()}{Environment.NewLine}{Environment.NewLine}Original user request:{Environment.NewLine}{request.Prompt}";
+                {
+                    contextBuilder
+                        .AppendLine("BACKGROUND USER REQUEST — CONTEXT ONLY")
+                        .AppendLine("This explains the overall human goal. It is not your operative instruction for this turn. Do not solve, restart or redesign the overall request unless the CURRENT WORKFLOW ROLE TASK explicitly tells you to do so.")
+                        .AppendLine(request.Prompt.Trim());
+                }
                 if (definition.IncludePriorTranscript && !hasTranscriptPlaceholder && !string.IsNullOrWhiteSpace(boundedTranscript))
-                    rendered = $"{rendered.Trim()}{Environment.NewLine}{Environment.NewLine}Council transcript so far:{Environment.NewLine}{boundedTranscript}";
+                {
+                    if (contextBuilder.Length > 0)
+                        contextBuilder.AppendLine();
+                    contextBuilder
+                        .AppendLine("PRIOR COUNCIL EVIDENCE — INPUT ONLY")
+                        .AppendLine("Use this only as evidence required by your current role task. Do not take over an earlier or later role because its text appears here.")
+                        .AppendLine(boundedTranscript);
+                }
 
                 var assignmentBriefing = new StringBuilder()
                     .AppendLine("Runtime role assignment for this round:")
@@ -3833,7 +3847,20 @@ namespace LocalGPT.Services
                 if (councilRuntime.MultiModelCouncilServiceHasExplicitArtifactIntent(request.Prompt, logger))
                     assignmentBriefing.AppendLine("- Coding-output contract: the visible answer must include concrete source/code, file paths, or an actual approved artifact result appropriate to the request. Internal machine-readable JSON may follow only as LocalGPT metadata and must not replace the requested source.");
 
-                return $"{rendered.Trim()}{Environment.NewLine}{Environment.NewLine}{assignmentBriefing.ToString().Trim()}";
+                var finalPrompt = new StringBuilder()
+                    .AppendLine(assignmentBriefing.ToString().Trim())
+                    .AppendLine()
+                    .AppendLine("CURRENT WORKFLOW ROLE TASK — AUTHORITATIVE")
+                    .Append("Step: ").Append(definition.DisplayName).Append(" / ").AppendLine(definition.Phase)
+                    .Append("Role: ").AppendLine(roleAssignment.RoleName)
+                    .AppendLine(authoritativeRoleTask);
+                if (contextBuilder.Length > 0)
+                    finalPrompt.AppendLine().AppendLine(contextBuilder.ToString().Trim());
+                finalPrompt
+                    .AppendLine()
+                    .AppendLine("EXECUTION PRIORITY")
+                    .AppendLine("Perform only the CURRENT WORKFLOW ROLE TASK now. The original user request and prior Council text are background evidence unless this role task explicitly asks you to act on them. Do not perform another role's task, do not redesign the workflow, and do not answer the overall user request in place of your assigned role output.");
+                return finalPrompt.ToString().Trim();
         
     }
     catch (Exception __serviceMethodException)

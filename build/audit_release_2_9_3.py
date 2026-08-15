@@ -24,12 +24,12 @@ try:
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
     ]:
-        require(rel, "<Version>2.9.3</Version>")
+        require(rel, "<Version>2.9.4</Version>")
     require("src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj", "<Version>2.1.1</Version>")
     require("src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj", "<PackageVersion>2.1.1</PackageVersion>")
 
     cfg="src/LocalGPT/Services/CouncilTeamConfigurationService.cs"
-    require(cfg, "private const int CurrentSeedVersion = 21;")
+    require(cfg, "private const int CurrentSeedVersion = 22;")
     require(cfg, '"SystemBenchmarkCalibration"')
     require(cfg, "if (row is { IsSystemSeed: true })")
     require(cfg, "CreateUniqueUserCopyKey")
@@ -42,7 +42,8 @@ try:
     require(seed, 'DisplayName = "Initial Hardware Calibration Benchmark"')
     require(seed, 'Role = "Benchmark Subject"')
     require(seed, 'AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected')
-    require(seed, '"benchmark-readiness"')
+    require(seed, '"benchmark-task-design"')
+    require(seed, '"benchmark-subject-execution"')
     require(seed, '"benchmark-calibration"')
     require(seed, '"SystemBenchmarkCalibration"')
     require(seed, "requiresHumanCheckpoint: true")
@@ -51,7 +52,7 @@ try:
     require(seed, '"benchmark-profiles"')
     require(seed, "enableRolePeerReview: true")
     require(seed, "summarizeRoleResults: true")
-    require(seed, "representative sampling and size-bracket extrapolation are forbidden")
+    require(seed, "Representative sampling and role takeover are forbidden")
 
     ui="src/LocalGPT/Components/Pages/CouncilTeams.razor"
     require(ui, '("SystemBenchmarkCalibration", "LocalGPT all-member benchmark calibration engine")')
@@ -67,6 +68,7 @@ try:
 
     calibration="src/LocalGPT/Services/CouncilBenchmarkCalibrationService.cs"
     require(calibration, "MaxProfilesPerModel = 4")
+    require(calibration, "MaxTasks = 4")
     require(calibration, "ProfileMode = ProviderModelBenchmarkProfileMode.EvenlySpaced")
     require(calibration, "StopWhenImprovementStalls = false")
     require(calibration, "IncludeCouncilReview = false")

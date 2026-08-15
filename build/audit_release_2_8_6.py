@@ -24,7 +24,7 @@ try:
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
     ]:
-        require(rel, "<Version>2.9.3</Version>")
+        require(rel, "<Version>2.9.4</Version>")
     require("Directory.Build.props", "<LocalGptWireProtocolVersion>2.1.1</LocalGptWireProtocolVersion>")
 
     require(
