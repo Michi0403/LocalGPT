@@ -99,7 +99,7 @@
             <DxGridLayoutItem Area="header" CssClass="title">
                 <Template>
                     <div class="title-header-text">@T("Hello World!")</div>
-                    <div class="title-content-text">@T("Welcome to your LocalChatGPT")</div>
+                    <div class="title-content-text">@L("Home.LocalChat.Welcome", "Welcome to your Local Chat")</div>
                     <div class="title-content-text">@T("Configure at least one local or cloud AI provider before starting Chat.")</div>
                     <div class="title-content-text">@T("The installer, generated documentation and seeded Council teams remain available from the cards below.")</div>
                 </Template>
@@ -108,11 +108,7 @@
                 <Template>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/chat", ToggledSidebar)">
                         <svg class="welcome-card-img" alt="chat card"><use href="images/aichat-card.svg"></use></svg>
-                        <div class="welcome-card-text">@T("Local ChatGPT")</div><div class="welcome-card-back"></div>
-                    </NavLink>
-                    <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/model-council", ToggledSidebar)">
-                        <svg class="welcome-card-img" alt="AI council card"><use href="images/model-council-card.svg"></use></svg>
-                        <div class="welcome-card-text">@T("AI Council")</div><div class="welcome-card-back"></div>
+                        <div class="welcome-card-text">@L("Home.LocalChat.Title", "Local Chat")</div><div class="welcome-card-back"></div>
                     </NavLink>
                     <NavLink class="welcome-card" data-enhance-nav="false" href="@NavigationUrls.GetUrl("/council-teams", ToggledSidebar)">
                         <img class="welcome-card-img" src="images/Information.svg" alt="council teams card" />

@@ -1,30 +1,19 @@
-# LocalGPT 2.8.6 source-only validation
+# LocalGPT 2.8.7 source validation
 
-Validation is intentionally source-only: no GitHub access, `dotnet`, MSBuild, or .NET compiler was used.
+Validation is source-only by design. No `dotnet`, MSBuild, Visual Studio build, GitHub access, restore, publish, or executable launch was performed.
 
-Passed source audits:
+Checked statically:
 
-- LocalGPT 2.8.6 reasoning/function trace and Council durability release audit.
-- LocalGPT 2.8.5 localization regression audit.
-- Strict async continuation audit: 158 source files, 2,349 await tokens, 2,140 `ConfigureAwait(false)`, 31 renderer-affine `ConfigureAwait(true)`, 175 configured async disposals, and 3 configured async streams.
-- Provider-qualified Council audit: 280 checks.
-- Human-visible entity formatting, benchmark/rejoin/build-guard, X-Round/heartbeat, and code-generation/DXFunction audits.
-- Application architecture and service-resilience audits; 1,850 service methods own try/catch plus diagnostics.
-- XML documentation coverage: 7,111 direct C# declarations across 406 maintained source files.
-- Documentation/1-Wire contract audit.
+- all three application projects report version 2.8.7 and obey the single-digit minor/patch slot policy;
+- wire protocol remains 2.1.1;
+- `CouncilTextService.cs` contains `using System.Text.RegularExpressions;`;
+- the Council failure-memory path narrows the request before accessing `SaveToMemory`;
+- home and main navigation no longer link to `/model-council`, while `ModelCouncil.razor` still owns that direct route;
+- Local Chat labels and welcome/setup strings are maintained in all six built-in cultures and contain no `ChatGPT` value;
+- obsolete `LocalChatGPT` localization aliases are absent;
+- all six localization catalogs have identical key sets;
+- LocalGPT still contains 19 `@rendermode` directives, matching the prior source release exactly;
+- repository Python regression audits were run where they do not invoke .NET tooling;
+- generated Python bytecode/cache output is removed before packaging.
 
-Reviewed release invariants:
-
-- application/wrapper/installer versions are 2.8.6 while the 1-Wire protocol stays 2.1.1;
-- native Ollama requests explicitly request provider-supplied `think` output, with conservative compatibility fallback;
-- Ollama and generic-provider reasoning/tool metadata becomes normal transcript content rather than transient-only status;
-- function-call arguments and bounded function results are expanded by default and persist with `/chat` history;
-- every provider-supplied thinking block is retained, completed thought panels remain expanded in live chat and restored sessions, and only an unfinished block carries the live indicator;
-- Council participant traces include reasoning/function metadata across teams and rounds;
-- PublisherStudio/1-Wire Council runs register in the LocalGPT live-session path and force normal session persistence;
-- Council markdown logging creates an early checkpoint and atomically refreshes it independently of UI/transport cancellation, including failed/partial runs;
-- all 19 existing `@rendermode` directives exactly match the supplied 2.8.5 source baseline.
-
-Provider limitation: LocalGPT can display reasoning only when the configured provider/model actually returns reasoning/thinking metadata. This release does not fabricate or claim access to provider-internal hidden reasoning.
-
-The user's Windows .NET 10 build remains authoritative for compile/runtime confirmation.
+The Windows build and runtime test remain authoritative.

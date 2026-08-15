@@ -906,8 +906,8 @@ namespace LocalGPT.Services
                 failedResult.Warnings.Add($"{ex.GetType().Name}: {ex.Message}");
                 failedResult.LogPath = await WriteLogAsync(failedResult, CancellationToken.None, logger).ConfigureAwait(false);
                 await WriteMissingFeatureReportAsync(failedResult, CancellationToken.None).ConfigureAwait(false);
-                if (request.SaveToMemory)
-                    failedResult.MemoryConversationId = await SaveToMemoryAsync(request, failedResult, null, CancellationToken.None).ConfigureAwait(false);
+                if (request is { SaveToMemory: true } failedRequest)
+                    failedResult.MemoryConversationId = await SaveToMemoryAsync(failedRequest, failedResult, null, CancellationToken.None).ConfigureAwait(false);
                 councilSpooler.Complete(failedResult, failed: true);
                 return failedResult;
             }

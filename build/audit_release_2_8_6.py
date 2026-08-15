@@ -24,7 +24,7 @@ try:
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
     ]:
-        require(rel, "<Version>2.8.6</Version>")
+        require(rel, "<Version>2.8.7</Version>")
     require("Directory.Build.props", "<LocalGptWireProtocolVersion>2.1.1</LocalGptWireProtocolVersion>")
 
     require(
@@ -69,7 +69,7 @@ try:
         "result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger)",
         "temporaryPath = $\"{path}.{Guid.NewGuid():N}.tmp\";",
         "System.IO.File.Move(temporaryPath, path, overwrite: true);",
-        "SaveToMemoryAsync(request, failedResult, null, CancellationToken.None)",
+        "SaveToMemoryAsync(failedRequest, failedResult, null, CancellationToken.None)",
     )
     require(
         "src/LocalGPT/Services/CouncilTextService.cs",

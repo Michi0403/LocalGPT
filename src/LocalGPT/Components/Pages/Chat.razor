@@ -39,7 +39,7 @@
 @inject ISupervisedTaskRunner TaskRunner
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
-<PageTitle>AI Chat</PageTitle>
+<PageTitle>@L("Home.LocalChat.Title", "Local Chat")</PageTitle>
 
 <div class="main-container @(IsLiveCouncilInteractionAvailable ? "chat-session-active" : string.Empty) @(showGameConsole ? "chat-game-visible" : string.Empty)" data-testid="chat-page">
     @if (ChatClientProvider is not null)
@@ -797,7 +797,7 @@
     else
     {
         <div class="title-header-text">No ChatClient Initialized</div>
-        <div class="title-content-text">Welcome to your LocalChatGPT, go to the Setup Page to Setup the AI Chat Clients</div>
+        <div class="title-content-text">@L("Home.LocalChat.SetupHelp", "Welcome to your Local Chat, go to the Setup Page to Setup the AI Chat Clients")</div>
     }
 </div>
 
