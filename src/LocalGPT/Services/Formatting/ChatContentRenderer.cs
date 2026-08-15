@@ -205,9 +205,12 @@ public sealed class ChatContentRenderer(
             // or active streams to the explicit structured-text controller/DXFunctions.
             if (ShouldTranslateStructuredText(text))
                 text = structuredText.TranslatePlainJsonBlocksToMarkdown(text);
+            // Provider-supplied reasoning is a first-class part of the user-visible transcript.
+            // Keep completed thought panels expanded in both live chat and restored sessions; only
+            // the temporary `open` CSS class is reserved for an unfinished/live thinking block.
             text = ThinkingDetailsStartRegex.Replace(
                 text,
-                "<details class=\"model-thinking\">");
+                "<details class=\"model-thinking\" open>");
 
             foreach (Match marker in CouncilCompletionMarkerRegex.Matches(text))
             {
@@ -218,17 +221,18 @@ public sealed class ChatContentRenderer(
             }
             text = CouncilCompletionMarkerRegex.Replace(text, string.Empty);
 
-            // Only the currently unfinished thinking block is expanded. Completed
-            // blocks collapse automatically as soon as visible answer text starts.
+            // Every provider-supplied thinking block stays expanded. Mark only the currently
+            // unfinished block as live so the UI can show its streaming indicator without
+            // mislabeling completed reasoning as still running.
             var lastThinkingStart = text.LastIndexOf(
-                "<details class=\"model-thinking\">",
+                "<details class=\"model-thinking\" open>",
                 StringComparison.OrdinalIgnoreCase);
             var lastDetailsEnd = text.LastIndexOf("</details>", StringComparison.OrdinalIgnoreCase);
             if (lastThinkingStart > lastDetailsEnd)
             {
-                const string collapsedStart = "<details class=\"model-thinking\">";
+                const string visibleStart = "<details class=\"model-thinking\" open>";
                 const string liveStart = "<details class=\"model-thinking open\" open>";
-                text = text.Remove(lastThinkingStart, collapsedStart.Length)
+                text = text.Remove(lastThinkingStart, visibleStart.Length)
                     .Insert(lastThinkingStart, liveStart);
             }
 

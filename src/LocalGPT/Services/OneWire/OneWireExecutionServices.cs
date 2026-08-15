@@ -77,12 +77,44 @@ public sealed class OneWireOperationExecutor(
                     ResourceLoadPercent = Math.Clamp(wireRequest.ResourceLoadPercent, 0, 100),
                     AllowParallelHardwareRoads = wireRequest.AllowParallelHardwareRoads,
                     IncludeMemory = wireRequest.IncludeMemory,
-                    SaveToMemory = wireRequest.SaveToMemory,
+                    // 1-Wire Council runs are user-visible LocalGPT sessions. Persist them even when
+                    // the remote caller only waits for the correlated result, so PublisherStudio-started
+                    // runs retain reasoning, function traces and partial/final Council output in /chat.
+                    SaveToMemory = true,
                     GenerateImplementationArtifact = wireRequest.GenerateImplementationArtifact,
                     UserConfirmedArtifactBuild = wireRequest.UserConfirmedArtifactBuild
                 };
-                var result = await council.RunAsync(request, cancellationToken).ConfigureAwait(false);
-                return JsonSerializer.Serialize(result, codec.JsonOptions);
+                var liveSessions = scope.ServiceProvider.GetRequiredService<ICouncilLiveSessionService>();
+                var liveMembers = request.ModelSelections.Count > 0
+                    ? request.ModelSelections.Select(model => model.SelectionKey).ToList()
+                    : request.ModelNames.ToList();
+                if (liveMembers.Count == 0)
+                    liveMembers.Add($"Council team: {request.CouncilTeamKey}");
+                var liveCancellation = liveSessions.Begin(
+                    request.RunId,
+                    liveMembers,
+                    request.Prompt,
+                    $"_PublisherStudio / 1-Wire started Council `{request.RunId}`. Provider thinking, function calls/results and answer text are retained in this live transcript and the saved Council session._\n\n");
+                request.ProgressMessage = message => liveSessions.SetStatus(request.RunId, message);
+                request.StreamUpdate = text =>
+                {
+                    if (!string.IsNullOrEmpty(text))
+                        liveSessions.Append(request.RunId, text);
+                };
+
+                using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, liveCancellation);
+                try
+                {
+                    var result = await council.RunAsync(request, linkedCancellation.Token).ConfigureAwait(false);
+                    liveSessions.Append(
+                        request.RunId,
+                        $"{Environment.NewLine}{Environment.NewLine}## Final council answer{Environment.NewLine}{result.FinalAnswer}{Environment.NewLine}");
+                    return JsonSerializer.Serialize(result, codec.JsonOptions);
+                }
+                finally
+                {
+                    liveSessions.Complete(request.RunId);
+                }
             }
 
             if (string.Equals(item.CapabilityKey, "localgpt.screenreader.help", StringComparison.OrdinalIgnoreCase))

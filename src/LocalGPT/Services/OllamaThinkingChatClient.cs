@@ -178,6 +178,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         try
         {
             var conversation = await CreateConversationAsync(messages, cancellationToken).ConfigureAwait(false);
+            var automaticToolTrace = new StringBuilder();
             OllamaChatResponse? response = null;
 
             for (var round = 0; round <= MaxAutomaticToolRounds; round++)
@@ -211,7 +212,11 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 }
 
                 conversation.Add(CloneMessage(response.Message!));
-                await AppendAutomaticToolResultsAsync(conversation, toolCalls, cancellationToken).ConfigureAwait(false);
+                foreach (var call in toolCalls)
+                    automaticToolTrace.Append(BuildOllamaFunctionCallTrace(call));
+                var nonStreamingToolResults = await AppendAutomaticToolResultsAsync(conversation, toolCalls, cancellationToken).ConfigureAwait(false);
+                foreach (var trace in nonStreamingToolResults)
+                    automaticToolTrace.Append(trace);
             }
 
             if (response is null)
@@ -221,9 +226,10 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 return CreateFailureResponse("Ollama returned no response. Verify that the selected model is available and the local runtime is healthy.");
             }
 
-            return new ChatResponse(new ChatMessage(
-                ChatRole.Assistant,
-                await CreateContentsAsync(response, cancellationToken).ConfigureAwait(false)));
+            var responseContents = await CreateContentsAsync(response, cancellationToken).ConfigureAwait(false);
+            if (automaticToolTrace.Length > 0)
+                responseContents.Insert(0, new TextContent(automaticToolTrace.ToString()));
+            return new ChatResponse(new ChatMessage(ChatRole.Assistant, responseContents));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -422,9 +428,12 @@ public sealed class OllamaThinkingChatClient : IChatClient
                         logger);
                     if (toolUpdate is not null)
                         yield return toolUpdate;
+                    yield return CreateStreamingUpdate(BuildOllamaFunctionCallTrace(call));
                 }
 
-                await AppendAutomaticToolResultsAsync(conversation, toolCalls, cancellationToken).ConfigureAwait(false);
+                var streamedToolResults = await AppendAutomaticToolResultsAsync(conversation, toolCalls, cancellationToken).ConfigureAwait(false);
+                foreach (var trace in streamedToolResults)
+                    yield return CreateStreamingUpdate(trace);
             }
         }
         finally
@@ -543,8 +552,14 @@ public sealed class OllamaThinkingChatClient : IChatClient
         HttpCompletionOption completionOption,
         CancellationToken cancellationToken)
     {
-    try
-    {
+        try
+        {
+            if (request.Think == true &&
+                councilRuntime.OllamaThinkingChatClientShouldSkipExplicitThinking(http.BaseAddress, model, logger))
+            {
+                request.Think = null;
+            }
+
             if (request.Tools is { Count: > 0 } &&
                 councilRuntime.OllamaThinkingChatClientShouldSkipNativeTools(http.BaseAddress, model, logger))
             {
@@ -556,32 +571,88 @@ public sealed class OllamaThinkingChatClient : IChatClient
             }
 
             var response = await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
-            if (response.IsSuccessStatusCode || request.Tools is not { Count: > 0 } ||
+            if (response.IsSuccessStatusCode ||
                 response.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented))
             {
                 return response;
             }
 
-            councilRuntime.OllamaThinkingChatClientRememberNativeToolsRejected(http.BaseAddress, model, logger);
-            logger.LogInformation(
-                "Ollama model {Model} rejected native tool metadata with HTTP {StatusCode}; retrying the same chat request without automatic tools.",
-                model,
-                (int)response.StatusCode);
-            response.Dispose();
-            EnsureTextualDxFunctionFallbackPrompt(request);
-            request.Tools = null;
-            return await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
-    
+            // Newer Ollama runtimes expose provider reasoning only when the request explicitly opts into
+            // thinking. Older runtimes/models may reject that field. Probe once per provider-qualified
+            // model, remember the result, and preserve the normal request instead of breaking chat.
+            if (request.Think == true)
+            {
+                response.Dispose();
+                request.Think = null;
+                var withoutThinking = await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
+                if (withoutThinking.IsSuccessStatusCode)
+                {
+                    councilRuntime.OllamaThinkingChatClientRememberExplicitThinkingRejected(http.BaseAddress, model, logger);
+                    return withoutThinking;
+                }
+                if (withoutThinking.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented))
+                    return withoutThinking;
+
+                // If tools are present, the rejection can still be tool metadata rather than thinking.
+                // Restore the reasoning request while probing the established textual-tool fallback.
+                if (request.Tools is { Count: > 0 })
+                {
+                    withoutThinking.Dispose();
+                    request.Think = true;
+                    EnsureTextualDxFunctionFallbackPrompt(request);
+                    request.Tools = null;
+                    var withoutTools = await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
+                    if (withoutTools.IsSuccessStatusCode)
+                    {
+                        councilRuntime.OllamaThinkingChatClientRememberNativeToolsRejected(http.BaseAddress, model, logger);
+                        return withoutTools;
+                    }
+                    if (withoutTools.StatusCode is not (System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.NotImplemented))
+                        return withoutTools;
+
+                    // Both optional request features are now independently implicated: tools still failed
+                    // without thinking and thinking still failed without tools. Try the minimal request and
+                    // only cache both incompatibilities when that control request succeeds.
+                    withoutTools.Dispose();
+                    request.Think = null;
+                    var minimalResponse = await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
+                    if (minimalResponse.IsSuccessStatusCode)
+                    {
+                        councilRuntime.OllamaThinkingChatClientRememberExplicitThinkingRejected(http.BaseAddress, model, logger);
+                        councilRuntime.OllamaThinkingChatClientRememberNativeToolsRejected(http.BaseAddress, model, logger);
+                    }
+                    return minimalResponse;
+                }
+
+                // The same 400/501 occurred with and without the thinking flag and no tools are present,
+                // so there is no evidence that thinking caused the rejection. Do not poison the cache.
+                return withoutThinking;
+            }
+
+            if (request.Tools is { Count: > 0 })
+            {
+                councilRuntime.OllamaThinkingChatClientRememberNativeToolsRejected(http.BaseAddress, model, logger);
+                logger.LogInformation(
+                    "Ollama model {Model} rejected native tool metadata with HTTP {StatusCode}; retrying the same chat request without automatic tools.",
+                    model,
+                    (int)response.StatusCode);
+                response.Dispose();
+                EnsureTextualDxFunctionFallbackPrompt(request);
+                request.Tools = null;
+                return await SendRequestOnceAsync(request, completionOption, cancellationToken).ConfigureAwait(false);
+            }
+
+            return response;
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestWithToolFallbackAsync)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestWithToolFallbackAsync)} failed.");
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestWithToolFallbackAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestWithToolFallbackAsync)} failed.");
-        throw;
-    }
-}
 
     /// <summary>
     /// Ensures textual DevExpress function fallback prompt for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
@@ -724,6 +795,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
             {
                 Model = model,
                 Stream = stream,
+                Think = councilRuntime.OllamaThinkingChatClientShouldSkipExplicitThinking(http.BaseAddress, model, logger) ? null : true,
                 KeepAlive = keepAlive,
                 Messages = requestMessages,
                 Tools = BuildAutomaticTools(),
@@ -909,14 +981,15 @@ public sealed class OllamaThinkingChatClient : IChatClient
     /// <param name="conversation">Conversation value supplied to the Ollama thinking chat operation and used when producing its result.</param>
     /// <param name="toolCalls">Ollama tool call dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task AppendAutomaticToolResultsAsync(
+    /// <returns>User-visible function-result trace fragments produced while appending tool messages.</returns>
+    private async Task<IReadOnlyList<string>> AppendAutomaticToolResultsAsync(
         List<OllamaChatMessage> conversation,
         IReadOnlyList<OllamaToolCall> toolCalls,
         CancellationToken cancellationToken)
     {
-    try
-    {
+        try
+        {
+            var traces = new List<string>(toolCalls.Count);
             foreach (var call in toolCalls)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -947,24 +1020,74 @@ public sealed class OllamaThinkingChatClient : IChatClient
                         cancellationToken).ConfigureAwait(false);
                 }
 
+                var serializedResult = SerializeToolResult(result);
                 conversation.Add(new OllamaChatMessage
                 {
                     Role = "tool",
                     ToolName = call.Function.Name,
-                    Content = SerializeToolResult(result)
+                    Content = serializedResult
                 });
+                traces.Add(BuildOllamaFunctionResultTrace(call.Function.Name, result, serializedResult));
             }
-    
+
+            return traces;
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(AppendAutomaticToolResultsAsync)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(AppendAutomaticToolResultsAsync)} failed.");
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
+
+    /// <summary>
+    /// Builds durable user-visible markup for an Ollama function request so direct chat, Council streams and saved sessions retain the exact call.
+    /// </summary>
+    /// <param name="call">Ollama function call requested by the provider.</param>
+    /// <returns>Controlled chat markup containing the function name and normalized arguments.</returns>
+    private string BuildOllamaFunctionCallTrace(OllamaToolCall call)
     {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(AppendAutomaticToolResultsAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(AppendAutomaticToolResultsAsync)} failed.");
-        throw;
+        try
+        {
+            var functionName = string.IsNullOrWhiteSpace(call.Function.Name) ? "(unnamed)" : call.Function.Name.Trim();
+            var arguments = NormalizeArguments(call.Function.Arguments).GetRawText();
+            return $"<details class=\"council-step\" open><summary>Function call · {System.Net.WebUtility.HtmlEncode(functionName)}</summary>\n\n<pre>{System.Net.WebUtility.HtmlEncode(arguments)}</pre>\n\n</details>\n\n";
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not format a user-visible Ollama function-call trace.");
+            return "<details class=\"council-step\" open><summary>Function call</summary>\n\nThe provider requested a function, but its trace payload could not be formatted.\n\n</details>\n\n";
+        }
     }
-}
+
+    /// <summary>
+    /// Builds durable user-visible markup for an Ollama function result so function execution evidence survives chat persistence.
+    /// </summary>
+    /// <param name="functionName">Provider function name associated with the result.</param>
+    /// <param name="result">Function registry result containing status and success information.</param>
+    /// <param name="serializedResult">Bounded serialized function result returned to the model.</param>
+    /// <returns>Controlled chat markup containing the function status and result payload.</returns>
+    private string BuildOllamaFunctionResultTrace(
+        string functionName,
+        DxAiFunctionInvocationResult result,
+        string serializedResult)
+    {
+        try
+        {
+            var displayName = string.IsNullOrWhiteSpace(functionName) ? "(unnamed)" : functionName.Trim();
+            var status = string.IsNullOrWhiteSpace(result.Status)
+                ? (result.Succeeded ? "Succeeded" : "Failed")
+                : result.Status.Trim();
+            return $"<details class=\"council-step\" open><summary>Function result · {System.Net.WebUtility.HtmlEncode(displayName)} · {System.Net.WebUtility.HtmlEncode(status)}</summary>\n\n<pre>{System.Net.WebUtility.HtmlEncode(serializedResult)}</pre>\n\n</details>\n\n";
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not format a user-visible Ollama function-result trace for {FunctionName}.", functionName);
+            return "<details class=\"council-step\" open><summary>Function result</summary>\n\nThe function completed, but its trace payload could not be formatted.\n\n</details>\n\n";
+        }
+    }
 
     /// <summary>
     /// Resolves registry function name for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.

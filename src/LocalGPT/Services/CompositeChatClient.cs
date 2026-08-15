@@ -486,6 +486,11 @@ public class CompositeChatClient : IChatClient
 
                 responseText.Append(update.Text);
                 yield return update;
+                foreach (var trace in _councilRuntime.BuildUserVisibleProviderTrace(update, _logger))
+                {
+                    responseText.Append(trace);
+                    yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(trace)]);
+                }
             }
         }
         finally
@@ -528,6 +533,11 @@ public class CompositeChatClient : IChatClient
 
                     responseText.Append(update.Text);
                     yield return update;
+                    foreach (var trace in _councilRuntime.BuildUserVisibleProviderTrace(update, _logger))
+                    {
+                        responseText.Append(trace);
+                        yield return new ChatResponseUpdate(ChatRole.Assistant, [new TextContent(trace)]);
+                    }
                 }
             }
             finally

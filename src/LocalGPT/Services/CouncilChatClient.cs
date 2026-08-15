@@ -427,7 +427,7 @@ public sealed partial class CouncilChatClient(
                     if (!string.IsNullOrWhiteSpace(step.Thinking))
                     {
                         builder
-                            .AppendLine("<details class=\"model-thinking\">")
+                            .AppendLine("<details class=\"model-thinking open\" open>")
                             .AppendLine("<summary>Model thinking</summary>")
                             .AppendLine()
                             .AppendLine(EncodeModelMarkdown(step.Thinking.Trim()))

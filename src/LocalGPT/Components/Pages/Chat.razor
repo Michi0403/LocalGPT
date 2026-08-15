@@ -460,7 +460,7 @@
                 <div class="memory-thoughts-title">Former model thoughts</div>
                 @foreach (var thought in RecentThoughts.Take(3))
                 {
-                    <details data-localgpt-panel-key="@($"former-thought-{thought.ConversationId:N}")">
+                    <details open data-localgpt-panel-key="@($"former-thought-{thought.ConversationId:N}")">
                         <summary>@thought.ConversationTitle</summary>
                         <div class="former-thought-content" data-localgpt-copyable="true">@CouncilText.NormalizeFormerThought(thought.Thinking, Logger)</div>
                     </details>

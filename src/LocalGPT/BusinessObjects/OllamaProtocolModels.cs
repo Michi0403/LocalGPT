@@ -19,6 +19,13 @@ public sealed class OllamaChatRequest
     /// <value>The stream value exposed by <see cref="OllamaChatRequest"/>.</value>
     public bool Stream { get; set; }
     /// <summary>
+    /// Gets or sets whether Ollama should return provider-supplied thinking/reasoning when the selected model supports it.
+    /// </summary>
+    /// <value>The optional thinking request flag exposed by <see cref="OllamaChatRequest"/>.</value>
+    [JsonPropertyName("think")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Think { get; set; }
+    /// <summary>
     /// Gets or sets the keep alive value that forms part of the Ollama chat state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The keep alive value exposed by <see cref="OllamaChatRequest"/>.</value>

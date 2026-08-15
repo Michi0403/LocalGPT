@@ -317,6 +317,10 @@ namespace LocalGPT.Services
                     OneWireCorrelationId = request.OneWireCorrelationId,
                     StartedAtUtc = DateTime.UtcNow
                 };
+                // Create the CouncilLogs artifact as soon as the run identity exists. The same path is
+                // atomically refreshed at completion/failure, so a remote or UI cancellation cannot
+                // leave an otherwise valid Council run with no diagnostic markdown at all.
+                result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger).ConfigureAwait(false);
                 var ollamaParticipants = request.ModelSelections
                     .Where(model => model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
                         && participants.Contains(model.SelectionKey, StringComparer.OrdinalIgnoreCase))
@@ -867,11 +871,11 @@ namespace LocalGPT.Services
                 }
 
                 result.CompletedAtUtc = DateTime.UtcNow;
-                result.LogPath = await WriteLogAsync(result, cancellationToken, logger).ConfigureAwait(false);
+                result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger).ConfigureAwait(false);
                 await WriteMissingFeatureReportAsync(result, CancellationToken.None).ConfigureAwait(false);
 
                 if (request.SaveToMemory)
-                    result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, cancellationToken).ConfigureAwait(false);
+                    result.MemoryConversationId = await SaveToMemoryAsync(request, result, continuedConversation, CancellationToken.None).ConfigureAwait(false);
 
                 councilSpooler.Complete(result);
 
@@ -902,6 +906,8 @@ namespace LocalGPT.Services
                 failedResult.Warnings.Add($"{ex.GetType().Name}: {ex.Message}");
                 failedResult.LogPath = await WriteLogAsync(failedResult, CancellationToken.None, logger).ConfigureAwait(false);
                 await WriteMissingFeatureReportAsync(failedResult, CancellationToken.None).ConfigureAwait(false);
+                if (request.SaveToMemory)
+                    failedResult.MemoryConversationId = await SaveToMemoryAsync(request, failedResult, null, CancellationToken.None).ConfigureAwait(false);
                 councilSpooler.Complete(failedResult, failed: true);
                 return failedResult;
             }
@@ -5507,6 +5513,13 @@ namespace LocalGPT.Services
                                     attemptBuilder.Append(update.Text);
                                     allContent.Append(update.Text);
                                 }
+
+                                foreach (var providerTrace in councilRuntime.BuildUserVisibleProviderTrace(update, logger))
+                                {
+                                    streamUpdate?.Invoke(providerTrace);
+                                    attemptBuilder.Append(providerTrace);
+                                    allContent.Append(providerTrace);
+                                }
                             }
 
                             // A user message can arrive after Ollama emitted its last token but before
@@ -6922,7 +6935,7 @@ namespace LocalGPT.Services
                 if (!string.IsNullOrWhiteSpace(step.Thinking))
                 {
                     builder
-                        .AppendLine("<details class=\"model-thinking\">")
+                        .AppendLine("<details class=\"model-thinking open\" open>")
                         .AppendLine("<summary>Model thinking</summary>")
                         .AppendLine()
                         .AppendLine(step.Thinking.Trim())
@@ -6954,22 +6967,51 @@ namespace LocalGPT.Services
         /// <returns>The string produced by the operation.</returns>
         public async Task<string> WriteLogAsync(MultiModelCouncilResult result, CancellationToken cancellationToken, ILogger logger)
         {
+            string? temporaryPath = null;
             try
             {
+                // CouncilLogs is a diagnostic/audit artifact, not optional model work. Once a run has
+                // started, transport/UI cancellation must not cancel the tiny local write that records
+                // what happened. Keep the token in the API for compatibility but deliberately do not
+                // apply it to the durable write.
+                _ = cancellationToken;
                 var directory = Path.Combine(
                      Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                      "LocalGPT",
                      "CouncilLogs");
                 Directory.CreateDirectory(directory);
 
-                var path = Path.Combine(directory, $"council-{DateTime.Now:yyyyMMdd-HHmmss}-{result.RunId:N}.md");
-                await System.IO.File.WriteAllTextAsync(path, councilRuntime.MultiModelCouncilServiceBuildLogMarkdown(result, logger), cancellationToken).ConfigureAwait(false);
+                var path = string.IsNullOrWhiteSpace(result.LogPath)
+                    ? Path.Combine(directory, $"council-{DateTime.Now:yyyyMMdd-HHmmss}-{result.RunId:N}.md")
+                    : result.LogPath;
+                temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
+                await System.IO.File.WriteAllTextAsync(
+                    temporaryPath,
+                    councilRuntime.MultiModelCouncilServiceBuildLogMarkdown(result, logger),
+                    CancellationToken.None).ConfigureAwait(false);
+                System.IO.File.Move(temporaryPath, path, overwrite: true);
+                temporaryPath = null;
                 return path;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "WriteLogAsync");
                 return string.Empty;
+            }
+            finally
+            {
+                if (!string.IsNullOrWhiteSpace(temporaryPath))
+                {
+                    try
+                    {
+                        if (System.IO.File.Exists(temporaryPath))
+                            System.IO.File.Delete(temporaryPath);
+                    }
+                    catch (Exception cleanupException)
+                    {
+                        logger.LogDebug(cleanupException, "Could not remove temporary Council log file {TemporaryPath}.", temporaryPath);
+                    }
+                }
             }
         }
 

@@ -558,7 +558,7 @@ internal sealed class ChatResponseFormatter(
                     if (thinkingBlockOpen)
                         yield break;
                     thinkingBlockOpen = true;
-                    yield return "<details class=\"model-thinking open\"><summary>Model thinking</summary>\n\n";
+                    yield return "<details class=\"model-thinking open\" open><summary>Model thinking</summary>\n\n";
     
         }
         finally

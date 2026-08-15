@@ -22,6 +22,7 @@ using System.Reactive;
 using System.Security.AccessControl;
 using System.ServiceModel.Channels;
 using System.Text;
+using System.Text.RegularExpressions;
 namespace LocalGPT.Services
 {
     
@@ -3133,11 +3134,13 @@ namespace LocalGPT.Services
         {
             try
             {
-                var match = patterns.ThinkingBlockPattern.Match(content);
-                if (!match.Success)
-                    return null;
-
-                var thinking = WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim();
+                var thinking = string.Join(
+                    Environment.NewLine,
+                    patterns.ThinkingBlockPattern
+                        .Matches(content)
+                        .Cast<Match>()
+                        .Select(match => WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim())
+                        .Where(value => !string.IsNullOrWhiteSpace(value)));
                 return string.IsNullOrWhiteSpace(thinking) ? null : thinking;
             }
             catch (Exception ex)
@@ -3851,12 +3854,13 @@ namespace LocalGPT.Services
         {
             try
             {
-                var match = patterns.ThinkingBlockPattern.Match(content);
-                if (!match.Success)
-                    return string.Empty;
-
-                var thinking = WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim();
-                return thinking;
+                return string.Join(
+                    Environment.NewLine,
+                    patterns.ThinkingBlockPattern
+                        .Matches(content)
+                        .Cast<Match>()
+                        .Select(match => WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim())
+                        .Where(value => !string.IsNullOrWhiteSpace(value)));
             }
             catch (Exception ex)
             {
@@ -3946,11 +3950,13 @@ namespace LocalGPT.Services
                 if (string.IsNullOrWhiteSpace(content))
                     return string.Empty;
 
-                var match = patterns.ThinkingBlockPattern.Match(content);
-
-                return match.Success
-                    ? WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim()
-                    : string.Empty;
+                return string.Join(
+                    Environment.NewLine,
+                    patterns.ThinkingBlockPattern
+                        .Matches(content)
+                        .Cast<Match>()
+                        .Select(match => WebUtility.HtmlDecode(match.Groups["thinking"].Value).Trim())
+                        .Where(value => !string.IsNullOrWhiteSpace(value)));
             }
             catch (Exception ex)
             {

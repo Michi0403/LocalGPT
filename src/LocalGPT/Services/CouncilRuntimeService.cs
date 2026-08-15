@@ -34,6 +34,231 @@ namespace LocalGPT.Services
         private readonly ConcurrentDictionary<string, byte> ollamaModelsWithoutNativeToolMetadata = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
+        /// Stores provider-qualified Ollama models that rejected the explicit thinking flag during the current LocalGPT process.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, byte> ollamaModelsWithoutExplicitThinking = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Determines whether the current provider-qualified Ollama model already rejected the explicit thinking request flag.
+        /// </summary>
+        /// <param name="endpoint">Ollama endpoint used by the current request.</param>
+        /// <param name="modelName">Ollama model name used by the current request.</param>
+        /// <param name="logger">Logger used for bounded compatibility diagnostics.</param>
+        /// <returns><see langword="true"/> when later requests should omit the explicit thinking flag.</returns>
+        public bool OllamaThinkingChatClientShouldSkipExplicitThinking(Uri? endpoint, string modelName, ILogger logger)
+        {
+            try
+            {
+                if (endpoint is null || string.IsNullOrWhiteSpace(modelName))
+                    return false;
+                var key = $"{endpoint.GetLeftPart(UriPartial.Authority).TrimEnd('/')}|{modelName.Trim()}";
+                return ollamaModelsWithoutExplicitThinking.ContainsKey(key);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not inspect the process-local Ollama thinking compatibility cache.");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Remembers that a provider-qualified Ollama model rejected the explicit thinking request flag.
+        /// </summary>
+        /// <param name="endpoint">Ollama endpoint used by the rejected request.</param>
+        /// <param name="modelName">Ollama model name used by the rejected request.</param>
+        /// <param name="logger">Logger used for bounded compatibility diagnostics.</param>
+        public void OllamaThinkingChatClientRememberExplicitThinkingRejected(Uri? endpoint, string modelName, ILogger logger)
+        {
+            try
+            {
+                if (endpoint is null || string.IsNullOrWhiteSpace(modelName))
+                    return;
+                var key = $"{endpoint.GetLeftPart(UriPartial.Authority).TrimEnd('/')}|{modelName.Trim()}";
+                ollamaModelsWithoutExplicitThinking[key] = 1;
+                logger.LogInformation(
+                    "Remembered for this LocalGPT process that Ollama model {Model} at {Endpoint} rejects the explicit thinking flag; later requests will keep working without repeating the compatibility probe.",
+                    modelName,
+                    endpoint.GetLeftPart(UriPartial.Authority));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not update the process-local Ollama thinking compatibility cache for model {Model}.", modelName);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Projects provider-specific reasoning and function metadata from a streaming update into durable user-visible chat markup.
+        /// </summary>
+        /// <param name="update">Provider streaming update to inspect without assuming a provider-specific AIContent implementation.</param>
+        /// <param name="logger">Logger used for bounded trace-projection diagnostics.</param>
+        /// <returns>Supplemental trace fragments that can be streamed and persisted with the normal chat transcript.</returns>
+        public IReadOnlyList<string> BuildUserVisibleProviderTrace(ChatResponseUpdate update, ILogger logger)
+        {
+            try
+            {
+                ArgumentNullException.ThrowIfNull(update);
+                var traces = new List<string>();
+                AppendProviderAdditionalPropertyTraces(update, traces);
+                var contentsProperty = update.GetType().GetProperty("Contents");
+                if (contentsProperty?.GetValue(update) is not System.Collections.IEnumerable contents)
+                    return traces;
+
+                foreach (var content in contents)
+                {
+                    if (content is null || content is TextContent)
+                        continue;
+
+                    AppendProviderAdditionalPropertyTraces(content, traces);
+                    var typeName = content.GetType().Name;
+                    if (typeName.Contains("FunctionCall", StringComparison.OrdinalIgnoreCase) ||
+                        typeName.Contains("ToolCall", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var name = ReadProviderTraceProperty(content, "Name", "FunctionName", "ToolName") ?? typeName;
+                        var callId = ReadProviderTraceProperty(content, "CallId", "Id");
+                        var arguments = ReadProviderTraceProperty(content, "Arguments", "Parameters", "Input");
+                        var body = new StringBuilder();
+                        if (!string.IsNullOrWhiteSpace(callId))
+                            body.AppendLine($"Call id: {WebUtility.HtmlEncode(callId)}");
+                        body.Append(WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(arguments) ? "{}" : arguments));
+                        traces.Add($"<details class=\"council-step\" open><summary>Function call · {WebUtility.HtmlEncode(name)}</summary>\n\n<pre>{body}</pre>\n\n</details>\n\n");
+                        continue;
+                    }
+
+                    if (typeName.Contains("FunctionResult", StringComparison.OrdinalIgnoreCase) ||
+                        typeName.Contains("ToolResult", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var name = ReadProviderTraceProperty(content, "Name", "FunctionName", "ToolName") ?? typeName;
+                        var callId = ReadProviderTraceProperty(content, "CallId", "Id");
+                        var result = ReadProviderTraceProperty(content, "Result", "Output", "Value", "Content");
+                        var body = new StringBuilder();
+                        if (!string.IsNullOrWhiteSpace(callId))
+                            body.AppendLine($"Call id: {WebUtility.HtmlEncode(callId)}");
+                        body.Append(WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(result) ? "(no provider result payload)" : result));
+                        traces.Add($"<details class=\"council-step\" open><summary>Function result · {WebUtility.HtmlEncode(name)}</summary>\n\n<pre>{body}</pre>\n\n</details>\n\n");
+                        continue;
+                    }
+
+                    if (typeName.Contains("Reasoning", StringComparison.OrdinalIgnoreCase) ||
+                        typeName.Contains("Thinking", StringComparison.OrdinalIgnoreCase) ||
+                        typeName.Contains("Analysis", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var reasoning = ReadProviderTraceProperty(content, "Text", "Reasoning", "Thinking", "Analysis", "Content", "Value");
+                        if (!string.IsNullOrWhiteSpace(reasoning))
+                        {
+                            traces.Add($"<details class=\"model-thinking open\" open><summary>Model thinking</summary>\n\n{WebUtility.HtmlEncode(reasoning)}\n\n</details>\n\n");
+                        }
+                    }
+                }
+
+                return traces.Distinct(StringComparer.Ordinal).ToList();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not project provider-specific stream metadata into the user-visible chat trace; the original provider update will continue unchanged.");
+                return [];
+            }
+        }
+
+        /// <summary>
+        /// Projects provider-specific additional-property dictionaries when an SDK keeps reasoning or tool metadata outside typed AI content objects.
+        /// </summary>
+        /// <param name="owner">Streaming update or content object that may expose an AdditionalProperties collection.</param>
+        /// <param name="traces">Destination trace collection for controlled user-visible markup.</param>
+        private void AppendProviderAdditionalPropertyTraces(object owner, List<string> traces)
+        {
+            try
+            {
+                var additionalProperties = owner.GetType().GetProperty("AdditionalProperties")?.GetValue(owner);
+                if (additionalProperties is not System.Collections.IEnumerable items)
+                    return;
+
+                foreach (var item in items)
+                {
+                    if (item is null)
+                        continue;
+                    var key = item.GetType().GetProperty("Key")?.GetValue(item)?.ToString();
+                    var value = item.GetType().GetProperty("Value")?.GetValue(item);
+                    if (string.IsNullOrWhiteSpace(key) || value is null)
+                        continue;
+
+                    string serialized;
+                    try
+                    {
+                        serialized = value is string textValue ? textValue : JsonSerializer.Serialize(value);
+                    }
+                    catch
+                    {
+                        serialized = value.ToString() ?? string.Empty;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(serialized))
+                        continue;
+
+                    if (key.Contains("reasoning", StringComparison.OrdinalIgnoreCase) ||
+                        key.Contains("thinking", StringComparison.OrdinalIgnoreCase) ||
+                        key.Contains("analysis", StringComparison.OrdinalIgnoreCase))
+                    {
+                        traces.Add($"<details class=\"model-thinking open\" open><summary>Model thinking · {WebUtility.HtmlEncode(key)}</summary>\n\n{WebUtility.HtmlEncode(serialized)}\n\n</details>\n\n");
+                    }
+                    else if (key.Contains("tool_call", StringComparison.OrdinalIgnoreCase) ||
+                             key.Contains("function_call", StringComparison.OrdinalIgnoreCase))
+                    {
+                        traces.Add($"<details class=\"council-step\" open><summary>Function call metadata · {WebUtility.HtmlEncode(key)}</summary>\n\n<pre>{WebUtility.HtmlEncode(serialized)}</pre>\n\n</details>\n\n");
+                    }
+                    else if (key.Contains("tool_result", StringComparison.OrdinalIgnoreCase) ||
+                             key.Contains("function_result", StringComparison.OrdinalIgnoreCase))
+                    {
+                        traces.Add($"<details class=\"council-step\" open><summary>Function result metadata · {WebUtility.HtmlEncode(key)}</summary>\n\n<pre>{WebUtility.HtmlEncode(serialized)}</pre>\n\n</details>\n\n");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                serviceLogger.LogWarning(ex, "Could not inspect provider additional properties for user-visible reasoning/function metadata.");
+            }
+        }
+
+        /// <summary>
+        /// Reads the first available provider metadata property from an opaque AI content object.
+        /// </summary>
+        /// <param name="content">Opaque provider content object.</param>
+        /// <param name="propertyNames">Candidate property names ordered by preference.</param>
+        /// <returns>A bounded display representation, or <see langword="null"/> when no value is available.</returns>
+        private string? ReadProviderTraceProperty(object content, params string[] propertyNames)
+        {
+            try
+            {
+                foreach (var propertyName in propertyNames)
+                {
+                    var property = content.GetType().GetProperty(propertyName);
+                    if (property is null)
+                        continue;
+                    var value = property.GetValue(content);
+                    if (value is null)
+                        continue;
+                    if (value is string textValue)
+                        return textValue;
+                    try
+                    {
+                        return JsonSerializer.Serialize(value);
+                    }
+                    catch
+                    {
+                        return value.ToString();
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                serviceLogger.LogWarning(ex, "Could not read provider trace metadata property from content type {ContentType}.", content.GetType().FullName);
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Performs Ollama thinking chat client should skip native tools as part of the council runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
         /// <param name="endpoint">Endpoint value supplied to the council runtime operation and used when producing its result.</param>
@@ -2818,7 +3043,7 @@ namespace LocalGPT.Services
                 .AppendLine($"# AI Council {result.RunId}")
                 .AppendLine()
                 .AppendLine($"Started: {result.StartedAtUtc:u}")
-                .AppendLine($"Completed: {result.CompletedAtUtc:u}")
+                .AppendLine(result.CompletedAtUtc == default ? "Completed: in progress" : $"Completed: {result.CompletedAtUtc:u}")
                 .AppendLine($"Models: {string.Join(", ", result.ModelNames)}")
                 .AppendLine(result.KnowledgeEntryId is Guid knowledgeId ? $"Knowledge entry: {knowledgeId}" : "Knowledge entry: not saved")
                 .AppendLine()
