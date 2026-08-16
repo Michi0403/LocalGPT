@@ -1054,6 +1054,14 @@ Original learning request:
             "localgpt.learning.snapshot",
             "localgpt.knowledge.list"
         ],
+        AllowedAutomaticFunctions =
+        [
+            "localgpt.hardware.performance.presets.get",
+            "localgpt.hardware.performance.presets.list",
+            "localgpt.knowledge.list",
+            "localgpt.onboarding.status",
+            "localgpt.time_state.now"
+        ],
         WorkflowSteps =
         [
             Step("benchmark-inventory", "Freeze calibration inventory", 10, "Inventory", "Benchmark Director", """
@@ -1431,6 +1439,11 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         IncludePriorTranscript = includePriorTranscript,
         IsEnabled = true,
         CanUseOrganicFunctions = canUseOrganicFunctions,
+        AutomaticFunctionPolicyMode = !canUseOrganicFunctions
+            ? CouncilAutomaticFunctionPolicyMode.Disabled
+            : allowedAutomaticFunctions is { Count: > 0 }
+                ? CouncilAutomaticFunctionPolicyMode.ExactAllowList
+                : CouncilAutomaticFunctionPolicyMode.AllPolicyApproved,
         AllowedAutomaticFunctions = allowedAutomaticFunctions?.ToList() ?? [],
         ProducesFinalAnswer = producesFinalAnswer,
         RequiresHumanCheckpoint = requiresHumanCheckpoint,

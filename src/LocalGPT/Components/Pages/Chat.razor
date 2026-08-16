@@ -1060,9 +1060,12 @@
     {
         try
         {
+            var latestActivities = CouncilLiveSessions.GetParticipantActivities(runId);
+            if (latestActivities.Count > 0)
+                return latestActivities;
             if (attachedLiveCouncilSnapshot is { RunId: var attachedRunId } snapshot && attachedRunId == runId)
                 return snapshot.ParticipantActivities;
-            return CouncilLiveSessions.Get(runId)?.ParticipantActivities ?? [];
+            return [];
         }
         catch (Exception ex)
         {
@@ -1073,6 +1076,9 @@
 
     private string LiveCouncilTranscript(Guid runId, string fallbackContent)
     {
+        var latestTranscript = CouncilLiveSessions.GetTranscript(runId);
+        if (!string.IsNullOrWhiteSpace(latestTranscript))
+            return latestTranscript;
         if (attachedLiveCouncilSnapshot is { RunId: var attachedRunId } snapshot && attachedRunId == runId)
             return snapshot.Transcript;
         return fallbackContent;

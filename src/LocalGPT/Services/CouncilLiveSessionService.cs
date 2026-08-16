@@ -16,6 +16,12 @@ public sealed class CouncilLiveSessionService(
     /// Defines the max transcript characters constant used by <see cref="CouncilLiveSessionService"/> so callers and internal logic share the same stable value.
     /// </summary>
     private const int MaxTranscriptCharacters = 2_000_000;
+    /// <summary>Target size used when the transient live transcript crosses its technical memory ceiling, avoiding repeated full-buffer shifts for every streamed token.</summary>
+    private const int TranscriptTrimTargetCharacters = 1_750_000;
+    /// <summary>Technical ceiling for one transient participant provider stream; final answers are stored independently and are not trimmed by this limit.</summary>
+    private const int MaxParticipantActivityCharacters = 320_000;
+    /// <summary>Target size used when trimming one large transient participant stream.</summary>
+    private const int ParticipantActivityTrimTargetCharacters = 280_000;
     /// <summary>
     /// Stores the in-memory sessions collection maintained internally by <see cref="CouncilLiveSessionService"/> for its current workflow state.
     /// </summary>
@@ -77,7 +83,7 @@ public sealed class CouncilLiveSessionService(
             {
                 AppendWithBlockBoundary(state.Transcript, text);
                 if (state.Transcript.Length > MaxTranscriptCharacters)
-                    state.Transcript.Remove(0, state.Transcript.Length - MaxTranscriptCharacters);
+                    state.Transcript.Remove(0, state.Transcript.Length - TranscriptTrimTargetCharacters);
                 state.UpdatedAtUtc = DateTime.UtcNow;
             }
             ScheduleChanged(state);
@@ -140,6 +146,8 @@ public sealed class CouncilLiveSessionService(
                 if (!state.ParticipantActivities.TryGetValue(activityKey, out var activity))
                     return;
                 AppendWithBlockBoundary(activity.Content, text);
+                if (activity.Content.Length > MaxParticipantActivityCharacters)
+                    activity.Content.Remove(0, activity.Content.Length - ParticipantActivityTrimTargetCharacters);
                 activity.StatusMessage = "Streaming live from the model runtime.";
                 activity.UpdatedAtUtc = DateTime.UtcNow;
                 state.UpdatedAtUtc = activity.UpdatedAtUtc;
@@ -412,6 +420,60 @@ public sealed class CouncilLiveSessionService(
         throw;
     }
 }
+
+    /// <summary>Returns the newest rich participant-lane snapshots without copying the potentially multi-megabyte ordered transcript.</summary>
+    /// <param name="runId">Identifier of the live Council run.</param>
+    /// <returns>The newest participant activity snapshots, or an empty collection when the run is unknown.</returns>
+    public IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivities(Guid runId)
+    {
+        try
+        {
+            if (!sessions.TryGetValue(runId, out var state))
+                return [];
+            lock (state.SyncRoot)
+            {
+                return state.ParticipantActivities.Values
+                    .OrderBy(activity => activity.StartedAtUtc)
+                    .Select(activity => new CouncilLiveParticipantActivitySnapshot(
+                        activity.ActivityKey,
+                        activity.ModelName,
+                        activity.Phase,
+                        activity.Role,
+                        activity.RouteLabel,
+                        activity.StatusMessage,
+                        activity.Content.ToString(),
+                        activity.FinalContent,
+                        activity.IsRunning,
+                        activity.StartedAtUtc,
+                        activity.UpdatedAtUtc))
+                    .ToArray();
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading live Council participant activities failed for run {RunId}.", runId);
+            throw;
+        }
+    }
+
+    /// <summary>Returns the newest ordered live transcript without copying all participant-lane stream buffers.</summary>
+    /// <param name="runId">Identifier of the live Council run.</param>
+    /// <returns>The current transient transcript, or an empty string when the run is unknown.</returns>
+    public string GetTranscript(Guid runId)
+    {
+        try
+        {
+            if (!sessions.TryGetValue(runId, out var state))
+                return string.Empty;
+            lock (state.SyncRoot)
+                return state.Transcript.ToString();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading live Council transcript failed for run {RunId}.", runId);
+            throw;
+        }
+    }
 
     /// <summary>
     /// Retrieves summary as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.

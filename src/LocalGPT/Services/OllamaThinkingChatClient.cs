@@ -678,6 +678,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
             }
 
             var functions = GetAutomaticFunctions();
+            ValidateUniqueAutomaticToolNames(functions);
             if (functions.Count == 0)
                 return;
 
@@ -1097,6 +1098,27 @@ public sealed class OllamaThinkingChatClient : IChatClient
         }
     }
 
+    /// <summary>Ensures the Ollama transport receives one unambiguous tool name for every registered automatic function.</summary>
+    /// <param name="functions">Canonical registered functions selected by the configured policy.</param>
+    private void ValidateUniqueAutomaticToolNames(IReadOnlyList<DxaichatFunctionInfo> functions)
+    {
+        try
+        {
+            var duplicates = functions
+                .GroupBy(function => ToOllamaToolName(function.Name), StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Select(function => function.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+                .Select(group => $"{group.Key}: {string.Join(", ", group.Select(function => function.Name))}")
+                .ToList();
+            if (duplicates.Count > 0)
+                throw new InvalidOperationException($"Automatic DXFunction transport names are ambiguous: {string.Join("; ", duplicates)}");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Validating unique Ollama automatic-tool transport names failed for model {Model}.", model);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Resolves registry function name for <see cref="OllamaThinkingChatClient"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama thinking chat workflow.
     /// </summary>
@@ -1105,9 +1127,11 @@ public sealed class OllamaThinkingChatClient : IChatClient
     private string? ResolveRegistryFunctionName(string toolName) {
     try
     {
-        return GetAutomaticFunctions()
-        .FirstOrDefault(function => ToOllamaToolName(function.Name).Equals(toolName, StringComparison.OrdinalIgnoreCase))
-        ?.Name;
+        var functions = GetAutomaticFunctions();
+        ValidateUniqueAutomaticToolNames(functions);
+        return functions
+            .FirstOrDefault(function => ToOllamaToolName(function.Name).Equals(toolName, StringComparison.OrdinalIgnoreCase))
+            ?.Name;
     }
     catch (Exception __serviceMethodException)
     {

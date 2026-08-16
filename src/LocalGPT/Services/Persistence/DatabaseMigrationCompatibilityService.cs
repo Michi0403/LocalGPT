@@ -526,11 +526,16 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
             {
                 ("Key", "TEXT NOT NULL DEFAULT ''"), ("DisplayName", "TEXT NOT NULL DEFAULT ''"),
                 ("Purpose", "TEXT NOT NULL DEFAULT ''"), ("RolesJson", "TEXT NOT NULL DEFAULT '[]'"),
-                ("PreferredCapabilitiesJson", "TEXT NOT NULL DEFAULT '[]'"), ("ArchitectureContractsJson", "TEXT NOT NULL DEFAULT '[]'"),
-                ("WorkflowStepsJson", "TEXT NOT NULL DEFAULT '[]'"), ("ExpertPreparationPromptTemplate", "TEXT NOT NULL DEFAULT ''"),
-                ("LeaderSynthesisPromptTemplate", "TEXT NOT NULL DEFAULT ''"), ("MainRoundInstructionTemplate", "TEXT NOT NULL DEFAULT ''"),
-                ("SeedVersion", "INTEGER NOT NULL DEFAULT 1"), ("IsSystemSeed", "INTEGER NOT NULL DEFAULT 1"),
-                ("IsUserModified", "INTEGER NOT NULL DEFAULT 0"), ("IsEnabled", "INTEGER NOT NULL DEFAULT 1"),
+                ("PreferredCapabilitiesJson", "TEXT NOT NULL DEFAULT '[]'"), ("AllowedAutomaticFunctionsJson", "TEXT NOT NULL DEFAULT '[]'"),
+                ("ArchitectureContractsJson", "TEXT NOT NULL DEFAULT '[]'"), ("WorkflowStepsJson", "TEXT NOT NULL DEFAULT '[]'"),
+                ("ExpertPreparationPromptTemplate", "TEXT NOT NULL DEFAULT ''"), ("LeaderSynthesisPromptTemplate", "TEXT NOT NULL DEFAULT ''"),
+                ("MainRoundInstructionTemplate", "TEXT NOT NULL DEFAULT ''"), ("SeedVersion", "INTEGER NOT NULL DEFAULT 1"),
+                ("IsSystemSeed", "INTEGER NOT NULL DEFAULT 1"), ("IsUserModified", "INTEGER NOT NULL DEFAULT 0"),
+                ("IsEnabled", "INTEGER NOT NULL DEFAULT 1"), ("IsDeleted", "INTEGER NOT NULL DEFAULT 0"),
+                ("AllMembersReadinessPreflightMode", "INTEGER NOT NULL DEFAULT 0"),
+                ("IncludeAllMembersReadinessPreflightInWorkflowContext", "INTEGER NOT NULL DEFAULT 0"),
+                ("AllMembersReadinessPreflightMaxOutputTokens", "INTEGER NOT NULL DEFAULT 192"),
+                ("AllMembersReadinessPreflightPromptTemplate", "TEXT NOT NULL DEFAULT ''"),
                 ("CreatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'"), ("UpdatedAtUtc", "TEXT NOT NULL DEFAULT '0001-01-01T00:00:00'")
             };
             foreach (var column in columns)
@@ -745,11 +750,16 @@ public sealed class DatabaseMigrationCompatibilityService : IDatabaseMigrationCo
     CREATE TABLE IF NOT EXISTS "CouncilTeamConfigurations" (
         "Id" TEXT NOT NULL CONSTRAINT "PK_CouncilTeamConfigurations" PRIMARY KEY, "Key" TEXT NOT NULL DEFAULT '',
         "DisplayName" TEXT NOT NULL DEFAULT '', "Purpose" TEXT NOT NULL DEFAULT '', "RolesJson" TEXT NOT NULL DEFAULT '[]',
-        "PreferredCapabilitiesJson" TEXT NOT NULL DEFAULT '[]', "ArchitectureContractsJson" TEXT NOT NULL DEFAULT '[]',
-        "WorkflowStepsJson" TEXT NOT NULL DEFAULT '[]', "ExpertPreparationPromptTemplate" TEXT NOT NULL DEFAULT '',
-        "LeaderSynthesisPromptTemplate" TEXT NOT NULL DEFAULT '', "MainRoundInstructionTemplate" TEXT NOT NULL DEFAULT '',
-        "SeedVersion" INTEGER NOT NULL DEFAULT 1, "IsSystemSeed" INTEGER NOT NULL DEFAULT 1,
-        "IsUserModified" INTEGER NOT NULL DEFAULT 0, "IsEnabled" INTEGER NOT NULL DEFAULT 1,
+        "PreferredCapabilitiesJson" TEXT NOT NULL DEFAULT '[]', "AllowedAutomaticFunctionsJson" TEXT NOT NULL DEFAULT '[]',
+        "ArchitectureContractsJson" TEXT NOT NULL DEFAULT '[]', "WorkflowStepsJson" TEXT NOT NULL DEFAULT '[]',
+        "ExpertPreparationPromptTemplate" TEXT NOT NULL DEFAULT '', "LeaderSynthesisPromptTemplate" TEXT NOT NULL DEFAULT '',
+        "MainRoundInstructionTemplate" TEXT NOT NULL DEFAULT '', "SeedVersion" INTEGER NOT NULL DEFAULT 1,
+        "IsSystemSeed" INTEGER NOT NULL DEFAULT 1, "IsUserModified" INTEGER NOT NULL DEFAULT 0,
+        "IsEnabled" INTEGER NOT NULL DEFAULT 1, "IsDeleted" INTEGER NOT NULL DEFAULT 0,
+        "AllMembersReadinessPreflightMode" INTEGER NOT NULL DEFAULT 0,
+        "IncludeAllMembersReadinessPreflightInWorkflowContext" INTEGER NOT NULL DEFAULT 0,
+        "AllMembersReadinessPreflightMaxOutputTokens" INTEGER NOT NULL DEFAULT 192,
+        "AllMembersReadinessPreflightPromptTemplate" TEXT NOT NULL DEFAULT '',
         "CreatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00', "UpdatedAtUtc" TEXT NOT NULL DEFAULT '0001-01-01T00:00:00');
     """;
 

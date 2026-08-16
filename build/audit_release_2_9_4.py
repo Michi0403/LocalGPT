@@ -10,11 +10,11 @@ def forbid(rel,needle):
     if needle in read(rel): raise AssertionError(f"{rel}: forbidden {needle!r}")
 try:
     for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-        require(rel,'<Version>2.9.7</Version>')
+        require(rel,'<Version>2.9.8</Version>')
     protocol='src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
     require(protocol,'<Version>2.1.1</Version>'); require(protocol,'<PackageVersion>2.1.1</PackageVersion>')
     cfg='src/LocalGPT/Services/CouncilTeamConfigurationService.cs'
-    require(cfg,'private const int CurrentSeedVersion = 24;'); require(cfg,'Recovered supplied Council seed')
+    require(cfg,'private const int CurrentSeedVersion = 25;'); require(cfg,'Recovered supplied Council seed')
 
     seed='src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.cs'
     require(seed,'DisplayName = "Initial Hardware Calibration Benchmark"')
@@ -39,8 +39,8 @@ try:
     require(multi,'Perform only the CURRENT WORKFLOW ROLE TASK now.')
     require(multi,'do not answer the overall user request in place of your assigned role output')
     require(multi,'ROLE COMPLIANCE: being an AI model is not a reason to decline')
-    require(multi,'one bounded corrective retry')
+    require(multi,'configured corrective retry attempt(s)')
     require(multi,'case "SystemBenchmarkCalibration":')
-    print('LocalGPT 2.9.4 role-task authority regression audit passed under 2.9.7.')
+    print('LocalGPT 2.9.4 role-task authority regression audit passed under 2.9.8.')
 except Exception as exc:
     print(f'LocalGPT 2.9.4 regression audit failed: {exc}',file=sys.stderr); raise SystemExit(1)

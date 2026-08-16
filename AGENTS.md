@@ -24,4 +24,6 @@ This repository is ordinary project source. All files may be reviewed and change
 
 LocalGPT is a DI-oriented modular monolith. Runtime state belongs to owned services rather than mutable global helpers. Database migrations, snapshots, service registrations, public contracts, and UI behavior should evolve together. Concurrency must preserve cancellation and deterministic presentation order.
 
+User-observable application behavior and policy must be owned by serializable BusinessObjects and exposed through scoped/transient/singleton Services and Controllers as appropriate, with dependency injection at the consuming boundary. Persisted user configuration is authoritative. Shipped presets, prompts, function allow-lists, retry/recovery policies, and social structures may exist only as visible resettable seed/template data; runtime orchestration must not hide a second hardcoded behavior policy. Technical implementation invariants such as wire-format identifiers, serialization property names, protocol compatibility constants, framework wiring, and bounded internal buffer mechanics are not user behavior policy.
+
 Static validation scripts are optional developer tools. They must be invoked explicitly, report real failures, and never silently rewrite or protect repository files.

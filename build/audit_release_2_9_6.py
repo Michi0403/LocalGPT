@@ -11,10 +11,10 @@ def forbid(rel,needle):
 def count(rel,needle): return read(rel).count(needle)
 try:
     for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-        require(rel,'<Version>2.9.7</Version>')
+        require(rel,'<Version>2.9.8</Version>')
     protocol='src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
     require(protocol,'<Version>2.1.1</Version>'); require(protocol,'<PackageVersion>2.1.1</PackageVersion>')
-    require('src/LocalGPT/Services/CouncilTeamConfigurationService.cs','private const int CurrentSeedVersion = 24;')
+    require('src/LocalGPT/Services/CouncilTeamConfigurationService.cs','private const int CurrentSeedVersion = 25;')
 
     # Benchmark: curator task pack -> one composite call per profile, no duplicate subject social round.
     seed='src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.cs'
@@ -47,7 +47,7 @@ try:
     models='src/LocalGPT/BusinessObjects/OrganicCouncilModels.cs'
     require(models,'public List<string> AllowedAutomaticFunctions { get; set; } = [];')
     multi='src/LocalGPT/Services/MultiModelCouncilService.cs'
-    for needle in ['CURRENT WORKFLOW ROLE TASK — AUTHORITATIVE','ROLE COMPLIANCE: being an AI model is not a reason to decline','automaticFunctionAllowList: definition.AllowedAutomaticFunctions','Knowledge & capability state','DurationSeconds is provider execution time, not time spent waiting for this host/lane lease','stopwatch.Restart()','MultiModelCouncilServiceRunRoleComplianceRecoveryAsync','Native Ollama participants use Ollama automatic GPU-layer placement']:
+    for needle in ['CURRENT WORKFLOW ROLE TASK — AUTHORITATIVE','ROLE COMPLIANCE: being an AI model is not a reason to decline','automaticFunctionAllowList: automaticFunctionPolicy.AutomaticFunctionAllowList','Knowledge & capability state','DurationSeconds is provider execution time, not time spent waiting for this host/lane lease','stopwatch.Restart()','MultiModelCouncilServiceRunRoleComplianceRecoveryAsync','Native Ollama participants use Ollama automatic GPU-layer placement']:
         require(multi,needle)
     require(multi,'return requestedNumGpu;')
     forbid(multi,'return MultiModelCouncilServiceIsHeavyGpuRiskModel(modelName, logger) ? catalog.DefaultHeavyModelGpuLayers : null;')

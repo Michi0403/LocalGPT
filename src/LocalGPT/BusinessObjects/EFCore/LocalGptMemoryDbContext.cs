@@ -579,11 +579,13 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.Purpose).HasMaxLength(4000).IsRequired();
                 entity.Property(item => item.RolesJson).IsRequired();
                 entity.Property(item => item.PreferredCapabilitiesJson).IsRequired();
+                entity.Property(item => item.AllowedAutomaticFunctionsJson).IsRequired();
                 entity.Property(item => item.ArchitectureContractsJson).IsRequired();
                 entity.Property(item => item.WorkflowStepsJson).IsRequired();
                 entity.Property(item => item.ExpertPreparationPromptTemplate).IsRequired();
                 entity.Property(item => item.LeaderSynthesisPromptTemplate).IsRequired();
                 entity.Property(item => item.MainRoundInstructionTemplate).IsRequired();
+                entity.Property(item => item.AllMembersReadinessPreflightPromptTemplate).IsRequired();
                 entity.HasIndex(item => item.Key).IsUnique();
                 entity.HasIndex(item => new { item.IsEnabled, item.UpdatedAtUtc });
             });

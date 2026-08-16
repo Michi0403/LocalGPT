@@ -102,6 +102,31 @@ public enum CouncilAllMembersReadinessPreflightMode
     RoleAwareProbe
 }
 
+/// <summary>Defines how one workflow step exposes registered automatic/native functions to its assigned model.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilAutomaticFunctionPolicyMode
+{
+    /// <summary>Loads older saved steps by inferring the explicit policy from the legacy boolean and allow-list fields.</summary>
+    Legacy = 0,
+    /// <summary>Exposes no automatic/native functions to this workflow step.</summary>
+    Disabled = 1,
+    /// <summary>Exposes every function that passes LocalGPT's normal registered-function policy.</summary>
+    AllPolicyApproved = 2,
+    /// <summary>Uses the team's user-edited automatic-function allow-list.</summary>
+    TeamAllowList = 3,
+    /// <summary>Uses the workflow step's user-edited exact automatic-function allow-list.</summary>
+    ExactAllowList = 4
+}
+
+/// <summary>Represents the normalized automatic/native function policy resolved from one persisted Council team and workflow step.</summary>
+/// <param name="Enabled">Whether automatic/native provider tools may be attached.</param>
+/// <param name="AutomaticFunctionAllowList">Exact registered-function allow-list, or <see langword="null"/> when every policy-approved registered function may be exposed.</param>
+/// <param name="Description">Human-readable policy description used by Council diagnostics and capability briefing.</param>
+public sealed record CouncilAutomaticFunctionPolicyResolution(
+    bool Enabled,
+    IReadOnlyList<string>? AutomaticFunctionAllowList,
+    string Description);
+
 /// <summary>Defines one editable LocalGPT Council team, its roles, workflow and architecture contracts.</summary>
 [DocumentationUpdated("2.1.20")]
 public sealed class OrganicCouncilTeamDefinition
@@ -131,6 +156,9 @@ public sealed class OrganicCouncilTeamDefinition
     /// </summary>
     /// <value>The preferred capabilities value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<string> PreferredCapabilities { get; set; } = [];
+    /// <summary>Gets or sets the team-level exact allow-list of automatic/native functions that workflow steps may opt into.</summary>
+    /// <value>Registered DXFunction names selected by the user in Council Teams. Shipped templates provide defaults, but persisted team configuration is authoritative at runtime.</value>
+    public List<string> AllowedAutomaticFunctions { get; set; } = [];
     /// <summary>Gets or sets architecture and safety contracts that every round must preserve.</summary>
     /// <value>The architecture contracts value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<string> ArchitectureContracts { get; set; } = [];
@@ -163,6 +191,9 @@ public sealed class OrganicCouncilTeamDefinition
     /// <summary>Gets or sets whether the team may be selected for new runs.</summary>
     /// <value>The is enabled value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public bool IsEnabled { get; set; } = true;
+    /// <summary>Gets or sets whether this configured team was explicitly deleted by the user.</summary>
+    /// <value><see langword="true"/> only for configuration-management views; deleted teams are never executable.</value>
+    public bool IsDeleted { get; set; }
     /// <summary>Gets or sets whether the row originated from maintained seed data.</summary>
     /// <value>The is system seed value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public bool IsSystemSeed { get; set; }
@@ -415,9 +446,21 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets whether registered organic/DX functions may be requested.</summary>
     /// <value>The can use organic functions value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool CanUseOrganicFunctions { get; set; } = true;
-    /// <summary>Gets or sets an optional exact allow-list for automatic provider tools in this workflow step. An empty list preserves the historical all-policy-approved-tools behavior.</summary>
-    /// <value>Registered DXFunction names allowed as automatic provider tools for this step, or an empty list for the historical catalog.</value>
+    /// <summary>Gets or sets the user-editable automatic/native function policy for this workflow step.</summary>
+    /// <value>The persisted policy that determines whether no functions, the team list, an exact step list, or the complete policy-approved catalog is exposed.</value>
+    public CouncilAutomaticFunctionPolicyMode AutomaticFunctionPolicyMode { get; set; } = CouncilAutomaticFunctionPolicyMode.Legacy;
+    /// <summary>Gets or sets an optional exact allow-list for automatic provider tools in this workflow step.</summary>
+    /// <value>Registered DXFunction names allowed when <see cref="AutomaticFunctionPolicyMode"/> is <see cref="CouncilAutomaticFunctionPolicyMode.ExactAllowList"/>.</value>
     public List<string> AllowedAutomaticFunctions { get; set; } = [];
+    /// <summary>Gets or sets how many same-member corrective role retries LocalGPT may run after a generic non-performance/refusal result.</summary>
+    /// <value>A user-editable bounded retry count; zero disables role-compliance retry.</value>
+    public int RoleComplianceRetryCount { get; set; } = 1;
+    /// <summary>Gets or sets whether LocalGPT may request a final-answer-only continuation when a provider returns thinking without substantive visible output.</summary>
+    /// <value><see langword="true"/> to enable the user-configured final-answer recovery pass.</value>
+    public bool FinalAnswerRecoveryEnabled { get; set; } = true;
+    /// <summary>Gets or sets the maximum output-token budget used by the final-answer recovery pass.</summary>
+    /// <value>A positive bounded token budget configured per workflow step.</value>
+    public int FinalAnswerRecoveryMaxOutputTokens { get; set; } = 8192;
     /// <summary>Gets or sets whether this step may emit first-class X-Round control requests.</summary>
     /// <value>The x functions enabled value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool XFunctionsEnabled { get; set; }
@@ -503,6 +546,9 @@ public sealed class CouncilTeamConfiguration
     /// </summary>
     /// <value>The preferred capabilities JSON value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public string PreferredCapabilitiesJson { get; set; } = "[]";
+    /// <summary>Gets or sets the persisted team-level automatic/native function allow-list.</summary>
+    /// <value>Serialized registered DXFunction names selected by the user for this configured team.</value>
+    public string AllowedAutomaticFunctionsJson { get; set; } = "[]";
     /// <summary>
     /// Gets or sets the architecture contracts JSON value that forms part of the council team state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -546,6 +592,21 @@ public sealed class CouncilTeamConfiguration
     /// </summary>
     /// <value>The is enabled value exposed by <see cref="CouncilTeamConfiguration"/>.</value>
     public bool IsEnabled { get; set; } = true;
+    /// <summary>Gets or sets whether this persisted team configuration was explicitly deleted by the user while its optional supplied template remains available for reset.</summary>
+    /// <value><see langword="true"/> when the row is a deletion tombstone and must not be offered or silently re-seeded.</value>
+    public bool IsDeleted { get; set; }
+    /// <summary>Selects whether this persisted Council team performs an all-member readiness preflight before substantive workflow roles begin.</summary>
+    /// <value>The user-selected readiness policy stored with the team configuration.</value>
+    public CouncilAllMembersReadinessPreflightMode AllMembersReadinessPreflightMode { get; set; } = CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault;
+    /// <summary>Gets or sets whether all-members readiness output is included in later workflow context.</summary>
+    /// <value><see langword="true"/> to include the preflight transcript in later model prompts.</value>
+    public bool IncludeAllMembersReadinessPreflightInWorkflowContext { get; set; }
+    /// <summary>Limits how much output one member may produce during this team's optional readiness preflight so large Councils do not inflate later context.</summary>
+    /// <value>The maximum output token count for one explicit role-aware preflight probe.</value>
+    public int AllMembersReadinessPreflightMaxOutputTokens { get; set; } = 192;
+    /// <summary>Gets or sets the user-authored all-members readiness prompt override.</summary>
+    /// <value>The optional persisted role-aware preflight template.</value>
+    public string AllMembersReadinessPreflightPromptTemplate { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the created at UTC associated with this council team state, using the time semantics implied by the member name.
     /// </summary>

@@ -74,7 +74,7 @@ require(COUNCIL, 'roundStep.XRoundCause = xRoundCause ?? string.Empty;', 'step c
 require(RUN_MODELS, 'public int WorkflowRevision { get; set; } = 1;', 'workflow revision output model')
 require(RUN_MODELS, 'public string XRoundCause { get; set; } = string.Empty;', 'workflow cause output model')
 require(COUNCIL, 'suppressOrganicFunctions: nextExecutionIsReconsideration', 'reasoning-only reconsider dispatch')
-require(COUNCIL, 'var effectiveAllowDxFunctions = definition.CanUseOrganicFunctions && !suppressOrganicFunctions;', 'reconsider side-effect suppression')
+require(COUNCIL, 'var automaticFunctionPolicy = councilAutomaticFunctionPolicy.Resolve(team, definition, suppressOrganicFunctions);', 'reconsider side-effect suppression through configured function policy')
 require(COUNCIL, 'RunXRoundSingleModelAsync', 'single-model derived X subtask')
 require(COUNCIL, 'RunXRoundChildCouncilAsync', 'child-Council derived X subtask')
 require(COUNCIL, 'WaitForXRoundApprovalAsync', 'human X transition gate')

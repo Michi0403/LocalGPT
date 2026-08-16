@@ -56,6 +56,8 @@ EF migration snapshots and generated migrations are architecture artifacts. They
 
 Seed services initialize known catalogs and policy definitions. Mutable values are stored in the database or owning service, not in global static collections. User changes remain distinct from shipped defaults.
 
+User-observable behavior policy is configuration data. BusinessObjects define its serializable contract; Services and Controllers validate, persist, reset, and expose it through dependency injection. Shipped social-team presets, prompts, capability/function policies, retry counts, and recovery behavior are resettable templates only and must never become a hidden second runtime policy in orchestration code. Technical implementation invariants such as protocol compatibility identifiers, serialization names, framework wiring, and bounded in-memory buffer mechanics remain code-owned because editing them would change implementation safety or compatibility rather than user behavior.
+
 ## Durable entity contract
 
 The database-first model keeps the important records explicit:

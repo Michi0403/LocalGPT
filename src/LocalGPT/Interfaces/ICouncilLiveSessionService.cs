@@ -103,6 +103,14 @@ public interface ICouncilLiveSessionService
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     /// <returns>The council live session snapshot produced by the operation.</returns>
     CouncilLiveSessionSnapshot? Get(Guid runId);
+    /// <summary>Returns only the current rich participant lanes without copying the potentially multi-megabyte ordered transcript.</summary>
+    /// <param name="runId">Identifier of the live Council run.</param>
+    /// <returns>The newest participant activity snapshots, or an empty collection when the run is unknown.</returns>
+    IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivities(Guid runId);
+    /// <summary>Returns only the current ordered live transcript without copying all participant-lane stream buffers.</summary>
+    /// <param name="runId">Identifier of the live Council run.</param>
+    /// <returns>The newest transient transcript or an empty string when the run is unknown.</returns>
+    string GetTranscript(Guid runId);
     /// <summary>
     /// Retrieves summary as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

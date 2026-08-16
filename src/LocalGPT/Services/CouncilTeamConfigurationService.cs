@@ -24,7 +24,7 @@ public sealed class CouncilTeamConfigurationService(
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 24;
+    private const int CurrentSeedVersion = 25;
     /// <summary>
     /// Defines the max roles constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
@@ -68,7 +68,7 @@ public sealed class CouncilTeamConfigurationService(
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var query = db.CouncilTeamConfigurations.AsNoTracking();
             if (!includeDisabled)
-                query = query.Where(item => item.IsEnabled);
+                query = query.Where(item => item.IsEnabled && !item.IsDeleted);
             var rows = await query.OrderBy(item => item.DisplayName).ToListAsync(cancellationToken).ConfigureAwait(false);
             return rows.Select(ToDefinition).ToList();
     
@@ -96,7 +96,7 @@ public sealed class CouncilTeamConfigurationService(
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var row = await db.CouncilTeamConfigurations.AsNoTracking()
-                .SingleOrDefaultAsync(item => item.Key == normalized && item.IsEnabled, cancellationToken)
+                .SingleOrDefaultAsync(item => item.Key == normalized && item.IsEnabled && !item.IsDeleted, cancellationToken)
                 .ConfigureAwait(false);
             return row is null ? null : ToDefinition(row);
     
@@ -166,6 +166,7 @@ public sealed class CouncilTeamConfigurationService(
             }
 
             ApplyDefinition(row, definitionToSave);
+            row.IsDeleted = false;
             row.IsEnabled = request.IsEnabled;
             row.IsSystemSeed = false;
             row.IsUserModified = true;
@@ -190,6 +191,146 @@ public sealed class CouncilTeamConfigurationService(
         throw;
     }
 }
+
+    /// <summary>Returns the maintained supplied Council templates independently from user-owned or deleted persisted team rows.</summary>
+    /// <param name="cancellationToken">Cancels template-catalog retrieval.</param>
+    /// <returns>The resettable supplied template catalog.</returns>
+    public Task<IReadOnlyList<OrganicCouncilTeamDefinition>> GetDefaultTemplatesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var templates = seedData.CreateDefaultTeams()
+                .Select(template =>
+                {
+                    NormalizeSeedDefaults(template);
+                    return template;
+                })
+                .OrderBy(template => template.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return Task.FromResult<IReadOnlyList<OrganicCouncilTeamDefinition>>(templates);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading supplied Council team templates failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Tombstones one configured Council team after explicit user confirmation while leaving supplied templates available for reset.</summary>
+    /// <param name="key">Configured team key to delete.</param>
+    /// <param name="userConfirmed">Whether the user explicitly confirmed the destructive action.</param>
+    /// <param name="cancellationToken">Cancels the database operation.</param>
+    /// <returns>A task that completes after the deletion tombstone is persisted.</returns>
+    public async Task DeleteAsync(string key, bool userConfirmed, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!userConfirmed)
+                throw new InvalidOperationException("Fresh human confirmation is required before deleting a Council team configuration.");
+            var normalized = (key ?? string.Empty).Trim().ToLowerInvariant();
+            if (normalized.Length == 0)
+                throw new ArgumentException("Choose a configured Council team before deleting it.", nameof(key));
+
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
+            var row = await db.CouncilTeamConfigurations.SingleOrDefaultAsync(item => item.Key == normalized, cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException($"Council team '{normalized}' was not found.");
+            row.IsDeleted = true;
+            row.IsEnabled = false;
+            row.IsUserModified = true;
+            row.UpdatedAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Deleted configured Council team {TeamKey}; supplied templates remain available for explicit reset.", normalized);
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Deleting Council team configuration was canceled.");
+            else
+                logger.LogError(exception, "Deleting Council team configuration {TeamKey} failed.", key);
+            throw;
+        }
+    }
+
+    /// <summary>Replaces one configured team's behavior with a selected supplied template while preserving the configured target key.</summary>
+    /// <param name="targetKey">Configured team key to replace or restore.</param>
+    /// <param name="templateKey">Supplied template key whose resettable behavior should be copied.</param>
+    /// <param name="userConfirmed">Whether the user explicitly confirmed the reset.</param>
+    /// <param name="cancellationToken">Cancels the database operation.</param>
+    /// <returns>The persisted normalized team definition after the reset.</returns>
+    public async Task<OrganicCouncilTeamDefinition> ResetToTemplateAsync(
+        string targetKey,
+        string templateKey,
+        bool userConfirmed,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!userConfirmed)
+                throw new InvalidOperationException("Fresh human confirmation is required before resetting a Council team from a supplied template.");
+            var normalizedTarget = (targetKey ?? string.Empty).Trim().ToLowerInvariant();
+            var normalizedTemplate = (templateKey ?? string.Empty).Trim().ToLowerInvariant();
+            if (normalizedTarget.Length == 0 || normalizedTemplate.Length == 0)
+                throw new ArgumentException("Choose both a configured team and a supplied template before resetting.");
+
+            var template = seedData.CreateDefaultTeams()
+                .FirstOrDefault(item => string.Equals(item.Key, normalizedTemplate, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException($"Supplied Council template '{normalizedTemplate}' was not found.");
+            NormalizeSeedDefaults(template);
+
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
+            var row = await db.CouncilTeamConfigurations.SingleOrDefaultAsync(item => item.Key == normalizedTarget, cancellationToken).ConfigureAwait(false);
+            if (row is null)
+            {
+                row = new CouncilTeamConfiguration
+                {
+                    Id = Guid.NewGuid(),
+                    Key = normalizedTarget,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+                db.CouncilTeamConfigurations.Add(row);
+            }
+
+            var restoresCanonicalSeed = string.Equals(normalizedTarget, normalizedTemplate, StringComparison.OrdinalIgnoreCase);
+            OrganicCouncilTeamDefinition restored;
+            if (restoresCanonicalSeed)
+            {
+                var json = JsonSerializer.Serialize(template, JsonOptions);
+                restored = JsonSerializer.Deserialize<OrganicCouncilTeamDefinition>(json, JsonOptions)
+                    ?? throw new InvalidOperationException("Council template cloning returned no definition.");
+            }
+            else
+            {
+                restored = CloneAsUserOwnedDefinition(template, normalizedTarget);
+            }
+            restored.Key = normalizedTarget;
+            restored.DisplayName = template.DisplayName;
+            restored.IsEnabled = true;
+            restored.IsDeleted = false;
+            ApplyDefinition(row, restored);
+            row.IsDeleted = false;
+            row.IsEnabled = true;
+            row.SeedVersion = CurrentSeedVersion;
+            row.UpdatedAtUtc = DateTime.UtcNow;
+            row.IsSystemSeed = restoresCanonicalSeed;
+            row.IsUserModified = !restoresCanonicalSeed;
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Reset Council team {TargetKey} from supplied template {TemplateKey}.", normalizedTarget, normalizedTemplate);
+            return ToDefinition(row);
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Resetting Council team configuration was canceled.");
+            else
+                logger.LogError(exception, "Resetting Council team {TargetKey} from template {TemplateKey} failed.", targetKey, templateKey);
+            throw;
+        }
+    }
 
     /// <summary>Applies missing seed teams and seed-version updates without replacing user-modified definitions.</summary>
     /// <param name="cancellationToken">Cancels the asynchronous seed operation.</param>
@@ -238,6 +379,13 @@ public sealed class CouncilTeamConfigurationService(
                     ApplyDefinition(row, definition);
                     db.CouncilTeamConfigurations.Add(row);
                     changed = true;
+                    continue;
+                }
+
+                if (row.IsDeleted)
+                {
+                    // An explicit deletion tombstone is user-owned state. Keep the supplied template available
+                    // through GetDefaultTemplatesAsync, but never silently resurrect the configured row.
                     continue;
                 }
 
@@ -335,6 +483,8 @@ public sealed class CouncilTeamConfigurationService(
             team.MainRoundInstructionTemplate = string.IsNullOrWhiteSpace(team.MainRoundInstructionTemplate)
                 ? "Every member contributes democratically according to role, evidence and demonstrated skill. Integrate new human corrections at the next heartbeat without cancelling the active run."
                 : team.MainRoundInstructionTemplate;
+            team.AllowedAutomaticFunctions ??= [];
+            team.AllowedAutomaticFunctions = NormalizeFunctionNames(team.AllowedAutomaticFunctions);
             var useSuppliedDefaultWorkflow = team.WorkflowSteps.Count == 0;
             if (useSuppliedDefaultWorkflow)
             {
@@ -399,12 +549,11 @@ public sealed class CouncilTeamConfigurationService(
                     step.RoleResultSynthesisMemberMode = CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember;
                 step.RoleResultSynthesisModelName = step.RoleResultSynthesisModelName?.Trim() ?? string.Empty;
                 step.AllowedAutomaticFunctions ??= [];
-                step.AllowedAutomaticFunctions = step.AllowedAutomaticFunctions
-                    .Select(value => value?.Trim() ?? string.Empty)
-                    .Where(value => value.Length > 0)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                step.AllowedAutomaticFunctions = NormalizeFunctionNames(step.AllowedAutomaticFunctions);
+                step.AutomaticFunctionPolicyMode = NormalizeAutomaticFunctionPolicy(step);
+                step.CanUseOrganicFunctions = step.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.Disabled;
+                step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, 3);
+                step.FinalAnswerRecoveryMaxOutputTokens = Math.Clamp(step.FinalAnswerRecoveryMaxOutputTokens, 128, 32768);
                 step.RepeatCount = Math.Clamp(step.RepeatCount, 1, MaxExpandedWorkflowSteps);
                 step.ExecutionMode = NormalizeExecutionMode(step.ExecutionMode);
                 step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
@@ -459,6 +608,7 @@ public sealed class CouncilTeamConfigurationService(
             team.Roles ??= [];
             team.WorkflowSteps ??= [];
             team.PreferredCapabilities ??= [];
+            team.AllowedAutomaticFunctions ??= [];
             team.ArchitectureContracts ??= [];
 
             if (team.Roles.Count > MaxRoles)
@@ -679,6 +829,17 @@ public sealed class CouncilTeamConfigurationService(
                 .ThenBy(step => step.Key, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             team.PreferredCapabilities = team.PreferredCapabilities.Select(value => value?.Trim() ?? string.Empty).Where(value => value.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            team.AllowedAutomaticFunctions ??= [];
+            team.AllowedAutomaticFunctions = NormalizeFunctionNames(team.AllowedAutomaticFunctions);
+            foreach (var step in team.WorkflowSteps)
+            {
+                step.AllowedAutomaticFunctions ??= [];
+                step.AllowedAutomaticFunctions = NormalizeFunctionNames(step.AllowedAutomaticFunctions);
+                step.AutomaticFunctionPolicyMode = NormalizeAutomaticFunctionPolicy(step);
+                step.CanUseOrganicFunctions = step.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.Disabled;
+                step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, 3);
+                step.FinalAnswerRecoveryMaxOutputTokens = Math.Clamp(step.FinalAnswerRecoveryMaxOutputTokens, 128, 32768);
+            }
             team.ArchitectureContracts = team.ArchitectureContracts.Select(value => value?.Trim() ?? string.Empty).Where(value => value.Length > 0).ToList();
     
     }
@@ -912,6 +1073,49 @@ public sealed class CouncilTeamConfigurationService(
     }
 }
 
+    /// <summary>Normalizes user-edited registered-function names without applying a hidden runtime allow-list.</summary>
+    /// <param name="values">Function names persisted by the user-edited team or workflow configuration.</param>
+    /// <returns>A trimmed, case-insensitively distinct and deterministically ordered list.</returns>
+    private List<string> NormalizeFunctionNames(IEnumerable<string>? values)
+    {
+        try
+        {
+            return (values ?? [])
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Normalizing Council automatic-function names failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Converts legacy saved tool fields into one explicit persisted automatic-function policy mode.</summary>
+    /// <param name="step">Persisted workflow step whose legacy fields are being normalized.</param>
+    /// <returns>The explicit policy mode that preserves the saved step's intended function exposure.</returns>
+    private CouncilAutomaticFunctionPolicyMode NormalizeAutomaticFunctionPolicy(CouncilWorkflowStepDefinition step)
+    {
+        try
+        {
+            if (!step.CanUseOrganicFunctions)
+                return CouncilAutomaticFunctionPolicyMode.Disabled;
+            if (step.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.Legacy)
+                return step.AutomaticFunctionPolicyMode;
+            return step.AllowedAutomaticFunctions is { Count: > 0 }
+                ? CouncilAutomaticFunctionPolicyMode.ExactAllowList
+                : CouncilAutomaticFunctionPolicyMode.AllPolicyApproved;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Normalizing Council automatic-function policy failed for step {StepKey}.", step?.Key);
+            throw;
+        }
+    }
+
     /// <summary>Creates a unique user-owned key derived from a supplied system-seed key.</summary>
     /// <param name="seedKey">Stable supplied seed key being preserved.</param>
     /// <param name="existingKeys">Keys already present in the configuration store.</param>
@@ -978,11 +1182,16 @@ public sealed class CouncilTeamConfigurationService(
             row.Purpose = definition.Purpose.Trim();
             row.RolesJson = Serialize(definition.Roles);
             row.PreferredCapabilitiesJson = Serialize(definition.PreferredCapabilities);
+            row.AllowedAutomaticFunctionsJson = Serialize(definition.AllowedAutomaticFunctions);
             row.ArchitectureContractsJson = Serialize(definition.ArchitectureContracts);
             row.WorkflowStepsJson = Serialize(definition.WorkflowSteps);
             row.ExpertPreparationPromptTemplate = definition.ExpertPreparationPromptTemplate;
             row.LeaderSynthesisPromptTemplate = definition.LeaderSynthesisPromptTemplate;
             row.MainRoundInstructionTemplate = definition.MainRoundInstructionTemplate;
+            row.AllMembersReadinessPreflightMode = definition.AllMembersReadinessPreflightMode;
+            row.IncludeAllMembersReadinessPreflightInWorkflowContext = definition.IncludeAllMembersReadinessPreflightInWorkflowContext;
+            row.AllMembersReadinessPreflightMaxOutputTokens = definition.AllMembersReadinessPreflightMaxOutputTokens;
+            row.AllMembersReadinessPreflightPromptTemplate = definition.AllMembersReadinessPreflightPromptTemplate ?? string.Empty;
     
     }
     catch (Exception __serviceMethodException)
@@ -1008,12 +1217,18 @@ public sealed class CouncilTeamConfigurationService(
         Purpose = row.Purpose,
         Roles = Deserialize<List<OrganicCouncilRoleDefinition>>(row.RolesJson) ?? [],
         PreferredCapabilities = Deserialize<List<string>>(row.PreferredCapabilitiesJson) ?? [],
+        AllowedAutomaticFunctions = Deserialize<List<string>>(row.AllowedAutomaticFunctionsJson) ?? [],
         ArchitectureContracts = Deserialize<List<string>>(row.ArchitectureContractsJson) ?? [],
         WorkflowSteps = Deserialize<List<CouncilWorkflowStepDefinition>>(row.WorkflowStepsJson) ?? [],
         ExpertPreparationPromptTemplate = row.ExpertPreparationPromptTemplate,
         LeaderSynthesisPromptTemplate = row.LeaderSynthesisPromptTemplate,
         MainRoundInstructionTemplate = row.MainRoundInstructionTemplate,
+        AllMembersReadinessPreflightMode = row.AllMembersReadinessPreflightMode,
+        IncludeAllMembersReadinessPreflightInWorkflowContext = row.IncludeAllMembersReadinessPreflightInWorkflowContext,
+        AllMembersReadinessPreflightMaxOutputTokens = row.AllMembersReadinessPreflightMaxOutputTokens,
+        AllMembersReadinessPreflightPromptTemplate = row.AllMembersReadinessPreflightPromptTemplate,
         IsEnabled = row.IsEnabled,
+        IsDeleted = row.IsDeleted,
         IsSystemSeed = row.IsSystemSeed,
         IsUserModified = row.IsUserModified
     };

@@ -40,13 +40,25 @@
             {
                 <button type="button" class="council-team-list-item @(team.Key == _selectedKey ? "active" : string.Empty)" @onclick="() => SelectTeam(team)">
                     <strong>@team.DisplayName</strong>
-                    <small>@team.Key · @(team.IsEnabled ? "enabled" : "disabled") · @WorkflowLabel(team)</small>
+                    <small>@team.Key · @(team.IsDeleted ? "deleted" : team.IsEnabled ? "enabled" : "disabled") · @WorkflowLabel(team)</small>
                     <span>@team.Purpose</span>
                 </button>
             }
             <div class="council-team-list-actions">
                 <button type="button" class="btn btn-outline-primary" @onclick="CreateTeam">Create empty structure</button>
-                <button type="button" class="btn btn-outline-secondary" @onclick="DuplicateTeam" disabled="@(_teams.Count == 0)">Duplicate selected</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="DuplicateTeam" disabled="@(_teams.Count == 0 || _editor.IsDeleted)">Duplicate selected</button>
+                <label>
+                    <span>Supplied reset template</span>
+                    <select class="form-select" @bind="_resetTemplateKey">
+                        @foreach (var template in _defaultTemplates)
+                        {
+                            <option value="@template.Key">@template.DisplayName (@template.Key)</option>
+                        }
+                    </select>
+                </label>
+                <button type="button" class="btn btn-outline-warning" @onclick="ResetSelectedFromTemplateAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_selectedKey) || string.IsNullOrWhiteSpace(_resetTemplateKey))">Reset selected from template</button>
+                <button type="button" class="btn btn-outline-danger" @onclick="DeleteSelectedAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_selectedKey) || _editor.IsDeleted)">Delete selected preset</button>
+                <small class="hint">Delete/reset require the review-confirmation checkbox in the editor. Deleted presets remain as tombstones here so you can restore them from any supplied template; they cannot run.</small>
             </div>
         </aside>
 
@@ -55,6 +67,10 @@
                 <strong>@WorkflowLabel(_editor)</strong>
                 <span>Untouched supplied teams use the established LocalGPT orchestration. Saving any edit creates a user-owned literal workflow; duplicating keeps the supplied default untouched.</span>
             </div>
+            @if (_editor.IsDeleted)
+            {
+                <div class="alert alert-warning">This configured preset is deleted and cannot run. Choose any supplied reset template in the left panel and reset it to restore the same key.</div>
+            }
 
             <div class="council-team-fields">
                 <label><span>Key</span><input class="form-control" @bind="_editor.Key" /></label>
@@ -116,6 +132,33 @@
                                            checked="@_editor.PreferredCapabilities.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
                                            @onchange="args => TogglePreferredCapability(entry.FunctionName, args)" />
                                     <span><strong>@entry.DisplayName</strong> <small>@entry.FunctionName@(recommended ? " · runtime-class recommendation" : string.Empty)</small></span>
+                                </label>
+                            }
+                        </fieldset>
+                    }
+                }
+            </details>
+
+            <details class="council-best-use-functions" open>
+                <summary>Automatic/native functions allowed by this team (@_editor.AllowedAutomaticFunctions.Count selected)</summary>
+                <p class="hint">This is runtime policy, not a recommendation. Workflow steps using “Team allow-list” receive only these registered functions. The persisted team configuration is authoritative; supplied templates are resettable starting points.</p>
+                @if (!_dxFunctionsLoaded)
+                {
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="LoadDxFunctionCatalogAsync" disabled="@_dxFunctionsLoading">@(_dxFunctionsLoading ? "Loading DXFunctions…" : "Load DXFunction catalog")</button>
+                }
+                else
+                {
+                    @foreach (var group in AvailableDxFunctions.GroupBy(FunctionNamespace).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+                    {
+                        <fieldset class="council-runtime-class-group">
+                            <legend>@group.Key</legend>
+                            @foreach (var entry in group.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase))
+                            {
+                                <label class="form-check council-runtime-class-option">
+                                    <input class="form-check-input" type="checkbox"
+                                           checked="@_editor.AllowedAutomaticFunctions.Contains(entry.FunctionName, StringComparer.OrdinalIgnoreCase)"
+                                           @onchange="args => ToggleTeamAutomaticFunction(entry.FunctionName, args)" />
+                                    <span><strong>@entry.DisplayName</strong> <small>@entry.FunctionName</small></span>
                                 </label>
                             }
                         </fieldset>
@@ -478,9 +521,37 @@
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.IncludePriorTranscript" /><span>Include prior transcript according to visibility policy</span></label>
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.ProducesFinalAnswer" /><span>Can become final answer</span></label>
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.RequiresHumanCheckpoint" /><span>Respect human gate before round</span></label>
-                            <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.CanUseOrganicFunctions" /><span>Allow DX/organic function requests</span></label>
+                            <label>
+                                <span>Automatic/native function policy</span>
+                                <select class="form-select" value="@step.AutomaticFunctionPolicyMode" @onchange="args => SetAutomaticFunctionPolicy(step, args)">
+                                    @foreach (var policy in AutomaticFunctionPolicyModes)
+                                    {
+                                        <option value="@policy.Value">@policy.Label</option>
+                                    }
+                                </select>
+                            </label>
                             <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.ProducesAsciiFrame" /><span>Produces one AI-owned ASCII frame</span></label>
                         </div>
+                        @if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.TeamAllowList)
+                        {
+                            <p class="hint">This step uses the team's persisted allow-list: @(step.CanUseOrganicFunctions && _editor.AllowedAutomaticFunctions.Count > 0 ? string.Join(", ", _editor.AllowedAutomaticFunctions) : "no functions selected")</p>
+                        }
+                        else if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.ExactAllowList)
+                        {
+                            <label class="wide">
+                                <span>Exact automatic/native function names · one per line</span>
+                                <textarea class="form-control council-script" rows="4" value="@string.Join(Environment.NewLine, step.AllowedAutomaticFunctions)" @onchange="args => SetStepAutomaticFunctions(step, args)"></textarea>
+                            </label>
+                        }
+                        <details class="council-advanced-section">
+                            <summary>Member result recovery · @step.RoleComplianceRetryCount role retry(s) · final-answer recovery @(step.FinalAnswerRecoveryEnabled ? "on" : "off")</summary>
+                            <p class="hint">These are social execution policies and are persisted with this workflow step. Recovery runs on the same provider-qualified member and is model work, not UI rendering.</p>
+                            <div class="council-workflow-fields">
+                                <label><span>Role-compliance corrective retries</span><input class="form-control" type="number" min="0" max="3" @bind="step.RoleComplianceRetryCount" /></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.FinalAnswerRecoveryEnabled" /><span>Recover a final answer when only thinking/non-final content was returned</span></label>
+                                <label><span>Final-answer recovery max output tokens</span><input class="form-control" type="number" min="128" max="32768" @bind="step.FinalAnswerRecoveryMaxOutputTokens" disabled="@(!step.FinalAnswerRecoveryEnabled)" /></label>
+                            </div>
+                        </details>
                         <details class="council-advanced-section">
                             <summary>X-Rounds / revisable control flow @(step.XFunctionsEnabled ? "· enabled" : "· disabled")</summary>
                             <p class="hint">X-Rounds do not erase history. A revisit creates a new workflow-step revision caused by the requesting step. Reconsider suppresses DX/organic side effects; Reexecute deliberately runs the target's normal function policy again.</p>
@@ -540,7 +611,7 @@
                                         }
                                     </select>
                                 </label>
-                                <div class="wide alert alert-info mb-0">X functions exposed to the role are <code>council.x.status</code>, <code>council.x.revisit</code>, <code>council.x.return_text</code>, <code>council.x.start_single_model</code> and <code>council.x.start_council</code>. X-Rounds also require “Allow DX/organic function requests” because they are explicit DXFunctions.</div>
+                                <div class="wide alert alert-info mb-0">X functions exposed to the role are <code>council.x.status</code>, <code>council.x.revisit</code>, <code>council.x.return_text</code>, <code>council.x.start_single_model</code> and <code>council.x.start_council</code>. X-Rounds also require a function policy that exposes the corresponding X functions because they are explicit DXFunctions.</div>
                             </div>
                         </details>
                     </article>
@@ -560,6 +631,7 @@
                         <button type="button" class="btn btn-outline-primary btn-sm" @onclick="ApplyAdvancedJson">Apply JSON to editor</button>
                     </div>
                     <label class="wide"><span>Preferred organic capabilities JSON</span><textarea class="form-control council-script" rows="5" @bind="_capabilitiesJson"></textarea></label>
+                    <label class="wide"><span>Team automatic/native function allow-list JSON</span><textarea class="form-control council-script" rows="5" @bind="_allowedFunctionsJson"></textarea></label>
                     <label class="wide"><span>Architecture contracts JSON</span><textarea class="form-control council-script" rows="5" @bind="_contractsJson"></textarea></label>
                 </div>
             </details>
@@ -568,7 +640,7 @@
                 <span class="council-expanded-count">@EnabledRoundCount enabled step(s), up to @ExpandedRoundCount expanded round(s)</span>
                 <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_editor.IsEnabled" /><span>Enabled</span></label>
                 <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_confirmed" @bind:after="ReviewConfirmationChanged" /><span>I reviewed this social structure and its prompts</span></label>
-                <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@_busy">Save reviewed team</button>
+                <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@(_busy || _editor.IsDeleted)">Save reviewed team</button>
             </div>
         </section>
     </section>
@@ -591,6 +663,13 @@
         (CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault, "Legacy compatibility (built-in readiness only)"),
         (CouncilAllMembersReadinessPreflightMode.Disabled, "Disabled"),
         (CouncilAllMembersReadinessPreflightMode.RoleAwareProbe, "Role-aware probe for every selected member")
+    ];
+    private readonly IReadOnlyList<(CouncilAutomaticFunctionPolicyMode Value, string Label)> AutomaticFunctionPolicyModes =
+    [
+        (CouncilAutomaticFunctionPolicyMode.Disabled, "Disabled — expose no automatic/native tools"),
+        (CouncilAutomaticFunctionPolicyMode.AllPolicyApproved, "All registered functions allowed by LocalGPT safety policy"),
+        (CouncilAutomaticFunctionPolicyMode.TeamAllowList, "Use this team's allow-list"),
+        (CouncilAutomaticFunctionPolicyMode.ExactAllowList, "Use this step's exact allow-list")
     ];
     private readonly IReadOnlyList<(CouncilRoleResultSynthesisMemberMode Value, string Label)> RoleResultSynthesisMemberModes =
     [
@@ -637,6 +716,7 @@
         (CouncilRoleLanguageMode.English, "English")
     ];
     private IReadOnlyList<OrganicCouncilTeamDefinition> _teams = [];
+    private IReadOnlyList<OrganicCouncilTeamDefinition> _defaultTemplates = [];
     private IReadOnlyList<CouncilRuntimeClassDefinition> _runtimeClasses = [];
     private IReadOnlyList<DxAiFunctionCatalogEntry> _dxFunctions = [];
     private IReadOnlyList<MultiModelCouncilModelCandidate> _providerModels = [];
@@ -645,6 +725,8 @@
     private string _rolesJson = "[]";
     private string _workflowJson = "[]";
     private string _capabilitiesJson = "[]";
+    private string _allowedFunctionsJson = "[]";
+    private string _resetTemplateKey = string.Empty;
     private string _contractsJson = "[]";
     private string _status = string.Empty;
     private bool _hasError;
@@ -676,13 +758,18 @@
         {
             var runtimeClassesTask = RuntimeClasses.GetDefinitionsAsync(includeDisabled: true);
             var teamsTask = TeamConfigurations.GetTeamsAsync(includeDisabled: true);
+            var templatesTask = TeamConfigurations.GetDefaultTemplatesAsync();
             var runtimeClasses = await runtimeClassesTask.ConfigureAwait(false);
             var teams = await teamsTask.ConfigureAwait(false);
+            var templates = await templatesTask.ConfigureAwait(false);
 
             await InvokeAsync(() =>
             {
                 _runtimeClasses = runtimeClasses;
                 _teams = teams;
+                _defaultTemplates = templates;
+                if (string.IsNullOrWhiteSpace(_resetTemplateKey) || !_defaultTemplates.Any(template => template.Key == _resetTemplateKey))
+                    _resetTemplateKey = _defaultTemplates.FirstOrDefault()?.Key ?? string.Empty;
                 var selected = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
                 if (selected is not null)
                     SelectTeam(selected);
@@ -769,6 +856,13 @@
         if (!_dxFunctionPickerExpanded || _dxFunctionsLoaded || _dxFunctionsLoading)
             return;
 
+        await LoadDxFunctionCatalogAsync().ConfigureAwait(false);
+    }
+
+    private async Task LoadDxFunctionCatalogAsync()
+    {
+        if (_dxFunctionsLoaded || _dxFunctionsLoading)
+            return;
         _dxFunctionsLoading = true;
         try
         {
@@ -815,6 +909,7 @@
         NormalizeEditorOrdering();
         RefreshAdvancedJson();
         _capabilitiesJson = Serialize(team.PreferredCapabilities);
+        _allowedFunctionsJson = Serialize(team.AllowedAutomaticFunctions);
         _contractsJson = Serialize(team.ArchitectureContracts);
         _confirmed = false;
     }
@@ -828,6 +923,7 @@
             DisplayName = "New Council Team",
             Purpose = "A user-defined social AI structure.",
             IsEnabled = true,
+            AllowedAutomaticFunctions = [],
             Roles =
             [
                 new OrganicCouncilRoleDefinition
@@ -846,6 +942,7 @@
             ]
         };
         _capabilitiesJson = "[]";
+        _allowedFunctionsJson = "[]";
         _contractsJson = "[]";
         RefreshAdvancedJson();
         _confirmed = false;
@@ -873,6 +970,7 @@
         _selectedKey = string.Empty;
         RefreshAdvancedJson();
         _capabilitiesJson = Serialize(_editor.PreferredCapabilities);
+        _allowedFunctionsJson = Serialize(_editor.AllowedAutomaticFunctions);
         _contractsJson = Serialize(_editor.ArchitectureContracts);
         _confirmed = false;
         _status = $"Duplicated '{source.DisplayName}' as an unsaved literal workflow. Change the key if it already exists.";
@@ -966,6 +1064,10 @@
         IncludePriorTranscript = true,
         IsEnabled = true,
         CanUseOrganicFunctions = true,
+        AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.AllPolicyApproved,
+        RoleComplianceRetryCount = 1,
+        FinalAnswerRecoveryEnabled = true,
+        FinalAnswerRecoveryMaxOutputTokens = 8192,
         XMaximumTransitions = 3,
         XMaximumChildCouncilDepth = 1,
         PromptTemplate = "Contribute to {{TeamName}} as {{Role}}. Address the original request, consider the prior transcript, and state disagreements or missing information plainly.\n\nUser request:\n{{UserPrompt}}\n\nPrior transcript:\n{{Transcript}}"
@@ -1040,6 +1142,15 @@
             step.LogicalRoundNumber = Math.Clamp(step.LogicalRoundNumber, 0, 1000);
             if (!Enum.IsDefined(typeof(CouncilTranscriptVisibilityMode), step.TranscriptVisibility))
                 step.TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil;
+            if (!Enum.IsDefined(typeof(CouncilAutomaticFunctionPolicyMode), step.AutomaticFunctionPolicyMode) || step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.Legacy)
+                step.AutomaticFunctionPolicyMode = step.CanUseOrganicFunctions
+                    ? step.AllowedAutomaticFunctions is { Count: > 0 } ? CouncilAutomaticFunctionPolicyMode.ExactAllowList : CouncilAutomaticFunctionPolicyMode.AllPolicyApproved
+                    : CouncilAutomaticFunctionPolicyMode.Disabled;
+            step.CanUseOrganicFunctions = step.AutomaticFunctionPolicyMode != CouncilAutomaticFunctionPolicyMode.Disabled;
+            step.AllowedAutomaticFunctions ??= [];
+            step.AllowedAutomaticFunctions = step.AllowedAutomaticFunctions.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToList();
+            step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, 3);
+            step.FinalAnswerRecoveryMaxOutputTokens = Math.Clamp(step.FinalAnswerRecoveryMaxOutputTokens, 128, 32768);
             step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
             step.MaximumLoopIterations = string.IsNullOrWhiteSpace(step.LoopGroup)
                 ? 1
@@ -1097,6 +1208,7 @@
         {
             NormalizeEditorOrdering();
             _editor.PreferredCapabilities = Deserialize<List<string>>(_capabilitiesJson);
+            _editor.AllowedAutomaticFunctions = Deserialize<List<string>>(_allowedFunctionsJson);
             _editor.ArchitectureContracts = Deserialize<List<string>>(_contractsJson);
             RefreshAdvancedJson();
             var saved = await TeamConfigurations.SaveAsync(new SaveCouncilTeamConfigurationRequest
@@ -1126,6 +1238,109 @@
         }
     }
 
+
+    private async Task DeleteSelectedAsync()
+    {
+        if (!_confirmed)
+        {
+            _status = "Review the destructive action and check the confirmation box before deleting this preset.";
+            _hasError = true;
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_selectedKey))
+            return;
+        _busy = true;
+        try
+        {
+            await TeamConfigurations.DeleteAsync(_selectedKey, true).ConfigureAwait(false);
+            _status = $"Deleted configured Council preset '{_selectedKey}'. Its tombstone remains available for template reset.";
+            _hasError = false;
+            _confirmed = false;
+            await ReloadAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Deleting Council team {TeamKey} from the editor failed.", _selectedKey);
+            _status = ex.Message;
+            _hasError = true;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ResetSelectedFromTemplateAsync()
+    {
+        if (!_confirmed)
+        {
+            _status = "Review the reset and check the confirmation box before replacing this preset from a supplied template.";
+            _hasError = true;
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_selectedKey) || string.IsNullOrWhiteSpace(_resetTemplateKey))
+            return;
+        _busy = true;
+        try
+        {
+            var reset = await TeamConfigurations.ResetToTemplateAsync(_selectedKey, _resetTemplateKey, true).ConfigureAwait(false);
+            _selectedKey = reset.Key;
+            _status = $"Reset '{reset.Key}' from supplied template '{_resetTemplateKey}'.";
+            _hasError = false;
+            _confirmed = false;
+            await ReloadAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Resetting Council team {TeamKey} from template {TemplateKey} failed in the editor.", _selectedKey, _resetTemplateKey);
+            _status = ex.Message;
+            _hasError = true;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void ToggleTeamAutomaticFunction(string functionName, ChangeEventArgs args)
+    {
+        _editor.AllowedAutomaticFunctions ??= [];
+        var enabled = args.Value is bool value && value;
+        _editor.AllowedAutomaticFunctions.RemoveAll(item => string.Equals(item, functionName, StringComparison.OrdinalIgnoreCase));
+        if (enabled)
+            _editor.AllowedAutomaticFunctions.Add(functionName);
+        _editor.AllowedAutomaticFunctions = _editor.AllowedAutomaticFunctions
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        _allowedFunctionsJson = Serialize(_editor.AllowedAutomaticFunctions);
+        _confirmed = false;
+    }
+
+    private void SetAutomaticFunctionPolicy(CouncilWorkflowStepDefinition step, ChangeEventArgs args)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        if (!Enum.TryParse<CouncilAutomaticFunctionPolicyMode>(args.Value?.ToString(), ignoreCase: true, out var policy) ||
+            policy == CouncilAutomaticFunctionPolicyMode.Legacy)
+        {
+            policy = CouncilAutomaticFunctionPolicyMode.Disabled;
+        }
+        step.AutomaticFunctionPolicyMode = policy;
+        step.CanUseOrganicFunctions = policy != CouncilAutomaticFunctionPolicyMode.Disabled;
+        step.UseBuiltInBehavior = false;
+        _confirmed = false;
+    }
+
+    private void SetStepAutomaticFunctions(CouncilWorkflowStepDefinition step, ChangeEventArgs args)
+    {
+        step.AllowedAutomaticFunctions = (args.Value?.ToString() ?? string.Empty)
+            .Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(value => value.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        _confirmed = false;
+    }
 
     private void ReviewConfirmationChanged()
     {

@@ -29,6 +29,7 @@ namespace LocalGPT.Services
     /// <param name="organicCouncilBlueprints">Organic council blueprint service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
     /// <param name="councilSpooler">Council spooler service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
     /// <param name="councilPreflight">Council preflight service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+    /// <param name="councilAutomaticFunctionPolicy">Resolves persisted user-editable team and workflow-step automatic/native function exposure.</param>
     /// <param name="councilDxPolicy">Council devexpress function policy data service dependency used by the multi model council workflow to provide the corresponding application capability.</param>
     /// <param name="councilDxFunctions">Council devexpress function orchestrator dependency used by the multi model council workflow to provide the corresponding application capability.</param>
     /// <param name="hardwareRoadPlanner">Council hardware road planner dependency used by the multi model council workflow to provide the corresponding application capability.</param>
@@ -60,6 +61,7 @@ namespace LocalGPT.Services
         IOrganicCouncilBlueprintService organicCouncilBlueprints,
         ICouncilSpoolerService councilSpooler,
         ICouncilPreflightService councilPreflight,
+        ICouncilAutomaticFunctionPolicyService councilAutomaticFunctionPolicy,
         ICouncilDxFunctionPolicyDataService councilDxPolicy,
         ICouncilDxFunctionOrchestrator councilDxFunctions,
         ICouncilHardwareRoadPlanner hardwareRoadPlanner,
@@ -3020,7 +3022,8 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                 var finalAnswer = state.FinalAnswer;
                 CouncilXRoundDirective? xDirective = null;
                 var repeatCount = Math.Clamp(definition.RepeatCount, 1, 100);
-                var effectiveAllowDxFunctions = definition.CanUseOrganicFunctions && !suppressOrganicFunctions;
+                var automaticFunctionPolicy = councilAutomaticFunctionPolicy.Resolve(team, definition, suppressOrganicFunctions);
+                var effectiveAllowDxFunctions = automaticFunctionPolicy.Enabled;
 
                 for (var repeatIndex = 0; repeatIndex < repeatCount; repeatIndex++)
                 {
@@ -3118,7 +3121,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                     request.ProgressMessage?.Invoke(
                         $"Executing configured council round {round}: {definition.DisplayName} / {phase} / {definition.Role} using {executionMode}; " +
                         $"role assignment: {roleAssignment.AiSelectionDescription}; human mode {roleAssignment.HumanParticipationMode}; " +
-                        $"organic functions {(effectiveAllowDxFunctions ? "allowed" : "disabled")}; " +
+                        $"organic functions {automaticFunctionPolicy.Description}; " +
                         $"X-Rounds {(definition.XFunctionsEnabled && effectiveAllowDxFunctions ? "active" : "inactive")}.");
 
                     if (roleParticipants.Count == 0)
@@ -3201,7 +3204,8 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                                             loopIteration,
                                             loopMaximumIterations,
                                             transcript,
-                                            visiblePreviousStep),
+                                            visiblePreviousStep,
+                                            automaticFunctionPolicy),
                                         heartbeatBootstrap,
                                         request.MaxOutputTokens,
                                         maxParallelModels,
@@ -3217,7 +3221,10 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                                         cancellationToken,
                                         allowDxFunctions: effectiveAllowDxFunctions,
                                         councilMembers: participants,
-                                        automaticFunctionAllowList: definition.AllowedAutomaticFunctions).ConfigureAwait(false);
+                                        automaticFunctionAllowList: automaticFunctionPolicy.AutomaticFunctionAllowList,
+                                        roleComplianceRetryCount: definition.RoleComplianceRetryCount,
+                                        finalAnswerRecoveryEnabled: definition.FinalAnswerRecoveryEnabled,
+                                        finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens).ConfigureAwait(false);
                                     break;
                                 }
                             case "AllMembersSequentialOnEachAIHostParallel":
@@ -3245,7 +3252,8 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                                             loopIteration,
                                             loopMaximumIterations,
                                             transcript,
-                                            visiblePreviousStep),
+                                            visiblePreviousStep,
+                                            automaticFunctionPolicy),
                                         heartbeatBootstrap,
                                         request.MaxOutputTokens,
                                         1,
@@ -3262,7 +3270,10 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                                         allowDxFunctions: effectiveAllowDxFunctions,
                                         councilMembers: participants,
                                         sequentialPerHost: true,
-                                        automaticFunctionAllowList: definition.AllowedAutomaticFunctions).ConfigureAwait(false);
+                                        automaticFunctionAllowList: automaticFunctionPolicy.AutomaticFunctionAllowList,
+                                        roleComplianceRetryCount: definition.RoleComplianceRetryCount,
+                                        finalAnswerRecoveryEnabled: definition.FinalAnswerRecoveryEnabled,
+                                        finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens).ConfigureAwait(false);
                                     break;
                                 }
                             case "AllMembersSequential":
@@ -3296,6 +3307,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                                             maxContextTokens,
                                             modelTimeoutSeconds,
                                             effectiveAllowDxFunctions,
+                                            automaticFunctionPolicy,
                                             cancellationToken).ConfigureAwait(false);
                                     }
                                     break;
@@ -3337,6 +3349,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                                         maxContextTokens,
                                         modelTimeoutSeconds,
                                         effectiveAllowDxFunctions,
+                                        automaticFunctionPolicy,
                                         cancellationToken).ConfigureAwait(false);
                                     break;
                                 }
@@ -3728,7 +3741,8 @@ BLOCKERS: none | <specific missing capability or ambiguity>
         /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="maxContextTokens">Max context tokens value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="allowDxFunctions">Value indicating whether allow DevExpress functions should apply to this operation.</param>
+        /// <param name="allowDxFunctions">Value indicating whether automatic/native functions may be exposed for this configured participant execution.</param>
+        /// <param name="automaticFunctionPolicy">Resolved user-owned function policy containing the effective enabled state and optional exact allow-list.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
         /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RunConfiguredParticipantAsync(
@@ -3757,6 +3771,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
             int maxContextTokens,
             int modelTimeoutSeconds,
             bool allowDxFunctions,
+            CouncilAutomaticFunctionPolicyResolution automaticFunctionPolicy,
             CancellationToken cancellationToken)
         {
     try
@@ -3803,7 +3818,8 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                                 loopIteration,
                                 loopMaximumIterations,
                                 transcript,
-                                previousStep),
+                                previousStep,
+                                automaticFunctionPolicy),
                             bootstrap,
                             plan.EffectiveMaxOutputTokens,
                             keepAlive,
@@ -3815,7 +3831,10 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                             fallbackPlan: plan,
                             progressMessage: request.ProgressMessage,
                             enableAutomaticTools: allowDxFunctions,
-                            automaticFunctionAllowList: definition.AllowedAutomaticFunctions).ConfigureAwait(false);
+                            automaticFunctionAllowList: automaticFunctionPolicy.AutomaticFunctionAllowList,
+                            roleComplianceRetryCount: definition.RoleComplianceRetryCount,
+                            finalAnswerRecoveryEnabled: definition.FinalAnswerRecoveryEnabled,
+                            finalAnswerRecoveryMaxOutputTokens: definition.FinalAnswerRecoveryMaxOutputTokens).ConfigureAwait(false);
                     }
                 }
                 catch (OperationCanceledException) when (roundSkipToken.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
@@ -3916,6 +3935,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
         /// <param name="loopMaximumIterations">Loop maximum iterations value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="transcript">Transcript value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="previousStep">Previous step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="automaticFunctionPolicy">Resolved user-editable function exposure summarized to the model for this exact workflow step.</param>
         /// <returns>The string produced by the operation.</returns>
         private string RenderConfiguredWorkflowPrompt(
             CouncilWorkflowStepDefinition definition,
@@ -3932,7 +3952,8 @@ BLOCKERS: none | <specific missing capability or ambiguity>
             int loopIteration,
             int loopMaximumIterations,
             string transcript,
-            string previousStep)
+            string previousStep,
+            CouncilAutomaticFunctionPolicyResolution automaticFunctionPolicy)
         {
     try
     {
@@ -4073,12 +4094,9 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                     !string.IsNullOrWhiteSpace(request.ExternalProjectContextJson) || team.PreferredCapabilities.Any(item => item.Contains("knowledge", StringComparison.OrdinalIgnoreCase))
                         ? "LocalGPT knowledge/project context is relevant to this team. Consult authoritative supplied/retrieved local evidence when it materially improves correctness; do not make ceremonial retrieval calls when the assigned task is already self-contained."
                         : "Use supplied local/project evidence when present. Pretrained knowledge is allowed, but authoritative local evidence wins when the two conflict.");
-                assignmentBriefing.Append("- Organic/DX tool availability for this step: ").AppendLine(
-                    definition.CanUseOrganicFunctions
-                        ? definition.AllowedAutomaticFunctions.Count > 0
-                            ? $"enabled with an exact automatic-function allow-list: {string.Join(", ", definition.AllowedAutomaticFunctions)}. Call one only when it materially improves grounding or is required to complete this role task."
-                            : "enabled by team configuration; call a tool only when it materially improves grounding or is required to complete this role task."
-                        : "disabled by team configuration; LocalGPT must not expose automatic provider tool metadata for this step.");
+                assignmentBriefing.Append("- Organic/DX tool availability for this step: ")
+                    .Append(automaticFunctionPolicy.Description)
+                    .AppendLine(". Call an available tool only when it materially improves grounding or is required to complete this role task.");
                 if (team.PreferredCapabilities.Count > 0)
                     assignmentBriefing.Append("- Team preferred capabilities: ").AppendLine(string.Join(", ", team.PreferredCapabilities));
                 if (!string.IsNullOrWhiteSpace(request.ExternalProjectContextJson))
@@ -5259,6 +5277,9 @@ BLOCKERS: none | <specific missing capability or ambiguity>
         /// <param name="councilMembers">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
         /// <param name="sequentialPerHost">Value indicating whether sequential per host should apply to this operation.</param>
         /// <param name="automaticFunctionAllowList">Optional exact automatic-function names permitted for this workflow step.</param>
+        /// <param name="roleComplianceRetryCount">Number of bounded same-member corrective retries permitted when a role member refuses or ignores its assigned work.</param>
+        /// <param name="finalAnswerRecoveryEnabled">Whether the workflow may issue a separate provider turn to recover a missing final answer.</param>
+        /// <param name="finalAnswerRecoveryMaxOutputTokens">Maximum output-token budget for one configured final-answer recovery turn.</param>
         /// <returns>A task that completes when the operation has finished.</returns>
         private async Task RunPhaseAsync(
             MultiModelCouncilResult result,
@@ -5284,7 +5305,10 @@ BLOCKERS: none | <specific missing capability or ambiguity>
             bool allowDxFunctions = true,
             IReadOnlyList<string>? councilMembers = null,
             bool sequentialPerHost = false,
-            IReadOnlyCollection<string>? automaticFunctionAllowList = null)
+            IReadOnlyCollection<string>? automaticFunctionAllowList = null,
+            int roleComplianceRetryCount = 1,
+            bool finalAnswerRecoveryEnabled = true,
+            int finalAnswerRecoveryMaxOutputTokens = 8192)
         {
             try
             {
@@ -5431,7 +5455,10 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                                 fallbackPlan: fallbackPlan,
                                 progressMessage: progressMessage,
                                 enableAutomaticTools: allowDxFunctions,
-                                automaticFunctionAllowList: automaticFunctionAllowList).ConfigureAwait(false);
+                                automaticFunctionAllowList: automaticFunctionAllowList,
+                                roleComplianceRetryCount: roleComplianceRetryCount,
+                                finalAnswerRecoveryEnabled: finalAnswerRecoveryEnabled,
+                                finalAnswerRecoveryMaxOutputTokens: finalAnswerRecoveryMaxOutputTokens).ConfigureAwait(false);
                             ArgumentNullException.ThrowIfNull(step);
                             liveCouncilSessions.SetParticipantActivityResult(
                                 result.RunId,
@@ -5653,8 +5680,23 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                     humanCollaboration.SetPreferredDirectUserMessageConsumer(councilRunId, consumerKey);
                     try
                     {
+                        // Rich participant activities are updated immediately on the producer side. The ordered
+                        // transcript is presentation-only, so coalesce its many tiny provider fragments into bounded
+                        // chunks. This prevents a completed member from spending minutes replaying thousands of
+                        // fragments through DXAIChat before later ordered presentation catches up.
+                        var orderedPresentationBuffer = new StringBuilder();
                         await foreach (var text in stream.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-                            streamUpdate(text);
+                        {
+                            if (string.IsNullOrEmpty(text))
+                                continue;
+                            orderedPresentationBuffer.Append(text);
+                            if (orderedPresentationBuffer.Length < 8192)
+                                continue;
+                            streamUpdate(orderedPresentationBuffer.ToString());
+                            orderedPresentationBuffer.Clear();
+                        }
+                        if (orderedPresentationBuffer.Length > 0)
+                            streamUpdate(orderedPresentationBuffer.ToString());
                     }
                     finally
                     {
@@ -6090,6 +6132,9 @@ BLOCKERS: none | <specific missing capability or ambiguity>
         /// <param name="useRunConfiguration">Value indicating whether use run configuration should apply to this operation.</param>
         /// <param name="enableAutomaticTools">Whether provider-native/DX automatic tool metadata is exposed for this exact workflow step.</param>
         /// <param name="automaticFunctionAllowList">Optional exact registered-function allow-list for this workflow step.</param>
+        /// <param name="roleComplianceRetryCount">Number of bounded corrective retries allowed for generic refusal or non-performance of the assigned role task.</param>
+        /// <param name="finalAnswerRecoveryEnabled">Whether a separate provider turn may recover a missing final answer after streamed thinking/tool activity.</param>
+        /// <param name="finalAnswerRecoveryMaxOutputTokens">Maximum output-token budget for the optional final-answer recovery turn.</param>
         /// <returns>The multi model council step produced by the operation.</returns>
         private async Task<MultiModelCouncilStep?> RunParticipantAsync(
             string baseUri,
@@ -6112,7 +6157,10 @@ BLOCKERS: none | <specific missing capability or ambiguity>
             Action<string>? progressMessage = null,
             bool useRunConfiguration = true,
             bool enableAutomaticTools = true,
-            IReadOnlyCollection<string>? automaticFunctionAllowList = null)
+            IReadOnlyCollection<string>? automaticFunctionAllowList = null,
+            int roleComplianceRetryCount = 1,
+            bool finalAnswerRecoveryEnabled = true,
+            int finalAnswerRecoveryMaxOutputTokens = 8192)
         {
             try
             {
@@ -6402,16 +6450,21 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                         .ConfigureAwait(false);
 
                     string? finalAnswerError = null;
-                    if (MultiModelCouncilServiceLooksLikeGenericRoleRefusal(visibleContent, logger))
+                    var roleComplianceFailureDetected = MultiModelCouncilServiceLooksLikeGenericRoleRefusal(visibleContent, logger);
+                    var roleComplianceSucceeded = !roleComplianceFailureDetected;
+                    var remainingRoleComplianceRetries = Math.Clamp(roleComplianceRetryCount, 0, 3);
+                    while (remainingRoleComplianceRetries > 0 && !roleComplianceSucceeded)
                     {
-                        progressMessage?.Invoke($"{modelName} did not perform its assigned {role} task. LocalGPT is issuing one bounded corrective retry to the same member and role.");
+                        var retryNumber = Math.Clamp(roleComplianceRetryCount, 0, 3) - remainingRoleComplianceRetries + 1;
+                        progressMessage?.Invoke($"{modelName} did not perform its assigned {role} task. LocalGPT is issuing corrective role retry {retryNumber}/{Math.Clamp(roleComplianceRetryCount, 0, 3)} to the same member and role.");
+                        streamUpdate?.Invoke($"<p class=\"localgpt-stream-status\"><em>LocalGPT detected generic role non-performance. Corrective same-member retry {retryNumber}/{Math.Clamp(roleComplianceRetryCount, 0, 3)} is starting; this is additional model work, not delayed UI rendering.</em></p>\n\n");
                         var complianceRecovery = await MultiModelCouncilServiceRunRoleComplianceRecoveryAsync(
                             client,
                             modelName,
                             phase,
                             role,
                             messages,
-                            Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 1024), 8192), catalog.MinOutputTokens, catalog.MaxOutputTokens),
+                            Math.Clamp(Math.Max(maxOutputTokens, catalog.MinOutputTokens), catalog.MinOutputTokens, catalog.MaxOutputTokens),
                             streamUpdate,
                             participantCts.Token,
                             logger).ConfigureAwait(false);
@@ -6423,23 +6476,34 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                             !MultiModelCouncilServiceLooksLikeGenericRoleRefusal(complianceRecovery.VisibleContent, logger))
                         {
                             visibleContent = complianceRecovery.VisibleContent;
+                            roleComplianceSucceeded = true;
+                            break;
                         }
-                        else
-                        {
-                            finalAnswerError = $"{modelName} declined or ignored its assigned {role} task after one bounded corrective retry.";
-                            visibleContent = $"_{finalAnswerError}_";
-                            logger.LogWarning("Council model {ModelName} failed role compliance for {Role} in phase {Phase} after one bounded retry.", modelName, role, phase);
-                        }
+
+                        visibleContent = complianceRecovery.VisibleContent;
+                        remainingRoleComplianceRetries--;
                     }
 
-                    if (finalAnswerError is null && MultiModelCouncilServiceIsThinkingOnlyCouncilContent(visibleContent, logger))
+                    if (roleComplianceFailureDetected && !roleComplianceSucceeded)
                     {
+                        var configuredRetryCount = Math.Clamp(roleComplianceRetryCount, 0, 3);
+                        finalAnswerError = configuredRetryCount == 0
+                            ? $"{modelName} declined or ignored its assigned {role} task and role-compliance retry is disabled for this workflow step."
+                            : $"{modelName} declined or ignored its assigned {role} task after {configuredRetryCount} configured corrective retry attempt(s).";
+                        visibleContent = $"_{finalAnswerError}_";
+                        logger.LogWarning("Council model {ModelName} failed role compliance for {Role} in phase {Phase} after {RetryCount} configured retry attempt(s).", modelName, role, phase, configuredRetryCount);
+                    }
+
+                    if (finalAnswerError is null && finalAnswerRecoveryEnabled && MultiModelCouncilServiceIsThinkingOnlyCouncilContent(visibleContent, logger))
+                    {
+                        progressMessage?.Invoke($"{modelName} returned provider thinking/non-final content without a substantive final answer. LocalGPT is starting the configured final-answer recovery pass.");
+                        streamUpdate?.Invoke("<p class=\"localgpt-stream-status\"><em>Provider stream ended without a substantive final answer. The configured final-answer recovery pass is starting now; this is additional model work and does not wait for frontend rendering.</em></p>\n\n");
                         var recovery = await MultiModelCouncilServiceRunFinalOnlyRecoveryAsync(
                             client,
                             modelName,
                             phase,
                             messages,
-                            Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 2048), 8192), catalog.MinOutputTokens, catalog.MaxOutputTokens),
+                            Math.Clamp(Math.Min(Math.Max(maxOutputTokens, 128), Math.Clamp(finalAnswerRecoveryMaxOutputTokens, 128, 32768)), catalog.MinOutputTokens, catalog.MaxOutputTokens),
                             streamUpdate,
                             participantCts.Token,
                             logger).ConfigureAwait(false);
@@ -6461,6 +6525,12 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                                 modelName,
                                 phase);
                         }
+                    }
+
+                    if (finalAnswerError is null && !finalAnswerRecoveryEnabled && MultiModelCouncilServiceIsThinkingOnlyCouncilContent(visibleContent, logger))
+                    {
+                        finalAnswerError = $"{modelName} did not emit a substantive final answer during {phase}; final-answer recovery is disabled for this workflow step.";
+                        visibleContent = $"_{finalAnswerError}_";
                     }
 
                     stopwatch.Stop();
@@ -6579,7 +6649,9 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                         && providerModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
                         && MultiModelCouncilServiceShouldUnloadAfterParticipant(keepAlive, logger))
                     {
-                        await RequestOllamaUnloadAsync(providerModel.Endpoint, providerModel.ModelName, cancellationToken).ConfigureAwait(false);
+                        // The originating Ollama request already carries keep_alive=0s. Do not issue a second
+                        // blocking unload HTTP request on the host-queue critical path after the model has finished.
+                        logger.LogDebug("Ollama model {ModelName} completed with keep_alive={KeepAlive}; the runtime request itself owns unload semantics.", providerModel.ModelName, keepAlive);
                     }
                 }
             }
@@ -7091,40 +7163,6 @@ BLOCKERS: none | <specific missing capability or ambiguity>
         throw;
     }
 }
-
-        /// <summary>
-        /// Performs request Ollama unload as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-        /// </summary>
-        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="modelName">Model name value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-        /// <returns>A task that completes when the operation has finished.</returns>
-        private async Task RequestOllamaUnloadAsync(string baseUri, string modelName, CancellationToken cancellationToken)
-        {
-            try
-            {
-                using var unloadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                unloadCts.CancelAfter(TimeSpan.FromSeconds(15));
-
-                using var http = new HttpClient
-                {
-                    BaseAddress = new Uri(baseUri),
-                    Timeout = TimeSpan.FromSeconds(15)
-                };
-
-                using var response = await http.PostAsJsonAsync(
-                    "/api/generate",
-                    new OllamaUnloadRequest { Model = modelName },
-                    unloadCts.Token).ConfigureAwait(false);
-
-                if (!response.IsSuccessStatusCode)
-                    logger.LogDebug("Ollama unload request for {ModelName} returned HTTP {StatusCode}.", modelName, response.StatusCode);
-            }
-            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
-            {
-                logger.LogDebug(ex, "Could not request Ollama unload for {ModelName}.", modelName);
-            }
-        }
 
         /// <summary>
         /// Retrieves configured Ollama providers as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.

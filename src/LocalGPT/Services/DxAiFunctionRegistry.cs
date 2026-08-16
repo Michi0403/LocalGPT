@@ -400,7 +400,10 @@ public sealed class DxAiFunctionRegistry(
             if (string.IsNullOrWhiteSpace(descriptor.ParameterSchemaJson))
                 return string.Empty;
             using var schemaDocument = JsonDocument.Parse(descriptor.ParameterSchemaJson);
-            return ValidateSchemaElement(schemaDocument.RootElement, parameters, "parameters");
+            var normalizedParameters = parameters;
+            if (normalizedParameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+                normalizedParameters = JsonSerializer.SerializeToElement(new Dictionary<string, object?>());
+            return ValidateSchemaElement(schemaDocument.RootElement, normalizedParameters, "parameters");
         }
         catch (JsonException exception)
         {
@@ -510,9 +513,11 @@ public sealed class DxAiFunctionRegistry(
                         additionalElement.ValueKind == JsonValueKind.False)
                     {
                         var allowed = propertiesElement.EnumerateObject().Select(property => property.Name).ToHashSet(StringComparer.Ordinal);
-                        var unexpected = value.EnumerateObject().FirstOrDefault(property => !allowed.Contains(property.Name));
-                        if (!string.IsNullOrWhiteSpace(unexpected.Name))
-                            return $"Parameter '{path}.{unexpected.Name}' is not allowed by the registered schema.";
+                        foreach (var proposedProperty in value.EnumerateObject())
+                        {
+                            if (!allowed.Contains(proposedProperty.Name))
+                                return $"Parameter '{path}.{proposedProperty.Name}' is not allowed by the registered schema.";
+                        }
                     }
                 }
             }
