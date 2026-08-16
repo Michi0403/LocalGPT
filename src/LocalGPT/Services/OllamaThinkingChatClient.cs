@@ -851,6 +851,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
                 return null;
             }
 
+            // Ollama receives transport-safe tool names rather than canonical DXFunction names. Reject any
+            // collision before native metadata is sent so two registry functions can never masquerade as one tool.
+            ValidateUniqueAutomaticToolNames(functions);
             logger.LogInformation("Attaching {FunctionCount} policy-approved automatic DXFunctions to Ollama model {Model}.", functions.Count, model);
             return functions.Select(function => new OllamaToolDefinition
             {

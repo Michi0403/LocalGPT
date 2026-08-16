@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Source-only compile-contract regression audit for LocalGPT 2.9.7 under current 2.9.8 source."""
+"""Source-only compile-contract regression audit for LocalGPT 2.9.7 under current 2.9.9 source."""
 from pathlib import Path
 import sys
 
@@ -22,7 +22,7 @@ try:
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
     ]:
-        require(rel, "<Version>2.9.8</Version>")
+        require(rel, "<Version>2.9.9</Version>")
 
     inbox = "src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor"
     forbid(inbox, "outcome.Succeeded")
@@ -49,7 +49,7 @@ try:
     require(protocol, "<Version>2.1.1</Version>")
     require(protocol, "<PackageVersion>2.1.1</PackageVersion>")
 
-    print("LocalGPT 2.9.7 compile-contract regression audit passed under 2.9.8.")
+    print("LocalGPT 2.9.7 compile-contract regression audit passed under 2.9.9.")
 except Exception as exc:
-    print(f"LocalGPT 2.9.7 compile-contract regression audit failed under 2.9.8: {exc}", file=sys.stderr)
+    print(f"LocalGPT 2.9.7 compile-contract regression audit failed under 2.9.9: {exc}", file=sys.stderr)
     raise SystemExit(1)

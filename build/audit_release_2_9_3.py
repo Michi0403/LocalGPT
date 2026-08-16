@@ -10,7 +10,7 @@ def forbid(rel, needle):
     if needle in read(rel): raise AssertionError(f"{rel}: forbidden {needle!r}")
 try:
     for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-        require(rel,'<Version>2.9.8</Version>')
+        require(rel,'<Version>2.9.9</Version>')
     protocol='src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
     require(protocol,'<Version>2.1.1</Version>'); require(protocol,'<PackageVersion>2.1.1</PackageVersion>')
 
@@ -69,6 +69,6 @@ try:
     require('src/LocalGPT/Services/FirstRunOnboardingService.cs','Calibrate installed models first')
     require('src/LocalGPT/Services/LocalGptCatalogService.cs','Run the recommended first-install model calibration')
     require('src/LocalGPT/Services/LocalGptCatalogService.cs','Do not sample representatives')
-    print('LocalGPT 2.9.3 deterministic benchmark calibration/seed-preservation regression audit passed under 2.9.8.')
+    print('LocalGPT 2.9.3 deterministic benchmark calibration/seed-preservation regression audit passed under 2.9.9.')
 except Exception as exc:
     print(f'LocalGPT 2.9.3 regression audit failed: {exc}',file=sys.stderr); raise SystemExit(1)

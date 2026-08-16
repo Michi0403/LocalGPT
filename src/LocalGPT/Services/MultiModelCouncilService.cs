@@ -3593,7 +3593,6 @@ BLOCKERS: none | <specific missing capability or ambiguity>
         /// Builds configured workflow previous step.
         /// </summary>
         /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
-        /// <param name="team">Configured social team controlling preflight context visibility.</param>
         /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="roleAssignment">Role assignment value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="logicalRound">Logical round value supplied to the multi model council operation and used when producing its result.</param>
@@ -3774,8 +3773,9 @@ BLOCKERS: none | <specific missing capability or ambiguity>
             CouncilAutomaticFunctionPolicyResolution automaticFunctionPolicy,
             CancellationToken cancellationToken)
         {
-    try
-    {
+            var activityKey = BuildCouncilParticipantActivityKey(round, phase, definition.Role, modelName);
+            try
+            {
                 var plan = modelRoutes.TryGetValue(modelName, out var configuredPlan)
                     ? configuredPlan
                     : new CouncilHardwareRoadPlan(
@@ -3789,6 +3789,31 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                         maxContextTokens,
                         ollamaNumGpu,
                         1);
+                var routeLabel = $"{GetCouncilExecutionHostKey(modelName)} · {plan.LaneKey}";
+                liveCouncilSessions.BeginParticipantActivity(result.RunId, activityKey, modelName, phase, definition.Role, routeLabel);
+                liveCouncilSessions.SetParticipantActivityStatus(result.RunId, activityKey, $"Running on {routeLabel}.");
+
+                // Configured single/sequential workflow steps must expose the same rich producer-side lane as
+                // parallel Council phases. Keep that lane current on every provider fragment, but coalesce the
+                // ordered DXAIChat copy so browser presentation can never become a prerequisite for model progress.
+                var orderedPresentationBuffer = request.StreamUpdate is null ? null : new StringBuilder();
+                Action<string> participantStreamUpdate = text =>
+                {
+                    if (string.IsNullOrEmpty(text))
+                        return;
+
+                    liveCouncilSessions.AppendParticipantActivity(result.RunId, activityKey, text);
+                    if (orderedPresentationBuffer is null)
+                        return;
+
+                    orderedPresentationBuffer.Append(text);
+                    if (orderedPresentationBuffer.Length < 8192)
+                        return;
+
+                    request.StreamUpdate!(orderedPresentationBuffer.ToString());
+                    orderedPresentationBuffer.Clear();
+                };
+
                 MultiModelCouncilStep? participantStep;
                 var roundSkipToken = runConfigurations.GetRoundCancellationToken(result.RunId, round, phase);
                 try
@@ -3826,7 +3851,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                             plan.OllamaNumGpu,
                             plan.EffectiveMaxContextTokens,
                             modelTimeoutSeconds,
-                            request.StreamUpdate,
+                            participantStreamUpdate,
                             participantCancellation.Token,
                             fallbackPlan: plan,
                             progressMessage: request.ProgressMessage,
@@ -3840,9 +3865,30 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                 catch (OperationCanceledException) when (roundSkipToken.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
                 {
                     participantStep = CreateRoundSkippedStep(modelName, participants, round, phase, definition.Role, plan);
+                    liveCouncilSessions.CompleteParticipantActivity(
+                        result.RunId,
+                        activityKey,
+                        "Participant was skipped because the current Council phase was cancelled.");
+                }
+
+                if (orderedPresentationBuffer is { Length: > 0 })
+                {
+                    request.StreamUpdate!(orderedPresentationBuffer.ToString());
+                    orderedPresentationBuffer.Clear();
                 }
 
                 ArgumentNullException.ThrowIfNull(participantStep);
+                liveCouncilSessions.SetParticipantActivityResult(result.RunId, activityKey, participantStep.VisibleContent);
+                if (!roundSkipToken.IsCancellationRequested || cancellationToken.IsCancellationRequested)
+                {
+                    liveCouncilSessions.CompleteParticipantActivity(
+                        result.RunId,
+                        activityKey,
+                        string.IsNullOrWhiteSpace(participantStep.Error)
+                            ? "Model completed. Its thinking, function activity and answer are already available in this live lane; the ordered transcript copy is synchronized separately."
+                            : $"Model completed with an error: {participantStep.Error}");
+                }
+
                 await AddCouncilStepAsync(
                     result,
                     participantStep,
@@ -3850,17 +3896,28 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                     request.ProgressMessage,
                     allowDxFunctions,
                     cancellationToken).ConfigureAwait(false);
-        
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(RunConfiguredParticipantAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(RunConfiguredParticipantAsync)} failed.");
-        throw;
-    }
-}
+            }
+            catch (Exception __serviceMethodException)
+            {
+                if (__serviceMethodException is OperationCanceledException)
+                {
+                    liveCouncilSessions.CompleteParticipantActivity(
+                        result.RunId,
+                        activityKey,
+                        "Configured participant was cancelled before its Council step completed.");
+                    logger.LogDebug(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(RunConfiguredParticipantAsync)} was canceled.");
+                }
+                else
+                {
+                    liveCouncilSessions.CompleteParticipantActivity(
+                        result.RunId,
+                        activityKey,
+                        $"Configured participant failed before its Council step could complete: {__serviceMethodException.Message}");
+                    logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(RunConfiguredParticipantAsync)} failed.");
+                }
+                throw;
+            }
+        }
 
         /// <summary>
         /// Performs select configured workflow participant as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.

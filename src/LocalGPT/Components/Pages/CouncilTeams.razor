@@ -534,13 +534,13 @@
                         </div>
                         @if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.TeamAllowList)
                         {
-                            <p class="hint">This step uses the team's persisted allow-list: @(step.CanUseOrganicFunctions && _editor.AllowedAutomaticFunctions.Count > 0 ? string.Join(", ", _editor.AllowedAutomaticFunctions) : "no functions selected")</p>
+                            <p class="hint">This step uses the team's persisted allow-list: @(step.CanUseOrganicFunctions && _editor.AllowedAutomaticFunctions.Count > 0 ? CouncilText.FormatInlineNameList(_editor.AllowedAutomaticFunctions) : "no functions selected")</p>
                         }
                         else if (step.AutomaticFunctionPolicyMode == CouncilAutomaticFunctionPolicyMode.ExactAllowList)
                         {
                             <label class="wide">
                                 <span>Exact automatic/native function names · one per line</span>
-                                <textarea class="form-control council-script" rows="4" value="@string.Join(Environment.NewLine, step.AllowedAutomaticFunctions)" @onchange="args => SetStepAutomaticFunctions(step, args)"></textarea>
+                                <textarea class="form-control council-script" rows="4" value="@CouncilText.FormatMultilineNameList(step.AllowedAutomaticFunctions)" @onchange="args => SetStepAutomaticFunctions(step, args)"></textarea>
                             </label>
                         }
                         <details class="council-advanced-section">
@@ -1333,12 +1333,7 @@
 
     private void SetStepAutomaticFunctions(CouncilWorkflowStepDefinition step, ChangeEventArgs args)
     {
-        step.AllowedAutomaticFunctions = (args.Value?.ToString() ?? string.Empty)
-            .Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(value => value.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        step.AllowedAutomaticFunctions = CouncilText.ParseUserEditableNameList(args.Value?.ToString());
         _confirmed = false;
     }
 

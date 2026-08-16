@@ -291,6 +291,65 @@ namespace LocalGPT.Services
         }
 
         /// <summary>
+        /// Parses a user-editable list of stable names from newline, comma, or semicolon separated text.
+        /// </summary>
+        /// <param name="value">User-edited text containing zero or more names.</param>
+        /// <returns>A case-insensitively distinct, ordinally sorted list suitable for persisted configuration.</returns>
+        public List<string> ParseUserEditableNameList(string? value)
+        {
+            try
+            {
+                return (value ?? string.Empty)
+                    .Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(item => item.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Council text operation {Operation} failed while parsing a user-editable name list.", nameof(ParseUserEditableNameList));
+                return [];
+            }
+        }
+
+        /// <summary>
+        /// Formats stable names for compact inline display without moving list formatting into a component.
+        /// </summary>
+        /// <param name="values">Names to present.</param>
+        /// <returns>The comma-separated presentation string.</returns>
+        public string FormatInlineNameList(IEnumerable<string>? values)
+        {
+            try
+            {
+                return values is null ? string.Empty : string.Join(", ", values);
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Council text operation {Operation} failed while formatting an inline name list.", nameof(FormatInlineNameList));
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Formats stable names as one value per line for a user-editable text surface.
+        /// </summary>
+        /// <param name="values">Names to present.</param>
+        /// <returns>The newline-separated presentation string.</returns>
+        public string FormatMultilineNameList(IEnumerable<string>? values)
+        {
+            try
+            {
+                return values is null ? string.Empty : string.Join(Environment.NewLine, values);
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Council text operation {Operation} failed while formatting a multiline name list.", nameof(FormatMultilineNameList));
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
         /// Normalizes name as part of the council text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
         /// <param name="value">Value value supplied to the council text operation and used when producing its result.</param>
