@@ -24,14 +24,14 @@ try:
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
     ]:
-        require(rel, "<Version>2.9.4</Version>")
+        require(rel, "<Version>2.9.5</Version>")
 
     protocol = "src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj"
     require(protocol, "<Version>2.1.1</Version>")
     require(protocol, "<PackageVersion>2.1.1</PackageVersion>")
 
     cfg = "src/LocalGPT/Services/CouncilTeamConfigurationService.cs"
-    require(cfg, "private const int CurrentSeedVersion = 22;")
+    require(cfg, "private const int CurrentSeedVersion = 23;")
     require(cfg, "if (row.IsSystemSeed && row.IsUserModified)")
     require(cfg, "Recovered supplied Council seed")
 

@@ -24,12 +24,12 @@ try:
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
     ]:
-        require(rel, "<Version>2.9.4</Version>")
+        require(rel, "<Version>2.9.5</Version>")
     require("src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj", "<Version>2.1.1</Version>")
     require("src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj", "<PackageVersion>2.1.1</PackageVersion>")
 
     cfg="src/LocalGPT/Services/CouncilTeamConfigurationService.cs"
-    require(cfg, "private const int CurrentSeedVersion = 22;")
+    require(cfg, "private const int CurrentSeedVersion = 23;")
     require(cfg, '"SystemBenchmarkCalibration"')
     require(cfg, "if (row is { IsSystemSeed: true })")
     require(cfg, "CreateUniqueUserCopyKey")

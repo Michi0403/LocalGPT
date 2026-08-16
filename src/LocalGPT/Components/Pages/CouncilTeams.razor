@@ -62,6 +62,35 @@
                 <label class="wide"><span>Purpose</span><textarea class="form-control" rows="3" @bind="_editor.Purpose"></textarea></label>
             </div>
 
+            <details class="council-advanced-section" open="@(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault)">
+                <summary>All-members readiness preflight · @PreflightModeLabel</summary>
+                <p class="hint">Optional team-level preflight before substantive role work. Legacy compatibility preserves the historical behavior: supplied built-in orchestration keeps its established readiness phase while literal custom workflows add none. The benchmark seed disables this by default. A role-aware probe checks every selected member against its assigned role responsibilities without asking it to solve the original user request.</p>
+                <div class="council-workflow-fields">
+                    <label>
+                        <span>Preflight mode</span>
+                        <select class="form-select" @bind="_editor.AllMembersReadinessPreflightMode">
+                            @foreach (var mode in AllMembersReadinessPreflightModes)
+                            {
+                                <option value="@mode.Value">@mode.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        <span>Maximum output tokens per member</span>
+                        <input class="form-control" type="number" min="32" max="2048" @bind="_editor.AllMembersReadinessPreflightMaxOutputTokens" disabled="@(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe)" />
+                    </label>
+                    <label class="wide">
+                        <span>Role-aware preflight prompt override (optional)</span>
+                        <textarea class="form-control council-script" rows="5" @bind="_editor.AllMembersReadinessPreflightPromptTemplate" disabled="@(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe)" placeholder="Blank uses the maintained compact probe. Placeholders: {{ModelName}}, {{TeamName}}, {{AssignedRoles}}, {{RoleResponsibilities}}"></textarea>
+                    </label>
+                </div>
+                <label class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" @bind="_editor.IncludeAllMembersReadinessPreflightInWorkflowContext" disabled="@(_editor.AllMembersReadinessPreflightMode != CouncilAllMembersReadinessPreflightMode.RoleAwareProbe)" />
+                    <span>Include all preflight member output in later workflow model context (can be very large on big Councils)</span>
+                </label>
+                <p class="hint mb-0">When this context option is off, preflight responses remain visible and persisted as run evidence but are filtered out of later model transcript context. This prevents 100+ member readiness chatter from consuming the task budget.</p>
+            </details>
+
             <details class="council-best-use-functions">
                 <summary @onclick="ToggleDxFunctionPickerAsync">Best-use DXFunctions (@_editor.PreferredCapabilities.Count selected)</summary>
                 @if (!_dxFunctionPickerExpanded)
@@ -557,6 +586,12 @@
         ("AssignedModelSingle", "Assigned model only"),
         ("SystemBenchmarkCalibration", "LocalGPT all-member benchmark calibration engine")
     ];
+    private readonly IReadOnlyList<(CouncilAllMembersReadinessPreflightMode Value, string Label)> AllMembersReadinessPreflightModes =
+    [
+        (CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault, "Legacy compatibility (built-in readiness only)"),
+        (CouncilAllMembersReadinessPreflightMode.Disabled, "Disabled"),
+        (CouncilAllMembersReadinessPreflightMode.RoleAwareProbe, "Role-aware probe for every selected member")
+    ];
     private readonly IReadOnlyList<(CouncilRoleResultSynthesisMemberMode Value, string Label)> RoleResultSynthesisMemberModes =
     [
         (CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember, "Random assigned role member (stable per run)"),
@@ -620,6 +655,9 @@
     private bool _dxFunctionsLoaded;
     private bool _providerModelsRefreshing;
 
+    private string PreflightModeLabel => AllMembersReadinessPreflightModes
+        .FirstOrDefault(item => item.Value == _editor.AllMembersReadinessPreflightMode).Label
+        ?? _editor.AllMembersReadinessPreflightMode.ToString();
     private int EnabledRoundCount => _editor.WorkflowSteps.Count(step => step.IsEnabled);
     private int ExpandedRoundCount => CalculateExpandedRoundCount(_editor.WorkflowSteps);
     private IEnumerable<DxAiFunctionCatalogEntry> AvailableDxFunctions => _dxFunctions

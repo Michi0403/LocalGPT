@@ -972,6 +972,9 @@ Original learning request:
         Key = "adaptive-model-benchmark",
         DisplayName = "Initial Hardware Calibration Benchmark",
         Purpose = "First-run benchmark social structure for all selected provider-qualified Council members. The workflow first freezes the exact target set, then Task Curators prepare one concrete checkable task pack, every selected Benchmark Subject executes that assigned role task pack, LocalGPT deterministically measures every benchmark-capable member at four profile points using the maintained task suite, and only then do independent roles curate quality, audit coverage, analyze performance and synthesize measured Low, Middle, High and Expert hardware-spooler profiles.",
+        AllMembersReadinessPreflightMode = CouncilAllMembersReadinessPreflightMode.Disabled,
+        IncludeAllMembersReadinessPreflightInWorkflowContext = false,
+        AllMembersReadinessPreflightMaxOutputTokens = 192,
         Roles =
         [
             new()
@@ -1102,6 +1105,7 @@ Your assigned role task is final profile synthesis only. Produce the final visib
         [
             .. DefaultArchitectureContracts(),
             "The supplied benchmark seed is immutable configuration data. Saving edits creates a user-owned literal copy; later seed versions restore and evolve the supplied default without deleting the user's copy.",
+            "The optional all-members readiness preflight is disabled for the supplied benchmark seed so large Councils do not bloat later task context. Users may enable the team-level role-aware preflight explicitly in Council Teams without changing benchmark evidence rules.",
             "Every selected Council member executes the same consolidated four-task Benchmark Subject pack before deterministic measurement begins; a readiness-only turn is not considered benchmark evidence.",
             "Every distinct selected provider-qualified member that supports the maintained benchmark contract is attempted by the deterministic LocalGPT benchmark engine across four profile points and the complete maintained four-task suite. Models cannot reduce the target set.",
             "The deterministic benchmark uses four measured profile points with early-stop disabled. Failed or unsupported members remain explicit coverage evidence and are never assigned invented token limits.",

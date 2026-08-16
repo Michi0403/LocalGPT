@@ -90,6 +90,18 @@ public enum CouncilTranscriptVisibilityMode
     None
 }
 
+/// <summary>Defines whether a Council team runs an all-members model-readiness preflight before substantive workflow work.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilAllMembersReadinessPreflightMode
+{
+    /// <summary>Preserves historical behavior: supplied built-in orchestration runs its existing readiness phase while literal custom workflows do not add one.</summary>
+    LegacyWorkflowDefault,
+    /// <summary>Skips the all-members model-readiness phase.</summary>
+    Disabled,
+    /// <summary>Runs one compact role-aware readiness probe for every selected Council member before substantive workflow steps.</summary>
+    RoleAwareProbe
+}
+
 /// <summary>Defines one editable LocalGPT Council team, its roles, workflow and architecture contracts.</summary>
 [DocumentationUpdated("2.1.20")]
 public sealed class OrganicCouncilTeamDefinition
@@ -125,6 +137,18 @@ public sealed class OrganicCouncilTeamDefinition
     /// <summary>Gets or sets the literal ordered Council workflow.</summary>
     /// <value>The workflow steps value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public List<CouncilWorkflowStepDefinition> WorkflowSteps { get; set; } = [];
+    /// <summary>Gets or sets the optional all-members model-readiness preflight policy used before substantive team workflow work.</summary>
+    /// <value>The configured preflight mode. Legacy mode preserves the historical built-in-versus-literal workflow behavior.</value>
+    public CouncilAllMembersReadinessPreflightMode AllMembersReadinessPreflightMode { get; set; } = CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault;
+    /// <summary>Gets or sets whether explicit all-members preflight member output is allowed into later model workflow context.</summary>
+    /// <value><see langword="true"/> to expose the potentially large preflight transcript to later workflow prompts; otherwise it stays visible only as run evidence.</value>
+    public bool IncludeAllMembersReadinessPreflightInWorkflowContext { get; set; }
+    /// <summary>Gets or sets the maximum output-token budget for each explicit role-aware preflight probe.</summary>
+    /// <value>A small positive token budget used only by the optional preflight phase.</value>
+    public int AllMembersReadinessPreflightMaxOutputTokens { get; set; } = 192;
+    /// <summary>Stores the user-authored role-aware prompt override used only by the optional all-members readiness preflight.</summary>
+    /// <value>An optional template supporting {{ModelName}}, {{TeamName}}, {{AssignedRoles}} and {{RoleResponsibilities}}. Blank uses the maintained compact readiness probe.</value>
+    public string AllMembersReadinessPreflightPromptTemplate { get; set; } = string.Empty;
     /// <summary>Gets or sets the expert-preparation prompt used by the built-in workflow.</summary>
     /// <value>The expert preparation prompt template value exposed by <see cref="OrganicCouncilTeamDefinition"/>.</value>
     public string ExpertPreparationPromptTemplate { get; set; } = string.Empty;

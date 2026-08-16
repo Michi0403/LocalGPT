@@ -478,32 +478,62 @@ namespace LocalGPT.Services
                 string baseBootstrap;
                 if (UsesBuiltInCouncilWorkflow(organicTeam))
                 {
-                var readinessBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Readiness and introductions", bootstrap, cancellationToken).ConfigureAwait(false);
-                await RunPhaseAsync(
-                    result,
-                    baseUri,
-                    participants,
-                    round: 0,
-                    phase: "Readiness",
-                    role: "Hardware, skill, DXFunction and organic-organ readiness introduction",
-                    promptFactory: modelName => councilPreflight.BuildMemberReadinessPrompt(modelName, participants, preflight),
-                    readinessBootstrap,
-                    request.MaxOutputTokens,
-                    maxParallelModels,
-                    keepAlive,
-                    ollamaNumGpu,
-                    maxContextTokens,
-                    modelTimeoutSeconds,
-                    request.ProgressMessage,
-                    request.StreamUpdate,
-                    request.StepCompleted,
-                    modelRoutes,
-                    request.AllowParallelHardwareRoads,
-                    cancellationToken).ConfigureAwait(false);
-                var readinessTranscript = councilText.MultiModelCouncilServiceBuildTranscript(
-                    result.Steps.Where(step => step.Phase.StartsWith("Readiness", StringComparison.Ordinal)),
-                    logger);
-                bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Council member readiness and introductions", readinessTranscript, logger);
+                var readinessTranscript = string.Empty;
+                var includeReadinessInWorkflowContext = false;
+                if (organicTeam.AllMembersReadinessPreflightMode == CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault)
+                {
+                    var readinessBootstrap = await PrepareHumanHeartbeatAsync(result, request, 0, "Readiness and introductions", bootstrap, cancellationToken).ConfigureAwait(false);
+                    await RunPhaseAsync(
+                        result,
+                        baseUri,
+                        participants,
+                        round: 0,
+                        phase: "Readiness",
+                        role: "Hardware, skill, DXFunction and organic-organ readiness introduction",
+                        promptFactory: modelName => councilPreflight.BuildMemberReadinessPrompt(modelName, participants, preflight),
+                        readinessBootstrap,
+                        request.MaxOutputTokens,
+                        maxParallelModels,
+                        keepAlive,
+                        ollamaNumGpu,
+                        maxContextTokens,
+                        modelTimeoutSeconds,
+                        request.ProgressMessage,
+                        request.StreamUpdate,
+                        request.StepCompleted,
+                        modelRoutes,
+                        request.AllowParallelHardwareRoads,
+                        cancellationToken).ConfigureAwait(false);
+                    readinessTranscript = councilText.MultiModelCouncilServiceBuildTranscript(
+                        result.Steps.Where(step => step.Phase.StartsWith("Readiness", StringComparison.Ordinal)),
+                        logger);
+                    includeReadinessInWorkflowContext = true;
+                }
+                else if (organicTeam.AllMembersReadinessPreflightMode == CouncilAllMembersReadinessPreflightMode.RoleAwareProbe)
+                {
+                    var preflightRoleAssignments = BuildConfiguredRoleAssignments(result, request, organicTeam, participants);
+                    await RunConfiguredAllMembersReadinessPreflightAsync(
+                        result,
+                        request,
+                        organicTeam,
+                        baseUri,
+                        participants,
+                        bootstrap,
+                        modelRoutes,
+                        keepAlive,
+                        ollamaNumGpu,
+                        maxContextTokens,
+                        modelTimeoutSeconds,
+                        preflightRoleAssignments,
+                        cancellationToken).ConfigureAwait(false);
+                    readinessTranscript = councilText.MultiModelCouncilServiceBuildTranscript(
+                        result.Steps.Where(IsConfiguredAllMembersReadinessPreflightStep),
+                        logger);
+                    includeReadinessInWorkflowContext = organicTeam.IncludeAllMembersReadinessPreflightInWorkflowContext;
+                }
+
+                if (includeReadinessInWorkflowContext && !string.IsNullOrWhiteSpace(readinessTranscript))
+                    bootstrap = MultiModelCouncilServiceAppendPromptSection(bootstrap, "Council member readiness and introductions", readinessTranscript, logger);
 
                 var requestedLeader = participants.FirstOrDefault(model => string.Equals(model, request.CouncilLeaderModelName, StringComparison.OrdinalIgnoreCase));
                 var leaderModel = SelectHealthyParticipant(result, participants, requestedLeader);
@@ -517,7 +547,9 @@ namespace LocalGPT.Services
                     preparationStep = await RunParticipantAsync(
                         baseUri, leaderModel, participants, 0, "Expert preparation", "RegEx, database, language, science and domain preparation expert",
                         organicCouncilBlueprints.BuildExpertPreparationPrompt(request, organicTeam) + Environment.NewLine + Environment.NewLine +
-                        "Mandatory readiness evidence:" + Environment.NewLine + readinessTranscript + Environment.NewLine + Environment.NewLine +
+                        (includeReadinessInWorkflowContext && !string.IsNullOrWhiteSpace(readinessTranscript)
+                            ? "Readiness evidence:" + Environment.NewLine + readinessTranscript + Environment.NewLine + Environment.NewLine
+                            : string.Empty) +
                         "Before planning, check the relevant database/project/chat-memory/knowledge/regex links. Identify missing current facts and formulate exact user questions rather than guessing.",
                         preparationBootstrap, leaderPlan.EffectiveMaxOutputTokens, keepAlive,
                         leaderPlan.OllamaNumGpu, leaderPlan.EffectiveMaxContextTokens, modelTimeoutSeconds,
@@ -608,7 +640,7 @@ namespace LocalGPT.Services
                         phaseName,
                         baseBootstrap,
                         cancellationToken).ConfigureAwait(false);
-                    var transcript = councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger);
+                    var transcript = councilText.MultiModelCouncilServiceBuildTranscript(GetCouncilWorkflowContextSteps(result.Steps, organicTeam), logger);
                     await RunPhaseAsync(
                         result,
                         baseUri,
@@ -653,7 +685,7 @@ namespace LocalGPT.Services
                         "Consensus",
                         baseBootstrap,
                         cancellationToken).ConfigureAwait(false);
-                    var finalTranscript = councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger);
+                    var finalTranscript = councilText.MultiModelCouncilServiceBuildTranscript(GetCouncilWorkflowContextSteps(result.Steps, organicTeam), logger);
                     var consensusModel = SelectHealthyParticipant(result, participants);
                     MultiModelCouncilStep? consensusStep;
                     using (ambientContext.PushCouncil(result.RunId, consensusRound, "Consensus"))
@@ -707,7 +739,7 @@ namespace LocalGPT.Services
                                 round: verificationRound,
                                 phase: "Verification",
                                 role: "Peer verifier",
-                                prompt: AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateVerificationPrompt(request.Prompt, councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger), consensusStep.VisibleContent, logger)),
+                                prompt: AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateVerificationPrompt(request.Prompt, councilText.MultiModelCouncilServiceBuildTranscript(GetCouncilWorkflowContextSteps(result.Steps, organicTeam), logger), consensusStep.VisibleContent, logger)),
                                 verificationBootstrap,
                                 request.MaxOutputTokens,
                                 keepAlive,
@@ -785,7 +817,7 @@ namespace LocalGPT.Services
                             "Peer integrator",
                             AppendHumanPeerReviewInstruction(councilText.MultiModelCouncilServiceCreateVerificationPrompt(
                                 request.Prompt,
-                                councilText.MultiModelCouncilServiceBuildTranscript(result.Steps, logger),
+                                councilText.MultiModelCouncilServiceBuildTranscript(GetCouncilWorkflowContextSteps(result.Steps, organicTeam), logger),
                                 result.FinalAnswer,
                                 logger)),
                             finalHumanBootstrap,
@@ -993,6 +1025,190 @@ namespace LocalGPT.Services
         throw;
     }
 }
+
+        /// <summary>Runs the explicitly configured role-aware all-members readiness preflight without making it part of substantive workflow state.</summary>
+        /// <param name="result">Council result that owns the visible preflight evidence.</param>
+        /// <param name="request">Current Council request.</param>
+        /// <param name="team">Configured social team.</param>
+        /// <param name="baseUri">Default provider base URI.</param>
+        /// <param name="participants">All selected provider-qualified Council members.</param>
+        /// <param name="bootstrap">Existing run bootstrap context.</param>
+        /// <param name="modelRoutes">Resolved hardware-road plans.</param>
+        /// <param name="keepAlive">Provider keep-alive value.</param>
+        /// <param name="ollamaNumGpu">Optional Ollama GPU-layer override.</param>
+        /// <param name="maxContextTokens">Run context-token ceiling.</param>
+        /// <param name="modelTimeoutSeconds">Per-model timeout.</param>
+        /// <param name="roleAssignments">Resolved configured role assignments for the run.</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
+        /// <returns>A task that completes after every selected member has finished or failed its optional preflight probe.</returns>
+        private async Task RunConfiguredAllMembersReadinessPreflightAsync(
+            MultiModelCouncilResult result,
+            MultiModelCouncilRequest request,
+            OrganicCouncilTeamDefinition team,
+            string baseUri,
+            IReadOnlyList<string> participants,
+            string bootstrap,
+            IReadOnlyDictionary<string, CouncilHardwareRoadPlan> modelRoutes,
+            string keepAlive,
+            int? ollamaNumGpu,
+            int maxContextTokens,
+            int modelTimeoutSeconds,
+            IReadOnlyDictionary<string, CouncilRoleRuntimeAssignment> roleAssignments,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var preflightBootstrap = await PrepareHumanHeartbeatAsync(
+                    result,
+                    request,
+                    0,
+                    "Team preflight",
+                    bootstrap,
+                    cancellationToken).ConfigureAwait(false);
+                var maxOutputTokens = Math.Min(
+                    request.MaxOutputTokens,
+                    Math.Clamp(team.AllMembersReadinessPreflightMaxOutputTokens, 32, 2048));
+
+                request.ProgressMessage?.Invoke(
+                    $"Running optional all-members readiness preflight for team {team.DisplayName}: {participants.Count} selected member(s), role-aware probe, maximum {maxOutputTokens} output token(s) per member. Preflight output is {(team.IncludeAllMembersReadinessPreflightInWorkflowContext ? "included in" : "excluded from")} later workflow model context.");
+
+                await RunPhaseAsync(
+                    result,
+                    baseUri,
+                    participants,
+                    round: 0,
+                    phase: "Team preflight",
+                    role: "All-members readiness preflight",
+                    promptFactory: modelName => BuildConfiguredAllMembersReadinessPrompt(modelName, team, roleAssignments),
+                    preflightBootstrap,
+                    maxOutputTokens,
+                    1,
+                    keepAlive,
+                    ollamaNumGpu,
+                    maxContextTokens,
+                    modelTimeoutSeconds,
+                    request.ProgressMessage,
+                    request.StreamUpdate,
+                    request.StepCompleted,
+                    modelRoutes,
+                    request.AllowParallelHardwareRoads,
+                    cancellationToken,
+                    allowDxFunctions: false,
+                    councilMembers: participants,
+                    sequentialPerHost: true).ConfigureAwait(false);
+            }
+            catch (Exception __serviceMethodException)
+            {
+                if (__serviceMethodException is OperationCanceledException)
+                    logger.LogDebug(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(RunConfiguredAllMembersReadinessPreflightAsync)} was canceled.");
+                else
+                    logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(RunConfiguredAllMembersReadinessPreflightAsync)} failed.");
+                throw;
+            }
+        }
+
+        /// <summary>Builds one compact team preflight prompt from the member's actual configured role assignments.</summary>
+        /// <param name="modelName">Provider-qualified member identity.</param>
+        /// <param name="team">Configured social team.</param>
+        /// <param name="roleAssignments">Resolved role assignments for the run.</param>
+        /// <returns>A compact preflight-only prompt that does not ask the member to execute substantive role work.</returns>
+        private string BuildConfiguredAllMembersReadinessPrompt(
+            string modelName,
+            OrganicCouncilTeamDefinition team,
+            IReadOnlyDictionary<string, CouncilRoleRuntimeAssignment> roleAssignments)
+        {
+            try
+            {
+                var assigned = roleAssignments.Values
+                    .Where(assignment => assignment.AiParticipants.Contains(modelName, StringComparer.OrdinalIgnoreCase))
+                    .OrderBy(assignment => assignment.RoleName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var assignedRoles = assigned.Count == 0
+                    ? "none"
+                    : string.Join(", ", assigned.Select(assignment => assignment.RoleName));
+                var responsibilities = assigned.Count == 0
+                    ? "No AI workflow role is assigned to this member in the current run. Report that as a preflight blocker."
+                    : string.Join(Environment.NewLine, assigned.Select(assignment =>
+                        $"- {assignment.RoleName}: {(string.IsNullOrWhiteSpace(assignment.Definition?.Responsibility) ? "follow the configured workflow-step role task exactly" : assignment.Definition.Responsibility)}"));
+
+                var configuredTemplate = team.AllMembersReadinessPreflightPromptTemplate?.Trim() ?? string.Empty;
+                var prompt = string.IsNullOrWhiteSpace(configuredTemplate)
+                    ? $"""
+This is an optional team readiness preflight only. Do not execute the user's original request and do not perform the substantive workflow tasks yet.
+Provider-qualified member: {modelName}
+Team: {team.DisplayName}
+Assigned role(s): {assignedRoles}
+Assigned role responsibilities:
+{responsibilities}
+
+Confirm only whether you can later execute the role tasks listed above. Do not plan the whole Council, do not take over another role, do not call tools, and do not produce benchmark/profile results during this preflight.
+Return exactly three short lines:
+READINESS: Ready | Blocked
+ROLES: <the assigned role names you understand>
+BLOCKERS: none | <specific missing capability or ambiguity>
+"""
+                    : configuredTemplate
+                        .Replace("{{ModelName}}", modelName, StringComparison.Ordinal)
+                        .Replace("{{TeamName}}", team.DisplayName, StringComparison.Ordinal)
+                        .Replace("{{AssignedRoles}}", assignedRoles, StringComparison.Ordinal)
+                        .Replace("{{RoleResponsibilities}}", responsibilities, StringComparison.Ordinal);
+
+                return prompt.Trim() + Environment.NewLine + Environment.NewLine +
+                    "Preflight boundary: the current role task remains authoritative when substantive workflow execution starts. The original user request is background context only and must not replace an assigned role task.";
+            }
+            catch (Exception __serviceMethodException)
+            {
+                if (__serviceMethodException is OperationCanceledException)
+                    logger.LogDebug(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(BuildConfiguredAllMembersReadinessPrompt)} was canceled.");
+                else
+                    logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(BuildConfiguredAllMembersReadinessPrompt)} failed.");
+                throw;
+            }
+        }
+
+        /// <summary>Returns whether a Council step belongs to the explicit configurable all-members preflight phase.</summary>
+        /// <param name="step">Council step to inspect.</param>
+        /// <returns><see langword="true"/> when the step is explicit preflight evidence.</returns>
+        private bool IsConfiguredAllMembersReadinessPreflightStep(MultiModelCouncilStep step)
+        {
+            try
+            {
+                return string.Equals(step.Phase, "Team preflight", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(step.Role, "All-members readiness preflight", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception __serviceMethodException)
+            {
+                if (__serviceMethodException is OperationCanceledException)
+                    logger.LogDebug(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(IsConfiguredAllMembersReadinessPreflightStep)} was canceled.");
+                else
+                    logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(IsConfiguredAllMembersReadinessPreflightStep)} failed.");
+                throw;
+            }
+        }
+
+        /// <summary>Filters explicit preflight chatter out of later model context unless the team explicitly opted in.</summary>
+        /// <param name="steps">Council steps accumulated so far.</param>
+        /// <param name="team">Configured social team.</param>
+        /// <returns>The steps allowed into later model prompt context.</returns>
+        private IReadOnlyList<MultiModelCouncilStep> GetCouncilWorkflowContextSteps(
+            IEnumerable<MultiModelCouncilStep> steps,
+            OrganicCouncilTeamDefinition team)
+        {
+            try
+            {
+                return team.IncludeAllMembersReadinessPreflightInWorkflowContext
+                    ? steps.ToList()
+                    : steps.Where(step => !IsConfiguredAllMembersReadinessPreflightStep(step)).ToList();
+            }
+            catch (Exception __serviceMethodException)
+            {
+                if (__serviceMethodException is OperationCanceledException)
+                    logger.LogDebug(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(GetCouncilWorkflowContextSteps)} was canceled.");
+                else
+                    logger.LogError(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(GetCouncilWorkflowContextSteps)} failed.");
+                throw;
+            }
+        }
 
         /// <summary>
         /// Builds configured role assignments as part of the multi model council service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -2025,6 +2241,23 @@ namespace LocalGPT.Services
                 var leaderModel = SelectHealthyParticipant(result, participants, requestedLeader);
                 var roleAssignments = BuildConfiguredRoleAssignments(result, request, team, participants);
                 var rolePairings = BuildConfiguredRolePairings(result, request, team, roleAssignments);
+                if (team.AllMembersReadinessPreflightMode == CouncilAllMembersReadinessPreflightMode.RoleAwareProbe)
+                {
+                    await RunConfiguredAllMembersReadinessPreflightAsync(
+                        result,
+                        request,
+                        team,
+                        baseUri,
+                        participants,
+                        bootstrap,
+                        modelRoutes,
+                        keepAlive,
+                        ollamaNumGpu,
+                        maxContextTokens,
+                        modelTimeoutSeconds,
+                        roleAssignments,
+                        cancellationToken).ConfigureAwait(false);
+                }
                 var state = new ConfiguredWorkflowExecutionState(0, 0, string.Empty, string.Empty, string.Empty);
                 var workflowRevisions = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 var nextExecutionIsReconsideration = false;
@@ -2944,7 +3177,7 @@ namespace LocalGPT.Services
                                 }
                             case "AllMembersParallel":
                                 {
-                                    var transcript = BuildConfiguredWorkflowTranscript(result, definition, roleAssignment, round);
+                                    var transcript = BuildConfiguredWorkflowTranscript(result, team, definition, roleAssignment, round);
                                     await RunPhaseAsync(
                                         result,
                                         baseUri,
@@ -2987,7 +3220,7 @@ namespace LocalGPT.Services
                                 }
                             case "AllMembersSequentialOnEachAIHostParallel":
                                 {
-                                    var transcript = BuildConfiguredWorkflowTranscript(result, definition, roleAssignment, round);
+                                    var transcript = BuildConfiguredWorkflowTranscript(result, team, definition, roleAssignment, round);
                                     await RunPhaseAsync(
                                         result,
                                         baseUri,
@@ -3033,7 +3266,7 @@ namespace LocalGPT.Services
                                 {
                                     foreach (var modelName in OrderParticipantsByObservedHealth(result, roleParticipants))
                                     {
-                                        var transcript = BuildConfiguredWorkflowTranscript(result, definition, roleAssignment, round);
+                                        var transcript = BuildConfiguredWorkflowTranscript(result, team, definition, roleAssignment, round);
                                         await RunConfiguredParticipantAsync(
                                             result,
                                             request,
@@ -3074,7 +3307,7 @@ namespace LocalGPT.Services
                                         roleParticipants,
                                         leaderModel,
                                         expandedStepIndex);
-                                    var transcript = BuildConfiguredWorkflowTranscript(result, definition, roleAssignment, round);
+                                    var transcript = BuildConfiguredWorkflowTranscript(result, team, definition, roleAssignment, round);
                                     await RunConfiguredParticipantAsync(
                                         result,
                                         request,
@@ -3344,6 +3577,7 @@ namespace LocalGPT.Services
         /// Builds configured workflow previous step.
         /// </summary>
         /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="team">Configured social team controlling preflight context visibility.</param>
         /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="roleAssignment">Role assignment value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="logicalRound">Logical round value supplied to the multi model council operation and used when producing its result.</param>
@@ -3395,12 +3629,14 @@ namespace LocalGPT.Services
         /// Builds configured workflow transcript.
         /// </summary>
         /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="team">Configured social team that controls whether explicit preflight evidence is visible to later model prompts.</param>
         /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="roleAssignment">Role assignment value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="logicalRound">Logical round value supplied to the multi model council operation and used when producing its result.</param>
         /// <returns>The string produced by the operation.</returns>
         private string BuildConfiguredWorkflowTranscript(
             MultiModelCouncilResult result,
+            OrganicCouncilTeamDefinition team,
             CouncilWorkflowStepDefinition definition,
             CouncilRoleRuntimeAssignment roleAssignment,
             int logicalRound)
@@ -3410,7 +3646,7 @@ namespace LocalGPT.Services
                 if (!definition.IncludePriorTranscript || definition.TranscriptVisibility == CouncilTranscriptVisibilityMode.None)
                     return string.Empty;
 
-                IEnumerable<MultiModelCouncilStep> visibleSteps = result.Steps;
+                IEnumerable<MultiModelCouncilStep> visibleSteps = GetCouncilWorkflowContextSteps(result.Steps, team);
                 visibleSteps = definition.TranscriptVisibility switch
                 {
                     CouncilTranscriptVisibilityMode.SameRole => visibleSteps.Where(step =>
