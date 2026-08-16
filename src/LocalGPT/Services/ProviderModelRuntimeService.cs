@@ -317,6 +317,7 @@ public sealed class ProviderModelRuntimeService(
     /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the provider model runtime operation and used when producing its result.</param>
     /// <param name="enableAutomaticTools">Value indicating whether enable automatic tools should apply to this operation.</param>
     /// <param name="throwOnFailure">Value indicating whether throw on failure should apply to this operation.</param>
+    /// <param name="automaticFunctionAllowList">Optional exact registered-function allow-list for provider-native automatic tools.</param>
     /// <returns>The i chat client produced by the operation.</returns>
     public IChatClient CreateChatClient(
         ProviderModelReference model,
@@ -325,7 +326,8 @@ public sealed class ProviderModelRuntimeService(
         TimeSpan timeout,
         int? ollamaNumGpu,
         bool enableAutomaticTools = true,
-        bool throwOnFailure = false)
+        bool throwOnFailure = false,
+        IReadOnlyCollection<string>? automaticFunctionAllowList = null)
     {
     try
     {
@@ -349,7 +351,8 @@ public sealed class ProviderModelRuntimeService(
                         functionRegistry,
                         functionCallRecovery,
                         enableAutomaticTools,
-                        throwOnFailure),
+                        throwOnFailure,
+                        automaticFunctionAllowList),
                     loggerFactory.CreateLogger($"AI.Ollama.{model.StableId}"));
             }
 

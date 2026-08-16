@@ -130,6 +130,9 @@ namespace LocalGPT.BusinessObjects.EFCore
         /// </summary>
         /// <value>The hardware performance preset set exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<HardwarePerformancePreset> HardwarePerformancePresets => Set<HardwarePerformancePreset>();
+        /// <summary>Gets the durable hardware profiles owned by configured physical AI hosts.</summary>
+        /// <value>The configured-host hardware profile set exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<ConfiguredAiHostHardwareProfile> ConfiguredAiHostHardwareProfiles => Set<ConfiguredAiHostHardwareProfile>();
         /// <summary>
         /// Gets the sqlite editor field overrides value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
@@ -503,6 +506,24 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasIndex(item => item.Name).IsUnique();
                 entity.HasIndex(item => item.SourceRunId);
                 entity.HasIndex(item => new { item.IsArchived, item.IsDefault, item.UpdatedAtUtc });
+            });
+
+            modelBuilder.Entity<ConfiguredAiHostHardwareProfile>(entity =>
+            {
+                entity.ToTable("ConfiguredAiHostHardwareProfiles");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.HostKey).HasMaxLength(300).IsRequired();
+                entity.Property(item => item.HostName).HasMaxLength(240).IsRequired();
+                entity.Property(item => item.OperatingSystem).HasMaxLength(500).IsRequired();
+                entity.Property(item => item.Architecture).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.CpuName).HasMaxLength(500).IsRequired();
+                entity.Property(item => item.GpusJson).IsRequired();
+                entity.Property(item => item.ProviderEndpointsJson).IsRequired();
+                entity.Property(item => item.SourceKind).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.Confidence).HasMaxLength(80).IsRequired();
+                entity.HasIndex(item => item.HostKey).IsUnique();
+                entity.HasIndex(item => item.UpdatedAtUtc);
+                entity.Ignore(item => item.Gpus);
             });
 
             modelBuilder.Entity<OrganicSkillDefinition>(entity =>

@@ -66,7 +66,7 @@
         @if (recentDeferredResults.Count > 0)
         {
             <section class="human-inbox-section human-deferred-results">
-                <h3>Completed approved actions</h3>
+                <h3>Approved action execution results</h3>
                 @foreach (var result in recentDeferredResults)
                 {
                     <article class="human-run-card">
@@ -501,8 +501,14 @@
                     {
                         recentDeferredResults.Clear();
                         recentDeferredResults.AddRange(outcomes.Select(ToDeferredResultView));
-                        statusText = $"Completed {outcomes.Count} approved deferred function call(s).";
-                        Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Approved operation completed");
+                        var failedCount = outcomes.Count(outcome => !outcome.Succeeded);
+                        statusText = failedCount == 0
+                            ? $"Executed {outcomes.Count} approved deferred function call(s) successfully."
+                            : $"Executed {outcomes.Count} approved deferred function call(s); {failedCount} failed validation or execution. Approval is not reported as successful execution.";
+                        if (failedCount == 0)
+                            Notifier.ShowSuccess("HumanCollaborationToasts", statusText, "Approved operation executed");
+                        else
+                            Notifier.ShowWarning("HumanCollaborationToasts", statusText, "Approved operation had failures");
                         StateHasChanged();
                     }).ConfigureAwait(false);
                 }

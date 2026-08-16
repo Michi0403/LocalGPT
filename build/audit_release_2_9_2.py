@@ -10,7 +10,7 @@ def forbid(rel, needle):
     if needle in text(rel): raise AssertionError(f"{rel} unexpectedly contains: {needle}")
 try:
     for rel in ('src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj'):
-        require(rel,'<Version>2.9.5</Version>')
+        require(rel,'<Version>2.9.6</Version>')
     require('src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj','<Version>2.1.1</Version>')
     require('src/LocalGPT/Components/Pages/Chat.razor','localgpt-message-utility-row localgpt-live-update-footer')
     require('src/LocalGPT/Components/Pages/Chat.razor','localgpt-rejoined-live-spinner')

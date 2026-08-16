@@ -415,6 +415,9 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets whether registered organic/DX functions may be requested.</summary>
     /// <value>The can use organic functions value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool CanUseOrganicFunctions { get; set; } = true;
+    /// <summary>Gets or sets an optional exact allow-list for automatic provider tools in this workflow step. An empty list preserves the historical all-policy-approved-tools behavior.</summary>
+    /// <value>Registered DXFunction names allowed as automatic provider tools for this step, or an empty list for the historical catalog.</value>
+    public List<string> AllowedAutomaticFunctions { get; set; } = [];
     /// <summary>Gets or sets whether this step may emit first-class X-Round control requests.</summary>
     /// <value>The x functions enabled value exposed by <see cref="CouncilWorkflowStepDefinition"/>.</value>
     public bool XFunctionsEnabled { get; set; }

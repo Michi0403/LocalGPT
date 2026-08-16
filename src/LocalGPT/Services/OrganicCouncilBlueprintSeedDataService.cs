@@ -46,20 +46,26 @@ public sealed class OrganicCouncilBlueprintSeedDataService(ILogger<OrganicCounci
         {
             Key = "general",
             DisplayName = "General Council",
-            Purpose = "A neutral LocalGPT council for everyday questions, research, creative work, comparisons and simulations without assuming that the task is a software project.",
+            Purpose = "A neutral LocalGPT council that begins with blind independent best-effort answers, then reviews the frozen candidate set and synthesizes the strongest result for everyday questions, research, creative work, comparisons and simulations.",
             Roles =
             [
-                new() { Role = "Council participant", Expertise = "independent analysis, creativity and useful alternatives", Responsibility = "answer the actual user request without inventing a software-project requirement", AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected },
+                new() { Role = "Council participant", Expertise = "independent analysis, creativity and useful alternatives", Responsibility = "produce the strongest independent answer to the actual user request without seeing or imitating peer answers and without inventing a software-project requirement", AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected },
                 new() { Role = "Peer reviewer", Expertise = "cross-checking, disagreement and missing-information detection", Responsibility = "review the discussion without changing the user's goal", AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected },
                 new() { Role = "Consensus writer", Expertise = "clear synthesis", Responsibility = "produce the final answer from the Council evidence", AiSelectionMode = CouncilRoleAiSelectionMode.AllSelected }
             ],
             WorkflowSteps =
             [
-                new() { Key = "general-discussion", DisplayName = "General discussion", SortOrder = 10, Phase = "Discussion", Role = "Council participant", ExecutionMode = "AllMembersParallel", LogicalRoundNumber = 1, TranscriptVisibility = CouncilTranscriptVisibilityMode.None, IncludePriorTranscript = false, PromptTemplate = "Answer the user's actual request as {{Role}}. Stay on the requested subject. Do not turn an ordinary or creative request into a coding, project, compiler or artifact workflow unless the user asked for that.\n\nUser request:\n{{UserPrompt}}" },
-                new() { Key = "general-review", DisplayName = "Peer review", SortOrder = 20, Phase = "Review", Role = "Peer reviewer", ExecutionMode = "AllMembersSequentialOnEachAIHostParallel", LogicalRoundNumber = 2, TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil, IncludePriorTranscript = true, PromptTemplate = "Review the Council discussion for factual conflicts, missing information and useful disagreement. Preserve the user's goal and do not introduce unrelated implementation work.\n\nUser request:\n{{UserPrompt}}\n\nCouncil discussion:\n{{Transcript}}" },
+                new() { Key = "general-discussion", DisplayName = "Blind independent answers", SortOrder = 10, Phase = "Independent answers", Role = "Council participant", ExecutionMode = "AllMembersParallel", LogicalRoundNumber = 1, TranscriptVisibility = CouncilTranscriptVisibilityMode.None, IncludePriorTranscript = false, PromptTemplate = "Produce your strongest independent answer to the user's actual request as {{Role}}. You are in a blind first-pass round: do not ask what other Council members think, do not wait for them, and do not assume a consensus exists. Stay on the requested subject. Do not turn an ordinary or creative request into a coding, project, compiler or artifact workflow unless the user asked for that.\n\nUser request:\n{{UserPrompt}}" },
+                new() { Key = "general-review", DisplayName = "Review frozen independent answers", SortOrder = 20, Phase = "Review", Role = "Peer reviewer", ExecutionMode = "AllMembersSequentialOnEachAIHostParallel", LogicalRoundNumber = 2, TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil, IncludePriorTranscript = true, PromptTemplate = "Review the frozen independent first-pass answers for correctness, completeness, useful originality and factual conflicts. Do not penalize a strong candidate merely for disagreeing with the majority. Preserve the user's goal and do not introduce unrelated implementation work.\n\nUser request:\n{{UserPrompt}}\n\nFrozen independent answers:\n{{Transcript}}" },
                 new() { Key = "general-consensus", DisplayName = "Consensus", SortOrder = 30, Phase = "Consensus", Role = "Consensus writer", ExecutionMode = "LeaderSingle", LogicalRoundNumber = 3, TranscriptVisibility = CouncilTranscriptVisibilityMode.FullCouncil, IncludePriorTranscript = true, ProducesFinalAnswer = true, PromptTemplate = "Produce the concise final Council answer to the user from the discussion and review. Resolve disagreements when evidence permits and state uncertainty when it does not. Do not add a software-project workflow unless requested.\n\nUser request:\n{{UserPrompt}}\n\nCouncil transcript:\n{{Transcript}}" }
             ],
-            ArchitectureContracts = DefaultArchitectureContracts()
+            ArchitectureContracts =
+            [
+                .. DefaultArchitectureContracts(),
+                "The first answer round is a blind independent best-of-N pass: participants receive the same user task but no peer answers, so strong minority solutions and model diversity remain observable.",
+                "Review happens only after the independent candidate answers are frozen. Reviewers may compare them, but must not rewrite history or erase the original per-model outputs.",
+                "Final consensus may synthesize or select the strongest evidence, while the individual candidate and review steps remain first-class Council transcript artifacts."
+            ]
         },
         new()
         {
@@ -971,7 +977,7 @@ Original learning request:
     {
         Key = "adaptive-model-benchmark",
         DisplayName = "Initial Hardware Calibration Benchmark",
-        Purpose = "First-run benchmark social structure for all selected provider-qualified Council members. The workflow first freezes the exact target set, then Task Curators prepare one concrete checkable task pack, every selected Benchmark Subject executes that assigned role task pack, LocalGPT deterministically measures every benchmark-capable member at four profile points using the maintained task suite, and only then do independent roles curate quality, audit coverage, analyze performance and synthesize measured Low, Middle, High and Expert hardware-spooler profiles.",
+        Purpose = "First-run benchmark social structure for all selected provider-qualified Council members. The workflow freezes the exact target set, Task Curators prepare one concrete checkable task pack, and then LocalGPT makes every benchmark-capable provider-qualified Benchmark Subject execute that exact curated pack at four bounded measured profile points. Only after measured execution do independent roles curate quality, audit coverage, analyze performance and synthesize measured Low, Middle, High and Expert hardware-spooler profiles.",
         AllMembersReadinessPreflightMode = CouncilAllMembersReadinessPreflightMode.Disabled,
         IncludeAllMembersReadinessPreflightInWorkflowContext = false,
         AllMembersReadinessPreflightMaxOutputTokens = 192,
@@ -1041,12 +1047,8 @@ Original learning request:
         ],
         PreferredCapabilities =
         [
-            "localgpt.models.benchmark.provider",
             "localgpt.hardware.performance.presets.list",
             "localgpt.hardware.performance.presets.get",
-            "localgpt.hardware.performance.presets.save",
-            "localgpt.hardware.performance.presets.apply",
-            "localgpt.hardware.performance.presets.delete",
             "localgpt.time_state.now",
             "localgpt.onboarding.status",
             "localgpt.learning.snapshot",
@@ -1056,7 +1058,7 @@ Original learning request:
         [
             Step("benchmark-inventory", "Freeze calibration inventory", 10, "Inventory", "Benchmark Director", """
 Your assigned role task is inventory and benchmark-boundary preparation only. Inspect the exact provider-qualified Council membership, installed-model discovery, hardware roads and the user's requested limits. The selected Council membership is authoritative. If the user asked to benchmark all selected members, do not sample, bracket, extrapolate or replace members with representatives. State the exact number of selected members, define bounded common context/output/time limits for the later benchmark, and flag any identity that is not provider-qualified. Do not run tasks, do not benchmark models and do not create profiles.
-""", "LeaderSingle", includePriorTranscript: false),
+""", "LeaderSingle", canUseOrganicFunctions: true, includePriorTranscript: false, allowedAutomaticFunctions: ["localgpt.time_state.now", "localgpt.hardware.performance.presets.list", "localgpt.hardware.performance.presets.get", "localgpt.onboarding.status", "localgpt.knowledge.list"]),
             Step("benchmark-task-design", "Prepare concrete benchmark task pack", 20, "Task design", "Task Curator", """
 Your assigned role task is to prepare the concrete task pack that every Benchmark Subject will execute next. Do not benchmark models, do not answer the original user request, do not change the selected target set and do not create profiles.
 
@@ -1069,46 +1071,38 @@ Produce exactly four numbered tasks with a short prompt and an explicit acceptan
 3. Structured settings — return a compact JSON object with contextTokens, outputTokens, parallelModels and reason; acceptance must require valid JSON and all keys.
 4. Accessibility/practical UI reasoning — give three concise requirements for an interactive model card; acceptance must cover keyboard access, labels and focus.
 
-You may tighten wording for fairness and reproducibility, but preserve these four task categories so the later deterministic LocalGPT benchmark measures the same maintained task family. Coordinate the two Task Curators through peer review and return one consolidated task pack only.
-""", "AllMembersParallel", enableRolePeerReview: true, summarizeRoleResults: true, includePriorTranscript: false),
-            Step("benchmark-subject-execution", "Execute assigned benchmark task pack", 30, "Task execution", "Benchmark Subject", """
-Your assigned role task is to execute the task pack produced by the Task Curator role immediately before this step. You are one Benchmark Subject. You are NOT the Benchmark Director, Task Curator, reviewer, analyst or profile synthesizer. The original user request is background context only and must not replace this role task.
-
-TASK PACK TO EXECUTE:
-{{PreviousStep}}
-
-Execute every numbered task exactly once, in order. Return exactly one section per task using `Task N:` followed by your answer. Do not discuss benchmark planning, other models, timelines, profile strategy or Council configuration. Do not call tools. If you truly cannot perform one task, return `Task N: UNABLE - <short reason>` and continue with the remaining tasks. Your own provider-qualified identity is already supplied by the runtime role assignment; do not impersonate another member.
-""", "AllMembersSequentialOnEachAIHostParallel", includePriorTranscript: false),
-            Step("benchmark-calibration", "Measure all benchmark-capable members", 40, "Measurement", "Benchmark Director", """
-This step is executed by the LocalGPT benchmark calibration service, not by a model. It deterministically measures every distinct benchmark-capable provider-qualified member selected for this Council at four bounded profile points using the full maintained four-task benchmark suite and stores measured Low, Middle, High and Expert hardware-spooler profiles after the configured human checkpoint. No model may replace the target set with a representative sample.
+You may tighten wording for fairness and reproducibility, but preserve these four task categories so the later deterministic LocalGPT benchmark measures the same maintained task family. Do not add UNABLE, skip, opt-out, capability-exemption, delegation, or "ask the user" clauses: these four maintained tasks are bounded text/reasoning work and every Benchmark Subject must make a substantive attempt with the information it has. Coordinate the two Task Curators through peer review and return one consolidated task pack only.
+""", "AllMembersParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, includePriorTranscript: false, allowedAutomaticFunctions: ["localgpt.knowledge.list"]),
+            Step("benchmark-calibration", "Execute and measure every Benchmark Subject", 30, "Measurement", "Benchmark Subject", """
+This step is executed by the LocalGPT benchmark calibration service using the immediately preceding consolidated Task Curator result as the authoritative assignment. Every distinct benchmark-capable provider-qualified member performs that exact four-task pack at four bounded token profile points. The four curator tasks are bundled into one provider turn per profile so the system measures the requested work without multiplying it into four duplicate calls. Generic AI-capability refusal receives one bounded same-role retry. Failed/unsupported members remain explicit evidence; no model is sampled away or assigned invented limits.
 """, "SystemBenchmarkCalibration", requiresHumanCheckpoint: true, includePriorTranscript: false),
-            Step("benchmark-curation", "Independent task-answer curation", 50, "Quality review", "Code Curator", """
-Your assigned role task is answer-quality curation, not benchmark planning. Review the Benchmark Subject task answers already present in the Council evidence and the deterministic measurement summary from the immediately preceding step. Judge correctness, completeness, instruction following, valid structured output and obvious hallucination risk separately from speed. Preserve provider-qualified identity. Do not alter measurements, choose a smaller target set or invent missing answers. Coordinate peer usefulness/votes into one role result.
+            Step("benchmark-curation", "Independent task-answer curation", 40, "Quality review", "Code Curator", """
+Your assigned role task is answer-quality curation, not benchmark planning. Review the provider-qualified Benchmark Subject answers and timing/quality evidence produced by the deterministic measurement step immediately before this role. Judge correctness, completeness, instruction following, valid structured output and obvious hallucination risk separately from speed. Preserve provider-qualified identity. Do not alter measurements, choose a smaller target set or invent missing answers. Coordinate peer usefulness/votes into one role result.
 
 Deterministic measurement summary:
 {{PreviousStep}}
-""", "AllMembersParallel", enableRolePeerReview: true, summarizeRoleResults: true),
-            Step("benchmark-coverage", "Audit measured member coverage", 60, "Coverage review", "Coverage Auditor", """
+""", "AllMembersParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["localgpt.knowledge.list"]),
+            Step("benchmark-coverage", "Audit measured member coverage", 50, "Coverage review", "Coverage Auditor", """
 Your assigned role task is coverage accounting only. Audit the deterministic calibration evidence. Compare requested distinct members, benchmark-capable attempted members, successful measured members and explicit skipped/failed members. A failed measurement is evidence, not permission to extrapolate. State PASS only when every benchmark-capable selected member produced measured evidence; otherwise state PARTIAL and list unresolved identities. Do not redesign tasks or profiles. Coordinate peer usefulness/votes into one role result.
 
 Use the latest deterministic measurement evidence and quality review as evidence; do not replace them with the original user request.
-""", "AllMembersParallel", enableRolePeerReview: true, summarizeRoleResults: true),
-            Step("benchmark-performance", "Analyze four measured tiers", 70, "Performance review", "Performance Analyst", """
+""", "AllMembersParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["localgpt.hardware.performance.presets.list", "localgpt.hardware.performance.presets.get"]),
+            Step("benchmark-performance", "Analyze four measured tiers", 60, "Performance review", "Performance Analyst", """
 Your assigned role task is performance analysis only. Analyze measured profile points from the deterministic calibration evidence. Compare successful Low/Middle/High/Expert routes, latency, throughput, timeout behavior and answer quality. Keep provider endpoint plus model identity authoritative. Never infer an unmeasured model's limits from family name or parameter size. Do not redesign benchmark tasks or re-answer the original user request. Coordinate the role members' usefulness/votes into one consolidated analysis.
-""", "AllMembersSequentialOnEachAIHostParallel", enableRolePeerReview: true, summarizeRoleResults: true),
-            Step("benchmark-profiles", "Explain initial calibration profiles", 80, "Synthesis", "Profile Synthesizer", """
+""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["localgpt.hardware.performance.presets.list", "localgpt.hardware.performance.presets.get", "localgpt.time_state.now"]),
+            Step("benchmark-profiles", "Explain initial calibration profiles", 70, "Synthesis", "Profile Synthesizer", """
 Your assigned role task is final profile synthesis only. Produce the final visible calibration handoff from the accumulated benchmark evidence. Name the four profiles that LocalGPT actually stored: Low, Middle, High and Expert. Explain that they contain only successful measured provider-qualified routes, that failed/unsupported selected members remain explicit coverage gaps, and that applying a hardware profile never changes Council membership. Recommend Low as the conservative first-run baseline, Middle for normal use, High for higher-value work, and Expert only when its measured route exists and the workload justifies it. Do not claim that a missing route was benchmarked. Consolidate the two synthesizer members into one final role result.
-""", "AllMembersParallel", producesFinalAnswer: true, enableRolePeerReview: true, summarizeRoleResults: true)
+""", "AllMembersParallel", canUseOrganicFunctions: true, producesFinalAnswer: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["localgpt.hardware.performance.presets.list", "localgpt.hardware.performance.presets.get"])
         ],
-        MainRoundInstructionTemplate = "Each workflow role owns a distinct assigned task. The original user request is shared background context, never a substitute for the current role task. Benchmark Director freezes targets and limits; Task Curators prepare the concrete task pack; every Benchmark Subject executes that pack; LocalGPT performs deterministic four-point/four-task measurements; reviewers curate quality and coverage; analysts and synthesizers work only from measured evidence. Representative sampling and role takeover are forbidden.",
+        MainRoundInstructionTemplate = "Each workflow role owns a distinct assigned task. The original user request is shared background context, never a substitute for the current role task. Benchmark Director freezes targets and limits; Task Curators prepare the concrete task pack; the LocalGPT measurement phase makes every Benchmark Subject execute that exact pack independently at four bounded profiles; reviewers curate quality and coverage; analysts and synthesizers work only from measured evidence. Representative sampling, duplicate social/measurement task rounds and role takeover are forbidden.",
         ArchitectureContracts =
         [
             .. DefaultArchitectureContracts(),
             "The supplied benchmark seed is immutable configuration data. Saving edits creates a user-owned literal copy; later seed versions restore and evolve the supplied default without deleting the user's copy.",
             "The optional all-members readiness preflight is disabled for the supplied benchmark seed so large Councils do not bloat later task context. Users may enable the team-level role-aware preflight explicitly in Council Teams without changing benchmark evidence rules.",
-            "Every selected Council member executes the same consolidated four-task Benchmark Subject pack before deterministic measurement begins; a readiness-only turn is not considered benchmark evidence.",
-            "Every distinct selected provider-qualified member that supports the maintained benchmark contract is attempted by the deterministic LocalGPT benchmark engine across four profile points and the complete maintained four-task suite. Models cannot reduce the target set.",
-            "The deterministic benchmark uses four measured profile points with early-stop disabled. Failed or unsupported members remain explicit coverage evidence and are never assigned invented token limits.",
+            "The Task Curator result is the authoritative benchmark assignment. The measurement phase sends that same consolidated four-task pack to every benchmark-capable provider-qualified Benchmark Subject; it does not replace curator work with a second unrelated hard-coded suite.",
+            "The four curator tasks are executed together in one bounded provider turn at each of four profile points, reducing duplicate calls while preserving identical independent work across targets.",
+            "Physical/provider host queues run in parallel while each host remains sequential to avoid VRAM contention. Two consecutive profile failures stop unsafe escalation for that target; failed or unsupported members remain explicit coverage evidence and are never assigned invented token limits.",
             "Successful calibration stores four separate measured hardware-spooler profiles named Low, Middle, High and Expert. Applying a profile never changes Council membership or provider-global settings.",
             "Coverage review and performance/profile synthesis occur only after the deterministic measurement step has returned evidence."
         ]
@@ -1406,6 +1400,7 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
     /// <param name="enableRolePeerReview">Whether same-role members run the optional usefulness/vote pass after their primary answers.</param>
     /// <param name="summarizeRoleResults">Whether one role member consolidates the same-role results before downstream workflow steps.</param>
     /// <param name="includePriorTranscript">Whether the prior Council transcript is appended when the prompt template does not explicitly place it.</param>
+    /// <param name="allowedAutomaticFunctions">Optional exact registered-function allow-list for automatic provider tools on this step.</param>
     /// <returns>The configured workflow step.</returns>
     private CouncilWorkflowStepDefinition Step(
         string key,
@@ -1420,7 +1415,8 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         bool requiresHumanCheckpoint = false,
         bool enableRolePeerReview = false,
         bool summarizeRoleResults = false,
-        bool includePriorTranscript = true) {
+        bool includePriorTranscript = true,
+        IReadOnlyList<string>? allowedAutomaticFunctions = null) {
     try
     {
         return new()
@@ -1435,6 +1431,7 @@ Produce a concise current-to-target host and project plan. {architectureInstruct
         IncludePriorTranscript = includePriorTranscript,
         IsEnabled = true,
         CanUseOrganicFunctions = canUseOrganicFunctions,
+        AllowedAutomaticFunctions = allowedAutomaticFunctions?.ToList() ?? [],
         ProducesFinalAnswer = producesFinalAnswer,
         RequiresHumanCheckpoint = requiresHumanCheckpoint,
         EnableRolePeerReview = enableRolePeerReview,

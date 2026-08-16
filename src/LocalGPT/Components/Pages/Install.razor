@@ -15,6 +15,7 @@
 @inject ISupervisedTaskRunner TaskRunner
 @inject IFirstRunOnboardingService Onboarding
 @inject IProjectMaintenanceService ProjectMaintenance
+@inject IConfiguredAiHostHardwareService HostHardware
 @inject IFeaturePersistenceService FeaturePersistence
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 
@@ -154,6 +155,38 @@
                             </div>
                             <code>@configured.Endpoint</code>
                             <span>@(string.IsNullOrWhiteSpace(configured.ModelName) ? "No preferred model selected" : configured.ModelName)</span>
+                            @if (configured.OpenAiHost is not null || configured.OllamaHost is not null)
+                            {
+                                var hardwareDraft = GetHostHardwareDraft(configured.Endpoint);
+                            <details class="configured-host-hardware">
+                                <summary>Host hardware · @hardwareDraft.HostKey</summary>
+                                <p class="field-help">This definition belongs to the physical configured host and is shared by provider/model bindings on that host. Confirmed/imported values are stored in the LocalGPT database and are not overwritten by weak discovery.</p>
+                                <div class="configured-host-hardware-grid">
+                                    <label>Host name<input class="form-control" @bind="hardwareDraft.HostName" /></label>
+                                    <label>Operating system<input class="form-control" @bind="hardwareDraft.OperatingSystem" /></label>
+                                    <label>CPU<input class="form-control" @bind="hardwareDraft.CpuName" /></label>
+                                    <label>System RAM (GiB)<input class="form-control" type="number" step="0.5" min="0" @bind="hardwareDraft.SystemMemoryGiB" /></label>
+                                    <label>GPU<input class="form-control" @bind="hardwareDraft.GpuName" /></label>
+                                    <label>GPU vendor<input class="form-control" @bind="hardwareDraft.GpuVendor" /></label>
+                                    <label>Dedicated VRAM (GiB)<input class="form-control" type="number" step="0.25" min="0" @bind="hardwareDraft.DedicatedVramGiB" /></label>
+                                    <label>Source<input class="form-control" value="@hardwareDraft.SourceKind" readonly /></label>
+                                </div>
+                                <label class="configured-host-report">HWiNFO text report (optional deterministic import)
+                                    <textarea rows="5" @bind="hardwareDraft.HwInfoReportText" placeholder="Paste an HWiNFO text report here. LocalGPT parses GPU VRAM deterministically; the report is not sent to an AI."></textarea>
+                                </label>
+                                <label class="configured-host-report">Or choose an HWiNFO text report
+                                    <InputFile OnChange="@(args => ImportHostHardwareFileAsync(configured.Endpoint, args))" accept=".txt,text/plain" />
+                                </label>
+                                <div class="configured-provider-actions">
+                                    <DxButton Text="Save host hardware" Enabled="@(!IsSavingHostHardware)" Click="@(() => SaveHostHardwareAsync(configured.Endpoint))" />
+                                    @if (IsLoopbackProviderEndpoint(configured.Endpoint))
+                                    {
+                                        <DxButton Text="Detect local hardware" Enabled="@(!IsSavingHostHardware)" Click="@(() => DetectHostHardwareAsync(configured.Endpoint))" />
+                                    }
+                                    <DxButton Text="Import HWiNFO report" Enabled="@(!IsSavingHostHardware && !string.IsNullOrWhiteSpace(hardwareDraft.HwInfoReportText))" Click="@(() => ImportHostHardwareAsync(configured.Endpoint))" />
+                                </div>
+                            </details>
+                            }
                             <div class="configured-provider-actions">
                                 @if (configured.OpenAiHost is not null)
                                 {
@@ -723,6 +756,8 @@
     private bool IsOnboardingLoading;
     private bool IsLocalizationImporting;
     private bool IsToolchainBusy;
+    private bool IsSavingHostHardware;
+    private readonly Dictionary<string, ConfiguredAiHostHardwareDraft> HostHardwareDrafts = new(StringComparer.OrdinalIgnoreCase);
     private bool OverwriteLocalizationCatalog;
     private string LocalizationCulture = "fr-FR";
     private string LocalizationImportStatus = string.Empty;
@@ -990,6 +1025,8 @@
             await RefreshOllamaProcessStatusAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             await RefreshConnectivityStatusAsync(showToast: false).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await LoadHostHardwareProfilesAsync(cancellationToken).ConfigureAwait(false);
             ComponentActivity.RecordInformation(nameof(Install), nameof(InitializeSetupAfterRenderAsync), "Install background initialization completed without holding the interactive renderer.");
         }
         catch (OperationCanceledException)
@@ -1004,6 +1041,156 @@
         }
     }
 
+
+
+    /// <summary>Loads durable physical-host hardware definitions into the Install-page drafts.</summary>
+    private async Task LoadHostHardwareProfilesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var profiles = await HostHardware.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                foreach (var configured in ConfiguredProviderHosts)
+                {
+                    var hostKey = HostHardware.GetHostKey(configured.Endpoint);
+                    var profile = profiles.FirstOrDefault(item => item.HostKey.Equals(hostKey, StringComparison.OrdinalIgnoreCase));
+                    if (profile is not null)
+                        HostHardwareDrafts[hostKey] = HostHardware.CreateDraft(configured.Endpoint, profile);
+                }
+                StateHasChanged();
+            }).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                Logger.LogDebug(exception, "Loading configured-host hardware into Install was cancelled.");
+            else
+                Logger.LogError(exception, "Loading configured-host hardware into Install failed.");
+        }
+    }
+
+    /// <summary>Gets the editable hardware draft shared by provider bindings that resolve to the same physical host.</summary>
+    private ConfiguredAiHostHardwareDraft GetHostHardwareDraft(string endpoint)
+    {
+        try
+        {
+            var hostKey = HostHardware.GetHostKey(endpoint);
+            if (!HostHardwareDrafts.TryGetValue(hostKey, out var draft))
+            {
+                draft = HostHardware.CreateDraft(endpoint);
+                HostHardwareDrafts[hostKey] = draft;
+            }
+            if (!draft.Endpoint.Equals(endpoint, StringComparison.OrdinalIgnoreCase))
+                draft.Endpoint = endpoint;
+            return draft;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Preparing configured-host hardware form failed; endpoint details were omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Saves user-confirmed hardware for a configured physical AI host.</summary>
+    private async Task SaveHostHardwareAsync(string endpoint)
+    {
+        IsSavingHostHardware = true;
+        try
+        {
+            var saved = await HostHardware.SaveAsync(GetHostHardwareDraft(endpoint)).ConfigureAwait(false);
+            HostHardwareDrafts[HostHardware.GetHostKey(endpoint)] = HostHardware.CreateDraft(endpoint, saved);
+            Notifier.ShowSuccess(toastName, "Configured-host hardware saved in the LocalGPT database.", "Host hardware");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Saving configured-host hardware from Install failed; endpoint and values were omitted.");
+            Notifier.ShowError(toastName, "Host hardware could not be saved. See local logs for details.", "Host hardware");
+        }
+        finally
+        {
+            IsSavingHostHardware = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Runs read-only local hardware discovery for a loopback provider host.</summary>
+    private async Task DetectHostHardwareAsync(string endpoint)
+    {
+        IsSavingHostHardware = true;
+        try
+        {
+            var saved = await HostHardware.DetectLocalAsync(endpoint).ConfigureAwait(false);
+            HostHardwareDrafts[HostHardware.GetHostKey(endpoint)] = HostHardware.CreateDraft(endpoint, saved);
+            Notifier.ShowSuccess(toastName, saved.IsUserConfirmed ? "Existing confirmed host hardware kept unchanged." : "Local hardware discovery refreshed.", "Host hardware");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Detecting configured-host hardware from Install failed; endpoint details were omitted.");
+            Notifier.ShowError(toastName, "Local host hardware detection failed. Manual values and report import remain available.", "Host hardware");
+        }
+        finally
+        {
+            IsSavingHostHardware = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Reads a bounded local HWiNFO text file selected by the user and imports it for the configured host.</summary>
+    private async Task ImportHostHardwareFileAsync(string endpoint, Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs args)
+    {
+        try
+        {
+            var file = args.File;
+            using var stream = file.OpenReadStream(8 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var draft = GetHostHardwareDraft(endpoint);
+            draft.HwInfoReportText = await reader.ReadToEndAsync().ConfigureAwait(false);
+            await ImportHostHardwareAsync(endpoint).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Reading selected configured-host HWiNFO report failed; file content and endpoint were omitted.");
+            Notifier.ShowError(toastName, "The selected HWiNFO report could not be read or imported.", "Host hardware");
+        }
+    }
+
+    /// <summary>Imports deterministic facts from the pasted HWiNFO report into the configured physical host.</summary>
+    private async Task ImportHostHardwareAsync(string endpoint)
+    {
+        IsSavingHostHardware = true;
+        try
+        {
+            var draft = GetHostHardwareDraft(endpoint);
+            var saved = await HostHardware.ImportHwInfoAsync(endpoint, draft.HwInfoReportText).ConfigureAwait(false);
+            HostHardwareDrafts[HostHardware.GetHostKey(endpoint)] = HostHardware.CreateDraft(endpoint, saved);
+            Notifier.ShowSuccess(toastName, "HWiNFO hardware facts imported and stored for this physical host.", "Host hardware");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Importing configured-host HWiNFO report from Install failed; report content was omitted.");
+            Notifier.ShowError(toastName, exception is InvalidDataException ? exception.Message : "HWiNFO import failed. See local logs for details.", "Host hardware");
+        }
+        finally
+        {
+            IsSavingHostHardware = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Returns whether an endpoint belongs to the LocalGPT machine and is therefore eligible for local probing.</summary>
+    private bool IsLoopbackProviderEndpoint(string endpoint)
+    {
+        try
+        {
+            return Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && uri.IsLoopback;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Checking provider endpoint locality failed; endpoint details were omitted.");
+            return false;
+        }
+    }
 
 
     /// <summary>Refreshes the persistent installer guide and Council quick-start catalog.</summary>

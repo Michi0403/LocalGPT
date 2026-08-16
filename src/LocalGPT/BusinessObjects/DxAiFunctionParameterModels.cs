@@ -206,6 +206,9 @@ public sealed class CouncilKnowledgeListParameters
     /// </summary>
     /// <value>The include archived value exposed by <see cref="CouncilKnowledgeListParameters"/>.</value>
     public bool IncludeArchived { get; set; }
+    /// <summary>Gets or sets an optional case-insensitive topic/content/tag filter so Council roles can retrieve relevant local knowledge without listing unrelated entries.</summary>
+    /// <value>The optional bounded knowledge query.</value>
+    public string Query { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the take value that forms part of the council knowledge list parameters state consumed or produced by the surrounding workflow.
     /// </summary>

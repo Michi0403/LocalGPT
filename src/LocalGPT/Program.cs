@@ -359,6 +359,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IProjectLibraryInventoryService, ProjectLibraryInventoryService>();
                 builder.Services.AddSingleton<IBuildDebugInventoryService, BuildDebugInventoryService>();
                 builder.Services.AddSingleton<IHardwareInventoryService, HardwareInventoryService>();
+                builder.Services.AddScoped<IConfiguredAiHostHardwareService, ConfiguredAiHostHardwareService>();
                 builder.Services.AddSingleton<IMinecraftModWorkspaceService, MinecraftModWorkspaceService>();
                 builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
                 builder.Services.AddSingleton<IRegexPatternService, RegexPatternService>();

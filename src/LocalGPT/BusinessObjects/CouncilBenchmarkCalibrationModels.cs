@@ -27,6 +27,10 @@ public sealed class CouncilBenchmarkCalibrationRequest
     /// <value>The per-call timeout in seconds.</value>
     public int MaxSecondsPerCall { get; set; } = 180;
 
+    /// <summary>Gets or sets the consolidated benchmark task pack produced by the immediately preceding Task Curator role.</summary>
+    /// <value>The authoritative bounded social-role task pack that measured Benchmark Subjects must execute.</value>
+    public string TaskPackText { get; set; } = string.Empty;
+
     /// <summary>Gets or sets the base name used when the measured Low, Middle, High and Expert performance profiles are stored.</summary>
     /// <value>The user-visible performance-profile base name.</value>
     public string PresetBaseName { get; set; } = string.Empty;

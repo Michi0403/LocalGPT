@@ -16,6 +16,42 @@ public enum ProviderModelBenchmarkProfileMode
 
 
 /// <summary>
+/// Defines one deterministic provider benchmark assignment. Council calibration may supply a curator-authored
+/// composite task pack so the measured benchmark executes the work designed by earlier social roles instead of
+/// silently replacing it with a second unrelated hard-coded task suite.
+/// </summary>
+public sealed class ProviderModelBenchmarkTaskDefinition
+{
+    /// <summary>Names the deterministic assignment in provider benchmark progress and retained measurement evidence.</summary>
+    /// <value>The bounded user-visible benchmark task name.</value>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the exact assignment sent to the measured provider model.</summary>
+    /// <value>The deterministic task prompt.</value>
+    public string Prompt { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets bounded semantic markers used by the lightweight deterministic quality scorer.</summary>
+    /// <value>The expected answer markers; they are evidence hints rather than hidden answer text.</value>
+    public List<string> ExpectedTokens { get; set; } = [];
+
+    /// <summary>Gets or sets whether the complete response must itself be a JSON object.</summary>
+    /// <value><see langword="true"/> when a whole-response JSON parse is part of the task contract.</value>
+    public bool ExpectJson { get; set; }
+
+    /// <summary>Gets or sets the number of numbered Task N sections expected in a composite assignment.</summary>
+    /// <value>Zero for ordinary tasks; otherwise the expected number of independently answered sections.</value>
+    public int ExpectedSectionCount { get; set; }
+
+    /// <summary>Gets or sets whether a composite answer must contain at least one valid embedded JSON object.</summary>
+    /// <value><see langword="true"/> when one section of the composite task requires structured JSON.</value>
+    public bool RequireEmbeddedJsonObject { get; set; }
+
+    /// <summary>Gets or sets whether a generic capability refusal should receive one bounded corrective retry.</summary>
+    /// <value><see langword="true"/> only for trusted maintained benchmark assignments that are known to be solvable as text/reasoning work.</value>
+    public bool EnforceRoleExecution { get; set; }
+}
+
+/// <summary>
 /// Represents the input contract for provider model benchmark, carrying the values a caller supplies to the corresponding application operation.
 /// </summary>
 public sealed class ProviderModelBenchmarkRequest
@@ -100,6 +136,15 @@ public sealed class ProviderModelBenchmarkRequest
     /// </summary>
     /// <value>The include council review value exposed by <see cref="ProviderModelBenchmarkRequest"/>.</value>
     public bool IncludeCouncilReview { get; set; } = true;
+
+    /// <summary>Gets or sets an optional caller-supplied deterministic task set. Embedded Council calibration uses this to execute the consolidated Task Curator contract.</summary>
+    /// <value>The task definitions, or an empty list to use LocalGPT's maintained standalone benchmark tasks.</value>
+    [JsonIgnore]
+    public List<ProviderModelBenchmarkTaskDefinition> TaskDefinitions { get; set; } = [];
+
+    /// <summary>Gets or sets the number of consecutive all-task profile failures after which a target should stop escalating token settings.</summary>
+    /// <value>Zero disables failure-based early stop; otherwise the bounded consecutive failure count.</value>
+    public int StopAfterConsecutiveProfileFailures { get; set; }
 
     /// <summary>Gets or sets whether this benchmark owns a standalone live-session entry. Embedded Council calibration sets this to false so the parent Council remains authoritative.</summary>
     /// <value><see langword="true"/> for the historical standalone benchmark behavior; otherwise the caller owns live-session presentation and cancellation.</value>

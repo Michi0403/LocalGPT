@@ -128,6 +128,19 @@ public sealed class DxAiFunctionRegistry(
                 Error = "This function is discoverable but cannot be invoked through the generic dispatcher."
             };
         }
+        var parameterValidationError = ValidateInvocationParameters(descriptor, request.Parameters);
+        if (!string.IsNullOrWhiteSpace(parameterValidationError))
+        {
+            logger.LogWarning("Rejected DXAIFunction {FunctionName} before human approval because its proposed parameters do not satisfy the registered schema.", functionName);
+            return new DxAiFunctionInvocationResult
+            {
+                FunctionName = functionName,
+                OperationId = operationId,
+                Status = "InvalidParameters",
+                Error = parameterValidationError
+            };
+        }
+
         IDisposable? approvalScope = null;
         if (descriptor.RequiresHumanConfirmation)
         {
@@ -376,12 +389,160 @@ public sealed class DxAiFunctionRegistry(
     }
 }
 
-    /// <summary>
-    /// Builds invocation fingerprint in the DevExpress AI function directory so callers observe a consistent, authoritative runtime view.
-    /// </summary>
-    /// <param name="functionName">Function name value supplied to the DevExpress AI function operation and used when producing its result.</param>
-    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
-    /// <returns>The string produced by the operation.</returns>
+    /// <summary>Validates the registered JSON-schema subset needed by LocalGPT function descriptors before an approval request can be created.</summary>
+    /// <param name="descriptor">Authoritative function descriptor.</param>
+    /// <param name="parameters">Proposed function parameters.</param>
+    /// <returns>An empty string when valid; otherwise a bounded validation error suitable for the model and local human UI.</returns>
+    private string ValidateInvocationParameters(DxaichatFunctionInfo descriptor, JsonElement parameters)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(descriptor.ParameterSchemaJson))
+                return string.Empty;
+            using var schemaDocument = JsonDocument.Parse(descriptor.ParameterSchemaJson);
+            return ValidateSchemaElement(schemaDocument.RootElement, parameters, "parameters");
+        }
+        catch (JsonException exception)
+        {
+            logger.LogError(exception, "Registered parameter schema for DXAIFunction {FunctionName} is invalid.", descriptor.Name);
+            return "LocalGPT's registered function parameter schema is invalid; the action was not queued for approval.";
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Pre-validating DXAIFunction {FunctionName} parameters failed; parameter content was omitted.", descriptor.Name);
+            return "LocalGPT could not validate the proposed function parameters, so the action was not queued for approval.";
+        }
+    }
+
+    /// <summary>Validates one JSON value against the bounded schema features used by LocalGPT's registered DXFunction descriptors.</summary>
+    /// <param name="schema">Schema fragment.</param>
+    /// <param name="value">Proposed JSON value.</param>
+    /// <param name="path">Human-readable parameter path.</param>
+    /// <returns>An empty string when valid; otherwise the first bounded validation failure.</returns>
+    private string ValidateSchemaElement(JsonElement schema, JsonElement value, string path)
+    {
+        try
+        {
+            if (schema.ValueKind != JsonValueKind.Object)
+                return string.Empty;
+
+            if (schema.TryGetProperty("type", out var typeElement) && typeElement.ValueKind == JsonValueKind.String)
+            {
+                var expectedType = typeElement.GetString() ?? string.Empty;
+                var typeMatches = expectedType switch
+                {
+                    "object" => value.ValueKind == JsonValueKind.Object,
+                    "array" => value.ValueKind == JsonValueKind.Array,
+                    "string" => value.ValueKind == JsonValueKind.String,
+                    "boolean" => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
+                    "integer" => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out _),
+                    "number" => value.ValueKind == JsonValueKind.Number,
+                    "null" => value.ValueKind == JsonValueKind.Null,
+                    _ => true
+                };
+                if (!typeMatches)
+                    return $"Parameter '{path}' must be a JSON {expectedType}.";
+            }
+
+            if (value.ValueKind == JsonValueKind.String &&
+                schema.TryGetProperty("format", out var formatElement) &&
+                string.Equals(formatElement.GetString(), "uuid", StringComparison.OrdinalIgnoreCase) &&
+                !Guid.TryParse(value.GetString(), out _))
+                return $"Parameter '{path}' must be a valid UUID.";
+
+            if (value.ValueKind == JsonValueKind.String)
+            {
+                var text = value.GetString() ?? string.Empty;
+                if (schema.TryGetProperty("minLength", out var minLengthElement) && minLengthElement.TryGetInt32(out var minLength) && text.Length < minLength)
+                    return $"Parameter '{path}' must contain at least {minLength} character(s).";
+                if (schema.TryGetProperty("maxLength", out var maxLengthElement) && maxLengthElement.TryGetInt32(out var maxLength) && text.Length > maxLength)
+                    return $"Parameter '{path}' must not exceed {maxLength} character(s).";
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var numericValue))
+            {
+                if (schema.TryGetProperty("minimum", out var minimumElement) && minimumElement.TryGetDouble(out var minimum) && numericValue < minimum)
+                    return $"Parameter '{path}' must be at least {minimum.ToString(System.Globalization.CultureInfo.InvariantCulture)}.";
+                if (schema.TryGetProperty("maximum", out var maximumElement) && maximumElement.TryGetDouble(out var maximum) && numericValue > maximum)
+                    return $"Parameter '{path}' must not exceed {maximum.ToString(System.Globalization.CultureInfo.InvariantCulture)}.";
+            }
+
+            if (value.ValueKind == JsonValueKind.Array)
+            {
+                var itemCount = value.GetArrayLength();
+                if (schema.TryGetProperty("minItems", out var minItemsElement) && minItemsElement.TryGetInt32(out var minItems) && itemCount < minItems)
+                    return $"Parameter '{path}' must contain at least {minItems} item(s).";
+                if (schema.TryGetProperty("maxItems", out var maxItemsElement) && maxItemsElement.TryGetInt32(out var maxItems) && itemCount > maxItems)
+                    return $"Parameter '{path}' must not contain more than {maxItems} item(s).";
+            }
+
+            if (schema.TryGetProperty("enum", out var enumElement) && enumElement.ValueKind == JsonValueKind.Array)
+            {
+                var raw = value.GetRawText();
+                if (!enumElement.EnumerateArray().Any(candidate => string.Equals(candidate.GetRawText(), raw, StringComparison.Ordinal)))
+                    return $"Parameter '{path}' is not one of the registered allowed values.";
+            }
+
+            if (value.ValueKind == JsonValueKind.Object)
+            {
+                if (schema.TryGetProperty("required", out var requiredElement) && requiredElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var required in requiredElement.EnumerateArray())
+                    {
+                        var propertyName = required.GetString();
+                        if (!string.IsNullOrWhiteSpace(propertyName) && !value.TryGetProperty(propertyName, out _))
+                            return $"Required parameter '{path}.{propertyName}' is missing.";
+                    }
+                }
+
+                if (schema.TryGetProperty("properties", out var propertiesElement) && propertiesElement.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var property in propertiesElement.EnumerateObject())
+                    {
+                        if (!value.TryGetProperty(property.Name, out var propertyValue))
+                            continue;
+                        var error = ValidateSchemaElement(property.Value, propertyValue, $"{path}.{property.Name}");
+                        if (!string.IsNullOrWhiteSpace(error))
+                            return error;
+                    }
+
+                    if (schema.TryGetProperty("additionalProperties", out var additionalElement) &&
+                        additionalElement.ValueKind == JsonValueKind.False)
+                    {
+                        var allowed = propertiesElement.EnumerateObject().Select(property => property.Name).ToHashSet(StringComparer.Ordinal);
+                        var unexpected = value.EnumerateObject().FirstOrDefault(property => !allowed.Contains(property.Name));
+                        if (!string.IsNullOrWhiteSpace(unexpected.Name))
+                            return $"Parameter '{path}.{unexpected.Name}' is not allowed by the registered schema.";
+                    }
+                }
+            }
+
+            if (value.ValueKind == JsonValueKind.Array &&
+                schema.TryGetProperty("items", out var itemsElement) && itemsElement.ValueKind == JsonValueKind.Object)
+            {
+                var index = 0;
+                foreach (var item in value.EnumerateArray())
+                {
+                    var error = ValidateSchemaElement(itemsElement, item, $"{path}[{index}]");
+                    if (!string.IsNullOrWhiteSpace(error))
+                        return error;
+                    index++;
+                }
+            }
+
+            return string.Empty;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Validating one DXAIFunction parameter schema element failed; parameter content was omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Builds a stable fingerprint for one exact registered DXFunction invocation.</summary>
+    /// <param name="functionName">Registered function name.</param>
+    /// <param name="request">Exact invocation request.</param>
+    /// <returns>The deterministic invocation fingerprint.</returns>
     private string BuildInvocationFingerprint(string functionName, DxAiFunctionInvocationRequest request)
     {
     try
@@ -1259,7 +1420,7 @@ public sealed class ListCouncilKnowledgeFunction(
         "POST",
         "/api/dxai/functions/localgpt.knowledge.list/invoke",
         "List bounded, approved Council knowledge summaries for source-backed project and architecture context.",
-        "JSON parameters: includeArchived optional boolean; take optional integer 1 to 30.",
+        "JSON parameters: optional query string for topic/content/tag filtering; includeArchived optional boolean; take optional integer 1 to 30.",
         "Read-only. Knowledge is context, not authority. Results include bounded excerpts and provenance/approval metadata.",
         IsReadOnly: true,
         AvailableToAi: true,
@@ -1271,6 +1432,10 @@ public sealed class ListCouncilKnowledgeFunction(
         {
           "type": "object",
           "properties": {
+            "query": {
+              "type": "string",
+              "maxLength": 200
+            },
             "includeArchived": {
               "type": "boolean"
             },
@@ -1297,8 +1462,22 @@ public sealed class ListCouncilKnowledgeFunction(
             var parameters = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
                 ? new CouncilKnowledgeListParameters()
                 : request.Parameters.Deserialize<CouncilKnowledgeListParameters>(JsonOptions) ?? new CouncilKnowledgeListParameters();
-            var entries = await knowledge.GetEntriesAsync(parameters.IncludeArchived, Math.Clamp(parameters.Take, 1, 30), cancellationToken).ConfigureAwait(false);
-            var summaries = entries.Select(entry => new
+            var requestedTake = Math.Clamp(parameters.Take, 1, 30);
+            var query = (parameters.Query ?? string.Empty).Trim();
+            var sourceTake = string.IsNullOrWhiteSpace(query) ? requestedTake : 100;
+            var entries = await knowledge.GetEntriesAsync(parameters.IncludeArchived, sourceTake, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                entries = entries.Where(entry =>
+                        (entry.Topic ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                        (entry.Scope ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                        (entry.Content ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                        (entry.Source ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                        (entry.Tags ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase))
+                    .Take(requestedTake)
+                    .ToList();
+            }
+            var summaries = entries.Take(requestedTake).Select(entry => new
             {
                 entry.Id,
                 entry.Topic,

@@ -12,12 +12,14 @@ namespace LocalGPT.Services;
 /// Ollama runtime. It never pulls models, changes global Ollama state, or overwrites an existing preset.
 /// </summary>
 /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
-/// <param name="hardwareInventory">Hardware inventory service dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
+/// <param name="hardwareInventory">Best-effort local hardware discovery dependency.</param>
+/// <param name="configuredHostHardware">Durable configured-host hardware dependency; confirmed host facts override weak automatic discovery.</param>
 /// <param name="modelPresets">Model preset service dependency used by the adaptive Ollama benchmark wiring workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class AdaptiveOllamaBenchmarkWiring(
     IOptionsMonitor<global::LocalGPT.BusinessObjects.ConfigurationRoot> configuration,
     IHardwareInventoryService hardwareInventory,
+    IConfiguredAiHostHardwareService configuredHostHardware,
     IModelPresetService modelPresets,
     ILogger<AdaptiveOllamaBenchmarkWiring> logger) : IDxAiFunctionHandler
 {
@@ -175,7 +177,21 @@ public sealed class AdaptiveOllamaBenchmarkWiring(
         {
             var endpoint = ResolveLoopbackEndpoint(options.Endpoint);
             report.Endpoint = endpoint.GetLeftPart(UriPartial.Authority);
-            var hardware = await hardwareInventory.GetHardwareAsync(cancellationToken).ConfigureAwait(false);
+            var hardware = (await hardwareInventory.GetHardwareAsync(cancellationToken).ConfigureAwait(false)).ToList();
+            var storedHostHardware = await configuredHostHardware.GetForEndpointAsync(endpoint.ToString(), cancellationToken).ConfigureAwait(false);
+            if (storedHostHardware is not null && storedHostHardware.Gpus.Count > 0)
+            {
+                hardware.RemoveAll(item => item.Kind == OneWireHardwareKind.Gpu);
+                hardware.AddRange(storedHostHardware.Gpus.Select(gpu => new OneWireHardwareDescriptor
+                {
+                    Kind = OneWireHardwareKind.Gpu,
+                    Index = gpu.Index,
+                    Name = gpu.Name,
+                    Vendor = gpu.Vendor,
+                    DedicatedMemoryBytes = gpu.DedicatedMemoryBytes,
+                    IsOnline = true
+                }));
+            }
             report.HardwareSummary = BuildHardwareSummary(hardware);
 
             using var http = new HttpClient

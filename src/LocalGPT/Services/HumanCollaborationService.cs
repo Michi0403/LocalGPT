@@ -937,14 +937,21 @@ public sealed class HumanCollaborationService(ILocalGptVocabularyService vocabul
 
                 if (recentAnswers.Count > 0)
                 {
-                    builder.AppendLine("New human guidance and feedback for this heartbeat (context only, never standing authority):");
+                    builder.AppendLine("New human guidance and feedback for this heartbeat (authoritative response to the listed question, but not authorization for side effects):");
+                    builder.AppendLine("- A member/role named as requester or target must explicitly consume the matching human answer as highest-priority role input when it next runs; do not silently continue as if the answer was absent.");
                     foreach (var answer in recentAnswers)
                     {
                         builder.Append("- [")
                             .Append(answer.QuestionScope)
                             .Append("; gate ")
                             .Append(answer.GateMode)
-                            .Append("] ")
+                            .Append("; requested by ")
+                            .Append(string.IsNullOrWhiteSpace(answer.RequestedBy) ? "unspecified member" : answer.RequestedBy)
+                            .Append(" / ")
+                            .Append(string.IsNullOrWhiteSpace(answer.RequestedRole) ? "unspecified role" : answer.RequestedRole);
+                        if (!string.IsNullOrWhiteSpace(answer.TargetMembersText))
+                            builder.Append("; targets ").Append(answer.TargetMembersText);
+                        builder.Append("] ")
                             .Append(answer.Title)
                             .Append(" -> ")
                             .Append(answer.Status);

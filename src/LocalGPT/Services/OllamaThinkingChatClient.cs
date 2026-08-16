@@ -85,6 +85,8 @@ public sealed class OllamaThinkingChatClient : IChatClient
     /// Stores the internal automatic tools enabled state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
     /// </summary>
     private readonly bool automaticToolsEnabled;
+    /// <summary>Stores an optional exact registered-function allow-list for provider-native automatic tools.</summary>
+    private readonly HashSet<string>? automaticFunctionAllowList;
     /// <summary>
     /// Stores the internal throw on failure state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.
     /// </summary>
@@ -111,6 +113,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
     /// <param name="functionCallRecovery">Devexpress ai function call recovery service dependency used by the Ollama thinking chat workflow to provide the corresponding application capability.</param>
     /// <param name="enableAutomaticTools">Value indicating whether enable automatic tools should apply to this operation.</param>
     /// <param name="throwOnFailure">Value indicating whether throw on failure should apply to this operation.</param>
+    /// <param name="automaticFunctionAllowList">Optional exact registered-function allow-list. Null or empty preserves the historical policy-approved catalog.</param>
     public OllamaThinkingChatClient(
         OllamaCoreOptions options,
         ILogger logger,
@@ -125,7 +128,8 @@ public sealed class OllamaThinkingChatClient : IChatClient
         IDxAiFunctionRegistry? functionRegistry = null,
         IDxAiFunctionCallRecoveryService? functionCallRecovery = null,
         bool enableAutomaticTools = true,
-        bool throwOnFailure = false)
+        bool throwOnFailure = false,
+        IReadOnlyCollection<string>? automaticFunctionAllowList = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -140,6 +144,9 @@ public sealed class OllamaThinkingChatClient : IChatClient
         this.functionRegistry = functionRegistry;
         this.functionCallRecovery = functionCallRecovery;
         automaticToolsEnabled = enableAutomaticTools;
+        this.automaticFunctionAllowList = automaticFunctionAllowList is { Count: > 0 }
+            ? automaticFunctionAllowList.Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : null;
         this.throwOnFailure = throwOnFailure;
 
         model = string.IsNullOrWhiteSpace(options.ModelName)
@@ -875,6 +882,7 @@ public sealed class OllamaThinkingChatClient : IChatClient
         return functionRegistry?
         .GetFunctions()
         .Where(function => function.AvailableToAi &&
+                           (automaticFunctionAllowList is null || automaticFunctionAllowList.Contains(function.Name)) &&
                            function.SupportsDirectInvocation &&
                            (function.RequiresHumanConfirmation
                                ? function.SupportsDeferredApprovalRequest

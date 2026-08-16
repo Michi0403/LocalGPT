@@ -70,7 +70,8 @@ public sealed class ProviderModelBenchmarkService(
         var maximumContext = Math.Clamp(request.MaximumContextTokens, 2048, 262144);
         var maximumOutput = Math.Clamp(request.MaximumOutputTokens, 128, 8192);
         var threshold = Math.Clamp(request.ImprovementThresholdPercent, 0d, 50d);
-        var tasks = BuildTasks().Take(maxTasks).ToList();
+        var stopAfterConsecutiveProfileFailures = Math.Clamp(request.StopAfterConsecutiveProfileFailures, 0, 4);
+        var tasks = BuildTasks(request).Take(maxTasks).ToList();
         var maximumMeasurementCalls = (long)targets.Count * maxProfiles * tasks.Count;
         var maximumReviewCalls = request.IncludeCouncilReview
             ? (long)targets.Count * Math.Max(0, request.MaxCouncilReviewers)
@@ -143,6 +144,7 @@ public sealed class ProviderModelBenchmarkService(
                     var profiles = BuildProfiles(target, request, maxProfiles, maximumContext, maximumOutput).ToList();
                     var bestScore = double.MinValue;
                     var consecutiveNonImprovingProfiles = 0;
+                    var consecutiveFailedProfiles = 0;
                     for (var profileIndex = 0; profileIndex < profiles.Count; profileIndex++)
                     {
                         runToken.ThrowIfCancellationRequested();
@@ -161,6 +163,7 @@ public sealed class ProviderModelBenchmarkService(
 
                         if (profileResult.Tasks.Any(task => task.Succeeded))
                         {
+                            consecutiveFailedProfiles = 0;
                             Publish($"  - Profile score: {profileResult.Score:0.00} · quality {profileResult.AverageQualityScore:0.000} · {profileResult.AverageTokensPerSecond:0.00} token/s · {profileResult.AverageTotalMilliseconds:0} ms average.");
                             if (bestScore == double.MinValue)
                             {
@@ -183,7 +186,16 @@ public sealed class ProviderModelBenchmarkService(
                         }
                         else
                         {
+                            consecutiveFailedProfiles++;
                             Publish("  - No benchmark task completed successfully for this profile.");
+                        }
+
+                        if (stopAfterConsecutiveProfileFailures > 0 &&
+                            consecutiveFailedProfiles >= stopAfterConsecutiveProfileFailures &&
+                            profileIndex + 1 < profiles.Count)
+                        {
+                            Publish($"  - Remaining profile escalation skipped after {consecutiveFailedProfiles} consecutive profile failure(s). Failed measurements remain explicit evidence; LocalGPT does not invent higher token limits.");
+                            break;
                         }
 
                         // Profiles are cheap and bounded. Run at least four so the Ollama CPU control and a
@@ -451,7 +463,7 @@ public sealed class ProviderModelBenchmarkService(
         for (var taskIndex = 0; taskIndex < tasks.Count; taskIndex++)
         {
             var task = tasks[taskIndex];
-            publish($"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} started.");
+            publish($"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} started for {model.DisplayName} at {profile.Name} ({profile.ContextTokens:N0} ctx / {profile.OutputTokens:N0} out).");
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(maxSeconds));
             var taskResult = new ProviderModelBenchmarkTaskResult { TaskName = task.Name };
@@ -467,22 +479,44 @@ public sealed class ProviderModelBenchmarkService(
                     enableAutomaticTools: false,
                     throwOnFailure: true);
                 var stopwatch = Stopwatch.StartNew();
-                var response = await client.GetResponseAsync(
-                    [new ChatMessage(ChatRole.System, "You are running a bounded LocalGPT benchmark. Return only the requested final answer."),
-                     new ChatMessage(ChatRole.User, task.Prompt)],
-                    new ChatOptions { MaxOutputTokens = profile.OutputTokens, Temperature = 0f },
-                    timeout.Token).ConfigureAwait(false);
+                string text = string.Empty;
+                for (var attempt = 0; attempt < (task.EnforceRoleExecution ? 2 : 1); attempt++)
+                {
+                    var messages = new List<ChatMessage>
+                    {
+                        new(ChatRole.System,
+                            "You are the provider-qualified Benchmark Subject for one bounded LocalGPT measurement. " +
+                            "The assignment is executable text/reasoning work. Execute it directly; do not decline because you are an AI model, do not ask another role to do it, do not call tools, and return only the requested final answer."),
+                        new(ChatRole.User, task.Prompt)
+                    };
+                    if (attempt > 0)
+                    {
+                        messages.Add(new ChatMessage(
+                            ChatRole.User,
+                            "Your previous response was a generic capability/non-performance refusal. That does not complete this assigned Benchmark Subject job. Execute the exact assignment now with the information already supplied. State ordinary uncertainty inside an attempted answer instead of refusing the role."));
+                        publish($"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} received one corrective same-role retry after generic non-performance.");
+                    }
+
+                    var response = await client.GetResponseAsync(
+                        messages,
+                        new ChatOptions { MaxOutputTokens = profile.OutputTokens, Temperature = 0f },
+                        timeout.Token).ConfigureAwait(false);
+                    text = response.Text ?? string.Empty;
+                    if (!task.EnforceRoleExecution || !LooksLikeGenericCapabilityRefusal(text) || attempt > 0)
+                        break;
+                }
                 stopwatch.Stop();
-                var text = response.Text ?? string.Empty;
                 taskResult.TotalMilliseconds = stopwatch.ElapsedMilliseconds;
                 taskResult.QualityScore = ScoreQuality(text, task);
                 taskResult.TokensPerSecond = EstimateTokens(text) / Math.Max(0.001d, stopwatch.Elapsed.TotalSeconds);
-                taskResult.Succeeded = !string.IsNullOrWhiteSpace(text);
+                taskResult.Succeeded = !string.IsNullOrWhiteSpace(text) &&
+                    !LooksLikeGenericCapabilityRefusal(text) &&
+                    taskResult.QualityScore >= 0.30d;
                 var compact = text.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Trim();
                 taskResult.ResponsePreview = compact[..Math.Min(compact.Length, 320)];
                 publish(taskResult.Succeeded
-                    ? $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} completed in {taskResult.TotalMilliseconds} ms · quality {taskResult.QualityScore:0.000} · {taskResult.TokensPerSecond:0.00} token/s."
-                    : $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} returned no usable response.");
+                    ? $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} completed for {model.DisplayName} / {profile.Name} in {taskResult.TotalMilliseconds} ms · quality {taskResult.QualityScore:0.000} · {taskResult.TokensPerSecond:0.00} token/s."
+                    : $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} returned no contract-compliant response for {model.DisplayName} / {profile.Name}.");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -606,10 +640,27 @@ public sealed class ProviderModelBenchmarkService(
     /// <summary>
     /// Builds tasks as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="request">Benchmark request whose optional caller-supplied task definitions take precedence over the maintained standalone suite.</param>
     /// <returns>The collection produced by the operation.</returns>
-    private IReadOnlyList<BenchmarkTask> BuildTasks() {
+    private IReadOnlyList<BenchmarkTask> BuildTasks(ProviderModelBenchmarkRequest request) {
     try
     {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.TaskDefinitions.Count > 0)
+        {
+            return request.TaskDefinitions
+                .Where(task => !string.IsNullOrWhiteSpace(task.Name) && !string.IsNullOrWhiteSpace(task.Prompt))
+                .Select(task => new BenchmarkTask(
+                    task.Name.Trim(),
+                    task.Prompt.Trim(),
+                    task.ExpectedTokens.Where(token => !string.IsNullOrWhiteSpace(token)).Select(token => token.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                    task.ExpectJson,
+                    Math.Clamp(task.ExpectedSectionCount, 0, 16),
+                    task.RequireEmbeddedJsonObject,
+                    task.EnforceRoleExecution))
+                .ToList();
+        }
+
         return [
         new("C# correctness", "A C# loop sums integers 1 through 5 but uses `for (var i = 1; i < 5; i++)`. State the bug and corrected loop in two short lines.", ["<= 5", "off-by-one"]),
         new("Provider identity", "Explain in one sentence why the pair (provider endpoint, model name) is safer as an AI model address than model name alone.", ["provider", "model"]),
@@ -748,22 +799,32 @@ public sealed class ProviderModelBenchmarkService(
     /// <returns>The double produced by the operation.</returns>
     private double ScoreQuality(string response, BenchmarkTask task)
     {
-    try
-    {
-            if (string.IsNullOrWhiteSpace(response))
+        try
+        {
+            if (string.IsNullOrWhiteSpace(response) || LooksLikeGenericCapabilityRefusal(response))
                 return 0d;
-            var score = 0.2d;
+
             var matches = task.ExpectedTokens.Count(token => response.Contains(token, StringComparison.OrdinalIgnoreCase));
+            if (task.ExpectedSectionCount > 0 || task.RequireEmbeddedJsonObject)
+            {
+                var tokenScore = task.ExpectedTokens.Count == 0 ? 1d : matches / (double)task.ExpectedTokens.Count;
+                var sectionMatches = Enumerable.Range(1, task.ExpectedSectionCount)
+                    .Count(index => response.Contains($"Task {index}", StringComparison.OrdinalIgnoreCase));
+                var sectionScore = task.ExpectedSectionCount == 0 ? 1d : sectionMatches / (double)task.ExpectedSectionCount;
+                JsonDocument? embeddedDocument = null;
+                var jsonScore = !task.RequireEmbeddedJsonObject || TryParseFirstJsonObject(response, out embeddedDocument) ? 1d : 0d;
+                embeddedDocument?.Dispose();
+                return Math.Clamp(0.10d + (0.40d * tokenScore) + (0.30d * sectionScore) + (0.20d * jsonScore), 0d, 1d);
+            }
+
+            var score = 0.2d;
             score += task.ExpectedTokens.Count == 0 ? 0.6d : 0.6d * matches / task.ExpectedTokens.Count;
             if (task.ExpectJson)
             {
-                try
+                if (TryParseFirstJsonObject(response, out var document))
                 {
-                    using var _ = ParseFirstJsonObject(response);
+                    document?.Dispose();
                     score += 0.2d;
-                }
-                catch (JsonException)
-                {
                 }
             }
             else
@@ -771,27 +832,26 @@ public sealed class ProviderModelBenchmarkService(
                 score += 0.2d;
             }
             return Math.Clamp(score, 0d, 1d);
-    
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Scoring provider benchmark response was cancelled.");
+            else
+                logger.LogError(exception, "Scoring provider benchmark response failed; model output content was omitted.");
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ScoreQuality)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ScoreQuality)} failed.");
-        throw;
-    }
-}
 
-    /// <summary>
-    /// Parses first JSON object as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="value">Value value supplied to the provider model benchmark operation and used when producing its result.</param>
-    /// <returns>The JSON document produced by the operation.</returns>
-    private JsonDocument ParseFirstJsonObject(string value)
+    /// <summary>Attempts to parse the first complete JSON object contained in untrusted benchmark output without treating malformed model text as an application error.</summary>
+    /// <param name="value">Untrusted provider response text.</param>
+    /// <param name="document">The parsed first complete JSON object when successful.</param>
+    /// <returns><see langword="true"/> when a complete JSON object was found and parsed; otherwise <see langword="false"/>.</returns>
+    private bool TryParseFirstJsonObject(string value, out JsonDocument? document)
     {
-    try
-    {
+        document = null;
+        try
+        {
             var normalized = value ?? string.Empty;
             for (var decodePass = 0; decodePass < 2; decodePass++)
             {
@@ -801,32 +861,92 @@ public sealed class ProviderModelBenchmarkService(
                 normalized = decoded;
             }
 
-            var start = normalized.IndexOf('{');
-            if (start < 0)
-                throw new JsonException("No JSON object was returned.");
-
-            var utf8 = Encoding.UTF8.GetBytes(normalized[start..]);
-            var reader = new Utf8JsonReader(
-                utf8,
-                new JsonReaderOptions
+            for (var start = normalized.IndexOf('{'); start >= 0; start = normalized.IndexOf('{', start + 1))
+            {
+                try
                 {
-                    CommentHandling = JsonCommentHandling.Skip,
-                    AllowTrailingCommas = true
-                });
-            if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
-                throw new JsonException("No JSON object was returned.");
-            return JsonDocument.ParseValue(ref reader);
-    
+                    var utf8 = Encoding.UTF8.GetBytes(normalized[start..]);
+                    var reader = new Utf8JsonReader(
+                        utf8,
+                        new JsonReaderOptions
+                        {
+                            CommentHandling = JsonCommentHandling.Skip,
+                            AllowTrailingCommas = true
+                        });
+                    if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
+                        continue;
+                    document = JsonDocument.ParseValue(ref reader);
+                    return true;
+                }
+                catch (JsonException)
+                {
+                    // Malformed/truncated provider JSON is benchmark evidence. Try a later object once,
+                    // but never promote ordinary model formatting failure to an application Error log.
+                }
+            }
+            return false;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Unexpected failure while scanning untrusted provider output for JSON; model output content was omitted.");
+            return false;
+        }
     }
-    catch (Exception __serviceMethodException)
+
+    /// <summary>Parses the first complete JSON object for internal reviewer contracts that require structured data.</summary>
+    /// <param name="value">Untrusted reviewer response text.</param>
+    /// <returns>The parsed JSON object.</returns>
+    private JsonDocument ParseFirstJsonObject(string value)
     {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ParseFirstJsonObject)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(ProviderModelBenchmarkService)}.{nameof(ParseFirstJsonObject)} failed.");
-        throw;
+        try
+        {
+            if (TryParseFirstJsonObject(value, out var document) && document is not null)
+                return document;
+            throw new JsonException("No complete JSON object was returned.");
+        }
+        catch (JsonException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Parsing a required internal benchmark-review JSON object failed; response content was omitted.");
+            throw;
+        }
     }
-}
+
+    /// <summary>Detects a narrow class of generic role/capability refusals that are invalid for maintained text-only benchmark assignments.</summary>
+    /// <param name="value">Visible provider response.</param>
+    /// <returns><see langword="true"/> when the response is a generic AI capability/non-performance refusal rather than an attempted answer.</returns>
+    private bool LooksLikeGenericCapabilityRefusal(string value)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+            var normalized = value.Trim();
+            if (normalized.Length > 1600)
+                return false;
+            var lower = normalized.ToLowerInvariant();
+            if (lower.Contains("safety", StringComparison.Ordinal) ||
+                lower.Contains("harmful", StringComparison.Ordinal) ||
+                lower.Contains("illegal", StringComparison.Ordinal))
+                return false;
+            return lower.Contains("as an ai", StringComparison.Ordinal) &&
+                       (lower.Contains("cannot", StringComparison.Ordinal) || lower.Contains("can't", StringComparison.Ordinal) || lower.Contains("do not have", StringComparison.Ordinal)) ||
+                   lower.Contains("don't have the capability", StringComparison.Ordinal) ||
+                   lower.Contains("do not have the capability", StringComparison.Ordinal) ||
+                   lower.Contains("cannot execute tasks", StringComparison.Ordinal) ||
+                   lower.Contains("cannot participate in benchmarking", StringComparison.Ordinal) ||
+                   lower.Contains("please provide the task", StringComparison.Ordinal) ||
+                   lower.Contains("please provide instructions", StringComparison.Ordinal);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Detecting generic benchmark role refusal failed; response content was omitted.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs estimate tokens as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -924,7 +1044,17 @@ public sealed class ProviderModelBenchmarkService(
     /// <param name="Prompt">Prompt value supplied to the provider model benchmark operation and used when producing its result.</param>
     /// <param name="ExpectedTokens">String dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
     /// <param name="ExpectJson">Value indicating whether expect JSON should apply to this operation.</param>
-    private sealed record BenchmarkTask(string Name, string Prompt, IReadOnlyList<string> ExpectedTokens, bool ExpectJson = false);
+    /// <param name="ExpectedSectionCount">Number of numbered answer sections expected from a composite assignment.</param>
+    /// <param name="RequireEmbeddedJsonObject">Whether at least one complete embedded JSON object is required by the task contract.</param>
+    /// <param name="EnforceRoleExecution">Whether a narrow generic capability refusal receives one bounded same-role retry.</param>
+    private sealed record BenchmarkTask(
+        string Name,
+        string Prompt,
+        IReadOnlyList<string> ExpectedTokens,
+        bool ExpectJson = false,
+        int ExpectedSectionCount = 0,
+        bool RequireEmbeddedJsonObject = false,
+        bool EnforceRoleExecution = false);
     /// <summary>
     /// Represents a benchmark profile helper type nested within <see cref="ProviderModelBenchmarkService"/>, grouping the state or behavior used only by that containing workflow.
     /// </summary>

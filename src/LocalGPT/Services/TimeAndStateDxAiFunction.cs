@@ -14,7 +14,8 @@ namespace LocalGPT.Services;
 /// <param name="peers">One wire peer registry dependency used by the get time and state now function workflow to provide the corresponding application capability.</param>
 /// <param name="connections">One wire connection registry dependency used by the get time and state now function workflow to provide the corresponding application capability.</param>
 /// <param name="councilSpooler">Council spooler service dependency used by the get time and state now function workflow to provide the corresponding application capability.</param>
-/// <param name="hardwareInventory">Hardware inventory service dependency used by the get time and state now function workflow to provide the corresponding application capability.</param>
+/// <param name="hardwareInventory">Best-effort operating-system hardware discovery dependency.</param>
+/// <param name="configuredHostHardware">Database-backed configured physical-host hardware definitions.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class GetTimeAndStateNowFunction(
     IApplicationLogReaderService applicationLogs,
@@ -22,6 +23,7 @@ public sealed class GetTimeAndStateNowFunction(
     IOneWireConnectionRegistry connections,
     ICouncilSpoolerService councilSpooler,
     IHardwareInventoryService hardwareInventory,
+    IConfiguredAiHostHardwareService configuredHostHardware,
     ILogger<GetTimeAndStateNowFunction> logger) : IDxAiFunctionHandler
 {
     /// <summary>
@@ -59,6 +61,7 @@ public sealed class GetTimeAndStateNowFunction(
             var processStartUtc = new DateTimeOffset(process.StartTime.ToUniversalTime(), TimeSpan.Zero);
             var recentLogs = await applicationLogs.GetRecentAsync(LogLevel.Trace, 3, cancellationToken).ConfigureAwait(false);
             var hardware = await hardwareInventory.GetHardwareAsync(cancellationToken).ConfigureAwait(false);
+            var configuredHostProfiles = await configuredHostHardware.GetAllAsync(cancellationToken).ConfigureAwait(false);
             var peerRows = peers.GetPeers().Take(32).Select(peer => new
             {
                 peer.PeerId,
@@ -128,12 +131,26 @@ public sealed class GetTimeAndStateNowFunction(
                     item.LogicalProcessorCount,
                     item.IsOnline,
                     item.LaneKey
+                }).ToList(),
+                ConfiguredHostHardware = configuredHostProfiles.Take(32).Select(host => new
+                {
+                    host.HostKey,
+                    host.HostName,
+                    host.OperatingSystem,
+                    host.Architecture,
+                    host.CpuName,
+                    host.SystemMemoryBytes,
+                    host.SourceKind,
+                    host.Confidence,
+                    host.IsUserConfirmed,
+                    host.UpdatedAtUtc,
+                    Gpus = host.Gpus.Select(gpu => new { gpu.Index, gpu.Name, gpu.Vendor, gpu.DedicatedMemoryBytes }).ToList()
                 }).ToList()
             };
 
             logger.LogInformation(
-                "DXAIFunction returned current time/state with {LogCount} log(s), {CouncilCount} council run(s), {PeerCount} peer(s) and {HardwareCount} hardware row(s).",
-                recentLogs.Count, councilRows.Count, peerRows.Count, hardware.Count);
+                "DXAIFunction returned current time/state with {LogCount} log(s), {CouncilCount} council run(s), {PeerCount} peer(s), {HardwareCount} OS-probed hardware row(s) and {ConfiguredHostCount} configured-host hardware profile(s).",
+                recentLogs.Count, councilRows.Count, peerRows.Count, hardware.Count, configuredHostProfiles.Count);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = value };
     
     }

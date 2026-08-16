@@ -61,6 +61,14 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
                     if (result.All(existing => !string.Equals(existing.LaneKey, gpu.LaneKey, StringComparison.OrdinalIgnoreCase)))
                         result.Add(gpu);
 
+                if (OperatingSystem.IsLinux())
+                {
+                    foreach (var gpu in await ProbeLinuxDrmAsync(cancellationToken).ConfigureAwait(false))
+                        if (result.All(existing => !string.Equals(existing.LaneKey, gpu.LaneKey, StringComparison.OrdinalIgnoreCase) &&
+                                                   !(string.Equals(existing.Vendor, gpu.Vendor, StringComparison.OrdinalIgnoreCase) && existing.Index == gpu.Index)))
+                            result.Add(gpu);
+                }
+
                 if (OperatingSystem.IsWindows())
                 {
                     foreach (var gpu in await ProbeWindowsVideoControllersAsync(cancellationToken).ConfigureAwait(false))
@@ -133,6 +141,108 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
     }
 }
 
+
+    /// <summary>
+    /// Reads Linux DRM/sysfs GPU identity and dedicated VRAM without depending on a desktop environment or Windows APIs.
+    /// AMDGPU exposes <c>mem_info_vram_total</c> in bytes; other DRM drivers remain useful identity evidence when that file is absent.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop local read-only discovery.</param>
+    /// <returns>The GPU descriptors discovered through Linux DRM/sysfs.</returns>
+    private async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeLinuxDrmAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            const string drmRoot = "/sys/class/drm";
+            if (!Directory.Exists(drmRoot))
+                return [];
+
+            var result = new List<OneWireHardwareDescriptor>();
+            foreach (var cardPath in Directory.EnumerateDirectories(drmRoot, "card*", SearchOption.TopDirectoryOnly))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var cardName = Path.GetFileName(cardPath);
+                if (cardName.Length <= 4 || !int.TryParse(cardName[4..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
+                    continue;
+
+                var devicePath = Path.Combine(cardPath, "device");
+                if (!Directory.Exists(devicePath))
+                    continue;
+
+                var vendorCode = await ReadTrimmedFileAsync(Path.Combine(devicePath, "vendor"), cancellationToken).ConfigureAwait(false);
+                var deviceCode = await ReadTrimmedFileAsync(Path.Combine(devicePath, "device"), cancellationToken).ConfigureAwait(false);
+                var vendor = vendorCode.ToLowerInvariant() switch
+                {
+                    "0x1002" => "AMD",
+                    "0x10de" => "NVIDIA",
+                    "0x8086" => "Intel",
+                    _ => string.IsNullOrWhiteSpace(vendorCode) ? "DRM" : vendorCode
+                };
+                long? dedicatedMemoryBytes = null;
+                var vramText = await ReadTrimmedFileAsync(Path.Combine(devicePath, "mem_info_vram_total"), cancellationToken).ConfigureAwait(false);
+                if (long.TryParse(vramText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var vramBytes) && vramBytes > 0)
+                    dedicatedMemoryBytes = vramBytes;
+
+                var driver = string.Empty;
+                try
+                {
+                    var driverPath = Path.Combine(devicePath, "driver");
+                    if (Directory.Exists(driverPath))
+                        driver = new DirectoryInfo(driverPath).LinkTarget is { Length: > 0 } linkTarget
+                            ? Path.GetFileName(linkTarget.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                            : string.Empty;
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogDebug(exception, "Linux DRM driver link could not be read for card {CardIndex}.", index);
+                }
+
+                var identity = string.IsNullOrWhiteSpace(deviceCode)
+                    ? $"{vendor} GPU {cardName}"
+                    : $"{vendor} GPU {cardName} ({deviceCode})";
+                if (!string.IsNullOrWhiteSpace(driver))
+                    identity += $" · {driver}";
+
+                result.Add(new OneWireHardwareDescriptor
+                {
+                    Kind = OneWireHardwareKind.Gpu,
+                    Index = index,
+                    Name = identity,
+                    Vendor = vendor,
+                    DedicatedMemoryBytes = dedicatedMemoryBytes,
+                    IsOnline = true
+                });
+            }
+            return result;
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Linux DRM hardware discovery was cancelled.");
+            else
+                logger.LogError(exception, "Linux DRM hardware discovery failed; device details were omitted.");
+            throw;
+        }
+    }
+
+    /// <summary>Reads one small Linux sysfs text file and treats unavailable optional fields as empty evidence.</summary>
+    /// <param name="path">Absolute sysfs file path.</param>
+    /// <param name="cancellationToken">Cancellation token for the read.</param>
+    /// <returns>The trimmed file text, or an empty string when the optional sysfs field is unavailable.</returns>
+    private async Task<string> ReadTrimmedFileAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!File.Exists(path))
+                return string.Empty;
+            return (await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false)).Trim();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(exception, "Optional Linux hardware sysfs field could not be read.");
+            return string.Empty;
+        }
+    }
+
     /// <summary>
     /// Performs probe windows video controllers as part of the hardware inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -142,7 +252,9 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
     {
     try
     {
-            const string script = "$i=0; Get-CimInstance Win32_VideoController | ForEach-Object { '{0}|{1}|{2}' -f $i,$_.Name,$_.AdapterRAM; $i++ }";
+            // Win32_VideoController.AdapterRAM is a legacy 32-bit field that saturates near 4 GiB on modern GPUs.
+            // Use this Windows fallback only for device identity; authoritative VRAM comes from vendor probes or configured-host hardware.
+            const string script = "$i=0; Get-CimInstance Win32_VideoController | ForEach-Object { '{0}|{1}' -f $i,$_.Name; $i++ }";
             var lines = await RunProbeAsync("powershell", $"-NoProfile -NonInteractive -Command \"{script}\"", cancellationToken).ConfigureAwait(false);
             var result = new List<OneWireHardwareDescriptor>();
             foreach (var line in lines)
@@ -150,14 +262,13 @@ public sealed class HardwareInventoryService(ILogger<HardwareInventoryService> l
                 var parts = line.Split('|', StringSplitOptions.TrimEntries);
                 if (parts.Length < 2 || !int.TryParse(parts[0], out var index))
                     continue;
-                long? bytes = parts.Length >= 3 && long.TryParse(parts[2], out var parsed) ? parsed : null;
                 result.Add(new OneWireHardwareDescriptor
                 {
                     Kind = OneWireHardwareKind.Gpu,
                     Index = index,
                     Name = parts[1],
                     Vendor = InferVendor(parts[1]),
-                    DedicatedMemoryBytes = bytes,
+                    DedicatedMemoryBytes = null,
                     IsOnline = true
                 });
             }

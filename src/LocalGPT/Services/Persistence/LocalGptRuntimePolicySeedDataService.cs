@@ -109,7 +109,7 @@ public sealed class LocalGptRuntimePolicySeedDataService : ILocalGptRuntimePolic
                     new(LocalGptRuntimeValue.FormattingThinkEndTag, nameof(LocalGptRuntimeValue.FormattingThinkEndTag), "</think>", "System.String"),
                     new(LocalGptRuntimeValue.FormattingTagLookbehindLength, nameof(LocalGptRuntimeValue.FormattingTagLookbehindLength), "16", "System.Int32"),
                     new(LocalGptRuntimeValue.FormattingMissingFinalAnswerNotice, nameof(LocalGptRuntimeValue.FormattingMissingFinalAnswerNotice), "The model stream ended without a final-answer section.", "System.String"),
-                    new(LocalGptRuntimeValue.HardwareGpuInventoryScript, nameof(LocalGptRuntimeValue.HardwareGpuInventoryScript), "$i=0; Get-CimInstance Win32_VideoController | ForEach-Object { '{0}|{1}|{2}' -f $i,$_.Name,$_.AdapterRAM; $i++ }", "System.String"),
+                    new(LocalGptRuntimeValue.HardwareGpuInventoryScript, nameof(LocalGptRuntimeValue.HardwareGpuInventoryScript), "$i=0; Get-CimInstance Win32_VideoController | ForEach-Object { '{0}|{1}' -f $i,$_.Name; $i++ }", "System.String"),
                     new(LocalGptRuntimeValue.HumanCollaborationMaximumTextLength, nameof(LocalGptRuntimeValue.HumanCollaborationMaximumTextLength), "1000000", "System.Int32"),
                     new(LocalGptRuntimeValue.NativeCommandMinimumTimeoutSeconds, nameof(LocalGptRuntimeValue.NativeCommandMinimumTimeoutSeconds), "5", "System.Int32"),
                     new(LocalGptRuntimeValue.NativeCommandMaximumTimeoutSeconds, nameof(LocalGptRuntimeValue.NativeCommandMaximumTimeoutSeconds), "3600", "System.Int32"),
