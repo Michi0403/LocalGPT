@@ -501,7 +501,7 @@
                     {
                         recentDeferredResults.Clear();
                         recentDeferredResults.AddRange(outcomes.Select(ToDeferredResultView));
-                        var failedCount = outcomes.Count(outcome => !outcome.Succeeded);
+                        var failedCount = outcomes.Count(outcome => !string.Equals(outcome.Status, Vocabulary.Get().DeferredCompleted, StringComparison.OrdinalIgnoreCase));
                         statusText = failedCount == 0
                             ? $"Executed {outcomes.Count} approved deferred function call(s) successfully."
                             : $"Executed {outcomes.Count} approved deferred function call(s); {failedCount} failed validation or execution. Approval is not reported as successful execution.";

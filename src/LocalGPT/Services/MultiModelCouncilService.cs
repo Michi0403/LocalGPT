@@ -4070,7 +4070,7 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                 assignmentBriefing.Append("- Language instruction: ").AppendLine(languageInstruction);
                 assignmentBriefing.Append("- Human-turn instruction: ").AppendLine(humanParticipationInstruction);
                 assignmentBriefing.Append("- Knowledge grounding: ").AppendLine(
-                    team.KnowledgeReferences.Count > 0 || team.PreferredCapabilities.Any(item => item.Contains("knowledge", StringComparison.OrdinalIgnoreCase))
+                    !string.IsNullOrWhiteSpace(request.ExternalProjectContextJson) || team.PreferredCapabilities.Any(item => item.Contains("knowledge", StringComparison.OrdinalIgnoreCase))
                         ? "LocalGPT knowledge/project context is relevant to this team. Consult authoritative supplied/retrieved local evidence when it materially improves correctness; do not make ceremonial retrieval calls when the assigned task is already self-contained."
                         : "Use supplied local/project evidence when present. Pretrained knowledge is allowed, but authoritative local evidence wins when the two conflict.");
                 assignmentBriefing.Append("- Organic/DX tool availability for this step: ").AppendLine(
@@ -4081,8 +4081,8 @@ BLOCKERS: none | <specific missing capability or ambiguity>
                         : "disabled by team configuration; LocalGPT must not expose automatic provider tool metadata for this step.");
                 if (team.PreferredCapabilities.Count > 0)
                     assignmentBriefing.Append("- Team preferred capabilities: ").AppendLine(string.Join(", ", team.PreferredCapabilities));
-                if (team.KnowledgeReferences.Count > 0)
-                    assignmentBriefing.Append("- Team knowledge references: ").AppendLine(string.Join(", ", team.KnowledgeReferences));
+                if (!string.IsNullOrWhiteSpace(request.ExternalProjectContextJson))
+                    assignmentBriefing.AppendLine("- External project knowledge/context: supplied for this request; prefer authoritative local project evidence over conflicting pretrained assumptions.");
                 if (definition.XFunctionsEnabled)
                 {
                     assignmentBriefing.AppendLine("- X-Round control: this step may use only the X actions explicitly enabled in Council Teams, and every control request must state a concrete reason.");

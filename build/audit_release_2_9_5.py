@@ -10,7 +10,7 @@ def forbid(rel,needle):
     if needle in read(rel): raise AssertionError(f"{rel}: forbidden {needle!r}")
 try:
     for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-        require(rel,'<Version>2.9.6</Version>')
+        require(rel,'<Version>2.9.7</Version>')
     protocol='src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
     require(protocol,'<Version>2.1.1</Version>'); require(protocol,'<PackageVersion>2.1.1</PackageVersion>')
 
@@ -33,6 +33,6 @@ try:
     multi='src/LocalGPT/Services/MultiModelCouncilService.cs'
     for needle in ['RunConfiguredAllMembersReadinessPreflightAsync','BuildConfiguredAllMembersReadinessPrompt','phase: "Team preflight"','role: "All-members readiness preflight"','Do not execute the user\'s original request','GetCouncilWorkflowContextSteps','!IsConfiguredAllMembersReadinessPreflightStep(step)','AllMembersReadinessPreflightMode == CouncilAllMembersReadinessPreflightMode.RoleAwareProbe','AllMembersReadinessPreflightMode == CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault']:
         require(multi,needle)
-    print('LocalGPT 2.9.5 configurable all-members team preflight regression audit passed under 2.9.6.')
+    print('LocalGPT 2.9.5 configurable all-members team preflight regression audit passed under 2.9.7.')
 except Exception as exc:
     print(f'LocalGPT 2.9.5 regression audit failed: {exc}',file=sys.stderr); raise SystemExit(1)

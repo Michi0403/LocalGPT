@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Source-only audit for LocalGPT 2.9.6 benchmark stability, role recovery, host hardware and post-run observability."""
+"""Source-only audit for LocalGPT 2.9.7 benchmark stability, role recovery, host hardware and post-run observability."""
 from pathlib import Path
 import sys,re
 ROOT=Path(__file__).resolve().parents[1]
@@ -11,7 +11,7 @@ def forbid(rel,needle):
 def count(rel,needle): return read(rel).count(needle)
 try:
     for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-        require(rel,'<Version>2.9.6</Version>')
+        require(rel,'<Version>2.9.7</Version>')
     protocol='src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
     require(protocol,'<Version>2.1.1</Version>'); require(protocol,'<PackageVersion>2.1.1</PackageVersion>')
     require('src/LocalGPT/Services/CouncilTeamConfigurationService.cs','private const int CurrentSeedVersion = 24;')
@@ -111,6 +111,6 @@ try:
     require('src/LocalGPT/Services/AdaptiveOllamaBenchmarkWiring.cs','IConfiguredAiHostHardwareService')
     require('src/LocalGPT/Services/TimeAndStateDxAiFunction.cs','ConfiguredHostHardware')
 
-    print('LocalGPT 2.9.6 benchmark stability/host-hardware/role-recovery source audit passed.')
+    print('LocalGPT 2.9.7 benchmark stability/host-hardware/role-recovery source audit passed.')
 except Exception as exc:
-    print(f'LocalGPT 2.9.6 source audit failed: {exc}',file=sys.stderr); raise SystemExit(1)
+    print(f'LocalGPT 2.9.7 source audit failed: {exc}',file=sys.stderr); raise SystemExit(1)

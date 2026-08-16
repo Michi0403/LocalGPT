@@ -1,6 +1,6 @@
 order: 200
 pdf: true
-pdfFileName: LocalGPT-2.3.7.pdf
+pdfFileName: LocalGPT-2.9.7.pdf
 pdfTocPage: true
 pdfCoverPage: pdf-cover.html
 pdfPrintBackground: true
@@ -17,8 +17,3 @@ items:
   href: ../reference/toc.yml
 - name: API reference
   href: ../api/toc.yml
-
-
-
-
-
