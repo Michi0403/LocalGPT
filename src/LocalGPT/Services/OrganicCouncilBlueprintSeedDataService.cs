@@ -93,6 +93,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService : IOrganicCou
             PreferredCapabilities = ["project context", "knowledge", "regex", "eyes", "hands"],
             ArchitectureContracts = DefaultArchitectureContracts()
         },
+        CreateInitialSetupAssistantTeam(),
         CreateAdaptiveBenchmarkTeam(),
         CreateGameDirectorRuntimeTeam(),
         CreateCSharpModernHostDevelopmentTeam(),

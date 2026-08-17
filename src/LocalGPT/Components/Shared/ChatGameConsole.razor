@@ -1,6 +1,7 @@
 @using LocalGPT.BusinessObjects
 @using Microsoft.JSInterop
 @inject ICouncilGameSessionService Games
+@inject IConsoleCommandService Console
 @inject IJSRuntime JS
 @inject ILogger<ChatGameConsole> Logger
 @implements IAsyncDisposable
@@ -14,8 +15,8 @@
          aria-label="Persistent ASCII game screen">
     <header class="chat-game-console-header">
         <div>
-            <strong>@(snapshot?.DisplayName ?? "ASCII game console")</strong>
-            <small>@(snapshot is null ? "Start a directly playable runtime-class game." : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}")</small>
+            <strong>@(snapshot?.DisplayName ?? (consoleOutput.Count > 0 ? "ASCII command console" : "ASCII game console"))</strong>
+            <small>@(snapshot is null ? (consoleOutput.Count > 0 ? "Live bounded LocalGPT terminal output. Start a game any time to replace this surface." : "Start a directly playable runtime-class game.") : $"Turn {snapshot.Turn} · {snapshot.CurrentTurnOwner} · {snapshot.ControlMode}")</small>
         </div>
         <div class="chat-game-console-actions">
             @if (snapshot is null)
@@ -71,11 +72,18 @@
     @if (snapshot is null)
     {
         <div class="chat-game-console-placeholder">
-            <pre>┌──────────────────────────────────────────────────────────────────────────────┐
-│  /Chat game surface ready                                                   │
-│  One authoritative frame stays here while the conversation continues.       │
-│  Human and AI players call the same move / turn / shoot / use contract.      │
+            @if (consoleOutput.Count > 0)
+            {
+                <pre class="chat-game-screen" aria-live="polite">@ConsoleText</pre>
+            }
+            else
+            {
+                <pre>┌──────────────────────────────────────────────────────────────────────────────┐
+│  /Chat ASCII surface ready                                                  │
+│  Provider/toolchain commands appear here when no game is running.           │
+│  One authoritative game frame replaces the command feed while a game runs.  │
 └──────────────────────────────────────────────────────────────────────────────┘</pre>
+            }
         </div>
     }
     else
@@ -136,6 +144,7 @@
 
     private readonly string elementId = $"localgpt-game-{Guid.NewGuid():N}";
     private CouncilGameSessionSnapshot? snapshot;
+    private IReadOnlyList<LocalConsoleOutputEvent> consoleOutput = [];
     private DotNetObjectReference<ChatGameConsole>? reference;
     private bool attached;
     private bool showControls = true;
@@ -144,10 +153,13 @@
     private bool ShowControlGuide => snapshot is { ControlMode: not CouncilGameControlMode.Ai } && showControls;
     private bool CanSubmitHumanControl => snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai } && !inputInFlight;
     private string InputBusyState => inputInFlight ? "true" : "false";
+    private string ConsoleText => Console.GetRecentDisplayText(160);
 
     protected override async Task OnInitializedAsync()
     {
         Games.Changed += OnGameChanged;
+        Console.Changed += OnConsoleChanged;
+        consoleOutput = Console.GetRecentOutput(160);
         snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
     }
 
@@ -280,9 +292,19 @@
         });
     }
 
+    private void OnConsoleChanged()
+    {
+        _ = InvokeAsync(() =>
+        {
+            consoleOutput = Console.GetRecentOutput(160);
+            StateHasChanged();
+        });
+    }
+
     public async ValueTask DisposeAsync()
     {
         Games.Changed -= OnGameChanged;
+        Console.Changed -= OnConsoleChanged;
         try
         {
             if (attached) await JS.InvokeVoidAsync("localGptGameConsole.detach", elementId).ConfigureAwait(false);

@@ -46,6 +46,10 @@ public sealed class InitialDataCatalog(
         new("builtin.json-key-token-pattern", "(?<=[a-z0-9])(?=[A-Z])|[_\\-.]+", "c"),
         new("builtin.json-scalar-pattern", "^(?:null|true|false|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?|\"(?:\\\\.|[^\"\\\\])*\")$", "i,c"),
         new("builtin.json-property-pattern", "\"(?<name>(?:\\\\.|[^\"\\\\])+)\"\\s*:\\s*(?<value>\"(?:\\\\.|[^\"\\\\])*\"|true|false|null|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)", "i,c"),
+        new("builtin.canirun-model-card-pattern", """<article\b(?<attrs>[^>]*\bdata-model-id=\x22[^\x22]+\x22[^>]*)>""", "i,c"),
+        new("builtin.html-data-attribute-pattern", """\bdata-(?<name>[a-z0-9-]+)=\x22(?<value>[^\x22]*)\x22""", "i,c"),
+        new("builtin.ai-provider-bootstrap-block", """```localgpt-provider-profile\s*(?<json>\{.*?\})\s*```""", "i,s,c"),
+        new("builtin.provider-model-token-pattern", """^[A-Za-z0-9][A-Za-z0-9._/:+@-]{0,239}$""", "c"),
         new("HarmonyFinal", "<\\|start\\|>assistant<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|$)|<\\|channel\\|>final<\\|message\\|>(?<content>.*?)(?=<\\|end\\|>|<\\|start\\|>|$)", "i,s,c"),
         new("HarmonyThinking", "<\\|start\\|>assistant<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)|<\\|channel\\|>(analysis|commentary)<\\|message\\|>(?<content>.*?)(?=<\\|channel\\|>|<\\|end\\|>|$)", "i,s,c"),
         new("ThinkTag", "<think>(?<thinking>.*?)</think>", "i,s,c"),
@@ -206,7 +210,8 @@ public sealed class InitialDataCatalog(
             "docs/architecture/onewire-security.md",
             "docs/engineering/build-validation.md",
             "docs/reference/capability-map.md",
-            "docs/reference/toolchain-discovery.md"
+            "docs/reference/toolchain-discovery.md",
+            "docs/reference/ai-provider-installation.md"
         ];
 
         var entries = new List<CouncilKnowledgeEntry>();

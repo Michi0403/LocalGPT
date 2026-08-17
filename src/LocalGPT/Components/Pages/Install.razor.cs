@@ -36,6 +36,7 @@ namespace LocalGPT.Components.Pages
     public partial class Install
     {
     private string ActiveInstallSection { get; set; } = "providers";
+    private bool InstallSectionUserSelected;
     private IReadOnlyList<WorkbenchNavItem> InstallSections =>
     [
         new("providers", T("Install.Workbench.Nav.Providers", "AI providers"), T("Install.Workbench.Nav.ProvidersHelp", "Hosts, models and provider connection settings"), ConfiguredProviderHosts.Count.ToString(CultureInfo.InvariantCulture)),
@@ -49,6 +50,7 @@ namespace LocalGPT.Components.Pages
 
     private Task OnInstallSectionChanged(string key)
     {
+        InstallSectionUserSelected = true;
         ActiveInstallSection = key;
         return Task.CompletedTask;
     }
@@ -524,6 +526,8 @@ namespace LocalGPT.Components.Pages
         {
             IsOnboardingLoading = true;
             OnboardingStatus = await Onboarding.GetStatusAsync(refreshConnectivity: false).ConfigureAwait(false);
+            if (!OnboardingStatus.IsCompleted && !InstallSectionUserSelected && string.IsNullOrWhiteSpace(new Uri(Nav.Uri).Fragment))
+                ActiveInstallSection = "guide";
         }
         catch (Exception exception)
         {

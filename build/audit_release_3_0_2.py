@@ -11,7 +11,7 @@ def require(cond,msg):
 def text(rel): return (ROOT/rel).read_text(encoding='utf-8',errors='replace')
 
 for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-    require('<Version>3.0.4</Version>' in text(rel),f'{rel}: version is not 3.0.2')
+    require('<Version>3.0.7</Version>' in text(rel),f'{rel}: version is not 3.0.2')
 
 # Windows-build compile repair.
 structured=text('src/LocalGPT/Controller/StructuredTextController.cs')

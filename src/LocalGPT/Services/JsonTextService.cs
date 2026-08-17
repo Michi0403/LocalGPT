@@ -26,6 +26,22 @@ public sealed class JsonTextService(ILogger<JsonTextService> logger) : IJsonText
         }
     }
 
+    /// <summary>Deserializes JSON text through the service-owned serialization policy.</summary>
+    /// <inheritdoc />
+    public T? Deserialize<T>(string json, JsonSerializerOptions? options = null)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(json);
+            return JsonSerializer.Deserialize<T>(json, options ?? CreateDefaultOptions());
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Deserializing JSON text failed; JSON content was omitted.");
+            throw;
+        }
+    }
+
     /// <summary>
     /// Performs escape string value as part of the JSON text service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

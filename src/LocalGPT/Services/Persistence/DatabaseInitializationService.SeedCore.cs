@@ -147,6 +147,17 @@ public sealed partial class DatabaseInitializationService
                     row.DataType = item.DataType;
                     row.LastUpdated = DateTime.UtcNow;
                 }
+
+                if (item.Name.Equals(nameof(LocalGptRuntimeCollection.KnowledgeFiles), StringComparison.OrdinalIgnoreCase)
+                    && IsPreviousKnowledgeFilesDefault(row.ValueString)
+                    && !string.Equals(row.ValueString, item.Value, StringComparison.Ordinal))
+                {
+                    row.ValueString = item.Value;
+                    row.DataType = item.DataType;
+                    row.LastUpdated = DateTime.UtcNow;
+                    logger.LogInformation(
+                        "Upgraded the untouched built-in KnowledgeFiles collection with the LocalGPT AI-provider bootstrap reference article.");
+                }
             }
     
     }
@@ -159,6 +170,42 @@ public sealed partial class DatabaseInitializationService
         throw;
     }
 }
+
+    /// <summary>Determines whether a persisted KnowledgeFiles collection is exactly the pre-3.0.5 built-in default so seed evolution never overwrites user edits.</summary>
+    /// <param name="value">Persisted JSON collection to compare with the previous built-in default.</param>
+    /// <returns><see langword="true"/> only when the persisted ordered collection exactly matches the pre-3.0.5 default.</returns>
+    private bool IsPreviousKnowledgeFilesDefault(string? value)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+            var values = JsonSerializer.Deserialize<string[]>(value);
+            if (values is null)
+                return false;
+            string[] previousDefault =
+            [
+                "AGENTS.md", "SECURITY.md", "docs/index.md", "docs/architecture/system-overview.md",
+                "docs/architecture/ai-host.md", "docs/architecture/council-runtime.md",
+                "docs/architecture/project-data.md", "docs/architecture/onewire-security.md",
+                "docs/architecture/frontend-and-themes.md", "docs/engineering/build-validation.md",
+                "docs/reference/capability-map.md", "docs/reference/toolchain-discovery.md",
+                "docs/reference/design-evolution.md", "docs/guide/embedded-and-games.md",
+                "docs/COUNCIL_KNOWLEDGE_SEED.sql"
+            ];
+            return values.SequenceEqual(previousDefault, StringComparer.Ordinal);
+        }
+        catch (JsonException exception)
+        {
+            logger.LogWarning(exception, "Could not compare the persisted KnowledgeFiles collection with the previous built-in default; user data will remain untouched.");
+            return false;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Comparing the persisted KnowledgeFiles collection with the previous built-in default failed.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Determines whether JSON string array as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.

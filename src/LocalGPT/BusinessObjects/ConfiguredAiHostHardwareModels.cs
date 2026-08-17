@@ -120,6 +120,10 @@ public sealed class ConfiguredAiHostHardwareDraft
     /// <value>Total system memory in GiB, or <see langword="null"/> when unknown.</value>
     public double? SystemMemoryGiB { get; set; }
 
+    /// <summary>Provides the complete editable accelerator list for multi-GPU hosts while preserving the compact primary-GPU fields for older callers.</summary>
+    /// <value>The ordered GPU/accelerator definitions that will be persisted for the physical host.</value>
+    public List<ConfiguredAiHostGpu> Gpus { get; set; } = [];
+
     /// <summary>Provides the compact Install form's primary GPU identity.</summary>
     /// <value>The first/primary GPU model name to persist for the host.</value>
     public string GpuName { get; set; } = string.Empty;

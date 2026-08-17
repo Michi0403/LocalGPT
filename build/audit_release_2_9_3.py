@@ -26,12 +26,12 @@ def forbid(rel, needle):
     if needle in read(rel): raise AssertionError(f"{rel}: forbidden {needle!r}")
 try:
     for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-        require(rel,'<Version>3.0.4</Version>')
+        require(rel,'<Version>3.0.7</Version>')
     protocol='src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
     require(protocol,'<Version>2.1.1</Version>'); require(protocol,'<PackageVersion>2.1.1</PackageVersion>')
 
     cfg='src/LocalGPT/Services/CouncilTeamConfigurationService.cs'
-    require(cfg,'private const int CurrentSeedVersion = 25;')
+    require(cfg,'private const int CurrentSeedVersion = 26;')
     require(cfg,'"SystemBenchmarkCalibration"')
     require(cfg,'if (row is { IsSystemSeed: true })')
     require(cfg,'CreateUniqueUserCopyKey'); require(cfg,'CloneAsUserOwnedDefinition')

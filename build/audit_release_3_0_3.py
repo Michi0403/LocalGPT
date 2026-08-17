@@ -11,7 +11,7 @@ def require(cond,msg):
 def text(rel): return (ROOT/rel).read_text(encoding='utf-8',errors='replace')
 
 for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-    require('<Version>3.0.4</Version>' in text(rel),f'{rel}: version is not 3.0.3')
+    require('<Version>3.0.7</Version>' in text(rel),f'{rel}: version is not 3.0.3')
 
 # Exact Windows compiler regressions reported after 3.0.2.
 prompt=text('src/LocalGPT/Services/LocalGptCatalogService.PromptCatalog.cs')

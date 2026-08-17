@@ -39,7 +39,7 @@ try:
         'src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj',
         'src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj',
     ]:
-        require(rel, '<Version>3.0.4</Version>')
+        require(rel, '<Version>3.0.7</Version>')
 
     require('src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj', '<Version>2.1.1</Version>')
 

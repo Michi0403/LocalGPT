@@ -1,0 +1,428 @@
+@using LocalGPT.BusinessObjects
+@using Microsoft.AspNetCore.Components.Forms
+@inject IInitialSetupAssistantService Setup
+@inject ICanIRunHardwareRecommendationService CanIRun
+@inject IAiProviderBootstrapService Providers
+@inject IConsoleCommandService Console
+@inject ILogger<InitialSetupAssistantPanel> Logger
+@implements IDisposable
+
+<section class="initial-setup-assistant" aria-label="AI-guided initial setup assistant">
+    <header class="initial-setup-heading">
+        <div>
+            <strong>AI-guided local runtime setup</strong>
+            <p>This assistant remains available after first run. Hardware, provider installation, model selection and the initial benchmark team all use normal LocalGPT services and DXFunctions.</p>
+        </div>
+        <div class="initial-setup-heading-actions">
+            <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="RefreshAsync">Refresh</button>
+            @if (snapshot?.CanStartAiGuidedSetup == true)
+            {
+                <a class="localgpt-native-button" data-enhance-nav="false" href="@snapshot.AiGuidedSetupRoute">Continue with AI setup Council</a>
+            }
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(statusText))
+    {
+        <div class="alert alert-info" role="status">@statusText</div>
+    }
+
+    @if (snapshot is null)
+    {
+        <p>Loading local setup state…</p>
+    }
+    else
+    {
+        @if (!snapshot.CanStartAiGuidedSetup)
+        {
+            <div class="alert alert-secondary">The AI-guided Setup Council becomes available here as soon as LocalGPT can see at least one installed local model. Until then, use the same setup functions manually below to bootstrap the first provider/model.</div>
+        }
+        <div class="initial-setup-grid">
+            <article class="initial-setup-card">
+                <h4>1. Hardware list</h4>
+                <p>Use local detection, paste/import HWiNFO text, or edit the list yourself. Multi-GPU hosts remain a list all the way into the persisted host profile.</p>
+                <label>Physical host endpoint
+                    <input class="form-control" @bind="hardwareEndpoint" />
+                </label>
+                <div class="initial-setup-hardware-list">
+                    @foreach (var device in hardware)
+                    {
+                        <div class="initial-setup-hardware-row" @key="device.Key">
+                            <input type="checkbox" @bind="device.Selected" aria-label="Use hardware device" />
+                            <input class="form-control" @bind="device.Endpoint" placeholder="Provider endpoint / physical host" />
+                            <input class="form-control" @bind="device.Name" placeholder="GPU / accelerator" />
+                            <input class="form-control" @bind="device.Vendor" placeholder="Vendor" />
+                            <input class="form-control" type="number" step="0.25" min="0" @bind="device.DedicatedVramGiB" placeholder="VRAM GiB" />
+                            <input class="form-control" @bind="device.CanIRunSlug" placeholder="CanIRun.ai slug" />
+                            <button type="button" class="localgpt-native-button" @onclick="() => RemoveHardware(device)">Remove</button>
+                        </div>
+                    }
+                </div>
+                <div class="initial-setup-actions">
+                    <button type="button" class="localgpt-native-button" @onclick="AddHardware">Add GPU</button>
+                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="DetectLocalHardwareAsync">Detect local hardware</button>
+                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="SaveHardwareAsync">Save reviewed list</button>
+                </div>
+                <details>
+                    <summary>HWiNFO text import</summary>
+                    <p>The report stays local. LocalGPT deterministically extracts all supported GPU-memory sections plus CPU/RAM/OS facts.</p>
+                    <textarea class="form-control" rows="6" @bind="hwInfoText" placeholder="Paste HWiNFO text export"></textarea>
+                    <InputFile OnChange="ReadHwInfoFileAsync" accept=".txt,text/plain" />
+                    <button type="button" class="localgpt-native-button" disabled="@(busy || string.IsNullOrWhiteSpace(hwInfoText))" @onclick="ImportHwInfoAsync">Import HWiNFO</button>
+                </details>
+            </article>
+
+            <article class="initial-setup-card">
+                <h4>2. Optional CanIRun.ai recommendations</h4>
+                <p><strong>Credit:</strong> compatibility data is fetched from <a href="https://www.canirun.ai/" target="_blank" rel="noopener noreferrer">CanIRun.ai by midudev</a> only after you opt in. LocalGPT does not enable this web lookup by default.</p>
+                <label class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="canIRunOptIn" />
+                    <span>I want LocalGPT to contact CanIRun.ai for the selected GPU slugs.</span>
+                </label>
+                <button type="button" class="localgpt-native-button" disabled="@(busy || !canIRunOptIn)" @onclick="LoadRecommendationsAsync">Fetch attributed recommendations</button>
+                @if (recommendations.Count > 0)
+                {
+                    <div class="initial-setup-model-list">
+                        @foreach (var item in recommendations.Take(24))
+                        {
+                            <div class="initial-setup-model-row" @key="@(item.DeviceSlug + item.ModelId)">
+                                <strong>@item.ModelName</strong>
+                                <span>Grade @item.Grade · score @item.Score · @item.Status</span>
+                                <span>@item.Quantization @((item.RequiredVramGiB is null) ? string.Empty : $"· {item.RequiredVramGiB:0.##} GiB")</span>
+                                @if (!string.IsNullOrWhiteSpace(item.DeviceEndpoint)) { <code>@item.DeviceEndpoint</code> }
+                                <a href="@item.SourceUrl" target="_blank" rel="noopener noreferrer">CanIRun.ai source</a>
+                            </div>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="initial-setup-card">
+                <h4>3. Local AI provider</h4>
+                <p>Commands come from the local Knowledge Database. Install/start/download actions use the shared bounded console and require your explicit confirmation.</p>
+                <label>Provider profile
+                    <select class="form-select" @bind="selectedProviderKey" @bind:after="ProviderSelectionChangedAsync">
+                        <option value="">Choose provider</option>
+                        @foreach (var profile in snapshot.ProviderProfiles)
+                        {
+                            <option value="@profile.Key">@profile.DisplayName · @profile.Platform</option>
+                        }
+                    </select>
+                </label>
+                @if (SelectedProvider is not null)
+                {
+                    <div class="initial-setup-provider-detail">
+                        <strong>@SelectedProvider.DisplayName</strong>
+                        <code>@SelectedProvider.Endpoint</code>
+                        <a href="@SelectedProvider.SourceUrl" target="_blank" rel="noopener noreferrer">Provider installation source</a>
+                    </div>
+                    <div class="initial-setup-actions">
+                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="DetectProviderAsync">Detect</button>
+                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="ListProviderModelsAsync">List local models</button>
+                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="InstallProviderAsync">Install (confirmed)</button>
+                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="StartProviderAsync">Start (confirmed)</button>
+                        <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="ConfigureProviderAsync">Register endpoint in LocalGPT</button>
+                    </div>
+                }
+            </article>
+
+            <article class="initial-setup-card">
+                <h4>4. Models on the selected provider</h4>
+                <p>Recommendations are mapped through provider aliases from Knowledge. Installed state comes from the normal provider/model runtime.</p>
+                @if (modelChoices.Count == 0)
+                {
+                    <p>No recommendation/provider mapping is loaded yet. You can still use the installed-model list below for the benchmark team.</p>
+                }
+                else
+                {
+                    <div class="initial-setup-model-list">
+                        @foreach (var choice in modelChoices.Take(32))
+                        {
+                            <div class="initial-setup-model-row" @key="choice.ProviderModelId">
+                                <label class="form-check">
+                                    <input class="form-check-input" type="checkbox" @bind="choice.Selected" />
+                                    <span><strong>@choice.DisplayName</strong> → <code>@choice.ProviderModelId</code></span>
+                                </label>
+                                <span>Grade @choice.RecommendationGrade · score @choice.RecommendationScore · @(choice.IsInstalled ? "installed" : "missing")</span>
+                                @if (!choice.IsInstalled)
+                                {
+                                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="() => InstallModelAsync(choice)">Install model</button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="initial-setup-card initial-setup-wide">
+                <h4>5. Hardware-curated benchmark Council</h4>
+                <p>Select installed provider-qualified models. Mark the strongest ones as curator models; the saved team binds curator/director/reviewer roles to that stronger pool while benchmark-subject roles can exercise the broader selection.</p>
+                @if (snapshot.InstalledModels.Count == 0)
+                {
+                    <p>No installed provider-qualified model is currently visible to LocalGPT.</p>
+                }
+                else
+                {
+                    <div class="initial-setup-installed-grid">
+                        @foreach (var model in snapshot.InstalledModels)
+                        {
+                            var selected = selectedModels.Contains(model.SelectionKey);
+                            var preferred = preferredCuratorModels.Contains(model.SelectionKey);
+                            <div class="initial-setup-installed-row" @key="model.SelectionKey">
+                                <label><input type="checkbox" checked="@selected" @onchange="args => ToggleModel(model.SelectionKey, args)" /> Use</label>
+                                <label><input type="checkbox" checked="@preferred" @onchange="args => TogglePreferredModel(model.SelectionKey, args)" /> Curator</label>
+                                <strong>@model.DisplayName</strong>
+                                <code>@model.EndpointLabel</code>
+                            </div>
+                        }
+                    </div>
+                    <label>Team name<input class="form-control" @bind="benchmarkTeamName" /></label>
+                    <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="CreateBenchmarkTeamAsync">Create / refresh hardware benchmark team</button>
+                }
+            </article>
+
+            <article class="initial-setup-card initial-setup-wide">
+                <h4>Shared ASCII command console</h4>
+                <p>The same bounded command feed appears in Chat's ASCII console whenever no game is running.</p>
+                <pre class="initial-setup-console" aria-live="polite">@Console.GetRecentDisplayText(120)</pre>
+            </article>
+        </div>
+    }
+</section>
+
+@code {
+    private InitialSetupAssistantSnapshot? snapshot;
+    private readonly List<InitialSetupHardwareDevice> hardware = [];
+    private readonly List<CanIRunModelRecommendation> recommendations = [];
+    private readonly List<InitialSetupModelChoice> modelChoices = [];
+    private readonly HashSet<string> selectedModels = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> preferredCuratorModels = new(StringComparer.OrdinalIgnoreCase);
+    private string selectedProviderKey = string.Empty;
+    private string hardwareEndpoint = "http://127.0.0.1:11434";
+    private string hwInfoText = string.Empty;
+    private string benchmarkTeamName = "Hardware-curated initial benchmark";
+    private string statusText = string.Empty;
+    private bool canIRunOptIn;
+    private bool busy;
+    private AiProviderBootstrapProfile? SelectedProvider => snapshot?.ProviderProfiles.FirstOrDefault(item => item.Key == selectedProviderKey);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.Changed += OnConsoleChanged;
+        await RefreshAsync().ConfigureAwait(false);
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var value = await Setup.GetSnapshotAsync().ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                snapshot = value;
+                hardware.Clear();
+                hardware.AddRange(value.Hardware);
+                foreach (var item in hardware)
+                    if (string.IsNullOrWhiteSpace(item.CanIRunSlug)) item.CanIRunSlug = CanIRun.SuggestDeviceSlug(item.Name);
+                selectedModels.Clear();
+                foreach (var model in value.InstalledModels) selectedModels.Add(model.SelectionKey);
+                if (preferredCuratorModels.Count == 0)
+                    foreach (var key in value.RecommendedCuratorModelKeys) preferredCuratorModels.Add(key);
+                statusText = $"{value.Hardware.Count} hardware device(s), {value.ProviderProfiles.Count} provider profile(s), {value.InstalledModels.Count} installed model(s).";
+            }).ConfigureAwait(false);
+            await RebuildModelChoicesAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Refreshing initial setup assistant failed.");
+            await SetStatusAsync("Initial setup refresh failed. Review LocalGPT logs.").ConfigureAwait(false);
+        }
+        finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    private void AddHardware()
+    {
+        hardware.Add(new InitialSetupHardwareDevice { Endpoint = hardwareEndpoint, Source = "Manual", Selected = true });
+    }
+
+    private void RemoveHardware(InitialSetupHardwareDevice device) => hardware.Remove(device);
+
+    private async Task DetectLocalHardwareAsync()
+    {
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            _ = await Setup.DetectHardwareAsync(hardwareEndpoint, userConfirmed: true).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Initial setup local hardware detection failed."); await SetStatusAsync("Hardware detection failed. Review LocalGPT logs.").ConfigureAwait(false); }
+        finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    private async Task SaveHardwareAsync()
+    {
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var saved = await Setup.SaveHardwareListAsync(hardware, hardwareEndpoint, userConfirmed: true).ConfigureAwait(false);
+            await SetStatusAsync($"Hardware list saved for {saved.Count} physical host(s).").ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Initial setup hardware save failed."); await SetStatusAsync("Hardware list could not be saved. Review LocalGPT logs.").ConfigureAwait(false); }
+        finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    private async Task ReadHwInfoFileAsync(InputFileChangeEventArgs args)
+    {
+        try
+        {
+            var file = args.File;
+            var stream = file.OpenReadStream(4 * 1024 * 1024);
+            await using (stream.ConfigureAwait(false))
+            {
+                using var reader = new StreamReader(stream);
+                var text = await reader.ReadToEndAsync().ConfigureAwait(false);
+                await InvokeAsync(() => hwInfoText = text).ConfigureAwait(false);
+            }
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Reading HWiNFO file in setup assistant failed."); await SetStatusAsync("HWiNFO file could not be read.").ConfigureAwait(false); }
+    }
+
+    private async Task ImportHwInfoAsync()
+    {
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            _ = await Setup.ImportHwInfoAsync(hardwareEndpoint, hwInfoText, userConfirmed: true).ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Initial setup HWiNFO import failed; report text omitted."); await SetStatusAsync("HWiNFO import failed. Review the report and LocalGPT logs.").ConfigureAwait(false); }
+        finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    private async Task LoadRecommendationsAsync()
+    {
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var reduced = await Setup.GetHardwareRecommendationsAsync(hardware, canIRunOptIn).ConfigureAwait(false);
+            await InvokeAsync(() => { recommendations.Clear(); recommendations.AddRange(reduced); statusText = $"Loaded {reduced.Count} attributed CanIRun.ai recommendation(s) without merging physical hosts."; }).ConfigureAwait(false);
+            await RebuildModelChoicesAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception) { Logger.LogError(exception, "CanIRun.ai setup recommendation lookup failed."); await SetStatusAsync("CanIRun.ai lookup failed. Review LocalGPT logs.").ConfigureAwait(false); }
+        finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    private Task ProviderSelectionChangedAsync() => RebuildModelChoicesAsync();
+
+    private async Task RebuildModelChoicesAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedProviderKey) || recommendations.Count == 0) return;
+        try
+        {
+            var values = await Setup.BuildModelChoicesAsync(selectedProviderKey, recommendations).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                modelChoices.Clear();
+                modelChoices.AddRange(values);
+                var strongestInstalled = values.Where(item => item.IsInstalled && !string.IsNullOrWhiteSpace(item.SelectionKey)).OrderByDescending(item => item.RecommendationScore).Take(2).ToList();
+                if (strongestInstalled.Count > 0)
+                {
+                    foreach (var item in strongestInstalled) preferredCuratorModels.Add(item.SelectionKey);
+                }
+            }).ConfigureAwait(false);
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Building setup model choices failed."); await SetStatusAsync("Provider model mapping could not be refreshed.").ConfigureAwait(false); }
+    }
+
+    private async Task DetectProviderAsync() => await RunProviderActionAsync("Provider detection", key => Providers.DetectAsync(key)).ConfigureAwait(false);
+    private async Task ListProviderModelsAsync() => await RunProviderActionAsync("Provider model listing", key => Providers.ListModelsAsync(key)).ConfigureAwait(false);
+    private async Task InstallProviderAsync() => await RunProviderActionAsync("Provider installation", key => Providers.InstallAsync(key, true)).ConfigureAwait(false);
+    private async Task StartProviderAsync() => await RunProviderActionAsync("Provider startup", key => Providers.StartAsync(key, true)).ConfigureAwait(false);
+    private async Task ConfigureProviderAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedProviderKey)) return;
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var endpoint = await Providers.ConfigureEndpointAsync(selectedProviderKey, true).ConfigureAwait(false);
+            await SetStatusAsync($"Provider registration: configured {endpoint}.").ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Initial setup provider endpoint registration failed; endpoint details omitted.");
+            await SetStatusAsync("Provider registration failed. Review LocalGPT logs.").ConfigureAwait(false);
+        }
+        finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    private async Task RunProviderActionAsync(string label, Func<string, Task<LocalConsoleCommandResult>> action)
+    {
+        if (string.IsNullOrWhiteSpace(selectedProviderKey)) return;
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var result = await action(selectedProviderKey).ConfigureAwait(false);
+            await SetStatusAsync($"{label}: {result.Status}.").ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Initial setup provider action failed; provider command omitted."); await SetStatusAsync($"{label} failed. Review LocalGPT logs.").ConfigureAwait(false); }
+        finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    private async Task InstallModelAsync(InitialSetupModelChoice choice)
+    {
+        if (string.IsNullOrWhiteSpace(selectedProviderKey)) return;
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var result = await Providers.InstallModelAsync(selectedProviderKey, choice.ProviderModelId, true).ConfigureAwait(false);
+            await SetStatusAsync($"Model installation: {result.Status}.").ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Initial setup model install failed; model identifier omitted."); await SetStatusAsync("Model installation failed. Review LocalGPT logs.").ConfigureAwait(false); }
+        finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    private void ToggleModel(string selectionKey, ChangeEventArgs args)
+    {
+        if (args.Value is bool enabled && enabled) selectedModels.Add(selectionKey); else selectedModels.Remove(selectionKey);
+        if (!selectedModels.Contains(selectionKey)) preferredCuratorModels.Remove(selectionKey);
+    }
+
+    private void TogglePreferredModel(string selectionKey, ChangeEventArgs args)
+    {
+        if (args.Value is bool enabled && enabled) { selectedModels.Add(selectionKey); preferredCuratorModels.Add(selectionKey); }
+        else preferredCuratorModels.Remove(selectionKey);
+    }
+
+    private async Task CreateBenchmarkTeamAsync()
+    {
+        try
+        {
+            await SetBusyAsync(true).ConfigureAwait(false);
+            var saved = await Setup.CreateBenchmarkTeamAsync(new CreateInitialBenchmarkTeamRequest
+            {
+                DisplayName = benchmarkTeamName,
+                ModelSelectionKeys = selectedModels.ToList(),
+                PreferredCuratorModelKeys = preferredCuratorModels.ToList(),
+                UserConfirmed = true
+            }).ConfigureAwait(false);
+            await SetStatusAsync($"Council team '{saved.DisplayName}' is ready in Council Teams.").ConfigureAwait(false);
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Creating initial benchmark team from setup panel failed."); await SetStatusAsync("Benchmark team could not be created. Review LocalGPT logs.").ConfigureAwait(false); }
+        finally { await SetBusyAsync(false).ConfigureAwait(false); }
+    }
+
+    private void OnConsoleChanged() => _ = InvokeAsync(StateHasChanged);
+    private Task SetBusyAsync(bool value) => InvokeAsync(() => busy = value);
+    private Task SetStatusAsync(string value) => InvokeAsync(() => statusText = value);
+
+    public void Dispose()
+    {
+        Console.Changed -= OnConsoleChanged;
+        GC.SuppressFinalize(this);
+    }
+}

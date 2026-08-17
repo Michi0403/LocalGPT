@@ -26,7 +26,7 @@ def forbid(rel,needle):
     if needle in read(rel): raise AssertionError(f"{rel}: forbidden {needle!r}")
 try:
     for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-        require(rel,'<Version>3.0.4</Version>')
+        require(rel,'<Version>3.0.7</Version>')
     protocol='src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
     require(protocol,'<Version>2.1.1</Version>'); require(protocol,'<PackageVersion>2.1.1</PackageVersion>')
 
@@ -37,7 +37,7 @@ try:
     for needle in ['All-members readiness preflight','Preflight mode','Role-aware probe for every selected member','Include all preflight member output in later workflow model context','can be very large on big Councils']:
         require(page,needle)
     cfg='src/LocalGPT/Services/CouncilTeamConfigurationService.cs'
-    require(cfg,'private const int CurrentSeedVersion = 25;')
+    require(cfg,'private const int CurrentSeedVersion = 26;')
     require(cfg,'CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault')
     require(cfg,'Math.Clamp(team.AllMembersReadinessPreflightMaxOutputTokens, 32, 2048)')
     seed='src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.cs'

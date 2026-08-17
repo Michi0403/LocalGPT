@@ -115,6 +115,12 @@ namespace LocalGPT
                 builder.Services.AddScoped<IPromptConfigService, PromptConfigService>();
                 builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
                 builder.Services.AddScoped<IFirstRunOnboardingService, FirstRunOnboardingService>();
+                builder.Services.AddSingleton<IConsoleCommandService, ConsoleCommandService>();
+                builder.Services.AddScoped<ICanIRunHardwareRecommendationService, CanIRunHardwareRecommendationService>();
+                builder.Services.AddScoped<IAiProviderBootstrapService, AiProviderBootstrapService>();
+                builder.Services.AddScoped<IInitialSetupAssistantService, InitialSetupAssistantService>();
+                builder.Services.AddHttpClient("LocalGPTCanIRun")
+                    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
                 var configuredDatabasePath = builder.Configuration[$"{LocalGptDatabaseOptions.SectionName}:Path"];
                 var memoryDbPath = string.IsNullOrWhiteSpace(configuredDatabasePath)

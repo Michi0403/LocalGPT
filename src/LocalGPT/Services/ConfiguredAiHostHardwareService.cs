@@ -120,22 +120,46 @@ public sealed class ConfiguredAiHostHardwareService(
             ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
             ArgumentException.ThrowIfNullOrWhiteSpace(reportText);
             var draft = CreateDraft(endpoint, await GetForEndpointAsync(endpoint, cancellationToken).ConfigureAwait(false));
-            var gpuMatch = Regex.Match(reportText, @"(?im)^\s*(?:Grafikspeicher|Video\s+Memory)\s*:\s*([0-9]+(?:[\.,][0-9]+)?)\s*(MByte|MB|GByte|GB|GiB)\b.*$");
-            if (!gpuMatch.Success)
+            var gpuMatches = Regex.Matches(reportText, @"(?im)^\s*(?:Grafikspeicher|Video\s+Memory)\s*:\s*([0-9]+(?:[\.,][0-9]+)?)\s*(MByte|MB|GByte|GB|GiB)\b.*$")
+                .Cast<Match>().ToList();
+            if (gpuMatches.Count == 0)
                 throw new InvalidDataException("The HWiNFO report did not contain a supported GPU-memory line (Grafikspeicher / Video Memory).");
 
-            var gpuHeading = Regex.Matches(reportText, @"(?im)^\s*(.+?(?:Radeon|GeForce|Arc).+?)\s*-{3,}\s*$")
-                .Cast<Match>().LastOrDefault(match => match.Index < gpuMatch.Index);
-            if (gpuHeading is not null)
-                draft.GpuName = Regex.Replace(gpuHeading.Groups[1].Value.Trim(), @"^(?:ATI/AMD\s+)", string.Empty, RegexOptions.IgnoreCase);
-            if (draft.GpuName.Contains("Radeon", StringComparison.OrdinalIgnoreCase)) draft.GpuVendor = "AMD";
-            else if (draft.GpuName.Contains("GeForce", StringComparison.OrdinalIgnoreCase)) draft.GpuVendor = "NVIDIA";
-            else if (draft.GpuName.Contains("Arc", StringComparison.OrdinalIgnoreCase)) draft.GpuVendor = "Intel";
-
-            var amount = double.Parse(gpuMatch.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
-            draft.DedicatedVramGiB = gpuMatch.Groups[2].Value.StartsWith("M", StringComparison.OrdinalIgnoreCase)
-                ? amount / 1024d
-                : amount;
+            var gpuHeadings = Regex.Matches(reportText, @"(?im)^\s*(.+?(?:Radeon|GeForce|Arc).+?)\s*-{3,}\s*$")
+                .Cast<Match>().ToList();
+            var importedGpus = new List<ConfiguredAiHostGpu>();
+            foreach (var gpuMatch in gpuMatches)
+            {
+                var gpuHeading = gpuHeadings.LastOrDefault(match => match.Index < gpuMatch.Index);
+                var gpuName = gpuHeading is null
+                    ? string.Empty
+                    : Regex.Replace(gpuHeading.Groups[1].Value.Trim(), @"^(?:ATI/AMD\s+)", string.Empty, RegexOptions.IgnoreCase);
+                if (importedGpus.Any(item => !string.IsNullOrWhiteSpace(gpuName) && item.Name.Equals(gpuName, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                var vendor = gpuName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) ? "AMD"
+                    : gpuName.Contains("GeForce", StringComparison.OrdinalIgnoreCase) ? "NVIDIA"
+                    : gpuName.Contains("Arc", StringComparison.OrdinalIgnoreCase) ? "Intel"
+                    : string.Empty;
+                var amount = double.Parse(gpuMatch.Groups[1].Value.Replace(',', '.'), CultureInfo.InvariantCulture);
+                var gib = gpuMatch.Groups[2].Value.StartsWith("M", StringComparison.OrdinalIgnoreCase) ? amount / 1024d : amount;
+                importedGpus.Add(new ConfiguredAiHostGpu
+                {
+                    Index = importedGpus.Count,
+                    Name = gpuName,
+                    Vendor = vendor,
+                    DedicatedMemoryBytes = ToBytes(gib)
+                });
+            }
+            draft.Gpus = importedGpus;
+            var primaryGpu = importedGpus.FirstOrDefault();
+            if (primaryGpu is not null)
+            {
+                draft.GpuName = primaryGpu.Name;
+                draft.GpuVendor = primaryGpu.Vendor;
+                draft.DedicatedVramGiB = primaryGpu.DedicatedMemoryBytes is > 0
+                    ? primaryGpu.DedicatedMemoryBytes.Value / 1024d / 1024d / 1024d
+                    : null;
+            }
 
             var memoryMatch = Regex.Match(reportText, @"(?im)^\s*(?:Gesamtspeichergröße|Total\s+Memory\s+Size)\s*:\s*([0-9]+(?:[\.,][0-9]+)?)\s*(GByte|GB|GiB|MByte|MB)\b");
             if (memoryMatch.Success)
@@ -201,7 +225,15 @@ public sealed class ConfiguredAiHostHardwareService(
             draft.Architecture = RuntimeInformation.OSArchitecture.ToString();
             var cpu = hardware.FirstOrDefault(item => item.Kind == OneWireHardwareKind.Cpu);
             if (cpu is not null) draft.CpuName = cpu.Name;
-            var gpu = hardware.FirstOrDefault(item => item.Kind == OneWireHardwareKind.Gpu);
+            var detectedGpus = hardware.Where(item => item.Kind == OneWireHardwareKind.Gpu).Take(32).ToList();
+            draft.Gpus = detectedGpus.Select((item, index) => new ConfiguredAiHostGpu
+            {
+                Index = index,
+                Name = item.Name,
+                Vendor = item.Vendor,
+                DedicatedMemoryBytes = item.DedicatedMemoryBytes
+            }).ToList();
+            var gpu = detectedGpus.FirstOrDefault();
             if (gpu is not null)
             {
                 draft.GpuName = gpu.Name;
@@ -209,7 +241,7 @@ public sealed class ConfiguredAiHostHardwareService(
                 draft.DedicatedVramGiB = gpu.DedicatedMemoryBytes is > 0 ? gpu.DedicatedMemoryBytes.Value / 1024d / 1024d / 1024d : null;
             }
             draft.SourceKind = "LocalProbe";
-            draft.Confidence = gpu?.DedicatedMemoryBytes is > 0 ? "VendorReported" : "DetectedIdentityOnly";
+            draft.Confidence = detectedGpus.Any(item => item.DedicatedMemoryBytes is > 0) ? "VendorReported" : "DetectedIdentityOnly";
             var saved = await SaveDetectedAsync(draft, cancellationToken).ConfigureAwait(false);
             return saved;
         }
@@ -256,6 +288,13 @@ public sealed class ConfiguredAiHostHardwareService(
                 Architecture = profile?.Architecture ?? string.Empty,
                 CpuName = profile?.CpuName ?? string.Empty,
                 SystemMemoryGiB = profile?.SystemMemoryBytes is > 0 ? profile.SystemMemoryBytes.Value / 1024d / 1024d / 1024d : null,
+                Gpus = profile?.Gpus.Select(item => new ConfiguredAiHostGpu
+                {
+                    Index = item.Index,
+                    Name = item.Name,
+                    Vendor = item.Vendor,
+                    DedicatedMemoryBytes = item.DedicatedMemoryBytes
+                }).ToList() ?? [],
                 GpuName = gpu?.Name ?? string.Empty,
                 GpuVendor = gpu?.Vendor ?? string.Empty,
                 DedicatedVramGiB = gpu?.DedicatedMemoryBytes is > 0 ? gpu.DedicatedMemoryBytes.Value / 1024d / 1024d / 1024d : null,
@@ -341,9 +380,20 @@ public sealed class ConfiguredAiHostHardwareService(
             entity.Architecture = (draft.Architecture ?? string.Empty).Trim();
             entity.CpuName = (draft.CpuName ?? string.Empty).Trim();
             entity.SystemMemoryBytes = ToBytes(draft.SystemMemoryGiB);
-            var gpus = string.IsNullOrWhiteSpace(draft.GpuName) && draft.DedicatedVramGiB is null
-                ? new List<ConfiguredAiHostGpu>()
-                : [new ConfiguredAiHostGpu { Index = 0, Name = (draft.GpuName ?? string.Empty).Trim(), Vendor = (draft.GpuVendor ?? string.Empty).Trim(), DedicatedMemoryBytes = ToBytes(draft.DedicatedVramGiB) }];
+            var gpus = draft.Gpus.Count > 0
+                ? draft.Gpus
+                    .Where(item => !string.IsNullOrWhiteSpace(item.Name) || item.DedicatedMemoryBytes is > 0)
+                    .Take(32)
+                    .Select((item, index) => new ConfiguredAiHostGpu
+                    {
+                        Index = index,
+                        Name = (item.Name ?? string.Empty).Trim(),
+                        Vendor = (item.Vendor ?? string.Empty).Trim(),
+                        DedicatedMemoryBytes = item.DedicatedMemoryBytes
+                    }).ToList()
+                : string.IsNullOrWhiteSpace(draft.GpuName) && draft.DedicatedVramGiB is null
+                    ? new List<ConfiguredAiHostGpu>()
+                    : [new ConfiguredAiHostGpu { Index = 0, Name = (draft.GpuName ?? string.Empty).Trim(), Vendor = (draft.GpuVendor ?? string.Empty).Trim(), DedicatedMemoryBytes = ToBytes(draft.DedicatedVramGiB) }];
             entity.GpusJson = JsonSerializer.Serialize(gpus, jsonOptions);
             var endpoints = DeserializeEndpoints(entity.ProviderEndpointsJson);
             if (!endpoints.Contains(draft.Endpoint, StringComparer.OrdinalIgnoreCase)) endpoints.Add(draft.Endpoint.Trim());

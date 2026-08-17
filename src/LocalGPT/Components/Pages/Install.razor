@@ -544,6 +544,8 @@
                     <DxButton Text='@T("Install.Onboarding.Refresh", "Refresh setup guide")' Enabled="@(!IsOnboardingLoading)" Click="RefreshOnboardingAsync" />
                 </div>
             </div>
+            <InitialSetupAssistantPanel />
+
             @if (OnboardingStatus is null)
             {
                 <p>@T("Install.Onboarding.Loading", "Loading installer profiles and Council quick starts...")</p>

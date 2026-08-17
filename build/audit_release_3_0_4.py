@@ -13,7 +13,7 @@ def text(rel):
 
 # Release versions.
 for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-    require('<Version>3.0.4</Version>' in text(rel), f'{rel}: version is not 3.0.4')
+    require('<Version>3.0.7</Version>' in text(rel), f'{rel}: version is not 3.0.4')
 require('2.1.1' in text('src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'),'Wire protocol unexpectedly changed')
 
 # Additive persistence: remote-control fabric, user functions, and knowledge-backed toolchain metadata.
@@ -137,7 +137,7 @@ require('ToolchainKind' in text('src/LocalGPT/BusinessObjects/ProjectMaintenance
 require('item.ToolchainKind' in text('src/LocalGPT/Services/ProjectMaintenanceDxAiFunctions.cs'),'Project Maintenance AI metadata omits toolchain kind')
 
 # Preserve existing critical architecture lines.
-require('CurrentSeedVersion = 25' in text('src/LocalGPT/Services/CouncilTeamConfigurationService.cs'),'Council team seed version changed unexpectedly')
+require('CurrentSeedVersion = 26' in text('src/LocalGPT/Services/CouncilTeamConfigurationService.cs'),'Council team seed version changed unexpectedly')
 for old in ['TacosPortal.Services','namespace LocalGPT.Endpoints']:
     productive='\n'.join(p.read_text(encoding='utf-8',errors='replace') for p in (ROOT/'src/LocalGPT').rglob('*.cs'))
     require(old not in productive, f'legacy namespace returned: {old}')
