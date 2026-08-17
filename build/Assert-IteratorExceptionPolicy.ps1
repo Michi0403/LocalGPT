@@ -42,17 +42,25 @@ $baselinePath = Join-Path $PSScriptRoot 'iterator-exception-baseline.json'
 if (-not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) { Fail 'Iterator exception baseline is missing.' }
 $parsedBaseline = [System.IO.File]::ReadAllText($baselinePath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 $known = @{}; foreach ($item in $parsedBaseline) { $known[[string]$item] = $true }
+function Get-BaselineRelativePath([string]$RelativePath) {
+    if ($RelativePath -match '^(?<prefix>.+?)(?:\.[^/]+)\.cs$') {
+        $candidate = $Matches['prefix'] + '.cs'
+        if (Test-Path -LiteralPath (Join-Path $root $candidate.Replace([char]'/', [System.IO.Path]::DirectorySeparatorChar)) -PathType Leaf) { return $candidate }
+    }
+    return $RelativePath
+}
 $failures = New-Object System.Collections.Generic.List[string]
 $files = @(Get-ChildItem -LiteralPath (Join-Path $root 'src\LocalGPT') -Recurse -File | Where-Object { $_.Extension -in @('.cs','.razor') -and $_.FullName -notmatch '[\\/](?:bin|obj|Migrations)[\\/]' -and $_.Name -notlike '*.Designer.cs' })
 foreach ($file in $files) {
     $relative = $file.FullName.Substring($root.Length).TrimStart([char[]]@([char]'\', [char]'/')).Replace([char]'\', [char]'/')
+    $baselineRelative = Get-BaselineRelativePath $relative
     $text = [System.IO.File]::ReadAllText($file.FullName, [System.Text.Encoding]::UTF8)
     foreach ($method in Get-MethodRecords $text) {
         $body = [string]$method.Body
         if (-not [regex]::IsMatch($body, '\byield\s+(?:return|break)\b')) { continue }
-        if ([regex]::IsMatch($body, '\bcatch\b')) { $candidate = "${relative}|$($method.Signature)|iterator contains catch"; if (-not $known.ContainsKey($candidate)) { $failures.Add($candidate) } }
-        if (-not [regex]::IsMatch($body, '\btry\b') -or -not [regex]::IsMatch($body, '\bfinally\b')) { $candidate = "${relative}|$($method.Signature)|iterator requires try/finally"; if (-not $known.ContainsKey($candidate)) { $failures.Add($candidate) } }
-        if (-not [regex]::IsMatch($body, '\b(?:Logger|logger|_logger)\s*\.\s*Log\w*\s*\(')) { $candidate = "${relative}|$($method.Signature)|iterator requires logging"; if (-not $known.ContainsKey($candidate)) { $failures.Add($candidate) } }
+        if ([regex]::IsMatch($body, '\bcatch\b')) { $candidate = "${baselineRelative}|$($method.Signature)|iterator contains catch"; if (-not $known.ContainsKey($candidate)) { $failures.Add($candidate) } }
+        if (-not [regex]::IsMatch($body, '\btry\b') -or -not [regex]::IsMatch($body, '\bfinally\b')) { $candidate = "${baselineRelative}|$($method.Signature)|iterator requires try/finally"; if (-not $known.ContainsKey($candidate)) { $failures.Add($candidate) } }
+        if (-not [regex]::IsMatch($body, '\b(?:Logger|logger|_logger)\s*\.\s*Log\w*\s*\(')) { $candidate = "${baselineRelative}|$($method.Signature)|iterator requires logging"; if (-not $known.ContainsKey($candidate)) { $failures.Add($candidate) } }
     }
 }
 if ($failures.Count -gt 0) {

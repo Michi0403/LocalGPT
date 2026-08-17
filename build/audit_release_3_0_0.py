@@ -106,7 +106,7 @@ def main() -> None:
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
     ):
-        require(rel, "<Version>3.0.1</Version>")
+        require(rel, "<Version>3.0.2</Version>")
 
     migration = "src/LocalGPT/Migrations/20260816233500_AddCouncilTeamUserPolicyFields.cs"
     required_columns = {

@@ -9,6 +9,13 @@ if (-not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) { Fail 'System-v
 $parsedBaseline = [System.IO.File]::ReadAllText($baselinePath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 $known = @{}
 foreach ($item in $parsedBaseline) { $known[[string]$item] = $true }
+function Get-BaselineRelativePath([string]$RelativePath) {
+    if ($RelativePath -match '^(?<prefix>.+?)(?:\.[^/]+)\.cs$') {
+        $candidate = $Matches['prefix'] + '.cs'
+        if (Test-Path -LiteralPath (Join-Path $root $candidate.Replace([char]'/', [System.IO.Path]::DirectorySeparatorChar)) -PathType Leaf) { return $candidate }
+    }
+    return $RelativePath
+}
 $failures = @()
 $allowed = @(
     'src/LocalGPT/Program.cs',
@@ -25,6 +32,7 @@ $files = @(Get-ChildItem -LiteralPath $sourceRoot -Recurse -File | Where-Object 
 })
 foreach ($file in $files) {
     $relative = $file.FullName.Substring($root.Length).TrimStart([char[]]@([char]'\', [char]'/')).Replace([char]'\', [char]'/')
+    $baselineRelative = Get-BaselineRelativePath $relative
     $text = [System.IO.File]::ReadAllText($file.FullName, [System.Text.Encoding]::UTF8)
     if ([regex]::IsMatch($text, $directVariablePattern)) {
         $failures += "${relative}|direct-system-variable-name"
@@ -33,7 +41,7 @@ foreach ($file in $files) {
     foreach ($match in [regex]::Matches($text, $constructorPattern)) {
         $line = ([regex]::Replace($match.Groups['line'].Value.Trim(), '\s+', ' ')).Trim()
         if ($line -match '\bnew\s+[A-Za-z_]*Exception\b') { continue }
-        $id = "${relative}|${line}"
+        $id = "${baselineRelative}|${line}"
         if (-not $known.ContainsKey($id)) { $failures += $id }
     }
 }

@@ -16,9 +16,9 @@ def require(rel,*needles):
     if missing: raise AssertionError(f'{rel} missing {missing}')
 
 try:
-    require('src/LocalGPT/LocalGPT.csproj','<Version>3.0.1</Version>')
-    require('src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','<Version>3.0.1</Version>')
-    require('src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj','<Version>3.0.1</Version>')
+    require('src/LocalGPT/LocalGPT.csproj','<Version>3.0.2</Version>')
+    require('src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','<Version>3.0.2</Version>')
+    require('src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj','<Version>3.0.2</Version>')
     require('src/LocalGPT/Services/Localization/LocalGptLocalizationService.cs',
             'AddCatalogCultures(BuiltInLocalizationPath, cultures);',
             'return cultures.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();')

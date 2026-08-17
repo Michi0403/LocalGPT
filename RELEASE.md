@@ -1,23 +1,22 @@
-# LocalGPT 3.0.1 namespace, wiring, structure and live-rejoin repair
+# LocalGPT 3.0.2 Windows build-guard, compile and DXFunction wiring repair
 
-LocalGPT 3.0.1 is a stabilization release over 3.0.0. It keeps the 3.0.0 EF startup migration repair intact while correcting namespace/documentation ownership, live Council browser rejoin, text/Regex service boundaries, and several oversized/mixed-responsibility source areas.
+LocalGPT 3.0.2 is a narrow repair over 3.0.1. It keeps the namespace/service/structure/live-rejoin work intact while fixing Windows build guards that still assumed single-file `Program`/Razor/service implementations and one real controller compile error revealed by the user's Windows build.
 
 Key changes:
 
-- Lightweight marker-only live Council rejoin while a run is active, with full transcript persistence after completion.
-- Correct `LocalGPT.Controller`, `LocalGPT.Services`, and `LocalGPT.Hubs` namespace/folder ownership; stale TacosPortal/Endpoints documentation rewrites removed.
-- Zero-baseline Razor/controller text/Regex ownership with internal extensions reachable only through DI services.
-- Dedicated Regex, JSON text, reviewer policy, Minecraft project, Minecraft datapack and Council knowledge-content services.
-- Responsibility-named partials/code-behind for the remaining genuinely large types while preserving public DI/runtime contracts.
-- New 3.0.1 regression gate plus partial-aware historical release gates.
+- Partial-aware operational diagnostics and InteractiveServer Windows guards.
+- Partial-owner normalization for iterator and system-variable historical baselines without weakening new-violation enforcement.
+- `StructuredTextController` compile import repair.
+- Minecraft project/datapack controller wiring verified and two read-only Minecraft DXAIFunctions added to automatic handler discovery/system-seed catalog synchronization.
+- Internal extracted services remain behind their owning API/DXFunction boundaries rather than gaining duplicate controllers.
 
 Versions:
 
-- LocalGPT: 3.0.1
-- LocalGPTWebviewWrapper: 3.0.1
-- LocalGPTInstallerConsole: 3.0.1
+- LocalGPT: 3.0.2
+- LocalGPTWebviewWrapper: 3.0.2
+- LocalGPTInstallerConsole: 3.0.2
 - LocalGPT Wire Protocol: 2.1.1
 
-See `CHANGELOG-v3.0.1-source.md` and `VALIDATION-v3.0.1-source.md` for the detailed source-only validation record.
+See `CHANGELOG-v3.0.2-source.md` and `VALIDATION-v3.0.2-source.md`.
 
 This source package was not compiled in the repair environment. No GitHub or .NET/MSBuild invocation was used.

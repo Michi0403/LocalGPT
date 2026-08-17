@@ -32,6 +32,30 @@ function Require-Text {
     }
 }
 
+
+function Require-TextAcrossFiles {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$RelativePaths,
+        [Parameter(Mandatory = $true)][string[]]$Patterns,
+        [Parameter(Mandatory = $true)][string]$Purpose
+    )
+
+    $content = ''
+    foreach ($relativePath in $RelativePaths) {
+        $path = Join-Path $root $relativePath
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            $failures.Add("Required diagnostics source is missing: $relativePath")
+            continue
+        }
+        $content += [Environment]::NewLine + (Get-Content -LiteralPath $path -Raw)
+    }
+    foreach ($pattern in $Patterns) {
+        if ($content -notmatch $pattern) {
+            $failures.Add("$Purpose is missing across '$($RelativePaths -join ', ')' (pattern: $pattern).")
+        }
+    }
+}
+
 # Every Razor component inherits these circuit-scoped diagnostics dependencies from _Imports.
 Require-Text 'src\LocalGPT\Components\_Imports.razor' @(
     '@inject\s+ILoggerFactory\s+OperationalLoggerFactory',
@@ -66,7 +90,17 @@ Require-Text 'src\LocalGPT\Components\Routes.razor' @(
 Require-Text 'src\LocalGPT\Components\Pages\Chat.razor' @(
     '@rendermode\s+InteractiveServer',
     'ILogger<Chat>',
-    'INotificationService',
+    'INotificationService'
+) 'Chat render boundary and injected diagnostics'
+$chatDiagnosticsFiles = @(
+    'src\LocalGPT\Components\Pages\Chat.razor',
+    'src\LocalGPT\Components\Pages\Chat.Lifecycle.razor.cs',
+    'src\LocalGPT\Components\Pages\Chat.ProviderRuntime.razor.cs',
+    'src\LocalGPT\Components\Pages\Chat.PersistenceAndMemory.razor.cs',
+    'src\LocalGPT\Components\Pages\Chat.LiveCouncil.razor.cs',
+    'src\LocalGPT\Components\Pages\Chat.PresetsAndCouncilConfiguration.razor.cs'
+)
+Require-TextAcrossFiles $chatDiagnosticsFiles @(
     'interactiveAttached\s*=\s*true',
     'StartInitialModelRefresh\(\)',
     'StartAutoSaveLoop\(\)',
@@ -117,7 +151,14 @@ Require-Text 'src\LocalGPT\Diagnostics\LocalGptCircuitDiagnosticsHandler.cs' @(
 # Controllers are covered centrally, while maintained service/controller files remain
 # kept separate from circuit UI services. This avoids injecting circuit UI services into
 # singleton/boot services, which would break startup.
-Require-Text 'src\LocalGPT\Program.cs' @(
+$programDiagnosticsFiles = @(
+    'src\LocalGPT\Program.cs',
+    'src\LocalGPT\Program.Hosting.cs',
+    'src\LocalGPT\Program.Middleware.cs',
+    'src\LocalGPT\Program.ServiceRegistration.cs',
+    'src\LocalGPT\Program.WebFeatures.cs'
+)
+Require-TextAcrossFiles $programDiagnosticsFiles @(
     'AddScoped<ControllerRequestLoggingFilter>',
     'Filters\.AddService<ControllerRequestLoggingFilter>',
     'AddScoped<INotificationService',

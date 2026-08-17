@@ -54,13 +54,14 @@ foreach ($relative in $inheritedThemeChildren) {
 }
 
 $appPath = Join-Path $appRoot 'Components\App.razor'
-$programPath = Join-Path $appRoot 'Program.cs'
+$programPaths = @(Get-ChildItem -LiteralPath $appRoot -File -Filter 'Program*.cs' | Sort-Object Name | Select-Object -ExpandProperty FullName)
 $importsPath = Join-Path $appRoot 'Components\_Imports.razor'
-foreach ($path in @($appPath, $programPath, $importsPath)) {
+foreach ($path in @($appPath, $importsPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Fail "Required source file is missing: $path" }
 }
 $app = [System.IO.File]::ReadAllText($appPath, $utf8)
-$program = [System.IO.File]::ReadAllText($programPath, $utf8)
+if ($programPaths.Count -eq 0) { Fail 'No Program*.cs source files were found.' }
+$program = ($programPaths | ForEach-Object { [System.IO.File]::ReadAllText($_, $utf8) }) -join [Environment]::NewLine
 $imports = [System.IO.File]::ReadAllText($importsPath, $utf8)
 
 foreach ($required in @(
@@ -77,9 +78,9 @@ foreach ($required in @(
 if ($app -match '<Routes\s+@rendermode' -or $app -match '<HeadOutlet\s+@rendermode') {
     Fail 'App.razor must not replace the reviewed page/island render modes with a single root render boundary.'
 }
-if (-not $program.Contains('AddInteractiveServerComponents()')) { Fail 'Program.cs no longer registers interactive server components.' }
-if (-not $program.Contains('AddInteractiveServerRenderMode()')) { Fail 'Program.cs no longer maps the InteractiveServer render mode.' }
-if (-not $program.Contains('AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>()')) { Fail 'Program.cs no longer registers circuit diagnostics.' }
+if (-not $program.Contains('AddInteractiveServerComponents()')) { Fail 'Program partials no longer register interactive server components.' }
+if (-not $program.Contains('AddInteractiveServerRenderMode()')) { Fail 'Program partials no longer map the InteractiveServer render mode.' }
+if (-not $program.Contains('AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>()')) { Fail 'Program partials no longer register circuit diagnostics.' }
 if (-not $imports.Contains('@using static Microsoft.AspNetCore.Components.Web.RenderMode')) { Fail 'Components/_Imports.razor no longer imports RenderMode.' }
 
 Write-Host "InteractiveServer render-mode validation passed for $($expected.Count) explicit islands/pages and $($inheritedThemeChildren.Count) inherited theme children."
