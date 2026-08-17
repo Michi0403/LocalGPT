@@ -8,11 +8,6 @@ using System.Text.RegularExpressions;
 namespace LocalGPT.Services
 {
     /// <summary>Owns Minecraft datapack content generation and the version-to-pack-format catalog.</summary>
-    /// <param name="catalog">Application catalog supplying maintained Minecraft defaults.</param>
-    /// <param name="patterns">Persisted text patterns used to recognize Minecraft artifact intent and identities.</param>
-    /// <param name="text">Generic text service used only for cross-domain identifier formatting.</param>
-    /// <param name="jsonText">JSON text service used to escape pack metadata safely.</param>
-    /// <param name="serviceLogger">Logger for bounded datapack-generation diagnostics.</param>
     public sealed partial class MinecraftDatapackService
     {
         /// <summary>
@@ -37,11 +32,6 @@ namespace LocalGPT.Services
         private readonly ILogger<MinecraftDatapackService> serviceLogger;
 
         /// <summary>Creates the Minecraft datapack domain service with persisted pattern and JSON policy collaborators.</summary>
-        /// <param name="catalog">Local gpt catalog service dependency used by the minecraft datapack workflow to provide the corresponding application capability.</param>
-        /// <param name="patterns">Council text pattern data service dependency used by the minecraft datapack workflow to provide the corresponding application capability.</param>
-        /// <param name="text">Council text service dependency used by the minecraft datapack workflow to provide the corresponding application capability.</param>
-        /// <param name="jsonText">Json text service dependency used by the minecraft datapack workflow to provide the corresponding application capability.</param>
-        /// <param name="serviceLogger">Minecraft datapack service dependency used by the minecraft datapack workflow to provide the corresponding application capability.</param>
         public MinecraftDatapackService(
             LocalGptCatalogService catalog,
             ICouncilTextPatternDataService patterns,

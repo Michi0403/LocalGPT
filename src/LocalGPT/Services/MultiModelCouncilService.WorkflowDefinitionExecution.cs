@@ -192,13 +192,21 @@ namespace LocalGPT.Services
                             case "SystemBenchmarkCalibration":
                                 {
                                     var calibrationStartedAtUtc = DateTime.UtcNow;
+                                    var exactBenchmarkTargets = result.ModelSelections
+                                        .Where(model => model is not null && !string.IsNullOrWhiteSpace(model.ModelName))
+                                        .GroupBy(model => model.SelectionKey, StringComparer.OrdinalIgnoreCase)
+                                        .Select(group => group.First())
+                                        .ToList();
+                                    if (exactBenchmarkTargets.Count == 0)
+                                        throw new InvalidOperationException("The deterministic benchmark workflow has no provider-qualified Council targets.");
+
                                     request.ProgressMessage?.Invoke(
-                                        $"Configured round {round} is entering the deterministic LocalGPT all-member benchmark engine. The selected provider-qualified Council membership is authoritative; model-generated sampling decisions are ignored.");
+                                        $"Configured round {round} is entering one deterministic LocalGPT all-model measurement phase for all {exactBenchmarkTargets.Count} distinct provider-qualified Council member(s). Model-generated sampling, quartets and representative packs are ignored.");
                                     var calibration = await benchmarkCalibration.RunAsync(
                                         new CouncilBenchmarkCalibrationRequest
                                         {
                                             CouncilRunId = result.RunId,
-                                            Targets = result.ModelSelections.ToList(),
+                                            Targets = exactBenchmarkTargets,
                                             MaximumContextTokens = maxContextTokens,
                                             MaximumOutputTokens = request.MaxOutputTokens,
                                             MaxSecondsPerCall = modelTimeoutSeconds,
@@ -212,6 +220,9 @@ namespace LocalGPT.Services
                                             request.StreamUpdate?.Invoke(progress.EndsWith('\n') ? progress : progress + Environment.NewLine);
                                         },
                                         cancellationToken).ConfigureAwait(false);
+                                    if (calibration.RequestedTargetCount != exactBenchmarkTargets.Count)
+                                        throw new InvalidOperationException(
+                                            $"The deterministic benchmark coverage contract changed from {exactBenchmarkTargets.Count} frozen Council target(s) to {calibration.RequestedTargetCount}; benchmark continuation was stopped rather than accepting silent sampling.");
                                     var systemStep = new MultiModelCouncilStep
                                     {
                                         SortOrder = result.Steps.Count + 1,

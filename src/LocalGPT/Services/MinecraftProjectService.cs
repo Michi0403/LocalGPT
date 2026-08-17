@@ -4,11 +4,6 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services
 {
     /// <summary>Owns Minecraft Java project text and metadata generation while reusing only generic text policy from <see cref="CouncilTextService"/>.</summary>
-    /// <param name="jsonText">JSON text policy used when project metadata embeds human-entered values.</param>
-    /// <param name="patterns">Persisted regex/text patterns used for Minecraft identifier normalization.</param>
-    /// <param name="datapackService">Datapack version catalog used when resolving datapack-target dependency metadata.</param>
-    /// <param name="catalog">Application catalog supplying user-maintained/default toolchain values.</param>
-    /// <param name="serviceLogger">Logger for bounded project-generation diagnostics.</param>
     public sealed partial class MinecraftProjectService
     {
         /// <summary>
@@ -33,11 +28,6 @@ namespace LocalGPT.Services
         private readonly ILogger<MinecraftProjectService> serviceLogger;
 
         /// <summary>Creates the Minecraft project domain service with its scoped policy collaborators.</summary>
-        /// <param name="jsonText">Json text service dependency used by the minecraft project workflow to provide the corresponding application capability.</param>
-        /// <param name="patterns">Council text pattern data service dependency used by the minecraft project workflow to provide the corresponding application capability.</param>
-        /// <param name="datapackService">Minecraft datapack service dependency used by the minecraft project workflow to provide the corresponding application capability.</param>
-        /// <param name="catalog">Local gpt catalog service dependency used by the minecraft project workflow to provide the corresponding application capability.</param>
-        /// <param name="serviceLogger">Minecraft project service dependency used by the minecraft project workflow to provide the corresponding application capability.</param>
         public MinecraftProjectService(
             IJsonTextService jsonText,
             ICouncilTextPatternDataService patterns,

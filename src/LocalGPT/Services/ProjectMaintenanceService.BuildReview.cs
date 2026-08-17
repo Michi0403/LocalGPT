@@ -287,12 +287,6 @@ namespace LocalGPT.Services
 }
 
     /// <summary>
-    /// Discovers compiler candidates as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="customRoots">String dependency used by the project maintenance workflow to provide the corresponding application capability.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The collection produced by the operation.</returns>
-    /// <summary>
     /// Normalizes compiler search roots as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>

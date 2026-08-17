@@ -61,10 +61,10 @@ public sealed class CouncilBenchmarkCalibrationService(
                 .Select(group => group.ToList())
                 .ToList();
             progressMessage?.Invoke(
-                $"## Deterministic all-member calibration started\n\n" +
-                $"LocalGPT will execute the consolidated Task Curator assignment for every one of the {benchmarkTargets.Count} benchmark-capable provider-qualified Benchmark Subject(s). " +
-                $"No representative sampling or size-bracket extrapolation is allowed. Four measured profile points are attempted per target, but the four curator tasks are executed together in one bounded provider turn per profile instead of being repeated as four separate calls. " +
-                $"The {hostQueues.Count} physical/provider host queue(s) advance in parallel while each host remains sequential to avoid VRAM contention.");
+                $"## One deterministic all-model measurement phase\n\n" +
+                $"Frozen target coverage: **{benchmarkTargets.Count} benchmark-capable subject(s)** from **{requestedTargets.Count} selected provider-qualified Council member(s)**. " +
+                $"LocalGPT executes one consolidated four-section suite for the entire target set. The four profile points are measurements of that same suite and target set, never four model packs or representative subsets. " +
+                $"The {hostQueues.Count} independent physical/provider host queue(s) advance in parallel; models sharing one host remain sequential to avoid VRAM contention.");
 
             async Task<ProviderModelBenchmarkReport> RunHostQueueAsync(List<ProviderModelReference> queue)
             {
@@ -73,10 +73,13 @@ public sealed class CouncilBenchmarkCalibrationService(
                     RunId = benchmarkRunId,
                     StartedAtUtc = DateTimeOffset.UtcNow
                 };
-                foreach (var target in queue)
+                for (var targetIndex = 0; targetIndex < queue.Count; targetIndex++)
                 {
+                    var target = queue[targetIndex];
                     cancellationToken.ThrowIfCancellationRequested();
-                    progressMessage?.Invoke($"\n### Host queue {GetBenchmarkHostKey(target.Endpoint)} · Benchmark Subject {target.DisplayName}\n");
+                    progressMessage?.Invoke(
+                        $"Measuring subject {targetIndex + 1}/{queue.Count} on host queue {GetBenchmarkHostKey(target.Endpoint)}: {target.DisplayName}. " +
+                        "This remains part of the same all-model measurement phase.");
                     var targetReport = await benchmark.RunAsync(
                         new ProviderModelBenchmarkRequest
                         {
@@ -120,6 +123,17 @@ public sealed class CouncilBenchmarkCalibrationService(
                     .ToList(),
                 Warnings = hostReports.SelectMany(item => item.Warnings).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
             };
+
+            var measuredSelectionKeys = report.Targets
+                .Select(target => target.Model.SelectionKey)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var missingBenchmarkTargets = benchmarkTargets
+                .Where(target => !measuredSelectionKeys.Contains(target.SelectionKey))
+                .Select(target => target.SelectionKey)
+                .ToList();
+            if (missingBenchmarkTargets.Count > 0)
+                throw new InvalidOperationException(
+                    $"The all-model benchmark coverage contract was violated: {missingBenchmarkTargets.Count} benchmark-capable selected subject(s) were not returned by the deterministic measurement engine. Missing identities: {string.Join(", ", missingBenchmarkTargets)}");
 
             var successfulTargets = report.Targets.Count(target =>
                 string.IsNullOrWhiteSpace(target.Error) &&
@@ -191,9 +205,9 @@ public sealed class CouncilBenchmarkCalibrationService(
 
             return new ProviderModelBenchmarkTaskDefinition
             {
-                Name = "Curated four-task Benchmark Subject pack",
+                Name = "Consolidated four-section all-subject benchmark suite",
                 Prompt =
-                    "Execute the following authoritative Task Curator benchmark pack. This is your assigned Benchmark Subject job. " +
+                    "Execute the following authoritative Task Curator benchmark suite. This is your assigned Benchmark Subject job inside one all-model measurement phase. " +
                     "Attempt every task; do not return UNABLE merely because you are an AI model, do not ask another role to perform it, do not call tools, and do not discuss benchmark planning. " +
                     "Return exactly four sections labelled Task 1:, Task 2:, Task 3:, Task 4:. If uncertain, make the best bounded attempt and state uncertainty inside that task answer.\n\n" +
                     taskPack,

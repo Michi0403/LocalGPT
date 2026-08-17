@@ -6,6 +6,8 @@
     const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     let observedModal = null;
     let classObserver = null;
+    let resumeCheckTimer = 0;
+    let hiddenAfterInteractiveReady = false;
 
     function report(context, error) {
         try { globalThis.localGptJavaScriptDiagnostics?.report?.(`localgpt-reconnect.${context}`, error); }
@@ -108,6 +110,67 @@
       }
     }
 
+    function interactiveShellLooksUsable() {
+        try {
+            const main = document.getElementById('current-main-window');
+            if (!(main instanceof HTMLElement)) return false;
+            const bounds = main.getBoundingClientRect();
+            return bounds.width > 1 && bounds.height > 1 && main.childElementCount > 0;
+        } catch (error) {
+            report('interactiveShellLooksUsable', error);
+            return false;
+        }
+    }
+
+    function revealRecoverySurface(message) {
+        try {
+            const modal = findModal();
+            if (!(modal instanceof HTMLElement)) return null;
+            modal.classList.remove('components-reconnect-hide');
+            if (!modal.classList.contains('components-reconnect-failed') &&
+                !modal.classList.contains('components-reconnect-rejected'))
+                modal.classList.add('components-reconnect-show');
+            setStatus(modal, message);
+            setBusy(modal, false);
+            return modal;
+        } catch (error) {
+            report('revealRecoverySurface', error);
+            return null;
+        }
+    }
+
+    function scheduleResumeHealthCheck(reason) {
+        try {
+            if (resumeCheckTimer) clearTimeout(resumeCheckTimer);
+            resumeCheckTimer = window.setTimeout(() => {
+                resumeCheckTimer = 0;
+                try {
+                    if (document.visibilityState === 'hidden') return;
+                    const modal = findModal();
+                    const reconnectVisible = modal instanceof HTMLElement &&
+                        (modal.classList.contains('components-reconnect-show') ||
+                         modal.classList.contains('components-reconnect-failed') ||
+                         modal.classList.contains('components-reconnect-rejected'));
+                    const startupFailed = document.documentElement.classList.contains('localgpt-interactive-error');
+                    const ready = document.documentElement.classList.contains('localgpt-interactive-ready');
+                    const shellUsable = interactiveShellLooksUsable();
+
+                    if (!reconnectVisible && !startupFailed && ready && shellUsable) return;
+
+                    revealRecoverySurface(
+                        `The browser resumed after ${reason}, but the interactive surface is not healthy yet. ` +
+                        'LocalGPT will try to reconnect without stopping server-side Council or benchmark work.');
+                    if (typeof globalThis.Blazor?.reconnect === 'function')
+                        void reconnectNow();
+                } catch (error) {
+                    report('scheduleResumeHealthCheck.callback', error);
+                }
+            }, 1250);
+        } catch (error) {
+            report('scheduleResumeHealthCheck', error);
+        }
+    }
+
     function updateFromClass(modal = findModal()) {
         if (!(modal instanceof HTMLElement)) return;
         const runId = readRunId();
@@ -203,7 +266,30 @@
                     }
                 }, true);
 
-                window.addEventListener('online', () => updateFromClass());
+                window.addEventListener('online', () => {
+                    updateFromClass();
+                    if (hiddenAfterInteractiveReady) scheduleResumeHealthCheck('network recovery');
+                });
+                document.addEventListener('visibilitychange', () => {
+                    try {
+                        if (document.visibilityState === 'hidden') {
+                            hiddenAfterInteractiveReady = document.documentElement.classList.contains('localgpt-interactive-ready');
+                            return;
+                        }
+                        if (hiddenAfterInteractiveReady) {
+                            hiddenAfterInteractiveReady = false;
+                            scheduleResumeHealthCheck('a hidden/background tab');
+                        }
+                    } catch (error) {
+                        report('visibilitychange', error);
+                    }
+                });
+                window.addEventListener('focus', () => {
+                    if (hiddenAfterInteractiveReady) {
+                        hiddenAfterInteractiveReady = false;
+                        scheduleResumeHealthCheck('browser focus restoration');
+                    }
+                });
                 globalThis.localGptReconnect = Object.freeze({
                     setCouncilRun(runId) {
                         writeRunId(runId);

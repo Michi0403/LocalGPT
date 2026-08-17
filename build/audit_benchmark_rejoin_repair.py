@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static source audit for LocalGPT 2.8.3 benchmark/rejoin/build-guard repair."""
+"""Static source audit for LocalGPT 3.0.8 benchmark/rejoin/all-model coverage repair."""
 from pathlib import Path
 import sys
 root = Path(__file__).resolve().parents[1]
@@ -61,8 +61,35 @@ try:
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
     ):
-        require(rel, "<Version>3.0.7</Version>")
-    print("LocalGPT 2.8.3 benchmark/rejoin/build-guard source audit passed.")
+        require(rel, "<Version>3.0.8</Version>")
+    require(
+        "src/LocalGPT/Components/App.razor",
+        "disableDomPreservation: false",
+    )
+    require(
+        "src/LocalGPT/wwwroot/js/localgpt-reconnect.js",
+        "scheduleResumeHealthCheck",
+        "interactiveShellLooksUsable",
+        "globalThis.Blazor?.reconnect",
+    )
+    require(
+        "src/LocalGPT/Services/CouncilBenchmarkCalibrationService.cs",
+        "missingBenchmarkTargets",
+        "RequestedTargetCount",
+        "One deterministic all-model measurement phase",
+    )
+    require(
+        "src/LocalGPT/Services/MultiModelCouncilService.WorkflowDefinitionExecution.cs",
+        "exactBenchmarkTargets",
+        "Model-generated sampling, quartets and representative packs are ignored.",
+    )
+    require(
+        "src/LocalGPT/Services/OrganicCouncilBlueprintSeedDataService.BenchmarkTemplates.cs",
+        "ONE consolidated benchmark suite",
+        "never four model packs",
+        "ONE deterministic LocalGPT measurement phase",
+    )
+    print("LocalGPT 3.0.8 benchmark/rejoin/all-model coverage source audit passed.")
 except AssertionError as exc:
-    print(f"LocalGPT 2.8.3 benchmark/rejoin/build-guard source audit failed: {exc}", file=sys.stderr)
+    print(f"LocalGPT 3.0.8 benchmark/rejoin/all-model coverage source audit failed: {exc}", file=sys.stderr)
     sys.exit(1)

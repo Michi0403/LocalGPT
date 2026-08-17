@@ -360,13 +360,12 @@ public sealed class InitialSetupAssistantService(
             ArgumentNullException.ThrowIfNull(request);
             if (!request.UserConfirmed)
                 throw new InvalidOperationException("Creating the hardware-curated benchmark team requires explicit user confirmation.");
-            var selected = request.ModelSelectionKeys.Where(item => !string.IsNullOrWhiteSpace(item)).Distinct(StringComparer.OrdinalIgnoreCase).Take(128).ToList();
+            var selected = request.ModelSelectionKeys.Where(item => !string.IsNullOrWhiteSpace(item)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (selected.Count == 0)
                 throw new InvalidOperationException("Select at least one installed provider-qualified model before creating the benchmark team.");
             var preferred = request.PreferredCuratorModelKeys
                 .Where(item => selected.Contains(item, StringComparer.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(4)
                 .ToList();
             if (preferred.Count == 0)
                 preferred.Add(selected[0]);
