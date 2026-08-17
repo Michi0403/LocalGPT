@@ -26,7 +26,7 @@ namespace LocalGPT.Services
         /// <summary>
         /// Stores the council text service dependency used by <see cref="MinecraftDatapackService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
-        private readonly CouncilTextService text;
+        private readonly CouncilTextService _text;
         /// <summary>
         /// Stores the JSON text service dependency used by <see cref="MinecraftDatapackService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
@@ -51,7 +51,7 @@ namespace LocalGPT.Services
         {
             this.catalog = catalog;
             this.patterns = patterns;
-            this.text = text;
+            _text = text;
             this.jsonText = jsonText;
             this.serviceLogger = serviceLogger;
         }

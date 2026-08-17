@@ -27,7 +27,7 @@ def forbid(rel,needle):
 def count(rel,needle): return read(rel).count(needle)
 try:
     for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-        require(rel,'<Version>3.0.2</Version>')
+        require(rel,'<Version>3.0.3</Version>')
     protocol='src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
     require(protocol,'<Version>2.1.1</Version>'); require(protocol,'<PackageVersion>2.1.1</PackageVersion>')
     require('src/LocalGPT/Services/CouncilTeamConfigurationService.cs','private const int CurrentSeedVersion = 25;')

@@ -18,11 +18,8 @@ namespace LocalGPT.Services
     /// </summary>
     public sealed partial class LocalGptCatalogService
     {
-    /// <summary>
         /// <summary>
-        /// Retrieves suggestion as part of the local GPT catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-        /// </summary>
-        /// Retrieves suggestion as part of the LocalGPT catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+        /// Retrieves the maintained LocalGPT prompt suggestion catalog, including direct-Council starter entries.
         /// </summary>
         /// <returns>Prompt suggestions with stable keys and optional direct-Council ownership.</returns>
         public List<PromptSuggestion> GetSuggestion()
@@ -57,9 +54,9 @@ namespace LocalGPT.Services
     catch (Exception __serviceMethodException)
     {
         if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptCatalogService)}.{nameof(GetSuggestion)} was canceled.");
+            _logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptCatalogService)}.{nameof(GetSuggestion)} was canceled.");
         else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptCatalogService)}.{nameof(GetSuggestion)} failed.");
+            _logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptCatalogService)}.{nameof(GetSuggestion)} failed.");
         throw;
     }
 }

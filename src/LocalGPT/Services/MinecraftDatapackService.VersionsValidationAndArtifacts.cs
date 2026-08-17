@@ -526,7 +526,7 @@ namespace LocalGPT.Services
             {
                 var displayName = ExtractMinecraftProjectDisplayName(text,null, logger);
                 var modId = ToMinecraftNamespace(displayName, logger);
-                var projectName = text.ToPascalIdentifier(displayName, logger);
+                var projectName = _text.ToPascalIdentifier(displayName, logger);
                 if (string.IsNullOrWhiteSpace(projectName))
                     projectName = "PromptedDatapack";
                 if (string.IsNullOrWhiteSpace(modId))
