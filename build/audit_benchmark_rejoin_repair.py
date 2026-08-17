@@ -51,7 +51,7 @@ try:
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
     ):
-        require(rel, "<Version>2.9.9</Version>")
+        require(rel, "<Version>3.0.0</Version>")
     print("LocalGPT 2.8.3 benchmark/rejoin/build-guard source audit passed.")
 except AssertionError as exc:
     print(f"LocalGPT 2.8.3 benchmark/rejoin/build-guard source audit failed: {exc}", file=sys.stderr)

@@ -97,6 +97,7 @@
     <TextServiceOwnershipScript>$(MSBuildThisFileDirectory)build\Assert-TextServiceOwnership.ps1</TextServiceOwnershipScript>
     <IteratorExceptionPolicyScript>$(MSBuildThisFileDirectory)build\Assert-IteratorExceptionPolicy.ps1</IteratorExceptionPolicyScript>
     <SystemVariableInitializationScript>$(MSBuildThisFileDirectory)build\Assert-SystemVariableInitialization.ps1</SystemVariableInitializationScript>
+    <EfModelSnapshotConsistencyScript>$(MSBuildThisFileDirectory)build\Assert-EfModelSnapshotConsistency.ps1</EfModelSnapshotConsistencyScript>
   </PropertyGroup>
 
   <Target Name="AssertLocalGptMethodDiagnosticsPolicy"
@@ -134,6 +135,13 @@
     <Exec Condition="Exists('$(SystemVariableInitializationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(SystemVariableInitializationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
+  <Target Name="AssertLocalGptEfModelSnapshotConsistency"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptSystemVariableInitialization"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipEfModelSnapshotConsistencyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+    <Error Condition="!Exists('$(EfModelSnapshotConsistencyScript)')" Text="EF model/snapshot consistency script is missing: $(EfModelSnapshotConsistencyScript)" />
+    <Exec Condition="Exists('$(EfModelSnapshotConsistencyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(EfModelSnapshotConsistencyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
+
   <PropertyGroup>
     <LocalGptStaticWebAssetsScript>$(MSBuildThisFileDirectory)build\Assert-StaticWebAssets.ps1</LocalGptStaticWebAssetsScript>
     <LocalGptJavaScriptDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-JavaScriptDiagnostics.ps1</LocalGptJavaScriptDiagnosticsScript>
@@ -147,7 +155,7 @@
     <Exec Condition="Exists('$(LocalGptJavaScriptDiagnosticsScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptJavaScriptDiagnosticsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
   <Target Name="AssertLocalGptStaticWebAssets"
-          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptSystemVariableInitialization"
+          BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptEfModelSnapshotConsistency"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipStaticWebAssetsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(LocalGptStaticWebAssetsScript)')" Text="Static web asset validation script is missing: $(LocalGptStaticWebAssetsScript)" />
     <Exec Condition="Exists('$(LocalGptStaticWebAssetsScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptStaticWebAssetsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />

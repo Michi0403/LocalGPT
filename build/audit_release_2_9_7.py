@@ -22,7 +22,7 @@ try:
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
     ]:
-        require(rel, "<Version>2.9.9</Version>")
+        require(rel, "<Version>3.0.0</Version>")
 
     inbox = "src/LocalGPT/Components/Layout/HumanCollaborationInbox.razor"
     forbid(inbox, "outcome.Succeeded")

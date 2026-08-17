@@ -24,7 +24,7 @@ try:
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
     ]:
-        require(rel, "<Version>2.9.9</Version>")
+        require(rel, "<Version>3.0.0</Version>")
         match = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", read(rel))
         if not match or int(match.group(2)) > 9 or int(match.group(3)) > 9:
             raise AssertionError(f"version-slot policy failed for {rel}")

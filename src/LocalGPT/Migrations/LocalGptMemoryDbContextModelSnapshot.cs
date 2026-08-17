@@ -700,6 +700,20 @@ namespace LocalGPT.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("AllMembersReadinessPreflightMaxOutputTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AllMembersReadinessPreflightMode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AllMembersReadinessPreflightPromptTemplate")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AllowedAutomaticFunctionsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ArchitectureContractsJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -715,6 +729,12 @@ namespace LocalGPT.Migrations
                     b.Property<string>("ExpertPreparationPromptTemplate")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("IncludeAllMembersReadinessPreflightInWorkflowContext")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("INTEGER");

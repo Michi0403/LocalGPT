@@ -10,7 +10,7 @@ def forbid(rel, needle):
     if needle in read(rel): raise AssertionError(f"{rel}: forbidden {needle!r}")
 try:
     for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-        require(rel,'<Version>2.9.9</Version>')
+        require(rel,'<Version>3.0.0</Version>')
     protocol='src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'
     require(protocol,'<Version>2.1.1</Version>'); require(protocol,'<PackageVersion>2.1.1</PackageVersion>')
 
