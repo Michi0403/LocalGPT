@@ -37,7 +37,7 @@ def component_parts(rel_without_ext: str) -> str:
 # Version-slot policy.
 for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj']:
     value = read(rel)
-    require('<Version>3.0.3</Version>' in value, f'{rel}: version is not 3.0.1')
+    require('<Version>3.0.4</Version>' in value, f'{rel}: version is not 3.0.1')
     m = re.search(r'<Version>(\d+)\.(\d+)\.(\d+)</Version>', value)
     require(bool(m) and int(m.group(2)) <= 9 and int(m.group(3)) <= 9, f'{rel}: version-slot policy violated')
 require('<Version>2.1.1</Version>' in read('src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'), 'wire protocol changed from 2.1.1')

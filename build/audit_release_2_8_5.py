@@ -16,9 +16,9 @@ def require(rel,*needles):
     if missing: raise AssertionError(f'{rel} missing {missing}')
 
 try:
-    require('src/LocalGPT/LocalGPT.csproj','<Version>3.0.3</Version>')
-    require('src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','<Version>3.0.3</Version>')
-    require('src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj','<Version>3.0.3</Version>')
+    require('src/LocalGPT/LocalGPT.csproj','<Version>3.0.4</Version>')
+    require('src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','<Version>3.0.4</Version>')
+    require('src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj','<Version>3.0.4</Version>')
     require('src/LocalGPT/Services/Localization/LocalGptLocalizationService.cs',
             'AddCatalogCultures(BuiltInLocalizationPath, cultures);',
             'return cultures.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();')
@@ -37,7 +37,7 @@ try:
     for path in (root/'src/LocalGPT').rglob('*.razor'):
         for line in path.read_text(encoding='utf-8').splitlines():
             if '@rendermode' in line: modes.append((str(path.relative_to(root)),line.strip()))
-    if len(modes)!=19: raise AssertionError(f'expected 19 LocalGPT rendermode directives, found {len(modes)}')
+    if len(modes)!=20: raise AssertionError(f'expected 20 LocalGPT rendermode directives, found {len(modes)}')
 
     print('LocalGPT 2.8.5 multilingual source regression audit passed.')
 except (AssertionError, OSError, json.JSONDecodeError) as exc:

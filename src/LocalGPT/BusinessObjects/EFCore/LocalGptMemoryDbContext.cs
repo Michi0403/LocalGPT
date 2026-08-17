@@ -215,6 +215,28 @@ namespace LocalGPT.BusinessObjects.EFCore
         public DbSet<CouncilGameSessionRecord> CouncilGameSessionRecords => Set<CouncilGameSessionRecord>();
 
         /// <summary>
+        /// Gets the remote control connector definitions value that forms part of the local GPT memory database context state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The remote control connector definitions value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<RemoteControlConnectorDefinition> RemoteControlConnectorDefinitions => Set<RemoteControlConnectorDefinition>();
+
+        /// <summary>
+        /// Gets the remote control pipeline definitions value that forms part of the local GPT memory database context state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The remote control pipeline definitions value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<RemoteControlPipelineDefinition> RemoteControlPipelineDefinitions => Set<RemoteControlPipelineDefinition>();
+
+        /// <summary>
+        /// Gets the remote control execution records value that forms part of the local GPT memory database context state consumed or produced by the surrounding workflow.
+        /// </summary>
+        /// <value>The remote control execution records value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<RemoteControlExecutionRecord> RemoteControlExecutionRecords => Set<RemoteControlExecutionRecord>();
+
+        /// <summary>Gets persisted user-owned DXFunction definitions backed by Remote Control pipelines.</summary>
+        /// <value>The user DevExpress AI function definitions value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<UserDxAiFunctionDefinition> UserDxAiFunctionDefinitions => Set<UserDxAiFunctionDefinition>();
+
+        /// <summary>
         /// Handles the model creating lifecycle or event notification for <see cref="LocalGptMemoryDbContext"/>, updating the state required by the surrounding workflow.
         /// </summary>
         /// <param name="modelBuilder">Model builder value supplied to the LocalGPT memory database context operation and used when producing its result.</param>
@@ -765,11 +787,15 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.Version).HasMaxLength(160).IsRequired();
                 entity.Property(item => item.Architecture).HasMaxLength(80).IsRequired();
                 entity.Property(item => item.DiscoverySource).HasMaxLength(80).IsRequired();
+                entity.Property(item => item.ToolchainKind).HasMaxLength(40).IsRequired();
+                entity.Property(item => item.DetectedPlatform).HasMaxLength(40).IsRequired();
                 entity.Property(item => item.ValidationArguments).HasMaxLength(500).IsRequired();
                 entity.Property(item => item.EnvironmentVariablesJson).IsRequired();
+                entity.Property(item => item.KnowledgeProfileKey).HasMaxLength(96).IsRequired();
                 entity.Property(item => item.LastValidationMessage).HasMaxLength(4000).IsRequired();
                 entity.HasIndex(item => item.ExecutablePath).IsUnique();
                 entity.HasIndex(item => new { item.Language, item.IsDefaultForLanguage, item.IsEnabled });
+                entity.HasIndex(item => new { item.KnowledgeProfileKey, item.Version });
             });
 
             modelBuilder.Entity<LocalGptProjectTrackedFile>(entity =>
@@ -882,6 +908,70 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasIndex(item => item.SessionKey).IsUnique();
                 entity.HasIndex(item => new { item.GameKey, item.Status, item.UpdatedAtUtc });
                 entity.HasOne<ChatMemoryConversation>().WithMany().HasForeignKey(item => item.ConversationId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<RemoteControlConnectorDefinition>(entity =>
+            {
+                entity.ToTable("RemoteControlConnectorDefinitions");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Key).HasMaxLength(96).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Description).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.UrlTemplate).HasMaxLength(4096).IsRequired();
+                entity.Property(item => item.HeadersJson).IsRequired();
+                entity.Property(item => item.RequestBodyTemplate).IsRequired();
+                entity.Property(item => item.RequestContentType).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.ResponseSelector).HasMaxLength(1024).IsRequired();
+                entity.Property(item => item.AllowedHostsJson).IsRequired();
+                entity.Property(item => item.WebhookToken).HasMaxLength(256).IsRequired();
+                entity.Property(item => item.LastStatus).HasMaxLength(256).IsRequired();
+                entity.Property(item => item.LastContentType).HasMaxLength(256).IsRequired();
+                entity.Property(item => item.LastPayloadPreview).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.LastError).HasMaxLength(1024).IsRequired();
+                entity.HasIndex(item => item.Key).IsUnique();
+                entity.HasIndex(item => new { item.IsEnabled, item.NetworkEnabled, item.Transport, item.PollIntervalSeconds });
+            });
+
+            modelBuilder.Entity<RemoteControlPipelineDefinition>(entity =>
+            {
+                entity.ToTable("RemoteControlPipelineDefinitions");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Key).HasMaxLength(96).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(160).IsRequired();
+                entity.Property(item => item.Description).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.ConnectorKey).HasMaxLength(96).IsRequired();
+                entity.Property(item => item.StepsJson).IsRequired();
+                entity.Property(item => item.LastStatus).HasMaxLength(256).IsRequired();
+                entity.Property(item => item.LastError).HasMaxLength(1024).IsRequired();
+                entity.HasIndex(item => item.Key).IsUnique();
+                entity.HasIndex(item => new { item.ConnectorKey, item.IsEnabled, item.Triggers });
+            });
+
+            modelBuilder.Entity<RemoteControlExecutionRecord>(entity =>
+            {
+                entity.ToTable("RemoteControlExecutionRecords");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.ConnectorKey).HasMaxLength(96).IsRequired();
+                entity.Property(item => item.PipelineKey).HasMaxLength(96).IsRequired();
+                entity.Property(item => item.Summary).HasMaxLength(512).IsRequired();
+                entity.Property(item => item.Error).HasMaxLength(1024).IsRequired();
+                entity.HasIndex(item => item.StartedAtUtc);
+                entity.HasIndex(item => new { item.ConnectorKey, item.StartedAtUtc });
+                entity.HasIndex(item => new { item.PipelineKey, item.StartedAtUtc });
+            });
+
+            modelBuilder.Entity<UserDxAiFunctionDefinition>(entity =>
+            {
+                entity.ToTable("UserDxAiFunctionDefinitions");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.FunctionName).HasMaxLength(128).IsRequired();
+                entity.Property(item => item.DisplayName).HasMaxLength(200).IsRequired();
+                entity.Property(item => item.Purpose).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.SafetyNotes).HasMaxLength(2000).IsRequired();
+                entity.Property(item => item.ParameterSchemaJson).IsRequired();
+                entity.Property(item => item.PipelineKey).HasMaxLength(96).IsRequired();
+                entity.HasIndex(item => item.FunctionName).IsUnique();
+                entity.HasIndex(item => new { item.PipelineKey, item.IsEnabled });
             });
 
             modelBuilder.Entity<NativeCommandLogEntry>(entity =>

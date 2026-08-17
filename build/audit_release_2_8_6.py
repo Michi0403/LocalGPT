@@ -35,7 +35,7 @@ try:
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
     ]:
-        require(rel, "<Version>3.0.3</Version>")
+        require(rel, "<Version>3.0.4</Version>")
     require("Directory.Build.props", "<LocalGptWireProtocolVersion>2.1.1</LocalGptWireProtocolVersion>")
 
     require(
@@ -133,8 +133,8 @@ try:
         for line in path.read_text(encoding="utf-8").splitlines():
             if "@rendermode" in line:
                 modes.append((str(path.relative_to(root)), line.strip()))
-    if len(modes) != 19:
-        raise AssertionError(f"expected 19 LocalGPT rendermode directives, found {len(modes)}")
+    if len(modes) != 20:
+        raise AssertionError(f"expected 20 LocalGPT rendermode directives, found {len(modes)}")
 
     print("LocalGPT 2.8.6 reasoning/function trace and Council durability source audit passed.")
 except (AssertionError, OSError) as exc:

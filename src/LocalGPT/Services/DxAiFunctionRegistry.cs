@@ -18,6 +18,7 @@ namespace LocalGPT.Services;
 /// <param name="vocabulary">Local gpt vocabulary service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="handlerMapService">Devexpress ai function handler map service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="userFunctions">User devexpress ai function service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 public sealed class DxAiFunctionRegistry(
     IServiceProvider serviceProvider,
     IHumanCollaborationService humanCollaboration,
@@ -26,6 +27,7 @@ public sealed class DxAiFunctionRegistry(
     IHumanApprovalExecutionContext approvalExecutionContext,
     ILocalGptVocabularyService vocabulary,
     DxAiFunctionHandlerMapService handlerMapService,
+    IUserDxAiFunctionService userFunctions,
     ILogger<DxAiFunctionRegistry> logger) : IDxAiFunctionRegistry
 {
     // Resolve handlers only after the scoped registry has been constructed. One handler intentionally
@@ -49,9 +51,14 @@ public sealed class DxAiFunctionRegistry(
     {
             var functions = handlersByName.Value.Values
                 .Select(handler => handler.Descriptor)
+                .Concat(userFunctions.GetDescriptors())
+                .GroupBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.Count() == 1
+                    ? group.Single()
+                    : throw new InvalidOperationException($"DXAIFunction name '{group.Key}' is registered by more than one runtime source."))
                 .OrderBy(function => function.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            logger.LogDebug("Discovered {FunctionCount} DI-backed DXAIFunction handler(s).", functions.Count);
+            logger.LogDebug("Discovered {FunctionCount} DXAIFunction descriptor(s), including user-owned pipeline functions.", functions.Count);
             return functions;
     
     }
@@ -89,7 +96,14 @@ public sealed class DxAiFunctionRegistry(
             ["RequestedBy"] = string.IsNullOrWhiteSpace(request.RequestedBy) ? "CurrentUser" : request.RequestedBy
         });
 
-        if (!handlersByName.Value.TryGetValue(functionName, out var handler))
+        handlersByName.Value.TryGetValue(functionName, out var handler);
+        DxaichatFunctionInfo descriptor;
+        var isUserFunction = handler is null;
+        if (handler is not null)
+        {
+            descriptor = handler.Descriptor;
+        }
+        else if (!userFunctions.TryGetDescriptor(functionName, out descriptor!))
         {
             logger.LogWarning("Rejected unknown DXAIFunction {FunctionName}.", functionName);
             return new DxAiFunctionInvocationResult
@@ -97,11 +111,9 @@ public sealed class DxAiFunctionRegistry(
                 FunctionName = functionName,
                 OperationId = operationId,
                 Status = "NotFound",
-                Error = "No DI-backed DXAIFunction handler is registered with this name."
+                Error = "No registered DXAIFunction or enabled user-owned function exists with this name."
             };
         }
-
-        var descriptor = handler.Descriptor;
         if (request.AutomaticInvocation &&
             (descriptor.RequiresHumanConfirmation
                 ? !descriptor.SupportsDeferredApprovalRequest || !descriptor.SupportsDirectInvocation
@@ -230,7 +242,9 @@ public sealed class DxAiFunctionRegistry(
 
         try
         {
-            var result = await handler.InvokeAsync(request, cancellationToken).ConfigureAwait(false);
+            var result = isUserFunction
+                ? await userFunctions.InvokeAsync(functionName, request, cancellationToken).ConfigureAwait(false)
+                : await handler!.InvokeAsync(request, cancellationToken).ConfigureAwait(false);
             result.FunctionName = functionName;
             result.OperationId = operationId;
             logger.LogInformation(

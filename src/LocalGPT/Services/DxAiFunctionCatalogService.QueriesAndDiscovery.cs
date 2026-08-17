@@ -105,7 +105,7 @@ public sealed partial class DxAiFunctionCatalogService
                 AllowRemoteInvocation = function.SupportsDirectInvocation,
                 RequiresFrontendConfirmation = function.RequiresHumanConfirmation,
                 InteractionEditor = InferEditor(function.Name, function.ParameterSchemaJson, function.RequiresHumanConfirmation),
-                IsSystemSeed = true
+                IsSystemSeed = !string.Equals(function.Source, "UserDxFunction", StringComparison.OrdinalIgnoreCase)
             };
             entry.DescriptorHash = ComputeDescriptorHash(entry);
             return entry;

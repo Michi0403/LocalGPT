@@ -24,6 +24,7 @@ $expected = [ordered]@{
     'Components/Pages/OneWireSecurity.razor' = '@rendermode InteractiveServer'
     'Components/Pages/ProjectMaintenance.razor' = '@rendermode InteractiveServer'
     'Components/Pages/Projects.razor' = '@rendermode InteractiveServer'
+    'Components/Pages/RemoteControl.razor' = '@rendermode InteractiveServer'
     'Components/Pages/TestLab.razor' = '@rendermode InteractiveServer'
 }
 

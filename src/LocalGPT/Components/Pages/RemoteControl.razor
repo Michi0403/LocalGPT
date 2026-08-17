@@ -1,0 +1,223 @@
+@rendermode InteractiveServer
+@page "/remote-control"
+@namespace LocalGPT.Components.Pages
+@inject IRemoteControlConnectorService Connectors
+@inject IRemoteControlPipelineService Pipelines
+@inject IRemoteControlTemplateService Templates
+@inject IJsonTextService JsonText
+@inject INotificationService Notifier
+@inject ILogger<RemoteControl> Logger
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
+
+<PageTitle>@T("RemoteControl.Title", "Remote Control Integration Fabric")</PageTitle>
+<ToastWrapper Name="RemoteControlToasts" />
+
+<div class="remote-control-page">
+    <header class="remote-control-hero">
+        <div>
+            <span class="remote-control-kicker">@T("RemoteControl.Kicker", "User-owned integrations")</span>
+            <h1>@T("RemoteControl.Title", "Remote Control Integration Fabric")</h1>
+            <p>@T("RemoteControl.Intro", "Build local-first REST, OData and webhook connectors, then route their payloads through existing DXFunctions and public service actions. Nothing online is enabled by default.")</p>
+        </div>
+        <div class="remote-control-safety">
+            <strong>@T("RemoteControl.OfflineDefault", "Offline by default")</strong>
+            <span>@T("RemoteControl.OfflineDefault.Help", "Each outbound connector needs explicit enablement and a host allowlist. Nested write actions keep their own approval policy.")</span>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Status))
+    {
+        <div class="remote-control-status">@Status</div>
+    }
+
+    <section class="remote-control-grid">
+        <article class="remote-control-panel">
+            <div class="remote-control-panel-heading">
+                <div>
+                    <h2>@T("RemoteControl.Connectors", "Connectors")</h2>
+                    <small>@T("RemoteControl.Connectors.Help", "REST/OData pulls or token-protected inbound webhooks.")</small>
+                </div>
+                <button class="localgpt-native-button" @onclick="NewConnector">@T("Common.New", "New")</button>
+            </div>
+
+            <div class="remote-control-list">
+                @foreach (var connector in ConnectorRows)
+                {
+                    <button type="button" class="remote-control-list-item @(ConnectorEdit.Key == connector.Key ? "selected" : string.Empty)" @onclick="() => SelectConnectorAsync(connector.Key)">
+                        <strong>@connector.DisplayName</strong>
+                        <span>@connector.Key · @connector.Transport</span>
+                        <small>@(connector.IsEnabled ? T("Common.Enabled", "Enabled") : T("Common.Disabled", "Disabled")) · @(connector.NetworkEnabled ? T("RemoteControl.NetworkOn", "network on") : T("RemoteControl.NetworkOff", "network off"))</small>
+                    </button>
+                }
+            </div>
+
+            <div class="remote-control-form">
+                <label>@T("RemoteControl.Key", "Key")<input @bind="ConnectorEdit.Key" /></label>
+                <label>@T("Common.Name", "Name")<input @bind="ConnectorEdit.DisplayName" /></label>
+                <label class="wide">@T("RemoteControl.Description", "Description")<textarea rows="2" @bind="ConnectorEdit.Description"></textarea></label>
+                <label>@T("RemoteControl.Transport", "Transport")
+                    <select @bind="ConnectorEdit.Transport">
+                        @foreach (var value in TransportKinds) { <option value="@value">@value</option> }
+                    </select>
+                </label>
+                <label>@T("RemoteControl.Method", "HTTP method")
+                    <select @bind="ConnectorEdit.Method">
+                        @foreach (var value in HttpMethods) { <option value="@value">@value</option> }
+                    </select>
+                </label>
+                <label class="check"><input type="checkbox" @bind="ConnectorEdit.IsEnabled" /> @T("RemoteControl.CapabilityEnabled", "Connector enabled")</label>
+                @if (ConnectorEdit.Transport != RemoteControlTransportKind.Webhook)
+                {
+                    <label class="check"><input type="checkbox" @bind="ConnectorEdit.NetworkEnabled" /> @T("RemoteControl.NetworkEnabled", "Allow outbound network access")</label>
+                    <label class="wide">@T("RemoteControl.UrlTemplate", "URL template")<input @bind="ConnectorEdit.UrlTemplate" placeholder="https://example.org/api?city={{var:CITY}}" /></label>
+                    <label class="wide">@T("RemoteControl.AllowedHosts", "Allowed hosts JSON")<textarea rows="2" @bind="ConnectorEdit.AllowedHostsJson"></textarea></label>
+                    <label class="wide">@T("RemoteControl.Headers", "Headers JSON templates")<textarea rows="3" @bind="ConnectorEdit.HeadersJson"></textarea></label>
+                    <label class="wide">@T("RemoteControl.RequestBody", "Request body template")<textarea rows="3" @bind="ConnectorEdit.RequestBodyTemplate"></textarea></label>
+                    <label>@T("RemoteControl.RequestContentType", "Request content type")<input @bind="ConnectorEdit.RequestContentType" /></label>
+                    <label class="check"><input type="checkbox" @bind="ConnectorEdit.AllowInsecureHttp" /> @T("RemoteControl.AllowHttp", "Explicitly allow plain HTTP")</label>
+                }
+                else
+                {
+                    <div class="wide remote-control-webhook-box">
+                        <strong>@T("RemoteControl.WebhookRoute", "Webhook route")</strong>
+                        <code>/api/remote-control/webhook/@ConnectorEdit.Key</code>
+                        <small>@T("RemoteControl.WebhookHeader", "Send the secret in the X-LocalGPT-Webhook-Token header. Rotate/copy the token locally below.")</small>
+                    </div>
+                }
+                <label>@T("RemoteControl.ResponseFormat", "Response format")
+                    <select @bind="ConnectorEdit.ResponseFormat">
+                        @foreach (var value in ResponseFormats) { <option value="@value">@value</option> }
+                    </select>
+                </label>
+                <label>@T("RemoteControl.ResponseSelector", "JSON selector")<input @bind="ConnectorEdit.ResponseSelector" placeholder="current.weather[0]" /></label>
+                <label>@T("RemoteControl.PollSeconds", "Poll seconds (0 = off)")<input type="number" min="0" @bind="ConnectorEdit.PollIntervalSeconds" /></label>
+                <label>@T("RemoteControl.TimeoutSeconds", "Timeout seconds")<input type="number" min="1" max="120" @bind="ConnectorEdit.TimeoutSeconds" /></label>
+                <label>@T("RemoteControl.MaxPayload", "Max payload bytes")<input type="number" min="1024" max="2097152" @bind="ConnectorEdit.MaxPayloadBytes" /></label>
+            </div>
+
+            <div class="remote-control-actions">
+                <button class="localgpt-native-button" @onclick="SaveConnectorAsync">@T("Common.Save", "Save")</button>
+                @if (ConnectorEdit.Transport != RemoteControlTransportKind.Webhook)
+                {
+                    <button class="localgpt-native-button" @onclick="PullConnectorAsync">@T("RemoteControl.PullNow", "Pull now")</button>
+                }
+                else
+                {
+                    <button class="localgpt-native-button" @onclick="RotateWebhookTokenAsync">@T("RemoteControl.RotateToken", "Rotate token")</button>
+                }
+                <button class="localgpt-native-button danger" @onclick="DeleteConnectorAsync">@T("Common.Delete", "Delete")</button>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(LastWebhookToken))
+            {
+                <div class="remote-control-secret">
+                    <strong>@T("RemoteControl.NewWebhookToken", "New webhook token — copy it now")</strong>
+                    <code>@LastWebhookToken</code>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(LastPayloadPreview))
+            {
+                <details><summary>@T("RemoteControl.LastPayload", "Latest pull payload")</summary><pre>@LastPayloadPreview</pre></details>
+            }
+        </article>
+
+        <article class="remote-control-panel">
+            <div class="remote-control-panel-heading">
+                <div>
+                    <h2>@T("RemoteControl.Pipelines", "Action pipelines")</h2>
+                    <small>@T("RemoteControl.Pipelines.Help", "Compose existing DXFunctions or published public service methods; no raw reflection path is used.")</small>
+                </div>
+                <button class="localgpt-native-button" @onclick="NewPipeline">@T("Common.New", "New")</button>
+            </div>
+
+            <div class="remote-control-list compact">
+                @foreach (var pipeline in PipelineRows)
+                {
+                    <button type="button" class="remote-control-list-item @(PipelineEdit.Key == pipeline.Key ? "selected" : string.Empty)" @onclick="() => SelectPipelineAsync(pipeline.Key)">
+                        <strong>@pipeline.DisplayName</strong>
+                        <span>@pipeline.Key · @pipeline.Triggers</span>
+                        <small>@(pipeline.IsEnabled ? T("Common.Enabled", "Enabled") : T("Common.Disabled", "Disabled"))</small>
+                    </button>
+                }
+            </div>
+
+            <div class="remote-control-form">
+                <label>@T("RemoteControl.Key", "Key")<input @bind="PipelineEdit.Key" /></label>
+                <label>@T("Common.Name", "Name")<input @bind="PipelineEdit.DisplayName" /></label>
+                <label class="wide">@T("RemoteControl.Description", "Description")<textarea rows="2" @bind="PipelineEdit.Description"></textarea></label>
+                <label>@T("RemoteControl.Connector", "Connector")
+                    <select @bind="PipelineEdit.ConnectorKey">
+                        <option value="">@T("RemoteControl.ManualOnly", "Manual payload only")</option>
+                        @foreach (var connector in ConnectorRows) { <option value="@connector.Key">@connector.DisplayName (@connector.Key)</option> }
+                    </select>
+                </label>
+                <label class="check"><input type="checkbox" @bind="PipelineEdit.IsEnabled" /> @T("RemoteControl.PipelineEnabled", "Pipeline enabled")</label>
+                <div class="wide remote-control-trigger-row">
+                    <label class="check"><input type="checkbox" @bind="TriggerManual" /> @T("RemoteControl.Trigger.Manual", "Manual")</label>
+                    <label class="check"><input type="checkbox" @bind="TriggerPull" /> @T("RemoteControl.Trigger.Pull", "Pull")</label>
+                    <label class="check"><input type="checkbox" @bind="TriggerWebhook" /> @T("RemoteControl.Trigger.Webhook", "Webhook")</label>
+                </div>
+            </div>
+
+            <div class="remote-control-steps">
+                <div class="remote-control-subheading">
+                    <strong>@T("RemoteControl.Steps", "Steps")</strong>
+                    <button class="localgpt-native-button" @onclick="AddStep">@T("RemoteControl.AddStep", "Add step")</button>
+                </div>
+                @for (var index = 0; index < EditingSteps.Count; index++)
+                {
+                    var step = EditingSteps[index];
+                    var stepIndex = index;
+                    <div class="remote-control-step">
+                        <div class="remote-control-step-head"><strong>@(index + 1). @step.DisplayName</strong><button class="localgpt-native-button danger" @onclick="() => RemoveStep(stepIndex)">@T("Common.Remove", "Remove")</button></div>
+                        <label>@T("RemoteControl.StepKey", "Step key")<input @bind="step.Key" /></label>
+                        <label>@T("RemoteControl.StepName", "Step name")<input @bind="step.DisplayName" /></label>
+                        <label class="wide">@T("RemoteControl.Target", "DXFunction / public service target")
+                            <select @bind="step.TargetCatalogKey">
+                                <option value="">@T("RemoteControl.SelectTarget", "Select a catalog target…")</option>
+                                @foreach (var target in TargetEntries) { <option value="@target.CatalogKey">@target.DisplayName — @target.CatalogKey</option> }
+                            </select>
+                        </label>
+                        <label class="wide">@T("RemoteControl.ArgumentsTemplate", "Arguments JSON template")<textarea rows="5" @bind="step.ArgumentsTemplateJson"></textarea></label>
+                        <label class="check"><input type="checkbox" @bind="step.ContinueOnFailure" /> @T("RemoteControl.ContinueOnFailure", "Continue when this step fails")</label>
+                    </div>
+                }
+            </div>
+
+            <div class="remote-control-actions">
+                <button class="localgpt-native-button" @onclick="SavePipelineAsync">@T("Common.Save", "Save")</button>
+                <button class="localgpt-native-button" @onclick="ExecutePipelineAsync">@T("RemoteControl.Execute", "Execute")</button>
+                <button class="localgpt-native-button danger" @onclick="DeletePipelineAsync">@T("Common.Delete", "Delete")</button>
+            </div>
+            <label class="remote-control-manual-payload">@T("RemoteControl.ManualPayload", "Manual execution payload")<textarea rows="6" @bind="ManualPayload"></textarea></label>
+        </article>
+    </section>
+
+    <section class="remote-control-panel remote-control-history">
+        <div class="remote-control-panel-heading">
+            <div><h2>@T("RemoteControl.History", "Execution history")</h2><small>@T("RemoteControl.History.Help", "Bounded audit metadata only; full remote payloads are not persisted here.")</small></div>
+            <button class="localgpt-native-button" @onclick="ReloadAsync">@T("Common.Refresh", "Refresh")</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead><tr><th>@T("RemoteControl.Time", "Time")</th><th>@T("RemoteControl.Connector", "Connector")</th><th>@T("RemoteControl.Pipeline", "Pipeline")</th><th>@T("RemoteControl.Trigger", "Trigger")</th><th>@T("RemoteControl.Status", "Status")</th><th>@T("RemoteControl.Summary", "Summary")</th></tr></thead>
+                <tbody>
+                    @foreach (var row in HistoryRows)
+                    {
+                        <tr><td>@row.StartedAtUtc.ToLocalTime()</td><td>@row.ConnectorKey</td><td>@row.PipelineKey</td><td>@row.Trigger</td><td>@(row.Succeeded ? T("Common.Completed", "Completed") : row.CompletedAtUtc.HasValue ? T("Common.Error", "Error") : T("RemoteControl.Running", "Running"))</td><td>@row.Summary @row.Error</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="remote-control-panel remote-control-help">
+        <h2>@T("RemoteControl.TemplateLanguage", "Template language")</h2>
+        <code>{{payload}}</code>
+        <code>{{payload.current.temperature}}</code>
+        <code>{{step:normalize}}</code>
+        <code>{{step:normalize.value}}</code>
+        <code>{{var:MY_API_KEY}}</code>
+        <code>{{text:payload.description}}</code>
+        <p>@T("RemoteControl.TemplateLanguage.Help", "Use payload values, previous step results and LocalGPT system variables. Prefix a token with text: when it must be JSON-string escaped inside an argument template.")</p>
+    </section>
+</div>

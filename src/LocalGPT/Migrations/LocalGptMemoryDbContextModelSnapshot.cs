@@ -1909,6 +1909,107 @@ namespace LocalGPT.Migrations
                     b.ToTable("LocalizationCatalogRegistrations", (string)null);
                 });
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.RemoteControlConnectorDefinition", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<bool>("AllowInsecureHttp").HasColumnType("INTEGER");
+                    b.Property<string>("AllowedHostsJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("Description").IsRequired().HasMaxLength(2000).HasColumnType("TEXT");
+                    b.Property<string>("DisplayName").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<string>("HeadersJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<string>("Key").IsRequired().HasMaxLength(96).HasColumnType("TEXT");
+                    b.Property<DateTime?>("LastAttemptUtc").HasColumnType("TEXT");
+                    b.Property<string>("LastContentType").IsRequired().HasMaxLength(256).HasColumnType("TEXT");
+                    b.Property<string>("LastError").IsRequired().HasMaxLength(1024).HasColumnType("TEXT");
+                    b.Property<string>("LastPayloadPreview").IsRequired().HasMaxLength(2000).HasColumnType("TEXT");
+                    b.Property<string>("LastStatus").IsRequired().HasMaxLength(256).HasColumnType("TEXT");
+                    b.Property<DateTime?>("LastSuccessUtc").HasColumnType("TEXT");
+                    b.Property<int>("MaxPayloadBytes").HasColumnType("INTEGER");
+                    b.Property<int>("Method").HasColumnType("INTEGER");
+                    b.Property<bool>("NetworkEnabled").HasColumnType("INTEGER");
+                    b.Property<int>("PollIntervalSeconds").HasColumnType("INTEGER");
+                    b.Property<string>("RequestBodyTemplate").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("RequestContentType").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<int>("ResponseFormat").HasColumnType("INTEGER");
+                    b.Property<string>("ResponseSelector").IsRequired().HasMaxLength(1024).HasColumnType("TEXT");
+                    b.Property<int>("TimeoutSeconds").HasColumnType("INTEGER");
+                    b.Property<int>("Transport").HasColumnType("INTEGER");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("UrlTemplate").IsRequired().HasMaxLength(4096).HasColumnType("TEXT");
+                    b.Property<string>("WebhookToken").IsRequired().HasMaxLength(256).HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("Key").IsUnique();
+                    b.HasIndex("IsEnabled", "NetworkEnabled", "Transport", "PollIntervalSeconds");
+                    b.ToTable("RemoteControlConnectorDefinitions", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.RemoteControlExecutionRecord", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<DateTime?>("CompletedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("ConnectorKey").IsRequired().HasMaxLength(96).HasColumnType("TEXT");
+                    b.Property<string>("Error").IsRequired().HasMaxLength(1024).HasColumnType("TEXT");
+                    b.Property<int?>("HttpStatusCode").HasColumnType("INTEGER");
+                    b.Property<int>("PayloadBytes").HasColumnType("INTEGER");
+                    b.Property<string>("PipelineKey").IsRequired().HasMaxLength(96).HasColumnType("TEXT");
+                    b.Property<DateTime>("StartedAtUtc").HasColumnType("TEXT");
+                    b.Property<int>("StepCount").HasColumnType("INTEGER");
+                    b.Property<bool>("Succeeded").HasColumnType("INTEGER");
+                    b.Property<string>("Summary").IsRequired().HasMaxLength(512).HasColumnType("TEXT");
+                    b.Property<int>("Trigger").HasColumnType("INTEGER");
+                    b.HasKey("Id");
+                    b.HasIndex("StartedAtUtc");
+                    b.HasIndex("ConnectorKey", "StartedAtUtc");
+                    b.HasIndex("PipelineKey", "StartedAtUtc");
+                    b.ToTable("RemoteControlExecutionRecords", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.RemoteControlPipelineDefinition", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<string>("ConnectorKey").IsRequired().HasMaxLength(96).HasColumnType("TEXT");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("Description").IsRequired().HasMaxLength(2000).HasColumnType("TEXT");
+                    b.Property<string>("DisplayName").IsRequired().HasMaxLength(160).HasColumnType("TEXT");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<string>("Key").IsRequired().HasMaxLength(96).HasColumnType("TEXT");
+                    b.Property<DateTime?>("LastAttemptUtc").HasColumnType("TEXT");
+                    b.Property<string>("LastError").IsRequired().HasMaxLength(1024).HasColumnType("TEXT");
+                    b.Property<string>("LastStatus").IsRequired().HasMaxLength(256).HasColumnType("TEXT");
+                    b.Property<DateTime?>("LastSuccessUtc").HasColumnType("TEXT");
+                    b.Property<string>("StepsJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<int>("Triggers").HasColumnType("INTEGER");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("Key").IsUnique();
+                    b.HasIndex("ConnectorKey", "IsEnabled", "Triggers");
+                    b.ToTable("RemoteControlPipelineDefinitions", (string)null);
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.UserDxAiFunctionDefinition", b =>
+                {
+                    b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("TEXT");
+                    b.Property<bool>("AvailableToAi").HasColumnType("INTEGER");
+                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("TEXT");
+                    b.Property<string>("DisplayName").IsRequired().HasMaxLength(200).HasColumnType("TEXT");
+                    b.Property<string>("FunctionName").IsRequired().HasMaxLength(128).HasColumnType("TEXT");
+                    b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+                    b.Property<bool>("IsReadOnly").HasColumnType("INTEGER");
+                    b.Property<string>("ParameterSchemaJson").IsRequired().HasColumnType("TEXT");
+                    b.Property<string>("PipelineKey").IsRequired().HasMaxLength(96).HasColumnType("TEXT");
+                    b.Property<string>("Purpose").IsRequired().HasMaxLength(2000).HasColumnType("TEXT");
+                    b.Property<bool>("RequiresHumanConfirmation").HasColumnType("INTEGER");
+                    b.Property<string>("SafetyNotes").IsRequired().HasMaxLength(2000).HasColumnType("TEXT");
+                    b.Property<bool>("SupportsAutomaticInvocation").HasColumnType("INTEGER");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("TEXT");
+                    b.HasKey("Id");
+                    b.HasIndex("FunctionName").IsUnique();
+                    b.HasIndex("PipelineKey", "IsEnabled");
+                    b.ToTable("UserDxAiFunctionDefinitions", (string)null);
+                });
+
             modelBuilder.Entity("LocalGPT.BusinessObjects.NativeCommandLogEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -2205,6 +2306,11 @@ namespace LocalGPT.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DetectedPlatform")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EnvironmentVariablesJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -2219,6 +2325,14 @@ namespace LocalGPT.Migrations
 
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("KnowledgeEntryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("KnowledgeProfileKey")
+                        .IsRequired()
+                        .HasMaxLength(96)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Language")
                         .IsRequired()
@@ -2241,6 +2355,11 @@ namespace LocalGPT.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ToolchainKind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("TEXT");
 
@@ -2254,12 +2373,17 @@ namespace LocalGPT.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("VersionKnowledgeEntryId")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExecutablePath")
                         .IsUnique();
 
                     b.HasIndex("Language", "IsDefaultForLanguage", "IsEnabled");
+
+                    b.HasIndex("KnowledgeProfileKey", "Version");
 
                     b.ToTable("ProjectCompilerInstallations", (string)null);
                 });

@@ -237,6 +237,9 @@ public enum LocalGptRuntimePattern
     StreamIdAttribute,
     PreStart,
     PreEnd,
+    ToolchainKnowledgeBlock,
+    ToolchainVersionToken,
+    ToolchainEnvironmentToken,
 }
 
 /// <summary>

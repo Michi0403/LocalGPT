@@ -35,7 +35,7 @@ try:
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
     ]:
-        require(rel, "<Version>3.0.3</Version>")
+        require(rel, "<Version>3.0.4</Version>")
         match = re.search(r"<Version>(\d+)\.(\d+)\.(\d+)</Version>", read(rel))
         if not match or int(match.group(2)) > 9 or int(match.group(3)) > 9:
             raise AssertionError(f"version-slot policy failed for {rel}")
@@ -90,8 +90,8 @@ try:
         for line in path.read_text(encoding="utf-8").splitlines():
             if "@rendermode" in line:
                 modes.append((str(path.relative_to(root)), line.strip()))
-    if len(modes) != 19:
-        raise AssertionError(f"expected 19 LocalGPT rendermode directives, found {len(modes)}")
+    if len(modes) != 20:
+        raise AssertionError(f"expected 20 LocalGPT rendermode directives, found {len(modes)}")
 
     print("LocalGPT 2.9.0 rejoin compile repair source audit passed.")
 except (AssertionError, OSError, ValueError) as exc:

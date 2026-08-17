@@ -595,7 +595,7 @@
             <div class="installer-card-heading">
                 <div>
                     <h3 id="toolchain-heading">@T("Install.Toolchains.Title", "Compilers and runtime toolchains")</h3>
-                    <p>@T("Install.Toolchains.Description", "Discover MSBuild, .NET, Java, Python, PowerShell and embedded toolchains from PATH and common installation folders. Saved defaults are reused by project workspaces and build verification.")</p>
+                    <p>@T("Install.Toolchains.Description", "Discover compilers, runtimes and build tools from PATH first, then Knowledge Database profiles for Windows, Linux and macOS, environment roots, and optional user roots. No online lookup runs automatically.")</p>
                 </div>
                 <div class="top-container">
                     <DxButton Text='@T("Install.Toolchains.Discover", "Discover and save toolchains")' RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!IsToolchainBusy)" Click="DiscoverToolchainsAsync" />
@@ -604,7 +604,7 @@
             </div>
             <label class="toolchain-search-roots">
                 @T("Install.Toolchains.CustomRoots", "Additional search roots (one path per line)")
-                <textarea rows="3" @bind="ToolchainSearchRoots" placeholder="C:\Program Files\Microsoft Visual Studio&#10;C:\Python313"></textarea>
+                <textarea rows="3" @bind="ToolchainSearchRoots" placeholder="/opt/custom-toolchains&#10;C:\Toolchains"></textarea>
             </label>
             @if (!string.IsNullOrWhiteSpace(ToolchainStatus))
             {
@@ -632,6 +632,15 @@
                             </header>
                             <code>@compiler.ExecutablePath</code>
                             <small>@compiler.DiscoverySource · @(compiler.LastValidationSucceeded ? T("Install.Toolchains.Valid", "validated") : T("Install.Toolchains.Unvalidated", "not validated"))</small>
+                            @if (!string.IsNullOrWhiteSpace(compiler.ToolchainKind) || !string.IsNullOrWhiteSpace(compiler.DetectedPlatform))
+                            {
+                                <small>Kind/platform: <strong>@(string.IsNullOrWhiteSpace(compiler.ToolchainKind) ? "toolchain" : compiler.ToolchainKind)</strong> · @(string.IsNullOrWhiteSpace(compiler.DetectedPlatform) ? "unknown" : compiler.DetectedPlatform)</small>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(compiler.KnowledgeProfileKey))
+                            {
+                                <small>Knowledge profile: <code>@compiler.KnowledgeProfileKey</code>@(compiler.VersionKnowledgeEntryId is null ? string.Empty : " · exact version knowledge linked")</small>
+                            }
+                            <ToolchainEnvironmentEditor Compiler="compiler" Changed="RefreshCompilerInstallationsAsync" />
                             @if (!string.IsNullOrWhiteSpace(compiler.LastValidationMessage))
                             {
                                 <p class="toolchain-validation-message">@compiler.LastValidationMessage</p>

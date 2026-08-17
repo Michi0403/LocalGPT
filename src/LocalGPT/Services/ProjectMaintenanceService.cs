@@ -32,6 +32,12 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
         /// Stores the regex compilation service dependency used by <see cref="ProjectMaintenanceService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly IRegexCompilationService regexCompilation;
+        /// <summary>Stores the knowledge-backed cross-platform toolchain discovery dependency.</summary>
+        private readonly IToolchainDiscoveryService toolchainDiscovery;
+        /// <summary>
+        /// Stores the toolchain knowledge service dependency used by <see cref="ProjectMaintenanceService"/> to delegate that application responsibility to its owning collaborator.
+        /// </summary>
+        private readonly IToolchainKnowledgeService toolchainKnowledge;
         /// <summary>
         /// Stores the logger used by <see cref="ProjectMaintenanceService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -42,18 +48,24 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
         /// <param name="databaseInitializer">Injected dependency used by the ProjectMaintenanceService.</param>
         /// <param name="runtimePolicy">Injected dependency used by the ProjectMaintenanceService.</param>
         /// <param name="regexCompilation">Injected bounded regular-expression compiler used by project policy evaluation.</param>
+        /// <param name="toolchainDiscovery">Injected knowledge-backed cross-platform compiler/runtime discovery service.</param>
+        /// <param name="toolchainKnowledge">Injected local knowledge service for exact toolchain-version context.</param>
         /// <param name="logger">Injected dependency used by the ProjectMaintenanceService.</param>
         public ProjectMaintenanceService(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
             IDatabaseInitializationService databaseInitializer,
             ILocalGptRuntimePolicyDataService runtimePolicy,
             IRegexCompilationService regexCompilation,
+            IToolchainDiscoveryService toolchainDiscovery,
+            IToolchainKnowledgeService toolchainKnowledge,
             ILogger<ProjectMaintenanceService> logger)
         {
             this.dbContextFactory = dbContextFactory;
             this.databaseInitializer = databaseInitializer;
             this.runtimePolicy = runtimePolicy;
             this.regexCompilation = regexCompilation;
+            this.toolchainDiscovery = toolchainDiscovery;
+            this.toolchainKnowledge = toolchainKnowledge;
             this.logger = logger;
         }
 
@@ -358,39 +370,44 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
     /// <returns>The collection produced by the operation.</returns>
     public async Task<IReadOnlyList<ProjectCompilerInstallation>> GetCompilerInstallationsAsync(CancellationToken cancellationToken = default)
     {
-    try
-    {
+        try
+        {
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
-            return await db.ProjectCompilerInstallations.AsNoTracking()
+            var items = await db.ProjectCompilerInstallations.AsNoTracking()
                 .OrderBy(item => item.Language).ThenByDescending(item => item.IsDefaultForLanguage).ThenBy(item => item.Name)
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
-    
+            foreach (var item in items)
+                item.EnvironmentVariables = toolchainDiscovery.ParseEnvironmentVariables(item.EnvironmentVariablesJson).ToList();
+            return items;
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(exception, "Loading compiler/runtime toolchains was cancelled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Loading compiler/runtime toolchains failed.");
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProjectMaintenanceService)}.{nameof(GetCompilerInstallationsAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(ProjectMaintenanceService)}.{nameof(GetCompilerInstallationsAsync)} failed.");
-        throw;
-    }
-}
 
-    /// <summary>
-    /// Persists compiler installation as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The project compiler installation produced by the operation.</returns>
+    /// <summary>Persists one compiler/runtime installation and its structured environment variables.</summary>
+    /// <param name="request">User-approved toolchain values.</param>
+    /// <param name="cancellationToken">Cancels database work.</param>
+    /// <returns>The stored compiler/runtime installation.</returns>
     public async Task<ProjectCompilerInstallation> SaveCompilerInstallationAsync(SaveProjectCompilerInstallationRequest request, CancellationToken cancellationToken = default)
     {
-    try
-    {
+        try
+        {
             RequireConfirmation(request.UserConfirmed, "saving a compiler installation");
             var executable = NormalizeAbsolutePath(request.ExecutablePath, nameof(request.ExecutablePath));
-            ValidateJsonObject(request.EnvironmentVariablesJson, nameof(request.EnvironmentVariablesJson));
+            var environmentJson = request.EnvironmentVariables.Count > 0
+                ? toolchainDiscovery.SerializeEnvironmentVariables(request.EnvironmentVariables)
+                : string.IsNullOrWhiteSpace(request.EnvironmentVariablesJson) ? "{}" : request.EnvironmentVariablesJson.Trim();
+            ValidateJsonObject(environmentJson, nameof(request.EnvironmentVariablesJson));
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
@@ -421,41 +438,51 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             item.Version = Trim(request.Version, 160);
             item.Architecture = Trim(request.Architecture, 80);
             item.DiscoverySource = TrimOrFallback(request.DiscoverySource, 80, "Custom");
+            item.ToolchainKind = Trim(request.ToolchainKind, 40);
+            item.DetectedPlatform = Trim(request.DetectedPlatform, 40);
             item.ValidationArguments = TrimOrFallback(request.ValidationArguments, 500, DefaultValidationArguments(language, executable));
-            item.EnvironmentVariablesJson = string.IsNullOrWhiteSpace(request.EnvironmentVariablesJson) ? "{}" : request.EnvironmentVariablesJson.Trim();
+            item.EnvironmentVariablesJson = environmentJson;
+            item.KnowledgeProfileKey = Trim(request.KnowledgeProfileKey, 96);
+            item.KnowledgeEntryId = request.KnowledgeEntryId;
+            item.VersionKnowledgeEntryId = request.VersionKnowledgeEntryId;
             item.IsEnabled = request.IsEnabled;
             item.IsDefaultForLanguage = request.IsDefaultForLanguage;
             item.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogInformation("Saved compiler installation {CompilerId} for language {Language}; executable path omitted from logs.", item.Id, item.Language);
+            item.EnvironmentVariables = toolchainDiscovery.ParseEnvironmentVariables(item.EnvironmentVariablesJson).ToList();
+            logger.LogInformation("Saved compiler/runtime installation {CompilerId} for language {Language}; executable path and environment values omitted from logs.", item.Id, item.Language);
             return item;
-    
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(exception, "Saving compiler/runtime installation was cancelled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Saving compiler/runtime installation failed; executable path and environment values were omitted from logs.");
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(ProjectMaintenanceService)}.{nameof(SaveCompilerInstallationAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(ProjectMaintenanceService)}.{nameof(SaveCompilerInstallationAsync)} failed.");
-        throw;
-    }
-}
 
-    /// <summary>Discovers compiler and runtime executables from approved local search locations.</summary>
+    /// <summary>Discovers compiler and runtime executables from PATH, environment roots, knowledge-defined platform roots and user roots without network access.</summary>
     /// <param name="request">Discovery roots, persistence preference and explicit approval.</param>
     /// <param name="cancellationToken">Cancels local discovery and persistence.</param>
-    /// <returns>A task that returns detected or persisted compiler profiles.</returns>
+    /// <returns>A task that returns detected or persisted compiler/runtime profiles.</returns>
     public async Task<IReadOnlyList<ProjectCompilerInstallation>> DiscoverCompilerInstallationsAsync(DiscoverProjectCompilersRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        RequireConfirmation(request.UserConfirmed, "discovering and saving compiler installations");
+        RequireConfirmation(request.UserConfirmed, "discovering compiler and runtime installations");
         try
         {
             var searchRoots = NormalizeCompilerSearchRoots(request);
             var maximumCompilerCandidates = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ProjectMaintenanceMaximumCompilerCandidates));
-            var candidates = await Task.Run(
-                () => DiscoverCompilerCandidates(searchRoots, cancellationToken).Take(maximumCompilerCandidates).ToList(),
-                cancellationToken).ConfigureAwait(false);
+            var candidates = await toolchainDiscovery.DiscoverAsync(searchRoots, maximumCompilerCandidates, cancellationToken).ConfigureAwait(false);
+            if (!request.SaveDiscovered)
+            {
+                return candidates.Select(candidate => CreateTransientCompilerInstallation(candidate)).ToList();
+            }
+
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
@@ -467,46 +494,52 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             var saved = new List<ProjectCompilerInstallation>();
             foreach (var candidate in candidates)
             {
-                var existing = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.ExecutablePath == candidate.Path, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                var existing = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.ExecutablePath == candidate.ExecutablePath, cancellationToken).ConfigureAwait(false);
                 if (existing is null)
                 {
-                    existing = new ProjectCompilerInstallation
-                    {
-                        Name = candidate.Name,
-                        Language = candidate.Language,
-                        ExecutablePath = candidate.Path,
-                        CompilerHomePath = Path.GetDirectoryName(candidate.Path) ?? string.Empty,
-                        DiscoverySource = candidate.Source,
-                        ValidationArguments = DefaultValidationArguments(candidate.Language, candidate.Path),
-                        IsEnabled = true,
-                        IsDefaultForLanguage = defaultLanguages.Add(candidate.Language)
-                    };
+                    existing = CreateTransientCompilerInstallation(candidate);
+                    existing.IsDefaultForLanguage = defaultLanguages.Add(existing.Language);
                     db.ProjectCompilerInstallations.Add(existing);
                 }
+                else
+                {
+                    existing.Name = string.IsNullOrWhiteSpace(existing.Name) ? candidate.Name : existing.Name;
+                    existing.CompilerHomePath = string.IsNullOrWhiteSpace(existing.CompilerHomePath) ? candidate.ToolchainHomePath : existing.CompilerHomePath;
+                    existing.DiscoverySource = candidate.DiscoverySource;
+                    existing.ToolchainKind = candidate.Kind;
+                    existing.DetectedPlatform = candidate.Platform.ToString();
+                    existing.ValidationArguments = string.IsNullOrWhiteSpace(existing.ValidationArguments) ? candidate.ValidationArguments : existing.ValidationArguments;
+                    existing.KnowledgeProfileKey = candidate.ProfileKey;
+                    existing.KnowledgeEntryId = candidate.KnowledgeEntryId;
+                    if (string.IsNullOrWhiteSpace(existing.EnvironmentVariablesJson) || existing.EnvironmentVariablesJson == "{}")
+                        existing.EnvironmentVariablesJson = toolchainDiscovery.SerializeEnvironmentVariables(candidate.EnvironmentVariables);
+                    existing.UpdatedAtUtc = DateTime.UtcNow;
+                }
+                existing.EnvironmentVariables = toolchainDiscovery.ParseEnvironmentVariables(existing.EnvironmentVariablesJson).ToList();
                 saved.Add(existing);
             }
-            if (request.SaveDiscovered)
-                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogInformation("Discovered {CompilerCount} compiler executable candidate(s).", saved.Count);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Discovered and persisted {CompilerCount} knowledge-backed compiler/runtime executable candidate(s) on {Platform}.", saved.Count, toolchainDiscovery.CurrentPlatform);
             return saved;
         }
         catch (OperationCanceledException exception)
         {
-            logger.LogInformation(exception, "Compiler discovery was cancelled.");
+            logger.LogInformation(exception, "Compiler/runtime discovery was cancelled.");
             throw;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Compiler discovery failed; search paths were omitted from logs.");
+            logger.LogError(exception, "Compiler/runtime discovery failed; search and executable paths were omitted from logs.");
             throw;
         }
     }
 
-    /// <summary>Executes the bounded validation command for one stored compiler profile.</summary>
+    /// <summary>Executes a bounded local version probe and correlates the result with the Knowledge Database.</summary>
     /// <param name="compilerId">Stored compiler identifier.</param>
     /// <param name="userConfirmed">Whether the user approved native process execution.</param>
     /// <param name="cancellationToken">Cancels process execution and persistence.</param>
-    /// <returns>A task that returns the updated validation profile.</returns>
+    /// <returns>The updated compiler/runtime profile.</returns>
     public async Task<ProjectCompilerInstallation> ValidateCompilerInstallationAsync(Guid compilerId, bool userConfirmed, CancellationToken cancellationToken = default)
     {
         RequireConfirmation(userConfirmed, "executing a compiler version probe");
@@ -521,21 +554,82 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             compiler.LastValidatedAtUtc = DateTime.UtcNow;
             compiler.LastValidationSucceeded = result.ExitCode == 0;
             compiler.LastValidationMessage = Trim(result.Output, 4000);
-            if (compiler.LastValidationSucceeded && string.IsNullOrWhiteSpace(compiler.Version))
-                compiler.Version = FirstNonEmptyLine(result.Output, 160);
+            if (compiler.LastValidationSucceeded)
+            {
+                var detectedVersion = string.IsNullOrWhiteSpace(compiler.KnowledgeProfileKey)
+                    ? string.Empty
+                    : await toolchainKnowledge.ExtractVersionAsync(compiler.KnowledgeProfileKey, result.Output, cancellationToken).ConfigureAwait(false);
+                compiler.Version = string.IsNullOrWhiteSpace(detectedVersion) ? FirstNonEmptyLine(result.Output, 160) : detectedVersion;
+                if (!string.IsNullOrWhiteSpace(compiler.KnowledgeProfileKey) && !string.IsNullOrWhiteSpace(compiler.Version))
+                {
+                    var knowledge = await toolchainKnowledge.GetVersionKnowledgeAsync(compiler.KnowledgeProfileKey, compiler.Version, cancellationToken).ConfigureAwait(false);
+                    compiler.VersionKnowledgeEntryId = knowledge.KnowledgeEntryId;
+                    if (!knowledge.HasKnowledge)
+                    {
+                        await toolchainKnowledge.RequestMissingVersionKnowledgeAsync(new ToolchainKnowledgeGapRequest
+                        {
+                            ProfileKey = compiler.KnowledgeProfileKey,
+                            Version = compiler.Version,
+                            Context = $"Detected locally on {toolchainDiscovery.CurrentPlatform}; executable path intentionally omitted."
+                        }, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+            }
             compiler.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            logger.LogInformation("Compiler installation {CompilerId} validation completed with success={Succeeded} and exit code {ExitCode}.", compiler.Id, compiler.LastValidationSucceeded, result.ExitCode);
+            compiler.EnvironmentVariables = toolchainDiscovery.ParseEnvironmentVariables(compiler.EnvironmentVariablesJson).ToList();
+            logger.LogInformation("Compiler/runtime installation {CompilerId} validation completed with success={Succeeded} and exit code {ExitCode}; executable path and output omitted from logs.", compiler.Id, compiler.LastValidationSucceeded, result.ExitCode);
             return compiler;
         }
         catch (OperationCanceledException exception)
         {
-            logger.LogInformation(exception, "Compiler installation {CompilerId} validation was cancelled.", compilerId);
+            logger.LogInformation(exception, "Compiler/runtime installation {CompilerId} validation was cancelled.", compilerId);
             throw;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Compiler installation {CompilerId} validation failed; executable path and output were omitted from logs.", compilerId);
+            logger.LogError(exception, "Compiler/runtime installation {CompilerId} validation failed; executable path and output were omitted from logs.", compilerId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Creates transient compiler installation as part of the project maintenance service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="candidate">Candidate value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The project compiler installation produced by the operation.</returns>
+    private ProjectCompilerInstallation CreateTransientCompilerInstallation(ToolchainDiscoveryCandidate candidate)
+    {
+        try
+        {
+            var environmentJson = toolchainDiscovery.SerializeEnvironmentVariables(candidate.EnvironmentVariables);
+            return new ProjectCompilerInstallation
+            {
+                Name = candidate.Name,
+                Language = candidate.Language,
+                ExecutablePath = candidate.ExecutablePath,
+                CompilerHomePath = candidate.ToolchainHomePath,
+                DiscoverySource = candidate.DiscoverySource,
+                ToolchainKind = candidate.Kind,
+                DetectedPlatform = candidate.Platform.ToString(),
+                ValidationArguments = candidate.ValidationArguments,
+                EnvironmentVariablesJson = environmentJson,
+                EnvironmentVariables = candidate.EnvironmentVariables.Select(item => new ToolchainEnvironmentVariableSetting
+                {
+                    Name = item.Name,
+                    Value = item.Value,
+                    Source = item.Source,
+                    IsEnabled = item.IsEnabled
+                }).ToList(),
+                KnowledgeProfileKey = candidate.ProfileKey,
+                KnowledgeEntryId = candidate.KnowledgeEntryId,
+                IsEnabled = true,
+                UpdatedAtUtc = DateTime.UtcNow
+            };
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating a transient knowledge-backed toolchain installation failed; paths and environment values were omitted.");
             throw;
         }
     }

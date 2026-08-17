@@ -205,7 +205,8 @@ public sealed class InitialDataCatalog(
             "docs/architecture/project-data.md",
             "docs/architecture/onewire-security.md",
             "docs/engineering/build-validation.md",
-            "docs/reference/capability-map.md"
+            "docs/reference/capability-map.md",
+            "docs/reference/toolchain-discovery.md"
         ];
 
         var entries = new List<CouncilKnowledgeEntry>();

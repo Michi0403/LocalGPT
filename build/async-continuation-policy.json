@@ -20,6 +20,28 @@
       "AutoStartRequestedCouncilPromptAsync",
       "OnProviderSelectionChanged",
       "StartCouncilPromptAsync"
+    ],
+    "Components/Pages/RemoteControl.razor.cs": [
+      "ReloadAsync",
+      "SelectConnectorAsync",
+      "SaveConnectorAsync",
+      "PullConnectorAsync",
+      "RotateWebhookTokenAsync",
+      "DeleteConnectorAsync",
+      "SelectPipelineAsync",
+      "SavePipelineAsync",
+      "ExecutePipelineAsync",
+      "DeletePipelineAsync"
+    ],
+    "Components/Shared/UserDxFunctionEditor.razor": [
+      "SaveAsync",
+      "DeleteAsync"
+    ],
+    "Components/Shared/ToolchainEnvironmentEditor.razor": [
+      "SaveAsync"
+    ],
+    "Components/Pages/DxFunctionCatalog.razor": [
+      "HandleUserFunctionsChangedAsync"
     ]
   },
   "preconfiguredAwaitablePolicy": "Awaiting ConfiguredTaskAwaitable variables directly is forbidden; await the originating Task with explicit ConfigureAwait(false/true)."

@@ -205,6 +205,12 @@ public sealed class ProjectCompilerInstallation
     /// </summary>
     /// <value>The discovery source value exposed by <see cref="ProjectCompilerInstallation"/>.</value>
     [MaxLength(80)] public string DiscoverySource { get; set; } = "Custom";
+    /// <summary>Gets or sets the knowledge-defined toolchain kind, for example compiler, runtime, SDK, build-tool, or package-manager.</summary>
+    /// <value>The toolchain kind value exposed by <see cref="ProjectCompilerInstallation"/>.</value>
+    [MaxLength(40)] public string ToolchainKind { get; set; } = string.Empty;
+    /// <summary>Gets or sets the operating-system family on which this executable was discovered or last explicitly saved.</summary>
+    /// <value>The detected platform value exposed by <see cref="ProjectCompilerInstallation"/>.</value>
+    [MaxLength(40)] public string DetectedPlatform { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the validation arguments value that forms part of the project compiler installation state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -215,6 +221,20 @@ public sealed class ProjectCompilerInstallation
     /// </summary>
     /// <value>The environment variables JSON value exposed by <see cref="ProjectCompilerInstallation"/>.</value>
     [Column(TypeName = "TEXT")] public string EnvironmentVariablesJson { get; set; } = "{}";
+    /// <summary>Gets or sets the structured environment variables applied to this toolchain. The persisted representation remains <see cref="EnvironmentVariablesJson"/> for backward compatibility.</summary>
+    /// <value>The environment variables value exposed by <see cref="ProjectCompilerInstallation"/>.</value>
+    [NotMapped] public List<ToolchainEnvironmentVariableSetting> EnvironmentVariables { get; set; } = [];
+    /// <summary>Gets or sets the persisted knowledge profile key that identified this toolchain.</summary>
+    /// <value>The knowledge profile key value exposed by <see cref="ProjectCompilerInstallation"/>.</value>
+    [MaxLength(96)] public string KnowledgeProfileKey { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the stable knowledge entry identifier used to identify or correlate this project compiler installation instance with related application state.
+    /// </summary>
+    /// <value>The knowledge entry identifier value exposed by <see cref="ProjectCompilerInstallation"/>.</value>
+    public Guid? KnowledgeEntryId { get; set; }
+    /// <summary>Gets or sets the exact-version knowledge entry associated with the latest successful validation.</summary>
+    /// <value>The version knowledge entry identifier value exposed by <see cref="ProjectCompilerInstallation"/>.</value>
+    public Guid? VersionKnowledgeEntryId { get; set; }
     /// <summary>
     /// Gets or sets a value indicating whether enabled applies to the project compiler installation state.
     /// </summary>
@@ -673,6 +693,12 @@ public sealed class SaveProjectCompilerInstallationRequest
     /// </summary>
     /// <value>The discovery source value exposed by <see cref="SaveProjectCompilerInstallationRequest"/>.</value>
     public string DiscoverySource { get; set; } = "Custom";
+    /// <summary>Gets or sets the toolchain kind to persist with this executable profile.</summary>
+    /// <value>The toolchain kind value exposed by <see cref="SaveProjectCompilerInstallationRequest"/>.</value>
+    public string ToolchainKind { get; set; } = string.Empty;
+    /// <summary>Gets or sets the platform label to persist with this executable profile.</summary>
+    /// <value>The detected platform value exposed by <see cref="SaveProjectCompilerInstallationRequest"/>.</value>
+    public string DetectedPlatform { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the validation arguments value that forms part of the save project compiler installation state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -683,6 +709,22 @@ public sealed class SaveProjectCompilerInstallationRequest
     /// </summary>
     /// <value>The environment variables JSON value exposed by <see cref="SaveProjectCompilerInstallationRequest"/>.</value>
     public string EnvironmentVariablesJson { get; set; } = "{}";
+    /// <summary>Gets or sets the structured environment variables to persist for this toolchain.</summary>
+    /// <value>The environment variables value exposed by <see cref="SaveProjectCompilerInstallationRequest"/>.</value>
+    public List<ToolchainEnvironmentVariableSetting> EnvironmentVariables { get; set; } = [];
+    /// <summary>Gets or sets the knowledge profile key that identified this toolchain.</summary>
+    /// <value>The knowledge profile key value exposed by <see cref="SaveProjectCompilerInstallationRequest"/>.</value>
+    public string KnowledgeProfileKey { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the stable knowledge entry identifier used to identify or correlate this save project compiler installation instance with related application state.
+    /// </summary>
+    /// <value>The knowledge entry identifier value exposed by <see cref="SaveProjectCompilerInstallationRequest"/>.</value>
+    public Guid? KnowledgeEntryId { get; set; }
+    /// <summary>
+    /// Gets or sets the stable version knowledge entry identifier used to identify or correlate this save project compiler installation instance with related application state.
+    /// </summary>
+    /// <value>The version knowledge entry identifier value exposed by <see cref="SaveProjectCompilerInstallationRequest"/>.</value>
+    public Guid? VersionKnowledgeEntryId { get; set; }
     /// <summary>
     /// Gets or sets a value indicating whether enabled applies to the save project compiler installation state.
     /// </summary>

@@ -43,6 +43,8 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
     /// Stores the organic addon manifest service dependency used by <see cref="DxAiFunctionCatalogService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly IOrganicAddonManifestService addonManifests;
+    /// <summary>Stores the user-owned dynamic DXFunction service used to refresh runtime descriptors before catalog synchronization.</summary>
+    private readonly IUserDxAiFunctionService userFunctions;
     /// <summary>
     /// Stores the logger used by <see cref="DxAiFunctionCatalogService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
@@ -56,6 +58,7 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
     /// <param name="registry">Injected dependency used by DxAiFunctionCatalogService.</param>
     /// <param name="addonManifests">Injected dependency used by DxAiFunctionCatalogService.</param>
     /// <param name="logger">Injected dependency used by DxAiFunctionCatalogService.</param>
+    /// <param name="userFunctions">User devexpress ai function service dependency used by the DevExpress AI function catalog workflow to provide the corresponding application capability.</param>
     public DxAiFunctionCatalogService(
         ILocalGptVocabularyService vocabulary,
         DxAiFunctionCatalogSynchronizationGate synchronizationGate,
@@ -63,6 +66,7 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDxAiFunctionRegistry registry,
         IOrganicAddonManifestService addonManifests,
+        IUserDxAiFunctionService userFunctions,
         ILogger<DxAiFunctionCatalogService> logger)
     {
         this.vocabulary = vocabulary;
@@ -71,6 +75,7 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
         this.dbContextFactory = dbContextFactory;
         this.registry = registry;
         this.addonManifests = addonManifests;
+        this.userFunctions = userFunctions;
         this.logger = logger;
     }
 
@@ -95,6 +100,7 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
     public async Task<IReadOnlyList<DxAiFunctionCatalogEntry>> SynchronizeAsync(CancellationToken cancellationToken = default)
     {
         await databaseInitialization.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await userFunctions.RefreshAsync(cancellationToken).ConfigureAwait(false);
         await synchronizationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -242,6 +248,12 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
                 !removedVariables.Contains(item.Variable) &&
                 !discoveredKeys.Contains(GetSemanticIdentity(item.Entry))))
             {
+                if (string.Equals(stored.Entry.Source, "UserDxFunction", StringComparison.OrdinalIgnoreCase))
+                {
+                    db.SystemVariables.Remove(stored.Variable);
+                    removedVariables.Add(stored.Variable);
+                    continue;
+                }
                 stored.Entry.IsAvailable = false;
                 stored.Entry.UpdatedAtUtc = DateTime.UtcNow;
                 stored.Entry.UpdatedBy = "LocalGPT runtime catalog";

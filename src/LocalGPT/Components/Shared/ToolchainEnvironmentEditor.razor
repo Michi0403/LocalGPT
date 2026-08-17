@@ -1,0 +1,105 @@
+@inject IProjectMaintenanceService ProjectMaintenance
+@inject INotificationService Notifier
+@inject ILogger<ToolchainEnvironmentEditor> Logger
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
+
+<details class="toolchain-environment-editor">
+    <summary>@T("Toolchain.Environment.Title", "Environment variables") (@_variables.Count)</summary>
+    <p class="field-help">@T("Toolchain.Environment.Help", "Stored as structured rows in the UI/API and serialized only inside the owning service for process execution. PATH itself is discovered, not copied into this list.")</p>
+    @for (var index = 0; index < _variables.Count; index++)
+    {
+        var rowIndex = index;
+        <div class="row g-2 align-items-center mb-2">
+            <div class="col-md-3"><input class="form-control" @bind="_variables[rowIndex].Name" placeholder="JAVA_HOME" /></div>
+            <div class="col-md-6"><input class="form-control" @bind="_variables[rowIndex].Value" placeholder="Toolchain-specific value" /></div>
+            <div class="col-md-2"><input class="form-control" @bind="_variables[rowIndex].Source" placeholder="User" /></div>
+            <div class="col-md-1 d-flex gap-1">
+                <input class="form-check-input" type="checkbox" @bind="_variables[rowIndex].IsEnabled" title='@T("Common.Enabled", "Enabled")' />
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => Remove(rowIndex)" title='@T("Common.Delete", "Remove")'>×</button>
+            </div>
+        </div>
+    }
+    <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Add">@T("Toolchain.Environment.Add", "Add variable")</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="SaveAsync" disabled="@_busy">@T("Toolchain.Environment.Save", "Save environment list")</button>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <small class="@(_error ? "text-danger" : "text-success")">@_status</small>
+    }
+</details>
+
+@code {
+    [Parameter, EditorRequired] public ProjectCompilerInstallation Compiler { get; set; } = default!;
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private List<ToolchainEnvironmentVariableSetting> _variables = [];
+    private bool _busy;
+    private bool _error;
+    private string _status = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        _variables = Compiler.EnvironmentVariables.Select(item => new ToolchainEnvironmentVariableSetting
+        {
+            Name = item.Name,
+            Value = item.Value,
+            Source = item.Source,
+            IsEnabled = item.IsEnabled
+        }).ToList();
+    }
+
+    private string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
+
+    private void Add() => _variables.Add(new ToolchainEnvironmentVariableSetting { Source = "User", IsEnabled = true });
+
+    private void Remove(int index)
+    {
+        if (index >= 0 && index < _variables.Count)
+            _variables.RemoveAt(index);
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        try
+        {
+            await ProjectMaintenance.SaveCompilerInstallationAsync(new SaveProjectCompilerInstallationRequest
+            {
+                Id = Compiler.Id,
+                Name = Compiler.Name,
+                Language = Compiler.Language,
+                ExecutablePath = Compiler.ExecutablePath,
+                CompilerHomePath = Compiler.CompilerHomePath,
+                Version = Compiler.Version,
+                Architecture = Compiler.Architecture,
+                DiscoverySource = Compiler.DiscoverySource,
+                ToolchainKind = Compiler.ToolchainKind,
+                DetectedPlatform = Compiler.DetectedPlatform,
+                ValidationArguments = Compiler.ValidationArguments,
+                EnvironmentVariables = _variables,
+                KnowledgeProfileKey = Compiler.KnowledgeProfileKey,
+                KnowledgeEntryId = Compiler.KnowledgeEntryId,
+                VersionKnowledgeEntryId = Compiler.VersionKnowledgeEntryId,
+                IsEnabled = Compiler.IsEnabled,
+                IsDefaultForLanguage = Compiler.IsDefaultForLanguage,
+                UserConfirmed = true
+            }).ConfigureAwait(true);
+            _status = T("Toolchain.Environment.Saved", "Environment-variable list saved.");
+            _error = false;
+            Notifier.ShowSuccess(nameof(ToolchainEnvironmentEditor), _status, T("Toolchain.Environment.NotificationTitle", "Toolchain environment"));
+            await Changed.InvokeAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Saving structured environment variables for toolchain {CompilerId} failed; values were omitted from logs.", Compiler.Id);
+            _status = exception.Message;
+            _error = true;
+            Notifier.ShowError(nameof(ToolchainEnvironmentEditor), exception.Message, T("Toolchain.Environment.NotificationTitle", "Toolchain environment"));
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

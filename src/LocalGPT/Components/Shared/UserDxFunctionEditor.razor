@@ -1,0 +1,209 @@
+@inject IUserDxAiFunctionService UserFunctions
+@inject IRemoteControlPipelineService Pipelines
+@inject IDxAiFunctionCatalogService Catalog
+@inject INotificationService Notifier
+@inject ILogger<UserDxFunctionEditor> Logger
+@inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
+
+<section class="localgpt-surface user-dxfunction-editor" aria-label='@T("UserDx.Editor.Aria", "User DXFunction editor")'>
+    <header class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div>
+            <h2>@(string.IsNullOrWhiteSpace(FunctionName) ? T("UserDx.Editor.CreateTitle", "Create user DXFunction") : T("UserDx.Editor.EditTitle", "Edit user DXFunction"))</h2>
+            <p>@T("UserDx.Editor.Intro", "Compose a runtime function from a saved Remote Control pipeline. The function enters the normal DX registry, schema, approval and catalog policy path.")</p>
+        </div>
+        <button type="button" class="btn btn-secondary" @onclick="CancelAsync" disabled="@_busy">@T("Common.Close", "Close")</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <div class="alert @(_error ? "alert-danger" : "alert-info")" role="status">@_status</div>
+    }
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <label class="form-label">@T("UserDx.Editor.RuntimeName", "Runtime name")</label>
+            <input class="form-control" @bind="_edit.FunctionName" placeholder="user.weather.to_knowledge" disabled="@_busy" />
+            <small class="text-muted">@T("UserDx.Editor.RuntimeHelp", "User-created runtime functions must use the user.* namespace.")</small>
+        </div>
+        <div class="col-lg-4">
+            <label class="form-label">@T("Common.Name", "Display name")</label>
+            <input class="form-control" @bind="_edit.DisplayName" disabled="@_busy" />
+        </div>
+        <div class="col-lg-4">
+            <label class="form-label">@T("UserDx.Editor.Pipeline", "Implementing pipeline")</label>
+            <select class="form-select" @bind="_edit.PipelineKey" disabled="@_busy">
+                <option value="">@T("UserDx.Editor.SelectPipeline", "Select pipeline")</option>
+                @foreach (var pipeline in _pipelines)
+                {
+                    <option value="@pipeline.Key">@pipeline.DisplayName (@pipeline.Key)</option>
+                }
+            </select>
+        </div>
+        <div class="col-lg-6">
+            <label class="form-label">@T("UserDx.Editor.Purpose", "Purpose")</label>
+            <textarea class="form-control" rows="3" @bind="_edit.Purpose" disabled="@_busy"></textarea>
+        </div>
+        <div class="col-lg-6">
+            <label class="form-label">@T("UserDx.Editor.Safety", "Safety notes")</label>
+            <textarea class="form-control" rows="3" @bind="_edit.SafetyNotes" disabled="@_busy"></textarea>
+        </div>
+        <div class="col-12">
+            <label class="form-label">@T("UserDx.Editor.Schema", "Parameter JSON Schema")</label>
+            <textarea class="form-control font-monospace" rows="8" @bind="_edit.ParameterSchemaJson" disabled="@_busy"></textarea>
+        </div>
+    </div>
+
+    <div class="d-flex gap-4 flex-wrap mt-3">
+        <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_edit.IsEnabled" /><span>@T("Common.Enabled", "Enabled")</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_edit.AvailableToAi" /><span>@T("UserDx.Editor.VisibleToAi", "Visible to AI")</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_edit.IsReadOnly" /><span>@T("UserDx.Editor.ReadOnly", "Read-only declaration")</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_edit.RequiresHumanConfirmation" /><span>@T("UserDx.Editor.RequireConfirmation", "Require human confirmation")</span></label>
+        <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_edit.SupportsAutomaticInvocation" /><span>@T("UserDx.Editor.Automatic", "Allow automatic invocation when registry policy permits")</span></label>
+    </div>
+
+    <footer class="d-flex gap-2 mt-3">
+        <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@_busy">@T("UserDx.Editor.Save", "Save user function")</button>
+        @if (!string.IsNullOrWhiteSpace(FunctionName))
+        {
+            <button type="button" class="btn btn-outline-danger" @onclick="DeleteAsync" disabled="@_busy">@T("UserDx.Editor.Delete", "Delete user function")</button>
+        }
+    </footer>
+</section>
+
+@code {
+    [Parameter] public string FunctionName { get; set; } = string.Empty;
+    [Parameter] public EventCallback Changed { get; set; }
+    [Parameter] public EventCallback Closed { get; set; }
+
+    private readonly SaveUserDxAiFunctionRequest _edit = new()
+    {
+        ParameterSchemaJson = "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":true}",
+        IsEnabled = true,
+        AvailableToAi = true,
+        IsReadOnly = true
+    };
+    private IReadOnlyList<RemoteControlPipelineDefinition> _pipelines = [];
+    private bool _busy;
+    private bool _error;
+    private string _status = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _busy = true;
+        try
+        {
+            _pipelines = (await Pipelines.ListAsync().ConfigureAwait(true)).Where(item => item.IsEnabled).ToList();
+            if (!string.IsNullOrWhiteSpace(FunctionName))
+            {
+                var item = await UserFunctions.GetAsync(FunctionName).ConfigureAwait(true)
+                    ?? throw new KeyNotFoundException($"User DXFunction {FunctionName} was not found.");
+                CopyFrom(item);
+            }
+            else
+            {
+                ResetNew();
+            }
+            _error = false;
+            _status = string.Empty;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not initialize the user DXFunction editor for {FunctionName}.", FunctionName);
+            _error = true;
+            _status = exception.Message;
+            Notifier.ShowError(nameof(UserDxFunctionEditor), exception.Message, T("UserDx.Editor.Aria", "User DXFunction editor"));
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        try
+        {
+            _edit.UserConfirmed = true;
+            var saved = await UserFunctions.SaveAsync(_edit).ConfigureAwait(true);
+            await Catalog.SynchronizeAsync().ConfigureAwait(true);
+            _status = $"{T("UserDx.Editor.SavedPrefix", "Saved")} {saved.FunctionName}.";
+            _error = false;
+            Notifier.ShowSuccess(nameof(UserDxFunctionEditor), _status, T("UserDx.Editor.SavedTitle", "User DXFunction saved"));
+            await Changed.InvokeAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not save user DXFunction {FunctionName}.", _edit.FunctionName);
+            _error = true;
+            _status = exception.Message;
+            Notifier.ShowError(nameof(UserDxFunctionEditor), exception.Message, T("UserDx.Editor.SaveFailed", "User DXFunction save failed"));
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        _busy = true;
+        try
+        {
+            await UserFunctions.DeleteAsync(FunctionName, true).ConfigureAwait(true);
+            await Catalog.SynchronizeAsync().ConfigureAwait(true);
+            Notifier.ShowSuccess(nameof(UserDxFunctionEditor), $"{T("UserDx.Editor.DeletedPrefix", "Deleted")} {FunctionName}.", T("UserDx.Editor.DeletedTitle", "User DXFunction deleted"));
+            await Changed.InvokeAsync().ConfigureAwait(true);
+            await Closed.InvokeAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not delete user DXFunction {FunctionName}.", FunctionName);
+            _error = true;
+            _status = exception.Message;
+            Notifier.ShowError(nameof(UserDxFunctionEditor), exception.Message, T("UserDx.Editor.DeleteFailed", "User DXFunction delete failed"));
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private Task CancelAsync() => Closed.InvokeAsync();
+
+    private string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
+
+    private void ResetNew()
+    {
+        _edit.Id = null;
+        _edit.FunctionName = "user.";
+        _edit.DisplayName = string.Empty;
+        _edit.Purpose = string.Empty;
+        _edit.SafetyNotes = string.Empty;
+        _edit.ParameterSchemaJson = "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":true}";
+        _edit.PipelineKey = string.Empty;
+        _edit.IsEnabled = true;
+        _edit.AvailableToAi = true;
+        _edit.IsReadOnly = true;
+        _edit.RequiresHumanConfirmation = false;
+        _edit.SupportsAutomaticInvocation = false;
+        _edit.UserConfirmed = false;
+    }
+
+    private void CopyFrom(UserDxAiFunctionDefinition item)
+    {
+        _edit.Id = item.Id;
+        _edit.FunctionName = item.FunctionName;
+        _edit.DisplayName = item.DisplayName;
+        _edit.Purpose = item.Purpose;
+        _edit.SafetyNotes = item.SafetyNotes;
+        _edit.ParameterSchemaJson = item.ParameterSchemaJson;
+        _edit.PipelineKey = item.PipelineKey;
+        _edit.IsEnabled = item.IsEnabled;
+        _edit.AvailableToAi = item.AvailableToAi;
+        _edit.IsReadOnly = item.IsReadOnly;
+        _edit.RequiresHumanConfirmation = item.RequiresHumanConfirmation;
+        _edit.SupportsAutomaticInvocation = item.SupportsAutomaticInvocation;
+        _edit.UserConfirmed = false;
+    }
+}

@@ -177,6 +177,8 @@ namespace LocalGPT
                 builder.Services.AddScoped<ILearningRoundService, LearningRoundService>();
                 builder.Services.AddScoped<ILocalGptProjectService, LocalGptProjectService>();
                 builder.Services.AddScoped<IProjectArchitectureService, ProjectArchitectureService>();
+                builder.Services.AddScoped<IToolchainKnowledgeService, ToolchainKnowledgeService>();
+                builder.Services.AddScoped<IToolchainDiscoveryService, ToolchainDiscoveryService>();
                 builder.Services.AddScoped<IProjectMaintenanceService, ProjectMaintenanceService>();
                 builder.Services.AddScoped<IFeaturePersistenceService, FeaturePersistenceService>();
                 builder.Services.AddSingleton<IEmbeddedHardwareCatalogService, EmbeddedHardwareCatalogService>();
@@ -195,6 +197,14 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IDocumentationCatalogService, DocumentationCatalogService>();
                 builder.Services.AddScoped<IDocumentationViewerService, DocumentationViewerService>();
                 builder.Services.AddScoped<IRemoteKnowledgeImportService, RemoteKnowledgeImportService>();
+                builder.Services.AddScoped<IRemoteControlTemplateService, RemoteControlTemplateService>();
+                builder.Services.AddScoped<IRemoteControlTransportService, RemoteControlTransportService>();
+                builder.Services.AddScoped<IRemoteControlExecutionStoreService, RemoteControlExecutionStoreService>();
+                builder.Services.AddScoped<IRemoteControlPipelineService, RemoteControlPipelineService>();
+                builder.Services.AddScoped<IRemoteControlConnectorService, RemoteControlConnectorService>();
+                builder.Services.AddHttpClient("LocalGPTRemoteControl")
+                    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+                builder.Services.AddHostedService<RemoteControlPollingHostedService>();
                 builder.Services.AddSingleton<RemoteImportDxParameterReader>();
                 builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();
                 builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
@@ -205,6 +215,7 @@ namespace LocalGPT
                 builder.Services.AddHostedService<LocalGPT.Services.Council.RuntimeCapabilityDirectoryHostedService>();
                 builder.Services.AddScoped<ICouncilPreflightService, LocalGPT.Services.Council.CouncilPreflightService>();
                 builder.Services.AddScoped<IDebugArtifactInspectionService, DebugArtifactInspectionService>();
+                builder.Services.AddSingleton<IUserDxAiFunctionService, UserDxAiFunctionService>();
                 builder.Services.AddSingleton<DxAiFunctionHandlerMapService>();
                 builder.Services.AddScoped<IDxAiFunctionRegistry, DxAiFunctionRegistry>();
                 builder.Services.AddScoped<HardwarePerformancePresetDxAiSupport>();

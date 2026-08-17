@@ -18,6 +18,7 @@
         <div class="dx-catalog-actions">
             <button type="button" class="btn btn-secondary" @onclick="ReloadAsync" disabled="@_busy">Reload</button>
             <button type="button" class="btn btn-primary" @onclick="SynchronizeAsync" disabled="@_busy">Synchronize runtime catalog</button>
+            <button type="button" class="btn btn-outline-primary" @onclick="CreateUserFunction" disabled="@_busy">New user DXFunction</button>
             @if (_viewMode == "Grid")
             {
                 <button type="button" class="btn btn-outline-primary" @onclick="SaveVisibleAsync" disabled="@_busy">Save visible/edited grid policies</button>
@@ -28,6 +29,11 @@
     @if (!string.IsNullOrWhiteSpace(_status))
     {
         <div class="alert @(_hasError ? "alert-danger" : "alert-info")" role="status">@_status</div>
+    }
+
+    @if (_showUserEditor)
+    {
+        <UserDxFunctionEditor FunctionName="@_userEditorFunctionName" Changed="HandleUserFunctionsChangedAsync" Closed="CloseUserEditorAsync" />
     }
 
     <section class="dx-catalog-toolbar">
@@ -108,6 +114,10 @@
                         <CellDisplayTemplate Context="cell">
                             @{ var entry = (DxAiFunctionCatalogEntry)cell.DataItem; }
                             <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => SaveAsync(entry)" @onclick:stopPropagation="true" disabled="@_busy">Save</button>
+                            @if (entry.Source == "UserDxFunction")
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-1" @onclick="() => EditUserFunction(entry.FunctionName)" @onclick:stopPropagation="true" disabled="@_busy">Edit</button>
+                            }
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
                 </Columns>
@@ -167,7 +177,13 @@
                             </div>
                             <footer>
                                 <span>@(entry.RequiresFrontendConfirmation ? "Receiving frontend is authoritative" : "May run under saved user policy")</span>
-                                <button type="button" class="btn btn-outline-primary" @onclick="() => SaveAsync(entry)" disabled="@_busy">Save policy</button>
+                                <div class="d-flex gap-2">
+                                    @if (entry.Source == "UserDxFunction")
+                                    {
+                                        <button type="button" class="btn btn-outline-secondary" @onclick="() => EditUserFunction(entry.FunctionName)" disabled="@_busy">Edit function</button>
+                                    }
+                                    <button type="button" class="btn btn-outline-primary" @onclick="() => SaveAsync(entry)" disabled="@_busy">Save policy</button>
+                                </div>
                             </footer>
                         </article>
                     }
@@ -188,6 +204,8 @@
     private string _viewMode = "Cards";
     private bool _busy;
     private bool _hasError;
+    private bool _showUserEditor;
+    private string _userEditorFunctionName = string.Empty;
 
     private IEnumerable<DxAiFunctionCatalogEntry> FilteredEntries => _entries
         .Where(entry => string.IsNullOrWhiteSpace(_kindFilter) || entry.Kind == _kindFilter)
@@ -339,6 +357,30 @@
         {
             _busy = false;
         }
+    }
+
+    private void CreateUserFunction()
+    {
+        _userEditorFunctionName = string.Empty;
+        _showUserEditor = true;
+    }
+
+    private void EditUserFunction(string functionName)
+    {
+        _userEditorFunctionName = functionName;
+        _showUserEditor = true;
+    }
+
+    private async Task HandleUserFunctionsChangedAsync()
+    {
+        await ReloadAsync().ConfigureAwait(true);
+    }
+
+    private Task CloseUserEditorAsync()
+    {
+        _showUserEditor = false;
+        _userEditorFunctionName = string.Empty;
+        return Task.CompletedTask;
     }
 
     private void MarkGridEntryDirty(DxAiFunctionCatalogEntry entry)

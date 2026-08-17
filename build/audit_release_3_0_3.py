@@ -11,7 +11,7 @@ def require(cond,msg):
 def text(rel): return (ROOT/rel).read_text(encoding='utf-8',errors='replace')
 
 for rel in ['src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj']:
-    require('<Version>3.0.3</Version>' in text(rel),f'{rel}: version is not 3.0.3')
+    require('<Version>3.0.4</Version>' in text(rel),f'{rel}: version is not 3.0.3')
 
 # Exact Windows compiler regressions reported after 3.0.2.
 prompt=text('src/LocalGPT/Services/LocalGptCatalogService.PromptCatalog.cs')
@@ -42,7 +42,8 @@ for token in ['minecraft.datapack.version.resolve','minecraft.dependency.version
 # No accidental regression in critical rendering/transport/schema lines.
 require('2.1.1' in text('src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj'),'Wire protocol version changed unexpectedly')
 razor='\n'.join(p.read_text(encoding='utf-8',errors='replace') for p in (ROOT/'src/LocalGPT/Components').rglob('*.razor'))
-require(razor.count('@rendermode') == 19,'explicit InteractiveServer island count is no longer 19')
+require(razor.count('@rendermode') == 20,'explicit InteractiveServer island/page count is no longer 20 after adding Remote Control')
+require(text('src/LocalGPT/Components/Pages/RemoteControl.razor').lstrip().startswith('@rendermode InteractiveServer'), 'Remote Control did not preserve the InteractiveServer render contract')
 
 if fail:
     print('LocalGPT 3.0.3 source audit failed:')

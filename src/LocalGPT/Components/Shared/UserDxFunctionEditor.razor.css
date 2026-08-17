@@ -1,0 +1,6 @@
+.user-dxfunction-editor {
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 1px solid var(--localgpt-border-color);
+    border-radius: .75rem;
+}
