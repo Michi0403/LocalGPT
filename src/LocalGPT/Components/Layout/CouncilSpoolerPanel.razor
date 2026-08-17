@@ -35,7 +35,7 @@
         {
             <section class="council-spooler-summary">
                 <strong>@Selected.Status · @Selected.CouncilTeamKey</strong>
-                <span>@string.Join(", ", Selected.ModelNames)</span>
+                <span>@CouncilText.FormatInlineNameList(Selected.ModelNames)</span>
                 <p>@CouncilText.DecodeHumanVisibleText(Selected.Prompt)</p>
                 @if (Selected.Status == Vocabulary.Get().CouncilSpoolerRunning)
                 {

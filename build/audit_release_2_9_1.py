@@ -10,7 +10,7 @@ def forbid(rel, needle):
     if needle in text(rel): raise AssertionError(f"{rel} unexpectedly contains: {needle}")
 try:
     for rel in ('src/LocalGPT/LocalGPT.csproj','src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj'):
-        require(rel,'<Version>3.0.0</Version>')
+        require(rel,'<Version>3.0.1</Version>')
     require('src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj','<Version>2.1.1</Version>')
     # 2.9.2 intentionally restores the in-message live status and demotes only the external banner.
     require('src/LocalGPT/Components/Pages/Chat.razor','localgpt-message-utility-row localgpt-live-update-footer')

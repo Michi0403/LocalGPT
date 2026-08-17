@@ -13,6 +13,11 @@ def main() -> int:
 
     def read(relative: str) -> str:
         path = root / relative
+        if relative.endswith('.razor'):
+            stem = path.with_suffix('')
+            parts = ([path] if path.is_file() else []) + sorted(stem.parent.glob(stem.name + '*.razor.cs'))
+            checks.append((f"logical component exists: {relative}", bool(parts)))
+            return '\n'.join(part.read_text(encoding='utf-8') for part in parts)
         checks.append((f"file exists: {relative}", path.is_file()))
         return path.read_text(encoding="utf-8") if path.is_file() else ""
 

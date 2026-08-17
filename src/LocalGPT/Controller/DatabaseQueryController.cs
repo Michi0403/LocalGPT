@@ -78,34 +78,5 @@ namespace LocalGPT.Controller
 
         }
     }
-        //[HttpGet("configs/{id}")]
-        //public async Task<IActionResult> GetConfigEntry(string id)
-        //{
-        //    try
-        //    {
-        //        var entity = await db.Set<IClaimsIdentity>(id).FirstOrDefaultAsync();
-        //        if (entity == null)
-        //            return NotFound($"No config entry found with ID '{id}'");
-
-        //        // Return appropriate data based on type
-        //        switch (entity.Type)
-        //        {
-        //            case "RegexPattern":
-        //                return Ok(new Regex(entity.Pattern, entity.Flags));
-        //            case "PromptConfig":
-        //                return Ok(entity.Text);
-        //            default:
-        //                return Ok(ParseValue<T>(entity.ValueString, entity.DataType));
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        logger.LogError(ex, $"Error in GetConfigEntry id {id.ToString()} ex {ex.ToString()}");
-        //        return BadRequest(new { error = ex.Message });
-        //    }
-          
-        //}
-
-        //private static T ParseValue<T>(string valueString, string dataType) => ... // Implementation omitted
 
 }

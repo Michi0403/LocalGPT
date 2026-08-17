@@ -3,13 +3,23 @@ from pathlib import Path
 import subprocess, sys
 root=Path(__file__).resolve().parents[1]
 def require(path, needle):
-    text=(root/path).read_text(encoding='utf-8-sig',errors='replace')
+    target = root / path
+    if path.endswith('.cs'):
+        stem = target.with_suffix('')
+        parts = sorted(stem.parent.glob(stem.name + '*.cs'))
+        text = '\n'.join(part.read_text(encoding='utf-8-sig', errors='replace') for part in parts) if parts else ''
+    elif path.endswith('.razor'):
+        stem = target.with_suffix('')
+        parts = ([target] if target.is_file() else []) + sorted(stem.parent.glob(stem.name + '*.razor.cs'))
+        text = '\n'.join(part.read_text(encoding='utf-8-sig', errors='replace') for part in parts) if parts else ''
+    else:
+        text = target.read_text(encoding='utf-8-sig', errors='replace')
     if needle not in text: raise RuntimeError(f'{path} missing: {needle}')
 if (root/'build/async-continuation-baseline.json').exists():
     raise SystemExit('Legacy async-continuation-baseline.json must not exist; raw-await grandfathering is forbidden.')
-require('src/LocalGPT/LocalGPT.csproj','<Version>3.0.0</Version>')
-require('src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','<Version>3.0.0</Version>')
-require('src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj','<Version>3.0.0</Version>')
+require('src/LocalGPT/LocalGPT.csproj','<Version>3.0.1</Version>')
+require('src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj','<Version>3.0.1</Version>')
+require('src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj','<Version>3.0.1</Version>')
 require('build/async-continuation-policy.json','"maxUnconfiguredAwaitExpressionCount": 0')
 require('src/LocalGPT/Components/Pages/CouncilTeams.razor','_ = RefreshProviderModelsAsync();')
 require('src/LocalGPT/Components/Pages/CouncilTeams.razor','ToggleDxFunctionPickerAsync')

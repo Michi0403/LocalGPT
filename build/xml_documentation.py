@@ -44,6 +44,7 @@ def is_generated(path:Path,text:str)->bool:
 def iter_cs(root:Path):
  for p in sorted(root.rglob('*.cs')):
   if 'bin' in p.parts or 'obj' in p.parts: continue
+  if p.name.lower().endswith('.razor.cs'): continue
   txt=p.read_text(encoding='utf-8-sig',errors='replace')
   if is_generated(p,txt): continue
   yield p

@@ -10,11 +10,13 @@ namespace LocalGPT.Controller;
 /// <param name="translator">Structured text translation service dependency used by the structured text workflow to provide the corresponding application capability.</param>
 /// <param name="regexPatterns">Regex pattern service dependency used by the structured text workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="councilText">Council text service dependency used by the structured text workflow to provide the corresponding application capability.</param>
 [ApiController]
 [Route("api/text/structured")]
 public sealed class StructuredTextController(
     IStructuredTextTranslationService translator,
     IRegexPatternService regexPatterns,
+    CouncilTextService councilText,
     ILogger<StructuredTextController> logger) : ControllerBase
 {
     /// <summary>
@@ -77,7 +79,7 @@ public sealed class StructuredTextController(
         {
             var rows = await regexPatterns.ListAllAsync(5000).ConfigureAwait(false);
             var jsonPatterns = rows
-                .Where(row => row.Name.StartsWith("builtin.json-", StringComparison.OrdinalIgnoreCase))
+                .Where(row => councilText.StartsWithText(row.Name, "builtin.json-"))
                 .OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(row => new { row.Name, row.Pattern, row.Flags, row.UpdatedOn })
                 .ToList();

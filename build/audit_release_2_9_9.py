@@ -6,7 +6,18 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 def read(rel: str) -> str:
-    return (ROOT / rel).read_text(encoding='utf-8')
+    path = ROOT / rel
+    if rel.endswith('.cs'):
+        stem = path.with_suffix('')
+        parts = sorted(stem.parent.glob(stem.name + '*.cs'))
+        if parts:
+            return '\n'.join(part.read_text(encoding='utf-8', errors='replace') for part in parts)
+    if rel.endswith('.razor'):
+        stem = path.with_suffix('')
+        parts = ([path] if path.is_file() else []) + sorted(stem.parent.glob(stem.name + '*.razor.cs'))
+        if parts:
+            return '\n'.join(part.read_text(encoding='utf-8', errors='replace') for part in parts)
+    return path.read_text(encoding='utf-8', errors='replace')
 
 def require(rel: str, needle: str) -> None:
     if needle not in read(rel):
@@ -28,7 +39,7 @@ try:
         'src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj',
         'src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj',
     ]:
-        require(rel, '<Version>3.0.0</Version>')
+        require(rel, '<Version>3.0.1</Version>')
 
     require('src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj', '<Version>2.1.1</Version>')
 

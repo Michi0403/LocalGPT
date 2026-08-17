@@ -20,6 +20,10 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// </summary>
     private readonly ILogger<LocalGptRuntimePolicyDataService> logger;
     /// <summary>
+    /// Stores the regex compilation service dependency used by <see cref="LocalGptRuntimePolicyDataService"/> to delegate that application responsibility to its owning collaborator.
+    /// </summary>
+    private readonly IRegexCompilationService regexCompiler;
+    /// <summary>
     /// Stores the internal state state used by <see cref="LocalGptRuntimePolicyDataService"/> while executing its surrounding workflow.
     /// </summary>
     private LocalGptRuntimePolicyState state = null!;
@@ -28,10 +32,12 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
     /// Initializes a new <see cref="LocalGptRuntimePolicyDataService"/> instance and captures the dependencies or initial state required by its LocalGPT runtime policy workflow.
     /// </summary>
     /// <param name="store">Local gpt runtime policy store service dependency used by the LocalGPT runtime policy workflow to provide the corresponding application capability.</param>
+    /// <param name="regexCompiler">Regex compilation service that owns option and timeout policy.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-    public LocalGptRuntimePolicyDataService(ILocalGptRuntimePolicyStoreService store, ILogger<LocalGptRuntimePolicyDataService> logger)
+    public LocalGptRuntimePolicyDataService(ILocalGptRuntimePolicyStoreService store, IRegexCompilationService regexCompiler, ILogger<LocalGptRuntimePolicyDataService> logger)
     {
         this.store = store;
+        this.regexCompiler = regexCompiler;
         this.logger = logger;
         try
         {
@@ -254,7 +260,7 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
                 definition.RegexPatterns
                     .ToDictionary(
                         item => item.Key,
-                        item => new Regex(item.Value.Pattern, ParseFlags(item.Value), timeout))
+                        item => regexCompiler.Compile(item.Value.Pattern, item.Value.Flags, timeout, item.Value.Name))
                     .ToFrozenDictionary());
 
             Volatile.Write(ref state, next);
@@ -313,39 +319,5 @@ public sealed class LocalGptRuntimePolicyDataService : ILocalGptRuntimePolicyDat
         }
     }
 
-    /// <summary>
-    /// Parses flags as part of the LocalGPT runtime policy service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="definition">Definition value supplied to the LocalGPT runtime policy operation and used when producing its result.</param>
-    /// <returns>The regex options produced by the operation.</returns>
-    private RegexOptions ParseFlags(LocalGptRuntimeRegexDefinition definition)
-    {
-        try
-        {
-            var options = RegexOptions.CultureInvariant;
-            foreach (var token in definition.Flags.Split([',', '|', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                options |= token.ToLowerInvariant() switch
-                {
-                    "i" or "ignorecase" => RegexOptions.IgnoreCase,
-                    "m" or "multiline" => RegexOptions.Multiline,
-                    "s" or "singleline" => RegexOptions.Singleline,
-                    "x" or "ignorepatternwhitespace" => RegexOptions.IgnorePatternWhitespace,
-                    "n" or "explicitcapture" => RegexOptions.ExplicitCapture,
-                    "compiled" => RegexOptions.Compiled,
-                    "c" or "cultureinvariant" => RegexOptions.CultureInvariant,
-                    "ecmascript" => RegexOptions.ECMAScript,
-                    "none" => RegexOptions.None,
-                    _ when Enum.TryParse<RegexOptions>(token, true, out var parsed) => parsed,
-                    _ => throw new InvalidDataException($"Unknown regex option '{token}' for '{definition.Name}'.")
-                };
-            }
-            return options;
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, $"Could not parse runtime regex flags for {definition.Name}: {exception.Message}");
-            throw;
-        }
-    }
+
 }

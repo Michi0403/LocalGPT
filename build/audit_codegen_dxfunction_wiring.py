@@ -8,19 +8,24 @@ and absence of the former arbitrary code-generation payload/file-count ceilings.
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PROGRAM = (ROOT / "src/LocalGPT/Program.cs").read_text(encoding="utf-8-sig")
+
+def read_csharp_parts(relative_without_extension: str) -> str:
+    logical = ROOT / relative_without_extension
+    return "\n".join(path.read_text(encoding="utf-8-sig") for path in sorted(logical.parent.glob(logical.name + "*.cs")))
+
+PROGRAM = read_csharp_parts("src/LocalGPT/Program")
 REGISTRY = (ROOT / "src/LocalGPT/Services/DxAiFunctionRegistry.cs").read_text(encoding="utf-8-sig")
-WORKFLOW = (ROOT / "src/LocalGPT/Services/CodeGenerationWorkflowService.cs").read_text(encoding="utf-8-sig")
-PROJECT_MAINTENANCE = (ROOT / "src/LocalGPT/Services/ProjectMaintenanceService.cs").read_text(encoding="utf-8-sig")
+WORKFLOW = read_csharp_parts("src/LocalGPT/Services/CodeGenerationWorkflowService")
+PROJECT_MAINTENANCE = read_csharp_parts("src/LocalGPT/Services/ProjectMaintenanceService")
 PROJECT_MODELS = (ROOT / "src/LocalGPT/BusinessObjects/ProjectMaintenanceModels.cs").read_text(encoding="utf-8-sig")
 OUTPUT_MODELS = (ROOT / "src/LocalGPT/BusinessObjects/CodeGenerationWorkflowModels.cs").read_text(encoding="utf-8-sig")
 ARTIFACT_FUNCTIONS = (ROOT / "src/LocalGPT/Services/ArtifactWorkspaceDxAiFunctions.cs").read_text(encoding="utf-8-sig")
 CAPABILITY_FUNCTION = (ROOT / "src/LocalGPT/Services/CodeGenerationCapabilitiesDxAiFunction.cs").read_text(encoding="utf-8-sig")
 CODEGEN_CONTROLLER = (ROOT / "src/LocalGPT/Controller/CodeGenerationController.cs").read_text(encoding="utf-8-sig")
-REMOTE_IMPORT = (ROOT / "src/LocalGPT/Services/RemoteKnowledgeImportService.cs").read_text(encoding="utf-8-sig")
+REMOTE_IMPORT = read_csharp_parts("src/LocalGPT/Services/RemoteKnowledgeImportService")
 CHAT_UPLOADS = (ROOT / "src/LocalGPT/Services/ChatUploadWorkspaceService.cs").read_text(encoding="utf-8-sig")
 RUNTIME_SEEDS = (ROOT / "src/LocalGPT/Services/Persistence/LocalGptRuntimePolicySeedDataService.cs").read_text(encoding="utf-8-sig")
-OLLAMA = (ROOT / "src/LocalGPT/Services/OllamaThinkingChatClient.cs").read_text(encoding="utf-8-sig")
+OLLAMA = read_csharp_parts("src/LocalGPT/Services/OllamaThinkingChatClient")
 
 failures: list[str] = []
 

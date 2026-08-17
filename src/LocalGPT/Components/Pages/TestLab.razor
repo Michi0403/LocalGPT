@@ -497,7 +497,7 @@
         try
         {
             var route = string.IsNullOrWhiteSpace(customRoute) ? "/__diag" : customRoute.Trim();
-            if (!route.StartsWith('/'))
+            if (!CouncilText.StartsWithText(route, "/", StringComparison.Ordinal))
             {
                 route = "/" + route;
             }
@@ -854,8 +854,8 @@
     {
         try
         {
-            if (responseText.Contains("ArtifactRoot", StringComparison.OrdinalIgnoreCase) ||
-           responseText.Contains("\"artifacts\"", StringComparison.OrdinalIgnoreCase))
+            if (CouncilText.ContainsText(responseText, "ArtifactRoot") ||
+           CouncilText.ContainsText(responseText, "\"artifacts\""))
             {
                 try
                 {
@@ -911,14 +911,14 @@
 
             foreach (Match match in Catalog.DownloadUrlPattern.Matches(text))
             {
-                var relativeUrl = match.Groups["url"].Value.Replace("\\/", "/", StringComparison.Ordinal);
-                if (!relativeUrl.StartsWith("/__artifacts", StringComparison.OrdinalIgnoreCase))
+                var relativeUrl = CouncilText.NormalizeArtifactUrl(match.Groups["url"].Value);
+                if (!CouncilText.StartsWithText(relativeUrl, "/__artifacts"))
                 {
                     continue;
                 }
 
                 var absoluteUrl = NavigationManager.ToAbsoluteUri(relativeUrl).ToString();
-                var label = relativeUrl.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? relativeUrl;
+                var label = CouncilText.LastPathSegment(relativeUrl);
                 links.Add(new TestLabDownloadLink(label, absoluteUrl));
             }
 

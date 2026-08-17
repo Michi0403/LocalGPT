@@ -421,6 +421,22 @@ public sealed class CouncilLiveSessionService(
     }
 }
 
+    /// <summary>Returns the lightweight browser-attachment state for a Council run without cloning transcript or participant buffers.</summary>
+    /// <param name="runId">Identifier of the Council run.</param>
+    /// <returns>A lightweight attachment snapshot, or null when the run is unknown.</returns>
+    public CouncilLiveSessionAttachmentSnapshot? GetAttachmentSnapshot(Guid runId)
+    {
+        try
+        {
+            return sessions.TryGetValue(runId, out var state) ? CreateAttachmentSnapshot(state) : null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading live Council attachment state failed for run {RunId}.", runId);
+            throw;
+        }
+    }
+
     /// <summary>Returns the newest rich participant-lane snapshots without copying the potentially multi-megabyte ordered transcript.</summary>
     /// <param name="runId">Identifier of the live Council run.</param>
     /// <returns>The newest participant activity snapshots, or an empty collection when the run is unknown.</returns>
@@ -589,6 +605,33 @@ public sealed class CouncilLiveSessionService(
         throw;
     }
 }
+
+    /// <summary>Creates the lightweight browser-attachment projection without materializing large transcript or participant buffers.</summary>
+    /// <param name="state">Mutable server-owned live-session state.</param>
+    /// <returns>The lightweight attachment projection.</returns>
+    private CouncilLiveSessionAttachmentSnapshot CreateAttachmentSnapshot(CouncilLiveSessionState state)
+    {
+        try
+        {
+            lock (state.SyncRoot)
+            {
+                return new CouncilLiveSessionAttachmentSnapshot(
+                    state.RunId,
+                    state.IsRunning,
+                    state.StartedAtUtc,
+                    state.UpdatedAtUtc,
+                    state.CouncilMembers,
+                    state.UserMessage,
+                    state.AdditionalUserMessages.ToArray(),
+                    state.StatusMessage);
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating a lightweight Council live-session attachment snapshot failed for run {RunId}.", state.RunId);
+            throw;
+        }
+    }
 
     /// <summary>
     /// Creates summary as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.

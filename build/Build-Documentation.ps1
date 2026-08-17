@@ -552,7 +552,6 @@ function Install-LocalGptWebsiteThemeAssets {
         # Repair only the known DocFX short-link mismatches that point at real maintained pages.
         $updated = $updated.Replace('href="IRegexPatternService.html"', 'href="LocalGPT.Interfaces.IRegexPatternService.html"')
         $updated = $updated.Replace('href="IRegexFunctionParameterService.html"', 'href="LocalGPT.Interfaces.IRegexFunctionParameterService.html"')
-        $updated = $updated.Replace('href="TacosPortal.html"', 'href="TacosPortal.Services.html"')
 
         if (-not [string]::Equals($updated, $html, [StringComparison]::Ordinal)) {
             [IO.File]::WriteAllText($file.FullName, $updated, [Text.UTF8Encoding]::new($false))

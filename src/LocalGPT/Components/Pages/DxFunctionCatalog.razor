@@ -5,6 +5,7 @@
 @inject ILogger<DxFunctionCatalog> Logger
 @inject IComponentActivityService ComponentActivity
 @inject INotificationService Notifier
+@inject CouncilTextService CouncilText
 
 <PageTitle>DX Functions &amp; 1-Wire</PageTitle>
 
@@ -192,10 +193,10 @@
         .Where(entry => string.IsNullOrWhiteSpace(_kindFilter) || entry.Kind == _kindFilter)
         .Where(entry => !_onlyExposed || entry.ExposeToOneWire)
         .Where(entry => string.IsNullOrWhiteSpace(_filter) ||
-            entry.DisplayName.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
-            entry.FunctionName.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
-            entry.Purpose.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
-            entry.Route.Contains(_filter, StringComparison.OrdinalIgnoreCase))
+            CouncilText.ContainsText(entry.DisplayName, _filter) ||
+            CouncilText.ContainsText(entry.FunctionName, _filter) ||
+            CouncilText.ContainsText(entry.Purpose, _filter) ||
+            CouncilText.ContainsText(entry.Route, _filter))
         .OrderBy(entry => FunctionNamespace(entry), StringComparer.OrdinalIgnoreCase)
         .ThenBy(entry => entry.Kind)
         .ThenBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase);

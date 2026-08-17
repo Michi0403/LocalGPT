@@ -13,9 +13,11 @@ namespace LocalGPT.Services.Persistence;
 /// <param name="dbContextFactory">Local gpt memory database context dependency used by the regex pattern workflow to provide the corresponding application capability.</param>
 /// <param name="databaseInitializer">Database initialization service dependency used by the regex pattern workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="regexCompiler">Regex compilation service dependency used by the regex pattern workflow to provide the corresponding application capability.</param>
 public sealed class RegexPatternService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
+    IRegexCompilationService regexCompiler,
     ILogger<RegexPatternService> logger) : IRegexPatternService
 {
     /// <summary>
@@ -86,7 +88,7 @@ public sealed class RegexPatternService(
     {
         try
         {
-            return Compile(pattern, flags, TimeSpan.FromSeconds(2));
+            return regexCompiler.Compile(pattern, flags, TimeSpan.FromSeconds(2), nameof(RegexPatternService));
         }
         catch (Exception exception)
         {
@@ -106,13 +108,7 @@ public sealed class RegexPatternService(
     {
         try
         {
-            ArgumentNullException.ThrowIfNull(pattern);
-            if (pattern.Length > 16_000)
-                throw new ArgumentException("Regex patterns are limited to 16,000 characters.", nameof(pattern));
-            var boundedTimeout = timeout <= TimeSpan.Zero || timeout > TimeSpan.FromSeconds(30)
-                ? TimeSpan.FromSeconds(2)
-                : timeout;
-            return new Regex(pattern, ParseFlags(flags), boundedTimeout);
+            return regexCompiler.Compile(pattern, flags, timeout, nameof(RegexPatternService));
         }
         catch (Exception exception)
         {
@@ -235,45 +231,5 @@ public sealed class RegexPatternService(
     }
 }
 
-    /// <summary>
-    /// Parses flags as part of the regex pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="flags">Flags value supplied to the regex pattern operation and used when producing its result.</param>
-    /// <returns>The regex options produced by the operation.</returns>
-    private RegexOptions ParseFlags(string? flags)
-    {
-    try
-    {
-            if (string.IsNullOrWhiteSpace(flags))
-                return RegexOptions.CultureInvariant;
-            var result = RegexOptions.CultureInvariant;
-            foreach (var token in flags.Split([',', '|', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                result |= token.ToLowerInvariant() switch
-                {
-                    "i" or "ignorecase" => RegexOptions.IgnoreCase,
-                    "m" or "multiline" => RegexOptions.Multiline,
-                    "s" or "singleline" => RegexOptions.Singleline,
-                    "x" or "ignorepatternwhitespace" => RegexOptions.IgnorePatternWhitespace,
-                    "n" or "explicitcapture" => RegexOptions.ExplicitCapture,
-                    "compiled" => RegexOptions.Compiled,
-                    "c" or "cultureinvariant" => RegexOptions.CultureInvariant,
-                    "ecmascript" => RegexOptions.ECMAScript,
-                    "none" => RegexOptions.None,
-                    _ when Enum.TryParse<RegexOptions>(token, true, out var parsed) => parsed,
-                    _ => throw new ArgumentException($"Unknown regular-expression option '{token}'.", nameof(flags))
-                };
-            }
-            return result;
-    
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RegexPatternService)}.{nameof(ParseFlags)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(RegexPatternService)}.{nameof(ParseFlags)} failed.");
-        throw;
-    }
-}
+
 }

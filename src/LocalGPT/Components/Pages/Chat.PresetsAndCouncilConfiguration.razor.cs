@@ -1,0 +1,476 @@
+using System.Net.Http;
+using System.Net.Http.Json;
+using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Components.Routing;
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components.Web.Virtualization;
+using Microsoft.JSInterop;
+using static Microsoft.AspNetCore.Components.Web.RenderMode;
+using LocalGPT;
+using LocalGPT.Components;
+using LocalGPT.Components.Layout;
+using LocalGPT.BusinessObjects;
+using LocalGPT.Services;
+using DevExpress.Blazor;
+using DevExpress.Blazor.Office;
+using DevExpress.Blazor.RichEdit;
+using DevExpress.Blazor.PivotTable;
+using DevExpress.Blazor.PdfViewer;
+using DevExpress.Blazor.Reporting.Models;
+using LocalGPT.Interfaces;
+using Microsoft.Extensions.Options;
+using DevExpress.AIIntegration.Blazor.Chat;
+using Microsoft.Extensions.AI;
+using Markdig;
+using System.Dynamic;
+using System.Globalization;
+using LocalGPT.Components.Shared;
+using Microsoft.AspNetCore.Components;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.WebUtilities;
+
+namespace LocalGPT.Components.Pages
+{
+    public partial class Chat
+    {
+
+
+    private async Task LoadHardwarePerformancePresetsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var selectedId = SelectedHardwarePerformancePreset?.Id;
+            HardwarePerformancePresetItems = (await HardwarePerformancePresets
+                .GetPresetsAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false)).ToList();
+            SelectedHardwarePerformancePreset = selectedId is Guid id
+                ? HardwarePerformancePresetItems.FirstOrDefault(item => item.Id == id)
+                : null;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+        {
+            Logger.LogDebug("Hardware performance preset refresh was cancelled during Chat teardown.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not load hardware performance presets.");
+            ComponentActivity.RecordWarning(nameof(Chat), "LoadHardwarePerformancePresets", "Hardware performance profiles could not be loaded; manual hardware roads remain available.");
+        }
+    }
+
+    private Task RefreshHardwarePerformancePresetsAsync() =>
+        LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token);
+
+    private async Task OnHardwarePerformancePresetChangedAsync(ChangeEventArgs args)
+    {
+        try
+        {
+            if (!Guid.TryParse(Convert.ToString(args.Value, CultureInfo.InvariantCulture), out var presetId))
+            {
+                SelectedHardwarePerformancePreset = null;
+                HardwarePerformancePresetName = string.Empty;
+                modelStatus = "Custom hardware settings are active. Current roads were not reset.";
+                return;
+            }
+
+            var preset = HardwarePerformancePresetItems.FirstOrDefault(item => item.Id == presetId);
+            if (preset is null)
+                return;
+
+            int applied;
+            if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+            {
+                applied = await HardwarePerformancePresets
+                    .ApplyPresetToRunAsync(preset.Id, runId, userConfirmed: true, componentLifetimeCts.Token)
+                    .ConfigureAwait(false);
+                await InvokeAsync(() =>
+                {
+                    LoadCouncilRunConfiguration(runId);
+                    SelectedHardwarePerformancePreset = preset;
+                    HardwarePerformancePresetName = preset.Name;
+                    modelStatus = $"Applied hardware performance preset '{preset.Name}' to {applied} matching provider-qualified model road(s) in running Council {ActiveCouncilRunShortId}. Council membership was not changed.";
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+            }
+            else
+            {
+                // Persist the current participant selection first; the service then owns all provider-qualified
+                // matching, road copying, normalization and session token-ceiling changes.
+                SavePreparationConfiguration();
+                applied = await HardwarePerformancePresets
+                    .ApplyPresetToPreparationAsync(preset.Id, userConfirmed: true, componentLifetimeCts.Token)
+                    .ConfigureAwait(false);
+                var preparation = CouncilRunConfigurations.GetPreparation();
+                await InvokeAsync(() =>
+                {
+                    if (preparation is not null)
+                        ApplyPreparationConfiguration(preparation);
+                    SelectedHardwarePerformancePreset = preset;
+                    HardwarePerformancePresetName = preset.Name;
+                    modelStatus = $"Applied hardware performance preset '{preset.Name}' to {applied} matching provider-qualified model road(s), including the profile session token ceilings. Council membership was not changed.";
+                    StateHasChanged();
+                }).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (componentLifetimeCts.IsCancellationRequested || isDisposed)
+        {
+            Logger.LogDebug("Hardware performance preset application was cancelled during Chat teardown.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            Logger.LogWarning(ex, "The selected hardware performance preset could not be applied to the current Council configuration.");
+            await InvokeAsync(() =>
+            {
+                SelectedHardwarePerformancePreset = null;
+                modelStatus = ex.Message;
+                Notifier.ShowWarning(toastName, ex.Message, "Performance preset not applied");
+                StateHasChanged();
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not apply hardware performance preset.");
+            await InvokeAsync(() => Notifier.ShowError(toastName, "The hardware performance preset could not be applied. See local logs.", "Performance preset failed")).ConfigureAwait(false);
+        }
+    }
+
+    private async Task SaveHardwarePerformancePresetAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            isHardwarePerformancePresetBusy = true;
+            try
+            {
+                var preset = new HardwarePerformancePreset
+                {
+                    Id = SelectedHardwarePerformancePreset?.Id ?? Guid.NewGuid(),
+                    Name = HardwarePerformancePresetName,
+                    Description = EditingRunningCouncilConfiguration
+                        ? $"Saved from running Council {ActiveCouncilRunShortId} hardware spooler settings."
+                        : "Saved from Chat configuration hardware spooler settings.",
+                    ModelRoutesJson = JsonSerializer.Serialize(CouncilEditorRoutes.Select(CloneRoute).ToList()),
+                    ResourceLoadPercent = CouncilEditorResourceLoadPercent,
+                    SourceKind = "Manual",
+                    IsDefault = SelectedHardwarePerformancePreset?.IsDefault ?? HardwarePerformancePresetItems.Count == 0,
+                    IsUserApproved = true
+                };
+                var saved = await HardwarePerformancePresets
+                    .SavePresetAsync(preset, userConfirmed: true, componentLifetimeCts.Token)
+                    .ConfigureAwait(false);
+                await LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token).ConfigureAwait(false);
+                SelectedHardwarePerformancePreset = HardwarePerformancePresetItems.FirstOrDefault(item => item.Id == saved.Id) ?? saved;
+                HardwarePerformancePresetName = saved.Name;
+                Notifier.ShowSuccess(toastName, "The hardware performance preset was saved to SQLite.", "Performance preset saved");
+            }
+            finally
+            {
+                isHardwarePerformancePresetBusy = false;
+            }
+        }, "Save hardware performance preset").ConfigureAwait(false);
+    }
+
+    private async Task DeleteHardwarePerformancePresetAsync()
+    {
+        if (SelectedHardwarePerformancePreset is null)
+            return;
+        await RunUiActionAsync(async () =>
+        {
+            isHardwarePerformancePresetBusy = true;
+            try
+            {
+                var id = SelectedHardwarePerformancePreset.Id;
+                await HardwarePerformancePresets
+                    .DeletePresetAsync(id, userConfirmed: true, componentLifetimeCts.Token)
+                    .ConfigureAwait(false);
+                SelectedHardwarePerformancePreset = null;
+                HardwarePerformancePresetName = string.Empty;
+                await LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token).ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "The hardware performance preset was deleted. Current road values were left unchanged.", "Performance preset deleted");
+            }
+            finally
+            {
+                isHardwarePerformancePresetBusy = false;
+            }
+        }, "Delete hardware performance preset").ConfigureAwait(false);
+    }
+
+    private async Task LoadModelPresetsAsync()
+    {
+        try
+        {
+            ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(false)).ToList();
+            var requestedPreset = string.IsNullOrWhiteSpace(RequestedModelPresetName)
+                ? null
+                : ModelPresets.FirstOrDefault(item => string.Equals(item.Name, RequestedModelPresetName.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (requestedPreset is not null && DiagnosticCouncilModelNames.Count == 0)
+            {
+                ApplyModelPreset(requestedPreset);
+                modelStatus = $"Loaded quick-start model preset '{requestedPreset.Name}'.";
+            }
+            else
+            {
+                var preparation = CouncilRunConfigurations.GetPreparation();
+                if (preparation is not null && DiagnosticCouncilModelNames.Count == 0)
+                {
+                    ApplyPreparationConfiguration(preparation);
+                }
+                else
+                {
+                    var defaultPreset = ModelPresets.FirstOrDefault(item => item.IsDefault);
+                    if (SelectedModelPreset is null && defaultPreset is not null && DiagnosticCouncilModelNames.Count == 0)
+                        ApplyModelPreset(defaultPreset);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not load council model presets.");
+            ComponentActivity.RecordWarning(nameof(Chat), "LoadModelPresets", "Council model presets could not be loaded; the current manual selection remains available.");
+        }
+    }
+
+    private async Task OnModelPresetChangedAsync(ChangeEventArgs args)
+    {
+        try
+        {
+            if (!Guid.TryParse(Convert.ToString(args.Value, CultureInfo.InvariantCulture), out var presetId))
+            {
+                SelectedModelPreset = null;
+                return;
+            }
+
+            var preset = ModelPresets.FirstOrDefault(item => item.Id == presetId);
+            if (preset is null)
+                return;
+            ApplyModelPreset(preset);
+            modelStatus = $"Loaded model preset '{preset.Name}'.";
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Could not apply a council model preset.");
+            Notifier.ShowError(toastName, "The model preset could not be applied. See local logs.", "Preset failed");
+        }
+    }
+
+    private void ApplyModelPreset(CouncilModelPreset preset)
+    {
+        SelectedModelPreset = preset;
+        ModelPresetName = preset.Name;
+        SelectedCouncilModelNames = NormalizeProviderSelectionKeys(
+            JsonSerializer.Deserialize<List<string>>(preset.ModelNamesJson) ?? []);
+        CouncilModelRoutes = ParseModelRoutes(preset.ModelRoutesJson);
+        SynchronizeSelectedCouncilRoutes();
+        var loadOverrides = CouncilModelRoutes.Where(route => route.LoadPercentOverride.HasValue).Select(route => route.LoadPercentOverride!.Value).Distinct().ToList();
+        if (loadOverrides.Count == 1) CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(loadOverrides[0] / 5d) * 5, 0, 100);
+        CouncilMaxOutputTokens = Math.Clamp(preset.MaxOutputTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
+        CouncilMaxContextTokens = Math.Clamp(preset.MaxContextTokens, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
+        IncludeCouncilMemory = preset.IncludeMemory;
+        GenerateCouncilArtifacts = preset.GenerateArtifacts;
+        CreateProjectPerCouncilRun = preset.CreateProjectPerRun;
+        CouncilAllowParallelHardwareRoads = preset.AllowParallelHardwareRoads;
+        CouncilMaxParallelModels = Math.Max(1, preset.MaxParallelModels);
+        if (preset.OllamaNumGpu == 0)
+            OllamaAccelerationMode = Catalog.OllamaModeSafeCpu;
+        else if (preset.OllamaNumGpu is > 0)
+        {
+            OllamaAccelerationMode = Catalog.OllamaModeLimitedGpu;
+            LimitedGpuLayers = Math.Clamp(preset.OllamaNumGpu.Value, 1, 99);
+        }
+        else
+            OllamaAccelerationMode = Catalog.OllamaModeAutoGpu;
+
+        SavePreparationConfiguration();
+    }
+
+    private async Task SaveModelPresetAsync()
+    {
+        await RunUiActionAsync(async () =>
+        {
+            isModelPresetBusy = true;
+            try
+            {
+                var preset = new CouncilModelPreset
+                {
+                    Id = SelectedModelPreset?.Id ?? Guid.NewGuid(),
+                    Name = ModelPresetName,
+                    Description = "Saved from the DXChat council model selector.",
+                    ModelNamesJson = JsonSerializer.Serialize(SelectedCouncilModelNames),
+                    ModelRoutesJson = JsonSerializer.Serialize(CreateProviderQualifiedCouncilRoutes()),
+                    AllowParallelHardwareRoads = CouncilAllowParallelHardwareRoads,
+                    MaxOutputTokens = CouncilMaxOutputTokens,
+                    MaxContextTokens = CouncilMaxContextTokens,
+                    MaxParallelModels = Math.Max(1, CouncilMaxParallelModels),
+                    OllamaNumGpu = ResolveOllamaNumGpu(),
+                    IncludeMemory = IncludeCouncilMemory,
+                    GenerateArtifacts = GenerateCouncilArtifacts,
+                    CreateProjectPerRun = CreateProjectPerCouncilRun,
+                    IsDefault = SelectedModelPreset?.IsDefault ?? ModelPresets.Count == 0,
+                    IsUserApproved = true
+                };
+                var savedPreset = await ModelPresetService.SavePresetAsync(preset, userConfirmed: true).ConfigureAwait(false);
+                await LoadModelPresetsAsync().ConfigureAwait(false);
+                SelectedModelPreset = ModelPresets.FirstOrDefault(item => item.Id == savedPreset.Id);
+                Notifier.ShowSuccess(toastName, "The model preset was saved to SQLite.", "Preset saved");
+            }
+            finally
+            {
+                isModelPresetBusy = false;
+            }
+        }, "Save model preset").ConfigureAwait(false);
+    }
+
+    private async Task ArchiveModelPresetAsync()
+    {
+        if (SelectedModelPreset is null)
+            return;
+        await RunUiActionAsync(async () =>
+        {
+            isModelPresetBusy = true;
+            try
+            {
+                await ModelPresetService.ArchivePresetAsync(SelectedModelPreset.Id, userConfirmed: true).ConfigureAwait(false);
+                SelectedModelPreset = null;
+                ModelPresetName = string.Empty;
+                await LoadModelPresetsAsync().ConfigureAwait(false);
+                Notifier.ShowSuccess(toastName, "The model preset was archived.", "Preset archived");
+            }
+            finally
+            {
+                isModelPresetBusy = false;
+            }
+        }, "Archive model preset").ConfigureAwait(false);
+    }
+
+    private void SavePreparationConfiguration()
+    {
+        if (DiagnosticCouncilModelNames.Count > 0)
+            return;
+
+        CouncilRunConfigurations.SavePreparation(new CouncilPreparationConfiguration(
+            SelectedCouncilModelNames.ToList(),
+            CreateProviderQualifiedCouncilRoutes(),
+            CouncilResourceLoadPercent,
+            ResolveCouncilOutputTokens(),
+            ResolveCouncilContextTokens(),
+            ResolveOllamaNumGpu(),
+            CouncilAllowParallelHardwareRoads,
+            Math.Max(1, CouncilMaxParallelModels),
+            Math.Clamp(CouncilModelTimeoutSeconds, 30, 1800),
+            Math.Clamp(CouncilCritiqueRounds, 0, 3),
+            IncludeCouncilMemory,
+            CreateProjectPerCouncilRun,
+            string.IsNullOrWhiteSpace(SelectedCouncilTeamKey) ? "general" : SelectedCouncilTeamKey));
+    }
+
+    private void ApplyPreparationConfiguration(CouncilPreparationConfiguration configuration)
+    {
+        SelectedModelPreset = null;
+        SelectedCouncilModelNames = NormalizeProviderSelectionKeys(configuration.ModelNames);
+        CouncilModelRoutes = configuration.ModelRoutes.Select(CloneRoute).ToList();
+        SynchronizeSelectedCouncilRoutes();
+        CouncilResourceLoadPercent = Math.Clamp((int)Math.Round(configuration.ResourceLoadPercent / 5d) * 5, 0, 100);
+        CouncilMaxOutputTokens = Math.Clamp(configuration.MaxOutputTokens, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
+        CouncilMaxContextTokens = Math.Clamp(configuration.MaxContextTokens, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
+        CouncilCritiqueRounds = Math.Clamp(configuration.CritiqueRounds, 0, 3);
+        CouncilAllowParallelHardwareRoads = configuration.AllowParallelHardwareRoads;
+        CouncilMaxParallelModels = Math.Max(1, configuration.MaxParallelModels);
+        CouncilModelTimeoutSeconds = Math.Clamp(configuration.ModelTimeoutSeconds, 30, 1800);
+        IncludeCouncilMemory = configuration.IncludeMemory;
+        CreateProjectPerCouncilRun = configuration.CreateProjectPerRun;
+        var requestedTeamKey = string.IsNullOrWhiteSpace(configuration.CouncilTeamKey) ? "general" : configuration.CouncilTeamKey;
+        SelectedCouncilTeamKey = CouncilTeams.Any(team => string.Equals(team.Key, requestedTeamKey, StringComparison.OrdinalIgnoreCase))
+            ? requestedTeamKey
+            : CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams.FirstOrDefault()?.Key ?? "general";
+        if (configuration.OllamaNumGpu == 0)
+        {
+            OllamaAccelerationMode = Catalog.OllamaModeSafeCpu;
+        }
+        else if (configuration.OllamaNumGpu is > 0)
+        {
+            OllamaAccelerationMode = Catalog.OllamaModeLimitedGpu;
+            LimitedGpuLayers = Math.Clamp(configuration.OllamaNumGpu.Value, 1, 99);
+        }
+        else
+        {
+            OllamaAccelerationMode = Catalog.OllamaModeAutoGpu;
+        }
+
+        modelStatus = "Restored the last Council preparation settings for this LocalGPT process.";
+    }
+
+    private bool UpdateActiveCouncilConfiguration(Guid runId) =>
+        CouncilRunConfigurations.Update(
+            runId,
+            ActiveCouncilModelRoutes,
+            ActiveCouncilResourceLoadPercent,
+            ActiveCouncilMaxOutputTokens,
+            ActiveCouncilMaxContextTokens,
+            ActiveCouncilFallbackOllamaNumGpu,
+            ActiveCouncilAllowParallelHardwareRoads,
+            ActiveCouncilMaxParallelModels,
+            ActiveCouncilModelTimeoutSeconds);
+
+    private Task OnCouncilMaxOutputTokensChangedAsync(int value)
+    {
+        value = Math.Clamp(value, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
+        if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+        {
+            ActiveCouncilMaxOutputTokens = value;
+            UpdateActiveCouncilConfiguration(runId);
+            LoadCouncilRunConfiguration(runId);
+            modelStatus = $"Running Council {ActiveCouncilRunShortId} now uses an output ceiling of {value:N0} tokens for model requests that have not started yet.";
+        }
+        else
+        {
+            CouncilMaxOutputTokens = value;
+            SelectedModelPreset = null;
+            SynchronizeSelectedCouncilRoutes();
+            SavePreparationConfiguration();
+            modelStatus = $"Future Council sessions will use an output ceiling of {value:N0} tokens.";
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnCouncilMaxContextTokensChangedAsync(int value)
+    {
+        value = Math.Clamp(value, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
+        if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+        {
+            ActiveCouncilMaxContextTokens = value;
+            UpdateActiveCouncilConfiguration(runId);
+            LoadCouncilRunConfiguration(runId);
+            modelStatus = $"Running Council {ActiveCouncilRunShortId} now uses a context ceiling of {value:N0} tokens for model requests that have not started yet.";
+        }
+        else
+        {
+            CouncilMaxContextTokens = value;
+            SelectedModelPreset = null;
+            SavePreparationConfiguration();
+            modelStatus = $"Future Council sessions will use a context ceiling of {value:N0} tokens.";
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void OnLimitedGpuLayersChanged(int value)
+    {
+        LimitedGpuLayers = Math.Clamp(value, 1, 99);
+        SelectedModelPreset = null;
+        SavePreparationConfiguration();
+        modelStatus = $"Limited GPU mode will use {LimitedGpuLayers} Ollama GPU layer(s).";
+    }
+
+    private void OnCouncilCritiqueRoundsChanged(int value)
+    {
+        CouncilCritiqueRounds = Math.Clamp(value, 0, 3);
+        SelectedModelPreset = null;
+        SavePreparationConfiguration();
+        modelStatus = $"Future Council runs will use {CouncilCritiqueRounds} peer review round(s).";
+    }
+    }
+}

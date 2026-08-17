@@ -9,12 +9,12 @@ namespace LocalGPT.Services
     /// Coordinates minecraft mod workspace behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
     /// </summary>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-    /// <param name="councilRuntime">Council runtime service dependency used by the minecraft mod workspace workflow to provide the corresponding application capability.</param>
-    /// <param name="councilText">Council text service dependency used by the minecraft mod workspace workflow to provide the corresponding application capability.</param>
+    /// <param name="projectService">Minecraft Java project service owning loader/project generation and dependency policy.</param>
+    /// <param name="datapackService">Minecraft datapack service owning datapack content and pack metadata.</param>
     /// <param name="catalog">Local gpt catalog service dependency used by the minecraft mod workspace workflow to provide the corresponding application capability.</param>
     public partial class MinecraftModWorkspaceService(ILogger<MinecraftModWorkspaceService> logger,
-        CouncilRuntimeService councilRuntime,
-        CouncilTextService councilText,
+        MinecraftProjectService projectService,
+        MinecraftDatapackService datapackService,
         LocalGptCatalogService catalog) : IMinecraftModWorkspaceService
     {
     
@@ -38,7 +38,7 @@ namespace LocalGPT.Services
             try
             {
                 ArgumentNullException.ThrowIfNull(request);
-                var loader = councilText.NormalizeLoader(request.Loader, logger);
+                var loader = projectService.NormalizeLoader(request.Loader, logger);
                 var workspaceTask = loader switch
                 {
                     "Fabric" => CreateFabricWorkspaceAsync(request, cancellationToken),
@@ -74,17 +74,17 @@ namespace LocalGPT.Services
                 var workspace = CreateWorkspaceLayout(request);
                 var context = workspace.Context;
 
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), councilText.CreateFabricSettingsGradle(context.ProjectName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.BuildFilePath, councilText.CreateFabricBuildGradle(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), councilRuntime.CreateCommonGradleProperties(request, context, logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.MainClassPath, request.IncludeLivingCitiesStarter ? councilText.CreateFabricMainClass(context) : councilText.CreateFabricEmptyMainClass(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), projectService.CreateFabricSettingsGradle(context.ProjectName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.BuildFilePath, projectService.CreateFabricBuildGradle(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), projectService.CreateCommonGradleProperties(request, context, logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MainClassPath, request.IncludeLivingCitiesStarter ? projectService.CreateFabricMainClass(context) : projectService.CreateFabricEmptyMainClass(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeLivingCitiesStarter)
-                    await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), councilText.CreateLivingCitiesReportClass(context.PackageName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.MetadataPath, councilText.CreateFabricMetadata(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                    await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), projectService.CreateLivingCitiesReportClass(context.PackageName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MetadataPath, projectService.CreateFabricMetadata(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeLivingCitiesStarter)
                     await WriteCommonResourceFilesAsync(request, context, cancellationToken).ConfigureAwait(false);
                 await WriteBuildHelperAsync(request, context, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.ReadmePath, councilText.CreateWorkspaceReadme(request, context, "Fabric"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.ReadmePath, projectService.CreateWorkspaceReadme(request, context, "Fabric"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created Fabric Minecraft mod workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult();
@@ -113,14 +113,14 @@ namespace LocalGPT.Services
                 var workspace = CreateWorkspaceLayout(request);
                 var context = workspace.Context;
 
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), councilText.CreatePaperSettingsGradle(context.ProjectName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.BuildFilePath, councilText.CreatePaperBuildGradle(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), councilRuntime.CreatePaperGradleProperties(request, context,logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.MainClassPath, councilText.CreatePaperMainClass(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.MetadataPath, councilText.CreatePaperPluginYaml(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), councilText.CreateLivingCitiesReportClass(context.PackageName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), projectService.CreatePaperSettingsGradle(context.ProjectName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.BuildFilePath, projectService.CreatePaperBuildGradle(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), projectService.CreatePaperGradleProperties(request, context,logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MainClassPath, projectService.CreatePaperMainClass(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MetadataPath, projectService.CreatePaperPluginYaml(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), projectService.CreateLivingCitiesReportClass(context.PackageName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 await WriteBuildHelperAsync(request, context, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.ReadmePath, councilText.CreateWorkspaceReadme(request, context, "Paper plugin"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.ReadmePath, projectService.CreateWorkspaceReadme(request, context, "Paper plugin"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created Paper plugin workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult();
@@ -154,45 +154,45 @@ namespace LocalGPT.Services
                 Directory.CreateDirectory(minecraftTagsRoot);
                 Directory.CreateDirectory(Path.Combine(context.ProjectRoot, "docs"));
 
-                await File.WriteAllTextAsync(context.MetadataPath, councilRuntime.CreateDatapackMcmeta(request, context,logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "load.json"), councilText.CreateFunctionTag(context.ModId, "core/load"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "tick.json"), councilText.CreateFunctionTag(context.ModId, "core/tick"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "core/load", councilText.CreateDatapackLoadFunction(context), cancellationToken,logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "core/tick", councilText.CreateDatapackTickFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "core/schedule", councilText.CreateDatapackScheduleFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "city/create", councilText.CreateDatapackCityCreateFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "city/check_villagers", councilText.CreateDatapackCityCheckVillagersFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "city/create_new", councilText.CreateDatapackCityCreateNewFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "city/already_exists", councilText.CreateDatapackCityAlreadyExistsFunction(), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "city/register_banner", councilText.CreateDatapackRegisterBannerFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "city/update_population", councilText.CreateDatapackUpdatePopulationFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "citizens/register", councilText.CreateDatapackCitizenRegisterFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "citizens/detect_new", councilText.CreateDatapackCitizenDetectNewFunction(), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "citizens/aging", councilText.CreateDatapackCitizenAgingFunction(), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "citizens/personalities", councilText.CreateDatapackCitizenPersonalitiesFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "citizens/status", councilText.CreateDatapackCitizenStatusFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "food/update", councilText.CreateDatapackFoodUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "food/production", councilText.CreateDatapackFoodProductionFunction(), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "food/consumption", councilText.CreateDatapackFoodConsumptionFunction(), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "security/update", councilText.CreateDatapackSecurityUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "security/golems", councilText.CreateDatapackSecurityGolemsFunction(), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "security/nightwatch", councilText.CreateDatapackSecurityNightwatchFunction(), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "chronicle/add_event", councilText.CreateDatapackChronicleAddEventFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "chronicle/update", councilText.CreateDatapackChronicleUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "ui/give_admin_book", councilText.CreateDatapackAdminBookFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "ui/townhall", councilText.CreateDatapackTownHallFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "ui/status", councilText.CreateDatapackReportFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "ui/chronicle", councilText.CreateDatapackChronicleUiFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "quests/update", councilText.CreateDatapackQuestUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "quests/generate", councilText.CreateDatapackQuestGenerateFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "buildings/init", councilText.CreateDatapackBuildingsInitFunction(), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "buildings/register_house", councilText.CreateDatapackRegisterHouseFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "buildings/debug_list", councilText.CreateDatapackBuildingDebugListFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await councilRuntime.WriteDatapackFunctionAsync(context, "debug/reset_city", councilText.CreateDatapackResetCityFunction(context), cancellationToken, logger).ConfigureAwait(false);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "docs", "living-cities-0.1-plan.md"), councilText.CreateLivingCitiesPlan(request), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "docs", "reference-benchmark.md"), councilText.CreateDatapackBenchmarkNotes(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "build-local.ps1"), councilText.CreateDatapackBuildScript(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.ReadmePath, councilText.CreateDatapackReadme(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MetadataPath, datapackService.CreateDatapackMcmeta(request, context,logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "load.json"), datapackService.CreateFunctionTag(context.ModId, "core/load"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(minecraftTagsRoot, "tick.json"), datapackService.CreateFunctionTag(context.ModId, "core/tick"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "core/load", datapackService.CreateDatapackLoadFunction(context), cancellationToken,logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "core/tick", datapackService.CreateDatapackTickFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "core/schedule", datapackService.CreateDatapackScheduleFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "city/create", datapackService.CreateDatapackCityCreateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "city/check_villagers", datapackService.CreateDatapackCityCheckVillagersFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "city/create_new", datapackService.CreateDatapackCityCreateNewFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "city/already_exists", datapackService.CreateDatapackCityAlreadyExistsFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "city/register_banner", datapackService.CreateDatapackRegisterBannerFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "city/update_population", datapackService.CreateDatapackUpdatePopulationFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "citizens/register", datapackService.CreateDatapackCitizenRegisterFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "citizens/detect_new", datapackService.CreateDatapackCitizenDetectNewFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "citizens/aging", datapackService.CreateDatapackCitizenAgingFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "citizens/personalities", datapackService.CreateDatapackCitizenPersonalitiesFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "citizens/status", datapackService.CreateDatapackCitizenStatusFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "food/update", datapackService.CreateDatapackFoodUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "food/production", datapackService.CreateDatapackFoodProductionFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "food/consumption", datapackService.CreateDatapackFoodConsumptionFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "security/update", datapackService.CreateDatapackSecurityUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "security/golems", datapackService.CreateDatapackSecurityGolemsFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "security/nightwatch", datapackService.CreateDatapackSecurityNightwatchFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "chronicle/add_event", datapackService.CreateDatapackChronicleAddEventFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "chronicle/update", datapackService.CreateDatapackChronicleUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "ui/give_admin_book", datapackService.CreateDatapackAdminBookFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "ui/townhall", datapackService.CreateDatapackTownHallFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "ui/status", datapackService.CreateDatapackReportFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "ui/chronicle", datapackService.CreateDatapackChronicleUiFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "quests/update", datapackService.CreateDatapackQuestUpdateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "quests/generate", datapackService.CreateDatapackQuestGenerateFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "buildings/init", datapackService.CreateDatapackBuildingsInitFunction(), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "buildings/register_house", datapackService.CreateDatapackRegisterHouseFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "buildings/debug_list", datapackService.CreateDatapackBuildingDebugListFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await datapackService.WriteDatapackFunctionAsync(context, "debug/reset_city", datapackService.CreateDatapackResetCityFunction(context), cancellationToken, logger).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "docs", "living-cities-0.1-plan.md"), projectService.CreateLivingCitiesPlan(request), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "docs", "reference-benchmark.md"), datapackService.CreateDatapackBenchmarkNotes(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "build-local.ps1"), datapackService.CreateDatapackBuildScript(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.ReadmePath, datapackService.CreateDatapackReadme(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created Minecraft datapack workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult("powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1", "Copy the zip from build\\ to a world's datapacks folder, then run /reload.");
@@ -222,17 +222,17 @@ namespace LocalGPT.Services
                 var workspace = CreateWorkspaceLayout(request);
                 var context = workspace.Context;
 
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), councilText.CreateNeoForgeSettingsGradle(context.ProjectName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.BuildFilePath, councilText.CreateNeoForgeBuildGradle(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), councilRuntime.CreateCommonGradleProperties(request, context,logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.MainClassPath, request.IncludeLivingCitiesStarter ? councilText.CreateNeoForgeMainClass(context) : councilText.CreateNeoForgeEmptyMainClass(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "settings.gradle"), projectService.CreateNeoForgeSettingsGradle(context.ProjectName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.BuildFilePath, projectService.CreateNeoForgeBuildGradle(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(Path.Combine(context.ProjectRoot, "gradle.properties"), projectService.CreateCommonGradleProperties(request, context,logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MainClassPath, request.IncludeLivingCitiesStarter ? projectService.CreateNeoForgeMainClass(context) : projectService.CreateNeoForgeEmptyMainClass(context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeLivingCitiesStarter)
-                    await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), councilText.CreateLivingCitiesReportClass(context.PackageName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.MetadataPath, councilText.CreateNeoForgeMetadata(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                    await File.WriteAllTextAsync(Path.Combine(context.JavaRoot, "LivingCitiesReport.java"), projectService.CreateLivingCitiesReportClass(context.PackageName), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.MetadataPath, projectService.CreateNeoForgeMetadata(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
                 if (request.IncludeLivingCitiesStarter)
                     await WriteCommonResourceFilesAsync(request, context, cancellationToken).ConfigureAwait(false);
                 await WriteBuildHelperAsync(request, context, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(context.ReadmePath, councilText.CreateWorkspaceReadme(request, context, "NeoForge"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(context.ReadmePath, projectService.CreateWorkspaceReadme(request, context, "NeoForge"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created NeoForge Minecraft mod workspace at {ProjectRoot}", context.ProjectRoot);
                 return workspace.ToResult();
@@ -279,12 +279,12 @@ namespace LocalGPT.Services
             {
                 Directory.CreateDirectory(WorkspaceRoot);
 
-                var projectName = councilText.NormalizeName(request.ProjectName, "LivingCities");
-                var modId = councilText.NormalizeModId(request.ModId, "living_cities");
-                var packageName = councilText.NormalizePackageName(request.PackageName);
+                var projectName = projectService.NormalizeName(request.ProjectName, "LivingCities");
+                var modId = projectService.NormalizeModId(request.ModId, "living_cities");
+                var packageName = projectService.NormalizePackageName(request.PackageName);
                 var projectRoot = GetUniqueProjectPath(projectName);
-                var loader = councilText.NormalizeLoader(request.Loader,logger);
-                var mainClassName = councilText.ToPascalCase(modId,logger) + (loader == "Paper" ? "Plugin" : "Mod");
+                var loader = projectService.NormalizeLoader(request.Loader,logger);
+                var mainClassName = projectService.ToPascalCase(modId,logger) + (loader == "Paper" ? "Plugin" : "Mod");
                 var packagePath = packageName.Replace('.', Path.DirectorySeparatorChar);
                 var javaRoot = Path.Combine(projectRoot, "src", "main", "java", packagePath);
                 var resourceRoot = Path.Combine(projectRoot, "src", "main", "resources");
@@ -340,14 +340,14 @@ namespace LocalGPT.Services
             {
                 Directory.CreateDirectory(WorkspaceRoot);
 
-                var projectName = councilText.NormalizeName(request.ProjectName, "LivingCitiesDatapack");
-                var modId = councilText.NormalizeModId(request.ModId, "living_cities");
+                var projectName = projectService.NormalizeName(request.ProjectName, "LivingCitiesDatapack");
+                var modId = projectService.NormalizeModId(request.ModId, "living_cities");
                 var projectRoot = GetUniqueProjectPath(projectName);
 
                 var context = new WorkspaceContext(
                     ProjectName: projectName,
                     ModId: modId,
-                    PackageName: councilText.NormalizePackageName(request.PackageName),
+                    PackageName: projectService.NormalizePackageName(request.PackageName),
                     MainClassName: string.Empty,
                     ProjectRoot: projectRoot,
                     JavaRoot: string.Empty,
@@ -383,9 +383,9 @@ namespace LocalGPT.Services
                 var itemModelPath = Path.Combine(context.AssetsRoot, "models", "item", "city_charter.json");
                 var planPath = Path.Combine(context.ProjectRoot, "docs", "living-cities-0.1-plan.md");
 
-                await File.WriteAllTextAsync(langPath, councilText.CreateEnglishLang(context.ModId), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(itemModelPath, councilText.CreateCityCharterModel(), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
-                await File.WriteAllTextAsync(planPath, councilText.CreateLivingCitiesPlan(request), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(langPath, projectService.CreateEnglishLang(context.ModId), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(itemModelPath, datapackService.CreateCityCharterModel(), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(planPath, projectService.CreateLivingCitiesPlan(request), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -410,7 +410,7 @@ namespace LocalGPT.Services
             try
             {
                 var scriptPath = Path.Combine(context.ProjectRoot, "build-local.ps1");
-                await File.WriteAllTextAsync(scriptPath, councilRuntime.CreateBuildLocalScript(request,logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(scriptPath, projectService.CreateBuildLocalScript(request,logger), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

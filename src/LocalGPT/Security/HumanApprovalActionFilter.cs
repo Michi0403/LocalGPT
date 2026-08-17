@@ -24,6 +24,7 @@ namespace LocalGPT.Security;
 /// <param name="ambientContext">Ambient local gpt context dependency used by the human approval action workflow to provide the corresponding application capability.</param>
 /// <param name="approvalExecutionContext">Human approval execution context dependency used by the human approval action workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="jsonText">Json text service dependency used by the human approval action workflow to provide the corresponding application capability.</param>
 public sealed class HumanApprovalActionFilter(
     string operationKey,
     string title,
@@ -34,6 +35,7 @@ public sealed class HumanApprovalActionFilter(
     IHumanCollaborationService collaboration,
     IAmbientLocalGptContext ambientContext,
     IHumanApprovalExecutionContext approvalExecutionContext,
+    IJsonTextService jsonText,
     ILogger<HumanApprovalActionFilter> logger) : IAsyncActionFilter
 {
     /// <summary>
@@ -179,7 +181,7 @@ public sealed class HumanApprovalActionFilter(
                 ? null
                 : JsonSerializer.SerializeToNode(value, value.GetType(), FingerprintJsonOptions);
             RemoveConfirmationMembers(node);
-            builder.Append(node?.ToJsonString(FingerprintJsonOptions) ?? "null");
+            builder.Append(jsonText.SerializeNode(node, FingerprintJsonOptions));
         }
         catch
         {

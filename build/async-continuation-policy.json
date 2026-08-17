@@ -13,8 +13,10 @@
   "awaitForeachRequirement": "ConfigureAwait(false)",
   "awaitUsingPolicy": "Every await using construct must visibly configure the IAsyncDisposable with ConfigureAwait(false/true); raw language-level async disposal is forbidden.",
   "rendererAffineHelperMethods": {
-    "Components/Pages/Chat.razor": [
-      "AttachToLiveCouncilSessionAsync",
+    "Components/Pages/Chat.LiveCouncil.razor.cs": [
+      "AttachToLiveCouncilSessionAsync"
+    ],
+    "Components/Pages/Chat.Lifecycle.razor.cs": [
       "AutoStartRequestedCouncilPromptAsync",
       "OnProviderSelectionChanged",
       "StartCouncilPromptAsync"

@@ -8,7 +8,8 @@ namespace LocalGPT.Services
     /// Represents a configuration application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-    public sealed class ConfigurationWriter(ILogger<ConfigurationWriter> logger) : IConfigurationWriter
+    /// <param name="jsonText">Json text service dependency used by the configuration workflow to provide the corresponding application capability.</param>
+    public sealed class ConfigurationWriter(ILogger<ConfigurationWriter> logger, IJsonTextService jsonText) : IConfigurationWriter
     {
         /// <summary>
         /// Performs save for <see cref="ConfigurationWriter"/>, keeping the operation consistent with the state and invariants of the surrounding configuration workflow.
@@ -46,7 +47,7 @@ namespace LocalGPT.Services
                 SetSection(settings, nameof(root.LocalGPT), root.LocalGPT, serializerOptions);
 
                 var tempFile = file + ".tmp";
-                await File.WriteAllTextAsync(tempFile, settings.ToJsonString(serializerOptions), ct).ConfigureAwait(false);
+                await File.WriteAllTextAsync(tempFile, jsonText.SerializeNode(settings, serializerOptions), ct).ConfigureAwait(false);
                 File.Move(tempFile, file, overwrite: true);
                 logger.LogInformation("Saved durable LocalGPT user configuration to {ConfigurationFile}.", file);
             }

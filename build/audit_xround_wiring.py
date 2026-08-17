@@ -3,16 +3,26 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+def read_csharp_parts(relative_without_extension: str) -> str:
+    logical = ROOT / relative_without_extension
+    return "\n".join(path.read_text(encoding="utf-8-sig") for path in sorted(logical.parent.glob(logical.name + "*.cs")))
+
+def read_component_parts(relative_without_extension: str) -> str:
+    logical = ROOT / relative_without_extension
+    paths = ([logical.with_suffix(".razor")] if logical.with_suffix(".razor").is_file() else []) + sorted(logical.parent.glob(logical.name + "*.razor.cs"))
+    return "\n".join(path.read_text(encoding="utf-8-sig") for path in paths)
+
 MODELS = (ROOT / 'src/LocalGPT/BusinessObjects/OrganicCouncilModels.cs').read_text(encoding='utf-8-sig')
 RUN_MODELS = (ROOT / 'src/LocalGPT/BusinessObjects/MultiModelCouncilModels.cs').read_text(encoding='utf-8-sig')
 X_MODELS = (ROOT / 'src/LocalGPT/BusinessObjects/CouncilXRoundModels.cs').read_text(encoding='utf-8-sig')
 X_INTERFACE = (ROOT / 'src/LocalGPT/Interfaces/ICouncilXRoundService.cs').read_text(encoding='utf-8-sig')
 X_SERVICE = (ROOT / 'src/LocalGPT/Services/CouncilXRoundService.cs').read_text(encoding='utf-8-sig')
 X_FUNCTIONS = (ROOT / 'src/LocalGPT/Services/CouncilXRoundDxAiFunctions.cs').read_text(encoding='utf-8-sig')
-COUNCIL = (ROOT / 'src/LocalGPT/Services/MultiModelCouncilService.cs').read_text(encoding='utf-8-sig')
-TEAM_SERVICE = (ROOT / 'src/LocalGPT/Services/CouncilTeamConfigurationService.cs').read_text(encoding='utf-8-sig')
-TEAM_UI = (ROOT / 'src/LocalGPT/Components/Pages/CouncilTeams.razor').read_text(encoding='utf-8-sig')
-CHAT_UI = (ROOT / 'src/LocalGPT/Components/Pages/Chat.razor').read_text(encoding='utf-8-sig')
+COUNCIL = read_csharp_parts('src/LocalGPT/Services/MultiModelCouncilService')
+TEAM_SERVICE = read_csharp_parts('src/LocalGPT/Services/CouncilTeamConfigurationService')
+TEAM_UI = read_component_parts('src/LocalGPT/Components/Pages/CouncilTeams')
+CHAT_UI = read_component_parts('src/LocalGPT/Components/Pages/Chat')
 CHAT_CSS = (ROOT / 'src/LocalGPT/Components/Pages/Chat.razor.css').read_text(encoding='utf-8-sig')
 LIVE_MODELS = (ROOT / 'src/LocalGPT/BusinessObjects/CouncilLiveSessionModels.cs').read_text(encoding='utf-8-sig')
 LIVE_INTERFACE = (ROOT / 'src/LocalGPT/Interfaces/ICouncilLiveSessionService.cs').read_text(encoding='utf-8-sig')
@@ -22,8 +32,8 @@ RUN_CONFIGURATION_MODELS = (ROOT / 'src/LocalGPT/BusinessObjects/CouncilRunConfi
 RUN_STATE_MODELS = (ROOT / 'src/LocalGPT/BusinessObjects/CouncilServiceStateModels.cs').read_text(encoding='utf-8-sig')
 RUN_CONFIGURATION_SERVICE = (ROOT / 'src/LocalGPT/Services/CouncilRunConfigurationService.cs').read_text(encoding='utf-8-sig')
 HUMAN_INTERFACE = (ROOT / 'src/LocalGPT/Interfaces/IHumanCollaborationService.cs').read_text(encoding='utf-8-sig')
-HUMAN_SERVICE = (ROOT / 'src/LocalGPT/Services/HumanCollaborationService.cs').read_text(encoding='utf-8-sig')
-PROGRAM = (ROOT / 'src/LocalGPT/Program.cs').read_text(encoding='utf-8-sig')
+HUMAN_SERVICE = read_csharp_parts('src/LocalGPT/Services/HumanCollaborationService')
+PROGRAM = read_csharp_parts('src/LocalGPT/Program')
 README = (ROOT / 'README.md').read_text(encoding='utf-8-sig')
 GUIDE = (ROOT / 'docs/guide/chat-and-council.md').read_text(encoding='utf-8-sig')
 

@@ -52,6 +52,26 @@ public sealed record CouncilLiveParticipantActivitySnapshot(
     DateTime StartedAtUtc,
     DateTime UpdatedAtUtc);
 
+
+/// <summary>Lightweight attachment state used when a browser circuit joins an already running Council without copying transcript or participant stream buffers.</summary>
+/// <param name="RunId">Identifier of the Council run.</param>
+/// <param name="IsRunning">Indicates whether the Council is still executing.</param>
+/// <param name="StartedAtUtc">Time at which the Council run started.</param>
+/// <param name="UpdatedAtUtc">Time of the newest server-side live-session change.</param>
+/// <param name="CouncilMembers">Provider-qualified members assigned to the run.</param>
+/// <param name="UserMessage">Original user request that started the run.</param>
+/// <param name="AdditionalUserMessages">Human messages queued after the run began.</param>
+/// <param name="StatusMessage">Current server-side run status.</param>
+public sealed record CouncilLiveSessionAttachmentSnapshot(
+    Guid RunId,
+    bool IsRunning,
+    DateTime StartedAtUtc,
+    DateTime UpdatedAtUtc,
+    IReadOnlyList<string> CouncilMembers,
+    string UserMessage,
+    IReadOnlyList<string> AdditionalUserMessages,
+    string StatusMessage);
+
 /// <summary>
 /// Represents a council live session summary application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>

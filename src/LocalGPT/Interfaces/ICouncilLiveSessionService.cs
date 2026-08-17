@@ -103,6 +103,10 @@ public interface ICouncilLiveSessionService
     /// <param name="runId">Identifier of the run to use for this operation.</param>
     /// <returns>The council live session snapshot produced by the operation.</returns>
     CouncilLiveSessionSnapshot? Get(Guid runId);
+    /// <summary>Returns only the state needed to attach a browser circuit to a Council run, without copying transcript or participant stream buffers.</summary>
+    /// <param name="runId">Identifier of the Council run.</param>
+    /// <returns>A lightweight attachment snapshot, or <see langword="null"/> when the run is unknown.</returns>
+    CouncilLiveSessionAttachmentSnapshot? GetAttachmentSnapshot(Guid runId);
     /// <summary>Returns only the current rich participant lanes without copying the potentially multi-megabyte ordered transcript.</summary>
     /// <param name="runId">Identifier of the live Council run.</param>
     /// <returns>The newest participant activity snapshots, or an empty collection when the run is unknown.</returns>

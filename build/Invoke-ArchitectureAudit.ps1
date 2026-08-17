@@ -72,10 +72,15 @@ function Invoke-StaticFallback {
         }
         foreach ($match in [regex]::Matches($code, $declarationPattern)) {
             $declaration = Normalize-Signature $match.Value
-            if ($file.Name -eq 'Program.cs') { continue }
+            if ($file.Name -eq 'Program.cs' -or ($file.Name -like 'Program.*.cs')) { continue }
             if ($file.Name -in @('PublisherStudioServiceCollectionExtensions.cs', 'StreamingServiceCollectionExtensions.cs')) {
                 if ($declaration -match '\bstatic\s+class\s+\w+ServiceCollectionExtensions\b') { continue }
                 if ($declaration -match 'this\s+IServiceCollection' -and $declaration -match 'ILogger') { continue }
+            }
+            if ($relative -like 'Extensions/*') {
+                if ($declaration -match '\bstatic\s+class\s+\w+Extensions\b') { continue }
+                $signatureWindow = $code.Substring($match.Index, [Math]::Min(1000, $code.Length - $match.Index))
+                if ($declaration -match '\b(?:public|internal)\s+static\b' -and $signatureWindow -match '\(\s*this\s+') { continue }
             }
             $failures.Add("$relative|$declaration")
         }
@@ -140,7 +145,7 @@ function Invoke-RuntimeFallback {
             'Services/Persistence/LocalGptRuntimePolicyDataService.cs',
             'Services/Persistence/CouncilTextPatternDataService.cs',
             'Services/Persistence/RegexPatternService.cs',
-            'Services/ProjectMaintenanceService.cs'
+            'Services/RegexCompilationService.cs'
         )
     }
     else {

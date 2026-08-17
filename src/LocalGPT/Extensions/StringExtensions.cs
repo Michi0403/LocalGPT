@@ -6,7 +6,7 @@ namespace LocalGPT.Extensions
     /// <summary>
     /// Represents a string extensions application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
-    public static class StringExtensions
+    internal static class StringExtensions
     {
 
         /// <summary>
@@ -15,7 +15,7 @@ namespace LocalGPT.Extensions
         /// <param name="obj">Obj value supplied to the string extensions operation and used when producing its result.</param>
         /// <param name="jsonOptions">Json options value supplied to the string extensions operation and used when producing its result.</param>
         /// <returns>The string produced by the operation.</returns>
-        public static string ToJsonString(this object obj, JsonSerializerOptions? jsonOptions = null)
+        internal static string ToJsonString(this object obj, JsonSerializerOptions? jsonOptions = null)
         {
             try
             {

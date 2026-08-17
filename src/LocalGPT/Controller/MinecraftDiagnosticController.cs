@@ -7,19 +7,21 @@ using Microsoft.AspNetCore.Mvc;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 
-namespace LocalGPT.Endpoints
+namespace LocalGPT.Controller
 {
     /// <summary>
     /// Exposes the minecraft diagnostic application operations through the web/API boundary and delegates domain work to the corresponding LocalGPT services.
     /// </summary>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-    /// <param name="councilRuntime">Council runtime service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
+    /// <param name="projectService">Minecraft project service used for loader and dependency-version diagnostics.</param>
+    /// <param name="datapackService">Minecraft datapack service used for pack-format and reference diagnostics.</param>
     /// <param name="councilText">Council text service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
     /// <param name="catalog">Local gpt catalog service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
     [ApiController]
     [Route("")]
     public class MinecraftDiagnosticController(ILogger<MinecraftDiagnosticController> logger,
-        CouncilRuntimeService councilRuntime,
+        MinecraftProjectService projectService,
+        MinecraftDatapackService datapackService,
         CouncilTextService councilText,
         LocalGptCatalogService catalog) : ControllerBase
     {
@@ -57,13 +59,13 @@ namespace LocalGPT.Endpoints
                 var safeFileName = Path.GetFileName(fileName);
                 if (!string.Equals(projectName, safeProjectName, StringComparison.Ordinal) ||
                     !string.Equals(fileName, safeFileName, StringComparison.Ordinal) ||
-                    !safeFileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    !councilText.EndsWithText(safeFileName, ".zip"))
                     return Results.BadRequest("Invalid Minecraft artifact path.");
 
                 var path = Path.Combine(workspaces.WorkspaceRoot, safeProjectName, "build", safeFileName);
                 var fullPath = Path.GetFullPath(path);
                 var allowedRoot = Path.GetFullPath(workspaces.WorkspaceRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-                if (!fullPath.StartsWith(allowedRoot, StringComparison.OrdinalIgnoreCase))
+                if (!councilText.StartsWithText(fullPath, allowedRoot))
                     return Results.BadRequest("Artifact is outside the Minecraft workspace root.");
 
                 if (!System.IO.File.Exists(fullPath))
@@ -91,7 +93,7 @@ namespace LocalGPT.Endpoints
         {
             try
             {
-                return Results.Ok(councilRuntime.MinecraftDatapackVersionInfoResolve(minecraftVersion,logger));
+                return Results.Ok(datapackService.MinecraftDatapackVersionInfoResolve(minecraftVersion,logger));
             }
             catch (Exception ex)
             {
@@ -117,7 +119,7 @@ namespace LocalGPT.Endpoints
         {
             try
             {
-                return Results.Ok(councilRuntime.ResolveMinecraftDependencyVersionInfo(loader, minecraftVersion,logger, javaVersion, gradleVersion));
+                return Results.Ok(projectService.ResolveMinecraftDependencyVersionInfo(loader, minecraftVersion,logger, javaVersion, gradleVersion));
             }
             catch (Exception ex)
             {
@@ -229,23 +231,23 @@ namespace LocalGPT.Endpoints
                     userConfirmed: userConfirmed).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("The approved datapack build did not produce a command result.");
                 var files = Directory.GetFiles(workspace.RootPath, "*", SearchOption.AllDirectories)
-                    .Select(path => Path.GetRelativePath(workspace.RootPath, path).Replace('\\', '/'))
+                    .Select(path => councilText.ToForwardSlash(Path.GetRelativePath(workspace.RootPath, path), logger))
                     .Order(StringComparer.OrdinalIgnoreCase)
                     .ToArray();
-                var referenceComparison = councilRuntime.BuildDatapackReferenceComparison(workspace.RootPath,logger);
+                var referenceComparison = datapackService.BuildDatapackReferenceComparison(workspace.RootPath,logger);
                 var knowledgeEntry = await knowledgeService.SaveEntryAsync(new CouncilKnowledgeEntry
                 {
                     Topic = "Living Cities datapack benchmark",
                     Scope = "Minecraft Builder",
                     Source = "/__diag/minecraft/datapack-benchmark",
-                    Content = string.Join(Environment.NewLine, new[]
+                    Content = councilText.FormatLines(new[]
                     {
                     "Use this compact entry instead of sending the full Living Cities design document to every model.",
                     "Goal: vanilla Minecraft Java datapack for Living Cities 0.1 with city aggregate simulation, no full-world scans, town hall/admin UI, population, food, security, personalities, chronicle, and quests.",
                     "Reference zip traits: legacy pack_format 61 for 1.21.4, namespace living_cities, singular data/<namespace>/function folders, core/load and core/tick tags, early placeholders that should become real .mcfunction files. Current default generation targets Minecraft Java 26.1 pack_format 101.1 unless the user requests an older version.",
                     $"Latest generated workspace: {workspace.RootPath}",
                     $"Build succeeded: {build.Succeeded}; exit code {build.ExitCode}.",
-                    $"Function files: {files.Count(file => file.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase))}.",
+                    $"Function files: {files.Count(file => councilText.EndsWithText(file, ".mcfunction"))}.",
                     $"Build output: {councilText.TrimForKnowledge(build.StandardOutput ?? string.Empty, 700, logger)}",
                     $"Reference comparison: {referenceComparison?.Summary}",
                     $"Reference placeholders: {referenceComparison?.ReferencePlaceholderCount}; generated placeholders: {referenceComparison?.GeneratedPlaceholderCount}.",
@@ -269,7 +271,7 @@ namespace LocalGPT.Endpoints
                     KnowledgeEntryId = knowledgeEntry.Id,
                     Build = build,
                     ReferenceComparison = referenceComparison,
-                    FunctionFileCount = files.Count(file => file.EndsWith(".mcfunction", StringComparison.OrdinalIgnoreCase)),
+                    FunctionFileCount = files.Count(file => councilText.EndsWithText(file, ".mcfunction")),
                     Files = files
                 });
             }

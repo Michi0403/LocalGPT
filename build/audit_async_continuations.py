@@ -459,7 +459,7 @@ def audit(source_root: Path) -> tuple[list[Finding], dict[str, int]]:
         text = path.read_text(encoding="utf-8-sig", errors="replace")
         relative = path.relative_to(source_root).as_posix()
         regions = csharp_regions(path, text)
-        if not regions:
+        if not regions and path.suffix.lower() != ".razor":
             continue
         file_has_await = False
         is_component = relative.startswith("Components/")

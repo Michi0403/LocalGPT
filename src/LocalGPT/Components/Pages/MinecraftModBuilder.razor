@@ -1,6 +1,7 @@
 @rendermode InteractiveServer
 @page "/minecraft-mod-builder"
 @inject CouncilTextService CouncilText
+@inject MinecraftProjectService MinecraftProject
 @inject LocalGptCatalogService Catalog
 @inject IMinecraftModWorkspaceService WorkspaceService
 @inject INativeCommandRunner CommandRunner
@@ -187,7 +188,7 @@
             <h2>AI Council Log</h2>
             <dl class="workspace-details">
                 <dt>Models</dt>
-                <dd>@string.Join(" + ", lastCouncilResult.ModelNames)</dd>
+                <dd>@CouncilText.FormatJoinedList(lastCouncilResult.ModelNames, " + ")</dd>
                 <dt>Log</dt>
                 <dd>@lastCouncilResult.LogPath</dd>
                 <dt>Memory</dt>
@@ -335,7 +336,7 @@
             {
                 var messages = new[]
                 {
-                new ChatMessage(ChatRole.System, CouncilText.CreateMinecraftSystemPrompt("single model",Logger)),
+                new ChatMessage(ChatRole.System, MinecraftProject.CreateMinecraftSystemPrompt("single model",Logger)),
                 new ChatMessage(ChatRole.User, CreatePlanningPrompt())
                 };
 
@@ -510,7 +511,7 @@
     {
         try
         {
-            return string.Join(Environment.NewLine, new[]
+            return CouncilText.FormatLines(new[]
                 {
 
                     "Build target:",
@@ -553,7 +554,7 @@
     }
 
     IEnumerable<string> ParseCouncilModels() =>
-        councilModels.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        CouncilText.ParseModelNames(councilModels, Logger)
             .Where(model => !string.IsNullOrWhiteSpace(model));
 
     void LoadLivingCitiesPrompt()

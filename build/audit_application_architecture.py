@@ -118,8 +118,11 @@ def iter_sources(app_root: Path):
         if path.name.endswith('.Designer.cs'): continue
         yield path,rel
 
+def is_program_partial(rel: str) -> bool:
+    return rel == 'Program.cs' or (rel.startswith('Program.') and rel.endswith('.cs'))
+
 def allowed_static(rel: str, product: str) -> bool:
-    if rel=='Program.cs': return True
+    if is_program_partial(rel): return True
     if product=='publisherstudio' and rel in {'PublisherStudioServiceCollectionExtensions.cs','StreamingServiceCollectionExtensions.cs'}: return True
     return False
 
@@ -132,7 +135,7 @@ def static_audit(app_root: Path, product: str):
             if 'GeneratedRegex' in masked: failures.append(f'{rel}: GeneratedRegex attribute is not allowed in application code')
             for m in decl_re.finditer(masked):
                 declaration=re.sub(r'\s+',' ',text[m.start():m.end()]).strip()
-                if rel=='Program.cs':
+                if is_program_partial(rel):
                     continue
                 if product=='publisherstudio' and rel in {'PublisherStudioServiceCollectionExtensions.cs','StreamingServiceCollectionExtensions.cs'}:
                     if re.search(r'\bstatic\s+class\s+\w+ServiceCollectionExtensions\b',declaration):
@@ -143,7 +146,7 @@ def static_audit(app_root: Path, product: str):
                     if re.search(r'\bstatic\s+class\s+\w+Extensions\b', declaration):
                         continue
                     signature_window=masked[m.start():m.start()+1000].split('{',1)[0]
-                    if re.search(r'\bpublic\s+static\b', declaration) and re.search(r'\(\s*this\s+', signature_window):
+                    if re.search(r'\b(?:public|internal)\s+static\b', declaration) and re.search(r'\(\s*this\s+', signature_window):
                         continue
                 failures.append(f'{rel}:{line_of(text,m.start())}: {declaration}')
         elif path.suffix=='.razor':
@@ -225,7 +228,7 @@ def runtime_value_audit(app_root: Path, product: str):
             'Services/Persistence/LocalGptRuntimePolicyDataService.cs',
             'Services/Persistence/CouncilTextPatternDataService.cs',
             'Services/Persistence/RegexPatternService.cs',
-            'Services/ProjectMaintenanceService.cs',
+            'Services/RegexCompilationService.cs',
         },
         'publisherstudio': {
             'Services/Configuration/PublisherRuntimePatternService.cs',
@@ -240,7 +243,7 @@ def runtime_value_audit(app_root: Path, product: str):
         if re.search(r'\bnew\s+Regex\s*\(',code) and rel not in allowed_regex_compilers:
             failures.append(f'{rel}: compiles a Regex outside an approved policy/data service')
         # Static collections and regex fields are forbidden even in otherwise allowed files.
-        if rel != 'Program.cs' and re.search(r'(?m)^[ \t]*(?:public|private|protected|internal)\s+(?:static\s+|readonly\s+)*static\s+[^\n]*(?:Regex|List<|Dictionary<|HashSet<|FrozenSet<|\[\])',code):
+        if not is_program_partial(rel) and re.search(r'(?m)^[ \t]*(?:public|private|protected|internal)\s+(?:static\s+|readonly\s+)*static\s+[^\n]*(?:Regex|List<|Dictionary<|HashSet<|FrozenSet<|\[\])',code):
             failures.append(f'{rel}: contains static runtime collection or Regex state')
     if product=='localgpt':
         required={

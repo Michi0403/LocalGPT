@@ -6,6 +6,7 @@
 @inject ILogger<Projects> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
+@inject CouncilTextService CouncilText
 
 <PageTitle>Projects</PageTitle>
 
@@ -304,7 +305,7 @@
                                 <p>@requirement.Description</p>
                                 @if (requirement.Links.Count > 0)
                                 {
-                                    <small>Links: @string.Join(", ", requirement.Links.Select(link => $"{link.TargetKind}:{link.TargetName}"))</small>
+                                    <small>Links: @CouncilText.FormatInlineNameList(requirement.Links.Select(link => $"{link.TargetKind}:{link.TargetName}"))</small>
                                 }
                             </li>
                         }

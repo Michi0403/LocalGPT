@@ -10,7 +10,8 @@ namespace LocalGPT.Services
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     /// <param name="minecraftWorkspaceService">Minecraft mod workspace service dependency used by the council artifact workflow to provide the corresponding application capability.</param>
     /// <param name="artifactBuildExecutor">Artifact build executor dependency used by the council artifact workflow to provide the corresponding application capability.</param>
-    /// <param name="councilRuntime">Council runtime service dependency used by the council artifact workflow to provide the corresponding application capability.</param>
+    /// <param name="councilRuntime">Council runtime service used for generic archive operations.</param>
+    /// <param name="datapackService">Minecraft datapack service used for datapack validation.</param>
     /// <param name="councilText">Council text service dependency used by the council artifact workflow to provide the corresponding application capability.</param>
     /// <param name="catalog">Local gpt catalog service dependency used by the council artifact workflow to provide the corresponding application capability.</param>
     public partial class CouncilArtifactService(
@@ -18,6 +19,7 @@ namespace LocalGPT.Services
         IMinecraftModWorkspaceService minecraftWorkspaceService,
         IArtifactBuildExecutor artifactBuildExecutor,
         CouncilRuntimeService councilRuntime,
+        MinecraftDatapackService datapackService,
         CouncilTextService councilText,
         LocalGptCatalogService catalog) : ICouncilArtifactService
     {
@@ -62,13 +64,13 @@ namespace LocalGPT.Services
                 var timestamp = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss");
                 var artifacts = new List<CouncilArtifact>();
 
-                if (councilText.IsMinecraftSkeletonMatrixArtifactTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
+                if (datapackService.IsMinecraftSkeletonMatrixArtifactTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
                 {
                     artifacts.AddRange(await CreateMinecraftSkeletonMatrixArtifactsAsync(request, result, timestamp, cancellationToken).ConfigureAwait(false));
                     return artifacts;
                 }
 
-                if (councilText.IsMinecraftDatapackArtifactTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
+                if (datapackService.IsMinecraftDatapackArtifactTarget(request.Prompt, result.FinalAnswer, logger) ?? false)
                 {
                     artifacts.AddRange(await CreateMinecraftDatapackArtifactsAsync(request, result, timestamp, cancellationToken).ConfigureAwait(false));
                     return artifacts;
@@ -159,8 +161,8 @@ namespace LocalGPT.Services
             try
             {
                 var text = $"{request.Prompt} {result.FinalAnswer}";
-                var minecraftVersion = councilText.ExtractMinecraftVersion(text, logger);
-                var identity = councilText.BuildMinecraftDatapackArtifactIdentity(text, timestamp, logger) ?? new MinecraftDatapackArtifactIdentity(string.Empty, string.Empty, string.Empty, string.Empty);
+                var minecraftVersion = datapackService.ExtractMinecraftVersion(text, logger);
+                var identity = datapackService.BuildMinecraftDatapackArtifactIdentity(text, timestamp, logger) ?? new MinecraftDatapackArtifactIdentity(string.Empty, string.Empty, string.Empty, string.Empty);
                 var requestModel = new MinecraftModBuildRequest
                 {
                     ProjectName = identity.ProjectName,
@@ -176,7 +178,7 @@ namespace LocalGPT.Services
                 };
 
                 var workspace = await minecraftWorkspaceService.CreateWorkspaceAsync(requestModel, cancellationToken).ConfigureAwait(false);
-                councilRuntime.ValidateGeneratedDatapackWorkspace(workspace.RootPath, logger);
+                datapackService.ValidateGeneratedDatapackWorkspace(workspace.RootPath, logger);
 
                 var runSuffix = result.RunId.ToString("N")[..8];
                 var zipName = $"{identity.ModId}-datapack-{timestamp}-{runSuffix}.zip";
@@ -234,7 +236,7 @@ namespace LocalGPT.Services
             try
             {
                 var text = $"{request.Prompt} {result.FinalAnswer}";
-                var minecraftVersion = councilText.ExtractMinecraftVersion(text, logger);
+                var minecraftVersion = datapackService.ExtractMinecraftVersion(text, logger);
                 var runSuffix = result.RunId.ToString("N")[..8];
                 var matrixRoot = Path.Combine(ArtifactRoot, $"minecraft-loader-matrix-{timestamp}-{runSuffix}");
                 if (Directory.Exists(matrixRoot))

@@ -1,6 +1,6 @@
 using DevExpress.Blazor;
 using LocalGPT.Interfaces;
-namespace TacosPortal.Services
+namespace LocalGPT.Services
 {
     /// <summary>
     /// Coordinates notification behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.

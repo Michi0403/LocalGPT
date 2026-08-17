@@ -4,6 +4,7 @@
 @inject IProviderModelBenchmarkService BenchmarkService
 @inject CouncilTextService CouncilText
 @inject ILogger<ProviderModelBenchmarkCouncilPanel> Logger
+@inject IProviderModelReviewerPolicyService ReviewerPolicy
 
 <section class="benchmark-council-panel" aria-labelledby="@HeadingId">
     <header>
@@ -57,7 +58,7 @@
         <summary>Benchmark Council reviewer pool (@SelectedReviewerCount selected)</summary>
         <p>Provider-qualified reviewers are independent from benchmark targets. gpt-oss:20b is preferred by default when available; deepscaler/tiny models are not preferred unless you select them.</p>
         <div class="benchmark-reviewer-grid">
-            @foreach (var reviewer in Models.OrderBy(DefaultReviewerPriority).ThenBy(model => model.DisplayName, StringComparer.OrdinalIgnoreCase))
+            @foreach (var reviewer in Models.OrderBy(ReviewerPolicy.GetPriority).ThenBy(model => model.DisplayName, StringComparer.OrdinalIgnoreCase))
             {
                 <label>
                     <input type="checkbox"
@@ -166,7 +167,7 @@
         if (reviewerSelectionKeys.Count == 0)
         {
             foreach (var reviewer in Models
-                .OrderBy(DefaultReviewerPriority)
+                .OrderBy(ReviewerPolicy.GetPriority)
                 .ThenBy(model => model.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .Take(Math.Min(2, Models.Count)))
             {
@@ -304,23 +305,7 @@
         return Task.CompletedTask;
     }
 
-    static int DefaultReviewerPriority(ProviderModelReference model)
-    {
-        var name = model.ModelName ?? string.Empty;
-        if (name.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
-            return 0;
-        if (name.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
-            return 1;
-        if (name.Contains("qwen", StringComparison.OrdinalIgnoreCase) && name.Contains("coder", StringComparison.OrdinalIgnoreCase))
-            return 2;
-        if (name.Contains("deepseek", StringComparison.OrdinalIgnoreCase) && name.Contains("coder", StringComparison.OrdinalIgnoreCase))
-            return 3;
-        if (name.Contains("deepscaler", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("1.5b", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("0.8b", StringComparison.OrdinalIgnoreCase))
-            return 20;
-        return 10;
-    }
+
 
     void Cancel() => benchmarkCts?.Cancel();
 

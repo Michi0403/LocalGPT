@@ -15,10 +15,12 @@ namespace LocalGPT.Services.Persistence;
 /// <param name="databaseInitializer">Database initialization service dependency used by the council text pattern workflow to provide the corresponding application capability.</param>
 /// <param name="systemVariables">System variable definition service dependency used by the council text pattern workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="regexCompiler">Regex compilation service dependency used by the council text pattern workflow to provide the corresponding application capability.</param>
 public sealed class CouncilTextPatternDataService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ISystemVariableDefinitionService systemVariables,
+    IRegexCompilationService regexCompiler,
     ILogger<CouncilTextPatternDataService> logger) : ICouncilTextPatternDataService
 {
     /// <summary>
@@ -276,10 +278,7 @@ public sealed class CouncilTextPatternDataService(
                     return cached.Regex;
                 }
 
-                var compiled = new Regex(
-                    row.Pattern,
-                    ParseFlags(flags),
-                    TimeSpan.FromMilliseconds(timeoutMilliseconds));
+                var compiled = regexCompiler.Compile(row.Pattern, flags, TimeSpan.FromMilliseconds(timeoutMilliseconds), name);
                 _cache[name] = new CouncilTextCachedPattern(row.Pattern, flags, timeoutMilliseconds, compiled);
                 logger.LogDebug($"Loaded Council text regex {{RegexName}} from the database-backed catalog; pattern content omitted.", name);
                 return compiled;
@@ -319,45 +318,5 @@ public sealed class CouncilTextPatternDataService(
         }
     }
 
-    /// <summary>
-    /// Parses flags as part of the council text pattern service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="flags">Flags value supplied to the council text pattern operation and used when producing its result.</param>
-    /// <returns>The regex options produced by the operation.</returns>
-    private RegexOptions ParseFlags(string? flags)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(flags))
-                return RegexOptions.CultureInvariant;
 
-            var result = RegexOptions.CultureInvariant;
-            foreach (var token in flags.Split([',', '|', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                result |= token.ToLowerInvariant() switch
-                {
-                    "i" or "ignorecase" => RegexOptions.IgnoreCase,
-                    "m" or "multiline" => RegexOptions.Multiline,
-                    "s" or "singleline" => RegexOptions.Singleline,
-                    "x" or "ignorepatternwhitespace" => RegexOptions.IgnorePatternWhitespace,
-                    "n" or "explicitcapture" => RegexOptions.ExplicitCapture,
-                    "compiled" => RegexOptions.Compiled,
-                    "c" or "cultureinvariant" => RegexOptions.CultureInvariant,
-                    "ecmascript" => RegexOptions.ECMAScript,
-                    "none" => RegexOptions.None,
-                    _ when Enum.TryParse<RegexOptions>(token, true, out var parsed) => parsed,
-                    _ => throw new InvalidDataException($"Unknown regular-expression option '{token}' in the database-backed catalog.")
-                };
-            }
-
-            return result;
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(
-                exception,
-                $"{nameof(ParseFlags)} could not parse database-backed regular-expression flags; flag content was omitted from logs.");
-            throw;
-        }
-    }
 }

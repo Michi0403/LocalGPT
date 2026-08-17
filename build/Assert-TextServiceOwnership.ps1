@@ -9,7 +9,7 @@ $known = @{}; foreach ($item in $parsedBaseline) { $known[[string]$item] = $true
 $failures = New-Object System.Collections.Generic.List[string]
 $sourceRoot = (Join-Path $root 'src\LocalGPT')
 $folders = @('Components','Controllers','Controller')
-$pattern = '(?m)^(?<line>.*(?:\bRegex\s*\.|\bnew\s+Regex\s*\(|\.Replace\s*\(|\.Split\s*\(|\bstring\.Join\s*\(|\bWebUtility\.HtmlDecode\s*\().*)$'
+$pattern = '(?m)^(?<line>.*(?:\bRegex\s*\.|\bnew\s+Regex\s*\(|\.Replace\s*\(|\.Split\s*\(|\bstring\.Join\s*\(|\bWebUtility\.HtmlDecode\s*\(|\.StartsWith\s*\(|\.EndsWith\s*\(|\.IndexOf\s*\(|\.Substring\s*\(|\.Contains\s*\([^\r\n;]*StringComparison\.).*)$'
 foreach ($folder in $folders) {
     $path = Join-Path $sourceRoot $folder
     if (-not (Test-Path -LiteralPath $path -PathType Container)) { continue }
@@ -18,7 +18,7 @@ foreach ($folder in $folders) {
         $text = [System.IO.File]::ReadAllText($file.FullName, [System.Text.Encoding]::UTF8)
         foreach ($match in [regex]::Matches($text, $pattern)) {
             $line = ([regex]::Replace($match.Groups['line'].Value.Trim(), '\s+', ' ')).Trim()
-            if ($line -match '(?:CouncilText|PanelText|TextService|RegexService|StringService)\.') { continue }
+            if ($line -match '(?:CouncilText|PanelText|TextService|RegexService|StringService|ReviewerPolicy)\.') { continue }
             $id = "${relative}|${line}"
             if (-not $known.ContainsKey($id)) { $failures.Add($id) }
         }

@@ -513,6 +513,15 @@ namespace LocalGPT.BusinessObjects
         public string Reason { get; set; } = string.Empty;
     }
 
+    /// <summary>Identifies semantic behavior attached to a Council poll option independently from its translated label.</summary>
+    public enum CouncilUserPollOptionKind
+    {
+        /// <summary>No special UI-side behavior is required.</summary>
+        Standard = 0,
+        /// <summary>The option confirms removal of unavailable or faulty Council members.</summary>
+        ExcludeUnavailableMembers = 1
+    }
+
     /// <summary>
     /// Represents a council user poll option application type, grouping the state and behavior that belong to that domain concept.
     /// </summary>
@@ -523,6 +532,10 @@ namespace LocalGPT.BusinessObjects
         /// </summary>
         /// <value>The label value exposed by <see cref="CouncilUserPollOption"/>.</value>
         public string Label { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets the semantic option kind used by UI behavior without inspecting translated labels.</summary>
+        /// <value>The kind value exposed by <see cref="CouncilUserPollOption"/>.</value>
+        public CouncilUserPollOptionKind Kind { get; set; } = CouncilUserPollOptionKind.Standard;
 
         /// <summary>
         /// Gets or sets the follow up prompt value that forms part of the council user poll option state consumed or produced by the surrounding workflow.
