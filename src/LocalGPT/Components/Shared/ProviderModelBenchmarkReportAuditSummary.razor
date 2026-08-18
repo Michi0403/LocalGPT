@@ -1,0 +1,23 @@
+@using LocalGPT.BusinessObjects
+
+<div class="benchmark-audit-summary" role="group" aria-label="Deterministic benchmark audit summary">
+    <strong>Deterministic measurement evidence</strong>
+    <div class="benchmark-audit-summary-grid">
+        <span><b>@SuccessfulTargets/@AttemptedTargets</b> targets with measured success</span>
+        <span><b>@SuccessfulTasks/@MeasuredTasks</b> contract-compliant task results</span>
+        <span><b>@ProviderCalls</b> provider call attempts</span>
+        <span><b>@FailedTargets</b> targets without a successful measured profile</span>
+    </div>
+    <small>Provider measurements and captured task evidence are primary audit data. Council reviewer prose is secondary interpretation and should not override failed or inconclusive measurements.</small>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ProviderModelBenchmarkReport Report { get; set; } = new();
+
+    private int AttemptedTargets => Report.Targets.Count;
+    private int SuccessfulTargets => Report.Targets.Count(target => target.Profiles.Any(profile => profile.Tasks.Any(task => task.Succeeded)));
+    private int FailedTargets => Math.Max(0, AttemptedTargets - SuccessfulTargets);
+    private int MeasuredTasks => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Count));
+    private int SuccessfulTasks => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Count(task => task.Succeeded)));
+    private int ProviderCalls => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Sum(task => task.AttemptCount)));
+}

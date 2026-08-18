@@ -1,0 +1,156 @@
+@using LocalGPT.BusinessObjects
+@using LocalGPT.Interfaces
+@using Microsoft.AspNetCore.Components
+@inject IChatContentRenderer ChatContentRenderer
+@inject IProviderModelBenchmarkService BenchmarkService
+
+<div class="benchmark-task-evidence">
+    <button type="button"
+            class="benchmark-task-evidence-toggle"
+            aria-expanded="@evidenceExpanded"
+            @onclick="@(() => evidenceExpanded = !evidenceExpanded)">
+        <span>@Task.TaskName</span>
+        <small>@StatusSummary · @(evidenceExpanded ? "hide evidence" : "inspect evidence")</small>
+    </button>
+
+    @if (evidenceExpanded)
+    {
+        <div class="benchmark-task-evidence-body">
+            <section>
+                <strong>Benchmark assignment</strong>
+                <pre class="benchmark-evidence-text">@Task.TaskPrompt</pre>
+                @if (Task.TaskPromptTruncated)
+                {
+                    <small>The in-memory display is a bounded head/tail projection. The complete assignment can be loaded from the durable task archive below.</small>
+                }
+            </section>
+
+            <section>
+                <strong>Actual provider stream / exposed model thinking</strong>
+                @if (string.IsNullOrEmpty(Task.ProviderTrace))
+                {
+                    <p class="benchmark-evidence-empty">No provider stream fragment was captured. A model/runtime that does not expose reasoning cannot be made to reveal hidden reasoning by the benchmark UI.</p>
+                }
+                else
+                {
+                    <div class="benchmark-evidence-rendered">@((MarkupString)ChatContentRenderer.Render(Task.ProviderTrace))</div>
+                    @if (Task.ProviderTraceTruncated)
+                    {
+                        <small>The in-memory display is a bounded head/tail projection so long runs cannot flood the Blazor render tree. The complete captured stream is stored separately when the durable artifact is available.</small>
+                    }
+                }
+            </section>
+
+            <section>
+                <strong>Measured final task result</strong>
+                @if (string.IsNullOrWhiteSpace(Task.ResponseText))
+                {
+                    <p class="benchmark-evidence-empty">No visible final answer was available to score. Any captured provider stream remains above.</p>
+                }
+                else
+                {
+                    <div class="benchmark-evidence-rendered benchmark-final-answer">@((MarkupString)ChatContentRenderer.Render(Task.ResponseText))</div>
+                    @if (Task.ResponseTextTruncated)
+                    {
+                        <small>The in-memory final-answer display is a bounded head/tail projection. The complete scored answer can be loaded from the durable task archive below.</small>
+                    }
+                }
+            </section>
+
+            @if (!string.IsNullOrWhiteSpace(Task.Error))
+            {
+                <p class="benchmark-evidence-error"><strong>Provider/measurement error:</strong> @Task.Error</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Task.EvidenceArtifactId))
+            {
+                <section class="benchmark-durable-evidence">
+                    <strong>Durable full-fidelity task evidence</strong>
+                    @if (fullEvidence is null)
+                    {
+                        <p>The complete captured assignment, provider stream and scored final answer are stored outside the recurrent render tree.</p>
+                        <button type="button"
+                                class="benchmark-task-evidence-load"
+                                disabled="@isLoadingFullEvidence"
+                                @onclick="LoadFullEvidenceAsync">
+                            @(isLoadingFullEvidence ? "Loading archived evidence…" : "Load complete archived evidence")
+                        </button>
+                        @if (!string.IsNullOrWhiteSpace(fullEvidenceError))
+                        {
+                            <p class="benchmark-evidence-error">@fullEvidenceError</p>
+                        }
+                    }
+                    else
+                    {
+                        <p class="benchmark-evidence-archive-status">Loaded durable artifact · captured @FormatTimestamp(fullEvidence.CapturedAtUtc)</p>
+                        <details>
+                            <summary>Complete assignment</summary>
+                            <pre class="benchmark-evidence-text benchmark-evidence-full">@fullEvidence.TaskPrompt</pre>
+                        </details>
+                        <details>
+                            <summary>Complete provider stream / exposed thinking</summary>
+                            <pre class="benchmark-evidence-text benchmark-evidence-full">@fullEvidence.ProviderTrace</pre>
+                        </details>
+                        <details>
+                            <summary>Complete measured final answer</summary>
+                            <pre class="benchmark-evidence-text benchmark-evidence-full">@fullEvidence.ResponseText</pre>
+                        </details>
+                    }
+                </section>
+            }
+            else
+            {
+                <p class="benchmark-evidence-empty">No durable full-fidelity task artifact is attached to this result. The bounded evidence above is still the exact retained report projection.</p>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ProviderModelBenchmarkTaskResult Task { get; set; } = new();
+
+    private bool evidenceExpanded;
+    private bool isLoadingFullEvidence;
+    private string fullEvidenceError = string.Empty;
+    private ProviderModelBenchmarkTaskEvidenceArchive? fullEvidence;
+
+    private string FormatTimestamp(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz");
+
+    string StatusSummary => Task.Succeeded
+        ? $"quality {Task.QualityScore:0.00} · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)"
+        : string.IsNullOrWhiteSpace(Task.Error)
+            ? $"not contract-compliant · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)"
+            : $"failed · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)";
+
+    private async Task LoadFullEvidenceAsync()
+    {
+        if (isLoadingFullEvidence || string.IsNullOrWhiteSpace(Task.EvidenceArtifactId))
+            return;
+        isLoadingFullEvidence = true;
+        fullEvidenceError = string.Empty;
+        ProviderModelBenchmarkTaskEvidenceArchive? loadedEvidence = null;
+        var nextError = string.Empty;
+        try
+        {
+            loadedEvidence = await BenchmarkService.LoadTaskEvidenceAsync(Task.EvidenceArtifactId).ConfigureAwait(false);
+            if (loadedEvidence is null)
+                nextError = "The durable task artifact is unavailable or could not be validated.";
+        }
+        catch (OperationCanceledException)
+        {
+            nextError = "Loading the durable task artifact was cancelled.";
+        }
+        catch
+        {
+            nextError = "The durable task artifact could not be loaded. The bounded report evidence above remains available.";
+        }
+
+        await InvokeAsync(() =>
+        {
+            fullEvidence = loadedEvidence;
+            fullEvidenceError = nextError;
+            isLoadingFullEvidence = false;
+        }).ConfigureAwait(false);
+    }
+}

@@ -151,8 +151,9 @@
                 <p class="benchmark-status" role="status" aria-live="polite">@statusText</p>
             }
 
-            @if (SuccessfulTarget is { } target)
+            @if (report is not null && SuccessfulTarget is { } target)
             {
+                <ProviderModelBenchmarkReportAuditSummary Report="report" />
                 <div class="benchmark-result">
                     <strong>Recommended: @target.Recommendation.ProfileName</strong>
                     <span>Empirical @target.Recommendation.EmpiricalScore.ToString("0.0") / Council @target.Recommendation.CouncilScore.ToString("0.0")</span>
@@ -162,12 +163,12 @@
                     {
                         <details>
                             <summary>@profile.ProfileName · score @profile.Score.ToString("0.0") · @profile.AverageTokensPerSecond.ToString("0.0") tok/s</summary>
-                            <ul>
+                            <div class="benchmark-task-results">
                                 @foreach (var task in profile.Tasks)
                                 {
-                                    <li>@task.TaskName: @(task.Succeeded ? $"quality {task.QualityScore:0.00}, {task.TotalMilliseconds} ms" : task.Error)</li>
+                                    <ProviderModelBenchmarkTaskEvidence Task="task" />
                                 }
-                            </ul>
+                            </div>
                         </details>
                     }
                 </div>

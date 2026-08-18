@@ -17,6 +17,30 @@ public interface IProviderModelBenchmarkService
         ProviderModelBenchmarkRequest request,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Returns recent durable benchmark evidence archives without loading their potentially large task payloads.</summary>
+    /// <param name="maxCount">Maximum number of report archives to return, newest first.</param>
+    /// <param name="cancellationToken">Cancellation token for local evidence enumeration.</param>
+    /// <returns>Recent durable benchmark evidence descriptors.</returns>
+    Task<IReadOnlyList<ProviderModelBenchmarkStoredEvidence>> GetStoredEvidenceAsync(
+        int maxCount = 20,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Loads one durable benchmark report archive by run identifier.</summary>
+    /// <param name="runId">Benchmark run identifier.</param>
+    /// <param name="cancellationToken">Cancellation token for local evidence loading.</param>
+    /// <returns>The stored benchmark report, or null when no report archive exists.</returns>
+    Task<ProviderModelBenchmarkReport?> LoadStoredEvidenceAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Loads the full-fidelity durable evidence for one measured task.</summary>
+    /// <param name="artifactId">LocalGPT-owned relative artifact identifier retained by the task result.</param>
+    /// <param name="cancellationToken">Cancellation token for local evidence loading.</param>
+    /// <returns>The full task evidence archive, or null when the artifact does not exist or is invalid.</returns>
+    Task<ProviderModelBenchmarkTaskEvidenceArchive?> LoadTaskEvidenceAsync(
+        string artifactId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Stores successful measured recommendations as a hardware-spooler performance profile without changing Council membership.
     /// </summary>

@@ -159,6 +159,11 @@ public sealed class ProviderModelBenchmarkRequest
     /// <value>The progress callback, or null when only the benchmark's own live session should receive progress.</value>
     [JsonIgnore]
     public Action<string>? ProgressMessage { get; set; }
+
+    /// <summary>Gets or sets an optional raw provider-stream callback. Unlike progress messages, fragments are forwarded unchanged so token spacing, thinking disclosures and provider trace blocks remain reconstructable.</summary>
+    /// <value>The raw stream callback, or null when the caller does not own a provider-stream surface.</value>
+    [JsonIgnore]
+    public Action<string>? ProviderStream { get; set; }
 }
 
 /// <summary>
@@ -415,10 +420,119 @@ public sealed class ProviderModelBenchmarkTaskResult
     /// </summary>
     /// <value>The response preview value exposed by <see cref="ProviderModelBenchmarkTaskResult"/>.</value>
     public string ResponsePreview { get; set; } = string.Empty;
+    /// <summary>Gets or sets the bounded benchmark assignment retained with the measurement so a developer can inspect what the subject actually received.</summary>
+    /// <value>The task prompt evidence retained by the benchmark report.</value>
+    public string TaskPrompt { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether <see cref="TaskPrompt"/> was windowed because it exceeded the benchmark report evidence limit.</summary>
+    /// <value><see langword="true"/> when older middle prompt content was omitted from the report projection.</value>
+    public bool TaskPromptTruncated { get; set; }
+    /// <summary>Gets or sets the bounded provider stream captured from the actual measurement, including provider-visible thinking/status/function trace markup when supplied.</summary>
+    /// <value>The user-auditable provider stream retained by the benchmark report.</value>
+    public string ProviderTrace { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether <see cref="ProviderTrace"/> was windowed because it exceeded the benchmark report evidence limit.</summary>
+    /// <value><see langword="true"/> when older middle provider-stream content was omitted from the report projection.</value>
+    public bool ProviderTraceTruncated { get; set; }
+    /// <summary>Gets or sets the bounded visible final answer that was actually scored for this benchmark task.</summary>
+    /// <value>The final task result after LocalGPT removes thinking/status wrappers from the provider stream.</value>
+    public string ResponseText { get; set; } = string.Empty;
+    /// <summary>Gets or sets whether <see cref="ResponseText"/> was windowed because it exceeded the benchmark report evidence limit.</summary>
+    /// <value><see langword="true"/> when older middle final-answer content was omitted from the report projection.</value>
+    public bool ResponseTextTruncated { get; set; }
+    /// <summary>Gets or sets the durable LocalGPT benchmark-evidence artifact identifier for this exact measured task.</summary>
+    /// <value>A LocalGPT-owned relative artifact identifier, or an empty string if durable evidence could not be written.</value>
+    public string EvidenceArtifactId { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the error value that forms part of the provider model benchmark task state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The error value exposed by <see cref="ProviderModelBenchmarkTaskResult"/>.</value>
+    public string Error { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Describes one durable benchmark report stored under the LocalGPT user-data directory.
+/// </summary>
+public sealed class ProviderModelBenchmarkStoredEvidence
+{
+    /// <summary>Gets or sets the benchmark run identifier represented by this archive.</summary>
+    public Guid RunId { get; set; }
+
+    /// <summary>Gets or sets when the durable report archive was last written.</summary>
+    public DateTimeOffset StoredAtUtc { get; set; }
+
+    /// <summary>Gets or sets the current report archive size in bytes.</summary>
+    public long ByteLength { get; set; }
+}
+
+/// <summary>
+/// Versioned durable wrapper for a completed or gracefully stopped provider benchmark report.
+/// </summary>
+public sealed class ProviderModelBenchmarkEvidenceArchive
+{
+    /// <summary>Gets or sets the archive schema version used for forward-compatible local evidence loading.</summary>
+    public int SchemaVersion { get; set; } = 1;
+
+    /// <summary>Gets or sets when this archive snapshot was written.</summary>
+    public DateTimeOffset StoredAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>Gets or sets the provider benchmark report, including bounded UI projections and references to full task evidence artifacts.</summary>
+    public ProviderModelBenchmarkReport Report { get; set; } = new();
+}
+
+/// <summary>
+/// Durable full-fidelity evidence for one measured provider benchmark task. This payload is loaded only on demand so very large
+/// reasoning/final-answer streams do not become part of the recurrent Blazor render tree.
+/// </summary>
+public sealed class ProviderModelBenchmarkTaskEvidenceArchive
+{
+    /// <summary>Gets or sets the archive schema version.</summary>
+    public int SchemaVersion { get; set; } = 1;
+
+    /// <summary>Gets or sets the owning benchmark run identifier.</summary>
+    public Guid RunId { get; set; }
+
+    /// <summary>Gets or sets when the full evidence artifact was captured.</summary>
+    public DateTimeOffset CapturedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>Gets or sets the stable provider-qualified target identifier.</summary>
+    public string TargetStableId { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the provider-qualified target identity shown to developers.</summary>
+    public string TargetSelectionKey { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the measured profile name.</summary>
+    public string ProfileName { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the one-based task ordinal within the measured profile.</summary>
+    public int TaskOrdinal { get; set; }
+
+    /// <summary>Gets or sets the measured task name.</summary>
+    public string TaskName { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the exact task assignment sent to the provider model.</summary>
+    public string TaskPrompt { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the complete provider stream captured for this task, including exposed thinking/function/status trace.</summary>
+    public string ProviderTrace { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the complete visible final answer that benchmark scoring consumed.</summary>
+    public string ResponseText { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets whether the task satisfied the deterministic benchmark contract.</summary>
+    public bool Succeeded { get; set; }
+
+    /// <summary>Gets or sets the deterministic quality score.</summary>
+    public double QualityScore { get; set; }
+
+    /// <summary>Gets or sets measured token throughput.</summary>
+    public double TokensPerSecond { get; set; }
+
+    /// <summary>Gets or sets task elapsed time in milliseconds.</summary>
+    public long TotalMilliseconds { get; set; }
+
+    /// <summary>Gets or sets actual provider request attempts for this task.</summary>
+    public int AttemptCount { get; set; }
+
+    /// <summary>Gets or sets any provider/measurement error retained with the full evidence.</summary>
     public string Error { get; set; } = string.Empty;
 }
 

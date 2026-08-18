@@ -622,27 +622,50 @@
                                                     <span class="localgpt-live-result-ready">Result ready · expand</span>
                                                 }
                                             </summary>
-                                            @if (!activity.IsRunning && !string.IsNullOrWhiteSpace(activity.FinalContent))
+                                            @if (activity.IsRunning)
                                             {
-                                                <section class="localgpt-live-participant-final" aria-label="Completed Council member answer">
-                                                    <strong>Completed answer</strong>
-                                                    <div data-localgpt-details-host>
-                                                        @(new MarkupString(ChatContentRenderer.Render(activity.FinalContent)))
-                                                    </div>
-                                                </section>
+                                                @if (!string.IsNullOrWhiteSpace(activity.Content))
+                                                {
+                                                    <details class="localgpt-live-participant-stream-history" open>
+                                                        <summary>Live thinking, functions and provider stream</summary>
+                                                        <div class="localgpt-live-participant-content" data-localgpt-details-host>
+                                                            @(new MarkupString(ChatContentRenderer.Render(activity.Content)))
+                                                        </div>
+                                                    </details>
+                                                }
+                                                else
+                                                {
+                                                    <p class="localgpt-live-participant-waiting">Waiting for streamed model output…</p>
+                                                }
                                             }
-                                            @if (!string.IsNullOrWhiteSpace(activity.Content))
+                                            else if (!revealedCompletedCouncilActivityEvidence.Contains(activity.ActivityKey))
                                             {
-                                                <details class="localgpt-live-participant-stream-history" open="@activity.IsRunning">
-                                                    <summary>@(activity.IsRunning ? "Live thinking, functions and provider stream" : "Thinking, functions and provider stream")</summary>
-                                                    <div class="localgpt-live-participant-content" data-localgpt-details-host>
-                                                        @(new MarkupString(ChatContentRenderer.Render(activity.Content)))
-                                                    </div>
-                                                </details>
+                                                <button type="button"
+                                                        class="localgpt-live-participant-evidence-button"
+                                                        @onclick="@(() => revealedCompletedCouncilActivityEvidence.Add(activity.ActivityKey))">
+                                                    Inspect completed answer and provider evidence
+                                                </button>
                                             }
-                                            else if (activity.IsRunning)
+                                            else
                                             {
-                                                <p class="localgpt-live-participant-waiting">Waiting for streamed model output…</p>
+                                                @if (!string.IsNullOrWhiteSpace(activity.FinalContent))
+                                                {
+                                                    <section class="localgpt-live-participant-final" aria-label="Completed Council member answer">
+                                                        <strong>Completed answer</strong>
+                                                        <div data-localgpt-details-host>
+                                                            @(new MarkupString(ChatContentRenderer.Render(activity.FinalContent)))
+                                                        </div>
+                                                    </section>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(activity.Content))
+                                                {
+                                                    <details class="localgpt-live-participant-stream-history" open>
+                                                        <summary>Thinking, functions and provider stream</summary>
+                                                        <div class="localgpt-live-participant-content" data-localgpt-details-host>
+                                                            @(new MarkupString(ChatContentRenderer.Render(activity.Content)))
+                                                        </div>
+                                                    </details>
+                                                }
                                             }
                                         </details>
                                     }

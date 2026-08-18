@@ -16,19 +16,23 @@ namespace LocalGPT.Services
     /// <summary>
     /// Performs run profile as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
+    /// <param name="runId">Owning benchmark run identifier used for durable task evidence.</param>
     /// <param name="model">Model value supplied to the provider model benchmark operation and used when producing its result.</param>
     /// <param name="profile">Profile value supplied to the provider model benchmark operation and used when producing its result.</param>
     /// <param name="tasks">Benchmark task dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
     /// <param name="maxSeconds">Max seconds value supplied to the provider model benchmark operation and used when producing its result.</param>
     /// <param name="publish">Publish value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="providerStream">Raw provider-stream callback used to preserve token boundaries and provider-visible trace evidence.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The provider model benchmark profile result produced by the operation.</returns>
     private async Task<ProviderModelBenchmarkProfileResult> RunProfileAsync(
+        Guid runId,
         ProviderModelReference model,
         BenchmarkProfile profile,
         IReadOnlyList<BenchmarkTask> tasks,
         int maxSeconds,
         Action<string> publish,
+        Action<string> providerStream,
         CancellationToken cancellationToken)
     {
         var result = new ProviderModelBenchmarkProfileResult
@@ -45,7 +49,13 @@ namespace LocalGPT.Services
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(maxSeconds));
             var taskResult = new ProviderModelBenchmarkTaskResult { TaskName = task.Name };
+            taskResult.TaskPrompt = LimitBenchmarkEvidence(task.Prompt, 24_000, out var promptTruncated);
+            taskResult.TaskPromptTruncated = promptTruncated;
             result.Tasks.Add(taskResult);
+            var providerTrace = new StringBuilder();
+            var latestAttemptTranscript = new StringBuilder();
+            var stopwatch = Stopwatch.StartNew();
+            string text = string.Empty;
             try
             {
                 using var client = providerModels.CreateChatClient(
@@ -56,11 +66,13 @@ namespace LocalGPT.Services
                     profile.OllamaNumGpu,
                     enableAutomaticTools: false,
                     throwOnFailure: true);
-                var stopwatch = Stopwatch.StartNew();
-                string text = string.Empty;
                 for (var attempt = 0; attempt < (task.EnforceRoleExecution ? 2 : 1); attempt++)
                 {
                     taskResult.AttemptCount = attempt + 1;
+                    latestAttemptTranscript.Clear();
+                    var attemptHeader = $"\n\n#### {task.Name} · provider attempt {attempt + 1}\n\n";
+                    providerTrace.Append(attemptHeader);
+                    providerStream(attemptHeader);
                     var messages = new List<ChatMessage>
                     {
                         new(ChatRole.System,
@@ -76,11 +88,31 @@ namespace LocalGPT.Services
                         publish($"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} received one corrective same-role retry after generic non-performance.");
                     }
 
-                    var response = await client.GetResponseAsync(
+                    await foreach (var update in client.GetStreamingResponseAsync(
                         messages,
                         new ChatOptions { MaxOutputTokens = profile.OutputTokens, Temperature = 0f },
-                        timeout.Token).ConfigureAwait(false);
-                    text = response.Text ?? string.Empty;
+                        timeout.Token).WithCancellation(timeout.Token).ConfigureAwait(false))
+                    {
+                        var updateText = update.Text ?? string.Empty;
+                        if (!string.IsNullOrEmpty(updateText))
+                        {
+                            latestAttemptTranscript.Append(updateText);
+                            providerTrace.Append(updateText);
+                            providerStream(updateText);
+                        }
+
+                        foreach (var providerTraceFragment in councilRuntime.BuildUserVisibleProviderTrace(update, logger))
+                        {
+                            if (string.IsNullOrEmpty(providerTraceFragment))
+                                continue;
+                            providerTrace.Append(providerTraceFragment);
+                            providerStream(providerTraceFragment);
+                        }
+                    }
+
+                    // Score only the visible answer. Thinking/status/function traces remain inspectable but
+                    // must not inflate the measured answer quality or token throughput.
+                    text = councilText.MultiModelCouncilServiceStripThinking(latestAttemptTranscript.ToString(), logger);
                     if (!task.EnforceRoleExecution || !LooksLikeGenericCapabilityRefusal(text) || attempt > 0)
                         break;
                 }
@@ -103,14 +135,37 @@ namespace LocalGPT.Services
             }
             catch (OperationCanceledException)
             {
+                stopwatch.Stop();
+                taskResult.TotalMilliseconds = stopwatch.ElapsedMilliseconds;
                 taskResult.Error = $"The call exceeded {maxSeconds} seconds.";
-                publish($"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} timed out after {maxSeconds} seconds.");
+                publish($"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} timed out after {maxSeconds} seconds. Partial provider evidence remains inspectable.");
             }
             catch (Exception exception)
             {
+                stopwatch.Stop();
+                taskResult.TotalMilliseconds = stopwatch.ElapsedMilliseconds;
                 logger.LogDebug(exception, "Benchmark task failed for model identity {ModelIdentity}; content was omitted.", model.StableId);
                 taskResult.Error = "The provider call failed. Review LocalGPT logs for the provider-qualified model identity.";
-                publish($"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} failed. Prompt and model output content were omitted.");
+                publish($"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} failed. Any provider stream received before failure remains attached as benchmark evidence.");
+            }
+            finally
+            {
+                // A timeout/failure can leave an unclosed thinking block in the partial stream. Keep that
+                // evidence in ProviderTrace rather than relabelling it as a scored final answer.
+                var fullProviderTrace = providerTrace.ToString();
+                taskResult.ResponseText = LimitBenchmarkEvidence(text, 48_000, out var responseTruncated);
+                taskResult.ResponseTextTruncated = responseTruncated;
+                taskResult.ProviderTrace = LimitBenchmarkEvidence(fullProviderTrace, 64_000, out var traceTruncated);
+                taskResult.ProviderTraceTruncated = traceTruncated;
+                taskResult.EvidenceArtifactId = await TryPersistFullTaskEvidenceAsync(
+                    runId,
+                    model,
+                    profile.Name,
+                    taskIndex + 1,
+                    task.Prompt,
+                    fullProviderTrace,
+                    text,
+                    taskResult).ConfigureAwait(false);
             }
         }
 
@@ -125,6 +180,37 @@ namespace LocalGPT.Services
             result.Score = qualityComponent + speedComponent;
         }
         return result;
+    }
+
+    /// <summary>Creates a bounded evidence projection while preserving both the beginning and newest end of unusually large benchmark text.</summary>
+    /// <param name="value">Prompt, provider stream or final answer to retain.</param>
+    /// <param name="maxCharacters">Maximum report projection size.</param>
+    /// <param name="truncated">Receives whether a middle section had to be omitted.</param>
+    /// <returns>The original text when small enough; otherwise a head/tail window with an explicit omission marker.</returns>
+    private string LimitBenchmarkEvidence(string? value, int maxCharacters, out bool truncated)
+    {
+        try
+        {
+            var text = value ?? string.Empty;
+            if (text.Length <= maxCharacters)
+            {
+                truncated = false;
+                return text;
+            }
+
+            truncated = true;
+            const string marker = "\n\n> _LocalGPT benchmark evidence window: unusually large middle content omitted from this result card; the live run stream retained the provider output while it was active._\n\n";
+            var available = Math.Max(2, maxCharacters - marker.Length);
+            var head = available / 2;
+            var tail = available - head;
+            return string.Concat(text[..head], marker, text[(text.Length - tail)..]);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating bounded provider benchmark evidence failed; prompt and model content were omitted from diagnostics.");
+            truncated = false;
+            return value ?? string.Empty;
+        }
     }
 
     /// <summary>

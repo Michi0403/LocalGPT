@@ -1,0 +1,182 @@
+@using LocalGPT.BusinessObjects
+@using LocalGPT.Interfaces
+@inject IProviderModelBenchmarkService BenchmarkService
+
+<details class="benchmark-evidence-history">
+    <summary>Saved benchmark audit evidence (@storedEvidence.Count recent archive(s))</summary>
+    <div class="benchmark-evidence-history-body">
+        <div class="benchmark-evidence-history-actions">
+            <button type="button" class="btn btn-outline-secondary" disabled="@isBusy" @onclick="RefreshAsync">Refresh saved evidence</button>
+            @if (storedEvidence.Count > 0)
+            {
+                <label>
+                    <span>Stored benchmark run</span>
+                    <select class="form-select" value="@selectedRunValue" @onchange="OnStoredRunChangedAsync" disabled="@isBusy">
+                        <option value="">Select a durable run…</option>
+                        @foreach (var item in storedEvidence)
+                        {
+                            <option value="@item.RunId">@FormatTimestamp(item.StoredAtUtc) · @ShortRunId(item.RunId) · @FormatBytes(item.ByteLength)</option>
+                        }
+                    </select>
+                </label>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(statusText))
+        {
+            <p role="status" aria-live="polite">@statusText</p>
+        }
+
+        @if (loadedReport is not null)
+        {
+            <ProviderModelBenchmarkReportAuditSummary Report="loadedReport" />
+            <p><strong>Run @ShortRunId(loadedReport.RunId)</strong> · started @FormatTimestamp(loadedReport.StartedAtUtc) · completed @FormatCompletion(loadedReport)</p>
+            @if (loadedReport.Warnings.Count > 0)
+            {
+                <ul>
+                    @foreach (var warning in loadedReport.Warnings)
+                    {
+                        <li>@warning</li>
+                    }
+                </ul>
+            }
+
+            <label class="benchmark-evidence-history-target-picker">
+                <span>Inspect provider-qualified target</span>
+                <select class="form-select" value="@selectedTargetKey" @onchange="OnTargetChanged">
+                    @foreach (var target in loadedReport.Targets)
+                    {
+                        <option value="@target.Model.SelectionKey">@target.Model.SelectionKey</option>
+                    }
+                </select>
+            </label>
+
+            @if (SelectedTarget is { } selectedTarget)
+            {
+                <section class="benchmark-evidence-history-target">
+                    <header>
+                        <strong>@selectedTarget.Model.SelectionKey</strong>
+                        <small>@(string.IsNullOrWhiteSpace(selectedTarget.Error) ? selectedTarget.Recommendation.ProfileName : selectedTarget.Error)</small>
+                    </header>
+                    @foreach (var profile in selectedTarget.Profiles.OrderBy(profile => profile.ContextTokens).ThenBy(profile => profile.OutputTokens))
+                    {
+                        <details>
+                            <summary>@profile.ProfileName · @profile.ContextTokens.ToString("N0") ctx · @profile.OutputTokens.ToString("N0") out · score @profile.Score.ToString("0.0")</summary>
+                            <div class="benchmark-evidence-history-task-list">
+                                @foreach (var task in profile.Tasks)
+                                {
+                                    <ProviderModelBenchmarkTaskEvidence Task="task" />
+                                }
+                            </div>
+                        </details>
+                    }
+                </section>
+            }
+        }
+    </div>
+</details>
+
+@code {
+    private IReadOnlyList<ProviderModelBenchmarkStoredEvidence> storedEvidence = [];
+    private ProviderModelBenchmarkReport? loadedReport;
+    private bool isBusy;
+    private string statusText = string.Empty;
+    private string selectedRunValue = string.Empty;
+    private string selectedTargetKey = string.Empty;
+
+    private ProviderModelBenchmarkTargetResult? SelectedTarget => loadedReport?.Targets.FirstOrDefault(target =>
+        target.Model.SelectionKey.Equals(selectedTargetKey, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync().ConfigureAwait(true);
+    }
+
+    private async Task RefreshAsync()
+    {
+        isBusy = true;
+        statusText = string.Empty;
+        IReadOnlyList<ProviderModelBenchmarkStoredEvidence> refreshedEvidence = [];
+        var nextStatus = string.Empty;
+        try
+        {
+            refreshedEvidence = await BenchmarkService.GetStoredEvidenceAsync(30).ConfigureAwait(false);
+            if (refreshedEvidence.Count == 0)
+                nextStatus = "No durable benchmark audit archive has been written by this LocalGPT installation yet.";
+        }
+        catch (OperationCanceledException)
+        {
+            nextStatus = "Refreshing saved benchmark evidence was cancelled.";
+        }
+        catch
+        {
+            nextStatus = "Saved benchmark evidence could not be enumerated. Current in-memory benchmark evidence remains available.";
+        }
+
+        await InvokeAsync(() =>
+        {
+            storedEvidence = refreshedEvidence;
+            statusText = nextStatus;
+            isBusy = false;
+        }).ConfigureAwait(false);
+    }
+
+    private async Task OnStoredRunChangedAsync(ChangeEventArgs args)
+    {
+        selectedRunValue = Convert.ToString(args.Value) ?? string.Empty;
+        loadedReport = null;
+        selectedTargetKey = string.Empty;
+        statusText = string.Empty;
+        if (!Guid.TryParse(selectedRunValue, out var runId))
+            return;
+
+        isBusy = true;
+        ProviderModelBenchmarkReport? nextReport = null;
+        var nextStatus = string.Empty;
+        try
+        {
+            nextReport = await BenchmarkService.LoadStoredEvidenceAsync(runId).ConfigureAwait(false);
+            nextStatus = nextReport is null
+                ? "The selected benchmark archive is unavailable or invalid."
+                : $"Loaded durable benchmark evidence {ShortRunId(runId)}. Full task streams remain disk-backed until explicitly requested.";
+        }
+        catch (OperationCanceledException)
+        {
+            nextStatus = "Loading the saved benchmark archive was cancelled.";
+        }
+        catch
+        {
+            nextStatus = "The saved benchmark archive could not be loaded.";
+        }
+
+        await InvokeAsync(() =>
+        {
+            loadedReport = nextReport;
+            selectedTargetKey = nextReport?.Targets.FirstOrDefault()?.Model.SelectionKey ?? string.Empty;
+            statusText = nextStatus;
+            isBusy = false;
+        }).ConfigureAwait(false);
+    }
+
+    private void OnTargetChanged(ChangeEventArgs args) =>
+        selectedTargetKey = Convert.ToString(args.Value) ?? string.Empty;
+
+    private string ShortRunId(Guid runId) => runId.ToString("N")[..8];
+
+    private string FormatTimestamp(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+
+    private string FormatCompletion(ProviderModelBenchmarkReport report) =>
+        report.CompletedAtUtc == default
+            ? "not marked complete"
+            : FormatTimestamp(report.CompletedAtUtc);
+
+    private string FormatBytes(long bytes)
+    {
+        if (bytes >= 1024L * 1024L)
+            return $"{bytes / (1024d * 1024d):0.0} MB";
+        if (bytes >= 1024L)
+            return $"{bytes / 1024d:0.0} KB";
+        return $"{bytes} B";
+    }
+}

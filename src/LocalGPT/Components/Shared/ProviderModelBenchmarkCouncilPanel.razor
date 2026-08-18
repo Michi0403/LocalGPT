@@ -94,6 +94,7 @@
 
     @if (report is not null)
     {
+        <ProviderModelBenchmarkReportAuditSummary Report="report" />
         <div class="benchmark-council-results">
             @foreach (var target in report.Targets)
             {
@@ -107,11 +108,25 @@
                     {
                         <p>@target.Recommendation.ProfileName · context @target.Recommendation.ContextTokens.ToString("N0") · output @target.Recommendation.OutputTokens.ToString("N0")</p>
                         <small>@target.Recommendation.Rationale</small>
+                        <div class="benchmark-profile-evidence">
+                            @foreach (var profile in target.Profiles.OrderByDescending(item => item.Score))
+                            {
+                                <details>
+                                    <summary>@profile.ProfileName · score @profile.Score.ToString("0.0") · @profile.AverageTokensPerSecond.ToString("0.0") tok/s</summary>
+                                    @foreach (var task in profile.Tasks)
+                                    {
+                                        <ProviderModelBenchmarkTaskEvidence Task="task" />
+                                    }
+                                </details>
+                            }
+                        </div>
                     }
                 </details>
             }
         </div>
     }
+
+    <ProviderModelBenchmarkEvidenceHistory />
 </section>
 
 @code {

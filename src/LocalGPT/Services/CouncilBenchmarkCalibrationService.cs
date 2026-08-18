@@ -151,6 +151,15 @@ public sealed class CouncilBenchmarkCalibrationService(
                                         return;
                                     liveSessions.AppendParticipantActivity(request.CouncilRunId, activityKey, message.EndsWith('\n') ? message : message + Environment.NewLine);
                                     liveSessions.Touch(request.CouncilRunId);
+                                },
+                                ProviderStream = fragment =>
+                                {
+                                    if (string.IsNullOrEmpty(fragment))
+                                        return;
+                                    // AppendParticipantActivity already updates the run timestamp and coalesces
+                                    // its Changed notification. A second Touch per streamed fragment only doubles
+                                    // circuit churn during long reasoning-model runs.
+                                    liveSessions.AppendParticipantActivity(request.CouncilRunId, activityKey, fragment);
                                 }
                             },
                             cancellationToken).ConfigureAwait(false);

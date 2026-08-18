@@ -35,6 +35,10 @@ namespace LocalGPT.Components.Pages
 {
     public partial class Chat
     {
+    // Completed Council lanes remain cheap until the developer explicitly asks to inspect one.
+    // Running lanes still stream immediately.
+    private readonly HashSet<string> revealedCompletedCouncilActivityEvidence = new(StringComparer.Ordinal);
+
     private async Task RefreshHumanCollaborationAsync()
     {
         try

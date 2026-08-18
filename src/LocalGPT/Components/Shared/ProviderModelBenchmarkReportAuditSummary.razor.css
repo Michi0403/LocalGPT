@@ -1,0 +1,18 @@
+.benchmark-audit-summary {
+    display: grid;
+    gap: .45rem;
+    margin: .7rem 0;
+    padding: .7rem;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: .45rem;
+}
+
+.benchmark-audit-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: .35rem .8rem;
+}
+
+.benchmark-audit-summary small {
+    opacity: .8;
+}

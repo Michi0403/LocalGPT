@@ -39,6 +39,10 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     /// Stores database-backed runtime token bounds so benchmark limits adapt to maintained configuration rather than one developer machine.
     /// </summary>
     private readonly LocalGptCatalogService catalog;
+    /// <summary>Normalizes provider thinking/status markup so benchmark scoring uses only the visible final answer.</summary>
+    private readonly CouncilTextService councilText;
+    /// <summary>Projects provider-native reasoning and function metadata into the same durable user-visible trace used by normal Council execution.</summary>
+    private readonly CouncilRuntimeService councilRuntime;
     /// <summary>
     /// Stores the logger used by <see cref="ProviderModelBenchmarkService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
@@ -51,6 +55,8 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     /// <param name="liveSessions">Injected dependency used by the ProviderModelBenchmarkService.</param>
     /// <param name="reviewerPolicy">Injected dependency used by the ProviderModelBenchmarkService.</param>
     /// <param name="catalog">Database-backed LocalGPT runtime policy and token bounds.</param>
+    /// <param name="councilText">Shared Council text normalization used to separate visible final answers from reasoning/status markup.</param>
+    /// <param name="councilRuntime">Shared provider trace projection used to expose reasoning and function metadata consistently.</param>
     /// <param name="logger">Injected dependency used by the ProviderModelBenchmarkService.</param>
     public ProviderModelBenchmarkService(
         IProviderModelRuntimeService providerModels,
@@ -59,6 +65,8 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         ICouncilLiveSessionService liveSessions,
         IProviderModelReviewerPolicyService reviewerPolicy,
         LocalGptCatalogService catalog,
+        CouncilTextService councilText,
+        CouncilRuntimeService councilRuntime,
         ILogger<ProviderModelBenchmarkService> logger)
     {
         this.providerModels = providerModels;
@@ -67,6 +75,8 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         this.liveSessions = liveSessions;
         this.reviewerPolicy = reviewerPolicy;
         this.catalog = catalog;
+        this.councilText = councilText;
+        this.councilRuntime = councilRuntime;
         this.logger = logger;
     }
 
@@ -106,6 +116,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         {
             report.Warnings.Add("No benchmark-capable provider-qualified model was selected.");
             report.CompletedAtUtc = DateTimeOffset.UtcNow;
+            await TryPersistBenchmarkEvidenceAsync(report).ConfigureAwait(false);
             return report;
         }
 
@@ -172,6 +183,18 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
                 liveSessions.Append(report.RunId, normalized);
         }
 
+
+        void PublishProviderStream(string text)
+        {
+            // Provider fragments are intentionally not normalized. A single whitespace fragment can be
+            // semantically significant when reconstructing token-streamed reasoning or final text.
+            if (string.IsNullOrEmpty(text))
+                return;
+            request.ProviderStream?.Invoke(text);
+            if (request.OwnLiveSession)
+                liveSessions.Append(report.RunId, text);
+        }
+
         try
         {
             Publish($"_Limits: {maxSeconds}s per call · context ≤ {maximumContext:N0} · output ≤ {maximumOutput:N0} · stop threshold {threshold:0.#}%._\n");
@@ -198,11 +221,13 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
                             (profile.OllamaNumGpu is int numGpu ? $" · Ollama num_gpu {numGpu}" : string.Empty));
 
                         var profileResult = await RunProfileAsync(
+                            report.RunId,
                             target,
                             profile,
                             tasks,
                             maxSeconds,
                             message => Publish($"  {message}"),
+                            PublishProviderStream,
                             runToken).ConfigureAwait(false);
                         targetResult.Profiles.Add(profileResult);
 
@@ -357,6 +382,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         }
         finally
         {
+            await TryPersistBenchmarkEvidenceAsync(report).ConfigureAwait(false);
             if (request.OwnLiveSession)
                 liveSessions.Complete(report.RunId);
         }
@@ -379,8 +405,10 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     {
         try
         {
-            return await performancePresets.SaveBenchmarkResultAsync(
+            var saved = await performancePresets.SaveBenchmarkResultAsync(
                 report, presetName, userConfirmed, cancellationToken).ConfigureAwait(false);
+            await TryPersistBenchmarkEvidenceAsync(report).ConfigureAwait(false);
+            return saved;
         }
         catch (Exception exception)
         {
@@ -467,6 +495,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
             var saved = await modelPresets.SavePresetAsync(preset, userConfirmed, cancellationToken).ConfigureAwait(false);
             report.AppliedPresetId = saved.Id;
             report.AppliedPresetName = saved.Name;
+            await TryPersistBenchmarkEvidenceAsync(report).ConfigureAwait(false);
             return [saved];
     
     }

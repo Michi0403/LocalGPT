@@ -333,7 +333,9 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                     if (chunk?.Message?.ToolCalls is { Count: > 0 } chunkCalls)
                         toolCalls.AddRange(chunkCalls);
 
-                    if (!string.IsNullOrWhiteSpace(chunk?.Message?.Thinking))
+                    // Whitespace can arrive as its own streamed token. Dropping whitespace-only chunks here
+                    // joins words across token boundaries (for example "from0" instead of "from 0") in visible thinking.
+                    if (!string.IsNullOrEmpty(chunk?.Message?.Thinking))
                     {
                         assistantThinking.Append(chunk.Message.Thinking);
                         foreach (var text in formatter.AppendThinking(chunk.Message.Thinking))

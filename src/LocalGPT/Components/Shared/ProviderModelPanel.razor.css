@@ -41,6 +41,7 @@
 .benchmark-result { display: grid; gap: .35rem; }
 .benchmark-result details { padding: .3rem 0; }
 .benchmark-result ul { margin-bottom: 0; }
+.benchmark-task-results { display: grid; gap: .35rem; min-width: 0; }
 
 @media (max-width: 560px) {
     .provider-model-heading { grid-template-columns: auto minmax(0, 1fr); }

@@ -168,3 +168,6 @@
     .benchmark-count { align-self: start; }
     .benchmark-council-actions > * { flex: 1 1 12rem; }
 }
+
+.benchmark-profile-evidence { display: grid; gap: .4rem; margin-top: .55rem; min-width: 0; }
+.benchmark-profile-evidence > details { background: color-mix(in srgb, var(--bs-secondary-bg, #eceff3) 45%, var(--bs-body-bg, Canvas)); }

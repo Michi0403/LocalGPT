@@ -1,0 +1,89 @@
+.benchmark-task-evidence {
+    min-width: 0;
+    margin-block: .35rem;
+    padding: .45rem .55rem;
+    border: 1px solid var(--bs-border-color, #ccd2da);
+    border-radius: .5rem;
+    background: color-mix(in srgb, var(--bs-secondary-bg, #eceff3) 40%, var(--bs-body-bg, Canvas));
+}
+
+.benchmark-task-evidence-toggle {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .35rem .8rem;
+    padding: .1rem 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+}
+
+.benchmark-task-evidence-toggle small {
+    font-weight: 500;
+    color: var(--bs-secondary-color, #666);
+}
+
+.benchmark-task-evidence-body {
+    display: grid;
+    gap: .7rem;
+    padding-top: .65rem;
+}
+
+.benchmark-task-evidence-body section {
+    display: grid;
+    gap: .3rem;
+    min-width: 0;
+}
+
+.benchmark-evidence-text,
+.benchmark-evidence-rendered {
+    max-height: 30rem;
+    overflow: auto;
+    margin: 0;
+    padding: .65rem;
+    border: 1px solid var(--bs-border-color, #ccd2da);
+    border-radius: .4rem;
+    background: var(--bs-body-bg, Canvas);
+    overflow-wrap: anywhere;
+}
+
+.benchmark-evidence-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.benchmark-final-answer { max-height: 36rem; }
+.benchmark-evidence-empty, .benchmark-evidence-error { margin: 0; }
+.benchmark-evidence-error { color: var(--bs-danger-text-emphasis, #842029); }
+
+.benchmark-durable-evidence {
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+    padding-top: .75rem;
+}
+
+.benchmark-task-evidence-load {
+    border: 1px solid var(--bs-border-color, #ced4da);
+    border-radius: .35rem;
+    padding: .35rem .65rem;
+    background: var(--bs-body-bg, #fff);
+    color: inherit;
+}
+
+.benchmark-evidence-full {
+    max-height: 32rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.benchmark-evidence-archive-status {
+    margin: .35rem 0;
+    font-size: .85rem;
+    opacity: .8;
+}

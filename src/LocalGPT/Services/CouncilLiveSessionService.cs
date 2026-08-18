@@ -22,6 +22,14 @@ public sealed class CouncilLiveSessionService(
     private const int MaxParticipantActivityCharacters = 320_000;
     /// <summary>Target size used when trimming one large transient participant stream.</summary>
     private const int ParticipantActivityTrimTargetCharacters = 280_000;
+    /// <summary>Maximum ordered transcript projection repeatedly rendered by one live Blazor circuit.</summary>
+    private const int LiveTranscriptDisplayCharacters = 128_000;
+    /// <summary>Maximum transient stream projection for a participant that is still actively producing output.</summary>
+    private const int RunningParticipantDisplayCharacters = 64_000;
+    /// <summary>Completed lanes keep only a small transient audit window because they are rendered on demand after completion.</summary>
+    private const int CompletedParticipantDisplayCharacters = 8_000;
+    /// <summary>Maximum completed final-answer projection placed on a recurrent live circuit; the authoritative server-owned answer is unchanged.</summary>
+    private const int CompletedParticipantFinalDisplayCharacters = 16_000;
     /// <summary>
     /// Stores the in-memory sessions collection maintained internally by <see cref="CouncilLiveSessionService"/> for its current workflow state.
     /// </summary>
@@ -491,6 +499,66 @@ public sealed class CouncilLiveSessionService(
         }
     }
 
+
+    /// <summary>Returns browser-safe participant projections without repeatedly copying and Markdown-rendering every historical transient token.</summary>
+    /// <param name="runId">Identifier of the live Council run.</param>
+    /// <returns>Bounded participant activity snapshots suitable for recurrent Blazor rendering.</returns>
+    public IReadOnlyList<CouncilLiveParticipantActivitySnapshot> GetParticipantActivitiesForDisplay(Guid runId)
+    {
+        try
+        {
+            if (!sessions.TryGetValue(runId, out var state))
+                return [];
+            lock (state.SyncRoot)
+            {
+                return state.ParticipantActivities.Values
+                    .OrderBy(activity => activity.StartedAtUtc)
+                    .Select(activity => new CouncilLiveParticipantActivitySnapshot(
+                        activity.ActivityKey,
+                        activity.ModelName,
+                        activity.Phase,
+                        activity.Role,
+                        activity.RouteLabel,
+                        activity.StatusMessage,
+                        WindowForDisplay(
+                            activity.Content,
+                            activity.IsRunning ? RunningParticipantDisplayCharacters : CompletedParticipantDisplayCharacters,
+                            "participant provider stream"),
+                        activity.IsRunning
+                            ? activity.FinalContent
+                            : WindowForDisplay(activity.FinalContent, CompletedParticipantFinalDisplayCharacters, "completed participant answer"),
+                        activity.IsRunning,
+                        activity.StartedAtUtc,
+                        activity.UpdatedAtUtc))
+                    .ToArray();
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading browser-safe live Council participant activities failed for run {RunId}.", runId);
+            throw;
+        }
+    }
+
+    /// <summary>Returns a bounded live transcript projection for the browser while the full server-owned buffer remains available to persistence/completion code.</summary>
+    /// <param name="runId">Identifier of the live Council run.</param>
+    /// <returns>The head/tail transcript projection used only by recurrent live rendering.</returns>
+    public string GetTranscriptForDisplay(Guid runId)
+    {
+        try
+        {
+            if (!sessions.TryGetValue(runId, out var state))
+                return string.Empty;
+            lock (state.SyncRoot)
+                return WindowForDisplay(state.Transcript, LiveTranscriptDisplayCharacters, "ordered Council transcript");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Reading browser-safe live Council transcript failed for run {RunId}.", runId);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Retrieves summary as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -556,6 +624,60 @@ public sealed class CouncilLiveSessionService(
         throw;
     }
 }
+
+    /// <summary>Builds a small head/tail projection directly from a server-owned StringBuilder without first materializing its entire large buffer.</summary>
+    /// <param name="buffer">Server-owned live text buffer.</param>
+    /// <param name="maxCharacters">Maximum browser projection length.</param>
+    /// <param name="label">Human-readable stream label used in the omission marker.</param>
+    /// <returns>The complete text when small enough, otherwise a head/tail window.</returns>
+    private string WindowForDisplay(StringBuilder buffer, int maxCharacters, string label)
+    {
+        try
+        {
+            if (buffer.Length <= maxCharacters)
+                return buffer.ToString();
+
+            var marker = $"\n\n> _Live view windowed for browser responsiveness: older middle text from the {label} is omitted here. The server-owned run state and authoritative final answers are not deleted._\n\n";
+            var available = Math.Max(2, maxCharacters - marker.Length);
+            var head = Math.Min(16_000, available / 4);
+            var tail = available - head;
+            return string.Concat(
+                buffer.ToString(0, head),
+                marker,
+                buffer.ToString(buffer.Length - tail, tail));
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating the browser-safe Council live text projection failed; transcript content was omitted from diagnostics.");
+            throw;
+        }
+    }
+
+    /// <summary>Builds a bounded head/tail projection from immutable completed text without altering the server-owned authoritative value.</summary>
+    /// <param name="text">Completed text to project into the recurrent browser view.</param>
+    /// <param name="maxCharacters">Maximum browser projection length.</param>
+    /// <param name="label">Human-readable stream label used in the omission marker.</param>
+    /// <returns>The complete text when small enough, otherwise a head/tail window.</returns>
+    private string WindowForDisplay(string? text, int maxCharacters, string label)
+    {
+        try
+        {
+            var value = text ?? string.Empty;
+            if (value.Length <= maxCharacters)
+                return value;
+
+            var marker = $"\n\n> _Live view windowed for browser responsiveness: older middle text from the {label} is omitted here. The authoritative server-owned answer is not deleted._\n\n";
+            var available = Math.Max(2, maxCharacters - marker.Length);
+            var head = Math.Min(4_000, available / 3);
+            var tail = available - head;
+            return string.Concat(value[..head], marker, value[(value.Length - tail)..]);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating a browser-safe completed Council text projection failed; content was omitted from diagnostics.");
+            throw;
+        }
+    }
 
     /// <summary>
     /// Creates snapshot as part of the council live session service workflow, applying the service's runtime policy, state management, and diagnostics as required.

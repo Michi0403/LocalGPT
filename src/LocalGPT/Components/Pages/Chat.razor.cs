@@ -278,7 +278,7 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-            return CouncilLiveSessions.GetParticipantActivities(runId);
+            return CouncilLiveSessions.GetParticipantActivitiesForDisplay(runId);
         }
         catch (Exception ex)
         {
@@ -289,7 +289,7 @@ namespace LocalGPT.Components.Pages
 
     private string LiveCouncilTranscript(Guid runId, string fallbackContent)
     {
-        var latestTranscript = CouncilLiveSessions.GetTranscript(runId);
+        var latestTranscript = CouncilLiveSessions.GetTranscriptForDisplay(runId);
         return string.IsNullOrWhiteSpace(latestTranscript) ? fallbackContent : latestTranscript;
     }
 
