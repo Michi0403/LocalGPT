@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static release audit for LocalGPT 3.0.9 benchmark/live-lane/build-contract repair."""
+"""Static release audit for LocalGPT 3.1.0 benchmark/live-lane/build-contract repair."""
 from pathlib import Path
 import sys
 
@@ -31,9 +31,9 @@ try:
         "src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj",
         "src/LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj",
     ):
-        require(rel, "<Version>3.0.9</Version>")
+        require(rel, "<Version>3.1.0</Version>")
     require("src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj", "<Version>2.1.1</Version>")
-    require("src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs", "LocalGPT/3.0.9")
+    require("src/LocalGPT/Services/CanIRunHardwareRecommendationService.cs", "LocalGPT/3.1.0")
 
     # The 3.0.8 source intentionally preserved prerendered DOM while Blazor attaches; the build guards must match it.
     require("src/LocalGPT/Components/App.razor", "ssr: { disableDomPreservation: false }")
@@ -157,7 +157,7 @@ try:
         raise AssertionError("initial benchmark-team creation still truncates selected model membership")
     checks += 2
 
-    print(f"LocalGPT 3.0.9 release source audit passed: {checks} checks.")
+    print(f"LocalGPT 3.1.0 release source audit passed: {checks} checks.")
 except (AssertionError, ValueError) as exc:
-    print(f"LocalGPT 3.0.9 release source audit failed: {exc}", file=sys.stderr)
+    print(f"LocalGPT 3.1.0 release source audit failed: {exc}", file=sys.stderr)
     sys.exit(1)

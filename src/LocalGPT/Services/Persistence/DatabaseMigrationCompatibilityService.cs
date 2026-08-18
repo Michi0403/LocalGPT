@@ -120,7 +120,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260725000000_AddProjectCollaboration",
-            "10.0.10",
+            "10.0.11",
             [
                 Table("LocalGptProjects"),
                 Column("LocalGptProjects", "CurrentVersion"),
@@ -133,7 +133,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260725030000_AddCodeGenerationChangeReviews",
-            "10.0.10",
+            "10.0.11",
             [
                 Table("CodeGenerationChangeReviews"),
                 Column("CodeGenerationChangeReviews", "ReviewHash"),
@@ -141,7 +141,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260725150000_AddChatSessionControl",
-            "10.0.10",
+            "10.0.11",
             [
                 Column("ChatMemoryConversations", "ApplicationVersion"),
                 Column("ChatMemoryConversations", "ProjectId"),
@@ -152,7 +152,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260726000000_AddHumanCollaboration",
-            "10.0.10",
+            "10.0.11",
             [
                 Table("HumanCollaborationRequests"),
                 Column("HumanCollaborationRequests", "DecisionReason"),
@@ -163,7 +163,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260726001000_AddDeferredDxAiInvocations",
-            "10.0.10",
+            "10.0.11",
             [
                 Table("DeferredDxAiInvocations"),
                 Column("DeferredDxAiInvocations", "ParametersJson"),
@@ -171,7 +171,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260726010000_AddDatabaseFirstProjectArchitecture",
-            "10.0.10",
+            "10.0.11",
             [
                 Table("LocalGptProjectRevisions"),
                 Column("LocalGptProjectRevisions", "ProjectStructureJson"),
@@ -192,7 +192,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260726133000_AddOrganicSkillsAndHardwareRoutes",
-            "10.0.10",
+            "10.0.11",
             [
                 Column("CouncilModelPresets", "ModelRoutesJson"),
                 Column("CouncilModelPresets", "AllowParallelHardwareRoads"),
@@ -208,7 +208,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260726150000_AddCouncilTeamScripting",
-            "10.0.10",
+            "10.0.11",
             [
                 Table("CouncilTeamConfigurations"),
                 Column("CouncilTeamConfigurations", "Id"),
@@ -220,7 +220,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260731152000_AddHumanQuestionFlow",
-            "10.0.10",
+            "10.0.11",
             [
                 Column("HumanCollaborationRequests", "QuestionScope"),
                 Column("HumanCollaborationRequests", "GateMode"),
@@ -230,7 +230,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260802010000_AddCouncilRuntimeClasses",
-            "10.0.10",
+            "10.0.11",
             [
                 Table("CouncilRuntimeClassConfigurations"),
                 Column("CouncilRuntimeClassConfigurations", "Key"),
@@ -240,7 +240,7 @@ public sealed partial class DatabaseMigrationCompatibilityService : IDatabaseMig
             ]),
         new(
             "20260802020000_AddEmbeddedFirmwareAndWorkspaceEnvironments",
-            "10.0.10",
+            "10.0.11",
             [
                 Column("ProjectWorkspaceRoots", "AccessPolicyJson"),
                 Column("ProjectWorkspaceRoots", "BuildArguments"),

@@ -1,20 +1,17 @@
-# LocalGPT 3.0.7 nullable exit-code compile repair
+# LocalGPT 3.1.0
 
-LocalGPT 3.0.7 is the source-only successor to 3.0.6. It preserves the AI-guided hardware/provider/model/benchmark setup and corrects the next compiler blocker reported by the user's authoritative local build.
+LocalGPT 3.1.0 is the source-only toolchain-integration successor to 3.0.9. It starts from the user's upgraded source tree and records the .NET 10 / DevExpress 25.2-line upgrade without changing the benchmark, Council, database schema, or 1-Wire behavior.
 
-## Repaired
+## Toolchain state
 
-- `ConsoleCommandService.ExecuteAsync`: `exitCode` is now explicitly `int?`, so the timeout/process-exit/`null` nested conditional has a valid target type and matches the nullable result model.
-- The intended runtime behavior is unchanged: timeout uses `-2`, a terminated process uses its actual exit code, and absence of a usable exit code remains `null`.
+- .NET SDK: `10.0.400`
+- Target framework: `net10.0`
+- Microsoft ASP.NET Core / EF Core patch dependencies: `10.0.11` where present in the supplied source
+- DevExpress: existing `25.2.*` package lane retained
+- 1-Wire protocol: `2.1.1`
 
-## Preserved boundaries
+## Database boundary
 
-The cross-platform ASCII/shared command console, explicit human-confirmation gates, CanIRun.ai opt-in/credit path, knowledge-backed Ollama/LM Studio bootstrap, installed-model handling, hardware-curated benchmark setup, Council integration, 1-Wire protocol `2.1.1`, and existing InteractiveServer architecture are retained. No EF migration is introduced.
+No migration or schema change is introduced by this release. The supplied migration sources and migration compatibility service are preserved byte-for-byte.
 
-## Versions
-
-- LocalGPT: 3.0.7
-- LocalGPTWebviewWrapper: 3.0.7
-- LocalGPTInstallerConsole: 3.0.7
-
-See `CHANGELOG-v3.0.7-source.md` and `VALIDATION-v3.0.7-source.md` for the source-only repair and validation record.
+See `CHANGELOG-v3.1.0-DOTNET-DEVEXPRESS-UPGRADE.md` and `VALIDATION-v3.1.0-source.md`.
