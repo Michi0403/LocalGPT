@@ -73,10 +73,12 @@ namespace LocalGPT.Services
     try
     {
             var profiles = new List<BenchmarkProfile>();
+            var minimumContextBound = Math.Clamp(request.MinimumContextTokens, catalog.MinContextTokens, maximumContext);
+            var minimumOutputBound = Math.Clamp(request.MinimumOutputTokens, catalog.MinOutputTokens, maximumOutput);
             void Add(string name, int context, int output, int? numGpu = null)
             {
-                context = Math.Clamp(context, 2048, maximumContext);
-                output = Math.Clamp(output, 128, maximumOutput);
+                context = Math.Clamp(context, minimumContextBound, maximumContext);
+                output = Math.Clamp(output, minimumOutputBound, maximumOutput);
                 if (profiles.Any(item => item.ContextTokens == context
                     && item.OutputTokens == output
                     && item.OllamaNumGpu == numGpu))
@@ -86,8 +88,8 @@ namespace LocalGPT.Services
 
             if (request.ProfileMode == ProviderModelBenchmarkProfileMode.EvenlySpaced)
             {
-                var minimumContext = Math.Clamp(request.MinimumContextTokens, 2048, maximumContext);
-                var minimumOutput = Math.Clamp(request.MinimumOutputTokens, 128, maximumOutput);
+                var minimumContext = minimumContextBound;
+                var minimumOutput = minimumOutputBound;
                 var steps = Math.Max(1, profileCount);
                 for (var index = 0; index < steps; index++)
                 {
@@ -100,20 +102,23 @@ namespace LocalGPT.Services
                         (int)Math.Round(minimumOutput + ((maximumOutput - minimumOutput) * ratio)),
                         minimumOutput,
                         maximumOutput);
-                    Add($"Even step {index + 1}/{steps}", context, output);
+                    var configuredName = request.ProfileNames.Count > index
+                        ? request.ProfileNames[index]?.Trim()
+                        : string.Empty;
+                    Add(string.IsNullOrWhiteSpace(configuredName) ? $"Even step {index + 1}/{steps}" : configuredName, context, output);
                 }
 
                 return profiles;
             }
 
-            Add("Low latency", Math.Min(2048, maximumContext), Math.Min(256, maximumOutput));
-            Add("Balanced", Math.Min(4096, maximumContext), Math.Min(512, maximumOutput));
+            Add("Low latency", minimumContextBound, Math.Max(minimumOutputBound, Math.Min(256, maximumOutput)));
+            Add("Balanced", Math.Max(minimumContextBound, Math.Min(4096, maximumContext)), Math.Max(minimumOutputBound, Math.Min(512, maximumOutput)));
             if (request.IncludeCpuSafeControl &&
                 model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
             {
-                Add("CPU-safe control", Math.Min(4096, maximumContext), Math.Min(512, maximumOutput), 0);
+                Add("CPU-safe control", Math.Max(minimumContextBound, Math.Min(4096, maximumContext)), Math.Max(minimumOutputBound, Math.Min(512, maximumOutput)), 0);
             }
-            Add("Quality", Math.Min(8192, maximumContext), Math.Min(768, maximumOutput));
+            Add("Quality", Math.Max(minimumContextBound, Math.Min(8192, maximumContext)), Math.Max(minimumOutputBound, Math.Min(768, maximumOutput)));
             Add("Maximum bounded", maximumContext, maximumOutput);
 
             return profiles.Take(profileCount).ToList();

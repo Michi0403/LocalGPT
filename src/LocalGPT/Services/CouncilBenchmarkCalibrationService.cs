@@ -11,15 +11,19 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="benchmark">Runs provider-qualified bounded measurements.</param>
 /// <param name="performancePresets">Persists measured hardware-spooler profile sets.</param>
+/// <param name="catalog">Supplies database-backed token bounds instead of machine-specific benchmark constants.</param>
+/// <param name="liveSessions">Publishes every measured Benchmark Subject as a rich live Council lane.</param>
 /// <param name="logger">Writes bounded calibration diagnostics.</param>
 public sealed class CouncilBenchmarkCalibrationService(
     IProviderModelBenchmarkService benchmark,
     IHardwarePerformancePresetService performancePresets,
+    LocalGptCatalogService catalog,
+    ICouncilLiveSessionService liveSessions,
     ILogger<CouncilBenchmarkCalibrationService> logger) : ICouncilBenchmarkCalibrationService
 {
     /// <summary>
-    /// Executes the maintained four-point/four-task calibration across every distinct benchmark-capable provider-qualified target,
-    /// streams bounded progress to the parent Council, stores the four measured tier profiles and returns coverage evidence.
+    /// Executes the maintained all-target/four-task calibration across every distinct benchmark-capable provider-qualified target,
+    /// streams each actual provider measurement through the parent Council's live lanes, stores the requested measured tier profiles and returns coverage evidence.
     /// </summary>
     /// <inheritdoc />
     public async Task<CouncilBenchmarkCalibrationResult> RunAsync(
@@ -52,19 +56,47 @@ public sealed class CouncilBenchmarkCalibrationService(
                 throw new InvalidOperationException("None of the selected provider-qualified Council members supports the maintained benchmark contract.");
 
             var benchmarkRunId = Guid.NewGuid();
-            var maximumContextTokens = Math.Clamp(request.MaximumContextTokens, 4096, 32768);
-            var maximumOutputTokens = Math.Clamp(request.MaximumOutputTokens, 512, 1536);
-            var timeoutSeconds = Math.Clamp(request.MaxSecondsPerCall, 30, 180);
+            var profileCount = Math.Clamp(request.ProfileCount, 1, 16);
+            var maximumContextTokens = Math.Clamp(request.MaximumContextTokens, catalog.MinContextTokens, catalog.MaxContextTokens);
+            var minimumContextTokens = Math.Clamp(request.MinimumContextTokens, catalog.MinContextTokens, maximumContextTokens);
+            var maximumOutputTokens = Math.Clamp(request.MaximumOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens);
+            var minimumOutputTokens = Math.Clamp(request.MinimumOutputTokens, catalog.MinOutputTokens, maximumOutputTokens);
+            var timeoutSeconds = Math.Clamp(request.MaxSecondsPerCall, 10, 900);
+            var failureStop = Math.Clamp(request.StopAfterConsecutiveProfileFailures, 0, profileCount);
             var taskPack = BuildCuratedTaskPack(request.TaskPackText);
+            var profileNames = BuildProfileNames(profileCount);
             var hostQueues = benchmarkTargets
                 .GroupBy(target => GetBenchmarkHostKey(target.Endpoint), StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.ToList())
                 .ToList();
+            var activityKeys = benchmarkTargets
+                .Select((target, index) => new { target.SelectionKey, ActivityKey = $"benchmark-subject-{index + 1:D3}" })
+                .ToDictionary(item => item.SelectionKey, item => item.ActivityKey, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var target in benchmarkTargets)
+            {
+                var activityKey = activityKeys[target.SelectionKey];
+                liveSessions.BeginParticipantActivity(
+                    request.CouncilRunId,
+                    activityKey,
+                    target.DisplayName,
+                    "Measurement",
+                    "Benchmark Subject",
+                    $"{GetBenchmarkHostKey(target.Endpoint)} · {target.ProviderName}");
+                liveSessions.SetParticipantActivityStatus(
+                    request.CouncilRunId,
+                    activityKey,
+                    $"Queued in the shared all-model measurement phase · {profileCount} measured profile point(s).");
+            }
+            liveSessions.Touch(request.CouncilRunId);
             progressMessage?.Invoke(
                 $"## One deterministic all-model measurement phase\n\n" +
                 $"Frozen target coverage: **{benchmarkTargets.Count} benchmark-capable subject(s)** from **{requestedTargets.Count} selected provider-qualified Council member(s)**. " +
-                $"LocalGPT executes one consolidated four-section suite for the entire target set. The four profile points are measurements of that same suite and target set, never four model packs or representative subsets. " +
-                $"The {hostQueues.Count} independent physical/provider host queue(s) advance in parallel; models sharing one host remain sequential to avoid VRAM contention.");
+                $"LocalGPT executes the same consolidated four-section suite against every subject and attempts **{profileCount} measured profile point(s)** ({string.Join(", ", profileNames)}). " +
+                $"These are parameter measurements of one target set, never model packs or representative subsets. " +
+                $"The {hostQueues.Count} independent physical/provider host queue(s) advance in parallel; models sharing one host remain sequential to avoid VRAM contention.\n\n" +
+                "**Measurement provenance:** benchmark timing, throughput and quality are produced only by live provider calls to each provider-qualified endpoint/model. " +
+                "CanIRun.ai and other hardware guidance may help setup recommendations, but advisory website values are not benchmark scores and are not substituted for provider execution.");
 
             async Task<ProviderModelBenchmarkReport> RunHostQueueAsync(List<ProviderModelReference> queue)
             {
@@ -76,37 +108,104 @@ public sealed class CouncilBenchmarkCalibrationService(
                 for (var targetIndex = 0; targetIndex < queue.Count; targetIndex++)
                 {
                     var target = queue[targetIndex];
+                    var activityKey = activityKeys[target.SelectionKey];
                     cancellationToken.ThrowIfCancellationRequested();
-                    progressMessage?.Invoke(
-                        $"Measuring subject {targetIndex + 1}/{queue.Count} on host queue {GetBenchmarkHostKey(target.Endpoint)}: {target.DisplayName}. " +
-                        "This remains part of the same all-model measurement phase.");
-                    var targetReport = await benchmark.RunAsync(
-                        new ProviderModelBenchmarkRequest
+                    liveSessions.SetParticipantActivityStatus(
+                        request.CouncilRunId,
+                        activityKey,
+                        $"Measuring {targetIndex + 1}/{queue.Count} on host queue {GetBenchmarkHostKey(target.Endpoint)} · live provider calls in progress.");
+                    liveSessions.AppendParticipantActivity(
+                        request.CouncilRunId,
+                        activityKey,
+                        $"_Provider-qualified subject: `{target.ProviderKind}` · `{target.Endpoint}` · `{target.ModelName}`._\n\n");
+                    liveSessions.Touch(request.CouncilRunId);
+
+                    try
+                    {
+                        var targetReport = await benchmark.RunAsync(
+                            new ProviderModelBenchmarkRequest
+                            {
+                                RunId = benchmarkRunId,
+                                Targets = [target],
+                                CouncilReviewers = [],
+                                MaxProfilesPerModel = profileCount,
+                                ProfileMode = ProviderModelBenchmarkProfileMode.EvenlySpaced,
+                                ProfileNames = [.. profileNames],
+                                MinimumContextTokens = minimumContextTokens,
+                                MinimumOutputTokens = minimumOutputTokens,
+                                MaximumContextTokens = maximumContextTokens,
+                                MaximumOutputTokens = maximumOutputTokens,
+                                IncludeCpuSafeControl = false,
+                                StopWhenImprovementStalls = false,
+                                StopAfterConsecutiveProfileFailures = failureStop,
+                                MaxTasks = 1,
+                                TaskDefinitions = [taskPack],
+                                MaxCouncilReviewers = 0,
+                                MaxSecondsPerCall = timeoutSeconds,
+                                ImprovementThresholdPercent = 0d,
+                                IncludeCouncilReview = false,
+                                OwnLiveSession = false,
+                                ProgressMessage = message =>
+                                {
+                                    if (string.IsNullOrWhiteSpace(message))
+                                        return;
+                                    liveSessions.AppendParticipantActivity(request.CouncilRunId, activityKey, message.EndsWith('\n') ? message : message + Environment.NewLine);
+                                    liveSessions.Touch(request.CouncilRunId);
+                                }
+                            },
+                            cancellationToken).ConfigureAwait(false);
+                        hostReport.Targets.AddRange(targetReport.Targets);
+                        hostReport.Warnings.AddRange(targetReport.Warnings);
+                        var targetResult = targetReport.Targets.FirstOrDefault(item =>
+                            item.Model.SelectionKey.Equals(target.SelectionKey, StringComparison.OrdinalIgnoreCase));
+                        if (targetResult is null)
                         {
-                            RunId = benchmarkRunId,
-                            Targets = [target],
-                            CouncilReviewers = [],
-                            MaxProfilesPerModel = 4,
-                            ProfileMode = ProviderModelBenchmarkProfileMode.EvenlySpaced,
-                            MinimumContextTokens = 2048,
-                            MinimumOutputTokens = 384,
-                            MaximumContextTokens = maximumContextTokens,
-                            MaximumOutputTokens = maximumOutputTokens,
-                            IncludeCpuSafeControl = false,
-                            StopWhenImprovementStalls = false,
-                            StopAfterConsecutiveProfileFailures = 2,
-                            MaxTasks = 1,
-                            TaskDefinitions = [taskPack],
-                            MaxCouncilReviewers = 0,
-                            MaxSecondsPerCall = timeoutSeconds,
-                            ImprovementThresholdPercent = 0d,
-                            IncludeCouncilReview = false,
-                            OwnLiveSession = false,
-                            ProgressMessage = progressMessage
-                        },
-                        cancellationToken).ConfigureAwait(false);
-                    hostReport.Targets.AddRange(targetReport.Targets);
-                    hostReport.Warnings.AddRange(targetReport.Warnings);
+                            targetResult = new ProviderModelBenchmarkTargetResult
+                            {
+                                Model = target,
+                                Error = "Provider benchmark returned no target result for this frozen provider-qualified identity."
+                            };
+                            hostReport.Targets.Add(targetResult);
+                            hostReport.Warnings.Add($"{target.DisplayName}: {targetResult.Error}");
+                        }
+                        var laneResult = BuildBenchmarkLaneResult(targetResult, profileCount);
+                        liveSessions.SetParticipantActivityResult(request.CouncilRunId, activityKey, laneResult);
+                        liveSessions.CompleteParticipantActivity(
+                            request.CouncilRunId,
+                            activityKey,
+                            string.IsNullOrWhiteSpace(targetResult.Error)
+                                ? "Benchmark Subject completed with live provider measurement evidence."
+                                : "Benchmark Subject completed with explicit provider failure evidence.");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        liveSessions.SetParticipantActivityStatus(request.CouncilRunId, activityKey, "Benchmark Subject cancelled by the owning Council run.");
+                        throw;
+                    }
+                    catch (Exception exception)
+                    {
+                        var boundedError = LimitEvidence(exception.Message);
+                        var failedTarget = new ProviderModelBenchmarkTargetResult
+                        {
+                            Model = target,
+                            Error = $"Unexpected benchmark engine failure: {boundedError}"
+                        };
+                        hostReport.Targets.Add(failedTarget);
+                        hostReport.Warnings.Add($"{target.DisplayName}: {failedTarget.Error}");
+                        liveSessions.AppendParticipantActivity(
+                            request.CouncilRunId,
+                            activityKey,
+                            $"\n**Measurement engine error:** {boundedError}\n");
+                        liveSessions.SetParticipantActivityResult(request.CouncilRunId, activityKey, BuildBenchmarkLaneResult(failedTarget, profileCount));
+                        liveSessions.CompleteParticipantActivity(
+                            request.CouncilRunId,
+                            activityKey,
+                            "Benchmark Subject failed unexpectedly; failure was retained and the host queue continued.");
+                        logger.LogError(
+                            exception,
+                            "Benchmark Subject {SelectionKey} failed unexpectedly inside the all-target host queue; remaining subjects will continue.",
+                            target.SelectionKey);
+                    }
                 }
                 hostReport.CompletedAtUtc = DateTimeOffset.UtcNow;
                 return hostReport;
@@ -141,11 +240,19 @@ public sealed class CouncilBenchmarkCalibrationService(
             var baseName = string.IsNullOrWhiteSpace(request.PresetBaseName)
                 ? $"Initial calibration {DateTimeOffset.Now:yyyy-MM-dd HHmmss}"
                 : request.PresetBaseName.Trim();
-            var presets = await performancePresets.SaveBenchmarkProfileSetAsync(
-                report,
-                baseName,
-                userConfirmed: true,
-                cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<HardwarePerformancePreset> presets = [];
+            if (successfulTargets > 0)
+            {
+                presets = await performancePresets.SaveBenchmarkProfileSetAsync(
+                    report,
+                    baseName,
+                    userConfirmed: true,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                report.Warnings.Add("No benchmark subject produced successful provider-call evidence, so LocalGPT retained the failed coverage matrix without inventing or storing hardware profile routes.");
+            }
 
             var result = new CouncilBenchmarkCalibrationResult
             {
@@ -263,6 +370,70 @@ public sealed class CouncilBenchmarkCalibrationService(
         }
     }
 
+    /// <summary>Builds stable user-facing names for the configured benchmark profile points without coupling token values to one machine.</summary>
+    /// <param name="profileCount">Configured number of measured parameter points.</param>
+    /// <returns>Ordered profile labels used by provider progress, live lanes and persisted calibration tiers.</returns>
+    private IReadOnlyList<string> BuildProfileNames(int profileCount)
+    {
+        try
+        {
+            if (profileCount == 5)
+                return ["Low", "Normal", "High", "Expert", "Max"];
+            return Enumerable.Range(1, profileCount).Select(index => $"Profile {index}/{profileCount}").ToList();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Building benchmark profile labels failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Builds the retained rich-lane result for one provider-qualified Benchmark Subject from actual call evidence.</summary>
+    /// <param name="target">Completed or failed target measurement.</param>
+    /// <param name="expectedProfileCount">Configured number of profile points.</param>
+    /// <returns>Bounded Markdown for the live Council lane.</returns>
+    private string BuildBenchmarkLaneResult(ProviderModelBenchmarkTargetResult target, int expectedProfileCount)
+    {
+        try
+        {
+            var providerCalls = target.Profiles.Sum(profile => profile.Tasks.Sum(task => task.AttemptCount));
+            var successfulCalls = target.Profiles.Sum(profile => profile.Tasks.Count(task => task.Succeeded));
+            var builder = new StringBuilder();
+            builder.AppendLine($"### Benchmark Subject · {target.Model.DisplayName}");
+            builder.AppendLine();
+            builder.AppendLine($"- Provider endpoint: `{target.Model.Endpoint}`");
+            builder.AppendLine($"- Provider model: `{target.Model.ModelName}`");
+            builder.AppendLine($"- Actual provider calls observed: **{providerCalls}**");
+            builder.AppendLine($"- Contract-compliant measured calls: **{successfulCalls}**");
+            builder.AppendLine($"- Profile points returned: **{target.Profiles.Count}/{expectedProfileCount}**");
+            foreach (var profile in target.Profiles)
+            {
+                var attemptedTasks = profile.Tasks.Count;
+                var providerAttempts = profile.Tasks.Sum(task => task.AttemptCount);
+                var succeeded = profile.Tasks.Count(task => task.Succeeded);
+                builder.Append("- **").Append(profile.ProfileName).Append("** · ")
+                    .Append(profile.ContextTokens.ToString("N0")).Append(" ctx / ")
+                    .Append(profile.OutputTokens.ToString("N0")).Append(" out · provider calls ")
+                    .Append(providerAttempts).Append(" · compliant tasks ").Append(succeeded).Append('/').Append(attemptedTasks)
+                    .Append(" · quality ").Append(profile.AverageQualityScore.ToString("0.000"))
+                    .Append(" · ").Append(profile.AverageTokensPerSecond.ToString("0.00")).Append(" tok/s")
+                    .Append(" · ").Append(profile.AverageTotalMilliseconds.ToString("0")).AppendLine(" ms");
+            }
+            if (!string.IsNullOrWhiteSpace(target.Recommendation.ProfileName))
+                builder.AppendLine($"- Recommendation from measured evidence: **{target.Recommendation.ProfileName}** · {target.Recommendation.ContextTokens:N0} ctx / {target.Recommendation.OutputTokens:N0} out");
+            if (!string.IsNullOrWhiteSpace(target.Error))
+                builder.AppendLine($"- Explicit failure evidence: {LimitEvidence(target.Error)}");
+            if (providerCalls == 0)
+                builder.AppendLine("- **No provider call evidence was returned.** This target remains a coverage failure; no advisory hardware value is treated as a benchmark result.");
+            return builder.ToString().Trim();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Building live Benchmark Subject lane result failed for {SelectionKey}.", target.Model.SelectionKey);
+            return $"Benchmark Subject `{target.Model.SelectionKey}` finished, but LocalGPT could not format its retained measurement lane.";
+        }
+    }
+
     /// <summary>Builds the bounded coverage and measured-profile summary persisted into the parent Council transcript.</summary>
     /// <param name="result">Completed deterministic calibration.</param>
     /// <returns>Markdown evidence for later Council rounds and the final chat transcript.</returns>
@@ -286,10 +457,10 @@ public sealed class CouncilBenchmarkCalibrationService(
 
             builder.AppendLine();
             builder.AppendLine("### Provider-qualified subject measurement matrix");
-            builder.AppendLine("Each row is actual provider execution evidence. Failed/malformed answers remain evidence; they are not application JSON errors and are not silently retried forever.");
+            builder.AppendLine("Each row is actual provider execution evidence. Advisory hardware/web data is never substituted for these measurements. Failed/malformed answers remain evidence; they are not application JSON errors and are not silently retried forever.");
             builder.AppendLine();
-            builder.AppendLine("| Subject | Successful points | Best quality | Best tok/s | Best time | Recommendation |");
-            builder.AppendLine("| --- | ---: | ---: | ---: | ---: | --- |");
+            builder.AppendLine("| Subject | Provider calls | Contract-compliant calls | Successful points | Best quality | Best tok/s | Best time | Recommendation |");
+            builder.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
             foreach (var target in result.Report.Targets)
             {
                 var successfulProfiles = target.Profiles.Where(profile => profile.Tasks.Any(task => task.Succeeded)).ToList();
@@ -297,7 +468,11 @@ public sealed class CouncilBenchmarkCalibrationService(
                 var recommendation = string.IsNullOrWhiteSpace(target.Recommendation.ProfileName)
                     ? "no successful recommendation"
                     : $"{target.Recommendation.ContextTokens:N0} ctx / {target.Recommendation.OutputTokens:N0} out";
+                var providerCalls = target.Profiles.Sum(profile => profile.Tasks.Sum(task => task.AttemptCount));
+                var successfulCalls = target.Profiles.Sum(profile => profile.Tasks.Count(task => task.Succeeded));
                 builder.Append("| ").Append(target.Model.DisplayName.Replace("|", "\\|", StringComparison.Ordinal))
+                    .Append(" | ").Append(providerCalls)
+                    .Append(" | ").Append(successfulCalls)
                     .Append(" | ").Append(successfulProfiles.Count).Append('/').Append(target.Profiles.Count)
                     .Append(" | ").Append(best?.AverageQualityScore.ToString("0.00") ?? "—")
                     .Append(" | ").Append(best?.AverageTokensPerSecond.ToString("0.0") ?? "—")
@@ -355,7 +530,7 @@ public sealed class CouncilBenchmarkCalibrationService(
 
             builder.AppendLine();
             builder.AppendLine(result.SuccessfulTargetCount == result.BenchmarkTargetCount
-                ? "**Coverage gate: PASS.** Every benchmark-capable selected member produced measured evidence. Social review may now compare and synthesize the four initial profiles."
+                ? "**Coverage gate: PASS.** Every benchmark-capable selected member produced measured evidence. Social review may now compare and synthesize the measured initial profiles."
                 : "**Coverage gate: PARTIAL.** Every benchmark-capable selected member was attempted, but one or more did not produce a successful measurement. Later roles must preserve those failures as inconclusive evidence and must not pretend unmeasured members were benchmarked.");
             return builder.ToString().Trim();
         }

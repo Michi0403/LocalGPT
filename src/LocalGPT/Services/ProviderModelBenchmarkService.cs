@@ -36,6 +36,10 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     /// </summary>
     private readonly IProviderModelReviewerPolicyService reviewerPolicy;
     /// <summary>
+    /// Stores database-backed runtime token bounds so benchmark limits adapt to maintained configuration rather than one developer machine.
+    /// </summary>
+    private readonly LocalGptCatalogService catalog;
+    /// <summary>
     /// Stores the logger used by <see cref="ProviderModelBenchmarkService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
     private readonly ILogger<ProviderModelBenchmarkService> logger;
@@ -46,6 +50,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
     /// <param name="performancePresets">Injected dependency used by the ProviderModelBenchmarkService.</param>
     /// <param name="liveSessions">Injected dependency used by the ProviderModelBenchmarkService.</param>
     /// <param name="reviewerPolicy">Injected dependency used by the ProviderModelBenchmarkService.</param>
+    /// <param name="catalog">Database-backed LocalGPT runtime policy and token bounds.</param>
     /// <param name="logger">Injected dependency used by the ProviderModelBenchmarkService.</param>
     public ProviderModelBenchmarkService(
         IProviderModelRuntimeService providerModels,
@@ -53,6 +58,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         IHardwarePerformancePresetService performancePresets,
         ICouncilLiveSessionService liveSessions,
         IProviderModelReviewerPolicyService reviewerPolicy,
+        LocalGptCatalogService catalog,
         ILogger<ProviderModelBenchmarkService> logger)
     {
         this.providerModels = providerModels;
@@ -60,6 +66,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         this.performancePresets = performancePresets;
         this.liveSessions = liveSessions;
         this.reviewerPolicy = reviewerPolicy;
+        this.catalog = catalog;
         this.logger = logger;
     }
 
@@ -105,10 +112,10 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         var maxProfiles = Math.Max(1, request.MaxProfilesPerModel);
         var maxTasks = Math.Clamp(request.MaxTasks, 1, 4);
         var maxSeconds = Math.Clamp(request.MaxSecondsPerCall, 10, 900);
-        var maximumContext = Math.Clamp(request.MaximumContextTokens, 2048, 262144);
-        var maximumOutput = Math.Clamp(request.MaximumOutputTokens, 128, 8192);
+        var maximumContext = Math.Clamp(request.MaximumContextTokens, catalog.MinContextTokens, catalog.MaxContextTokens);
+        var maximumOutput = Math.Clamp(request.MaximumOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens);
         var threshold = Math.Clamp(request.ImprovementThresholdPercent, 0d, 50d);
-        var stopAfterConsecutiveProfileFailures = Math.Clamp(request.StopAfterConsecutiveProfileFailures, 0, 4);
+        var stopAfterConsecutiveProfileFailures = Math.Clamp(request.StopAfterConsecutiveProfileFailures, 0, maxProfiles);
         var tasks = BuildTasks(request).Take(maxTasks).ToList();
         var maximumMeasurementCalls = (long)targets.Count * maxProfiles * tasks.Count;
         var maximumReviewCalls = request.IncludeCouncilReview
@@ -236,8 +243,8 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
                             break;
                         }
 
-                        // Profiles are cheap and bounded. Run at least four so the Ollama CPU control and a
-                        // quality profile are not skipped merely because the low-latency profile was faster.
+                        // Profiles are bounded provider measurements. Improvement-based early stop remains opt-in;
+                        // the maintained initial calibration disables it so all configured profile points are attempted.
                         if (request.StopWhenImprovementStalls &&
                             profileIndex >= 3 &&
                             consecutiveNonImprovingProfiles >= 2)

@@ -32,6 +32,11 @@ namespace LocalGPT.Services
         private readonly ILogger<MinecraftDatapackService> serviceLogger;
 
         /// <summary>Creates the Minecraft datapack domain service with persisted pattern and JSON policy collaborators.</summary>
+        /// <param name="catalog">LocalGPT runtime catalog and maintained defaults.</param>
+        /// <param name="patterns">Persisted Council text-pattern policy.</param>
+        /// <param name="text">Shared Council text service.</param>
+        /// <param name="jsonText">JSON text parsing and formatting service.</param>
+        /// <param name="serviceLogger">Service diagnostics logger.</param>
         public MinecraftDatapackService(
             LocalGptCatalogService catalog,
             ICouncilTextPatternDataService patterns,

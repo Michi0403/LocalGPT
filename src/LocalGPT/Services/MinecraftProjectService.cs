@@ -28,6 +28,11 @@ namespace LocalGPT.Services
         private readonly ILogger<MinecraftProjectService> serviceLogger;
 
         /// <summary>Creates the Minecraft project domain service with its scoped policy collaborators.</summary>
+        /// <param name="jsonText">JSON text parsing and formatting service.</param>
+        /// <param name="patterns">Persisted Council text-pattern policy.</param>
+        /// <param name="datapackService">Minecraft datapack collaborator.</param>
+        /// <param name="catalog">LocalGPT runtime catalog and maintained defaults.</param>
+        /// <param name="serviceLogger">Service diagnostics logger.</param>
         public MinecraftProjectService(
             IJsonTextService jsonText,
             ICouncilTextPatternDataService patterns,

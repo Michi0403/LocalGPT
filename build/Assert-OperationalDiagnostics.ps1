@@ -70,7 +70,7 @@ Require-Text 'src\LocalGPT\Components\App.razor' @(
     '<Routes>\s*</Routes>',
     '<InteractiveStartupMarker\s*/>',
     'Blazor\.start\(\{',
-    'disableDomPreservation:\s*true',
+    'disableDomPreservation:\s*false',
     '<body\s+data-enhance-nav="false">'
 ) 'Application shell diagnostics hosts'
 Require-Text 'src\LocalGPT\Components\Layout\MainLayout.razor' @(

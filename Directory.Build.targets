@@ -44,7 +44,7 @@
     <OperationalDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-OperationalDiagnostics.ps1</OperationalDiagnosticsScript>
   </PropertyGroup>
 
-  <!--<Target Name="AssertLocalGptOperationalDiagnostics"
+  <Target Name="AssertLocalGptOperationalDiagnostics"
           BeforeTargets="BeforeBuild"
           AfterTargets="AssertLocalGptLoggingIntegrity"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipOperationalDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
@@ -56,14 +56,14 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-  </Target>-->
+  </Target>
 
   <PropertyGroup>
     <InteractiveServerRenderModeScript>$(MSBuildThisFileDirectory)build\Assert-InteractiveServerRenderModes.ps1</InteractiveServerRenderModeScript>
     <AsyncContinuationScript>$(MSBuildThisFileDirectory)build\Assert-AsyncContinuationPolicy.ps1</AsyncContinuationScript>
   </PropertyGroup>
 
-  <!--<Target Name="AssertLocalGptInteractiveServerRenderModes"
+  <Target Name="AssertLocalGptInteractiveServerRenderModes"
           BeforeTargets="BeforeBuild"
           AfterTargets="AssertLocalGptOperationalDiagnostics"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipInteractiveServerRenderModeGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
@@ -75,7 +75,7 @@
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-  </Target>-->
+  </Target>
 
   <Target Name="AssertLocalGptAsyncContinuationPolicy"
           BeforeTargets="BeforeBuild"

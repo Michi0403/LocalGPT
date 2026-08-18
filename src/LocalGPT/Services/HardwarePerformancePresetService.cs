@@ -244,7 +244,7 @@ public sealed class HardwarePerformancePresetService(
 
 
     /// <summary>
-    /// Persists the four measured calibration tiers from one provider benchmark without inventing unmeasured routes.
+    /// Persists the five measured calibration tiers from one provider benchmark without inventing unmeasured routes.
     /// </summary>
     /// <inheritdoc />
     public async Task<IReadOnlyList<HardwarePerformancePreset>> SaveBenchmarkProfileSetAsync(
@@ -278,34 +278,37 @@ public sealed class HardwarePerformancePresetService(
             var baseName = string.IsNullOrWhiteSpace(presetBaseName)
                 ? $"Initial calibration {DateTimeOffset.Now:yyyy-MM-dd HHmmss}"
                 : presetBaseName.Trim();
-            var tiers = new[]
-            {
-                (Name: "Low", Position: 0d),
-                (Name: "Middle", Position: 1d / 3d),
-                (Name: "High", Position: 2d / 3d),
-                (Name: "Expert", Position: 1d)
-            };
+            var tiers = new[] { "Low", "Normal", "High", "Expert", "Max" };
             var saved = new List<HardwarePerformancePreset>(tiers.Length);
             foreach (var tier in tiers)
             {
                 var routes = successfulTargets
-                    .Select(item =>
+                    .Select(item => new
                     {
-                        var profileIndex = Math.Clamp(
-                            (int)Math.Round((item.Profiles.Count - 1) * tier.Position),
-                            0,
-                            item.Profiles.Count - 1);
-                        return BuildBenchmarkTierRoute(item.Target, item.Profiles, profileIndex, tier.Name);
+                        item.Target,
+                        item.Profiles,
+                        ProfileIndex = item.Profiles.FindIndex(profile =>
+                            profile.ProfileName.Equals(tier, StringComparison.OrdinalIgnoreCase))
                     })
+                    .Where(item => item.ProfileIndex >= 0)
+                    .Select(item => BuildBenchmarkTierRoute(item.Target, item.Profiles, item.ProfileIndex, tier))
                     .ToList();
+                if (routes.Count == 0)
+                {
+                    logger.LogWarning(
+                        "Measured calibration tier {TierName} was not stored for benchmark {BenchmarkRunId} because no target completed that exact provider profile point.",
+                        tier,
+                        report.RunId);
+                    continue;
+                }
                 var preset = new HardwarePerformancePreset
                 {
-                    Name = NormalizeName($"{baseName} · {tier.Name}"),
-                    Description = $"Measured {tier.Name} calibration profile from provider benchmark {report.RunId}. Every route comes from a successful measured profile point; selected members without successful evidence are intentionally not assigned invented settings.",
+                    Name = NormalizeName($"{baseName} · {tier}"),
+                    Description = $"Measured {tier} calibration profile from provider benchmark {report.RunId}. Every route comes from a successful measured profile point; selected members without successful evidence are intentionally not assigned invented settings.",
                     ModelRoutesJson = JsonSerializer.Serialize(routes),
                     ResourceLoadPercent = 100,
                     SourceRunId = report.RunId,
-                    SourceKind = $"ProviderBenchmark{tier.Name}",
+                    SourceKind = $"ProviderBenchmark{tier}",
                     IsDefault = false,
                     IsUserApproved = true
                 };
@@ -313,7 +316,8 @@ public sealed class HardwarePerformancePresetService(
             }
 
             logger.LogInformation(
-                "Saved four measured benchmark calibration profiles for run {BenchmarkRunId} covering {TargetCount} provider-qualified target(s).",
+                "Saved {PresetCount} exact measured benchmark calibration profile(s) for run {BenchmarkRunId} covering {TargetCount} provider-qualified target(s).",
+                saved.Count,
                 report.RunId,
                 successfulTargets.Count);
             return saved;
@@ -321,9 +325,9 @@ public sealed class HardwarePerformancePresetService(
         catch (Exception exception)
         {
             if (exception is OperationCanceledException)
-                logger.LogDebug(exception, "Saving four benchmark calibration profiles for run {BenchmarkRunId} was cancelled.", report?.RunId);
+                logger.LogDebug(exception, "Saving benchmark calibration profiles for run {BenchmarkRunId} was cancelled.", report?.RunId);
             else
-                logger.LogError(exception, "Saving four benchmark calibration profiles for run {BenchmarkRunId} failed.", report?.RunId);
+                logger.LogError(exception, "Saving benchmark calibration profiles for run {BenchmarkRunId} failed.", report?.RunId);
             throw;
         }
     }

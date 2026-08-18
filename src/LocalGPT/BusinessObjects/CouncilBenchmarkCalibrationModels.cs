@@ -15,13 +15,29 @@ public sealed class CouncilBenchmarkCalibrationRequest
     /// <value>The selected provider-qualified model identities.</value>
     public List<ProviderModelReference> Targets { get; set; } = [];
 
-    /// <summary>Gets or sets the largest context window the initial four-point calibration may attempt.</summary>
+    /// <summary>Gets or sets the number of measured parameter points every benchmark-capable subject should attempt.</summary>
+    /// <value>The profile-point count. The maintained initial calibration uses five points: Low, Normal, High, Expert and Max.</value>
+    public int ProfileCount { get; set; } = 5;
+
+    /// <summary>Gets or sets the smallest context window used by the calibration profile plan.</summary>
+    /// <value>The lower context-token bound supplied by the initiating Council configuration.</value>
+    public int MinimumContextTokens { get; set; } = 2048;
+
+    /// <summary>Gets or sets the smallest output budget used by the calibration profile plan.</summary>
+    /// <value>The lower output-token bound supplied by the initiating Council configuration.</value>
+    public int MinimumOutputTokens { get; set; } = 128;
+
+    /// <summary>Gets or sets the largest context window the calibration may attempt.</summary>
     /// <value>The upper context-token bound supplied by the initiating Council configuration.</value>
     public int MaximumContextTokens { get; set; } = 32768;
 
-    /// <summary>Gets or sets the largest output budget the initial four-point calibration may attempt.</summary>
+    /// <summary>Gets or sets the largest output budget the calibration may attempt.</summary>
     /// <value>The upper output-token bound supplied by the initiating Council configuration.</value>
     public int MaximumOutputTokens { get; set; } = 2048;
+
+    /// <summary>Gets or sets the number of consecutive all-profile failures that may stop further escalation for one subject.</summary>
+    /// <value>Zero attempts every configured profile point. Positive values are an explicit caller-selected failure shortcut.</value>
+    public int StopAfterConsecutiveProfileFailures { get; set; }
 
     /// <summary>Gets or sets the maximum duration allowed for one bounded provider call.</summary>
     /// <value>The per-call timeout in seconds.</value>
@@ -31,7 +47,7 @@ public sealed class CouncilBenchmarkCalibrationRequest
     /// <value>The authoritative bounded social-role task pack that measured Benchmark Subjects must execute.</value>
     public string TaskPackText { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the base name used when the measured Low, Middle, High and Expert performance profiles are stored.</summary>
+    /// <summary>Gets or sets the base name used when the measured Low, Normal, High, Expert and Max performance profiles are stored.</summary>
     /// <value>The user-visible performance-profile base name.</value>
     public string PresetBaseName { get; set; } = string.Empty;
 
@@ -41,7 +57,7 @@ public sealed class CouncilBenchmarkCalibrationRequest
 }
 
 /// <summary>
-/// Describes the outcome of one deterministic installed-model Council calibration, including measured coverage and the four stored performance profiles.
+/// Describes the outcome of one deterministic installed-model Council calibration, including measured coverage and the exact stored performance profiles from the five-point plan.
 /// </summary>
 public sealed class CouncilBenchmarkCalibrationResult
 {
@@ -74,7 +90,7 @@ public sealed class CouncilBenchmarkCalibrationResult
     [JsonIgnore]
     public ProviderModelBenchmarkReport Report { get; set; } = new();
 
-    /// <summary>Gets or sets the measured Low, Middle, High and Expert hardware-spooler profiles stored for this calibration.</summary>
+    /// <summary>Gets or sets the exact measured Low, Normal, High, Expert and Max hardware-spooler profiles stored for this calibration; unavailable tiers remain absent.</summary>
     /// <value>The stored performance profiles.</value>
     public List<HardwarePerformancePreset> Presets { get; set; } = [];
 

@@ -207,8 +207,12 @@ namespace LocalGPT.Services
                                         {
                                             CouncilRunId = result.RunId,
                                             Targets = exactBenchmarkTargets,
-                                            MaximumContextTokens = maxContextTokens,
+                                            ProfileCount = 5,
+                                            MinimumContextTokens = catalog.MinContextTokens,
+                                            MinimumOutputTokens = catalog.MinOutputTokens,
+                                            MaximumContextTokens = catalog.MaxContextTokens,
                                             MaximumOutputTokens = request.MaxOutputTokens,
+                                            StopAfterConsecutiveProfileFailures = 0,
                                             MaxSecondsPerCall = modelTimeoutSeconds,
                                             TaskPackText = visiblePreviousStep,
                                             PresetBaseName = $"Initial calibration {DateTimeOffset.Now:yyyy-MM-dd HHmmss}",

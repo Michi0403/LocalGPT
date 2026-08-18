@@ -60,6 +60,7 @@ namespace LocalGPT.Services
                 string text = string.Empty;
                 for (var attempt = 0; attempt < (task.EnforceRoleExecution ? 2 : 1); attempt++)
                 {
+                    taskResult.AttemptCount = attempt + 1;
                     var messages = new List<ChatMessage>
                     {
                         new(ChatRole.System,

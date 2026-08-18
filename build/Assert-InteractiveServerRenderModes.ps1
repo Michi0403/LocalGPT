@@ -71,7 +71,7 @@ foreach ($required in @(
     '<Routes></Routes>',
     '<InteractiveStartupMarker />',
     '<body data-enhance-nav="false">',
-    'ssr: { disableDomPreservation: true }',
+    'ssr: { disableDomPreservation: false }',
     '.then(() => window.localGptReady.markInteractive())'
 )) {
     if (-not $app.Contains($required)) { Fail "App.razor is missing the reviewed render contract: $required" }

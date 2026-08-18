@@ -81,6 +81,11 @@ public sealed class ProviderModelBenchmarkRequest
     /// </summary>
     /// <value>The profile generation mode used by the provider benchmark.</value>
     public ProviderModelBenchmarkProfileMode ProfileMode { get; set; } = ProviderModelBenchmarkProfileMode.Adaptive;
+
+    /// <summary>Gets or sets optional user-facing labels for generated profile points in measurement order.</summary>
+    /// <value>Caller-configured labels; empty values retain the benchmark engine's generated names.</value>
+    public List<string> ProfileNames { get; set; } = [];
+
     /// <summary>
     /// Gets or sets the smallest context window used by evenly spaced profile generation.
     /// </summary>
@@ -382,6 +387,9 @@ public sealed class ProviderModelBenchmarkTaskResult
     /// </summary>
     /// <value>The task name value exposed by <see cref="ProviderModelBenchmarkTaskResult"/>.</value>
     public string TaskName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the number of actual provider requests issued for this measured task, including the single bounded corrective retry when used.</summary>
+    /// <value>The provider-call attempt count retained as benchmark provenance.</value>
+    public int AttemptCount { get; set; }
     /// <summary>
     /// Gets or sets a value indicating whether the operation succeeded applies to the provider model benchmark task state.
     /// </summary>
