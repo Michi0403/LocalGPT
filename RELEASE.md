@@ -1,6 +1,6 @@
-# LocalGPT 3.1.1
+# LocalGPT 3.1.2
 
-LocalGPT 3.1.1 is the durable benchmark-audit successor to 3.1.0. It keeps the supplied .NET 10 / DevExpress 25.2 source and the existing benchmark/Council architecture, while making benchmark evidence both inspectable during a run and reopenable after later navigation or process restarts.
+LocalGPT 3.1.2 is the benchmark coverage truth-guard successor to 3.1.1. It keeps durable benchmark evidence, live evidence inspection and the existing Council architecture while making provider-qualified coverage counts and unresolved identities mechanically authoritative.
 
 ## Toolchain state
 
@@ -9,16 +9,16 @@ LocalGPT 3.1.1 is the durable benchmark-audit successor to 3.1.0. It keeps the s
 - DevExpress: existing `25.2.*` package lane retained
 - 1-Wire protocol: `2.1.1`
 
-## Benchmark audit state
+## Coverage truth state
 
-- streaming provider evidence remains visible through per-task **inspect evidence** cards;
-- bounded render projections protect long-running Blazor pages;
-- full captured task evidence is stored under the user's LocalGPT `BenchmarkEvidence` directory and loaded only on demand;
-- completed/gracefully stopped benchmark reports are stored as versioned JSON archives and can be reopened from **Saved benchmark audit evidence**;
-- deterministic success/failure/provider-call counts are shown separately from Council reviewer interpretation.
+- attempted, successful and unresolved provider-qualified identities are derived from the benchmark report by one shared coverage helper;
+- deterministic summaries include the exact unresolved identity list and the arithmetic invariant `attempted - successful = unresolved`;
+- the benchmark audit UI exposes that same exact list;
+- later Council reviewer prose is explicitly secondary and cannot override the deterministic identity set;
+- quality-review prompts may no longer summarize all subjects as successful unless machine-derived coverage says so.
 
-## Database boundary
+## Compatibility
 
-No migration or schema change is introduced by this release. Durable benchmark audit evidence is file-backed under LocalGPT user data.
+No database migration or evidence archive schema migration is introduced. Existing 3.1.1 `BenchmarkEvidence` archives remain readable and receive machine-derived coverage truth when opened by this source version.
 
-See `CHANGELOG-v3.1.1-BENCHMARK-AUDIT-EVIDENCE.md` and `VALIDATION-v3.1.1-source.md`.
+See `CHANGELOG-v3.1.2-BENCHMARK-COVERAGE-TRUTH-GUARD.md` and `VALIDATION-v3.1.2-source.md`.

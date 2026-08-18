@@ -3,20 +3,48 @@
 <div class="benchmark-audit-summary" role="group" aria-label="Deterministic benchmark audit summary">
     <strong>Deterministic measurement evidence</strong>
     <div class="benchmark-audit-summary-grid">
-        <span><b>@SuccessfulTargets/@AttemptedTargets</b> targets with measured success</span>
+        <span><b>@Coverage.SuccessfulTargetCount/@Coverage.AttemptedTargetCount</b> targets with a successful measured recommendation</span>
         <span><b>@SuccessfulTasks/@MeasuredTasks</b> contract-compliant task results</span>
         <span><b>@ProviderCalls</b> provider call attempts</span>
-        <span><b>@FailedTargets</b> targets without a successful measured profile</span>
+        <span><b>@Coverage.UnresolvedTargetCount</b> unresolved provider-qualified targets</span>
     </div>
-    <small>Provider measurements and captured task evidence are primary audit data. Council reviewer prose is secondary interpretation and should not override failed or inconclusive measurements.</small>
+    <div class="benchmark-audit-invariant" role="status">
+        Coverage invariant: <b>@($"{Coverage.AttemptedTargetCount} - {Coverage.SuccessfulTargetCount} = {Coverage.UnresolvedTargetCount}")</b>
+        @if (!Coverage.IsArithmeticConsistent)
+        {
+            <strong class="benchmark-audit-invariant-error">Internal coverage arithmetic mismatch.</strong>
+        }
+    </div>
+    @if (Coverage.UnresolvedTargetCount > 0)
+    {
+        <details class="benchmark-audit-unresolved">
+            <summary>Show exact unresolved identities (@Coverage.UnresolvedTargetCount)</summary>
+            <ul>
+                @foreach (var selectionKey in Coverage.UnresolvedSelectionKeys)
+                {
+                    <li><code>@selectionKey</code></li>
+                }
+            </ul>
+        </details>
+    }
+    else
+    {
+        <span class="benchmark-audit-pass">No unresolved attempted provider-qualified targets.</span>
+    }
+    <small>Provider measurements, this machine-derived identity set and captured task evidence are primary audit data. Council reviewer prose is secondary interpretation and cannot override these counts or identities.</small>
 </div>
 
 @code {
     [Parameter, EditorRequired] public ProviderModelBenchmarkReport Report { get; set; } = new();
 
-    private int AttemptedTargets => Report.Targets.Count;
-    private int SuccessfulTargets => Report.Targets.Count(target => target.Profiles.Any(profile => profile.Tasks.Any(task => task.Succeeded)));
-    private int FailedTargets => Math.Max(0, AttemptedTargets - SuccessfulTargets);
+    private ProviderModelBenchmarkCoverageSnapshot? coverage;
+    private ProviderModelBenchmarkCoverageSnapshot Coverage => coverage ??= new ProviderModelBenchmarkCoverageSnapshot(Report);
+
+    protected override void OnParametersSet()
+    {
+        coverage = new ProviderModelBenchmarkCoverageSnapshot(Report);
+    }
+
     private int MeasuredTasks => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Count));
     private int SuccessfulTasks => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Count(task => task.Succeeded)));
     private int ProviderCalls => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Sum(task => task.AttemptCount)));

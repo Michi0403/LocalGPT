@@ -243,9 +243,12 @@ public sealed class CouncilBenchmarkCalibrationService(
                 throw new InvalidOperationException(
                     $"The all-model benchmark coverage contract was violated: {missingBenchmarkTargets.Count} benchmark-capable selected subject(s) were not returned by the deterministic measurement engine. Missing identities: {string.Join(", ", missingBenchmarkTargets)}");
 
-            var successfulTargets = report.Targets.Count(target =>
-                string.IsNullOrWhiteSpace(target.Error) &&
-                !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName));
+            var coverage = new ProviderModelBenchmarkCoverageSnapshot(report);
+            if (coverage.AttemptedTargetCount != benchmarkTargets.Count || !coverage.IsArithmeticConsistent)
+                throw new InvalidOperationException(
+                    $"The deterministic benchmark coverage invariant failed: attempted={coverage.AttemptedTargetCount}, expected={benchmarkTargets.Count}, successful={coverage.SuccessfulTargetCount}, unresolved={coverage.UnresolvedTargetCount}.");
+
+            var successfulTargets = coverage.SuccessfulTargetCount;
             var baseName = string.IsNullOrWhiteSpace(request.PresetBaseName)
                 ? $"Initial calibration {DateTimeOffset.Now:yyyy-MM-dd HHmmss}"
                 : request.PresetBaseName.Trim();
@@ -270,6 +273,7 @@ public sealed class CouncilBenchmarkCalibrationService(
                 RequestedTargetCount = requestedTargets.Count,
                 BenchmarkTargetCount = benchmarkTargets.Count,
                 SuccessfulTargetCount = successfulTargets,
+                UnresolvedTargetSelectionKeys = coverage.UnresolvedSelectionKeys.ToList(),
                 SkippedTargets = skipped,
                 Report = report,
                 Presets = presets.ToList()
@@ -457,8 +461,39 @@ public sealed class CouncilBenchmarkCalibrationService(
             builder.AppendLine($"- Provider benchmark: `{result.BenchmarkRunId:N}`");
             builder.AppendLine($"- Requested distinct provider-qualified members: **{result.RequestedTargetCount}**");
             builder.AppendLine($"- Benchmark-capable members attempted: **{result.BenchmarkTargetCount}**");
+            var coverage = new ProviderModelBenchmarkCoverageSnapshot(result.Report);
+            if (coverage.AttemptedTargetCount != result.BenchmarkTargetCount
+                || coverage.SuccessfulTargetCount != result.SuccessfulTargetCount
+                || !coverage.UnresolvedSelectionKeys.SequenceEqual(result.UnresolvedTargetSelectionKeys, StringComparer.OrdinalIgnoreCase)
+                || !coverage.IsArithmeticConsistent)
+            {
+                throw new InvalidOperationException(
+                    $"The persisted Council coverage state does not match deterministic benchmark evidence: attempted={coverage.AttemptedTargetCount}/{result.BenchmarkTargetCount}, successful={coverage.SuccessfulTargetCount}/{result.SuccessfulTargetCount}, unresolved={coverage.UnresolvedTargetCount}/{result.UnresolvedTargetSelectionKeys.Count}.");
+            }
+
             builder.AppendLine($"- Members with at least one successful measured recommendation: **{result.SuccessfulTargetCount}**");
             builder.AppendLine($"- Stored measured profiles: **{result.Presets.Count}**");
+            builder.AppendLine();
+            builder.AppendLine("### Machine-derived coverage invariant");
+            builder.AppendLine("This block is authoritative deterministic benchmark state. Later Council/model prose is commentary and must not replace, shrink, expand or reinterpret this identity set.");
+            builder.AppendLine($"- Attempted benchmark-capable provider-qualified identities: **{coverage.AttemptedTargetCount}**");
+            builder.AppendLine($"- Successful measured recommendation identities: **{coverage.SuccessfulTargetCount}**");
+            builder.AppendLine($"- Unresolved attempted identities: **{coverage.UnresolvedTargetCount}**");
+            builder.AppendLine($"- Arithmetic check: **{coverage.AttemptedTargetCount} - {coverage.SuccessfulTargetCount} = {coverage.UnresolvedTargetCount}**");
+            if (coverage.UnresolvedTargetCount > 0)
+            {
+                builder.AppendLine();
+                builder.AppendLine("#### Authoritative unresolved provider-qualified identities");
+                foreach (var selectionKey in coverage.UnresolvedSelectionKeys)
+                    builder.AppendLine($"- `{selectionKey.Replace("`", "'", StringComparison.Ordinal)}`");
+                builder.AppendLine();
+                builder.AppendLine("**Truth guard:** if any later AI reviewer reports a different unresolved count or a different identity set, that prose conflicts with deterministic measurement evidence and must be treated as incorrect. Copy this list exactly when restating coverage.");
+            }
+            else
+            {
+                builder.AppendLine("- Authoritative unresolved identity set: **empty**");
+            }
+
             builder.AppendLine();
             builder.AppendLine("### Stored initial profiles");
             foreach (var preset in result.Presets)
@@ -538,9 +573,9 @@ public sealed class CouncilBenchmarkCalibrationService(
             }
 
             builder.AppendLine();
-            builder.AppendLine(result.SuccessfulTargetCount == result.BenchmarkTargetCount
-                ? "**Coverage gate: PASS.** Every benchmark-capable selected member produced measured evidence. Social review may now compare and synthesize the measured initial profiles."
-                : "**Coverage gate: PARTIAL.** Every benchmark-capable selected member was attempted, but one or more did not produce a successful measurement. Later roles must preserve those failures as inconclusive evidence and must not pretend unmeasured members were benchmarked.");
+            builder.AppendLine(coverage.UnresolvedTargetCount == 0
+                ? "**Coverage gate: PASS.** Every benchmark-capable selected member produced a successful measured recommendation. Social review may compare and synthesize the measured initial profiles, but it may not replace deterministic evidence."
+                : $"**Coverage gate: PARTIAL.** Exactly **{coverage.UnresolvedTargetCount}** attempted provider-qualified identity/identities remain unresolved. Later roles must preserve the authoritative unresolved list above and must not substitute a smaller example list, one-host subset or reviewer-generated count.");
             return builder.ToString().Trim();
         }
         catch (Exception exception)

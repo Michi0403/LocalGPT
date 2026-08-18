@@ -81,6 +81,10 @@ public sealed class CouncilBenchmarkCalibrationResult
     /// <value>The successful measured target count.</value>
     public int SuccessfulTargetCount { get; set; }
 
+    /// <summary>Gets or sets the exact provider-qualified benchmark targets that did not produce a successful measured recommendation.</summary>
+    /// <value>The machine-derived unresolved identity set. Council/model prose must not replace or shrink this list.</value>
+    public List<string> UnresolvedTargetSelectionKeys { get; set; } = [];
+
     /// <summary>Gets or sets selected Council members that could not enter the benchmark engine, with a bounded reason for each.</summary>
     /// <value>The skipped-target evidence collection.</value>
     public List<string> SkippedTargets { get; set; } = [];

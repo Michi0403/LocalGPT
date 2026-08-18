@@ -16,3 +16,32 @@
 .benchmark-audit-summary small {
     opacity: .8;
 }
+
+.benchmark-audit-invariant {
+    padding: .4rem .55rem;
+    border-radius: .35rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.benchmark-audit-invariant-error {
+    display: block;
+    color: var(--bs-danger-text-emphasis, #842029);
+}
+
+.benchmark-audit-unresolved summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.benchmark-audit-unresolved ul {
+    margin: .45rem 0 0;
+    padding-left: 1.35rem;
+}
+
+.benchmark-audit-unresolved code {
+    overflow-wrap: anywhere;
+}
+
+.benchmark-audit-pass {
+    font-weight: 600;
+}
