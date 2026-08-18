@@ -1,33 +1,19 @@
 ################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+# LocalGPT repository ignore rules
 ################################################################################
 
-/MyLocalGPT/.vs/MyLocalGPT
-/MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-windows10.0.19041.0/win10-x64
-/MyLocalGPT/MyLocalGPT/MyLocalGPT/obj
-/MyLocalGPT/MyLocalGPT/MyLocalGPT.Shared/bin/Debug/net9.0
-/MyLocalGPT/MyLocalGPT/MyLocalGPT.Shared/obj
-/MyLocalGPT/MyLocalGPT/MyLocalGPT.Web/obj
-/MyLocalGPT/MyLocalGPT/MyLocalGPT.Web.Client/obj
-MyLocalGPT/MyLocalGPT/MyLocalGPT.Web.Client/bin/
-MyLocalGPT/MyLocalGPT/MyLocalGPT.Web/bin/
-MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/MyLocalGPT.1.0.0.nupkg
-MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.dll
-MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.pdb
-MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.runtimeconfig.json
-MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.Shared.dll
-MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.Shared.pdb
-MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/Debug/net9.0-android/MyLocalGPT.Shared.staticwebassets.endpoints.json
-MyLocalGPT/MyLocalGPT/MyLocalGPT/bin/
+# IDE/build output
+.vs/
+**/.vs/
+**/.cr/
+**/bin/
+**/obj/
+**/*.csproj.user
+**/*.pubxml.user
+**/*.wapproj.user
+artifacts/
 
-# LocalGPT build outputs
-src/LocalGPTWebviewWrapper/**/bin/
-src/LocalGPTWebviewWrapper/**/obj/
-src/LocalGPTWebviewWrapper/.vs/
-src/LocalGPTWebviewWrapper/.cr/
-src/LocalGPTWebviewWrapper/**/*.user
-
-# MSIX packaging outputs
+# WebView/MSIX packaging output
 src/LocalGPTWebviewWrapper/**/AppPackages/
 src/LocalGPTWebviewWrapper/**/BundleArtifacts/
 src/LocalGPTWebviewWrapper/**/*.msix
@@ -40,18 +26,15 @@ src/LocalGPTWebviewWrapper/**/*.pfx
 src/LocalGPTWebviewWrapper/**/*.assets.cache
 src/LocalGPTWebviewWrapper/**/*.local.props
 
-# Local release packages and smoke artifacts
-artifacts/
+# Local release/smoke output
 build/LocalGPTByMichi0403.zip
 build/LocalGPTByMichi0403/
-build/publish-output/linux64.zip
 build/publish-output/
-images/
 build/Michi0403_LocalGPT
 build/TelegramBots_Telegram.Bot
-src/LocalGPTWebviewWrapper/LocalGPT/LocalGPT.log
+images/
 
-# Local runtime state and generated diagnostics
+# Local runtime state and diagnostics
 *.db
 *.db-shm
 *.db-wal
@@ -59,9 +42,6 @@ src/LocalGPTWebviewWrapper/LocalGPT/LocalGPT.log
 *.tmp
 *.bak
 CorruptDatabaseBackups/
-src/LocalGPTWebviewWrapper/**/LocalGPT.log
-src/LocalGPTWebviewWrapper/**/FirstVersionlocalgpt-memory.db
-src/LocalGPTWebviewWrapper/**/localgpt-memory-example-database.db
 
 # AI/tool scratch clones and generated repository snapshots
 build/[A-Za-z0-9]????????/
@@ -69,38 +49,75 @@ build/*_repo_to_text*.txt
 build/*_repo_snapshot*/
 /localgpt/
 
-# User- and machine-specific IDE state
-**/*.csproj.user
-**/*.pubxml.user
-**/*.wapproj.user
-**/.cr/
-**/.vs/
-
-# Generated DevExpress/DevExtreme licensed build material
-src/LocalGPTWebviewWrapper/LocalGPT/wwwroot/js/devextreme-license.js
+# Generated DevExpress/DevExtreme licensed material. Keep the example/template source.
+src/LocalGPT/wwwroot/js/devextreme-license.js
 **/DevExpress_License*
 **/*devexpress*license*.key
 
 # Generated authoritative protocol package cache
 packages/*.nupkg
 packages/*.snupkg
+packages/*.download
 
-# Keep build gates, regression tests and localization catalogs visible to Git.
+# Build gates, tests and localization are repository source.
 !Directory.Build.targets
 !Build-LocalDevelopment.ps1
 !Build-Release.ps1
 !build/
-!build/*.ps1
-!build/*.json
-!build/*.sha256
+!build/**
 !tests/
-!tests/*.py
-!src/LocalGPTWebviewWrapper/LocalGPT/Localization/
-!src/LocalGPTWebviewWrapper/LocalGPT/Localization/*.json
+!tests/**
 tests/__pycache__/
+!src/LocalGPT/Localization/
+!src/LocalGPT/Localization/**
 
-# Generated DocFX inputs and outputs
+# Keep the authored DocFX/Kawaii documentation source in Git. The generated help-docs
+# application copy is not source; these inputs recreate it with the same Kawaii theme.
+!docs/
+!docs/**/*.md
+!docs/**/*.yml
+!docs/**/*.yaml
+!docs/**/*.json
+!docs/**/*.css
+!docs/**/*.js
+!docs/**/*.html
+!docs/**/*.svg
+!docs/**/*.ico
+!docs/**/*.sql
+!docs/templates/
+!docs/templates/**
+!docs/styles/
+!docs/styles/**
+!docs/guide/
+!docs/guide/**
+!docs/architecture/
+!docs/architecture/**
+!docs/engineering/
+!docs/engineering/**
+!docs/reference/
+!docs/reference/**
+!docs/pdf/
+!docs/pdf/**
+!docs/docfx.json
+!docs/filterConfig.yml
+!docs/toc.yml
+!docs/pdf-cover.html
+!.config/dotnet-tools.json
+
+# GitHub Pages intentionally publishes the tracked, version-matched Kawaii snapshot.
+!.github/pages/
+!.github/pages/**
+!.github/scripts/
+!.github/scripts/**
+!.github/workflows/
+!.github/workflows/**
+
+# Generated documentation products. Build-Documentation.ps1 recreates these from the
+# tracked docs source, compiler XML and application assembly.
 docs/input/
 docs/api/
 docs/_site/
+docs/.tools/
+docs/.print-book/
+docs/LocalGPT-*.pdf
 src/LocalGPT/wwwroot/help-docs/
