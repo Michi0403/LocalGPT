@@ -250,6 +250,42 @@ namespace LocalGPT.Services
                                 role,
                                 fallbackPlan);
                         }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            liveCouncilSessions.CompleteParticipantActivity(
+                                result.RunId,
+                                activityKey,
+                                "Participant stopped because the Council run was cancelled by its caller.");
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(
+                                ex,
+                                "Council participant infrastructure failed for {ModelName} in round {Round}, phase {Phase}. The failure is converted into explicit step evidence so the host queue and configured round recovery can continue.",
+                                modelName,
+                                round,
+                                phase);
+                            liveCouncilSessions.CompleteParticipantActivity(
+                                result.RunId,
+                                activityKey,
+                                $"Participant infrastructure failed: {ex.Message}");
+                            var failedAtUtc = DateTime.UtcNow;
+                            return new MultiModelCouncilStep
+                            {
+                                Round = round,
+                                Phase = phase,
+                                ModelName = modelName,
+                                CouncilMembers = (councilMembers ?? participants).ToList(),
+                                Role = role,
+                                Content = string.Empty,
+                                VisibleContent = string.Empty,
+                                Error = $"{ex.GetType().Name}: {ex.Message}",
+                                StartedAtUtc = failedAtUtc,
+                                CompletedAtUtc = failedAtUtc,
+                                DurationSeconds = 0d
+                            };
+                        }
                         finally
                         {
                             participantStream?.Writer.TryComplete();
@@ -335,8 +371,9 @@ namespace LocalGPT.Services
             {
                 logger.LogError(
                     ex,
-                    "Council phase failed for round {Round}, role {Role}, participant count {ParticipantCount}, " +
-                    "max output {MaxOutputTokens}, max parallel {MaxParallelModels}, max context {MaxContextTokens}, timeout {TimeoutSeconds}s.",
+                    "Council phase infrastructure failed for round {Round}, role {Role}, participant count {ParticipantCount}, " +
+                    "max output {MaxOutputTokens}, max parallel {MaxParallelModels}, max context {MaxContextTokens}, timeout {TimeoutSeconds}s. " +
+                    "The exception is rethrown so configured round recovery or the run-level failure boundary can preserve the failure instead of silently dropping the round.",
                     round,
                     role,
                     participants.Count,
@@ -344,6 +381,7 @@ namespace LocalGPT.Services
                     maxParallelModels,
                     maxContextTokens,
                     modelTimeoutSeconds);
+                throw;
             }
         }
 

@@ -544,9 +544,19 @@
                             </label>
                         }
                         <details class="council-advanced-section">
-                            <summary>Member result recovery · @step.RoleComplianceRetryCount role retry(s) · final-answer recovery @(step.FinalAnswerRecoveryEnabled ? "on" : "off")</summary>
-                            <p class="hint">These are social execution policies and are persisted with this workflow step. Recovery runs on the same provider-qualified member and is model work, not UI rendering.</p>
+                            <summary>Member result recovery · @step.MemberFailureRecoveryAttempts round repair turn(s) · @step.RoleComplianceRetryCount role retry(s) · final-answer recovery @(step.FinalAnswerRecoveryEnabled ? "on" : "off")</summary>
+                            <p class="hint">These are persisted Social Team execution policies. A provider crash, timeout, or unusable member result is preserved as evidence; required work is then repeated according to this round policy. Substitute models can only come from the role's existing saved model-selection pool, so recovery never invents a second hidden scheduler.</p>
                             <div class="council-workflow-fields">
+                                <label>
+                                    <span>Provider/member failure recovery</span>
+                                    <select class="form-select" @bind="step.MemberFailureRecoveryMode">
+                                        @foreach (var option in MemberFailureRecoveryModes)
+                                        {
+                                            <option value="@option.Value">@option.Label</option>
+                                        }
+                                    </select>
+                                </label>
+                                <label><span>Round-level recovery turns after built-in safe fallback</span><input class="form-control" type="number" min="0" max="8" @bind="step.MemberFailureRecoveryAttempts" disabled="@(step.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.Disabled)" /></label>
                                 <label><span>Role-compliance corrective retries</span><input class="form-control" type="number" min="0" max="3" @bind="step.RoleComplianceRetryCount" /></label>
                                 <label class="form-check"><input class="form-check-input" type="checkbox" @bind="step.FinalAnswerRecoveryEnabled" /><span>Recover a final answer when only thinking/non-final content was returned</span></label>
                                 <label><span>Final-answer recovery max output tokens</span><input class="form-control" type="number" min="128" max="32768" @bind="step.FinalAnswerRecoveryMaxOutputTokens" disabled="@(!step.FinalAnswerRecoveryEnabled)" /></label>

@@ -331,7 +331,11 @@ namespace LocalGPT.Services
                         result.RunId,
                         activityKey,
                         "Configured participant was cancelled before its Council step completed.");
-                    logger.LogDebug(__serviceMethodException, $"Service method {nameof(MultiModelCouncilService)}.{nameof(RunConfiguredParticipantAsync)} was canceled.");
+                    logger.LogDebug(
+                        "Configured Council participant {ModelName} was cancelled for round {Round}, phase {Phase}.",
+                        modelName,
+                        round,
+                        phase);
                 }
                 else
                 {

@@ -427,11 +427,47 @@ namespace LocalGPT.Services
                         }
                     }
 
+                    var recoveredMemberSteps = await RecoverConfiguredRoundMemberFailuresAsync(
+                        result,
+                        request,
+                        team,
+                        definition,
+                        executionMode,
+                        baseUri,
+                        participants,
+                        roleAssignment,
+                        roleAssignments,
+                        rolePairings,
+                        roleParticipants,
+                        round,
+                        phase,
+                        repeatIndex,
+                        repeatCount,
+                        loopGroup,
+                        loopIteration,
+                        loopMaximumIterations,
+                        visiblePreviousStep,
+                        heartbeatBootstrap,
+                        modelRoutes,
+                        keepAlive,
+                        ollamaNumGpu,
+                        maxContextTokens,
+                        modelTimeoutSeconds,
+                        effectiveAllowDxFunctions,
+                        automaticFunctionPolicy,
+                        workflowRevision,
+                        xRoundCause,
+                        cancellationToken).ConfigureAwait(false);
+
+                    var recoveredModels = recoveredMemberSteps
+                        .Select(step => step.ModelName)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
                     var roundSteps = result.Steps
                         .Where(step =>
                             step.Round == round &&
-                            string.Equals(step.Phase, phase, StringComparison.Ordinal) &&
+                            IsConfiguredRoundPrimaryOrRecoveryPhase(step.Phase, phase) &&
                             (roleParticipants.Contains(step.ModelName, StringComparer.OrdinalIgnoreCase) ||
+                             recoveredModels.Contains(step.ModelName) ||
                              step.ModelName.StartsWith("Human:", StringComparison.OrdinalIgnoreCase) ||
                              (executionMode == "SystemBenchmarkCalibration" &&
                               string.Equals(step.ModelName, "LocalGPT Benchmark Engine", StringComparison.OrdinalIgnoreCase))))
@@ -452,6 +488,7 @@ namespace LocalGPT.Services
 
                     var stageAnswer = BuildConfiguredWorkflowStageAnswer(roundSteps);
                     var distinctAiRoleParticipants = roleParticipants
+                        .Concat(recoveredModels)
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
                     var usablePrimaryAiSteps = roundSteps

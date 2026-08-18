@@ -152,10 +152,13 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
                     ? "The service operation completed."
                     : successSummary);
         }
-        catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             RecordInformation(serviceName, operation, "The service operation was cancelled.");
-            logger.LogInformation(exception, "Service activity {ServiceName}/{Operation} was cancelled.", serviceName, operation);
+            logger.LogDebug(
+                "Service activity {ServiceName}/{Operation} ended because its caller cancellation token was signaled.",
+                serviceName,
+                operation);
             throw;
         }
         catch (Exception ex)

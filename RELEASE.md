@@ -1,6 +1,6 @@
-# LocalGPT 3.1.2
+# LocalGPT 3.1.3
 
-LocalGPT 3.1.2 is the benchmark coverage truth-guard successor to 3.1.1. It keeps durable benchmark evidence, live evidence inspection and the existing Council architecture while making provider-qualified coverage counts and unresolved identities mechanically authoritative.
+LocalGPT 3.1.3 is the Council resilience successor to 3.1.2. It preserves durable benchmark evidence and the benchmark coverage truth guard while making configured Social Team rounds recover required member work after provider/model failure, treating explicit stop as normal cancellation, and removing the live user-message shadow-DOM flicker path.
 
 ## Toolchain state
 
@@ -9,16 +9,19 @@ LocalGPT 3.1.2 is the benchmark coverage truth-guard successor to 3.1.1. It keep
 - DevExpress: existing `25.2.*` package lane retained
 - 1-Wire protocol: `2.1.1`
 
-## Coverage truth state
+## Council resilience state
 
-- attempted, successful and unresolved provider-qualified identities are derived from the benchmark report by one shared coverage helper;
-- deterministic summaries include the exact unresolved identity list and the arithmetic invariant `attempted - successful = unresolved`;
-- the benchmark audit UI exposes that same exact list;
-- later Council reviewer prose is explicitly secondary and cannot override the deterministic identity set;
-- quality-review prompts may no longer summarize all subjects as successful unless machine-derived coverage says so.
+- workflow steps persist user-editable member failure recovery mode and bounded recovery turns;
+- the existing same-member safe transport fallback remains first-line recovery;
+- eligible alternate recovery members come only from the saved Social Team role pool and prefer another AI-host road when available;
+- failed attempts remain auditable and recovery attempts are separate Council steps;
+- participant infrastructure faults no longer strand a host queue;
+- phase infrastructure faults can no longer be logged and silently discarded;
+- explicit user stop is cancellation, not a failed Council result;
+- live user messages are rendered from authoritative DxAIChat state rather than heartbeat-recreated JavaScript rows.
 
 ## Compatibility
 
-No database migration or evidence archive schema migration is introduced. Existing 3.1.1 `BenchmarkEvidence` archives remain readable and receive machine-derived coverage truth when opened by this source version.
+No database migration or benchmark evidence archive schema migration is introduced. Existing 3.1.1/3.1.2 evidence remains compatible, existing Social Teams load with safe defaults for the newly persisted workflow recovery fields, and the 3.1.2 machine-derived benchmark coverage truth remains authoritative.
 
-See `CHANGELOG-v3.1.2-BENCHMARK-COVERAGE-TRUTH-GUARD.md` and `VALIDATION-v3.1.2-source.md`.
+See `CHANGELOG-v3.1.3-COUNCIL-ROUND-RECOVERY-CANCELLATION-UI-STABILITY.md` and `VALIDATION-v3.1.3-source.md`.

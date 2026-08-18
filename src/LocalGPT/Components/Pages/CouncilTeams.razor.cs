@@ -63,6 +63,12 @@ namespace LocalGPT.Components.Pages
         (CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember, "Random assigned role member (stable per run)"),
         (CouncilRoleResultSynthesisMemberMode.AssignedRoleMember, "One selected role member")
     ];
+    private readonly IReadOnlyList<(CouncilMemberFailureRecoveryMode Value, string Label)> MemberFailureRecoveryModes =
+    [
+        (CouncilMemberFailureRecoveryMode.Disabled, "Disabled — preserve failure without automatic round repair"),
+        (CouncilMemberFailureRecoveryMode.RetrySameMember, "Retry the same provider-qualified role member"),
+        (CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool, "After same-member safe fallback, use another eligible member from this role pool")
+    ];
     private readonly IReadOnlyList<(CouncilTranscriptVisibilityMode Value, string Label)> TranscriptVisibilityModes =
     [
         (CouncilTranscriptVisibilityMode.FullCouncil, "Full Council transcript"),
@@ -453,6 +459,8 @@ namespace LocalGPT.Components.Pages
         CanUseOrganicFunctions = true,
         AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.AllPolicyApproved,
         RoleComplianceRetryCount = 1,
+        MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool,
+        MemberFailureRecoveryAttempts = 3,
         FinalAnswerRecoveryEnabled = true,
         FinalAnswerRecoveryMaxOutputTokens = 8192,
         XMaximumTransitions = 3,
@@ -537,6 +545,9 @@ namespace LocalGPT.Components.Pages
             step.AllowedAutomaticFunctions ??= [];
             step.AllowedAutomaticFunctions = step.AllowedAutomaticFunctions.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToList();
             step.RoleComplianceRetryCount = Math.Clamp(step.RoleComplianceRetryCount, 0, 3);
+            if (!Enum.IsDefined(typeof(CouncilMemberFailureRecoveryMode), step.MemberFailureRecoveryMode))
+                step.MemberFailureRecoveryMode = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool;
+            step.MemberFailureRecoveryAttempts = Math.Clamp(step.MemberFailureRecoveryAttempts, 0, 8);
             step.FinalAnswerRecoveryMaxOutputTokens = Math.Clamp(step.FinalAnswerRecoveryMaxOutputTokens, 128, 32768);
             step.LoopGroup = step.LoopGroup?.Trim() ?? string.Empty;
             step.MaximumLoopIterations = string.IsNullOrWhiteSpace(step.LoopGroup)

@@ -653,13 +653,13 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
 
     function appendLiveUserMessage(host, content, fileNames = []) {
         try {
-            const messages = liveUserMessages.get(host) || [];
-            messages.push({ id: `live-user-${++liveUserMessageSequence}`, content, fileNames });
-            liveUserMessages.set(host, messages);
+            // The .NET callback has already inserted the accepted message into the authoritative DxAIChat
+            // session and performs one renderer-affine LoadMessages call. Do not mirror the same message with a
+            // JavaScript-owned row inside the Blazor/DevExpress message subtree: renderer diffs remove that row
+            // on every Council heartbeat and the mutation observer re-adds it, causing visible flicker.
             const composer = host.querySelector('.localgpt-chat-composer');
             const region = findScrollRegion(host, composer);
             if (!(region instanceof HTMLElement)) return;
-            renderLiveUserMessages(host, region);
             const state = bindSlowScroll(host, region);
             if (state.follow && !state.userInteracting) scheduleSlowFollow(host, region);
         } catch (error) {
@@ -882,7 +882,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
             const scrollRegion = findScrollRegion(host, composer);
             if (scrollRegion) {
                 addClass(scrollRegion, 'localgpt-chat-scroll-region');
-                renderLiveUserMessages(host, scrollRegion);
+                // Accepted live user messages are rendered by DxAIChat from the authoritative .NET session.
                 const scrollState = bindSlowScroll(host, scrollRegion);
                 if (!scrollState.initialized) {
                     scrollState.initialized = true;

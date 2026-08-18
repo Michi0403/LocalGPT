@@ -200,12 +200,16 @@ public sealed partial class OllamaThinkingChatClient
             return await http.SendAsync(httpRequest, completionOption, cancellationToken).ConfigureAwait(false);
     
     }
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+    {
+        logger.LogDebug(
+            "Ollama HTTP request was cancelled by its caller for {ClientMethod}; aborting the underlying transport is expected during Council stop/round cancellation.",
+            nameof(SendRequestOnceAsync));
+        throw;
+    }
     catch (Exception __serviceMethodException)
     {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestOnceAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestOnceAsync)} failed.");
+        logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaThinkingChatClient)}.{nameof(SendRequestOnceAsync)} failed.");
         throw;
     }
 }

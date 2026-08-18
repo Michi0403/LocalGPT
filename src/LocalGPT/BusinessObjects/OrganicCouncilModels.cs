@@ -74,6 +74,18 @@ public enum CouncilRoleResultSynthesisMemberMode
     AssignedRoleMember
 }
 
+/// <summary>Defines how a configured Council workflow step recovers required member work after provider failure, timeout, or unusable output.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CouncilMemberFailureRecoveryMode
+{
+    /// <summary>Preserves the failed attempt as evidence but does not automatically repeat the required member slot.</summary>
+    Disabled = 0,
+    /// <summary>Repeats the required member slot only with the same provider-qualified role member.</summary>
+    RetrySameMember = 1,
+    /// <summary>Retries the same member first, then selects another eligible member from the role's persisted Social Team pool when the execution mode permits substitution.</summary>
+    RetrySameThenEligibleRolePool = 2
+}
+
 /// <summary>Defines which prior Council output a configured workflow step may receive.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum CouncilTranscriptVisibilityMode
@@ -455,6 +467,12 @@ public sealed class CouncilWorkflowStepDefinition
     /// <summary>Gets or sets how many same-member corrective role retries LocalGPT may run after a generic non-performance/refusal result.</summary>
     /// <value>A user-editable bounded retry count; zero disables role-compliance retry.</value>
     public int RoleComplianceRetryCount { get; set; } = 1;
+    /// <summary>Gets or sets how this workflow step recovers a required member slot after provider failure, timeout, or unusable visible output.</summary>
+    /// <value>The persisted round recovery policy. Eligible substitutes are always resolved from the role's saved Social Team model-selection policy.</value>
+    public CouncilMemberFailureRecoveryMode MemberFailureRecoveryMode { get; set; } = CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool;
+    /// <summary>Gets or sets the maximum number of round-level recovery turns attempted after the participant's built-in same-request safe fallback has already failed.</summary>
+    /// <value>A bounded user-editable recovery count. Zero disables round-level member recovery without changing the selected recovery mode.</value>
+    public int MemberFailureRecoveryAttempts { get; set; } = 3;
     /// <summary>Gets or sets whether LocalGPT may request a final-answer-only continuation when a provider returns thinking without substantive visible output.</summary>
     /// <value><see langword="true"/> to enable the user-configured final-answer recovery pass.</value>
     public bool FinalAnswerRecoveryEnabled { get; set; } = true;

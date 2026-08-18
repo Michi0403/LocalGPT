@@ -253,6 +253,15 @@ namespace LocalGPT.Components.Pages
             if (ChatClientProvider?.SelectedSession is not null)
                 ChatClientProvider.SelectedSession.Messages.Add(chatMessage);
 
+            // Keep the user message inside the authoritative Blazor/DevExpress message model. The old JavaScript
+            // shadow bubble lived inside a renderer-owned message subtree and was repeatedly removed/re-added on
+            // Council heartbeats, which produced visible flicker. Reload only for this explicit human send event.
+            await InvokeAsync(() =>
+            {
+                LoadSelectedSessionMessages();
+                StateHasChanged();
+            }).ConfigureAwait(false);
+
             ComponentActivity.RecordInformation(
                 nameof(Chat),
                 "QueueLiveCouncilUserMessage",

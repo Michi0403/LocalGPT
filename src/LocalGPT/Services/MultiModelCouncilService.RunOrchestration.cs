@@ -672,6 +672,24 @@ namespace LocalGPT.Services
 
                 return result;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogInformation(
+                    "Council run {RunId} was stopped by caller cancellation. Provider transport cancellation is expected and is not classified as a Council failure.",
+                    collaborationRunId ?? result?.RunId);
+                if (result is not null)
+                {
+                    result.CompletedAtUtc = DateTime.UtcNow;
+                    if (string.IsNullOrWhiteSpace(result.FinalAnswer))
+                        result.FinalAnswer = "The Council run was stopped by an explicit user action. Partial Council steps remain preserved below.";
+                    if (!result.Warnings.Contains("The Council run was stopped by an explicit user action.", StringComparer.OrdinalIgnoreCase))
+                        result.Warnings.Add("The Council run was stopped by an explicit user action.");
+                    result.LogPath = await WriteLogAsync(result, CancellationToken.None, logger).ConfigureAwait(false);
+                    await WriteMissingFeatureReportAsync(result, CancellationToken.None).ConfigureAwait(false);
+                    councilSpooler.Complete(result);
+                }
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error in council RunAsync.");
