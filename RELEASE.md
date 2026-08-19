@@ -1,6 +1,6 @@
-# LocalGPT 3.1.8
+# LocalGPT 3.1.9
 
-LocalGPT 3.1.8 is the **Chat Quick Preset Isolation** repair release. It keeps the three service-backed `/chat` quick selectors and live configuration refresh, while restoring the DevExpress chat composer to the exact pre-feature layout contract.
+LocalGPT 3.1.9 is the **Chat Quick Preset Row** release. It keeps the working service-backed Team, Models and Performance selectors while completing their requested visual placement as one normal-flow DevExpress row directly below Chat and above Running session tools.
 
 ## Toolchain state
 
@@ -9,18 +9,18 @@ LocalGPT 3.1.8 is the **Chat Quick Preset Isolation** repair release. It keeps t
 - DevExpress: existing `25.2.*` package lane retained
 - 1-Wire protocol: `2.1.1`
 
-## Quick preset isolation
+## Quick Preset Row
 
-The Council team, model preset and performance preset selectors remain available, but they are now a compact sibling overlay after `DxAIChat`. They do not reserve space by changing the DevExpress composer or textarea.
+The three selectors are now bundled in a single `DxFormLayout`. Each item occupies four of twelve medium-width columns, so normal desktop layouts show Team, Models and Performance side by side from left to right. Smaller layouts are handled by DevExpress FormLayout rather than selector-specific CSS or a horizontal scrolling dock.
 
-The detailed Chat Configuration workspace is unchanged. The complete `DxAIChat` subtree is unchanged. Static release guards hash both regions and the known-good pre-feature Chat CSS so future quick-action work cannot silently rewrite those integration boundaries.
+The quick row is outside the DevExpress Chat host. It does not modify the memo editor, Attach, Send, Stop, transcript, prompt suggestions or detailed Chat Configuration workspace.
 
-## Renderer-affine refresh
+## CSS boundary
 
-The live service refresh requested for Chat Configuration remains enabled. Service reads happen independently, while component-owned lists and selections are committed through the Blazor renderer with `InvokeAsync`. Provider discovery keeps its existing separate refresh path.
+All 3.1.8 quick-selector overlay CSS was removed. The only existing Chat CSS change adds one normal-flow grid row (and the matching optional ASCII-game row) so the new sibling has a real layout slot. The release audit normalizes those row-count changes and verifies the rest of `Chat.razor.css` still matches the known-good pre-feature baseline.
 
 ## Preserved behavior
 
-3.1.8 retains the 3.1.7 typed DevExpress callbacks, 3.1.5 repetition watchdog, Council recovery/failover, cancellation handling, benchmark evidence, coverage truth guard and XML documentation completeness work. No database migration or evidence-schema migration is introduced.
+3.1.9 retains live service refresh, renderer-affine state commits, the repetition watchdog, Council recovery/failover, cancellation handling, benchmark evidence, coverage truth guard and XML documentation completeness. No database migration or evidence-schema migration is introduced.
 
-See `CHANGELOG-v3.1.8-CHAT-QUICK-PRESET-ISOLATION.md` and `VALIDATION-v3.1.8-source.md`.
+See `CHANGELOG-v3.1.9-CHAT-QUICK-PRESET-ROW.md` and `VALIDATION-v3.1.9-source.md`.
