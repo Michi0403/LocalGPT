@@ -1,6 +1,6 @@
-# LocalGPT 3.1.6
+# LocalGPT 3.1.7
 
-LocalGPT 3.1.6 is the Chat quick-preset and live configuration-refresh successor to 3.1.5. It keeps the complete 3.1.5 repetition-watchdog behavior and all earlier Council/benchmark recovery and evidence work while making the most common Council preparation choices directly available beside the `/chat` prompt actions.
+LocalGPT 3.1.7 is the compile-repair successor to 3.1.6. It retains the three service-backed `/chat` quick selectors and live Chat Configuration refresh while correcting the DevExpress callback form identified by the user's real .NET build.
 
 ## Toolchain state
 
@@ -9,22 +9,14 @@ LocalGPT 3.1.6 is the Chat quick-preset and live configuration-refresh successor
 - DevExpress: existing `25.2.*` package lane retained
 - 1-Wire protocol: `2.1.1`
 
-## Chat quick configuration
+## DxComboBox callback repair
 
-Three compact DevExpress selectors are available on the prompt action line:
+The Council team, model preset and performance preset `DxComboBox` controls now use explicit typed `ValueChanged` lambdas. This gives Razor/DevExpress the concrete callback argument type needed to construct the component `EventCallback` and removes the 3.1.6 `CS1503` method-group conversion failure.
 
-- Council team;
-- Council model preset;
-- hardware performance preset.
+The handlers themselves are unchanged and still delegate to the existing service-backed detailed Chat Configuration application paths.
 
-Each selector uses the same service-backed collections and application handlers as the detailed Chat configuration surface. Advanced editing remains in Chat configuration.
+## Preserved behavior
 
-## Live configuration refresh
+The 3.1.6 live service refresh, 3.1.5 repetition watchdog, Council recovery/failover, cancellation handling, benchmark evidence, coverage truth guard and XML documentation completeness work all remain present. No database migration or evidence-schema migration is introduced.
 
-Opening Chat configuration now reloads its database/service-backed lists instead of depending on the values captured when `/chat` first initialized. Council teams, model presets, hardware performance presets, persistent prompt starters, projects and chat memory are refreshed independently from provider discovery. Current manual values are not reset merely because the lists were refreshed.
-
-## Compatibility
-
-No database migration, benchmark evidence schema migration, 1-Wire protocol change, repetition-watchdog removal, Council recovery removal, or XML documentation regression is introduced by 3.1.6.
-
-See `CHANGELOG-v3.1.6-CHAT-QUICK-PRESETS-LIVE-CONFIG-REFRESH.md` and `VALIDATION-v3.1.6-source.md`.
+See `CHANGELOG-v3.1.7-DXCOMBOBOX-TYPED-CALLBACK-REPAIR.md` and `VALIDATION-v3.1.7-source.md`.

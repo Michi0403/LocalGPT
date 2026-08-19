@@ -708,7 +708,7 @@
                     <DxComboBox Data="@CouncilTeams"
                                 Value="@SelectedQuickCouncilTeam"
                                 TextFieldName="@nameof(OrganicCouncilTeamDefinition.DisplayName)"
-                                ValueChanged="OnQuickCouncilTeamChangedAsync"
+                                ValueChanged="@((OrganicCouncilTeamDefinition team) => OnQuickCouncilTeamChangedAsync(team))"
                                 NullText="Council team" />
                 </div>
                 <div class="chat-quick-configuration-item" title="Select the database-backed model preset. Detailed model and runtime settings remain in Chat configuration.">
@@ -716,7 +716,7 @@
                     <DxComboBox Data="@ModelPresets"
                                 Value="@SelectedQuickModelPreset"
                                 TextFieldName="@nameof(CouncilModelPreset.Name)"
-                                ValueChanged="OnQuickModelPresetChangedAsync"
+                                ValueChanged="@((CouncilModelPreset preset) => OnQuickModelPresetChangedAsync(preset))"
                                 NullText="Model preset" />
                 </div>
                 <div class="chat-quick-configuration-item" title="Apply a benchmark-backed hardware performance preset without changing Council membership.">
@@ -724,7 +724,7 @@
                     <DxComboBox Data="@HardwarePerformancePresetItems"
                                 Value="@SelectedQuickHardwarePerformancePreset"
                                 TextFieldName="@nameof(HardwarePerformancePreset.Name)"
-                                ValueChanged="OnQuickHardwarePerformancePresetChangedAsync"
+                                ValueChanged="@((HardwarePerformancePreset preset) => OnQuickHardwarePerformancePresetChangedAsync(preset))"
                                 NullText="Performance preset" />
                 </div>
             </div>
