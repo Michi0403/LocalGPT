@@ -490,9 +490,9 @@ namespace LocalGPT.Components.Pages
 
             try
             {
-                AllPromptSuggestions = Catalog.GetSuggestion();
+                await InvokeAsync(() => AllPromptSuggestions = Catalog.GetSuggestion()).ConfigureAwait(false);
                 await LoadPersistentPromptSuggestionsAsync(cancellationToken).ConfigureAwait(false);
-                RefreshPromptSuggestions();
+                await InvokeAsync(RefreshPromptSuggestions).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
             {

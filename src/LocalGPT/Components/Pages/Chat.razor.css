@@ -3027,9 +3027,9 @@
     font: inherit;
 }
 
-/* v3.1.6: service-backed quick Council selectors share the prompt action line without
-   moving Blazor-owned elements into DevExpress' internal render tree. The stable overlay
-   stays a Chat child while the composer reserves enough bottom space for it. */
+/* v3.1.8: quick Council selectors are a sibling overlay only. The DevExpress AI Chat
+   composer, textarea, attachment button, send button and stop button keep their native
+   sizing and layout contract; this feature must never reserve space by changing them. */
 #localgpt-chat-host {
     position: relative;
 }
@@ -3037,36 +3037,42 @@
 .chat-quick-configuration-bar {
     position: absolute;
     z-index: 6;
-    left: .85rem;
-    right: 9.25rem;
-    bottom: .7rem;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(9rem, 1fr));
-    gap: .4rem;
+    right: 9.15rem;
+    bottom: .72rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .3rem;
+    width: max-content;
+    max-width: calc(100% - 10.25rem);
     min-width: 0;
-    pointer-events: auto;
+    pointer-events: none;
 }
 
 .chat-session-active .chat-quick-configuration-bar,
 .chat-quick-configuration-bar.has-live-stop {
-    right: 13.8rem;
+    right: 13.65rem;
+    max-width: calc(100% - 14.75rem);
 }
 
 .chat-quick-configuration-item {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 8.25rem);
     align-items: center;
-    gap: .35rem;
+    gap: .28rem;
+    flex: 0 1 12rem;
     min-width: 0;
-    padding: .22rem .32rem;
+    max-width: 12rem;
+    padding: .18rem .28rem;
     border: 1px solid var(--bs-border-color);
-    border-radius: .55rem;
+    border-radius: .5rem;
     background: var(--bs-body-bg, Canvas);
-    box-shadow: 0 .12rem .35rem rgba(0, 0, 0, .08);
+    box-shadow: 0 .08rem .25rem rgba(0, 0, 0, .08);
+    pointer-events: auto;
 }
 
 .chat-quick-configuration-item > span {
-    font-size: .72rem;
+    font-size: .67rem;
     font-weight: 750;
     color: var(--bs-secondary-color);
     white-space: nowrap;
@@ -3084,22 +3090,34 @@
     text-overflow: ellipsis;
 }
 
-.demo-chat ::deep .localgpt-chat-composer {
-    min-height: 8.6rem !important;
-    max-height: 13rem !important;
-}
-
-.demo-chat ::deep .localgpt-chat-textarea,
-.demo-chat ::deep .localgpt-chat-composer textarea {
-    min-height: 8.25rem !important;
-    padding-bottom: 4.4rem !important;
-}
-
-@media (max-width: 900px) {
+@media (max-width: 1050px) {
     .chat-quick-configuration-bar {
-        left: .55rem;
-        right: 8.8rem;
-        grid-template-columns: repeat(3, minmax(8rem, 1fr));
+        right: 8.75rem;
+        gap: .22rem;
+        max-width: calc(100% - 9.65rem);
+    }
+
+    .chat-session-active .chat-quick-configuration-bar,
+    .chat-quick-configuration-bar.has-live-stop {
+        right: 13rem;
+        max-width: calc(100% - 13.9rem);
+    }
+
+    .chat-quick-configuration-item {
+        grid-template-columns: minmax(0, 1fr);
+        width: 8.4rem;
+        max-width: 8.4rem;
+    }
+
+    .chat-quick-configuration-item > span {
+        display: none;
+    }
+}
+
+@media (max-width: 680px) {
+    .chat-quick-configuration-bar {
+        right: 7.9rem;
+        max-width: calc(100% - 8.55rem);
         overflow-x: auto;
         overflow-y: hidden;
         scrollbar-width: thin;
@@ -3107,29 +3125,13 @@
 
     .chat-session-active .chat-quick-configuration-bar,
     .chat-quick-configuration-bar.has-live-stop {
-        right: 13.1rem;
-    }
-}
-
-@media (max-width: 680px) {
-    .chat-quick-configuration-bar {
-        left: .45rem;
-        right: 8.35rem;
-        bottom: .55rem;
-        grid-template-columns: repeat(3, minmax(7.5rem, 1fr));
-    }
-
-    .chat-session-active .chat-quick-configuration-bar,
-    .chat-quick-configuration-bar.has-live-stop {
-        right: 12.35rem;
+        right: 11.7rem;
+        max-width: calc(100% - 12.35rem);
     }
 
     .chat-quick-configuration-item {
-        grid-template-columns: 1fr;
-        gap: .12rem;
-    }
-
-    .chat-quick-configuration-item > span {
-        font-size: .66rem;
+        flex: 0 0 6.9rem;
+        width: 6.9rem;
+        max-width: 6.9rem;
     }
 }

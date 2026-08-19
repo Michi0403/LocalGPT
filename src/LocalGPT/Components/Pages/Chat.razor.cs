@@ -1054,30 +1054,35 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-            var records = await FeaturePersistence.GetCouncilPromptStartersAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-            var merged = AllPromptSuggestions.ToDictionary(item => item.Key, StringComparer.OrdinalIgnoreCase);
-            foreach (var record in records)
+            var records = await FeaturePersistence
+                .GetCouncilPromptStartersAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            await InvokeAsync(() =>
             {
-                IReadOnlyList<string> teamKeys;
-                try
+                var merged = AllPromptSuggestions.ToDictionary(item => item.Key, StringComparer.OrdinalIgnoreCase);
+                foreach (var record in records)
                 {
-                    teamKeys = JsonSerializer.Deserialize<string[]>(record.TeamKeysJson) ?? [];
-                }
-                catch (JsonException exception)
-                {
-                    Logger.LogWarning(exception, "Persistent prompt starter {StarterKey} has invalid team-key JSON and was loaded as a generic prompt.", record.Key);
-                    teamKeys = [];
-                }
+                    IReadOnlyList<string> teamKeys;
+                    try
+                    {
+                        teamKeys = JsonSerializer.Deserialize<string[]>(record.TeamKeysJson) ?? [];
+                    }
+                    catch (JsonException exception)
+                    {
+                        Logger.LogWarning(exception, "Persistent prompt starter {StarterKey} has invalid team-key JSON and was loaded as a generic prompt.", record.Key);
+                        teamKeys = [];
+                    }
 
-                merged[record.Key] = new PromptSuggestion(
-                    record.Title,
-                    record.Summary,
-                    record.PromptMessage,
-                    record.Key,
-                    teamKeys,
-                    record.StartsCouncilDirectly);
-            }
-            AllPromptSuggestions = merged.Values.ToList();
+                    merged[record.Key] = new PromptSuggestion(
+                        record.Title,
+                        record.Summary,
+                        record.PromptMessage,
+                        record.Key,
+                        teamKeys,
+                        record.StartsCouncilDirectly);
+                }
+                AllPromptSuggestions = merged.Values.ToList();
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
         {
@@ -1099,15 +1104,19 @@ namespace LocalGPT.Components.Pages
         var teams = await CouncilTeamConfigurations
             .GetTeamsAsync(includeDisabled: false, cancellationToken)
             .ConfigureAwait(false);
-        CouncilTeams = teams.OrderBy(team => team.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
-        if (CouncilTeams.Count == 0)
-            return;
-        var requestedTeam = string.IsNullOrWhiteSpace(RequestedCouncilTeamKey) ? null : RequestedCouncilTeamKey.Trim();
-        if (requestedTeam is not null && CouncilTeams.Any(team => string.Equals(team.Key, requestedTeam, StringComparison.OrdinalIgnoreCase)))
-            SelectedCouncilTeamKey = requestedTeam;
-        else if (CouncilTeams.All(team => !string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
-            SelectedCouncilTeamKey = CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
-        RefreshPromptSuggestions();
+        var loadedTeams = teams.OrderBy(team => team.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+        await InvokeAsync(() =>
+        {
+            CouncilTeams = loadedTeams;
+            if (CouncilTeams.Count == 0)
+                return;
+            var requestedTeam = string.IsNullOrWhiteSpace(RequestedCouncilTeamKey) ? null : RequestedCouncilTeamKey.Trim();
+            if (requestedTeam is not null && CouncilTeams.Any(team => string.Equals(team.Key, requestedTeam, StringComparison.OrdinalIgnoreCase)))
+                SelectedCouncilTeamKey = requestedTeam;
+            else if (CouncilTeams.All(team => !string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
+                SelectedCouncilTeamKey = CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
+            RefreshPromptSuggestions();
+        }).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1117,18 +1126,23 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes after the current team list and team-filtered prompt suggestions have been synchronized.</returns>
     private async Task RefreshCouncilTeamItemsAsync(CancellationToken cancellationToken = default)
     {
-        var selectedKey = SelectedCouncilTeamKey;
+        var selectedKey = string.Empty;
+        await InvokeAsync(() => selectedKey = SelectedCouncilTeamKey).ConfigureAwait(false);
         var teams = await CouncilTeamConfigurations
             .GetTeamsAsync(includeDisabled: false, cancellationToken)
             .ConfigureAwait(false);
-        CouncilTeams = teams.OrderBy(team => team.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
-        if (CouncilTeams.Count == 0)
-            return;
+        var loadedTeams = teams.OrderBy(team => team.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+        await InvokeAsync(() =>
+        {
+            CouncilTeams = loadedTeams;
+            if (CouncilTeams.Count == 0)
+                return;
 
-        SelectedCouncilTeamKey = CouncilTeams.Any(team => string.Equals(team.Key, selectedKey, StringComparison.OrdinalIgnoreCase))
-            ? selectedKey
-            : CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
-        RefreshPromptSuggestions();
+            SelectedCouncilTeamKey = CouncilTeams.Any(team => string.Equals(team.Key, selectedKey, StringComparison.OrdinalIgnoreCase))
+                ? selectedKey
+                : CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
+            RefreshPromptSuggestions();
+        }).ConfigureAwait(false);
     }
 
     /// <summary>Applies a user-selected Council team and refreshes its connected pre-prompts.</summary>

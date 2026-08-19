@@ -700,6 +700,8 @@
                 </AIChatSettings>
 
             </DxAIChat>
+            @* Quick selectors are intentionally a sibling of DxAIChat. Do not move this markup into
+               the DevExpress composer or alter composer/textarea sizing to make room for it. *@
             <div class="chat-quick-configuration-bar @(IsLiveCouncilInteractionAvailable ? "has-live-stop" : string.Empty)"
                  data-testid="chat-quick-configuration-bar"
                  aria-label="Quick Council configuration">

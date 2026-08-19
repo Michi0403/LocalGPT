@@ -453,19 +453,33 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-            SavedConversations = (await ChatMemory.GetConversationsAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).ToList();
-            RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).ToList();
+            Guid? activeConversationId = null;
+            await InvokeAsync(() => activeConversationId = ActiveConversationId).ConfigureAwait(false);
+            var conversations = (await ChatMemory
+                .GetConversationsAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false)).ToList();
+            var thoughts = (await ChatMemory
+                .GetRecentThoughtsAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false)).ToList();
+            var feedback = activeConversationId is Guid id
+                ? (await ChatMemory.GetMessageFeedbackAsync(id, cancellationToken).ConfigureAwait(false)).ToList()
+                : new List<ChatMessageFeedbackSnapshot>();
 
-            if (ActiveConversationId is Guid id)
+            await InvokeAsync(() =>
             {
-                SelectedConversation = SavedConversations.FirstOrDefault(conversation => conversation.Id == id);
-                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(id, cancellationToken).ConfigureAwait(false)).ToList();
-            }
-            else
-            {
-                SelectedConversation = SavedConversations.FirstOrDefault();
-                SavedFeedback.Clear();
-            }
+                SavedConversations = conversations;
+                RecentThoughts = thoughts;
+                if (activeConversationId is Guid id)
+                {
+                    SelectedConversation = SavedConversations.FirstOrDefault(conversation => conversation.Id == id);
+                    SavedFeedback = feedback;
+                }
+                else
+                {
+                    SelectedConversation = SavedConversations.FirstOrDefault();
+                    SavedFeedback.Clear();
+                }
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
         {
@@ -474,7 +488,7 @@ namespace LocalGPT.Components.Pages
         catch (Exception ex)
         {
             Logger.LogError(ex, "UI operation failed; user and model content were omitted from logs.");
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
+            await InvokeAsync(() => Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed")).ConfigureAwait(false);
         }
 
     }
@@ -504,8 +518,19 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadChatProjectsAsync(CancellationToken cancellationToken = default)
     {
-        ChatProjects = (await ProjectService.GetProjectsAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).ToList();
-        await LoadSelectedChatProjectDetailsAsync(SessionContext.ProjectId, cancellationToken).ConfigureAwait(false);
+        Guid? selectedProjectId = null;
+        await InvokeAsync(() => selectedProjectId = SessionContext.ProjectId).ConfigureAwait(false);
+        var projects = (await ProjectService
+            .GetProjectsAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false)).ToList();
+        var selectedDetails = selectedProjectId is Guid id
+            ? await ProjectService.GetProjectAsync(id, cancellationToken).ConfigureAwait(false)
+            : null;
+        await InvokeAsync(() =>
+        {
+            ChatProjects = projects;
+            SelectedChatProjectDetails = selectedDetails;
+        }).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -516,9 +541,10 @@ namespace LocalGPT.Components.Pages
     /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadSelectedChatProjectDetailsAsync(Guid? projectId, CancellationToken cancellationToken = default)
     {
-        SelectedChatProjectDetails = projectId is Guid id
+        var selectedDetails = projectId is Guid id
             ? await ProjectService.GetProjectAsync(id, cancellationToken).ConfigureAwait(false)
             : null;
+        await InvokeAsync(() => SelectedChatProjectDetails = selectedDetails).ConfigureAwait(false);
     }
 
     /// <summary>

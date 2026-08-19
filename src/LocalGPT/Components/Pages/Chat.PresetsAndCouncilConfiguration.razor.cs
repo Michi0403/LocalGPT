@@ -49,14 +49,19 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-            var selectedId = SelectedHardwarePerformancePreset?.Id;
-            HardwarePerformancePresetItems = (await HardwarePerformancePresets
+            Guid? selectedId = null;
+            await InvokeAsync(() => selectedId = SelectedHardwarePerformancePreset?.Id).ConfigureAwait(false);
+            var loadedPresets = (await HardwarePerformancePresets
                 .GetPresetsAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(false)).ToList();
-            SelectedHardwarePerformancePreset = selectedId is Guid id
-                ? HardwarePerformancePresetItems.FirstOrDefault(item => item.Id == id)
-                : null;
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                HardwarePerformancePresetItems = loadedPresets;
+                SelectedHardwarePerformancePreset = selectedId is Guid id
+                    ? loadedPresets.FirstOrDefault(item => item.Id == id)
+                    : null;
+                StateHasChanged();
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
         {
@@ -239,16 +244,21 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-            var selectedId = SelectedModelPreset?.Id;
-            ModelPresets = (await ModelPresetService
+            Guid? selectedId = null;
+            await InvokeAsync(() => selectedId = SelectedModelPreset?.Id).ConfigureAwait(false);
+            var loadedPresets = (await ModelPresetService
                 .GetPresetsAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(false)).ToList();
-            SelectedModelPreset = selectedId is Guid id
-                ? ModelPresets.FirstOrDefault(item => item.Id == id)
-                : null;
-            if (SelectedModelPreset is not null)
-                ModelPresetName = SelectedModelPreset.Name;
-            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                ModelPresets = loadedPresets;
+                SelectedModelPreset = selectedId is Guid id
+                    ? loadedPresets.FirstOrDefault(item => item.Id == id)
+                    : null;
+                if (SelectedModelPreset is not null)
+                    ModelPresetName = SelectedModelPreset.Name;
+                StateHasChanged();
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
         {
@@ -270,29 +280,35 @@ namespace LocalGPT.Components.Pages
     {
         try
         {
-            ModelPresets = (await ModelPresetService.GetPresetsAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).ToList();
-            var requestedPreset = string.IsNullOrWhiteSpace(RequestedModelPresetName)
-                ? null
-                : ModelPresets.FirstOrDefault(item => string.Equals(item.Name, RequestedModelPresetName.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (requestedPreset is not null && DiagnosticCouncilModelNames.Count == 0)
+            var loadedPresets = (await ModelPresetService
+                .GetPresetsAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false)).ToList();
+            await InvokeAsync(() =>
             {
-                ApplyModelPreset(requestedPreset);
-                modelStatus = $"Loaded quick-start model preset '{requestedPreset.Name}'.";
-            }
-            else
-            {
-                var preparation = CouncilRunConfigurations.GetPreparation();
-                if (preparation is not null && DiagnosticCouncilModelNames.Count == 0)
+                ModelPresets = loadedPresets;
+                var requestedPreset = string.IsNullOrWhiteSpace(RequestedModelPresetName)
+                    ? null
+                    : loadedPresets.FirstOrDefault(item => string.Equals(item.Name, RequestedModelPresetName.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (requestedPreset is not null && DiagnosticCouncilModelNames.Count == 0)
                 {
-                    ApplyPreparationConfiguration(preparation);
+                    ApplyModelPreset(requestedPreset);
+                    modelStatus = $"Loaded quick-start model preset '{requestedPreset.Name}'.";
                 }
                 else
                 {
-                    var defaultPreset = ModelPresets.FirstOrDefault(item => item.IsDefault);
-                    if (SelectedModelPreset is null && defaultPreset is not null && DiagnosticCouncilModelNames.Count == 0)
-                        ApplyModelPreset(defaultPreset);
+                    var preparation = CouncilRunConfigurations.GetPreparation();
+                    if (preparation is not null && DiagnosticCouncilModelNames.Count == 0)
+                    {
+                        ApplyPreparationConfiguration(preparation);
+                    }
+                    else
+                    {
+                        var defaultPreset = loadedPresets.FirstOrDefault(item => item.IsDefault);
+                        if (SelectedModelPreset is null && defaultPreset is not null && DiagnosticCouncilModelNames.Count == 0)
+                            ApplyModelPreset(defaultPreset);
+                    }
                 }
-            }
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
         {
