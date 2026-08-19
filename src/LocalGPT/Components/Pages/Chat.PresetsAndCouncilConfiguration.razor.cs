@@ -33,10 +33,18 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the chat Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class Chat
     {
 
 
+    /// <summary>
+    /// Loads hardware performance presets for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadHardwarePerformancePresetsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -61,9 +69,18 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Refreshes hardware performance presets for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task RefreshHardwarePerformancePresetsAsync() =>
         LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token);
 
+    /// <summary>
+    /// Handles the hardware performance preset changed async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnHardwarePerformancePresetChangedAsync(ChangeEventArgs args)
     {
         try
@@ -137,6 +154,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Persists hardware performance preset for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveHardwarePerformancePresetAsync()
     {
         await RunUiActionAsync(async () =>
@@ -172,6 +193,10 @@ namespace LocalGPT.Components.Pages
         }, "Save hardware performance preset").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Deletes hardware performance preset for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DeleteHardwarePerformancePresetAsync()
     {
         if (SelectedHardwarePerformancePreset is null)
@@ -197,6 +222,10 @@ namespace LocalGPT.Components.Pages
         }, "Delete hardware performance preset").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Loads model presets for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadModelPresetsAsync()
     {
         try
@@ -232,6 +261,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Handles the model preset changed async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnModelPresetChangedAsync(ChangeEventArgs args)
     {
         try
@@ -256,6 +290,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Applies model preset for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="preset">Preset value supplied to the chat operation and used when producing its result.</param>
     private void ApplyModelPreset(CouncilModelPreset preset)
     {
         SelectedModelPreset = preset;
@@ -286,6 +324,10 @@ namespace LocalGPT.Components.Pages
         SavePreparationConfiguration();
     }
 
+    /// <summary>
+    /// Persists model preset for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveModelPresetAsync()
     {
         await RunUiActionAsync(async () =>
@@ -323,6 +365,10 @@ namespace LocalGPT.Components.Pages
         }, "Save model preset").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs archive model preset for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ArchiveModelPresetAsync()
     {
         if (SelectedModelPreset is null)
@@ -345,6 +391,9 @@ namespace LocalGPT.Components.Pages
         }, "Archive model preset").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Persists preparation configuration for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void SavePreparationConfiguration()
     {
         if (DiagnosticCouncilModelNames.Count > 0)
@@ -366,6 +415,10 @@ namespace LocalGPT.Components.Pages
             string.IsNullOrWhiteSpace(SelectedCouncilTeamKey) ? "general" : SelectedCouncilTeamKey));
     }
 
+    /// <summary>
+    /// Applies preparation configuration for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
     private void ApplyPreparationConfiguration(CouncilPreparationConfiguration configuration)
     {
         SelectedModelPreset = null;
@@ -402,6 +455,11 @@ namespace LocalGPT.Components.Pages
         modelStatus = "Restored the last Council preparation settings for this LocalGPT process.";
     }
 
+    /// <summary>
+    /// Updates active council configuration for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool UpdateActiveCouncilConfiguration(Guid runId) =>
         CouncilRunConfigurations.Update(
             runId,
@@ -414,6 +472,11 @@ namespace LocalGPT.Components.Pages
             ActiveCouncilMaxParallelModels,
             ActiveCouncilModelTimeoutSeconds);
 
+    /// <summary>
+    /// Handles the council max output tokens changed async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilMaxOutputTokensChangedAsync(int value)
     {
         value = Math.Clamp(value, Catalog.MinCouncilOutputTokens, Catalog.MaxCouncilOutputTokens);
@@ -436,6 +499,11 @@ namespace LocalGPT.Components.Pages
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Handles the council max context tokens changed async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilMaxContextTokensChangedAsync(int value)
     {
         value = Math.Clamp(value, Catalog.MinCouncilContextTokens, Catalog.MaxCouncilContextTokens);
@@ -457,6 +525,10 @@ namespace LocalGPT.Components.Pages
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Handles the limited GPU layers changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
     private void OnLimitedGpuLayersChanged(int value)
     {
         LimitedGpuLayers = Math.Clamp(value, 1, 99);
@@ -465,6 +537,10 @@ namespace LocalGPT.Components.Pages
         modelStatus = $"Limited GPU mode will use {LimitedGpuLayers} Ollama GPU layer(s).";
     }
 
+    /// <summary>
+    /// Handles the council critique rounds changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
     private void OnCouncilCritiqueRoundsChanged(int value)
     {
         CouncilCritiqueRounds = Math.Clamp(value, 0, 3);

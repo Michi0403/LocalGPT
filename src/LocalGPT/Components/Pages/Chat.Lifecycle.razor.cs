@@ -33,8 +33,16 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the chat Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class Chat
     {
+    /// <summary>
+    /// Handles the after render async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (isDisposed)
@@ -87,6 +95,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs chat initialized for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task ChatInitialized()
     {
         try
@@ -105,6 +117,9 @@ namespace LocalGPT.Components.Pages
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs schedule chat runtime activation for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void ScheduleChatRuntimeActivation()
     {
         if (chatRuntimeActivationScheduled || chatRuntimeStarted || isDisposed || !interactiveAttached || !chatControlInitialized || !initialStateReady)
@@ -126,6 +141,10 @@ namespace LocalGPT.Components.Pages
             componentLifetimeCts.Token);
     }
 
+    /// <summary>
+    /// Attempts to start chat runtime for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task TryStartChatRuntimeAsync()
     {
         if (chatRuntimeStarted || isDisposed || !interactiveAttached || !chatControlInitialized)
@@ -187,6 +206,10 @@ namespace LocalGPT.Components.Pages
 
 
 
+    /// <summary>
+    /// Performs clear history for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ClearHistoryAsync()
     {
         try
@@ -224,6 +247,10 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Adds architecture poll to chat for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task AddArchitecturePollToChatAsync()
     {
         try
@@ -247,6 +274,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Builds architecture poll message for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildArchitecturePollMessage()
     {
         try
@@ -271,6 +302,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs reset architecture poll for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void ResetArchitecturePoll()
     {
         try
@@ -293,6 +327,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Handles the provider selection changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnProviderSelectionChanged(ChangeEventArgs args)
     {
         try
@@ -317,6 +356,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs provider option label for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="session">Session value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ProviderOptionLabel(ChatClientSession session)
     {
         var provider = string.IsNullOrWhiteSpace(session.Provider) ? session.Name : session.Provider;
@@ -326,6 +370,11 @@ namespace LocalGPT.Components.Pages
             : $"{model} — {provider} — {session.Endpoint}";
     }
 
+    /// <summary>
+    /// Handles the model changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnModelChanged(ChatClientSession value)
     {
         try
@@ -381,6 +430,10 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Handles the chat configuration summary clicked async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnChatConfigurationSummaryClickedAsync()
     {
         chatConfigurationOpen = !chatConfigurationOpen;
@@ -401,16 +454,31 @@ namespace LocalGPT.Components.Pages
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Refreshes Ollama models for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshOllamaModelsAsync()
     {
         await DiscoverAndApplyOllamaModelsAsync(showToast: true, componentLifetimeCts.Token).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Refreshes Ollama models for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="showToast">Value indicating whether show toast should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshOllamaModelsAsync(bool showToast)
     {
         await DiscoverAndApplyOllamaModelsAsync(showToast, componentLifetimeCts.Token).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Discovers and apply Ollama models for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="showToast">Value indicating whether show toast should apply to this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DiscoverAndApplyOllamaModelsAsync(bool showToast, CancellationToken cancellationToken)
     {
         if (ChatClientProvider is null || isDisposed || cancellationToken.IsCancellationRequested)
@@ -472,6 +540,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Applies discovered Ollama models for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="discovered">Multi model council model candidate dependency used by the chat workflow to provide the corresponding application capability.</param>
+    /// <param name="showToast">Value indicating whether show toast should apply to this operation.</param>
     private void ApplyDiscoveredOllamaModels(IReadOnlyList<MultiModelCouncilModelCandidate> discovered, bool showToast)
     {
         OllamaCandidates = discovered

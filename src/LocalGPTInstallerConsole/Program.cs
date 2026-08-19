@@ -2374,8 +2374,17 @@ internal static class Program
 /// </summary>
 internal enum ModelRange
 {
+    /// <summary>
+    /// Selects the slim option for <see cref="ModelRange"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Slim,
+    /// <summary>
+    /// Selects the rtx3060 option for <see cref="ModelRange"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     RTX3060,
+    /// <summary>
+    /// Selects the full option for <see cref="ModelRange"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Full
 }
 //To not download already downloaded again and again and again and again and get banned by githubs rate limit

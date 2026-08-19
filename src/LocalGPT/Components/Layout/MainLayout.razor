@@ -77,25 +77,51 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Gets or sets a value indicating whether toggled sidebar applies to the main layout state.
+    /// </summary>
+    /// <value>The toggled sidebar value exposed by <see cref="MainLayout"/>.</value>
     [SupplyParameterFromQuery(Name = NavigationUrlService.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }
 
+    /// <summary>
+    /// Gets a value indicating whether chat page applies to the main layout state.
+    /// </summary>
+    /// <value>The is chat page value exposed by <see cref="MainLayout"/>.</value>
     private bool IsChatPage =>
         string.Equals(new Uri(NavigationManager.Uri).AbsolutePath, "/Chat", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Gets a value indicating whether install page applies to the main layout state.
+    /// </summary>
+    /// <value>The is install page value exposed by <see cref="MainLayout"/>.</value>
     private bool IsInstallPage =>
         string.Equals(new Uri(NavigationManager.Uri).AbsolutePath, "/install", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Handles the initialized lifecycle or event notification for <see cref="MainLayout"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnInitialized()
     {
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
+    /// <summary>
+    /// Handles the location changed lifecycle or event notification for <see cref="MainLayout"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="sender">Sender value supplied to the main layout operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the main layout operation and used when producing its result.</param>
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args) =>
         _ = InvokeAsync(StateHasChanged);
 
+    /// <summary>
+    /// Releases resources owned by <see cref="MainLayout"/> and leaves the main layout workflow in a safely disposed state.
+    /// </summary>
     public void Dispose() => NavigationManager.LocationChanged -= OnLocationChanged;
 
+    /// <summary>
+    /// Handles the parameters set lifecycle or event notification for <see cref="MainLayout"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnParametersSet()
     {
         try
@@ -111,10 +137,20 @@
         }
     }
 
+    /// <summary>
+    /// Gets the current culture value that forms part of the main layout state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The current culture value exposed by <see cref="MainLayout"/>.</value>
     private string CurrentCulture => Localization.ResolveAvailableCulture(System.Globalization.CultureInfo.CurrentUICulture.Name);
+    /// <summary>
+    /// Gets the language label value that forms part of the main layout state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The language label value exposed by <see cref="MainLayout"/>.</value>
     private string LanguageLabel => Localization.GetText("Language");
 
     /// <summary>Creates a native-language label for one culture option.</summary>
+    /// <param name="culture">Culture value supplied to the main layout operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string CultureLabel(string culture)
     {
         try
@@ -128,6 +164,10 @@
         }
     }
 
+    /// <summary>
+    /// Gets the drawer header value that forms part of the main layout state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The drawer header value exposed by <see cref="MainLayout"/>.</value>
     private RenderFragment drawerHeader => @<div class="navigation-drawer-header">
         <img class="logo" src="images/TacosLogos.svg" alt="LocalGPT logo" />
         <NavLink data-enhance-nav="false" href="@NavigationUrls.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
@@ -135,6 +175,10 @@
         </NavLink>
     </div>;
 
+    /// <summary>
+    /// Gets the drawer footer value that forms part of the main layout state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The drawer footer value exposed by <see cref="MainLayout"/>.</value>
     private RenderFragment drawerFooter => @<div>
     <NavLink href="https://github.com/Michi0403/LocalGPT" class="button-link">
             <DxButton Text="Github" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="footer-button" RenderStyle="@ButtonRenderStyle.Light" IconCssClass="icon docs-icon"></DxButton>

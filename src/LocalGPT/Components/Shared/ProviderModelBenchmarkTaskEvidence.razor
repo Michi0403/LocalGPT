@@ -107,22 +107,51 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Gets or sets the task value that forms part of the provider model benchmark task evidence state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The task value exposed by <see cref="ProviderModelBenchmarkTaskEvidence"/>.</value>
     [Parameter, EditorRequired] public ProviderModelBenchmarkTaskResult Task { get; set; } = new();
 
+    /// <summary>
+    /// Stores the internal evidence expanded state used by <see cref="ProviderModelBenchmarkTaskEvidence"/> while executing its surrounding workflow.
+    /// </summary>
     private bool evidenceExpanded;
+    /// <summary>
+    /// Stores the internal is loading full evidence state used by <see cref="ProviderModelBenchmarkTaskEvidence"/> while executing its surrounding workflow.
+    /// </summary>
     private bool isLoadingFullEvidence;
+    /// <summary>
+    /// Stores the internal full evidence error state used by <see cref="ProviderModelBenchmarkTaskEvidence"/> while executing its surrounding workflow.
+    /// </summary>
     private string fullEvidenceError = string.Empty;
+    /// <summary>
+    /// Stores the internal full evidence state used by <see cref="ProviderModelBenchmarkTaskEvidence"/> while executing its surrounding workflow.
+    /// </summary>
     private ProviderModelBenchmarkTaskEvidenceArchive? fullEvidence;
 
+    /// <summary>
+    /// Performs format timestamp for <see cref="ProviderModelBenchmarkTaskEvidence"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark task evidence workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the provider model benchmark task evidence operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FormatTimestamp(DateTimeOffset value) =>
         value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss zzz");
 
+    /// <summary>
+    /// Gets the status summary value that forms part of the provider model benchmark task evidence state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The status summary value exposed by <see cref="ProviderModelBenchmarkTaskEvidence"/>.</value>
     string StatusSummary => Task.Succeeded
         ? $"quality {Task.QualityScore:0.00} · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)"
         : string.IsNullOrWhiteSpace(Task.Error)
             ? $"not contract-compliant · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)"
             : $"failed · {Task.TotalMilliseconds:N0} ms · {Task.AttemptCount} provider call(s)";
 
+    /// <summary>
+    /// Loads full evidence for <see cref="ProviderModelBenchmarkTaskEvidence"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark task evidence workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadFullEvidenceAsync()
     {
         if (isLoadingFullEvidence || string.IsNullOrWhiteSpace(Task.EvidenceArtifactId))

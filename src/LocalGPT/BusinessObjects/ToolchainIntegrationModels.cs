@@ -5,11 +5,15 @@ namespace LocalGPT.BusinessObjects;
 /// <summary>Identifies the operating-system family used while resolving a toolchain installation.</summary>
 public enum ToolchainPlatformKind
 {
-    /// <summary>Microsoft Windows.</summary>
+    /// <summary>
+    /// Selects the windows option for <see cref="ToolchainPlatformKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Windows,
     /// <summary>Linux and compatible Unix-like distributions.</summary>
     Linux,
-    /// <summary>Apple macOS.</summary>
+    /// <summary>
+    /// Selects the mac OS option for <see cref="ToolchainPlatformKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     MacOS,
     /// <summary>An operating system without a dedicated LocalGPT profile.</summary>
     Other

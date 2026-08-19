@@ -33,8 +33,16 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the chat Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class Chat
     {
+    /// <summary>
+    /// Refreshes model presets after benchmark for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="appliedPreset">Applied preset value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshModelPresetsAfterBenchmarkAsync(CouncilModelPreset appliedPreset)
     {
         ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(false)).ToList();
@@ -42,6 +50,10 @@ namespace LocalGPT.Components.Pages
         ModelPresetName = SelectedModelPreset.Name;
     }
 
+    /// <summary>
+    /// Persists messages for selected session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="saveMessages">Blazor chat message dependency used by the chat workflow to provide the corresponding application capability.</param>
     private void SaveMessagesForSelectedSession(IEnumerable<BlazorChatMessage> saveMessages)
     {
         try
@@ -71,6 +83,9 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Loads selected session messages for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void LoadSelectedSessionMessages()
     {
         try
@@ -85,6 +100,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Persists current conversation for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveCurrentConversationAsync()
     {
         try
@@ -99,6 +118,10 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Loads latest conversation for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadLatestConversationAsync()
     {
         try
@@ -114,6 +137,10 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Loads selected conversation for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadSelectedConversationAsync()
     {
         try
@@ -128,6 +155,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Handles the saved conversation selection changed async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnSavedConversationSelectionChangedAsync(ChangeEventArgs args)
     {
         try
@@ -146,6 +178,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Loads latest conversation into session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="loadIntoDxChat">Value indicating whether load into DevExpress chat should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadLatestConversationIntoSessionAsync(bool loadIntoDxChat)
     {
         try
@@ -164,6 +201,11 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Loads saved conversation for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="conversation">Conversation value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadSavedConversationAsync(ChatMemoryConversationSummary? conversation)
     {
         try
@@ -177,6 +219,13 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Loads saved conversation for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="conversation">Conversation value supplied to the chat operation and used when producing its result.</param>
+    /// <param name="saveCurrentFirst">Value indicating whether save current first should apply to this operation.</param>
+    /// <param name="loadIntoDxChat">Value indicating whether load into DevExpress chat should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadSavedConversationAsync(ChatMemoryConversationSummary? conversation, bool saveCurrentFirst, bool loadIntoDxChat)
     {
         try
@@ -250,6 +299,12 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Persists current conversation for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="force">Value indicating whether force should apply to this operation.</param>
+    /// <param name="showToast">Value indicating whether show toast should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PersistCurrentConversationAsync(bool force, bool showToast)
     {
         try
@@ -271,6 +326,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs capture current messages for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<BlazorChatMessage>> CaptureCurrentMessagesAsync()
     {
         if (isDisposed)
@@ -290,6 +349,10 @@ namespace LocalGPT.Components.Pages
         return captured;
     }
 
+    /// <summary>
+    /// Performs merge authoritative live council message for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="captured">Captured value supplied to the chat operation and used when producing its result.</param>
     private void MergeAuthoritativeLiveCouncilMessage(List<BlazorChatMessage> captured)
     {
         if (AttachedLiveCouncilRunId is not Guid runId || ChatClientProvider?.SelectedSession is null)
@@ -321,6 +384,13 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Persists messages for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="messages">Blazor chat message dependency used by the chat workflow to provide the corresponding application capability.</param>
+    /// <param name="force">Value indicating whether force should apply to this operation.</param>
+    /// <param name="showToast">Value indicating whether show toast should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PersistMessagesAsync(IReadOnlyList<BlazorChatMessage> messages, bool force, bool showToast)
     {
         try
@@ -374,6 +444,10 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Refreshes memory for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshMemoryAsync()
     {
         try
@@ -400,18 +474,39 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Gets the selected chat project value value that forms part of the chat state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected chat project value value exposed by <see cref="Chat"/>.</value>
     private string SelectedChatProjectValue => SessionContext.ProjectId?.ToString() ?? string.Empty;
 
+    /// <summary>
+    /// Gets the selected chat project version value value that forms part of the chat state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected chat project version value value exposed by <see cref="Chat"/>.</value>
     private string SelectedChatProjectVersionValue => SessionContext.ProjectVersionId?.ToString() ?? string.Empty;
 
+    /// <summary>
+    /// Gets the selected feedback sort order value value that forms part of the chat state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected feedback sort order value value exposed by <see cref="Chat"/>.</value>
     private string SelectedFeedbackSortOrderValue => SelectedFeedbackSortOrder?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
 
+    /// <summary>
+    /// Loads chat projects for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadChatProjectsAsync()
     {
         ChatProjects = (await ProjectService.GetProjectsAsync().ConfigureAwait(false)).ToList();
         await LoadSelectedChatProjectDetailsAsync(SessionContext.ProjectId).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Loads selected chat project details for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadSelectedChatProjectDetailsAsync(Guid? projectId)
     {
         SelectedChatProjectDetails = projectId is Guid id
@@ -419,6 +514,11 @@ namespace LocalGPT.Components.Pages
             : null;
     }
 
+    /// <summary>
+    /// Handles the chat project changed async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnChatProjectChangedAsync(ChangeEventArgs args)
     {
         if (!Guid.TryParse(Convert.ToString(args.Value, CultureInfo.InvariantCulture), out var projectId))
@@ -442,6 +542,11 @@ namespace LocalGPT.Components.Pages
             await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Handles the chat project version changed async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnChatProjectVersionChangedAsync(ChangeEventArgs args)
     {
         if (SessionContext.ProjectId is not Guid projectId || SelectedChatProjectDetails is null)
@@ -465,9 +570,16 @@ namespace LocalGPT.Components.Pages
             await PersistCurrentConversationAsync(force: true, showToast: false).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Refreshes feedback targets for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void RefreshFeedbackTargets() =>
         RefreshFeedbackTargets(DxAiChat?.SaveMessages().ToList() ?? []);
 
+    /// <summary>
+    /// Refreshes feedback targets for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="messages">Blazor chat message dependency used by the chat workflow to provide the corresponding application capability.</param>
     private void RefreshFeedbackTargets(IReadOnlyList<BlazorChatMessage> messages)
     {
         FeedbackTargets = messages
@@ -491,6 +603,10 @@ namespace LocalGPT.Components.Pages
         LoadFeedbackEditor();
     }
 
+    /// <summary>
+    /// Handles the feedback target changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
     private void OnFeedbackTargetChanged(ChangeEventArgs args)
     {
         try
@@ -513,6 +629,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Loads feedback editor for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void LoadFeedbackEditor()
     {
         try
@@ -531,6 +650,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs clear selected feedback for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ClearSelectedFeedbackAsync()
     {
         try
@@ -546,6 +669,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs record selected feedback for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="isPositive">Is positive value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RecordSelectedFeedbackAsync(bool? isPositive)
     {
         if (SelectedFeedbackSortOrder is not int sortOrder)
@@ -580,6 +708,9 @@ namespace LocalGPT.Components.Pages
     }
 
 
+    /// <summary>
+    /// Starts initial model refresh for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void StartInitialModelRefresh()
     {
         try
@@ -623,6 +754,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Starts auto save loop for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void StartAutoSaveLoop()
     {
         if (autoSaveStarted || !interactiveAttached || !chatControlInitialized || isDisposed)
@@ -636,6 +770,11 @@ namespace LocalGPT.Components.Pages
             componentLifetimeCts.Token);
     }
 
+    /// <summary>
+    /// Performs wait for auto save interval for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private async Task<bool> WaitForAutoSaveIntervalAsync(CancellationToken cancellationToken)
     {
         try
@@ -664,6 +803,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs auto save loop for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task AutoSaveLoopAsync(CancellationToken cancellationToken)
     {
         while (await WaitForAutoSaveIntervalAsync(cancellationToken).ConfigureAwait(false))

@@ -231,7 +231,13 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Stores the internal toast name state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     string toastName = "MinecraftModBuilderToasts";
+    /// <summary>
+    /// Stores the internal request state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     MinecraftModBuildRequest request = new()
     {
         ProjectName = "LivingCities",
@@ -242,21 +248,68 @@
         Description = string.Empty
     };
 
+    /// <summary>
+    /// Stores the internal workspace state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     MinecraftModWorkspace? workspace;
+    /// <summary>
+    /// Stores the internal last command result state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     CommandExecutionResult? lastCommandResult;
+    /// <summary>
+    /// Stores the internal last council result state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     MultiModelCouncilResult? lastCouncilResult;
+    /// <summary>
+    /// Stores the internal AI plan state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     string aiPlan = string.Empty;
+    /// <summary>
+    /// Stores the internal command file name state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     string commandFileName = "powershell.exe";
+    /// <summary>
+    /// Stores the internal command arguments state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     string commandArguments = "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1";
+    /// <summary>
+    /// Stores the internal council models state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     string councilModels = "gpt-oss:20b";
+    /// <summary>
+    /// Stores the internal use CPU only council state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     bool useCpuOnlyCouncil = true;
+    /// <summary>
+    /// Stores the internal artifact download URL state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     string? artifactDownloadUrl;
+    /// <summary>
+    /// Stores the internal artifact download route state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     string? artifactDownloadRoute;
+    /// <summary>
+    /// Stores the internal artifact file name state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     string? artifactFileName;
+    /// <summary>
+    /// Stores the internal artifact path state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     string? artifactPath;
+    /// <summary>
+    /// Stores the internal is busy state used by <see cref="MinecraftModBuilder"/> while executing its surrounding workflow.
+    /// </summary>
     bool isBusy;
+    /// <summary>
+    /// Gets a value indicating whether datapack applies to the minecraft mod state.
+    /// </summary>
+    /// <value>The is datapack value exposed by <see cref="MinecraftModBuilder"/>.</value>
     bool IsDatapack => string.Equals(request.Loader, "Datapack", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="MinecraftModBuilder"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnInitializedAsync()
     {
         request.Description = Catalog.LivingCitiesPrompt;
@@ -265,6 +318,10 @@
 
 
 
+    /// <summary>
+    /// Creates workspace for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task CreateWorkspaceAsync()
     {
         try
@@ -283,6 +340,10 @@
         }
     }
 
+    /// <summary>
+    /// Creates datapack ZIP for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task CreateDatapackZipAsync()
     {
         try
@@ -304,6 +365,10 @@
 
     }
 
+    /// <summary>
+    /// Creates workspace core for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task CreateWorkspaceCoreAsync()
     {
         try
@@ -322,6 +387,10 @@
         }
     }
 
+    /// <summary>
+    /// Generates plan for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task GeneratePlanAsync()
     {
         try
@@ -352,6 +421,10 @@
         }
     }
 
+    /// <summary>
+    /// Generates council plan for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task GenerateCouncilPlanAsync()
     {
         try
@@ -386,6 +459,10 @@
         }
     }
 
+    /// <summary>
+    /// Performs run command for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunCommandAsync()
     {
         try
@@ -414,6 +491,10 @@
 
     }
 
+    /// <summary>
+    /// Performs run command core for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunCommandCoreAsync()
     {
         try
@@ -445,6 +526,9 @@
 
     }
 
+    /// <summary>
+    /// Performs clear download artifact for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
     void ClearDownloadArtifact()
     {
         try
@@ -463,6 +547,10 @@
 
     }
 
+    /// <summary>
+    /// Sets download artifact for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <param name="workspaceRoot">Workspace root value supplied to the minecraft mod operation and used when producing its result.</param>
     void SetDownloadArtifact(string workspaceRoot)
     {
         try
@@ -507,6 +595,10 @@
 
     }
 
+    /// <summary>
+    /// Creates planning prompt for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     string CreatePlanningPrompt()
     {
         try
@@ -553,10 +645,17 @@
         }
     }
 
+    /// <summary>
+    /// Parses council models for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     IEnumerable<string> ParseCouncilModels() =>
         CouncilText.ParseModelNames(councilModels, Logger)
             .Where(model => !string.IsNullOrWhiteSpace(model));
 
+    /// <summary>
+    /// Loads living cities prompt for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
     void LoadLivingCitiesPrompt()
     {
         try
@@ -578,6 +677,12 @@
 
     }
 
+    /// <summary>
+    /// Performs run UI action for <see cref="MinecraftModBuilder"/>, keeping the operation consistent with the state and invariants of the surrounding minecraft mod workflow.
+    /// </summary>
+    /// <param name="action">Action value supplied to the minecraft mod operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the minecraft mod operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunUiActionAsync(Func<Task> action, string operation)
     {
         ArgumentNullException.ThrowIfNull(action);

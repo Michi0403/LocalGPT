@@ -130,39 +130,126 @@
 </section>
 
 @code {
+    /// <summary>
+    /// Gets or sets the models collection maintained or exposed by this provider model benchmark council panel instance for downstream processing.
+    /// </summary>
+    /// <value>The models value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
     [Parameter] public IReadOnlyList<ProviderModelReference> Models { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the benchmark applied value that forms part of the provider model benchmark council panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The benchmark applied value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
     [Parameter] public EventCallback<ProviderModelBenchmarkBatchAppliedEvent> BenchmarkApplied { get; set; }
+    /// <summary>
+    /// Gets or sets the performance preset saved value that forms part of the provider model benchmark council panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The performance preset saved value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
     [Parameter] public EventCallback<HardwarePerformancePreset> PerformancePresetSaved { get; set; }
+    /// <summary>
+    /// Gets or sets the benchmark started value that forms part of the provider model benchmark council panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The benchmark started value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
     [Parameter] public EventCallback<Guid> BenchmarkStarted { get; set; }
 
+    /// <summary>
+    /// Stores the internal heading identifier state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string HeadingId = $"benchmark-council-{Guid.NewGuid():N}";
+    /// <summary>
+    /// Stores the internal profile mode state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     ProviderModelBenchmarkProfileMode profileMode = ProviderModelBenchmarkProfileMode.EvenlySpaced;
+    /// <summary>
+    /// Stores the internal max profiles state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maxProfiles = 5;
+    /// <summary>
+    /// Stores the internal max tasks state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maxTasks = 3;
+    /// <summary>
+    /// Stores the internal max seconds state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maxSeconds = 180;
+    /// <summary>
+    /// Stores the internal improvement threshold state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int improvementThreshold = 5;
+    /// <summary>
+    /// Stores the internal minimum context state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int minimumContext = 2048;
+    /// <summary>
+    /// Stores the internal minimum output state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int minimumOutput = 128;
+    /// <summary>
+    /// Stores the internal maximum context state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maximumContext = 32768;
+    /// <summary>
+    /// Stores the internal maximum output state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maximumOutput = 1024;
+    /// <summary>
+    /// Stores the internal max council reviewers state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maxCouncilReviewers = 2;
+    /// <summary>
+    /// Stores the internal include CPU safe control state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     bool includeCpuSafeControl = true;
+    /// <summary>
+    /// Stores the internal stop when improvement stalls state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     bool stopWhenImprovementStalls;
+    /// <summary>
+    /// Stores the in-memory reviewer selection keys collection maintained internally by <see cref="ProviderModelBenchmarkCouncilPanel"/> for its current workflow state.
+    /// </summary>
     readonly HashSet<string> reviewerSelectionKeys = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores the internal is busy state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     bool isBusy;
+    /// <summary>
+    /// Stores the internal status text state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     string statusText = string.Empty;
+    /// <summary>
+    /// Stores the internal report state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     ProviderModelBenchmarkReport? report;
+    /// <summary>
+    /// Stores the cancellation source used by <see cref="ProviderModelBenchmarkCouncilPanel"/> to stop its current background or asynchronous operation.
+    /// </summary>
     CancellationTokenSource? benchmarkCts;
+    /// <summary>
+    /// Stores the internal active run identifier state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     Guid? activeRunId;
+    /// <summary>
+    /// Stores the internal model signature state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
+    /// </summary>
     string modelSignature = string.Empty;
 
+    /// <summary>
+    /// Gets the benchmark chat URL that identifies the network or application endpoint associated with this provider model benchmark council panel state.
+    /// </summary>
+    /// <value>The benchmark chat URL value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
     string BenchmarkChatUrl => activeRunId is Guid runId
         ? $"/Chat?rejoinCouncilRunId={runId:D}"
         : "/Chat";
 
+    /// <summary>
+    /// Gets a value indicating whether apply applies to the provider model benchmark council panel state.
+    /// </summary>
+    /// <value>The can apply value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
     bool CanApply => report?.Targets.Any(target => string.IsNullOrWhiteSpace(target.Error)
         && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName)) == true;
 
+    /// <summary>
+    /// Handles the parameters set lifecycle or event notification for <see cref="ProviderModelBenchmarkCouncilPanel"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnParametersSet()
     {
         var nextSignature = CouncilText.ProviderModelBenchmarkCouncilSignature(Models, Logger);
@@ -193,6 +280,10 @@
         modelSignature = nextSignature;
     }
 
+    /// <summary>
+    /// Performs run for <see cref="ProviderModelBenchmarkCouncilPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark council panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunAsync()
     {
         benchmarkCts?.Cancel();
@@ -260,6 +351,10 @@
         }
     }
 
+    /// <summary>
+    /// Performs apply for <see cref="ProviderModelBenchmarkCouncilPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark council panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task ApplyAsync()
     {
         if (report is null || !CanApply)
@@ -295,8 +390,17 @@
         }
     }
 
+    /// <summary>
+    /// Gets the selected reviewer count that quantifies the associated provider model benchmark council panel data.
+    /// </summary>
+    /// <value>The selected reviewer count value exposed by <see cref="ProviderModelBenchmarkCouncilPanel"/>.</value>
     int SelectedReviewerCount => reviewerSelectionKeys.Count;
 
+    /// <summary>
+    /// Performs toggle reviewer for <see cref="ProviderModelBenchmarkCouncilPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark council panel workflow.
+    /// </summary>
+    /// <param name="selectionKey">Selection key value supplied to the provider model benchmark council panel operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the provider model benchmark council panel operation and used when producing its result.</param>
     void ToggleReviewer(string selectionKey, ChangeEventArgs args)
     {
         var selected = args.Value is bool value && value;
@@ -306,6 +410,11 @@
             reviewerSelectionKeys.Remove(selectionKey);
     }
 
+    /// <summary>
+    /// Handles the maximum context changed lifecycle or event notification for <see cref="ProviderModelBenchmarkCouncilPanel"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the provider model benchmark council panel operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task OnMaximumContextChanged(int value)
     {
         maximumContext = value;
@@ -313,6 +422,11 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Handles the maximum output changed lifecycle or event notification for <see cref="ProviderModelBenchmarkCouncilPanel"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the provider model benchmark council panel operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task OnMaximumOutputChanged(int value)
     {
         maximumOutput = value;
@@ -322,8 +436,14 @@
 
 
 
+    /// <summary>
+    /// Determines whether cel for <see cref="ProviderModelBenchmarkCouncilPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark council panel workflow.
+    /// </summary>
     void Cancel() => benchmarkCts?.Cancel();
 
+    /// <summary>
+    /// Releases resources owned by <see cref="ProviderModelBenchmarkCouncilPanel"/> and leaves the provider model benchmark council panel workflow in a safely disposed state.
+    /// </summary>
     public void Dispose()
     {
         benchmarkCts?.Cancel();

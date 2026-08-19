@@ -71,10 +71,25 @@
 </section>
 
 @code {
+    /// <summary>
+    /// Gets or sets the function name value that forms part of the user DevExpress function editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The function name value exposed by <see cref="UserDxFunctionEditor"/>.</value>
     [Parameter] public string FunctionName { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the changed value that forms part of the user DevExpress function editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The changed value exposed by <see cref="UserDxFunctionEditor"/>.</value>
     [Parameter] public EventCallback Changed { get; set; }
+    /// <summary>
+    /// Gets or sets the closed value that forms part of the user DevExpress function editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The closed value exposed by <see cref="UserDxFunctionEditor"/>.</value>
     [Parameter] public EventCallback Closed { get; set; }
 
+    /// <summary>
+    /// Stores the internal edit state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly SaveUserDxAiFunctionRequest _edit = new()
     {
         ParameterSchemaJson = "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":true}",
@@ -82,11 +97,27 @@
         AvailableToAi = true,
         IsReadOnly = true
     };
+    /// <summary>
+    /// Stores the in-memory pipelines collection maintained internally by <see cref="UserDxFunctionEditor"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<RemoteControlPipelineDefinition> _pipelines = [];
+    /// <summary>
+    /// Stores the internal busy state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _busy;
+    /// <summary>
+    /// Stores the internal error state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _error;
+    /// <summary>
+    /// Stores the internal status state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
+    /// </summary>
     private string _status = string.Empty;
 
+    /// <summary>
+    /// Handles the parameters set async lifecycle or event notification for <see cref="UserDxFunctionEditor"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnParametersSetAsync()
     {
         _busy = true;
@@ -119,6 +150,10 @@
         }
     }
 
+    /// <summary>
+    /// Performs save for <see cref="UserDxFunctionEditor"/>, keeping the operation consistent with the state and invariants of the surrounding user DevExpress function editor workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveAsync()
     {
         _busy = true;
@@ -145,6 +180,10 @@
         }
     }
 
+    /// <summary>
+    /// Performs delete for <see cref="UserDxFunctionEditor"/>, keeping the operation consistent with the state and invariants of the surrounding user DevExpress function editor workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DeleteAsync()
     {
         _busy = true;
@@ -169,10 +208,23 @@
         }
     }
 
+    /// <summary>
+    /// Determines whether cel for <see cref="UserDxFunctionEditor"/>, keeping the operation consistent with the state and invariants of the surrounding user DevExpress function editor workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task CancelAsync() => Closed.InvokeAsync();
 
+    /// <summary>
+    /// Performs t for <see cref="UserDxFunctionEditor"/>, keeping the operation consistent with the state and invariants of the surrounding user DevExpress function editor workflow.
+    /// </summary>
+    /// <param name="key">Key value supplied to the user DevExpress function editor operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the user DevExpress function editor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
 
+    /// <summary>
+    /// Performs reset new for <see cref="UserDxFunctionEditor"/>, keeping the operation consistent with the state and invariants of the surrounding user DevExpress function editor workflow.
+    /// </summary>
     private void ResetNew()
     {
         _edit.Id = null;
@@ -190,6 +242,10 @@
         _edit.UserConfirmed = false;
     }
 
+    /// <summary>
+    /// Performs copy from for <see cref="UserDxFunctionEditor"/>, keeping the operation consistent with the state and invariants of the surrounding user DevExpress function editor workflow.
+    /// </summary>
+    /// <param name="item">Item value supplied to the user DevExpress function editor operation and used when producing its result.</param>
     private void CopyFrom(UserDxAiFunctionDefinition item)
     {
         _edit.Id = item.Id;

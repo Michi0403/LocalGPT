@@ -11,22 +11,58 @@ ThemeMode="@ThemeMode"
                  DisplayTime="@DisplayTime" ShowCloseButton="@ShowCloseButton" SizeMode="@SizeMode" ShowIcon="@ShowIcon" Width="100%" />
                  
 @code {
+    /// <summary>
+    /// Gets or sets the name value that forms part of the toast wrapper state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The name value exposed by <see cref="ToastWrapper"/>.</value>
     [Parameter]
     public string Name { get; set; } = "GlobalToasts";
+    /// <summary>
+    /// Gets or sets the animation type value that forms part of the toast wrapper state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The animation type value exposed by <see cref="ToastWrapper"/>.</value>
     [Parameter]
     public ToastAnimationType AnimationType { get; set; } = ToastAnimationType.Fade;
+    /// <summary>
+    /// Gets or sets the horizontal alignment value that forms part of the toast wrapper state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The horizontal alignment value exposed by <see cref="ToastWrapper"/>.</value>
     [Parameter]
     public HorizontalAlignment HorizontalAlignment { get; set; } = HorizontalAlignment.Center;
+    /// <summary>
+    /// Gets or sets the vertical alignment value that forms part of the toast wrapper state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The vertical alignment value exposed by <see cref="ToastWrapper"/>.</value>
     [Parameter]
     public VerticalEdge VerticalAlignment { get; set; } = VerticalEdge.Bottom;
+    /// <summary>
+    /// Gets or sets the theme mode value that forms part of the toast wrapper state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The theme mode value exposed by <see cref="ToastWrapper"/>.</value>
     [Parameter]
     public ToastThemeMode ThemeMode { get; set; } = ToastThemeMode.Saturated;
+    /// <summary>
+    /// Gets or sets the display time associated with this toast wrapper state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The display time value exposed by <see cref="ToastWrapper"/>.</value>
     [Parameter]
     public TimeSpan DisplayTime { get; set; } = TimeSpan.FromSeconds(7);
+    /// <summary>
+    /// Gets or sets a value indicating whether show close button applies to the toast wrapper state.
+    /// </summary>
+    /// <value>The show close button value exposed by <see cref="ToastWrapper"/>.</value>
     [Parameter]
     public bool ShowCloseButton { get; set; } = true;
+    /// <summary>
+    /// Gets or sets a value indicating whether show icon applies to the toast wrapper state.
+    /// </summary>
+    /// <value>The show icon value exposed by <see cref="ToastWrapper"/>.</value>
     [Parameter]
     public bool ShowIcon { get; set; } = true;
+    /// <summary>
+    /// Gets or sets the size mode value that forms part of the toast wrapper state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The size mode value exposed by <see cref="ToastWrapper"/>.</value>
     [Parameter]
     public SizeMode? SizeMode { get; set; } = null;
 }

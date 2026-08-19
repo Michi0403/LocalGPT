@@ -27,6 +27,9 @@
 }
 
 @code {
+    /// <summary>
+    /// Handles the initialized lifecycle or event notification for <see cref="DocumentationViewerHost"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnInitialized()
     {
         try
@@ -39,11 +42,18 @@
         }
     }
 
+    /// <summary>
+    /// Handles the viewer state changed lifecycle or event notification for <see cref="DocumentationViewerHost"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     private void OnViewerStateChanged()
     {
         _ = RefreshViewerAsync();
     }
 
+    /// <summary>
+    /// Refreshes viewer for <see cref="DocumentationViewerHost"/>, keeping the operation consistent with the state and invariants of the surrounding documentation viewer host workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshViewerAsync()
     {
         try
@@ -56,6 +66,9 @@
         }
     }
 
+    /// <summary>
+    /// Performs close for <see cref="DocumentationViewerHost"/>, keeping the operation consistent with the state and invariants of the surrounding documentation viewer host workflow.
+    /// </summary>
     private void Close()
     {
         try
@@ -68,9 +81,15 @@
         }
     }
 
+    /// <summary>
+    /// Closes from browser for <see cref="DocumentationViewerHost"/>, keeping the operation consistent with the state and invariants of the surrounding documentation viewer host workflow.
+    /// </summary>
     [Microsoft.JSInterop.JSInvokable]
     public void CloseFromBrowser() => Close();
 
+    /// <summary>
+    /// Releases resources owned by <see cref="DocumentationViewerHost"/> and leaves the documentation viewer host workflow in a safely disposed state.
+    /// </summary>
     public void Dispose()
     {
         Viewer.StateChanged -= OnViewerStateChanged;

@@ -35,17 +35,43 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Gets or sets the report value that forms part of the provider model benchmark report audit summary state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The report value exposed by <see cref="ProviderModelBenchmarkReportAuditSummary"/>.</value>
     [Parameter, EditorRequired] public ProviderModelBenchmarkReport Report { get; set; } = new();
 
+    /// <summary>
+    /// Stores the internal coverage state used by <see cref="ProviderModelBenchmarkReportAuditSummary"/> while executing its surrounding workflow.
+    /// </summary>
     private ProviderModelBenchmarkCoverageSnapshot? coverage;
+    /// <summary>
+    /// Gets the coverage value that forms part of the provider model benchmark report audit summary state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The coverage value exposed by <see cref="ProviderModelBenchmarkReportAuditSummary"/>.</value>
     private ProviderModelBenchmarkCoverageSnapshot Coverage => coverage ??= new ProviderModelBenchmarkCoverageSnapshot(Report);
 
+    /// <summary>
+    /// Handles the parameters set lifecycle or event notification for <see cref="ProviderModelBenchmarkReportAuditSummary"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnParametersSet()
     {
         coverage = new ProviderModelBenchmarkCoverageSnapshot(Report);
     }
 
+    /// <summary>
+    /// Gets the measured tasks value that forms part of the provider model benchmark report audit summary state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The measured tasks value exposed by <see cref="ProviderModelBenchmarkReportAuditSummary"/>.</value>
     private int MeasuredTasks => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Count));
+    /// <summary>
+    /// Gets the successful tasks value that forms part of the provider model benchmark report audit summary state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The successful tasks value exposed by <see cref="ProviderModelBenchmarkReportAuditSummary"/>.</value>
     private int SuccessfulTasks => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Count(task => task.Succeeded)));
+    /// <summary>
+    /// Gets the provider calls value that forms part of the provider model benchmark report audit summary state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The provider calls value exposed by <see cref="ProviderModelBenchmarkReportAuditSummary"/>.</value>
     private int ProviderCalls => Report.Targets.Sum(target => target.Profiles.Sum(profile => profile.Tasks.Sum(task => task.AttemptCount)));
 }

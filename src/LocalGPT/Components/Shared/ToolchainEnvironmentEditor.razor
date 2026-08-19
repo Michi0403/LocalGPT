@@ -30,14 +30,37 @@
 </details>
 
 @code {
+    /// <summary>
+    /// Gets or sets the compiler value that forms part of the toolchain environment editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The compiler value exposed by <see cref="ToolchainEnvironmentEditor"/>.</value>
     [Parameter, EditorRequired] public ProjectCompilerInstallation Compiler { get; set; } = default!;
+    /// <summary>
+    /// Gets or sets the changed value that forms part of the toolchain environment editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The changed value exposed by <see cref="ToolchainEnvironmentEditor"/>.</value>
     [Parameter] public EventCallback Changed { get; set; }
 
+    /// <summary>
+    /// Stores the in-memory variables collection maintained internally by <see cref="ToolchainEnvironmentEditor"/> for its current workflow state.
+    /// </summary>
     private List<ToolchainEnvironmentVariableSetting> _variables = [];
+    /// <summary>
+    /// Stores the internal busy state used by <see cref="ToolchainEnvironmentEditor"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _busy;
+    /// <summary>
+    /// Stores the internal error state used by <see cref="ToolchainEnvironmentEditor"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _error;
+    /// <summary>
+    /// Stores the internal status state used by <see cref="ToolchainEnvironmentEditor"/> while executing its surrounding workflow.
+    /// </summary>
     private string _status = string.Empty;
 
+    /// <summary>
+    /// Handles the parameters set lifecycle or event notification for <see cref="ToolchainEnvironmentEditor"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnParametersSet()
     {
         _variables = Compiler.EnvironmentVariables.Select(item => new ToolchainEnvironmentVariableSetting
@@ -49,16 +72,33 @@
         }).ToList();
     }
 
+    /// <summary>
+    /// Performs t for <see cref="ToolchainEnvironmentEditor"/>, keeping the operation consistent with the state and invariants of the surrounding toolchain environment editor workflow.
+    /// </summary>
+    /// <param name="key">Key value supplied to the toolchain environment editor operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the toolchain environment editor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
 
+    /// <summary>
+    /// Performs add for <see cref="ToolchainEnvironmentEditor"/>, keeping the operation consistent with the state and invariants of the surrounding toolchain environment editor workflow.
+    /// </summary>
     private void Add() => _variables.Add(new ToolchainEnvironmentVariableSetting { Source = "User", IsEnabled = true });
 
+    /// <summary>
+    /// Performs remove for <see cref="ToolchainEnvironmentEditor"/>, keeping the operation consistent with the state and invariants of the surrounding toolchain environment editor workflow.
+    /// </summary>
+    /// <param name="index">Index value supplied to the toolchain environment editor operation and used when producing its result.</param>
     private void Remove(int index)
     {
         if (index >= 0 && index < _variables.Count)
             _variables.RemoveAt(index);
     }
 
+    /// <summary>
+    /// Performs save for <see cref="ToolchainEnvironmentEditor"/>, keeping the operation consistent with the state and invariants of the surrounding toolchain environment editor workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveAsync()
     {
         _busy = true;

@@ -55,8 +55,17 @@ internal sealed record DatabaseSchemaRequirement(string TableName, string? Colum
 /// </summary>
 internal enum DatabaseMigrationSignatureState
 {
+    /// <summary>
+    /// Selects the missing option for <see cref="DatabaseMigrationSignatureState"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Missing,
+    /// <summary>
+    /// Selects the partial option for <see cref="DatabaseMigrationSignatureState"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Partial,
+    /// <summary>
+    /// Selects the complete option for <see cref="DatabaseMigrationSignatureState"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Complete
 }
 
@@ -65,8 +74,17 @@ internal enum DatabaseMigrationSignatureState
 /// </summary>
 internal enum DatabaseProbeResult
 {
+    /// <summary>
+    /// Selects the healthy option for <see cref="DatabaseProbeResult"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Healthy,
+    /// <summary>
+    /// Selects the corrupt option for <see cref="DatabaseProbeResult"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Corrupt,
+    /// <summary>
+    /// Selects the inconclusive option for <see cref="DatabaseProbeResult"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Inconclusive
 }
 

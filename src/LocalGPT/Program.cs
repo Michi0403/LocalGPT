@@ -279,8 +279,8 @@ namespace LocalGPT
         /// <summary>
         /// Configure Logging but also here was the logfile bypass method, anyway it... pulled that out of my core and restructured the whole app against every guide and telling so... rly bad.
         /// </summary>
-        /// <param name="builder"></param>
-        /// <param name="logger"></param>
+        /// <param name="builder">Builder value supplied to the program operation and used when producing its result.</param>
+        /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
         private static void ConfigureLogging(WebApplicationBuilder builder, ILogger logger)
         {
             try

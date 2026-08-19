@@ -17,15 +17,25 @@ public enum RemoteControlTransportKind
 /// <summary>Defines the HTTP method used by a Remote Control pull connector.</summary>
 public enum RemoteControlHttpMethod
 {
-    /// <summary>HTTP GET.</summary>
+    /// <summary>
+    /// Selects the get option for <see cref="RemoteControlHttpMethod"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Get,
-    /// <summary>HTTP POST.</summary>
+    /// <summary>
+    /// Selects the post option for <see cref="RemoteControlHttpMethod"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Post,
-    /// <summary>HTTP PUT.</summary>
+    /// <summary>
+    /// Selects the put option for <see cref="RemoteControlHttpMethod"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Put,
-    /// <summary>HTTP PATCH.</summary>
+    /// <summary>
+    /// Selects the patch option for <see cref="RemoteControlHttpMethod"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Patch,
-    /// <summary>HTTP DELETE.</summary>
+    /// <summary>
+    /// Selects the delete option for <see cref="RemoteControlHttpMethod"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Delete
 }
 
@@ -34,7 +44,9 @@ public enum RemoteControlResponseFormat
 {
     /// <summary>Infers JSON, XML, or text from the content type and leading content.</summary>
     Auto,
-    /// <summary>Requires JSON.</summary>
+    /// <summary>
+    /// Selects the JSON option for <see cref="RemoteControlResponseFormat"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Json,
     /// <summary>Treats the payload as opaque text.</summary>
     Text,

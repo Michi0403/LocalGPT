@@ -33,8 +33,14 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the chat Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class Chat
     {
+    /// <summary>
+    /// Performs rebuild dynamic sessions for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void RebuildDynamicSessions()
     {
         try
@@ -122,6 +128,11 @@ namespace LocalGPT.Components.Pages
     }
 
 
+    /// <summary>
+    /// Determines whether unavailable configured Ollama session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="session">Session value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsUnavailableConfiguredOllamaSession(ChatClientSession? session)
     {
         try
@@ -140,6 +151,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs select reachable fallback session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>The chat client session produced by the operation.</returns>
     private ChatClientSession? SelectReachableFallbackSession()
     {
         try
@@ -163,6 +178,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Ensures diagnostic Ollama session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="previousMessages">Blazor chat message dependency used by the chat workflow to provide the corresponding application capability.</param>
     private void EnsureDiagnosticOllamaSession(IReadOnlyDictionary<string, List<BlazorChatMessage>> previousMessages)
     {
         try
@@ -209,6 +228,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Creates council request for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>The multi model council request produced by the operation.</returns>
     private MultiModelCouncilRequest CreateCouncilRequest()
     {
         try
@@ -279,6 +302,11 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Parses model routes for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="json">Json value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<OneWireCouncilModelRoute> ParseModelRoutes(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -293,6 +321,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Resolves council download URL for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="downloadUrl">Download url value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolveCouncilDownloadUrl(string downloadUrl)
     {
         try
@@ -307,6 +340,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Applies diagnostic query options for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="selectSession">Value indicating whether select session should apply to this operation.</param>
     private void ApplyDiagnosticQueryOptions(bool selectSession)
     {
         try
@@ -421,6 +458,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Finds requested diagnostic session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="requestedSession">Requested session value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>The chat client session produced by the operation.</returns>
     private ChatClientSession? FindRequestedDiagnosticSession(string requestedSession)
     {
         try
@@ -442,6 +484,12 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Performs matches requested diagnostic session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="session">Session value supplied to the chat operation and used when producing its result.</param>
+    /// <param name="requestedSession">Requested session value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>The bool produced by the operation.</returns>
     private bool? MatchesRequestedDiagnosticSession(ChatClientSession session, string requestedSession)
     {
         try
@@ -459,6 +507,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs should add runtime profile session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool ShouldAddRuntimeProfileSession()
     {
         try
@@ -477,6 +529,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs clear selected session for fresh start for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void ClearSelectedSessionForFreshStart()
     {
         try
@@ -504,6 +559,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Determines whether configured session for model for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="candidate">Candidate value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool HasConfiguredSessionForModel(MultiModelCouncilModelCandidate candidate)
     {
         try
@@ -524,6 +584,10 @@ namespace LocalGPT.Components.Pages
 
 
 
+    /// <summary>
+    /// Resolves Ollama num GPU for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>The int produced by the operation.</returns>
     private int? ResolveOllamaNumGpu()
     {
         try
@@ -555,6 +619,10 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Resolves council output tokens for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>The int produced by the operation.</returns>
     private int ResolveCouncilOutputTokens()
     {
         try
@@ -570,6 +638,10 @@ namespace LocalGPT.Components.Pages
     }
 
 
+    /// <summary>
+    /// Resolves council context tokens for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>The int produced by the operation.</returns>
     private int ResolveCouncilContextTokens()
     {
         try
@@ -586,6 +658,10 @@ namespace LocalGPT.Components.Pages
 
 
 
+    /// <summary>
+    /// Handles the Ollama acceleration mode changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="e">E value supplied to the chat operation and used when producing its result.</param>
     private void OnOllamaAccelerationModeChanged(ChangeEventArgs e)
     {
         try

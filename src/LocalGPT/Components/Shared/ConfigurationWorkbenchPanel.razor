@@ -10,17 +10,37 @@
 }
 
 @code {
+    /// <summary>
+    /// Gets or sets the stable section key used to identify or correlate this configuration workbench panel instance with related application state.
+    /// </summary>
+    /// <value>The section key value exposed by <see cref="ConfigurationWorkbenchPanel"/>.</value>
     [Parameter, EditorRequired]
     public string SectionKey { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Gets or sets the stable active key used to identify or correlate this configuration workbench panel instance with related application state.
+    /// </summary>
+    /// <value>The active key value exposed by <see cref="ConfigurationWorkbenchPanel"/>.</value>
     [Parameter, EditorRequired]
     public string ActiveKey { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Gets or sets the aria label value that forms part of the configuration workbench panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The aria label value exposed by <see cref="ConfigurationWorkbenchPanel"/>.</value>
     [Parameter]
     public string? AriaLabel { get; set; }
 
+    /// <summary>
+    /// Gets or sets the child content value that forms part of the configuration workbench panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The child content value exposed by <see cref="ConfigurationWorkbenchPanel"/>.</value>
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>
+    /// Gets a value indicating whether active applies to the configuration workbench panel state.
+    /// </summary>
+    /// <value>The is active value exposed by <see cref="ConfigurationWorkbenchPanel"/>.</value>
     private bool IsActive => string.Equals(SectionKey, ActiveKey, StringComparison.OrdinalIgnoreCase);
 }

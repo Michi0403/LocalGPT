@@ -191,27 +191,78 @@
 </section>
 
 @code {
+    /// <summary>
+    /// Stores the internal snapshot state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
+    /// </summary>
     private InitialSetupAssistantSnapshot? snapshot;
+    /// <summary>
+    /// Stores the in-memory hardware collection maintained internally by <see cref="InitialSetupAssistantPanel"/> for its current workflow state.
+    /// </summary>
     private readonly List<InitialSetupHardwareDevice> hardware = [];
+    /// <summary>
+    /// Stores the in-memory recommendations collection maintained internally by <see cref="InitialSetupAssistantPanel"/> for its current workflow state.
+    /// </summary>
     private readonly List<CanIRunModelRecommendation> recommendations = [];
+    /// <summary>
+    /// Stores the in-memory model choices collection maintained internally by <see cref="InitialSetupAssistantPanel"/> for its current workflow state.
+    /// </summary>
     private readonly List<InitialSetupModelChoice> modelChoices = [];
+    /// <summary>
+    /// Stores the in-memory selected models collection maintained internally by <see cref="InitialSetupAssistantPanel"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> selectedModels = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores the in-memory preferred curator models collection maintained internally by <see cref="InitialSetupAssistantPanel"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> preferredCuratorModels = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores the internal selected provider key state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
+    /// </summary>
     private string selectedProviderKey = string.Empty;
+    /// <summary>
+    /// Stores the internal hardware endpoint state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
+    /// </summary>
     private string hardwareEndpoint = "http://127.0.0.1:11434";
+    /// <summary>
+    /// Stores the internal hw info text state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
+    /// </summary>
     private string hwInfoText = string.Empty;
+    /// <summary>
+    /// Stores the internal benchmark team name state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
+    /// </summary>
     private string benchmarkTeamName = "Hardware-curated initial benchmark";
+    /// <summary>
+    /// Stores the internal status text state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
+    /// </summary>
     private string statusText = string.Empty;
+    /// <summary>
+    /// Stores the internal can i run opt in state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
+    /// </summary>
     private bool canIRunOptIn;
+    /// <summary>
+    /// Stores the internal busy state used by <see cref="InitialSetupAssistantPanel"/> while executing its surrounding workflow.
+    /// </summary>
     private bool busy;
+    /// <summary>
+    /// Gets the selected provider value that forms part of the initial setup assistant panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected provider value exposed by <see cref="InitialSetupAssistantPanel"/>.</value>
     private AiProviderBootstrapProfile? SelectedProvider => snapshot?.ProviderProfiles.FirstOrDefault(item => item.Key == selectedProviderKey);
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="InitialSetupAssistantPanel"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
         Console.Changed += OnConsoleChanged;
         await RefreshAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs refresh for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshAsync()
     {
         try
@@ -241,13 +292,24 @@
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Adds hardware for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
     private void AddHardware()
     {
         hardware.Add(new InitialSetupHardwareDevice { Endpoint = hardwareEndpoint, Source = "Manual", Selected = true });
     }
 
+    /// <summary>
+    /// Removes hardware for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <param name="device">Initial setup hardware device dependency used by the initial setup assistant panel workflow to provide the corresponding application capability.</param>
     private void RemoveHardware(InitialSetupHardwareDevice device) => hardware.Remove(device);
 
+    /// <summary>
+    /// Performs detect local hardware for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DetectLocalHardwareAsync()
     {
         try
@@ -260,6 +322,10 @@
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Persists hardware for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveHardwareAsync()
     {
         try
@@ -273,6 +339,11 @@
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Reads hw info file for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <param name="args">Input file change event args dependency used by the initial setup assistant panel workflow to provide the corresponding application capability.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ReadHwInfoFileAsync(InputFileChangeEventArgs args)
     {
         try
@@ -289,6 +360,10 @@
         catch (Exception exception) { Logger.LogError(exception, "Reading HWiNFO file in setup assistant failed."); await SetStatusAsync("HWiNFO file could not be read.").ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Imports hw info for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ImportHwInfoAsync()
     {
         try
@@ -301,6 +376,10 @@
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Loads recommendations for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadRecommendationsAsync()
     {
         try
@@ -314,8 +393,16 @@
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Performs provider selection changed for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task ProviderSelectionChangedAsync() => RebuildModelChoicesAsync();
 
+    /// <summary>
+    /// Performs rebuild model choices for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RebuildModelChoicesAsync()
     {
         if (string.IsNullOrWhiteSpace(selectedProviderKey) || recommendations.Count == 0) return;
@@ -336,10 +423,30 @@
         catch (Exception exception) { Logger.LogError(exception, "Building setup model choices failed."); await SetStatusAsync("Provider model mapping could not be refreshed.").ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Performs detect provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DetectProviderAsync() => await RunProviderActionAsync("Provider detection", key => Providers.DetectAsync(key)).ConfigureAwait(false);
+    /// <summary>
+    /// Lists provider models for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ListProviderModelsAsync() => await RunProviderActionAsync("Provider model listing", key => Providers.ListModelsAsync(key)).ConfigureAwait(false);
+    /// <summary>
+    /// Performs install provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task InstallProviderAsync() => await RunProviderActionAsync("Provider installation", key => Providers.InstallAsync(key, true)).ConfigureAwait(false);
+    /// <summary>
+    /// Starts provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task StartProviderAsync() => await RunProviderActionAsync("Provider startup", key => Providers.StartAsync(key, true)).ConfigureAwait(false);
+    /// <summary>
+    /// Performs configure provider for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ConfigureProviderAsync()
     {
         if (string.IsNullOrWhiteSpace(selectedProviderKey)) return;
@@ -358,6 +465,12 @@
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Performs run provider action for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <param name="label">Label value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <param name="action">Action value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunProviderActionAsync(string label, Func<string, Task<LocalConsoleCommandResult>> action)
     {
         if (string.IsNullOrWhiteSpace(selectedProviderKey)) return;
@@ -372,6 +485,11 @@
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Performs install model for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <param name="choice">Initial setup model choice dependency used by the initial setup assistant panel workflow to provide the corresponding application capability.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task InstallModelAsync(InitialSetupModelChoice choice)
     {
         if (string.IsNullOrWhiteSpace(selectedProviderKey)) return;
@@ -386,18 +504,32 @@
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Performs toggle model for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <param name="selectionKey">Selection key value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the initial setup assistant panel operation and used when producing its result.</param>
     private void ToggleModel(string selectionKey, ChangeEventArgs args)
     {
         if (args.Value is bool enabled && enabled) selectedModels.Add(selectionKey); else selectedModels.Remove(selectionKey);
         if (!selectedModels.Contains(selectionKey)) preferredCuratorModels.Remove(selectionKey);
     }
 
+    /// <summary>
+    /// Performs toggle preferred model for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <param name="selectionKey">Selection key value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the initial setup assistant panel operation and used when producing its result.</param>
     private void TogglePreferredModel(string selectionKey, ChangeEventArgs args)
     {
         if (args.Value is bool enabled && enabled) { selectedModels.Add(selectionKey); preferredCuratorModels.Add(selectionKey); }
         else preferredCuratorModels.Remove(selectionKey);
     }
 
+    /// <summary>
+    /// Creates benchmark team for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CreateBenchmarkTeamAsync()
     {
         try
@@ -416,10 +548,26 @@
         finally { await SetBusyAsync(false).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Handles the console changed lifecycle or event notification for <see cref="InitialSetupAssistantPanel"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     private void OnConsoleChanged() => _ = InvokeAsync(StateHasChanged);
+    /// <summary>
+    /// Sets busy for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <param name="value">Value indicating whether value should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetBusyAsync(bool value) => InvokeAsync(() => busy = value);
+    /// <summary>
+    /// Sets status for <see cref="InitialSetupAssistantPanel"/>, keeping the operation consistent with the state and invariants of the surrounding initial setup assistant panel workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the initial setup assistant panel operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetStatusAsync(string value) => InvokeAsync(() => statusText = value);
 
+    /// <summary>
+    /// Releases resources owned by <see cref="InitialSetupAssistantPanel"/> and leaves the initial setup assistant panel workflow in a safely disposed state.
+    /// </summary>
     public void Dispose()
     {
         Console.Changed -= OnConsoleChanged;

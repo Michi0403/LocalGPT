@@ -194,19 +194,59 @@
 </main>
 
 @code {
+    /// <summary>
+    /// Stores the in-memory entries collection maintained internally by <see cref="DxFunctionCatalog"/> for its current workflow state.
+    /// </summary>
     private List<DxAiFunctionCatalogEntry> _entries = [];
+    /// <summary>
+    /// Stores the in-memory dirty grid catalog keys collection maintained internally by <see cref="DxFunctionCatalog"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> _dirtyGridCatalogKeys = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores the internal filter state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private string _filter = string.Empty;
+    /// <summary>
+    /// Stores the internal kind filter state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private string _kindFilter = string.Empty;
+    /// <summary>
+    /// Stores the internal status state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private string _status = string.Empty;
+    /// <summary>
+    /// Stores the internal only exposed state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _onlyExposed;
+    /// <summary>
+    /// Stores the internal group cards by namespace state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _groupCardsByNamespace = true;
+    /// <summary>
+    /// Stores the internal view mode state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private string _viewMode = "Cards";
+    /// <summary>
+    /// Stores the internal busy state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _busy;
+    /// <summary>
+    /// Stores the internal has error state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _hasError;
+    /// <summary>
+    /// Stores the internal show user editor state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _showUserEditor;
+    /// <summary>
+    /// Stores the internal user editor function name state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
+    /// </summary>
     private string _userEditorFunctionName = string.Empty;
 
+    /// <summary>
+    /// Gets the filtered entries collection maintained or exposed by this DevExpress function instance for downstream processing.
+    /// </summary>
+    /// <value>The filtered entries value exposed by <see cref="DxFunctionCatalog"/>.</value>
     private IEnumerable<DxAiFunctionCatalogEntry> FilteredEntries => _entries
         .Where(entry => string.IsNullOrWhiteSpace(_kindFilter) || entry.Kind == _kindFilter)
         .Where(entry => !_onlyExposed || entry.ExposeToOneWire)
@@ -219,15 +259,31 @@
         .ThenBy(entry => entry.Kind)
         .ThenBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Gets the filtered entries list collection maintained or exposed by this DevExpress function instance for downstream processing.
+    /// </summary>
+    /// <value>The filtered entries list value exposed by <see cref="DxFunctionCatalog"/>.</value>
     private IReadOnlyList<DxAiFunctionCatalogEntry> FilteredEntriesList => FilteredEntries.ToList();
 
+    /// <summary>
+    /// Gets the card groups collection maintained or exposed by this DevExpress function instance for downstream processing.
+    /// </summary>
+    /// <value>The card groups value exposed by <see cref="DxFunctionCatalog"/>.</value>
     private IEnumerable<IGrouping<string, DxAiFunctionCatalogEntry>> CardGroups =>
         FilteredEntries.GroupBy(
             entry => _groupCardsByNamespace ? FunctionNamespace(entry) : "All functions",
             StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="DxFunctionCatalog"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnInitializedAsync() => ReloadAsync();
 
+    /// <summary>
+    /// Performs reload in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ReloadAsync()
     {
         _busy = true;
@@ -249,6 +305,10 @@
         finally { _busy = false; }
     }
 
+    /// <summary>
+    /// Performs synchronize in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SynchronizeAsync()
     {
         _busy = true;
@@ -270,6 +330,11 @@
         finally { _busy = false; }
     }
 
+    /// <summary>
+    /// Performs save in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <param name="entry">Entry value supplied to the DevExpress function operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveAsync(DxAiFunctionCatalogEntry entry)
     {
         _busy = true;
@@ -304,6 +369,10 @@
         finally { _busy = false; }
     }
 
+    /// <summary>
+    /// Persists visible in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveVisibleAsync()
     {
         var visible = FilteredEntriesList
@@ -359,23 +428,38 @@
         }
     }
 
+    /// <summary>
+    /// Creates user function in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
     private void CreateUserFunction()
     {
         _userEditorFunctionName = string.Empty;
         _showUserEditor = true;
     }
 
+    /// <summary>
+    /// Performs edit user function in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <param name="functionName">Function name value supplied to the DevExpress function operation and used when producing its result.</param>
     private void EditUserFunction(string functionName)
     {
         _userEditorFunctionName = functionName;
         _showUserEditor = true;
     }
 
+    /// <summary>
+    /// Handles user functions changed in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task HandleUserFunctionsChangedAsync()
     {
         await ReloadAsync().ConfigureAwait(true);
     }
 
+    /// <summary>
+    /// Closes user editor in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task CloseUserEditorAsync()
     {
         _showUserEditor = false;
@@ -383,12 +467,21 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs mark grid entry dirty in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <param name="entry">Entry value supplied to the DevExpress function operation and used when producing its result.</param>
     private void MarkGridEntryDirty(DxAiFunctionCatalogEntry entry)
     {
         if (!string.IsNullOrWhiteSpace(entry.CatalogKey))
             _dirtyGridCatalogKeys.Add(entry.CatalogKey);
     }
 
+    /// <summary>
+    /// Performs function namespace in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <param name="entry">Entry value supplied to the DevExpress function operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FunctionNamespace(DxAiFunctionCatalogEntry entry)
     {
         var name = entry.FunctionName?.Trim() ?? string.Empty;
@@ -396,6 +489,11 @@
         return separator > 0 ? name[..separator] : entry.Kind;
     }
 
+    /// <summary>
+    /// Performs clone in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
+    /// </summary>
+    /// <param name="entry">Entry value supplied to the DevExpress function operation and used when producing its result.</param>
+    /// <returns>The DevExpress AI function catalog entry produced by the operation.</returns>
     private DxAiFunctionCatalogEntry Clone(DxAiFunctionCatalogEntry entry) => new()
     {
         CatalogKey = entry.CatalogKey,

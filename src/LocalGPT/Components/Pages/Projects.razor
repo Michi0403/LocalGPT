@@ -417,64 +417,132 @@
 </main>
 
 @code {
+    /// <summary>
+    /// Defines the toast name constant used by <see cref="Projects"/> so callers and internal logic share the same stable value.
+    /// </summary>
     const string toastName = "ProjectToasts";
 
+    /// <summary>
+    /// Gets or sets the project summaries collection maintained or exposed by this projects instance for downstream processing.
+    /// </summary>
+    /// <value>The project summaries value exposed by <see cref="Projects"/>.</value>
     List<LocalGptProjectSummary> ProjectSummaries { get; set; } = [];
 
+    /// <summary>
+    /// Gets or sets the selected project value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected project value exposed by <see cref="Projects"/>.</value>
     LocalGptProjectDetails? SelectedProject { get; set; }
 
+    /// <summary>
+    /// Gets or sets the project edit value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The project edit value exposed by <see cref="Projects"/>.</value>
     SaveLocalGptProjectRequest ProjectEdit { get; set; } = null!;
 
+    /// <summary>
+    /// Gets or sets the topic edit value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The topic edit value exposed by <see cref="Projects"/>.</value>
     AddLocalGptProjectTopicRequest TopicEdit { get; set; } = null!;
 
+    /// <summary>
+    /// Gets or sets the version edit value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The version edit value exposed by <see cref="Projects"/>.</value>
     AddLocalGptProjectVersionRequest VersionEdit { get; set; } = null!;
 
+    /// <summary>
+    /// Gets or sets the revision edit value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The revision edit value exposed by <see cref="Projects"/>.</value>
     SaveProjectRevisionRequest RevisionEdit { get; set; } = null!;
 
+    /// <summary>
+    /// Gets or sets the requirement edit value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The requirement edit value exposed by <see cref="Projects"/>.</value>
     SaveProjectRequirementRequest RequirementEdit { get; set; } = null!;
 
+    /// <summary>
+    /// Gets or sets the requirement link edit value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The requirement link edit value exposed by <see cref="Projects"/>.</value>
     SaveProjectRequirementLinkRequest RequirementLinkEdit { get; set; } = null!;
 
+    /// <summary>
+    /// Gets or sets the artifact edit value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The artifact edit value exposed by <see cref="Projects"/>.</value>
     SaveProjectArtifactRequest ArtifactEdit { get; set; } = null!;
 
+    /// <summary>
+    /// Gets or sets the revision parent value value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The revision parent value value exposed by <see cref="Projects"/>.</value>
     string RevisionParentValue
     {
         get => RevisionEdit.ParentRevisionId?.ToString() ?? string.Empty;
         set => RevisionEdit.ParentRevisionId = Guid.TryParse(value, out var id) ? id : null;
     }
 
+    /// <summary>
+    /// Gets or sets the requirement link requirement value value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The requirement link requirement value value exposed by <see cref="Projects"/>.</value>
     string RequirementLinkRequirementValue
     {
         get => RequirementLinkEdit.RequirementId == Guid.Empty ? string.Empty : RequirementLinkEdit.RequirementId.ToString();
         set => RequirementLinkEdit.RequirementId = Guid.TryParse(value, out var id) ? id : Guid.Empty;
     }
 
+    /// <summary>
+    /// Gets or sets the artifact requirement value value that forms part of the projects state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The artifact requirement value value exposed by <see cref="Projects"/>.</value>
     string ArtifactRequirementValue
     {
         get => ArtifactEdit.RequirementId?.ToString() ?? string.Empty;
         set => ArtifactEdit.RequirementId = Guid.TryParse(value, out var id) ? id : null;
     }
 
+    /// <summary>
+    /// Stores the internal requirement target kinds state used by <see cref="Projects"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string[] RequirementTargetKinds =
     [
         "DXFunction", "BusinessObject", "Configuration", "SystemVariable", "Regex",
         "Prompt", "Knowledge", "DatabaseTable", "Service", "Controller", "CodeDomTarget"
     ];
 
+    /// <summary>
+    /// Stores the internal artifact kinds state used by <see cref="Projects"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string[] ArtifactKinds =
     [
         "Regex", "SystemVariable", "Configuration", "Prompt", "KnowledgeReference",
         "BusinessObjectReference", "DXFunctionReference", "CodeDomTarget", "DocumentReference"
     ];
 
+    /// <summary>
+    /// Stores the internal is busy state used by <see cref="Projects"/> while executing its surrounding workflow.
+    /// </summary>
     bool isBusy;
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="Projects"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
         ResetRequestEditors();
         await LoadProjectsAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Loads projects for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task LoadProjectsAsync()
     {
         await RunUiActionAsync(async () =>
@@ -486,12 +554,19 @@
         }, "Load projects").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs new project for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
     void NewProject()
     {
         SelectedProject = null;
         ResetRequestEditors();
     }
 
+    /// <summary>
+    /// Performs reset request editors for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <param name="versionPath">Version path value supplied to the projects operation and used when producing its result.</param>
     void ResetRequestEditors(string versionPath = "")
     {
         ProjectEdit = RequestFactory.CreateProjectRequest();
@@ -503,6 +578,11 @@
         ArtifactEdit = RequestFactory.CreateArtifactRequest();
     }
 
+    /// <summary>
+    /// Performs select project for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SelectProjectAsync(Guid projectId)
     {
         await RunUiActionAsync(async () =>
@@ -538,6 +618,10 @@
         }, "Select project").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Persists project for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveProjectAsync()
     {
         await RunUiActionAsync(async () =>
@@ -556,6 +640,10 @@
         }, "Save project").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Adds topic for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task AddTopicAsync()
     {
         if (SelectedProject is null)
@@ -578,6 +666,10 @@
         }, "Add topic").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Adds version for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task AddVersionAsync()
     {
         if (SelectedProject is null)
@@ -600,6 +692,10 @@
         }, "Add version").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Persists revision for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveRevisionAsync()
     {
         if (SelectedProject is null)
@@ -621,6 +717,10 @@
         }, "Save project revision").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Persists requirement for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveRequirementAsync()
     {
         if (SelectedProject is null)
@@ -643,6 +743,10 @@
         }, "Save project requirement").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Persists requirement link for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveRequirementLinkAsync()
     {
         if (SelectedProject is null)
@@ -664,6 +768,10 @@
         }, "Save requirement link").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Persists artifact for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveArtifactAsync()
     {
         if (SelectedProject is null)
@@ -686,6 +794,11 @@
         }, "Save project artifact").ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Refreshes selected project for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RefreshSelectedProjectAsync(Guid projectId)
     {
         ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: true).ConfigureAwait(false)).ToList();
@@ -709,6 +822,12 @@
         }
     }
 
+    /// <summary>
+    /// Performs run UI action for <see cref="Projects"/>, keeping the operation consistent with the state and invariants of the surrounding projects workflow.
+    /// </summary>
+    /// <param name="action">Action value supplied to the projects operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the projects operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunUiActionAsync(Func<Task> action, string operation)
     {
         ArgumentNullException.ThrowIfNull(action);

@@ -286,40 +286,133 @@
 </main>
 
 @code {
+    /// <summary>
+    /// Defines the toast name constant used by <see cref="ProjectMaintenance"/> so callers and internal logic share the same stable value.
+    /// </summary>
     const string ToastName = "ProjectMaintenanceToasts";
+    /// <summary>
+    /// Stores the in-memory project summaries collection maintained internally by <see cref="ProjectMaintenance"/> for its current workflow state.
+    /// </summary>
     List<LocalGptProjectSummary> projectSummaries = [];
+    /// <summary>
+    /// Stores the internal selected project state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     LocalGptProjectDetails? selectedProject;
+    /// <summary>
+    /// Stores the in-memory workspace roots collection maintained internally by <see cref="ProjectMaintenance"/> for its current workflow state.
+    /// </summary>
     List<ProjectWorkspaceRoot> workspaceRoots = [];
+    /// <summary>
+    /// Stores the in-memory compilers collection maintained internally by <see cref="ProjectMaintenance"/> for its current workflow state.
+    /// </summary>
     List<ProjectCompilerInstallation> compilers = [];
+    /// <summary>
+    /// Stores the in-memory workspace assessments collection maintained internally by <see cref="ProjectMaintenance"/> for its current workflow state.
+    /// </summary>
     Dictionary<Guid, WorkspacePermissionAssessment> workspaceAssessments = [];
+    /// <summary>
+    /// Stores the in-memory tracked files collection maintained internally by <see cref="ProjectMaintenance"/> for its current workflow state.
+    /// </summary>
     List<LocalGptProjectTrackedFile> trackedFiles = [];
+    /// <summary>
+    /// Stores the internal selected tracked file state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     LocalGptProjectTrackedFile? selectedTrackedFile;
+    /// <summary>
+    /// Stores the internal workspace edit state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     SaveProjectWorkspaceRootRequest workspaceEdit = null!;
+    /// <summary>
+    /// Stores the internal compiler edit state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     SaveProjectCompilerInstallationRequest compilerEdit = null!;
+    /// <summary>
+    /// Stores the internal build edit state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     RunProjectBuildVerificationRequest buildEdit = new() { Configuration = "Debug", TimeoutSeconds = 1200 };
+    /// <summary>
+    /// Stores the internal council review edit state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     RecordCouncilBuildReviewRequest councilReviewEdit = new();
+    /// <summary>
+    /// Stores the internal file pattern edit state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     SaveTrackedFilePatternRequest filePatternEdit = new();
+    /// <summary>
+    /// Stores the internal revision workspace edit state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     RegisterRevisionWorkspaceRequest revisionWorkspaceEdit = new();
+    /// <summary>
+    /// Stores the internal selected project identifier state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     Guid? selectedProjectId;
+    /// <summary>
+    /// Stores the internal selected revision identifier state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     Guid? selectedRevisionId;
+    /// <summary>
+    /// Stores the internal selected compiler identifier state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     Guid? selectedCompilerId;
+    /// <summary>
+    /// Stores the internal review verification identifier state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     Guid? reviewVerificationId;
+    /// <summary>
+    /// Stores the internal selected tracked file identifier state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     Guid? selectedTrackedFileId;
+    /// <summary>
+    /// Stores the internal custom compiler roots state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     string customCompilerRoots = string.Empty;
+    /// <summary>
+    /// Stores the internal busy state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     bool busy;
+    /// <summary>
+    /// Stores the internal path explorer visible state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     bool pathExplorerVisible;
+    /// <summary>
+    /// Stores the internal path explorer target state used by <see cref="ProjectMaintenance"/> while executing its surrounding workflow.
+    /// </summary>
     string pathExplorerTarget = string.Empty;
 
+    /// <summary>
+    /// Gets or sets the selected project value value that forms part of the project maintenance state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected project value value exposed by <see cref="ProjectMaintenance"/>.</value>
     string SelectedProjectValue
     {
         get => selectedProjectId?.ToString() ?? string.Empty;
         set { selectedProjectId = Guid.TryParse(value, out var id) ? id : null; _ = SelectProjectAsync(); }
     }
+    /// <summary>
+    /// Gets or sets the selected revision value value that forms part of the project maintenance state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected revision value value exposed by <see cref="ProjectMaintenance"/>.</value>
     string SelectedRevisionValue { get => selectedRevisionId?.ToString() ?? string.Empty; set { selectedRevisionId = Guid.TryParse(value, out var id) ? id : null; SelectRevision(); _ = RefreshTrackedFilesAsync(); } }
+    /// <summary>
+    /// Gets or sets the selected compiler value value that forms part of the project maintenance state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected compiler value value exposed by <see cref="ProjectMaintenance"/>.</value>
     string SelectedCompilerValue { get => selectedCompilerId?.ToString() ?? string.Empty; set { selectedCompilerId = Guid.TryParse(value, out var id) ? id : null; buildEdit.CompilerInstallationId = selectedCompilerId ?? Guid.Empty; } }
+    /// <summary>
+    /// Gets or sets the selected tracked file value value that forms part of the project maintenance state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected tracked file value value exposed by <see cref="ProjectMaintenance"/>.</value>
     string SelectedTrackedFileValue { get => selectedTrackedFileId?.ToString() ?? string.Empty; set { selectedTrackedFileId = Guid.TryParse(value, out var id) ? id : null; SelectTrackedFile(); } }
+    /// <summary>
+    /// Gets a value indicating whether verify build applies to the project maintenance state.
+    /// </summary>
+    /// <value>The can verify build value exposed by <see cref="ProjectMaintenance"/>.</value>
     bool CanVerifyBuild => !busy && selectedProjectId is not null && selectedRevisionId is not null && selectedCompilerId is not null;
 
+    /// <summary>
+    /// Gets the active path explorer path used by this project maintenance instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The active path explorer path value exposed by <see cref="ProjectMaintenance"/>.</value>
     string ActivePathExplorerPath => pathExplorerTarget switch
     {
         "RevisionSource" => revisionWorkspaceEdit.SourceRootPath,
@@ -327,8 +420,20 @@
         "EnvironmentRoot" => workspaceEdit.EnvironmentRootPath,
         _ => workspaceEdit.RootPath
     };
+    /// <summary>
+    /// Gets the path explorer selection mode used by this project maintenance instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The path explorer selection mode value exposed by <see cref="ProjectMaintenance"/>.</value>
     string PathExplorerSelectionMode => pathExplorerTarget == "RevisionSolution" ? "File" : "Directory";
+    /// <summary>
+    /// Gets a value indicating whether path explorer includes files applies to the project maintenance state.
+    /// </summary>
+    /// <value>The path explorer includes files value exposed by <see cref="ProjectMaintenance"/>.</value>
     bool PathExplorerIncludesFiles => pathExplorerTarget == "RevisionSolution";
+    /// <summary>
+    /// Gets the path explorer title used by this project maintenance instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The path explorer title value exposed by <see cref="ProjectMaintenance"/>.</value>
     string PathExplorerTitle => pathExplorerTarget switch
     {
         "RevisionSource" => "Choose revision source folder",
@@ -337,18 +442,32 @@
         _ => "Choose project workspace folder"
     };
 
+    /// <summary>
+    /// Opens path explorer for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="target">Target value supplied to the project maintenance operation and used when producing its result.</param>
     void OpenPathExplorer(string target)
     {
         pathExplorerTarget = target;
         pathExplorerVisible = true;
     }
 
+    /// <summary>
+    /// Handles the path explorer visible changed lifecycle or event notification for <see cref="ProjectMaintenance"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="visible">Value indicating whether visible should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task OnPathExplorerVisibleChanged(bool visible)
     {
         pathExplorerVisible = visible;
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Applies path selection for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="path">Path value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task ApplyPathSelectionAsync(string path)
     {
         switch (pathExplorerTarget)
@@ -362,6 +481,10 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="ProjectMaintenance"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnInitializedAsync()
     {
         workspaceEdit = RequestFactory.CreateWorkspaceRootRequest();
@@ -369,6 +492,10 @@
         return LoadAsync();
     }
 
+    /// <summary>
+    /// Performs load for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task LoadAsync() => await RunAsync(async () =>
     {
         projectSummaries = (await Projects.GetProjectsAsync(includeArchived: false).ConfigureAwait(false)).ToList();
@@ -381,6 +508,10 @@
         }
     }, T("ProjectMaintenance.LoadFailed", "Could not load project maintenance settings.")).ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs select project for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SelectProjectAsync()
     {
         if (selectedProjectId is null) { selectedProject = null; selectedRevisionId = null; return; }
@@ -397,6 +528,9 @@
         }, T("ProjectMaintenance.SelectFailed", "Could not select the project.")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs select revision for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
     void SelectRevision()
     {
         var revision = selectedRevisionId is Guid id ? selectedProject?.Revisions.FirstOrDefault(item => item.Id == id) : null;
@@ -409,6 +543,10 @@
             };
     }
 
+    /// <summary>
+    /// Persists revision workspace for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveRevisionWorkspaceAsync()
     {
         if (selectedProjectId is not Guid projectId || selectedRevisionId is not Guid revisionId) return;
@@ -426,6 +564,10 @@
         }, T("ProjectMaintenance.RevisionWorkspaceSaveFailed", "Could not save the revision workspace.")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Refreshes tracked files for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RefreshTrackedFilesAsync()
     {
         if (selectedProjectId is not Guid projectId) { trackedFiles = []; return; }
@@ -437,6 +579,10 @@
         }, T("ProjectMaintenance.FileMetadataLoadFailed", "Could not load tracked file metadata.")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs edit workspace for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="workspace">Workspace value supplied to the project maintenance operation and used when producing its result.</param>
     void EditWorkspace(ProjectWorkspaceRoot workspace)
     {
         workspaceEdit = new SaveProjectWorkspaceRootRequest
@@ -462,6 +608,11 @@
         };
     }
 
+    /// <summary>
+    /// Performs assess workspace for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="workspaceId">Identifier of the workspace to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task AssessWorkspaceAsync(Guid workspaceId) => await RunAsync(async () =>
     {
         var assessment = await Maintenance.AssessWorkspacePermissionsAsync(workspaceId, userConfirmedWriteProbe: true).ConfigureAwait(false);
@@ -470,7 +621,17 @@
         Notifier.ShowSuccess(ToastName, $"Workspace assessment: {assessment.Status}", T("Common.Completed", "Completed"));
     }, T("ProjectMaintenance.WorkspaceAssessmentFailed", "Workspace permission assessment failed.")).ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs permission boolean for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="value">Value indicating whether value should apply to this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     static string PermissionBoolean(bool value) => value ? "✓" : "—";
+    /// <summary>
+    /// Performs permission icon for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="status">Status value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     static string PermissionIcon(string status) => status switch
     {
         "Approved" => "✓",
@@ -479,6 +640,10 @@
         _ => "○"
     };
 
+    /// <summary>
+    /// Persists workspace for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveWorkspaceAsync() => await RunAsync(async () =>
     {
         workspaceEdit.ProjectId = workspaceEdit.ScopeKind == "Project" ? selectedProjectId : null;
@@ -487,6 +652,10 @@
         finally { workspaceEdit.UserConfirmed = false; }
     }, T("ProjectMaintenance.WorkspaceSaveFailed", "Could not save the workspace root.")).ConfigureAwait(false);
 
+    /// <summary>
+    /// Discovers compilers for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task DiscoverCompilersAsync() => await RunAsync(async () =>
     {
         var request = new DiscoverProjectCompilersRequest { UserConfirmed = true, SaveDiscovered = true, CustomSearchRootsText = customCompilerRoots };
@@ -495,6 +664,10 @@
         Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerDiscoveryComplete", "Compiler discovery completed."), T("Common.Completed", "Completed"));
     }, T("ProjectMaintenance.CompilerDiscoveryFailed", "Compiler discovery failed.")).ConfigureAwait(false);
 
+    /// <summary>
+    /// Persists compiler for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveCompilerAsync() => await RunAsync(async () =>
     {
         compilerEdit.UserConfirmed = true;
@@ -502,6 +675,11 @@
         finally { compilerEdit.UserConfirmed = false; }
     }, T("ProjectMaintenance.CompilerSaveFailed", "Could not save the compiler installation.")).ConfigureAwait(false);
 
+    /// <summary>
+    /// Validates compiler for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="id">Identifier of the resource to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task ValidateCompilerAsync(Guid id) => await RunAsync(async () =>
     {
         await Maintenance.ValidateCompilerInstallationAsync(id, true).ConfigureAwait(false);
@@ -509,6 +687,10 @@
         Notifier.ShowSuccess(ToastName, T("ProjectMaintenance.CompilerValidated", "Compiler validation completed."), T("Common.Completed", "Completed"));
     }, T("ProjectMaintenance.CompilerValidationFailed", "Compiler validation failed.")).ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs scan project for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task ScanProjectAsync()
     {
         if (selectedProjectId is null) return;
@@ -521,6 +703,9 @@
         }, T("ProjectMaintenance.ProjectScanFailed", "Project scanning failed.")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs select tracked file for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
     void SelectTrackedFile()
     {
         selectedTrackedFile = selectedTrackedFileId is Guid id ? trackedFiles.FirstOrDefault(item => item.Id == id) : null;
@@ -534,6 +719,10 @@
             };
     }
 
+    /// <summary>
+    /// Persists file patterns for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveFilePatternsAsync()
     {
         if (selectedTrackedFileId is not Guid id) return;
@@ -552,6 +741,10 @@
         }, T("ProjectMaintenance.FilePatternsSaveFailed", "Could not save the tracked file patterns.")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs run build verification for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunBuildVerificationAsync()
     {
         if (selectedProjectId is null || selectedRevisionId is null || selectedCompilerId is null) return;
@@ -565,12 +758,20 @@
         }, T("ProjectMaintenance.BuildFailed", "Build verification failed.")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs select verification for review for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="verification">Verification value supplied to the project maintenance operation and used when producing its result.</param>
     void SelectVerificationForReview(ProjectBuildVerification verification)
     {
         reviewVerificationId = verification.Id;
         councilReviewEdit = new RecordCouncilBuildReviewRequest { Summary = verification.CouncilReviewSummary, CompileErrorsAbsent = verification.CouncilReviewSucceeded };
     }
 
+    /// <summary>
+    /// Persists council review for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveCouncilReviewAsync()
     {
         if (reviewVerificationId is not Guid id) return;
@@ -582,6 +783,11 @@
         }, T("ProjectMaintenance.CouncilReviewFailed", "Could not save the council review.")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Approves ready for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="verification">Verification value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task ApproveReadyAsync(ProjectBuildVerification verification)
     {
         if (selectedProjectId is null) return;
@@ -593,6 +799,12 @@
         }, T("ProjectMaintenance.ReadyApprovalFailed", "Could not approve the revision for testing.")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs run for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="action">Action value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="errorText">Error text value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunAsync(Func<Task> action, string errorText)
     {
         busy = true;
@@ -602,5 +814,11 @@
         finally { busy = false; await InvokeAsync(StateHasChanged).ConfigureAwait(false); }
     }
 
+    /// <summary>
+    /// Performs t for <see cref="ProjectMaintenance"/>, keeping the operation consistent with the state and invariants of the surrounding project maintenance workflow.
+    /// </summary>
+    /// <param name="key">Key value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the project maintenance operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
 }

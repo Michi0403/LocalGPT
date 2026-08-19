@@ -305,6 +305,11 @@
 }
 
 @code {
+    /// <summary>
+    /// Retrieves gate label for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetGateLabel(HumanCollaborationRequest request) => request.GateMode switch
     {
         "NextPhase" => "blocks next phase",
@@ -313,6 +318,11 @@
         _ => "non-blocking"
     };
 
+    /// <summary>
+    /// Retrieves gate description for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetGateDescription(HumanCollaborationRequest request) => request.GateMode switch
     {
         "NextPhase" => "The Council may finish the current phase, then waits for all applicable open questions before starting the next phase.",
@@ -321,6 +331,11 @@
         _ => "Advisory context. The Council continues and consumes the answer at the next heartbeat."
     };
 
+    /// <summary>
+    /// Retrieves scope label for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetScopeLabel(HumanCollaborationRequest request) => request.QuestionScope switch
     {
         "Consensus" => "Council consensus question",
@@ -328,33 +343,85 @@
         _ => "Question from one Council member"
     };
 
+    /// <summary>
+    /// Stores the internal snapshot state used by <see cref="HumanCollaborationInbox"/> while executing its surrounding workflow.
+    /// </summary>
     private HumanCollaborationSnapshot snapshot = new(new HumanCouncilParticipantProfile(), [], [], []);
+    /// <summary>
+    /// Stores the internal profile state used by <see cref="HumanCollaborationInbox"/> while executing its surrounding workflow.
+    /// </summary>
     private HumanCouncilParticipantProfile profile = new();
+    /// <summary>
+    /// Stores the in-memory editors collection maintained internally by <see cref="HumanCollaborationInbox"/> for its current workflow state.
+    /// </summary>
     private readonly Dictionary<Guid, HumanCollaborationRequestEditor> editors = [];
+    /// <summary>
+    /// Stores the cancellation source used by <see cref="HumanCollaborationInbox"/> to stop its current background or asynchronous operation.
+    /// </summary>
     private readonly CancellationTokenSource lifetimeCts = new();
+    /// <summary>
+    /// Stores the internal is open state used by <see cref="HumanCollaborationInbox"/> while executing its surrounding workflow.
+    /// </summary>
     private bool isOpen;
+    /// <summary>
+    /// Stores the internal approval bar visible state used by <see cref="HumanCollaborationInbox"/> while executing its surrounding workflow.
+    /// </summary>
     private bool approvalBarVisible = true;
+    /// <summary>
+    /// Stores the internal is disposed state used by <see cref="HumanCollaborationInbox"/> while executing its surrounding workflow.
+    /// </summary>
     private bool isDisposed;
+    /// <summary>
+    /// Stores the internal is busy state used by <see cref="HumanCollaborationInbox"/> while executing its surrounding workflow.
+    /// </summary>
     private bool isBusy;
+    /// <summary>
+    /// Stores the internal profile dirty state used by <see cref="HumanCollaborationInbox"/> while executing its surrounding workflow.
+    /// </summary>
     private bool profileDirty;
+    /// <summary>
+    /// Stores the internal status text state used by <see cref="HumanCollaborationInbox"/> while executing its surrounding workflow.
+    /// </summary>
     private string statusText = string.Empty;
+    /// <summary>
+    /// Stores the in-memory recent deferred results collection maintained internally by <see cref="HumanCollaborationInbox"/> for its current workflow state.
+    /// </summary>
     private readonly List<DeferredResultView> recentDeferredResults = [];
 
+    /// <summary>
+    /// Gets the pending requests collection maintained or exposed by this human collaboration inbox instance for downstream processing.
+    /// </summary>
+    /// <value>The pending requests value exposed by <see cref="HumanCollaborationInbox"/>.</value>
     private IReadOnlyList<HumanCollaborationRequest> PendingRequests => snapshot.Requests
         .Where(item => item.Status == Vocabulary.Get().HumanStatusPending)
         .ToList();
+    /// <summary>
+    /// Gets the resolved requests collection maintained or exposed by this human collaboration inbox instance for downstream processing.
+    /// </summary>
+    /// <value>The resolved requests value exposed by <see cref="HumanCollaborationInbox"/>.</value>
     private IReadOnlyList<HumanCollaborationRequest> ResolvedRequests => snapshot.Requests
         .Where(item => item.Status != Vocabulary.Get().HumanStatusPending)
         .OrderByDescending(item => item.UpdatedAtUtc)
         .ToList();
+    /// <summary>
+    /// Gets the pending count that quantifies the associated human collaboration inbox data.
+    /// </summary>
+    /// <value>The pending count value exposed by <see cref="HumanCollaborationInbox"/>.</value>
     private int PendingCount => PendingRequests.Count;
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="HumanCollaborationInbox"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
         Collaboration.Changed += OnCollaborationChanged;
         await RefreshAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs toggle panel for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
     private void TogglePanel()
     {
         isOpen = !isOpen;
@@ -363,6 +430,9 @@
         ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), "Toggle", isOpen ? "The collaboration inbox opened." : "The collaboration inbox closed.");
     }
 
+    /// <summary>
+    /// Opens approval panel for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
     private void OpenApprovalPanel()
     {
         approvalBarVisible = true;
@@ -370,12 +440,19 @@
         ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), "OpenApprovalBar", "The pending approval work bar opened the collaboration inbox.");
     }
 
+    /// <summary>
+    /// Performs hide approval bar for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
     private void HideApprovalBar()
     {
         approvalBarVisible = false;
         ComponentActivity.RecordInformation(nameof(HumanCollaborationInbox), "HideApprovalBar", "The pending approval work bar was hidden; the Human team launcher remains available.");
     }
 
+    /// <summary>
+    /// Performs refresh for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshAsync()
     {
         try
@@ -408,6 +485,10 @@
         }
     }
 
+    /// <summary>
+    /// Persists profile for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveProfileAsync()
     {
         await RunHumanUiOperationAsync("SaveProfile", async () =>
@@ -423,6 +504,11 @@
         }).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs submit contribution for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SubmitContributionAsync(Guid runId)
     {
         var editorId = GetContributionEditorId(runId);
@@ -447,6 +533,12 @@
         }).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs resolve for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="approved">Approved value supplied to the human collaboration inbox operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ResolveAsync(HumanCollaborationRequest request, bool? approved)
     {
         var editor = GetEditor(request);
@@ -520,6 +612,12 @@
             CancellationToken.None);
     }
 
+    /// <summary>
+    /// Performs run human UI operation for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="operation">Operation value supplied to the human collaboration inbox operation and used when producing its result.</param>
+    /// <param name="action">Action value supplied to the human collaboration inbox operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunHumanUiOperationAsync(string operation, Func<Task> action)
     {
         if (isBusy)
@@ -549,6 +647,11 @@
         }
     }
 
+    /// <summary>
+    /// Performs to deferred result view for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="outcome">Outcome value supplied to the human collaboration inbox operation and used when producing its result.</param>
+    /// <returns>The deferred result view produced by the operation.</returns>
     private DeferredResultView ToDeferredResultView(DeferredDxAiExecutionOutcome outcome)
     {
         var summary = outcome.Status;
@@ -579,8 +682,20 @@
         return new DeferredResultView(outcome.FunctionName, outcome.ResultStatus, summary, downloadUrl);
     }
 
+    /// <summary>
+    /// Represents a deferred result view helper type nested within <see cref="HumanCollaborationInbox"/>, grouping the state or behavior used only by that containing workflow.
+    /// </summary>
+    /// <param name="FunctionName">Function name value supplied to the human collaboration inbox operation and used when producing its result.</param>
+    /// <param name="ResultStatus">Result status value supplied to the human collaboration inbox operation and used when producing its result.</param>
+    /// <param name="Summary">Summary value supplied to the human collaboration inbox operation and used when producing its result.</param>
+    /// <param name="DownloadUrl">Download url value supplied to the human collaboration inbox operation and used when producing its result.</param>
     private sealed record DeferredResultView(string FunctionName, string ResultStatus, string Summary, string DownloadUrl);
 
+    /// <summary>
+    /// Retrieves editor for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The human collaboration request editor produced by the operation.</returns>
     private HumanCollaborationRequestEditor GetEditor(HumanCollaborationRequest request)
     {
         if (!editors.TryGetValue(request.Id, out var editor))
@@ -591,15 +706,33 @@
         return editor;
     }
 
+    /// <summary>
+    /// Creates editor for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The human collaboration request editor produced by the operation.</returns>
     private HumanCollaborationRequestEditor CreateEditor(HumanCollaborationRequest request) => new(
         request.Status == Vocabulary.Get().HumanStatusPending ? request.PrefillText : request.UserResponse,
         request.DecisionReason,
         request.ApprovalReuseScope,
         request.ConsumeApproval);
 
+    /// <summary>
+    /// Performs mark profile dirty for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
     private void MarkProfileDirty() => profileDirty = true;
 
+    /// <summary>
+    /// Performs fingerprint prefix for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the human collaboration inbox operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FingerprintPrefix(string value) => value[..Math.Min(12, value.Length)];
+    /// <summary>
+    /// Retrieves request CSS class for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetRequestCssClass(HumanCollaborationRequest request)
     {
         var risk = string.IsNullOrWhiteSpace(request.RiskLevel)
@@ -610,8 +743,16 @@
                 .ToArray());
         return $"human-request-card risk-{(string.IsNullOrWhiteSpace(risk) ? "medium" : risk)}";
     }
+    /// <summary>
+    /// Retrieves contribution editor identifier for <see cref="HumanCollaborationInbox"/>, keeping the operation consistent with the state and invariants of the surrounding human collaboration inbox workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetContributionEditorId(Guid runId) => $"localgpt-heartbeat-draft-{runId:N}";
 
+    /// <summary>
+    /// Handles the collaboration changed lifecycle or event notification for <see cref="HumanCollaborationInbox"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     private void OnCollaborationChanged()
     {
         if (isDisposed)
@@ -631,6 +772,9 @@
         }
     }
 
+    /// <summary>
+    /// Releases resources owned by <see cref="HumanCollaborationInbox"/> and leaves the human collaboration inbox workflow in a safely disposed state.
+    /// </summary>
     public void Dispose()
     {
         if (isDisposed)

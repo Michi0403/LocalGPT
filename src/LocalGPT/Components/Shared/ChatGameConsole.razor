@@ -138,23 +138,79 @@
 </section>
 
 @code {
+    /// <summary>
+    /// Gets or sets the stable conversation identifier used to identify or correlate this chat game console instance with related application state.
+    /// </summary>
+    /// <value>The conversation identifier value exposed by <see cref="ChatGameConsole"/>.</value>
     [Parameter] public Guid? ConversationId { get; set; }
+    /// <summary>
+    /// Gets or sets the stable suggested team key used to identify or correlate this chat game console instance with related application state.
+    /// </summary>
+    /// <value>The suggested team key value exposed by <see cref="ChatGameConsole"/>.</value>
     [Parameter] public string SuggestedTeamKey { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the close requested value that forms part of the chat game console state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The close requested value exposed by <see cref="ChatGameConsole"/>.</value>
     [Parameter] public EventCallback CloseRequested { get; set; }
 
+    /// <summary>
+    /// Stores the internal element identifier state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly string elementId = $"localgpt-game-{Guid.NewGuid():N}";
+    /// <summary>
+    /// Stores the internal snapshot state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
+    /// </summary>
     private CouncilGameSessionSnapshot? snapshot;
+    /// <summary>
+    /// Stores the in-memory console output collection maintained internally by <see cref="ChatGameConsole"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<LocalConsoleOutputEvent> consoleOutput = [];
+    /// <summary>
+    /// Stores the internal reference state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
+    /// </summary>
     private DotNetObjectReference<ChatGameConsole>? reference;
+    /// <summary>
+    /// Stores the internal attached state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
+    /// </summary>
     private bool attached;
+    /// <summary>
+    /// Stores the internal show controls state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
+    /// </summary>
     private bool showControls = true;
+    /// <summary>
+    /// Stores the internal input in flight state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
+    /// </summary>
     private bool inputInFlight;
+    /// <summary>
+    /// Stores the internal fullscreen scale mode state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
+    /// </summary>
     private string fullscreenScaleMode = "Fit";
+    /// <summary>
+    /// Gets a value indicating whether show control guide applies to the chat game console state.
+    /// </summary>
+    /// <value>The show control guide value exposed by <see cref="ChatGameConsole"/>.</value>
     private bool ShowControlGuide => snapshot is { ControlMode: not CouncilGameControlMode.Ai } && showControls;
+    /// <summary>
+    /// Gets a value indicating whether submit human control applies to the chat game console state.
+    /// </summary>
+    /// <value>The can submit human control value exposed by <see cref="ChatGameConsole"/>.</value>
     private bool CanSubmitHumanControl => snapshot is { HumanInputRequired: true, ControlMode: not CouncilGameControlMode.Ai } && !inputInFlight;
+    /// <summary>
+    /// Gets the input busy state value that forms part of the chat game console state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The input busy state value exposed by <see cref="ChatGameConsole"/>.</value>
     private string InputBusyState => inputInFlight ? "true" : "false";
+    /// <summary>
+    /// Gets the console text value that forms part of the chat game console state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The console text value exposed by <see cref="ChatGameConsole"/>.</value>
     private string ConsoleText => Console.GetRecentDisplayText(160);
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="ChatGameConsole"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
         Games.Changed += OnGameChanged;
@@ -163,12 +219,21 @@
         snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Handles the parameters set async lifecycle or event notification for <see cref="ChatGameConsole"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnParametersSetAsync()
     {
         if (snapshot is null || (ConversationId is not null && snapshot.ConversationId != ConversationId))
             snapshot = await Games.GetActiveAsync(ConversationId).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Handles the after render async lifecycle or event notification for <see cref="ChatGameConsole"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!attached)
@@ -182,9 +247,23 @@
         await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(true) /* renderer-affine lifecycle continuation */;
     }
 
+    /// <summary>
+    /// Starts doom for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task StartDoomAsync() => await StartAsync("ascii-doom", "ascii-doom-council-adventure").ConfigureAwait(false);
+    /// <summary>
+    /// Starts dragon for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task StartDragonAsync() => await StartAsync("green-dragon", "green-dragon-runtime-story").ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs start for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
+    /// <param name="gameKey">Game key value supplied to the chat game console operation and used when producing its result.</param>
+    /// <param name="teamKey">Team key value supplied to the chat game console operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task StartAsync(string gameKey, string teamKey)
     {
         try
@@ -206,6 +285,11 @@
         }
     }
 
+    /// <summary>
+    /// Performs change control mode for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat game console operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ChangeControlModeAsync(ChangeEventArgs args)
     {
         if (snapshot is null) return;
@@ -217,6 +301,11 @@
             snapshot.AutoplayDelayMilliseconds).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs change autoplay delay for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat game console operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ChangeAutoplayDelayAsync(ChangeEventArgs args)
     {
         if (snapshot is null || !int.TryParse(args.Value?.ToString(), out var delay)) return;
@@ -227,8 +316,16 @@
             delay).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs toggle controls for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
     private void ToggleControls() => showControls = !showControls;
 
+    /// <summary>
+    /// Performs change fullscreen scale mode for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat game console operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ChangeFullscreenScaleModeAsync(ChangeEventArgs args)
     {
         var requestedMode = args.Value?.ToString();
@@ -238,9 +335,17 @@
         await JS.InvokeVoidAsync("localGptGameConsole.setScaleMode", elementId, fullscreenScaleMode).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs fullscreen for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task FullscreenAsync() =>
         await JS.InvokeVoidAsync("localGptGameConsole.fullscreen", elementId).ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs close for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CloseAsync()
     {
         await JS.InvokeVoidAsync("localGptGameConsole.exitFullscreen", elementId).ConfigureAwait(false);
@@ -248,9 +353,19 @@
             await CloseRequested.InvokeAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs submit control from JavaScript for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
+    /// <param name="action">Action value supplied to the chat game console operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     [JSInvokable]
     public Task SubmitControlFromJs(string action) => SendControlAsync(action);
 
+    /// <summary>
+    /// Performs send control for <see cref="ChatGameConsole"/>, keeping the operation consistent with the state and invariants of the surrounding chat game console workflow.
+    /// </summary>
+    /// <param name="action">Action value supplied to the chat game console operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SendControlAsync(string action)
     {
         if (snapshot is null || !CanSubmitHumanControl) return;
@@ -282,6 +397,10 @@
         }
     }
 
+    /// <summary>
+    /// Handles the game changed lifecycle or event notification for <see cref="ChatGameConsole"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="sessionId">Identifier of the session to use for this operation.</param>
     private void OnGameChanged(Guid sessionId)
     {
         if (snapshot is not null && snapshot.Id != sessionId) return;
@@ -292,6 +411,9 @@
         });
     }
 
+    /// <summary>
+    /// Handles the console changed lifecycle or event notification for <see cref="ChatGameConsole"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     private void OnConsoleChanged()
     {
         _ = InvokeAsync(() =>
@@ -301,6 +423,10 @@
         });
     }
 
+    /// <summary>
+    /// Releases resources owned by <see cref="ChatGameConsole"/> and leaves the chat game console workflow in a safely disposed state.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async ValueTask DisposeAsync()
     {
         Games.Changed -= OnGameChanged;

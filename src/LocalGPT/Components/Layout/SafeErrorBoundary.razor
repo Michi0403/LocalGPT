@@ -12,24 +12,50 @@
 </ErrorBoundary>
 
 @code {
+    /// <summary>
+    /// Gets or sets the child content value that forms part of the safe error boundary state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The child content value exposed by <see cref="SafeErrorBoundary"/>.</value>
     [Parameter, EditorRequired]
     public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>
+    /// Gets or sets the area value that forms part of the safe error boundary state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The area value exposed by <see cref="SafeErrorBoundary"/>.</value>
     [Parameter]
     public string Area { get; set; } = "Component";
 
+    /// <summary>
+    /// Gets or sets the toast name value that forms part of the safe error boundary state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The toast name value exposed by <see cref="SafeErrorBoundary"/>.</value>
     [Parameter]
     public string ToastName { get; set; } = "ComponentSafetyToasts";
 
+    /// <summary>
+    /// Stores the internal boundary state used by <see cref="SafeErrorBoundary"/> while executing its surrounding workflow.
+    /// </summary>
     private ErrorBoundary? boundary;
+    /// <summary>
+    /// Stores the internal reported error state used by <see cref="SafeErrorBoundary"/> while executing its surrounding workflow.
+    /// </summary>
     private Exception? reportedError;
 
+    /// <summary>
+    /// Performs recover for <see cref="SafeErrorBoundary"/>, keeping the operation consistent with the state and invariants of the surrounding safe error boundary workflow.
+    /// </summary>
     public void Recover()
     {
         reportedError = null;
         boundary?.Recover();
     }
 
+    /// <summary>
+    /// Performs render failure for <see cref="SafeErrorBoundary"/>, keeping the operation consistent with the state and invariants of the surrounding safe error boundary workflow.
+    /// </summary>
+    /// <param name="error">Error value supplied to the safe error boundary operation and used when producing its result.</param>
+    /// <returns>The render fragment produced by the operation.</returns>
     private RenderFragment RenderFailure(Exception error) => builder =>
     {
         ReportOnce(error);
@@ -39,6 +65,10 @@
         builder.CloseElement();
     };
 
+    /// <summary>
+    /// Performs report once for <see cref="SafeErrorBoundary"/>, keeping the operation consistent with the state and invariants of the surrounding safe error boundary workflow.
+    /// </summary>
+    /// <param name="error">Error value supplied to the safe error boundary operation and used when producing its result.</param>
     private void ReportOnce(Exception error)
     {
         if (ReferenceEquals(reportedError, error))

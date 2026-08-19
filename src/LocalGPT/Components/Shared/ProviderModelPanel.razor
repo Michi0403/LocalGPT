@@ -178,56 +178,202 @@
 </article>
 
 @code {
+    /// <summary>
+    /// Performs t for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
+    /// </summary>
+    /// <param name="source">Source value supplied to the provider model panel operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string T(string source) => Localization.GetText(source);
+    /// <summary>
+    /// Gets a value indicating whether unavailable applies to the provider model panel state.
+    /// </summary>
+    /// <value>The is unavailable value exposed by <see cref="ProviderModelPanel"/>.</value>
     bool IsUnavailable => Model.IsConfigured && !Model.IsReachable
         && (Model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase)
             || Model.ProviderKind.Equals(ProviderModelKinds.OpenAICompatible, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Gets or sets the model value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The model value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter, EditorRequired] public ProviderModelReference Model { get; set; } = new();
+    /// <summary>
+    /// Gets or sets a value indicating whether show selection applies to the provider model panel state.
+    /// </summary>
+    /// <value>The show selection value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter] public bool ShowSelection { get; set; } = true;
+    /// <summary>
+    /// Gets or sets a value indicating whether selected applies to the provider model panel state.
+    /// </summary>
+    /// <value>The selected value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter] public bool Selected { get; set; }
+    /// <summary>
+    /// Gets or sets the selected changed value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected changed value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter] public EventCallback<bool> SelectedChanged { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether show use action applies to the provider model panel state.
+    /// </summary>
+    /// <value>The show use action value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter] public bool ShowUseAction { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether action text applies to the provider model panel state.
+    /// </summary>
+    /// <value>The use action text value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter] public string UseActionText { get; set; } = "Use model";
+    /// <summary>
+    /// Gets or sets the activated value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The activated value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter] public EventCallback<ProviderModelReference> Activated { get; set; }
+    /// <summary>
+    /// Gets or sets the council models collection maintained or exposed by this provider model panel instance for downstream processing.
+    /// </summary>
+    /// <value>The council models value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter] public IReadOnlyList<ProviderModelReference> CouncilModels { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the benchmark applied value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The benchmark applied value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter] public EventCallback<ProviderModelBenchmarkAppliedEvent> BenchmarkApplied { get; set; }
+    /// <summary>
+    /// Gets or sets the performance preset saved value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The performance preset saved value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter] public EventCallback<HardwarePerformancePreset> PerformancePresetSaved { get; set; }
+    /// <summary>
+    /// Gets or sets the benchmark started value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The benchmark started value exposed by <see cref="ProviderModelPanel"/>.</value>
     [Parameter] public EventCallback<Guid> BenchmarkStarted { get; set; }
 
+    /// <summary>
+    /// Stores the internal instance identifier state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string instanceId = Guid.NewGuid().ToString("N");
+    /// <summary>
+    /// Stores the internal show properties state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     bool showProperties;
+    /// <summary>
+    /// Stores the internal show benchmark state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     bool showBenchmark;
+    /// <summary>
+    /// Stores the internal is busy state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     bool isBusy;
+    /// <summary>
+    /// Stores the internal include council review state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     bool includeCouncilReview = true;
+    /// <summary>
+    /// Stores the internal include CPU safe control state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     bool includeCpuSafeControl = true;
+    /// <summary>
+    /// Stores the internal stop when improvement stalls state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     bool stopWhenImprovementStalls;
+    /// <summary>
+    /// Stores the internal profile mode state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     ProviderModelBenchmarkProfileMode profileMode = ProviderModelBenchmarkProfileMode.EvenlySpaced;
+    /// <summary>
+    /// Stores the internal max profiles state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maxProfiles = 5;
+    /// <summary>
+    /// Stores the internal max tasks state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maxTasks = 3;
+    /// <summary>
+    /// Stores the internal max seconds state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maxSeconds = 180;
+    /// <summary>
+    /// Stores the internal improvement threshold state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int improvementThreshold = 5;
+    /// <summary>
+    /// Stores the internal minimum context state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int minimumContext = 2048;
+    /// <summary>
+    /// Stores the internal minimum output state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int minimumOutput = 128;
+    /// <summary>
+    /// Stores the internal maximum context state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maximumContext = 32768;
+    /// <summary>
+    /// Stores the internal maximum output state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     int maximumOutput = 1024;
+    /// <summary>
+    /// Stores the internal status text state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     string statusText = string.Empty;
+    /// <summary>
+    /// Stores the internal report state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     ProviderModelBenchmarkReport? report;
+    /// <summary>
+    /// Stores the cancellation source used by <see cref="ProviderModelPanel"/> to stop its current background or asynchronous operation.
+    /// </summary>
     CancellationTokenSource? benchmarkCts;
+    /// <summary>
+    /// Stores the internal active run identifier state used by <see cref="ProviderModelPanel"/> while executing its surrounding workflow.
+    /// </summary>
     Guid? activeRunId;
 
+    /// <summary>
+    /// Gets the benchmark chat URL that identifies the network or application endpoint associated with this provider model panel state.
+    /// </summary>
+    /// <value>The benchmark chat URL value exposed by <see cref="ProviderModelPanel"/>.</value>
     string BenchmarkChatUrl => activeRunId is Guid runId
         ? $"/Chat?rejoinCouncilRunId={runId:D}"
         : "/Chat";
+    /// <summary>
+    /// Gets the stable heading identifier used to identify or correlate this provider model panel instance with related application state.
+    /// </summary>
+    /// <value>The heading identifier value exposed by <see cref="ProviderModelPanel"/>.</value>
     string HeadingId => $"provider-model-{instanceId}";
+    /// <summary>
+    /// Gets the stable selection identifier used to identify or correlate this provider model panel instance with related application state.
+    /// </summary>
+    /// <value>The selection identifier value exposed by <see cref="ProviderModelPanel"/>.</value>
     string SelectionId => $"provider-model-select-{instanceId}";
+    /// <summary>
+    /// Gets the stable properties identifier used to identify or correlate this provider model panel instance with related application state.
+    /// </summary>
+    /// <value>The properties identifier value exposed by <see cref="ProviderModelPanel"/>.</value>
     string PropertiesId => $"provider-model-properties-{instanceId}";
+    /// <summary>
+    /// Gets the stable benchmark identifier used to identify or correlate this provider model panel instance with related application state.
+    /// </summary>
+    /// <value>The benchmark identifier value exposed by <see cref="ProviderModelPanel"/>.</value>
     string BenchmarkId => $"provider-model-benchmark-{instanceId}";
+    /// <summary>
+    /// Gets the successful target value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The successful target value exposed by <see cref="ProviderModelPanel"/>.</value>
     ProviderModelBenchmarkTargetResult? SuccessfulTarget => report?.Targets.FirstOrDefault(target =>
         target.Model.SelectionKey.Equals(Model.SelectionKey, StringComparison.OrdinalIgnoreCase)
         && string.IsNullOrWhiteSpace(target.Error));
+    /// <summary>
+    /// Gets the reviewer summary value that forms part of the provider model panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The reviewer summary value exposed by <see cref="ProviderModelPanel"/>.</value>
     string ReviewerSummary => CouncilText.ProviderModelReviewerSummary(Model, CouncilModels, Logger);
 
+    /// <summary>
+    /// Handles the selection changed async lifecycle or event notification for <see cref="ProviderModelPanel"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the provider model panel operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task OnSelectionChangedAsync(ChangeEventArgs args)
     {
         var selected = args.Value is bool value
@@ -236,10 +382,24 @@
         await SelectedChanged.InvokeAsync(selected).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs activate for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task ActivateAsync() => Activated.InvokeAsync(Model);
+    /// <summary>
+    /// Performs toggle properties for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
+    /// </summary>
     void ToggleProperties() => showProperties = !showProperties;
+    /// <summary>
+    /// Performs toggle benchmark for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
+    /// </summary>
     void ToggleBenchmark() => showBenchmark = !showBenchmark;
 
+    /// <summary>
+    /// Performs run benchmark for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunBenchmarkAsync()
     {
         benchmarkCts?.Cancel();
@@ -309,6 +469,10 @@
         }
     }
 
+    /// <summary>
+    /// Applies recommendation for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task ApplyRecommendationAsync()
     {
         if (report is null || SuccessfulTarget is null)
@@ -339,6 +503,11 @@
         }
     }
 
+    /// <summary>
+    /// Handles the maximum context changed lifecycle or event notification for <see cref="ProviderModelPanel"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the provider model panel operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task OnMaximumContextChanged(int value)
     {
         maximumContext = value;
@@ -346,6 +515,11 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Handles the maximum output changed lifecycle or event notification for <see cref="ProviderModelPanel"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the provider model panel operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task OnMaximumOutputChanged(int value)
     {
         maximumOutput = value;
@@ -353,8 +527,14 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Determines whether cel benchmark for <see cref="ProviderModelPanel"/>, keeping the operation consistent with the state and invariants of the surrounding provider model panel workflow.
+    /// </summary>
     void CancelBenchmark() => benchmarkCts?.Cancel();
 
+    /// <summary>
+    /// Releases resources owned by <see cref="ProviderModelPanel"/> and leaves the provider model panel workflow in a safely disposed state.
+    /// </summary>
     public void Dispose()
     {
         benchmarkCts?.Cancel();

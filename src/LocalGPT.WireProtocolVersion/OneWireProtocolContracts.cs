@@ -48,32 +48,113 @@ public static class OneWireProtocol
 /// </summary>
 public enum OneWireMessageType
 {
+    /// <summary>
+    /// Selects the hello option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Hello,
+    /// <summary>
+    /// Selects the hello ack option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     HelloAck,
+    /// <summary>
+    /// Selects the capability request option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     CapabilityRequest,
+    /// <summary>
+    /// Selects the capability response option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     CapabilityResponse,
+    /// <summary>
+    /// Selects the skill request option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     SkillRequest,
+    /// <summary>
+    /// Selects the skill response option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     SkillResponse,
+    /// <summary>
+    /// Selects the skill state update option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     SkillStateUpdate,
+    /// <summary>
+    /// Selects the invoke option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Invoke,
+    /// <summary>
+    /// Selects the council request option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     CouncilRequest,
+    /// <summary>
+    /// Selects the work accepted option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     WorkAccepted,
+    /// <summary>
+    /// Selects the work status request option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     WorkStatusRequest,
+    /// <summary>
+    /// Selects the work result option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     WorkResult,
+    /// <summary>
+    /// Selects the interaction result option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     InteractionResult,
+    /// <summary>
+    /// Selects the approval required option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     ApprovalRequired,
+    /// <summary>
+    /// Selects the permission update option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     PermissionUpdate,
+    /// <summary>
+    /// Selects the link request option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     LinkRequest,
+    /// <summary>
+    /// Selects the link status option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     LinkStatus,
+    /// <summary>
+    /// Selects the link revoked option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     LinkRevoked,
+    /// <summary>
+    /// Selects the security profile request option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     SecurityProfileRequest,
+    /// <summary>
+    /// Selects the security profile response option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     SecurityProfileResponse,
+    /// <summary>
+    /// Selects the MFA challenge option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     MfaChallenge,
+    /// <summary>
+    /// Selects the MFA proof option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     MfaProof,
+    /// <summary>
+    /// Selects the trust established option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     TrustEstablished,
+    /// <summary>
+    /// Selects the trust revoked option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     TrustRevoked,
+    /// <summary>
+    /// Selects the error option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Error,
+    /// <summary>
+    /// Selects the ping option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Ping,
+    /// <summary>
+    /// Selects the pong option for <see cref="OneWireMessageType"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Pong
 }
 

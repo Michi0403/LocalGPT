@@ -28,12 +28,27 @@
 </p>
 
 @code{
+    /// <summary>
+    /// Gets or sets the HTTP context value that forms part of the error state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The HTTP context value exposed by <see cref="Error"/>.</value>
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
+    /// <summary>
+    /// Gets or sets the stable request identifier used to identify or correlate this error instance with related application state.
+    /// </summary>
+    /// <value>The request identifier value exposed by <see cref="Error"/>.</value>
     private string? RequestId { get; set; }
+    /// <summary>
+    /// Gets a value indicating whether show request identifier applies to the error state.
+    /// </summary>
+    /// <value>The show request identifier value exposed by <see cref="Error"/>.</value>
     private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
 
+    /// <summary>
+    /// Handles the initialized lifecycle or event notification for <see cref="Error"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnInitialized()
     {
         RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;

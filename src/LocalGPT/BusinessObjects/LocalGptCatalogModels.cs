@@ -375,10 +375,25 @@ public sealed record MinecraftDatapackArtifactIdentity(
 /// </summary>
 public enum GeneratedSolutionArchetype
 {
+    /// <summary>
+    /// Selects the generic option for <see cref="GeneratedSolutionArchetype"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Generic,
+    /// <summary>
+    /// Selects the local GPT option for <see cref="GeneratedSolutionArchetype"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     LocalGpt,
+    /// <summary>
+    /// Selects the tacos portal option for <see cref="GeneratedSolutionArchetype"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     TacosPortal,
+    /// <summary>
+    /// Selects the bot backend option for <see cref="GeneratedSolutionArchetype"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     BotBackend,
+    /// <summary>
+    /// Selects the AI host option for <see cref="GeneratedSolutionArchetype"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     AiHost
 }
 

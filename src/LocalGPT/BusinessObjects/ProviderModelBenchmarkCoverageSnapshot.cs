@@ -9,24 +9,37 @@ namespace LocalGPT.BusinessObjects;
 public sealed class ProviderModelBenchmarkCoverageSnapshot
 {
     /// <summary>Gets the distinct provider-qualified targets returned by the benchmark engine.</summary>
+    /// <value>The attempted target count value exposed by <see cref="ProviderModelBenchmarkCoverageSnapshot"/>.</value>
     public int AttemptedTargetCount { get; init; }
 
-    /// <summary>Gets the distinct targets that produced a successful measured recommendation.</summary>
+    /// <summary>
+    /// Gets or sets the successful target count that quantifies the associated provider model benchmark coverage snapshot data.
+    /// </summary>
+    /// <value>The successful target count value exposed by <see cref="ProviderModelBenchmarkCoverageSnapshot"/>.</value>
     public int SuccessfulTargetCount { get; init; }
 
     /// <summary>Gets the number of attempted targets without a successful measured recommendation.</summary>
+    /// <value>The unresolved target count value exposed by <see cref="ProviderModelBenchmarkCoverageSnapshot"/>.</value>
     public int UnresolvedTargetCount => UnresolvedSelectionKeys.Count;
 
     /// <summary>Gets the exact provider-qualified identities returned by the measurement engine.</summary>
+    /// <value>The attempted selection keys value exposed by <see cref="ProviderModelBenchmarkCoverageSnapshot"/>.</value>
     public List<string> AttemptedSelectionKeys { get; init; } = [];
 
-    /// <summary>Gets the exact provider-qualified identities with successful measured recommendations.</summary>
+    /// <summary>
+    /// Gets or sets the successful selection keys collection maintained or exposed by this provider model benchmark coverage snapshot instance for downstream processing.
+    /// </summary>
+    /// <value>The successful selection keys value exposed by <see cref="ProviderModelBenchmarkCoverageSnapshot"/>.</value>
     public List<string> SuccessfulSelectionKeys { get; init; } = [];
 
-    /// <summary>Gets the exact provider-qualified identities without successful measured recommendations.</summary>
+    /// <summary>
+    /// Gets or sets the unresolved selection keys collection maintained or exposed by this provider model benchmark coverage snapshot instance for downstream processing.
+    /// </summary>
+    /// <value>The unresolved selection keys value exposed by <see cref="ProviderModelBenchmarkCoverageSnapshot"/>.</value>
     public List<string> UnresolvedSelectionKeys { get; init; } = [];
 
     /// <summary>Gets a value indicating whether the mechanically derived arithmetic invariant is satisfied.</summary>
+    /// <value>The is arithmetic consistent value exposed by <see cref="ProviderModelBenchmarkCoverageSnapshot"/>.</value>
     public bool IsArithmeticConsistent => AttemptedTargetCount - SuccessfulTargetCount == UnresolvedTargetCount;
 
     /// <summary>
@@ -61,7 +74,9 @@ public sealed class ProviderModelBenchmarkCoverageSnapshot
         SuccessfulTargetCount = SuccessfulSelectionKeys.Count;
     }
 
-    /// <summary>Applies the deterministic successful-measured-recommendation rule to one target.</summary>
+    /// <summary>
+    /// Determines whether successful measured recommendation for <see cref="ProviderModelBenchmarkCoverageSnapshot"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark coverage snapshot workflow.
+    /// </summary>
     /// <param name="target">A provider-qualified benchmark target result.</param>
     /// <returns><see langword="true"/> only when the target completed without a target error and produced a recommendation profile.</returns>
     private bool HasSuccessfulMeasuredRecommendation(ProviderModelBenchmarkTargetResult target)

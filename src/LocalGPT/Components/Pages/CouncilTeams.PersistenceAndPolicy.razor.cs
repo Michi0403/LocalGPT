@@ -32,8 +32,15 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the council teams Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class CouncilTeams
     {
+    /// <summary>
+    /// Performs save for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveAsync()
     {
         if (!_confirmed)
@@ -86,6 +93,10 @@ namespace LocalGPT.Components.Pages
     }
 
 
+    /// <summary>
+    /// Deletes selected for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DeleteSelectedAsync()
     {
         if (!_confirmed)
@@ -124,6 +135,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs reset selected from template for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ResetSelectedFromTemplateAsync()
     {
         if (!_confirmed)
@@ -163,6 +178,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs toggle team automatic function for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="functionName">Function name value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void ToggleTeamAutomaticFunction(string functionName, ChangeEventArgs args)
     {
         _editor.AllowedAutomaticFunctions ??= [];
@@ -178,6 +198,11 @@ namespace LocalGPT.Components.Pages
         _confirmed = false;
     }
 
+    /// <summary>
+    /// Sets automatic function policy for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void SetAutomaticFunctionPolicy(CouncilWorkflowStepDefinition step, ChangeEventArgs args)
     {
         ArgumentNullException.ThrowIfNull(step);
@@ -192,12 +217,20 @@ namespace LocalGPT.Components.Pages
         _confirmed = false;
     }
 
+    /// <summary>
+    /// Sets step automatic functions for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void SetStepAutomaticFunctions(CouncilWorkflowStepDefinition step, ChangeEventArgs args)
     {
         step.AllowedAutomaticFunctions = CouncilText.ParseUserEditableNameList(args.Value?.ToString());
         _confirmed = false;
     }
 
+    /// <summary>
+    /// Performs review confirmation changed for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
     private void ReviewConfirmationChanged()
     {
         _status = _confirmed
@@ -206,6 +239,11 @@ namespace LocalGPT.Components.Pages
         _hasError = false;
     }
 
+    /// <summary>
+    /// Performs toggle preferred capability for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="functionName">Function name value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void TogglePreferredCapability(string functionName, ChangeEventArgs args)
     {
         _editor.PreferredCapabilities ??= [];
@@ -221,6 +259,11 @@ namespace LocalGPT.Components.Pages
         _confirmed = false;
     }
 
+    /// <summary>
+    /// Performs function namespace for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="entry">Entry value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FunctionNamespace(DxAiFunctionCatalogEntry entry)
     {
         var name = entry.FunctionName?.Trim() ?? string.Empty;
@@ -228,6 +271,12 @@ namespace LocalGPT.Components.Pages
         return separator > 0 ? name[..separator] : entry.Kind;
     }
 
+    /// <summary>
+    /// Performs toggle role model for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="roleIndex">Role index value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="selectionKey">Selection key value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void ToggleRoleModel(int roleIndex, string selectionKey, ChangeEventArgs args)
     {
         if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
@@ -261,6 +310,11 @@ namespace LocalGPT.Components.Pages
         _confirmed = false;
     }
 
+    /// <summary>
+    /// Removes role model for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="roleIndex">Role index value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="selectionKey">Selection key value supplied to the council teams operation and used when producing its result.</param>
     private void RemoveRoleModel(int roleIndex, string selectionKey)
     {
         if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
@@ -271,6 +325,11 @@ namespace LocalGPT.Components.Pages
         _confirmed = false;
     }
 
+    /// <summary>
+    /// Performs unavailable role model keys for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<string> UnavailableRoleModelKeys(OrganicCouncilRoleDefinition role) =>
         role.AssignedModelKeys
             .Where(selectionKey => !_providerModels.Any(candidate =>
@@ -290,6 +349,11 @@ namespace LocalGPT.Components.Pages
     private bool UsesRandomParticipantCount(OrganicCouncilRoleDefinition role) =>
         role.AiSelectionMode is CouncilRoleAiSelectionMode.RandomRange or CouncilRoleAiSelectionMode.AssignedModelsRandomRange;
 
+    /// <summary>
+    /// Performs workflow model candidates for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<MultiModelCouncilModelCandidate> WorkflowModelCandidates(CouncilWorkflowStepDefinition step)
     {
         var role = FindRolePolicy(step.Role);
@@ -307,10 +371,21 @@ namespace LocalGPT.Components.Pages
             .ToList();
     }
 
+    /// <summary>
+    /// Determines whether workflow model available for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="selectionKey">Selection key value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsWorkflowModelAvailable(string selectionKey) =>
         _providerModels.Any(candidate =>
             string.Equals(candidate.SelectionKey, selectionKey, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Performs toggle runtime class for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="roleIndex">Role index value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="key">Key value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void ToggleRuntimeClass(int roleIndex, string key, ChangeEventArgs args)
     {
         if (roleIndex < 0 || roleIndex >= _editor.Roles.Count)
@@ -328,6 +403,11 @@ namespace LocalGPT.Components.Pages
         _confirmed = false;
     }
 
+    /// <summary>
+    /// Performs runtime classes for for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<CouncilRuntimeClassDefinition> RuntimeClassesFor(OrganicCouncilRoleDefinition role) =>
         _runtimeClasses
             .Where(item => role.RuntimeClassKeys.Contains(item.Key, StringComparer.OrdinalIgnoreCase))
@@ -335,11 +415,21 @@ namespace LocalGPT.Components.Pages
             .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+    /// <summary>
+    /// Finds role policy for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="roleName">Role name value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The organic council role definition produced by the operation.</returns>
     private OrganicCouncilRoleDefinition? FindRolePolicy(string? roleName) =>
         _editor.Roles.FirstOrDefault(role =>
             !string.IsNullOrWhiteSpace(roleName) &&
             string.Equals(role.Role, roleName.Trim(), StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Performs workflow role policy label for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="roleName">Role name value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string WorkflowRolePolicyLabel(string? roleName)
     {
         var role = FindRolePolicy(roleName);
@@ -348,6 +438,11 @@ namespace LocalGPT.Components.Pages
             : $"{RoleAiBadge(role)}; {RoleHumanBadge(role)}";
     }
 
+    /// <summary>
+    /// Performs role AI badge for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RoleAiBadge(OrganicCouncilRoleDefinition role)
     {
         if (role.HumanParticipationMode == HumanParticipationMode.HumanOnly)
@@ -368,6 +463,11 @@ namespace LocalGPT.Components.Pages
             : $"Random {role.MinimumAiParticipants}–{role.MaximumAiParticipants} AIs";
     }
 
+    /// <summary>
+    /// Performs role human badge for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RoleHumanBadge(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch
     {
         HumanParticipationMode.Optional => "Human optional",
@@ -376,6 +476,11 @@ namespace LocalGPT.Components.Pages
         _ => "AI role"
     };
 
+    /// <summary>
+    /// Performs role human badge class for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RoleHumanBadgeClass(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch
     {
         HumanParticipationMode.Optional => "human-optional",
@@ -384,12 +489,22 @@ namespace LocalGPT.Components.Pages
         _ => "human-none"
     };
 
+    /// <summary>
+    /// Performs role performance badge for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RolePerformanceBadge(OrganicCouncilRoleDefinition role) => role.PerformanceMode switch
     {
         CouncilRolePerformanceMode.ImprovisationPlayer => "Improvisation player",
         _ => "Task specialist"
     };
 
+    /// <summary>
+    /// Performs role boundary badge for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RoleBoundaryBadge(OrganicCouncilRoleDefinition role) => role.BoundaryMode switch
     {
         CouncilRoleBoundaryMode.Collaborative => "Collaborative boundary",
@@ -397,6 +512,11 @@ namespace LocalGPT.Components.Pages
         _ => "Bounded role"
     };
 
+    /// <summary>
+    /// Performs role language badge for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RoleLanguageBadge(OrganicCouncilRoleDefinition role) => role.LanguageMode switch
     {
         CouncilRoleLanguageMode.SenderLanguage => "Sender language",
@@ -404,6 +524,11 @@ namespace LocalGPT.Components.Pages
         _ => "Model language"
     };
 
+    /// <summary>
+    /// Performs role policy explanation for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RolePolicyExplanation(OrganicCouncilRoleDefinition role) => role.HumanParticipationMode switch
     {
         HumanParticipationMode.HumanOnly => "This role pauses for a human response and assigns no AI model.",
@@ -412,12 +537,22 @@ namespace LocalGPT.Components.Pages
         _ => $"No human response is requested for this role; {RoleAiBadge(role).ToLowerInvariant()} are assigned when the round runs."
     };
 
+    /// <summary>
+    /// Performs role performance explanation for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RolePerformanceExplanation(OrganicCouncilRoleDefinition role) => role.PerformanceMode switch
     {
         CouncilRolePerformanceMode.ImprovisationPlayer => "The AI kernel plays this role as a self-aware improvisation participant, stays inside the fictional scene, and does not seize another role.",
         _ => "The AI kernel approaches this role as a bounded task specialist."
     };
 
+    /// <summary>
+    /// Performs role boundary explanation for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RoleBoundaryExplanation(OrganicCouncilRoleDefinition role) => role.BoundaryMode switch
     {
         CouncilRoleBoundaryMode.Collaborative => "The participant may offer clearly labeled suggestions to neighboring roles but may not perform their decisions.",
@@ -425,6 +560,11 @@ namespace LocalGPT.Components.Pages
         _ => "The participant remains inside this role and may reference other roles without deciding their actions or outcomes."
     };
 
+    /// <summary>
+    /// Performs role language explanation for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RoleLanguageExplanation(OrganicCouncilRoleDefinition role) => role.LanguageMode switch
     {
         CouncilRoleLanguageMode.SenderLanguage => "Visible output and exposed thinking should follow the latest human sender's language when the model can do so.",
@@ -432,6 +572,11 @@ namespace LocalGPT.Components.Pages
         _ => "The model may choose the most suitable response language."
     };
 
+    /// <summary>
+    /// Performs role coordination explanation for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="role">Role value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string RoleCoordinationExplanation(OrganicCouncilRoleDefinition role)
     {
         var details = new List<string>();
@@ -454,12 +599,22 @@ namespace LocalGPT.Components.Pages
         return CouncilText.BuildRoleCoordinationExplanation(details, Logger);
     }
 
+    /// <summary>
+    /// Performs workflow loop label for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string WorkflowLoopLabel(CouncilWorkflowStepDefinition step) =>
         string.IsNullOrWhiteSpace(step.LoopGroup)
             ? "single pass"
             : $"loop {step.LoopGroup}, max {Math.Max(1, step.MaximumLoopIterations)}" +
               (string.IsNullOrWhiteSpace(step.LoopCompletionMarker) ? string.Empty : $", marker {step.LoopCompletionMarker}");
 
+    /// <summary>
+    /// Calculates expanded round count for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="steps">Council workflow step definition dependency used by the council teams workflow to provide the corresponding application capability.</param>
+    /// <returns>The int produced by the operation.</returns>
     private int CalculateExpandedRoundCount(IReadOnlyList<CouncilWorkflowStepDefinition> steps)
     {
         var ordered = steps
@@ -492,9 +647,19 @@ namespace LocalGPT.Components.Pages
         return total;
     }
 
+    /// <summary>
+    /// Performs workflow label for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="team">Team value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string WorkflowLabel(OrganicCouncilTeamDefinition team) =>
         UsesDefaultWorkflow(team) ? "LocalGPT default orchestration" : "literal custom workflow";
 
+    /// <summary>
+    /// Performs uses default workflow for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="team">Team value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool UsesDefaultWorkflow(OrganicCouncilTeamDefinition team)
     {
         if (!team.IsSystemSeed || team.IsUserModified)
@@ -517,11 +682,28 @@ namespace LocalGPT.Components.Pages
             string.Equals(step.ExecutionMode, contract.ExecutionMode, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Performs clone for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The organic council team definition produced by the operation.</returns>
     private OrganicCouncilTeamDefinition Clone(OrganicCouncilTeamDefinition value) =>
         System.Text.Json.JsonSerializer.Deserialize<OrganicCouncilTeamDefinition>(Serialize(value), JsonOptions) ?? new();
 
+    /// <summary>
+    /// Performs serialize for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="CouncilTeams"/>.</typeparam>
+    /// <param name="value">Value value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Serialize<T>(T value) => System.Text.Json.JsonSerializer.Serialize(value, JsonOptions);
 
+    /// <summary>
+    /// Performs deserialize for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="CouncilTeams"/>.</typeparam>
+    /// <param name="json">Json value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The t produced by the operation.</returns>
     private T Deserialize<T>(string json) =>
         System.Text.Json.JsonSerializer.Deserialize<T>(json, JsonOptions) ?? throw new System.Text.Json.JsonException("The JSON value is empty.");
 

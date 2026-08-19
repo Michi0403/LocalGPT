@@ -454,12 +454,17 @@ public sealed class ProviderModelBenchmarkTaskResult
 public sealed class ProviderModelBenchmarkStoredEvidence
 {
     /// <summary>Gets or sets the benchmark run identifier represented by this archive.</summary>
+    /// <value>The run identifier value exposed by <see cref="ProviderModelBenchmarkStoredEvidence"/>.</value>
     public Guid RunId { get; set; }
 
     /// <summary>Gets or sets when the durable report archive was last written.</summary>
+    /// <value>The stored at UTC value exposed by <see cref="ProviderModelBenchmarkStoredEvidence"/>.</value>
     public DateTimeOffset StoredAtUtc { get; set; }
 
-    /// <summary>Gets or sets the current report archive size in bytes.</summary>
+    /// <summary>
+    /// Gets or sets the byte length that quantifies the associated provider model benchmark stored evidence data.
+    /// </summary>
+    /// <value>The byte length value exposed by <see cref="ProviderModelBenchmarkStoredEvidence"/>.</value>
     public long ByteLength { get; set; }
 }
 
@@ -469,12 +474,17 @@ public sealed class ProviderModelBenchmarkStoredEvidence
 public sealed class ProviderModelBenchmarkEvidenceArchive
 {
     /// <summary>Gets or sets the archive schema version used for forward-compatible local evidence loading.</summary>
+    /// <value>The schema version value exposed by <see cref="ProviderModelBenchmarkEvidenceArchive"/>.</value>
     public int SchemaVersion { get; set; } = 1;
 
-    /// <summary>Gets or sets when this archive snapshot was written.</summary>
+    /// <summary>
+    /// Gets or sets the stored at UTC associated with this provider model benchmark evidence archive state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The stored at UTC value exposed by <see cref="ProviderModelBenchmarkEvidenceArchive"/>.</value>
     public DateTimeOffset StoredAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>Gets or sets the provider benchmark report, including bounded UI projections and references to full task evidence artifacts.</summary>
+    /// <value>The report value exposed by <see cref="ProviderModelBenchmarkEvidenceArchive"/>.</value>
     public ProviderModelBenchmarkReport Report { get; set; } = new();
 }
 
@@ -484,55 +494,92 @@ public sealed class ProviderModelBenchmarkEvidenceArchive
 /// </summary>
 public sealed class ProviderModelBenchmarkTaskEvidenceArchive
 {
-    /// <summary>Gets or sets the archive schema version.</summary>
+    /// <summary>
+    /// Gets or sets the schema version value that forms part of the provider model benchmark task evidence archive state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The schema version value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public int SchemaVersion { get; set; } = 1;
 
-    /// <summary>Gets or sets the owning benchmark run identifier.</summary>
+    /// <summary>
+    /// Gets or sets the stable run identifier used to identify or correlate this provider model benchmark task evidence archive instance with related application state.
+    /// </summary>
+    /// <value>The run identifier value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public Guid RunId { get; set; }
 
-    /// <summary>Gets or sets when the full evidence artifact was captured.</summary>
+    /// <summary>
+    /// Gets or sets the captured at UTC associated with this provider model benchmark task evidence archive state, using the time semantics implied by the member name.
+    /// </summary>
+    /// <value>The captured at UTC value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public DateTimeOffset CapturedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
-    /// <summary>Gets or sets the stable provider-qualified target identifier.</summary>
+    /// <summary>
+    /// Gets or sets the stable target stable identifier used to identify or correlate this provider model benchmark task evidence archive instance with related application state.
+    /// </summary>
+    /// <value>The target stable identifier value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public string TargetStableId { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the provider-qualified target identity shown to developers.</summary>
+    /// <value>The target selection key value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public string TargetSelectionKey { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the measured profile name.</summary>
+    /// <summary>
+    /// Gets or sets the profile name value that forms part of the provider model benchmark task evidence archive state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The profile name value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public string ProfileName { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the one-based task ordinal within the measured profile.</summary>
+    /// <value>The task ordinal value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public int TaskOrdinal { get; set; }
 
-    /// <summary>Gets or sets the measured task name.</summary>
+    /// <summary>
+    /// Gets or sets the task name value that forms part of the provider model benchmark task evidence archive state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The task name value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public string TaskName { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the exact task assignment sent to the provider model.</summary>
+    /// <value>The task prompt value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public string TaskPrompt { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the complete provider stream captured for this task, including exposed thinking/function/status trace.</summary>
+    /// <value>The provider trace value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public string ProviderTrace { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the complete visible final answer that benchmark scoring consumed.</summary>
+    /// <value>The response text value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public string ResponseText { get; set; } = string.Empty;
 
     /// <summary>Gets or sets whether the task satisfied the deterministic benchmark contract.</summary>
+    /// <value>The succeeded value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public bool Succeeded { get; set; }
 
-    /// <summary>Gets or sets the deterministic quality score.</summary>
+    /// <summary>
+    /// Gets or sets the quality score value that forms part of the provider model benchmark task evidence archive state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The quality score value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public double QualityScore { get; set; }
 
-    /// <summary>Gets or sets measured token throughput.</summary>
+    /// <summary>
+    /// Gets or sets the tokens per second value that forms part of the provider model benchmark task evidence archive state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The tokens per second value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public double TokensPerSecond { get; set; }
 
-    /// <summary>Gets or sets task elapsed time in milliseconds.</summary>
+    /// <summary>
+    /// Gets or sets the total milliseconds value that forms part of the provider model benchmark task evidence archive state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The total milliseconds value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public long TotalMilliseconds { get; set; }
 
-    /// <summary>Gets or sets actual provider request attempts for this task.</summary>
+    /// <summary>
+    /// Gets or sets the attempt count that quantifies the associated provider model benchmark task evidence archive data.
+    /// </summary>
+    /// <value>The attempt count value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public int AttemptCount { get; set; }
 
     /// <summary>Gets or sets any provider/measurement error retained with the full evidence.</summary>
+    /// <value>The error value exposed by <see cref="ProviderModelBenchmarkTaskEvidenceArchive"/>.</value>
     public string Error { get; set; } = string.Empty;
 }
 

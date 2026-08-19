@@ -46,22 +46,68 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Gets or sets the label value that forms part of the bounded number editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The label value exposed by <see cref="BoundedNumberEditor"/>.</value>
     [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the help text value that forms part of the bounded number editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The help text value exposed by <see cref="BoundedNumberEditor"/>.</value>
     [Parameter] public string HelpText { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the suffix value that forms part of the bounded number editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The suffix value exposed by <see cref="BoundedNumberEditor"/>.</value>
     [Parameter] public string Suffix { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the CSS class value that forms part of the bounded number editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The CSS class value exposed by <see cref="BoundedNumberEditor"/>.</value>
     [Parameter] public string CssClass { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the min value that forms part of the bounded number editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The min value exposed by <see cref="BoundedNumberEditor"/>.</value>
     [Parameter] public int Min { get; set; }
+    /// <summary>
+    /// Gets or sets the max value that forms part of the bounded number editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The max value exposed by <see cref="BoundedNumberEditor"/>.</value>
     [Parameter] public int Max { get; set; } = 100;
+    /// <summary>
+    /// Gets or sets the step value that forms part of the bounded number editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The step value exposed by <see cref="BoundedNumberEditor"/>.</value>
     [Parameter] public int Step { get; set; } = 1;
+    /// <summary>
+    /// Gets or sets the value value that forms part of the bounded number editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The value value exposed by <see cref="BoundedNumberEditor"/>.</value>
     [Parameter] public int Value { get; set; }
+    /// <summary>
+    /// Gets or sets the value changed value that forms part of the bounded number editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The value changed value exposed by <see cref="BoundedNumberEditor"/>.</value>
     [Parameter] public EventCallback<int> ValueChanged { get; set; }
 
+    /// <summary>
+    /// Stores the internal input identifier state used by <see cref="BoundedNumberEditor"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string InputId = $"bounded-number-{Guid.NewGuid():N}";
+    /// <summary>
+    /// Stores the internal slider open state used by <see cref="BoundedNumberEditor"/> while executing its surrounding workflow.
+    /// </summary>
     bool sliderOpen;
+    /// <summary>
+    /// Stores the internal popover element state used by <see cref="BoundedNumberEditor"/> while executing its surrounding workflow.
+    /// </summary>
     ElementReference popoverElement;
 
     /// <summary>Clamps the rendered slider popover back into the current browser viewport after each render that can move or resize it.</summary>
     /// <param name="firstRender">Indicates whether this is the component's first completed render.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!sliderOpen)
@@ -77,10 +123,24 @@
         }
     }
 
+    /// <summary>
+    /// Opens slider for <see cref="BoundedNumberEditor"/>, keeping the operation consistent with the state and invariants of the surrounding bounded number editor workflow.
+    /// </summary>
     void OpenSlider() => sliderOpen = true;
+    /// <summary>
+    /// Performs toggle slider for <see cref="BoundedNumberEditor"/>, keeping the operation consistent with the state and invariants of the surrounding bounded number editor workflow.
+    /// </summary>
     void ToggleSlider() => sliderOpen = !sliderOpen;
+    /// <summary>
+    /// Closes slider for <see cref="BoundedNumberEditor"/>, keeping the operation consistent with the state and invariants of the surrounding bounded number editor workflow.
+    /// </summary>
     void CloseSlider() => sliderOpen = false;
 
+    /// <summary>
+    /// Handles the number changed async lifecycle or event notification for <see cref="BoundedNumberEditor"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the bounded number editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task OnNumberChangedAsync(ChangeEventArgs args)
     {
         if (int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
@@ -90,12 +150,22 @@
         }
     }
 
+    /// <summary>
+    /// Handles the slider changed async lifecycle or event notification for <see cref="BoundedNumberEditor"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the bounded number editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task OnSliderChangedAsync(ChangeEventArgs args)
     {
         if (int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
             await SetValueAsync(value).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Sets value for <see cref="BoundedNumberEditor"/>, keeping the operation consistent with the state and invariants of the surrounding bounded number editor workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the bounded number editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SetValueAsync(int value)
     {
         var normalizedStep = Math.Max(1, Step);

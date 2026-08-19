@@ -76,8 +76,14 @@
 <DocumentationViewerHost />
 
 @code {
+    /// <summary>
+    /// Stores the internal documentation status state used by <see cref="Help"/> while executing its surrounding workflow.
+    /// </summary>
     private LocalGptDocumentationStatus documentationStatus = new();
 
+    /// <summary>
+    /// Handles the initialized lifecycle or event notification for <see cref="Help"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnInitialized()
     {
         try
@@ -93,26 +99,62 @@
         }
     }
 
+    /// <summary>
+    /// Opens HTML documentation for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
     private void OpenHtmlDocumentation() => OpenDocumentation(documentationStatus.HtmlUrl, "LocalGPT HTML documentation", documentationStatus.HtmlAvailable);
 
+    /// <summary>
+    /// Opens PDF documentation for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
     private void OpenPdfDocumentation() => OpenDocumentation(documentationStatus.PdfUrl, "LocalGPT PDF documentation", documentationStatus.PdfAvailable);
 
+    /// <summary>
+    /// Opens build status for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
     private void OpenBuildStatus() => OpenDocumentation("/api/documentation/status", "LocalGPT documentation build status");
 
+    /// <summary>
+    /// Opens XML comments for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
     private void OpenXmlComments() => OpenDocumentation("/api/documentation/comments?limit=100", "LocalGPT XML documentation comments");
 
+    /// <summary>
+    /// Opens chat and council for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
     private void OpenChatAndCouncil() => OpenDocumentation("/help-docs/guide/chat-and-council.html", "Chat and AI Council");
 
+    /// <summary>
+    /// Opens embedded firmware for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
     private void OpenEmbeddedFirmware() => OpenDocumentation("/help-docs/guide/embedded-and-games.html", "Embedded firmware");
 
+    /// <summary>
+    /// Opens workspaces for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
     private void OpenWorkspaces() => OpenDocumentation("/help-docs/guide/projects-and-workspaces.html", "Workspaces");
 
+    /// <summary>
+    /// Opens game director for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
     private void OpenGameDirector() => OpenDocumentation("/help-docs/guide/embedded-and-games.html", "GameDirector runtime");
 
+    /// <summary>
+    /// Opens security for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
     private void OpenSecurity() => OpenDocumentation("/help-docs/architecture/onewire-security.html", "Security");
 
+    /// <summary>
+    /// Opens API reference for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
     private void OpenApiReference() => OpenDocumentation("/help-docs/api/index.html", "LocalGPT API reference");
 
+    /// <summary>
+    /// Opens documentation for <see cref="Help"/>, keeping the operation consistent with the state and invariants of the surrounding help workflow.
+    /// </summary>
+    /// <param name="url">Url value supplied to the help operation and used when producing its result.</param>
+    /// <param name="title">Title value supplied to the help operation and used when producing its result.</param>
+    /// <param name="available">Value indicating whether available should apply to this operation.</param>
     private void OpenDocumentation(string url, string title, bool available = true)
     {
         try

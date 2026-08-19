@@ -37,24 +37,67 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Gets or sets the toast name value that forms part of the drawer state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The toast name value exposed by <see cref="Drawer"/>.</value>
     string toastName { get; set; } = "DrawerToasts";
+    /// <summary>
+    /// Gets or sets the width value that forms part of the drawer state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The width value exposed by <see cref="Drawer"/>.</value>
     [Parameter]
     public string Width { get; set; } = "max-content";
+    /// <summary>
+    /// Gets or sets the CSS class value that forms part of the drawer state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The CSS class value exposed by <see cref="Drawer"/>.</value>
     [Parameter]
     public string CssClass { get; set; } = "navigation-drawer";
 
+    /// <summary>
+    /// Gets or sets a value indicating whether toggled sidebar applies to the drawer state.
+    /// </summary>
+    /// <value>The toggled sidebar value exposed by <see cref="Drawer"/>.</value>
     [SupplyParameterFromQuery(Name = NavigationUrlService.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }
+    /// <summary>
+    /// Gets or sets the drawer target value that forms part of the drawer state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The drawer target value exposed by <see cref="Drawer"/>.</value>
     [Parameter] public RenderFragment? DrawerTarget { get; set; }
+    /// <summary>
+    /// Gets or sets the drawer body value that forms part of the drawer state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The drawer body value exposed by <see cref="Drawer"/>.</value>
     [Parameter] public RenderFragment? DrawerBody { get; set; }
+    /// <summary>
+    /// Gets or sets the drawer header value that forms part of the drawer state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The drawer header value exposed by <see cref="Drawer"/>.</value>
     [Parameter] public RenderFragment? DrawerHeader { get; set; }
+    /// <summary>
+    /// Gets or sets the drawer footer value that forms part of the drawer state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The drawer footer value exposed by <see cref="Drawer"/>.</value>
     [Parameter] public RenderFragment? DrawerFooter { get; set; }
+    /// <summary>
+    /// Stores the internal drawer open state used by <see cref="Drawer"/> while executing its surrounding workflow.
+    /// </summary>
     private bool drawerOpen;
 
+    /// <summary>
+    /// Handles the parameters set lifecycle or event notification for <see cref="Drawer"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnParametersSet()
     {
         drawerOpen = ToggledSidebar;
     }
+    /// <summary>
+    /// Handles the after render async lifecycle or event notification for <see cref="Drawer"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         try

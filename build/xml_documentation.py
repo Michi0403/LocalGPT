@@ -44,7 +44,6 @@ def is_generated(path:Path,text:str)->bool:
 def iter_cs(root:Path):
  for p in sorted(root.rglob('*.cs')):
   if 'bin' in p.parts or 'obj' in p.parts: continue
-  if p.name.lower().endswith('.razor.cs'): continue
   txt=p.read_text(encoding='utf-8-sig',errors='replace')
   if is_generated(p,txt): continue
   yield p
@@ -547,6 +546,61 @@ def scan_members(orig:list[str], code:list[str], before:list[int], scope:TypeSco
   i=max(i+1,member_end+1)
  return out
 
+def scan_enum_members(orig:list[str], code:list[str], before:list[int], scope:TypeScope)->list[Decl]:
+ if scope.body_open_line is None or scope.body_close_line is None or scope.kind!='enum': return []
+ depth=scope.body_depth; assert depth is not None
+ out=[]; i=scope.body_open_line+1
+ while i<scope.body_close_line:
+  if before[i]!=depth or not code[i].strip() or code[i].lstrip().startswith('#'):
+   i+=1; continue
+  attr_line=i; decl_line=i; s=code[i].strip()
+  if s.startswith('['):
+   bal=0; j=i; found=False
+   while j<scope.body_close_line:
+    linej=code[j]; close_pos=None
+    for pos,ch in enumerate(linej):
+     if ch=='[': bal+=1
+     elif ch==']':
+      bal-=1
+      if bal==0: close_pos=pos
+    if bal<=0:
+     remainder=linej[(close_pos+1 if close_pos is not None else len(linej)):].strip()
+     if remainder: decl_line=j
+     else:
+      j+=1
+      while j<scope.body_close_line and not code[j].strip(): j+=1
+      decl_line=j
+     found=True; break
+    j+=1
+   if not found or decl_line>=scope.body_close_line or before[decl_line]!=depth:
+    i=max(i+1,j); continue
+  candidate=code[decl_line].strip()
+  match=re.match(r'([A-Za-z_][A-Za-z0-9_]*)\b',candidate)
+  if not match:
+   i=decl_line+1; continue
+  name=match.group(1)
+  # Enum declarations in maintained source use one named value per declaration. Continue over
+  # multiline constant expressions until the member-level comma or the enum close brace.
+  member_end=decl_line; par=br=brace=0; found_end=False
+  for j in range(decl_line,scope.body_close_line):
+   line=code[j]
+   for ch in line:
+    if ch=='(': par+=1
+    elif ch==')': par=max(0,par-1)
+    elif ch=='[': br+=1
+    elif ch==']': br=max(0,br-1)
+    elif ch=='{': brace+=1
+    elif ch=='}': brace=max(0,brace-1)
+    elif ch==',' and par==br==brace==0:
+     member_end=j; found_end=True; break
+   if found_end: break
+   member_end=j
+  d=Decl('enum_member',name,decl_line,attr_line,member_end,member_end,' '.join(x.strip() for x in code[decl_line:member_end+1]),scope.name)
+  d.doc_start,d.doc_end=doc_bounds(orig,attr_line)
+  out.append(d)
+  i=max(i+1,member_end+1)
+ return out
+
 def scan_file(path:Path)->tuple[list[str],list[Decl]]:
  text=path.read_text(encoding='utf-8-sig',errors='replace'); orig=text.splitlines(); code=sanitize(text); before,after=depth_arrays(code)
  scopes=find_type_scopes(orig,code,before)
@@ -560,7 +614,9 @@ def scan_file(path:Path)->tuple[list[str],list[Decl]]:
   d.doc_start,d.doc_end=doc_bounds(orig,sc.attr_line); d.typeparams=parse_typeparams(sc.header,sc.name)
   if sc.kind in {'class','struct','record'}: d.params=parse_params(sc.header,sc.name)
   decls.append(d)
- for sc in scopes: decls.extend(scan_members(orig,code,before,sc))
+ for sc in scopes:
+  decls.extend(scan_members(orig,code,before,sc))
+  decls.extend(scan_enum_members(orig,code,before,sc))
  # dedupe by start/kind/name (nested types discovered only by type scanner)
  uniq={}
  for d in decls: uniq[(d.start_line,d.kind,d.name)]=d
@@ -598,6 +654,7 @@ def semantic_prefix(name:str,prefix:str)->bool:
 def type_summary(d:Decl,path:Path)->str:
  name=d.name; t=topic(name); base,suf=strip_suffix(name); contained=f' nested within <see cref="{d.containing_type}"/>' if d.containing_type else ''
  if 'Migrations' in path.parts and d.kind=='class': return f'Defines the Entity Framework Core migration {name}, applying and reverting the schema changes represented by this versioned database step.'
+ if path.name.lower().endswith('.razor.cs') and d.kind=='class': return f'Renders the {t} Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.'
  if name.endswith(('Keys','Constants','Names')): return f'Defines the canonical {t} identifiers shared by callers so protocol, persistence, and UI code refer to the same stable values.'
  if d.kind=='interface':
   return f'Defines the contract for {t} behavior, allowing callers to depend on the capability without coupling to a concrete implementation.'
@@ -688,6 +745,9 @@ def field_summary(d:Decl)->str:
 def event_summary(d:Decl)->str:
  ct=d.containing_type or 'containing type'; return f'Occurs when {words(d.name)} changes or completes in <see cref="{ct}"/>, allowing interested callers to react without polling internal state.'
 
+def enum_member_summary(d:Decl)->str:
+ ct=d.containing_type or 'containing enum'; return f'Selects the {words(d.name)} option for <see cref="{ct}"/>, giving callers a named value for that supported mode or state.'
+
 def param_desc(d:Decl,typ:str,name:str)->str:
  nw=words(name); ctopic=topic(d.containing_type or d.name)
  if name.lower() in {'cancellationtoken','token'} or 'CancellationToken' in typ:return 'Cancellation token that allows the caller to stop the asynchronous operation.'
@@ -722,6 +782,7 @@ def make_summary(d:Decl,path:Path)->str:
  if d.kind=='property':return property_summary(d)
  if d.kind=='field':return field_summary(d)
  if d.kind=='event':return event_summary(d)
+ if d.kind=='enum_member':return enum_member_summary(d)
  return f'Documents {words(d.name)}.'
 
 def doc_indent(orig:list[str],d:Decl)->str:
@@ -732,6 +793,32 @@ def has_tag(block:list[str],tag:str,name:str|None=None)->bool:
  text='\n'.join(block)
  if name is None:return bool(re.search(fr'<{tag}(?:\s|>)',text))
  return bool(re.search(fr'<{tag}\s+name="{re.escape(name)}"',text))
+
+def tag_text(block:list[str],tag:str,name:str|None=None)->str:
+ text='\n'.join(re.sub(r'^\s*///\s?','',line) for line in block)
+ if name is None:
+  pattern=fr'<{tag}(?:\s[^>]*)?>(.*?)</{tag}>'
+ else:
+  pattern=fr'<{tag}\s+name="{re.escape(name)}"[^>]*>(.*?)</{tag}>'
+ match=re.search(pattern,text,re.S|re.I)
+ if not match:return ''
+ value=re.sub(r'<[^>]+>',' ',match.group(1))
+ return re.sub(r'\s+',' ',html.unescape(value)).strip()
+
+def ensure_tag(block:list[str],indent:str,tag:str,content:str,name:str|None=None)->list[str]:
+ if has_tag(block,tag,name) and tag_text(block,tag,name):
+  return block
+ start_pattern=(fr'<{tag}\s+name="{re.escape(name)}"' if name is not None else fr'<{tag}(?:\s|>)')
+ for i,line in enumerate(block):
+  if not re.search(start_pattern,line,re.I):
+   continue
+  j=i
+  while j<len(block) and f'</{tag}>' not in block[j] and '/>' not in block[j]:
+   j+=1
+  replacement=(f'{indent}/// <{tag} name="{name}">{content}</{tag}>' if name is not None else f'{indent}/// <{tag}>{content}</{tag}>')
+  return block[:i]+[replacement]+block[min(j+1,len(block)):]
+ replacement=(f'{indent}/// <{tag} name="{name}">{content}</{tag}>' if name is not None else f'{indent}/// <{tag}>{content}</{tag}>')
+ return block+[replacement]
 
 def replace_summary(block:list[str],indent:str,summary:str)->list[str]:
  text='\n'.join(block)
@@ -750,7 +837,8 @@ def replace_summary(block:list[str],indent:str,summary:str)->list[str]:
 def enrich_block(d:Decl,path:Path,orig:list[str],existing:list[str]|None)->list[str]:
  ind=doc_indent(orig,d); block=list(existing or [])
  summ=extract_summary(block)
- if is_generic(summ): block=replace_summary(block,ind,make_summary(d,path))
+ component_summary_missing = path.name.lower().endswith('.razor.cs') and d.kind=='class' and 'razor component' not in summ.lower()
+ if is_generic(summ) or component_summary_missing: block=replace_summary(block,ind,make_summary(d,path))
  # An inheritdoc block receives parameter/return/value contract documentation from the inherited
  # member. Adding local copies makes DocFX merge duplicate tags and emit warnings. Keep a local
  # contextual summary when present, but let inheritdoc remain authoritative for contract tags.
@@ -759,13 +847,14 @@ def enrich_block(d:Decl,path:Path,orig:list[str],existing:list[str]|None)->list[
   return block
  # tags, inserted after summary block (append is valid)
  for tp in d.typeparams:
-  if not has_tag(block,'typeparam',tp): block.append(f'{ind}/// <typeparam name="{tp}">{typeparam_desc(tp,d)}</typeparam>')
+  block=ensure_tag(block,ind,'typeparam',typeparam_desc(tp,d),tp)
  for typ,name in d.params:
-  if not has_tag(block,'param',name): block.append(f'{ind}/// <param name="{name}">{param_desc(d,typ,name)}</param>')
- if d.kind=='property' and not has_tag(block,'value'):
-  block.append(f'{ind}/// <value>{value_desc(d)}</value>')
+  block=ensure_tag(block,ind,'param',param_desc(d,typ,name),name)
+ if d.kind=='property':
+  block=ensure_tag(block,ind,'value',value_desc(d))
  ret=return_desc(d) if d.kind=='method' else None
- if ret and not has_tag(block,'returns'): block.append(f'{ind}/// <returns>{ret}</returns>')
+ if ret:
+  block=ensure_tag(block,ind,'returns',ret)
  return block
 
 def process_file(path:Path)->tuple[int,int,int]:
@@ -803,10 +892,16 @@ def validate_file(path:Path)->tuple[list[str],Counter]:
   if not inherited:
    for tp in d.typeparams:
     if not has_tag(block,'typeparam',tp): failures.append(f'{path}:{d.start_line+1}: missing typeparam {tp} for {d.name}')
+    elif not tag_text(block,'typeparam',tp): failures.append(f'{path}:{d.start_line+1}: empty typeparam {tp} explanation for {d.name}')
    for typ,n in d.params:
     if not has_tag(block,'param',n): failures.append(f'{path}:{d.start_line+1}: missing param {n} for {d.name}')
-   if d.kind=='property' and not has_tag(block,'value'): failures.append(f'{path}:{d.start_line+1}: missing value tag for property {d.name}')
-   if d.kind=='method' and return_desc(d) and not has_tag(block,'returns'): failures.append(f'{path}:{d.start_line+1}: missing returns tag for {d.name}')
+    elif not tag_text(block,'param',n): failures.append(f'{path}:{d.start_line+1}: empty param {n} explanation for {d.name}')
+   if d.kind=='property':
+    if not has_tag(block,'value'): failures.append(f'{path}:{d.start_line+1}: missing value tag for property {d.name}')
+    elif not tag_text(block,'value'): failures.append(f'{path}:{d.start_line+1}: empty value explanation for property {d.name}')
+   if d.kind=='method' and return_desc(d):
+    if not has_tag(block,'returns'): failures.append(f'{path}:{d.start_line+1}: missing returns tag for {d.name}')
+    elif not tag_text(block,'returns'): failures.append(f'{path}:{d.start_line+1}: empty returns explanation for {d.name}')
   # validate block XML by wrapping after stripping ///
   import xml.etree.ElementTree as ET
   xml='\n'.join(re.sub(r'^\s*///\s?','',x) for x in block)

@@ -12,9 +12,19 @@ namespace LocalGPT.Services;
 /// </summary>
 public sealed partial class ProviderModelBenchmarkService
 {
+    /// <summary>
+    /// Defines the benchmark evidence schema version constant used by <see cref="ProviderModelBenchmarkService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const int BenchmarkEvidenceSchemaVersion = 1;
+    /// <summary>
+    /// Defines the benchmark evidence report file name constant used by <see cref="ProviderModelBenchmarkService"/> so callers and internal logic share the same stable value.
+    /// </summary>
     private const string BenchmarkEvidenceReportFileName = "report.json";
 
+    /// <summary>
+    /// Gets the benchmark evidence JSON options value that forms part of the provider model benchmark state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The benchmark evidence JSON options value exposed by <see cref="ProviderModelBenchmarkService"/>.</value>
     private JsonSerializerOptions BenchmarkEvidenceJsonOptions { get; } = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = false,
@@ -22,11 +32,18 @@ public sealed partial class ProviderModelBenchmarkService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    /// <summary>
+    /// Gets the benchmark evidence root value that forms part of the provider model benchmark state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The benchmark evidence root value exposed by <see cref="ProviderModelBenchmarkService"/>.</value>
     private string BenchmarkEvidenceRoot => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "LocalGPT",
         "BenchmarkEvidence");
 
+    /// <summary>
+    /// Retrieves stored evidence as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public Task<IReadOnlyList<ProviderModelBenchmarkStoredEvidence>> GetStoredEvidenceAsync(
         int maxCount = 20,
@@ -75,6 +92,9 @@ public sealed partial class ProviderModelBenchmarkService
         }
     }
 
+    /// <summary>
+    /// Loads stored evidence as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<ProviderModelBenchmarkReport?> LoadStoredEvidenceAsync(
         Guid runId,
@@ -120,6 +140,9 @@ public sealed partial class ProviderModelBenchmarkService
         }
     }
 
+    /// <summary>
+    /// Loads task evidence as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<ProviderModelBenchmarkTaskEvidenceArchive?> LoadTaskEvidenceAsync(
         string artifactId,
@@ -160,6 +183,18 @@ public sealed partial class ProviderModelBenchmarkService
         }
     }
 
+    /// <summary>
+    /// Attempts to persist full task evidence as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <param name="model">Model value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="profileName">Profile name value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="taskOrdinal">Task ordinal value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="taskPrompt">Task prompt value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="providerTrace">Provider trace value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="responseText">Response text value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="taskResult">Task result value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> TryPersistFullTaskEvidenceAsync(
         Guid runId,
         ProviderModelReference model,
@@ -215,6 +250,11 @@ public sealed partial class ProviderModelBenchmarkService
         }
     }
 
+    /// <summary>
+    /// Attempts to persist benchmark evidence as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="report">Report value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task TryPersistBenchmarkEvidenceAsync(ProviderModelBenchmarkReport report)
     {
         try
@@ -245,6 +285,14 @@ public sealed partial class ProviderModelBenchmarkService
         }
     }
 
+    /// <summary>
+    /// Writes JSON atomically as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <typeparam name="T">Type used for t values handled by <see cref="ProviderModelBenchmarkService"/>.</typeparam>
+    /// <param name="tempPath">Temp path value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="finalPath">Final path value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="payload">Payload value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task WriteJsonAtomicallyAsync<T>(string tempPath, string finalPath, T payload)
     {
         try
@@ -286,6 +334,11 @@ public sealed partial class ProviderModelBenchmarkService
         }
     }
 
+    /// <summary>
+    /// Retrieves run evidence directory as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetRunEvidenceDirectory(Guid runId)
     {
         try
@@ -299,6 +352,11 @@ public sealed partial class ProviderModelBenchmarkService
         }
     }
 
+    /// <summary>
+    /// Retrieves report archive path as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetReportArchivePath(Guid runId)
     {
         try
@@ -312,6 +370,12 @@ public sealed partial class ProviderModelBenchmarkService
         }
     }
 
+    /// <summary>
+    /// Attempts to resolve task evidence path as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="artifactId">Identifier of the artifact to use for this operation.</param>
+    /// <param name="path">Path value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryResolveTaskEvidencePath(string? artifactId, out string path)
     {
         try

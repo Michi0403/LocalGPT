@@ -33,10 +33,24 @@ using LocalGPT.BusinessObjects.Enums;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the install Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class Install
     {
+    /// <summary>
+    /// Gets or sets the active install section value that forms part of the install state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The active install section value exposed by <see cref="Install"/>.</value>
     private string ActiveInstallSection { get; set; } = "providers";
+    /// <summary>
+    /// Stores the internal install section user selected state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool InstallSectionUserSelected;
+    /// <summary>
+    /// Gets the install sections collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The install sections value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<WorkbenchNavItem> InstallSections =>
     [
         new("providers", T("Install.Workbench.Nav.Providers", "AI providers"), T("Install.Workbench.Nav.ProvidersHelp", "Hosts, models and provider connection settings"), ConfiguredProviderHosts.Count.ToString(CultureInfo.InvariantCulture)),
@@ -48,6 +62,11 @@ namespace LocalGPT.Components.Pages
         new("log", T("Install.Workbench.Nav.Log", "Setup log"), T("Install.Workbench.Nav.LogHelpShort", "Operational setup messages"))
     ];
 
+    /// <summary>
+    /// Handles the install section changed lifecycle or event notification for <see cref="Install"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="key">Key value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnInstallSectionChanged(string key)
     {
         InstallSectionUserSelected = true;
@@ -55,59 +74,215 @@ namespace LocalGPT.Components.Pages
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Stores the internal model state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private AICoreOptions Model = new();
+    /// <summary>
+    /// Stores the in-memory removed Ollama endpoints collection maintained internally by <see cref="Install"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> RemovedOllamaEndpoints = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores the internal explicit Ollama primary endpoint state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private string? ExplicitOllamaPrimaryEndpoint;
+    /// <summary>
+    /// Stores the internal logging model state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private LoggingCoreOptions LoggingModel = new();
+    /// <summary>
+    /// Stores the internal database logger model state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private DatabaseLoggerCoreOptions DatabaseLoggerModel = new();
+    /// <summary>
+    /// Gets the log levels collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The log levels value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<CoreLogLevel> LogLevels { get; } = Enum.GetValues<CoreLogLevel>();
+    /// <summary>
+    /// Stores the internal network model state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private RemoteWebEndpointOptions NetworkModel = new();
+    /// <summary>
+    /// Stores the internal certificate request state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private NetworkCertificateCreateRequest CertificateRequest = new();
+    /// <summary>
+    /// Gets the certificate key sizes collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The certificate key sizes value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<NetworkCertificateKeySize> CertificateKeySizes { get; } = Enum.GetValues<NetworkCertificateKeySize>();
+    /// <summary>
+    /// Gets the certificate hashes collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The certificate hashes value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<NetworkCertificateHash> CertificateHashes { get; } = Enum.GetValues<NetworkCertificateHash>();
+    /// <summary>
+    /// Gets the certificate store locations collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The certificate store locations value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<System.Security.Cryptography.X509Certificates.StoreLocation> CertificateStoreLocations { get; } = Enum.GetValues<System.Security.Cryptography.X509Certificates.StoreLocation>();
+    /// <summary>
+    /// Gets the certificate store names collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The certificate store names value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<System.Security.Cryptography.X509Certificates.StoreName> CertificateStoreNames { get; } = Enum.GetValues<System.Security.Cryptography.X509Certificates.StoreName>();
+    /// <summary>
+    /// Stores the internal use created certificate for remote endpoint state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool UseCreatedCertificateForRemoteEndpoint = true;
+    /// <summary>
+    /// Stores the internal is certificate busy state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool IsCertificateBusy;
+    /// <summary>
+    /// Stores the internal certificate status state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private string CertificateStatus = string.Empty;
+    /// <summary>
+    /// Gets the network endpoint preview value that forms part of the install state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The network endpoint preview value exposed by <see cref="Install"/>.</value>
     private string NetworkEndpointPreview => !NetworkModel.Enabled || NetworkModel.Port <= 0
         ? "disabled (loopback-only LocalGPT remains active)"
         : $"{(string.IsNullOrWhiteSpace(NetworkModel.CertificatePath) ? "http" : "https")}://{(string.IsNullOrWhiteSpace(NetworkModel.Address) ? "0.0.0.0" : NetworkModel.Address)}:{NetworkModel.Port}";
+    /// <summary>
+    /// Stores the internal log state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private string _log = "";
+    /// <summary>
+    /// Stores the internal toast name state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private string toastName = "InstallToasts";
+    /// <summary>
+    /// Stores the internal is discovering state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool IsDiscovering;
+    /// <summary>
+    /// Stores the internal is connectivity checking state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool IsConnectivityChecking;
+    /// <summary>
+    /// Stores the internal is saving state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool IsSaving;
+    /// <summary>
+    /// Stores the internal is Ollama process busy state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool IsOllamaProcessBusy;
+    /// <summary>
+    /// Stores the internal is onboarding loading state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool IsOnboardingLoading;
+    /// <summary>
+    /// Stores the internal is localization importing state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool IsLocalizationImporting;
+    /// <summary>
+    /// Stores the internal is toolchain busy state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool IsToolchainBusy;
+    /// <summary>
+    /// Stores the internal is saving host hardware state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool IsSavingHostHardware;
+    /// <summary>
+    /// Stores the in-memory host hardware drafts collection maintained internally by <see cref="Install"/> for its current workflow state.
+    /// </summary>
     private readonly Dictionary<string, ConfiguredAiHostHardwareDraft> HostHardwareDrafts = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores the internal overwrite localization catalog state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool OverwriteLocalizationCatalog;
+    /// <summary>
+    /// Stores the internal localization culture state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private string LocalizationCulture = "fr-FR";
+    /// <summary>
+    /// Stores the internal localization import status state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private string LocalizationImportStatus = string.Empty;
+    /// <summary>
+    /// Stores the internal toolchain search roots state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private string ToolchainSearchRoots = string.Empty;
+    /// <summary>
+    /// Stores the internal toolchain status state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private string ToolchainStatus = string.Empty;
+    /// <summary>
+    /// Stores the internal onboarding status state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private FirstRunOnboardingStatus? OnboardingStatus;
+    /// <summary>
+    /// Stores the in-memory localization catalogs collection maintained internally by <see cref="Install"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<LocalizationCatalogDescriptor> LocalizationCatalogs = Array.Empty<LocalizationCatalogDescriptor>();
+    /// <summary>
+    /// Stores the in-memory compiler installations collection maintained internally by <see cref="Install"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<ProjectCompilerInstallation> CompilerInstallations = Array.Empty<ProjectCompilerInstallation>();
+    /// <summary>
+    /// Stores the internal Ollama process status state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private OllamaProcessStatus OllamaProcessStatus = new(false, false, null, Array.Empty<OllamaProcessInfo>(), string.Empty, "Ollama process status not checked yet.");
+    /// <summary>
+    /// Stores the internal connectivity status state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private string ConnectivityStatus = "Connectivity not checked yet. Refresh to verify configured and local Ollama / OpenAI-compatible hosts.";
+    /// <summary>
+    /// Stores the internal last connectivity check state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private DateTimeOffset? LastConnectivityCheck;
+    /// <summary>
+    /// Stores the in-memory discovered hosts collection maintained internally by <see cref="Install"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<LocalAiHostDiscoveryResult> DiscoveredHosts = Array.Empty<LocalAiHostDiscoveryResult>();
+    /// <summary>
+    /// Gets the discovered provider models collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The discovered provider models value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<ProviderModelReference> DiscoveredProviderModels => DiscoveredHosts
         .Where(host => host.IsReachable)
         .SelectMany(host => host.Models.Select(model => ToProviderModel(host, model)))
         .ToList();
+    /// <summary>
+    /// Gets the additional Ollama models collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The additional Ollama models value exposed by <see cref="Install"/>.</value>
     private List<OllamaCoreOptions> AdditionalOllamaModels => Model.OllamaCores;
+    /// <summary>
+    /// Gets the additional open AI compatible hosts collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The additional open AI compatible hosts value exposed by <see cref="Install"/>.</value>
     private List<ChatGPTLocalCoreOptions> AdditionalOpenAiCompatibleHosts => Model.ChatGPTLocalCores;
+    /// <summary>
+    /// Gets the configured provider hosts collection maintained or exposed by this install instance for downstream processing.
+    /// </summary>
+    /// <value>The configured provider hosts value exposed by <see cref="Install"/>.</value>
     private IReadOnlyList<ConfiguredProviderHostView> ConfiguredProviderHosts => BuildConfiguredProviderHosts();
+    /// <summary>
+    /// Gets a value indicating whether reachable AI host applies to the install state.
+    /// </summary>
+    /// <value>The has reachable AI host value exposed by <see cref="Install"/>.</value>
     private bool HasReachableAiHost => DiscoveredHosts.Any(host => host.IsReachable);
+    /// <summary>
+    /// Gets the connectivity alert CSS value that forms part of the install state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The connectivity alert CSS value exposed by <see cref="Install"/>.</value>
     private string ConnectivityAlertCss => HasReachableAiHost ? "alert alert-success" : "alert alert-warning";
-    /// <summary>Resolves one installer UI string with a maintained fallback.</summary>
+    /// <summary>
+    /// Performs t for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="key">Key value supplied to the install operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the install operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string T(string key, string fallback) => Localization.Get(key, fallback: fallback);
 
+    /// <summary>
+    /// Gets the last checked label value that forms part of the install state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The last checked label value exposed by <see cref="Install"/>.</value>
     private string LastCheckedLabel => LastConnectivityCheck is null
         ? string.Empty
         : string.Format(
@@ -115,6 +290,10 @@ namespace LocalGPT.Components.Pages
             T("Install.Connectivity.LastChecked", "Last checked {0}."),
             LastConnectivityCheck.Value.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentUICulture));
 
+    /// <summary>
+    /// Gets the configured provider summary value that forms part of the install state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The configured provider summary value exposed by <see cref="Install"/>.</value>
     private string ConfiguredProviderSummary => string.Format(
         CultureInfo.CurrentUICulture,
         ConfiguredProviderHosts.Count == 1
@@ -122,6 +301,9 @@ namespace LocalGPT.Components.Pages
             : T("Install.ConfiguredProviders.SummaryMany", "{0} host/model bindings available to Chat and AI Council."),
         ConfiguredProviderHosts.Count);
 
+    /// <summary>
+    /// Handles the initialized lifecycle or event notification for <see cref="Install"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnInitialized()
     {
         ApplyRequestedInstallSection();
@@ -160,6 +342,9 @@ namespace LocalGPT.Components.Pages
     }
 
 
+    /// <summary>
+    /// Applies requested install section for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     private void ApplyRequestedInstallSection()
     {
         try
@@ -183,6 +368,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Builds configured provider hosts for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private IReadOnlyList<ConfiguredProviderHostView> BuildConfiguredProviderHosts()
     {
         var result = new List<ConfiguredProviderHostView>();
@@ -223,6 +412,17 @@ namespace LocalGPT.Components.Pages
         return result;
     }
 
+    /// <summary>
+    /// Represents a configured provider host view helper type nested within <see cref="Install"/>, grouping the state or behavior used only by that containing workflow.
+    /// </summary>
+    /// <param name="Key">Key value supplied to the install operation and used when producing its result.</param>
+    /// <param name="Provider">Provider value supplied to the install operation and used when producing its result.</param>
+    /// <param name="Endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <param name="ModelName">Model name value supplied to the install operation and used when producing its result.</param>
+    /// <param name="Origin">Origin value supplied to the install operation and used when producing its result.</param>
+    /// <param name="IsPrimary">Value indicating whether primary should apply to this operation.</param>
+    /// <param name="OpenAiHost">Open ai host value supplied to the install operation and used when producing its result.</param>
+    /// <param name="OllamaHost">Ollama host value supplied to the install operation and used when producing its result.</param>
     private sealed record ConfiguredProviderHostView(
         string Key,
         string Provider,
@@ -233,6 +433,9 @@ namespace LocalGPT.Components.Pages
         ChatGPTLocalCoreOptions? OpenAiHost,
         OllamaCoreOptions? OllamaHost);
 
+    /// <summary>
+    /// Normalizes local endpoint for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     private void NormalizeLocalEndpoint()
     {
         try
@@ -251,6 +454,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs append for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="text">Text value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task Append(string text)
     {
         try
@@ -265,6 +473,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs test local for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task TestLocal()
     {
         try
@@ -283,6 +495,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Starts local for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task StartLocal()
     {
         try
@@ -301,6 +517,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs test Ollama for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task TestOllama()
     {
         try
@@ -322,8 +542,16 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Stores the internal initial setup refresh started state used by <see cref="Install"/> while executing its surrounding workflow.
+    /// </summary>
     private bool initialSetupRefreshStarted;
 
+    /// <summary>
+    /// Handles the after render async lifecycle or event notification for <see cref="Install"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !initialSetupRefreshStarted)
@@ -338,6 +566,11 @@ namespace LocalGPT.Components.Pages
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs initialize setup after render for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task InitializeSetupAfterRenderAsync(CancellationToken cancellationToken)
     {
         try
@@ -370,6 +603,8 @@ namespace LocalGPT.Components.Pages
 
 
     /// <summary>Loads durable physical-host hardware definitions into the Install-page drafts.</summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadHostHardwareProfilesAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -397,6 +632,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Gets the editable hardware draft shared by provider bindings that resolve to the same physical host.</summary>
+    /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <returns>The configured AI host hardware draft produced by the operation.</returns>
     private ConfiguredAiHostHardwareDraft GetHostHardwareDraft(string endpoint)
     {
         try
@@ -419,6 +656,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Saves user-confirmed hardware for a configured physical AI host.</summary>
+    /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveHostHardwareAsync(string endpoint)
     {
         IsSavingHostHardware = true;
@@ -441,6 +680,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Runs read-only local hardware discovery for a loopback provider host.</summary>
+    /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DetectHostHardwareAsync(string endpoint)
     {
         IsSavingHostHardware = true;
@@ -463,6 +704,9 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Reads a bounded local HWiNFO text file selected by the user and imports it for the configured host.</summary>
+    /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ImportHostHardwareFileAsync(string endpoint, Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs args)
     {
         try
@@ -482,6 +726,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Imports deterministic facts from the pasted HWiNFO report into the configured physical host.</summary>
+    /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ImportHostHardwareAsync(string endpoint)
     {
         IsSavingHostHardware = true;
@@ -505,6 +751,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Returns whether an endpoint belongs to the LocalGPT machine and is therefore eligible for local probing.</summary>
+    /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsLoopbackProviderEndpoint(string endpoint)
     {
         try
@@ -520,6 +768,7 @@ namespace LocalGPT.Components.Pages
 
 
     /// <summary>Refreshes the persistent installer guide and Council quick-start catalog.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshOnboardingAsync()
     {
         try
@@ -542,6 +791,7 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Records that the guide was reviewed without hiding it from Install.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CompleteOnboardingAsync()
     {
         try
@@ -563,7 +813,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
-    /// <summary>Loads compiler and runtime toolchains stored in the LocalGPT database.</summary>
+    /// <summary>
+    /// Refreshes compiler installations for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     /// <returns>A task that completes after the installer list is refreshed.</returns>
     private async Task RefreshCompilerInstallationsAsync()
     {
@@ -691,7 +943,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
-    /// <summary>Deletes one unreferenced stored compiler profile.</summary>
+    /// <summary>
+    /// Deletes compiler for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     /// <param name="compilerId">Stored compiler identifier.</param>
     /// <returns>A task that completes after the delete attempt.</returns>
     private async Task DeleteCompilerAsync(Guid compilerId)
@@ -716,8 +970,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
-    /// <summary>Validates and imports one user-selected localization JSON file.</summary>
+    /// <summary>
+    /// Imports localization file for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     /// <param name="args">Selected browser file.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ImportLocalizationFileAsync(InputFileChangeEventArgs args)
     {
         try
@@ -783,10 +1040,14 @@ namespace LocalGPT.Components.Pages
         Nav.NavigateTo(route, forceLoad: true);
     }
 
-    /// <summary>Opens the generated documentation route.</summary>
+    /// <summary>
+    /// Opens documentation for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     private void OpenDocumentation() => NavigateToRoute("/help");
 
-    /// <summary>Opens the editable Council-team catalog.</summary>
+    /// <summary>
+    /// Opens council teams for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     private void OpenCouncilTeams() => NavigateToRoute("/council-teams");
 
     /// <summary>Opens one direct Council starter through a fresh full Chat navigation.</summary>

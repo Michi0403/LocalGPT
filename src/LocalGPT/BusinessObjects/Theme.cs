@@ -8,7 +8,13 @@ namespace LocalGPT.BusinessObjects;
 /// </summary>
 public enum ThemeApplicationTarget
 {
+    /// <summary>
+    /// Selects the shell option for <see cref="ThemeApplicationTarget"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Shell,
+    /// <summary>
+    /// Selects the components option for <see cref="ThemeApplicationTarget"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Components
 }
 

@@ -18,8 +18,14 @@
 </SafeErrorBoundary>
 
 @code {
+    /// <summary>
+    /// Stores the internal is disposed state used by <see cref="Routes"/> while executing its surrounding workflow.
+    /// </summary>
     private bool isDisposed;
 
+    /// <summary>
+    /// Handles the initialized lifecycle or event notification for <see cref="Routes"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnInitialized()
     {
         try
@@ -35,6 +41,11 @@
         }
     }
 
+    /// <summary>
+    /// Handles location changed for <see cref="Routes"/>, keeping the operation consistent with the state and invariants of the surrounding routes workflow.
+    /// </summary>
+    /// <param name="sender">Sender value supplied to the routes operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the routes operation and used when producing its result.</param>
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
     {
         if (isDisposed)
@@ -52,6 +63,11 @@
         }
     }
 
+    /// <summary>
+    /// Performs record navigation for <see cref="Routes"/>, keeping the operation consistent with the state and invariants of the surrounding routes workflow.
+    /// </summary>
+    /// <param name="location">Location value supplied to the routes operation and used when producing its result.</param>
+    /// <param name="navigationKind">Navigation kind value supplied to the routes operation and used when producing its result.</param>
     private void RecordNavigation(string location, string navigationKind)
     {
         var route = new Uri(location).AbsolutePath;
@@ -62,6 +78,9 @@
             navigationKind);
     }
 
+    /// <summary>
+    /// Releases resources owned by <see cref="Routes"/> and leaves the routes workflow in a safely disposed state.
+    /// </summary>
     public void Dispose()
     {
         if (isDisposed)

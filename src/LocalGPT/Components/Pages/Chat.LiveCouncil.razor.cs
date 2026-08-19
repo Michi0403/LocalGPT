@@ -33,12 +33,22 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the chat Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class Chat
     {
     // Completed Council lanes remain cheap until the developer explicitly asks to inspect one.
     // Running lanes still stream immediately.
+    /// <summary>
+    /// Stores the in-memory revealed completed council activity evidence collection maintained internally by <see cref="Chat"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> revealedCompletedCouncilActivityEvidence = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Refreshes human collaboration for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshHumanCollaborationAsync()
     {
         try
@@ -69,12 +79,21 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Handles the active council run changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
     private void OnActiveCouncilRunChanged(ChangeEventArgs args)
     {
         SelectedCouncilRunId = Guid.TryParse(args.Value?.ToString(), out var runId) ? runId : null;
         LoadCouncilRunConfiguration(SelectedCouncilRunId);
     }
 
+    /// <summary>
+    /// Handles the benchmark started async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnBenchmarkStartedAsync(Guid runId)
     {
         SelectedCouncilRunId = runId;
@@ -93,6 +112,11 @@ namespace LocalGPT.Components.Pages
         await InvokeAsync(() => Notifier.ShowSuccess(toastName, $"Benchmark Council {ShortCouncilRunId(runId)} is now visible in Chat.", "Benchmark joined")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs join council session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task JoinCouncilSessionAsync(Guid runId)
     {
         SelectedCouncilRunId = runId;
@@ -100,6 +124,10 @@ namespace LocalGPT.Components.Pages
         await InvokeAsync(() => JS.InvokeVoidAsync("localGptChatUi.prepareDirectCouncilStarter").AsTask()).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs rejoin selected council session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RejoinSelectedCouncilSessionAsync()
     {
         var runId = SelectedCouncilRunId;
@@ -123,6 +151,10 @@ namespace LocalGPT.Components.Pages
         await InvokeAsync(() => Notifier.ShowSuccess(toastName, $"Rejoined Council {ShortCouncilRunId(selectedRunId)} with live stop, message and transcript controls.", "Council rejoined")).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs enable human participation for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EnableHumanParticipationAsync()
     {
         try
@@ -160,6 +192,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs queue running council contribution for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task QueueRunningCouncilContributionAsync()
     {
         var activeRun = ActiveCouncilRun;
@@ -197,6 +233,12 @@ namespace LocalGPT.Components.Pages
     }
 
 
+    /// <summary>
+    /// Performs queue live council user message for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="content">Content value supplied to the chat operation and used when producing its result.</param>
+    /// <param name="files">Live council upload file dependency used by the chat workflow to provide the corresponding application capability.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     [JSInvokable]
     public async Task<bool> QueueLiveCouncilUserMessageAsync(string content, IReadOnlyList<LiveCouncilUploadFile>? files)
     {
@@ -290,11 +332,20 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Builds the visible user-message content used while a live upload workspace is already participating in a Council run.
     /// </summary>
+    /// <param name="content">Content value supplied to the chat operation and used when producing its result.</param>
+    /// <param name="fileNames">String dependency used by the chat workflow to provide the corresponding application capability.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildLiveCouncilUserDisplayContent(string content, IEnumerable<string> fileNames)
     {
         return CouncilText.BuildAttachmentPresentation(content, fileNames);
     }
 
+    /// <summary>
+    /// Performs run UI action for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="action">Action value supplied to the chat operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunUiActionAsync(Func<Task> action, string operation)
     {
         ArgumentNullException.ThrowIfNull(action);
@@ -319,6 +370,10 @@ namespace LocalGPT.Components.Pages
     }
 
 
+    /// <summary>
+    /// Handles the council live session changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
     private void OnCouncilLiveSessionChanged(Guid runId)
     {
         if (isDisposed)
@@ -368,6 +423,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs schedule live council list refresh for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void ScheduleLiveCouncilListRefresh()
     {
         if (isDisposed || Interlocked.Exchange(ref liveCouncilListRefreshScheduled, 1) != 0)
@@ -594,6 +652,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Stops active council run for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     [JSInvokable]
     public async Task<bool> StopActiveCouncilRunAsync()
     {
@@ -618,6 +680,10 @@ namespace LocalGPT.Components.Pages
         return true;
     }
 
+    /// <summary>
+    /// Resolves running council run identifier for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>The GUID produced by the operation.</returns>
     private Guid? ResolveRunningCouncilRunId()
     {
         Guid?[] candidates = [AttachedLiveCouncilRunId, RejoinCouncilRunId];
@@ -630,6 +696,10 @@ namespace LocalGPT.Components.Pages
         return null;
     }
 
+    /// <summary>
+    /// Stops selected council session for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task StopSelectedCouncilSessionAsync()
     {
         if (await StopActiveCouncilRunAsync().ConfigureAwait(false))
@@ -643,6 +713,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs skip current council round for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task SkipCurrentCouncilRoundAsync()
     {
         var runId = SelectedCouncilRunId
@@ -667,6 +741,11 @@ namespace LocalGPT.Components.Pages
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs live council running title for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="session">Session value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string LiveCouncilRunningTitle(CouncilLiveSessionSummary session)
     {
         return CouncilText.FormatLiveCouncilRunningTitle(
@@ -675,6 +754,11 @@ namespace LocalGPT.Components.Pages
             Logger);
     }
 
+    /// <summary>
+    /// Performs live council running detail for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="session">Session value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string LiveCouncilRunningDetail(CouncilLiveSessionSummary session)
     {
         var elapsed = DateTime.UtcNow - session.StartedAtUtc;
@@ -693,8 +777,18 @@ namespace LocalGPT.Components.Pages
             Logger);
     }
 
+    /// <summary>
+    /// Performs short council run identifier for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ShortCouncilRunId(Guid runId) => runId.ToString("N")[..8];
 
+    /// <summary>
+    /// Resolves live council message for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="content">Content value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>The council live session summary produced by the operation.</returns>
     private CouncilLiveSessionSummary? ResolveLiveCouncilMessage(string? content)
     {
         if (string.IsNullOrWhiteSpace(content))
@@ -705,6 +799,9 @@ namespace LocalGPT.Components.Pages
             : null;
     }
 
+    /// <summary>
+    /// Handles the human collaboration changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     private void OnHumanCollaborationChanged()
     {
         if (isDisposed)
@@ -724,6 +821,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Releases resources owned by <see cref="Chat"/> and leaves the chat workflow in a safely disposed state.
+    /// </summary>
     public void Dispose()
     {
         try

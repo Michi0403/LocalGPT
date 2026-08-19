@@ -111,30 +111,66 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Gets or sets the toast name value that forms part of the theme switcher container state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The toast name value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     string toastName { get; set; } = "ThemeSwitcherContainerToasts";
 
+    /// <summary>
+    /// Gets or sets a value indicating whether shown applies to the theme switcher container state.
+    /// </summary>
+    /// <value>The shown value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     [Parameter]
     public bool Shown { get; set; }
 
+    /// <summary>
+    /// Gets or sets the shown changed value that forms part of the theme switcher container state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The shown changed value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     [Parameter]
     public EventCallback<bool> ShownChanged { get; set; }
 
+    /// <summary>
+    /// Gets or sets the shell theme name value that forms part of the theme switcher container state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The shell theme name value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     [Parameter]
     public string? ShellThemeName { get; set; }
 
+    /// <summary>
+    /// Gets or sets the shell theme name changed value that forms part of the theme switcher container state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The shell theme name changed value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     [Parameter]
     public EventCallback<string> ShellThemeNameChanged { get; set; }
 
+    /// <summary>
+    /// Gets or sets the component theme name value that forms part of the theme switcher container state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The component theme name value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     [Parameter]
     public string? ComponentThemeName { get; set; }
 
+    /// <summary>
+    /// Gets or sets the component theme name changed value that forms part of the theme switcher container state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The component theme name changed value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     [Parameter]
     public EventCallback<string> ComponentThemeNameChanged { get; set; }
 
+    /// <summary>
+    /// Gets the state CSS class value that forms part of the theme switcher container state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The state CSS class value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     string StateCssClass => IsLoaded
         ? Shown ? "themeswitcher-container-shown" : "themeswitcher-container-hidden"
         : string.Empty;
 
+    /// <summary>
+    /// Gets the used themes collection maintained or exposed by this theme switcher container instance for downstream processing.
+    /// </summary>
+    /// <value>The used themes value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     IEnumerable<Theme> UsedThemes => Themes.FusionRoute
         .Select(step => Themes.FindThemeByName(step.ThemeName))
         .Where(theme => theme is not null)
@@ -142,9 +178,19 @@
         .GroupBy(theme => theme.Name, StringComparer.OrdinalIgnoreCase)
         .Select(group => group.First());
 
+    /// <summary>
+    /// Gets or sets a value indicating whether loaded applies to the theme switcher container state.
+    /// </summary>
+    /// <value>The is loaded value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     bool IsLoaded { get; set; }
+    /// <summary>
+    /// Stores the internal disposed value state used by <see cref="ThemeSwitcherContainer"/> while executing its surrounding workflow.
+    /// </summary>
     bool disposedValue;
 
+    /// <summary>
+    /// Handles the initialized lifecycle or event notification for <see cref="ThemeSwitcherContainer"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnInitialized()
     {
         try
@@ -160,26 +206,61 @@
         }
     }
 
+    /// <summary>
+    /// Determines whether shell theme active for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
+    /// </summary>
+    /// <param name="theme">Theme value supplied to the theme switcher container operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     bool IsShellThemeActive(Theme theme) =>
         string.Equals(ShellThemeName, theme.Name, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Determines whether component theme active for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
+    /// </summary>
+    /// <param name="theme">Theme value supplied to the theme switcher container operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     bool IsComponentThemeActive(Theme theme) =>
         string.Equals(ComponentThemeName, theme.Name, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Performs t for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
+    /// </summary>
+    /// <param name="source">Source value supplied to the theme switcher container operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string T(string source) => Localization.GetText(source);
 
+    /// <summary>
+    /// Gets the theme route summary value that forms part of the theme switcher container state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The theme route summary value exposed by <see cref="ThemeSwitcherContainer"/>.</value>
     string ThemeRouteSummary => string.Format(
         System.Globalization.CultureInfo.CurrentUICulture,
         T("{0} route steps · {1} themes used"),
         Themes.FusionRoute.Count,
         UsedThemes.Count());
 
+    /// <summary>
+    /// Retrieves target title for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
+    /// </summary>
+    /// <param name="target">Target value supplied to the theme switcher container operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string GetTargetTitle(ThemeApplicationTarget target) =>
         T(target == ThemeApplicationTarget.Shell ? "Base" : "Style");
 
+    /// <summary>
+    /// Retrieves target CSS class for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
+    /// </summary>
+    /// <param name="target">Target value supplied to the theme switcher container operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string GetTargetCssClass(ThemeApplicationTarget target) =>
         target == ThemeApplicationTarget.Shell ? "theme-route-target-base" : "theme-route-target-style";
 
+    /// <summary>
+    /// Performs theme switcher item click for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
+    /// </summary>
+    /// <param name="theme">Theme value supplied to the theme switcher container operation and used when producing its result.</param>
+    /// <param name="target">Target value supplied to the theme switcher container operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task ThemeSwitcherItem_Click(Theme theme, ThemeApplicationTarget target)
     {
         try
@@ -203,6 +284,10 @@
         }
     }
 
+    /// <summary>
+    /// Performs reset fusion route for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task ResetFusionRouteAsync()
     {
         try
@@ -226,6 +311,12 @@
         }
     }
 
+    /// <summary>
+    /// Performs notify theme loaded for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
+    /// </summary>
+    /// <param name="theme">Theme value supplied to the theme switcher container operation and used when producing its result.</param>
+    /// <param name="target">Target value supplied to the theme switcher container operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     public async Task NotifyThemeLoadedAsync(Theme theme, ThemeApplicationTarget target)
     {
         try
@@ -258,8 +349,17 @@
         }
     }
 
+    /// <summary>
+    /// Performs close for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task CloseAsync() => ToggleThemeSwitcherPanel(false);
 
+    /// <summary>
+    /// Performs toggle theme switcher panel for <see cref="ThemeSwitcherContainer"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher container workflow.
+    /// </summary>
+    /// <param name="shown">Value indicating whether shown should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task ToggleThemeSwitcherPanel(bool shown)
     {
         try
@@ -286,6 +386,10 @@
         }
     }
 
+    /// <summary>
+    /// Releases resources owned by <see cref="ThemeSwitcherContainer"/> and leaves the theme switcher container workflow in a safely disposed state.
+    /// </summary>
+    /// <returns>The void i disposable produced by the operation.</returns>
     void IDisposable.Dispose()
     {
         if (disposedValue)
@@ -298,6 +402,10 @@
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Handles the after render lifecycle or event notification for <see cref="ThemeSwitcherContainer"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
     protected override void OnAfterRender(bool firstRender)
     {
         try

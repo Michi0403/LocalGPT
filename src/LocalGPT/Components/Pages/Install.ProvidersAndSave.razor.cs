@@ -33,8 +33,15 @@ using LocalGPT.BusinessObjects.Enums;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the install Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class Install
     {
+    /// <summary>
+    /// Refreshes Ollama process status for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshOllamaProcessStatusAsync()
     {
         try
@@ -54,18 +61,36 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Starts Ollama for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task StartOllamaAsync() => RunOllamaProcessActionAsync(
         cancellationToken => OllamaProcesses.StartAsync(cancellationToken),
         "Start Ollama");
 
+    /// <summary>
+    /// Stops Ollama for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task StopOllamaAsync() => RunOllamaProcessActionAsync(
         cancellationToken => OllamaProcesses.StopAsync(cancellationToken),
         "Stop Ollama");
 
+    /// <summary>
+    /// Performs restart Ollama for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task RestartOllamaAsync() => RunOllamaProcessActionAsync(
         cancellationToken => OllamaProcesses.RestartAsync(cancellationToken),
         "Restart Ollama");
 
+    /// <summary>
+    /// Performs run Ollama process action for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="action">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="operation">Operation value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunOllamaProcessActionAsync(
         Func<CancellationToken, Task<OllamaProcessStatus>> action,
         string operation)
@@ -98,6 +123,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Discovers local AI hosts for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DiscoverLocalAiHosts()
     {
         try
@@ -131,6 +160,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Refreshes connectivity status from button for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task RefreshConnectivityStatusFromButton()
     {
         try
@@ -145,6 +178,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Refreshes connectivity status for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="showToast">Value indicating whether show toast should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshConnectivityStatusAsync(bool showToast)
     {
         try
@@ -183,6 +221,12 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Builds connectivity status for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="reachable">Reachable value supplied to the install operation and used when producing its result.</param>
+    /// <param name="models">Models value supplied to the install operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildConnectivityStatus(int reachable, int models)
     {
         try
@@ -203,6 +247,12 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs to provider model for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="host">Host value supplied to the install operation and used when producing its result.</param>
+    /// <param name="model">Model value supplied to the install operation and used when producing its result.</param>
+    /// <returns>The provider model reference produced by the operation.</returns>
     private ProviderModelReference ToProviderModel(LocalAiHostDiscoveryResult host, LocalAiModelInfo model)
     {
         var isOllama = host.Provider.Equals("Ollama", StringComparison.OrdinalIgnoreCase);
@@ -228,6 +278,11 @@ namespace LocalGPT.Components.Pages
         };
     }
 
+    /// <summary>
+    /// Handles the install benchmark applied async lifecycle or event notification for <see cref="Install"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="applied">Applied value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnInstallBenchmarkAppliedAsync(ProviderModelBenchmarkAppliedEvent applied)
     {
         ConnectivityStatus = $"Benchmark recommendation applied for {applied.Model.SelectionKey} as preset {applied.Preset.Name}. Save provider settings separately only when you changed the active setup model.";
@@ -235,6 +290,12 @@ namespace LocalGPT.Components.Pages
         return InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Applies discovered model for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="host">Host value supplied to the install operation and used when producing its result.</param>
+    /// <param name="model">Model value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ApplyDiscoveredModel(LocalAiHostDiscoveryResult host, LocalAiModelInfo model)
     {
         try
@@ -260,6 +321,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs use Ollama GPT oss20b for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task UseOllamaGptOss20b()
     {
         try
@@ -275,6 +340,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Adds open AI compatible host for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     private void AddOpenAiCompatibleHost()
     {
         Model.ChatGPTLocalCores ??= new List<ChatGPTLocalCoreOptions>();
@@ -287,6 +355,12 @@ namespace LocalGPT.Components.Pages
         });
     }
 
+    /// <summary>
+    /// Performs upsert Ollama host binding for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <param name="modelName">Model name value supplied to the install operation and used when producing its result.</param>
+    /// <returns>The bool is primary Ollama core options binding produced by the operation.</returns>
     private (bool IsPrimary, OllamaCoreOptions Binding) UpsertOllamaHostBinding(string endpoint, string modelName)
     {
         try
@@ -333,6 +407,13 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs upsert open AI compatible host binding for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="providerName">Provider name value supplied to the install operation and used when producing its result.</param>
+    /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <param name="modelName">Model name value supplied to the install operation and used when producing its result.</param>
+    /// <returns>The bool is primary chat GPT local core options binding produced by the operation.</returns>
     private (bool IsPrimary, ChatGPTLocalCoreOptions Binding) UpsertOpenAiCompatibleHostBinding(string providerName, string endpoint, string modelName)
     {
         try
@@ -385,6 +466,12 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Determines whether Ollama model configured for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="normalizedEndpoint">Normalized endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <param name="modelName">Model name value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsOllamaModelConfigured(string normalizedEndpoint, string modelName)
     {
         try
@@ -404,6 +491,12 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Determines whether open AI compatible model configured for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="normalizedEndpoint">Normalized endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <param name="modelName">Model name value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsOpenAiCompatibleModelConfigured(string normalizedEndpoint, string modelName)
     {
         try
@@ -423,6 +516,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs make configured provider primary for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="configured">Configured value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task MakeConfiguredProviderPrimaryAsync(ConfiguredProviderHostView configured)
     {
         try
@@ -467,6 +565,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Adds distinct Ollama additional binding for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="option">Option value supplied to the install operation and used when producing its result.</param>
     private void AddDistinctOllamaAdditionalBinding(OllamaCoreOptions option)
     {
         try
@@ -487,6 +589,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Adds distinct open AI additional binding for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="option">Option value supplied to the install operation and used when producing its result.</param>
     private void AddDistinctOpenAiAdditionalBinding(ChatGPTLocalCoreOptions option)
     {
         try
@@ -507,6 +613,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Retrieves endpoint host label for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetEndpointHostLabel(string? endpoint)
     {
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
@@ -514,6 +625,11 @@ namespace LocalGPT.Components.Pages
         return $"{uri.Host}:{uri.Port}";
     }
 
+    /// <summary>
+    /// Removes configured provider host for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="configured">Configured value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RemoveConfiguredProviderHostAsync(ConfiguredProviderHostView configured)
     {
         try
@@ -591,12 +707,20 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Removes open AI compatible host for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="host">Host value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RemoveOpenAiCompatibleHostAsync(ChatGPTLocalCoreOptions host)
     {
         Model.ChatGPTLocalCores?.Remove(host);
         await Save().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Adds Ollama model for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     private void AddOllamaModel()
     {
         try
@@ -614,6 +738,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Removes Ollama model for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="ollama">Ollama value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RemoveOllamaModelAsync(OllamaCoreOptions ollama)
     {
         try
@@ -634,6 +763,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs test open AI compatible host for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="host">Host value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task TestOpenAiCompatibleHostAsync(ChatGPTLocalCoreOptions host)
     {
         try
@@ -650,6 +784,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs test Ollama host for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="host">Host value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task TestOllamaHostAsync(OllamaCoreOptions host)
     {
         try
@@ -666,6 +805,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Determines whether configured host for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="host">Host value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool IsConfiguredHost(LocalAiHostDiscoveryResult host)
     {
         try
@@ -689,6 +833,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Removes configured host for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="host">Host value supplied to the install operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RemoveConfiguredHostAsync(LocalAiHostDiscoveryResult host)
     {
         try
@@ -723,11 +872,20 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Normalizes provider endpoint for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="endpoint">Endpoint value supplied to the install operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string NormalizeProviderEndpoint(string? endpoint)
         => string.IsNullOrWhiteSpace(endpoint)
             ? string.Empty
             : new ProviderModelIdentity().NormalizeEndpoint(endpoint);
 
+    /// <summary>
+    /// Performs test open AI for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task TestOpenAI()
     {
         try
@@ -745,6 +903,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs test azure for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task TestAzure()
     {
         try
@@ -762,6 +924,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs save for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task Save()
     {
         var persistedSuccessfully = false;
@@ -803,6 +969,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Applies models to configuration for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <param name="root">Root value supplied to the install operation and used when producing its result.</param>
     private void ApplyModelsToConfiguration(LocalGPT.BusinessObjects.ConfigurationRoot root)
     {
         root.AICore ??= new AICoreOptions();
@@ -825,6 +995,10 @@ namespace LocalGPT.Components.Pages
         };
     }
 
+    /// <summary>
+    /// Creates network certificate for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CreateNetworkCertificateAsync()
     {
         try
@@ -857,6 +1031,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs go chat for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
+    /// </summary>
     private void GoChat()
     {
         try

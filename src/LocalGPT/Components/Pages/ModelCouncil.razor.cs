@@ -32,27 +32,90 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the model council Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class ModelCouncil
     {
+    /// <summary>
+    /// Stores the internal toast name state used by <see cref="ModelCouncil"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string toastName = "ModelCouncilToasts";
+    /// <summary>
+    /// Stores the in-memory selected models collection maintained internally by <see cref="ModelCouncil"/> for its current workflow state.
+    /// </summary>
     readonly HashSet<string> SelectedModels = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Gets or sets the candidates collection maintained or exposed by this model council instance for downstream processing.
+    /// </summary>
+    /// <value>The candidates value exposed by <see cref="ModelCouncil"/>.</value>
     List<MultiModelCouncilModelCandidate> Candidates { get; set; } = [];
+    /// <summary>
+    /// Gets the selected provider models collection maintained or exposed by this model council instance for downstream processing.
+    /// </summary>
+    /// <value>The selected provider models value exposed by <see cref="ModelCouncil"/>.</value>
     IReadOnlyList<ProviderModelReference> SelectedProviderModels => Candidates
         .Where(candidate => SelectedModels.Contains(candidate.SelectionKey))
         .Select(candidate => candidate.ToReference())
         .ToList();
+    /// <summary>
+    /// Gets or sets the saved council conversations collection maintained or exposed by this model council instance for downstream processing.
+    /// </summary>
+    /// <value>The saved council conversations value exposed by <see cref="ModelCouncil"/>.</value>
     List<ChatMemoryConversationSummary> SavedCouncilConversations { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the project summaries collection maintained or exposed by this model council instance for downstream processing.
+    /// </summary>
+    /// <value>The project summaries value exposed by <see cref="ModelCouncil"/>.</value>
     List<LocalGptProjectSummary> ProjectSummaries { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the selected project details value that forms part of the model council state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected project details value exposed by <see cref="ModelCouncil"/>.</value>
     LocalGptProjectDetails? SelectedProjectDetails { get; set; }
+    /// <summary>
+    /// Gets or sets the selected council conversation value that forms part of the model council state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected council conversation value exposed by <see cref="ModelCouncil"/>.</value>
     ChatMemoryConversationSummary? SelectedCouncilConversation { get; set; }
+    /// <summary>
+    /// Gets or sets the last result value that forms part of the model council state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The last result value exposed by <see cref="ModelCouncil"/>.</value>
     MultiModelCouncilResult? LastResult { get; set; }
+    /// <summary>
+    /// Gets or sets the last generation execution value that forms part of the model council state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The last generation execution value exposed by <see cref="ModelCouncil"/>.</value>
     CodeGenerationExecutionResult? LastGenerationExecution { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether build approved review applies to the model council state.
+    /// </summary>
+    /// <value>The build approved review value exposed by <see cref="ModelCouncil"/>.</value>
     bool BuildApprovedReview { get; set; }
+    /// <summary>
+    /// Gets or sets the manual model name value that forms part of the model council state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The manual model name value exposed by <see cref="ModelCouncil"/>.</value>
     string ManualModelName { get; set; } = "qwen3-coder:30b";
+    /// <summary>
+    /// Gets or sets the custom poll feedback value that forms part of the model council state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The custom poll feedback value exposed by <see cref="ModelCouncil"/>.</value>
     string CustomPollFeedback { get; set; } = string.Empty;
+    /// <summary>
+    /// Stores the internal status text state used by <see cref="ModelCouncil"/> while executing its surrounding workflow.
+    /// </summary>
     string statusText = string.Empty;
+    /// <summary>
+    /// Stores the internal is busy state used by <see cref="ModelCouncil"/> while executing its surrounding workflow.
+    /// </summary>
     bool isBusy;
 
+    /// <summary>
+    /// Gets or sets the request value that forms part of the model council state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The request value exposed by <see cref="ModelCouncil"/>.</value>
     MultiModelCouncilRequest Request { get; set; } = new()
     {
         Prompt = "Ask gpt-oss:20b and the coder model to design the best and most ethical LocalGPT multi-model council feature." + "\n\n" +
@@ -76,22 +139,46 @@ namespace LocalGPT.Components.Pages
         GenerateImplementationArtifact = false
     };
 
+    /// <summary>
+    /// Gets the selected project value value that forms part of the model council state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected project value value exposed by <see cref="ModelCouncil"/>.</value>
     string SelectedProjectValue => Request.ProjectId?.ToString() ?? string.Empty;
+    /// <summary>
+    /// Gets the selected topic value value that forms part of the model council state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected topic value value exposed by <see cref="ModelCouncil"/>.</value>
     string SelectedTopicValue => Request.ProjectTopicId?.ToString() ?? string.Empty;
 
+    /// <summary>
+    /// Gets a value indicating whether run applies to the model council state.
+    /// </summary>
+    /// <value>The can run value exposed by <see cref="ModelCouncil"/>.</value>
     bool CanRun => !isBusy && SelectedModels.Count > 0 && !string.IsNullOrWhiteSpace(Request.Prompt);
+    /// <summary>
+    /// Gets or sets the keep alive text value that forms part of the model council state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The keep alive text value exposed by <see cref="ModelCouncil"/>.</value>
     string KeepAliveText
     {
         get => Request.OllamaKeepAlive ?? string.Empty;
         set => Request.OllamaKeepAlive = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether force CPU only Ollama applies to the model council state.
+    /// </summary>
+    /// <value>The force CPU only Ollama value exposed by <see cref="ModelCouncil"/>.</value>
     bool ForceCpuOnlyOllama
     {
         get => Request.OllamaNumGpu == 0;
         set => Request.OllamaNumGpu = value ? 0 : null;
     }
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="ModelCouncil"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
         try
@@ -108,6 +195,10 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Loads candidates for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task LoadCandidatesAsync()
     {
         try
@@ -168,6 +259,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs run council for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunCouncilAsync()
     {
         try
@@ -207,6 +302,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Loads saved council conversations for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task LoadSavedCouncilConversationsAsync()
     {
         try
@@ -221,6 +320,11 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Loads saved council conversations for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="showStatus">Value indicating whether show status should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task LoadSavedCouncilConversationsAsync(bool showStatus)
     {
         try
@@ -247,6 +351,10 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Loads projects for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task LoadProjectsAsync()
     {
         ProjectSummaries = (await ProjectService.GetProjectsAsync(includeArchived: false).ConfigureAwait(false)).ToList();
@@ -255,6 +363,11 @@ namespace LocalGPT.Components.Pages
             SelectedProjectDetails = await ProjectService.GetProjectAsync(projectId).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs select project for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the model council operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SelectProjectAsync(ChangeEventArgs args)
     {
         Request.ProjectTopicId = null;
@@ -273,6 +386,10 @@ namespace LocalGPT.Components.Pages
         await InvokeAsync(StateHasChanged).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs select project topic for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the model council operation and used when producing its result.</param>
     void SelectProjectTopic(ChangeEventArgs args)
     {
         Request.ProjectTopicId = Guid.TryParse(Convert.ToString(args.Value), out var topicId)
@@ -281,6 +398,10 @@ namespace LocalGPT.Components.Pages
         Request.UserConfirmedProjectLink = false;
     }
 
+    /// <summary>
+    /// Performs toggle artifact generation for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the model council operation and used when producing its result.</param>
     void ToggleArtifactGeneration(ChangeEventArgs args)
     {
         var enabled = args.Value is bool flag
@@ -292,6 +413,9 @@ namespace LocalGPT.Components.Pages
         Request.UserConfirmedArtifactBuild = false;
     }
 
+    /// <summary>
+    /// Adds manual model for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
     void AddManualModel()
     {
         try
@@ -327,8 +451,16 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Performs join running council for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
     private void JoinRunningCouncil() => Navigation.NavigateTo("/Chat?joinCouncil=active", forceLoad: true);
 
+    /// <summary>
+    /// Performs toggle model for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="selectionKey">Selection key value supplied to the model council operation and used when producing its result.</param>
+    /// <param name="isChecked">Value indicating whether is checked should apply to this operation.</param>
     void ToggleModel(string selectionKey, bool isChecked)
     {
         try
@@ -345,6 +477,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Handles the benchmark applied async lifecycle or event notification for <see cref="ModelCouncil"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="applied">Applied value supplied to the model council operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task OnBenchmarkAppliedAsync(ProviderModelBenchmarkAppliedEvent applied)
     {
         SelectedModels.Add(applied.Model.SelectionKey);
@@ -354,6 +491,11 @@ namespace LocalGPT.Components.Pages
         return InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Handles the benchmark council applied async lifecycle or event notification for <see cref="ModelCouncil"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="applied">Applied value supplied to the model council operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     Task OnBenchmarkCouncilAppliedAsync(ProviderModelBenchmarkBatchAppliedEvent applied)
     {
         foreach (var model in applied.Models)
@@ -368,6 +510,10 @@ namespace LocalGPT.Components.Pages
         return InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Performs select council conversation for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="conversation">Conversation value supplied to the model council operation and used when producing its result.</param>
     void SelectCouncilConversation(ChatMemoryConversationSummary conversation)
     {
         try
@@ -384,6 +530,9 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Starts new council thread for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
     void StartNewCouncilThread()
     {
         try
@@ -402,6 +551,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Applies low resource preset for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
     void ApplyLowResourcePreset()
     {
         try
@@ -425,6 +577,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Applies balanced preset for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
     void ApplyBalancedPreset()
     {
         try
@@ -448,6 +603,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Applies generation preset for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
     void ApplyGenerationPreset()
     {
         try
@@ -471,6 +629,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Starts feature request chat for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
     void StartFeatureRequestChat()
     {
         try
@@ -513,6 +674,10 @@ namespace LocalGPT.Components.Pages
     }
 
 
+    /// <summary>
+    /// Approves change review for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task ApproveChangeReviewAsync()
     {
         var review = LastResult?.ChangeReview;
@@ -577,6 +742,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Rejects change review for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RejectChangeReviewAsync()
     {
         var review = LastResult?.ChangeReview;
@@ -617,9 +786,19 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Retrieves generation download URL for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="result">Result value supplied to the model council operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string GetGenerationDownloadUrl(CodeGenerationExecutionResult result) =>
         Navigation.ToAbsoluteUri(result.DownloadUrl).ToString();
 
+    /// <summary>
+    /// Retrieves artifact URL for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="artifact">Artifact value supplied to the model council operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string GetArtifactUrl(CouncilArtifact artifact)
     {
         try
@@ -636,6 +815,10 @@ namespace LocalGPT.Components.Pages
 
 
 
+    /// <summary>
+    /// Performs exclude model for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="modelName">Model name value supplied to the model council operation and used when producing its result.</param>
     void ExcludeModel(string modelName)
     {
         try
@@ -660,6 +843,10 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Applies poll option for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="option">Option value supplied to the model council operation and used when producing its result.</param>
     void ApplyPollOption(CouncilUserPollOption option)
     {
         try
@@ -688,6 +875,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Applies custom poll feedback for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
     void ApplyCustomPollFeedback()
     {
         try
@@ -711,6 +901,12 @@ namespace LocalGPT.Components.Pages
 
     }
 
+    /// <summary>
+    /// Performs run UI action for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
+    /// </summary>
+    /// <param name="action">Action value supplied to the model council operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the model council operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunUiActionAsync(Func<Task> action, string operation)
     {
         ArgumentNullException.ThrowIfNull(action);

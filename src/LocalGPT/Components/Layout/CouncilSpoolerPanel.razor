@@ -62,35 +62,80 @@
 }
 
 @code {
+    /// <summary>
+    /// Stores the internal open state used by <see cref="CouncilSpoolerPanel"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _open;
+    /// <summary>
+    /// Stores the in-memory runs collection maintained internally by <see cref="CouncilSpoolerPanel"/> for its current workflow state.
+    /// </summary>
     private List<CouncilSpoolerSnapshot> _runs = [];
+    /// <summary>
+    /// Stores the internal selected run identifier state used by <see cref="CouncilSpoolerPanel"/> while executing its surrounding workflow.
+    /// </summary>
     private Guid? _selectedRunId;
+    /// <summary>
+    /// Gets the running count that quantifies the associated council spooler panel data.
+    /// </summary>
+    /// <value>The running count value exposed by <see cref="CouncilSpoolerPanel"/>.</value>
     private int RunningCount => _runs.Count(item => item.Status == Vocabulary.Get().CouncilSpoolerRunning);
+    /// <summary>
+    /// Gets the selected value that forms part of the council spooler panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected value exposed by <see cref="CouncilSpoolerPanel"/>.</value>
     private CouncilSpoolerSnapshot? Selected => _selectedRunId is Guid id ? _runs.FirstOrDefault(item => item.RunId == id) : _runs.FirstOrDefault();
+    /// <summary>
+    /// Gets the selected value value that forms part of the council spooler panel state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected value value exposed by <see cref="CouncilSpoolerPanel"/>.</value>
     private string SelectedValue => (_selectedRunId ?? _runs.FirstOrDefault()?.RunId)?.ToString() ?? string.Empty;
 
+    /// <summary>
+    /// Handles the initialized lifecycle or event notification for <see cref="CouncilSpoolerPanel"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnInitialized()
     {
         Spooler.Changed += OnSpoolerChanged;
         Refresh();
     }
 
+    /// <summary>
+    /// Performs toggle for <see cref="CouncilSpoolerPanel"/>, keeping the operation consistent with the state and invariants of the surrounding council spooler panel workflow.
+    /// </summary>
     private void Toggle() { _open = !_open; if (_open) Refresh(); }
+    /// <summary>
+    /// Performs refresh for <see cref="CouncilSpoolerPanel"/>, keeping the operation consistent with the state and invariants of the surrounding council spooler panel workflow.
+    /// </summary>
     private void Refresh()
     {
         _runs = Spooler.GetSnapshots(includeCompleted: true, take: 30).ToList();
         if (_selectedRunId is null || _runs.All(item => item.RunId != _selectedRunId)) _selectedRunId = _runs.FirstOrDefault()?.RunId;
     }
+    /// <summary>
+    /// Performs select run for <see cref="CouncilSpoolerPanel"/>, keeping the operation consistent with the state and invariants of the surrounding council spooler panel workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the council spooler panel operation and used when producing its result.</param>
     private void SelectRun(ChangeEventArgs args)
     {
         _selectedRunId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
         Refresh();
     }
+    /// <summary>
+    /// Builds rejoin href for <see cref="CouncilSpoolerPanel"/>, keeping the operation consistent with the state and invariants of the surrounding council spooler panel workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string BuildRejoinHref(Guid runId) => $"/Chat?rejoinCouncilRunId={Uri.EscapeDataString(runId.ToString())}";
 
+    /// <summary>
+    /// Handles the spooler changed lifecycle or event notification for <see cref="CouncilSpoolerPanel"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     private void OnSpoolerChanged()
     {
         _ = InvokeAsync(() => { Refresh(); StateHasChanged(); });
     }
+    /// <summary>
+    /// Releases resources owned by <see cref="CouncilSpoolerPanel"/> and leaves the council spooler panel workflow in a safely disposed state.
+    /// </summary>
     public void Dispose() => Spooler.Changed -= OnSpoolerChanged;
 }

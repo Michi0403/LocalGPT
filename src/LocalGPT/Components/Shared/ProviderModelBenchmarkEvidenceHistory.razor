@@ -77,21 +77,51 @@
 </details>
 
 @code {
+    /// <summary>
+    /// Stores the in-memory stored evidence collection maintained internally by <see cref="ProviderModelBenchmarkEvidenceHistory"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<ProviderModelBenchmarkStoredEvidence> storedEvidence = [];
+    /// <summary>
+    /// Stores the internal loaded report state used by <see cref="ProviderModelBenchmarkEvidenceHistory"/> while executing its surrounding workflow.
+    /// </summary>
     private ProviderModelBenchmarkReport? loadedReport;
+    /// <summary>
+    /// Stores the internal is busy state used by <see cref="ProviderModelBenchmarkEvidenceHistory"/> while executing its surrounding workflow.
+    /// </summary>
     private bool isBusy;
+    /// <summary>
+    /// Stores the internal status text state used by <see cref="ProviderModelBenchmarkEvidenceHistory"/> while executing its surrounding workflow.
+    /// </summary>
     private string statusText = string.Empty;
+    /// <summary>
+    /// Stores the internal selected run value state used by <see cref="ProviderModelBenchmarkEvidenceHistory"/> while executing its surrounding workflow.
+    /// </summary>
     private string selectedRunValue = string.Empty;
+    /// <summary>
+    /// Stores the internal selected target key state used by <see cref="ProviderModelBenchmarkEvidenceHistory"/> while executing its surrounding workflow.
+    /// </summary>
     private string selectedTargetKey = string.Empty;
 
+    /// <summary>
+    /// Gets the selected target value that forms part of the provider model benchmark evidence history state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected target value exposed by <see cref="ProviderModelBenchmarkEvidenceHistory"/>.</value>
     private ProviderModelBenchmarkTargetResult? SelectedTarget => loadedReport?.Targets.FirstOrDefault(target =>
         target.Model.SelectionKey.Equals(selectedTargetKey, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync().ConfigureAwait(true);
     }
 
+    /// <summary>
+    /// Performs refresh for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark evidence history workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshAsync()
     {
         isBusy = true;
@@ -121,6 +151,11 @@
         }).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Handles the stored run changed async lifecycle or event notification for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the provider model benchmark evidence history operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnStoredRunChangedAsync(ChangeEventArgs args)
     {
         selectedRunValue = Convert.ToString(args.Value) ?? string.Empty;
@@ -158,19 +193,43 @@
         }).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Handles the target changed lifecycle or event notification for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the provider model benchmark evidence history operation and used when producing its result.</param>
     private void OnTargetChanged(ChangeEventArgs args) =>
         selectedTargetKey = Convert.ToString(args.Value) ?? string.Empty;
 
+    /// <summary>
+    /// Performs short run identifier for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark evidence history workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ShortRunId(Guid runId) => runId.ToString("N")[..8];
 
+    /// <summary>
+    /// Performs format timestamp for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark evidence history workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the provider model benchmark evidence history operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FormatTimestamp(DateTimeOffset value) =>
         value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
 
+    /// <summary>
+    /// Performs format completion for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark evidence history workflow.
+    /// </summary>
+    /// <param name="report">Report value supplied to the provider model benchmark evidence history operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FormatCompletion(ProviderModelBenchmarkReport report) =>
         report.CompletedAtUtc == default
             ? "not marked complete"
             : FormatTimestamp(report.CompletedAtUtc);
 
+    /// <summary>
+    /// Performs format bytes for <see cref="ProviderModelBenchmarkEvidenceHistory"/>, keeping the operation consistent with the state and invariants of the surrounding provider model benchmark evidence history workflow.
+    /// </summary>
+    /// <param name="bytes">Bytes value supplied to the provider model benchmark evidence history operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FormatBytes(long bytes)
     {
         if (bytes >= 1024L * 1024L)

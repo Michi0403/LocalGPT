@@ -23,6 +23,37 @@ namespace LocalGPT.Services
         /// persisted workflow policy. Alternate members are selected only from the role's existing provider-qualified Social Team
         /// pool and therefore never create a hidden model-selection policy outside the saved team configuration.
         /// </remarks>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="executionMode">Execution mode value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="baseUri">Base uri value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="roleAssignment">Role assignment value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleAssignments">Council role runtime assignment dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="rolePairings">Council participant pairing dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="roleParticipants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="round">Round value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="repeatIndex">Repeat index value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="repeatCount">Repeat count value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopGroup">Loop group value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopIteration">Loop iteration value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="loopMaximumIterations">Loop maximum iterations value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="visiblePreviousStep">Visible previous step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="heartbeatBootstrap">Heartbeat bootstrap value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelRoutes">Council hardware road plan dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="keepAlive">Keep alive value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="ollamaNumGpu">Ollama num gpu value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="maxContextTokens">Max context tokens value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="modelTimeoutSeconds">Model timeout seconds value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="allowDxFunctions">Value indicating whether allow DevExpress functions should apply to this operation.</param>
+        /// <param name="automaticFunctionPolicy">Automatic function policy value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="workflowRevision">Workflow revision value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="xRoundCause">X round cause value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <returns>The collection produced by the operation.</returns>
         private async Task<IReadOnlyList<MultiModelCouncilStep>> RecoverConfiguredRoundMemberFailuresAsync(
             MultiModelCouncilResult result,
             MultiModelCouncilRequest request,
@@ -211,6 +242,8 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Returns whether one Council step contains usable visible model work for round-completion accounting.</summary>
+        /// <param name="step">Step value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private bool IsUsableConfiguredRoundStep(MultiModelCouncilStep? step)
         {
             try
@@ -228,6 +261,16 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Selects the same member first and, when permitted, a healthy alternate from the persisted role pool.</summary>
+        /// <param name="result">Result value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="team">Team value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="definition">Definition value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="executionMode">Execution mode value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="participants">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="roleAssignment">Role assignment value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="roleAssignments">Council role runtime assignment dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <param name="failedModel">Failed model value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="attemptedModels">String dependency used by the multi model council workflow to provide the corresponding application capability.</param>
+        /// <returns>The string produced by the operation.</returns>
         private string SelectConfiguredRoundRecoveryParticipant(
             MultiModelCouncilResult result,
             OrganicCouncilTeamDefinition team,
@@ -304,6 +347,9 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Identifies the base configured phase and its automatic member-recovery child phases.</summary>
+        /// <param name="candidatePhase">Candidate phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="phase">Phase value supplied to the multi model council operation and used when producing its result.</param>
+        /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private bool IsConfiguredRoundPrimaryOrRecoveryPhase(string candidatePhase, string phase)
         {
             try

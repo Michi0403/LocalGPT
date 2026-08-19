@@ -8,16 +8,49 @@ namespace LocalGPT.BusinessObjects;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum RuntimeClassKind
 {
+    /// <summary>
+    /// Selects the session option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Session,
+    /// <summary>
+    /// Selects the world option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     World,
+    /// <summary>
+    /// Selects the map option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Map,
+    /// <summary>
+    /// Selects the location option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Location,
+    /// <summary>
+    /// Selects the actor option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Actor,
+    /// <summary>
+    /// Selects the player option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Player,
+    /// <summary>
+    /// Selects the item option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Item,
+    /// <summary>
+    /// Selects the event option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Event,
+    /// <summary>
+    /// Selects the controller option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Controller,
+    /// <summary>
+    /// Selects the frame option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Frame,
+    /// <summary>
+    /// Selects the state option for <see cref="RuntimeClassKind"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     State
 }
 
@@ -27,10 +60,25 @@ public enum RuntimeClassKind
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum RuntimeFieldInputMode
 {
+    /// <summary>
+    /// Selects the AI option for <see cref="RuntimeFieldInputMode"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Ai,
+    /// <summary>
+    /// Selects the human optional option for <see cref="RuntimeFieldInputMode"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     HumanOptional,
+    /// <summary>
+    /// Selects the human required option for <see cref="RuntimeFieldInputMode"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     HumanRequired,
+    /// <summary>
+    /// Selects the shared option for <see cref="RuntimeFieldInputMode"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Shared,
+    /// <summary>
+    /// Selects the system option for <see cref="RuntimeFieldInputMode"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     System
 }
 

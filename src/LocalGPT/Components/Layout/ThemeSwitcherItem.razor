@@ -9,10 +9,26 @@
     <span>@Theme?.Title</span>
 </a>
 @code {
+    /// <summary>
+    /// Gets or sets the theme value that forms part of the theme switcher item state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The theme value exposed by <see cref="ThemeSwitcherItem"/>.</value>
     [Parameter] public Theme? Theme { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether active applies to the theme switcher item state.
+    /// </summary>
+    /// <value>The is active value exposed by <see cref="ThemeSwitcherItem"/>.</value>
     [Parameter] public bool IsActive { get; set; }
+    /// <summary>
+    /// Gets or sets the click value that forms part of the theme switcher item state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The click value exposed by <see cref="ThemeSwitcherItem"/>.</value>
     [Parameter] public EventCallback<Theme> Click { get; set; }
 
+    /// <summary>
+    /// Performs anchor click for <see cref="ThemeSwitcherItem"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher item workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task Anchor_Click()
     {
         try

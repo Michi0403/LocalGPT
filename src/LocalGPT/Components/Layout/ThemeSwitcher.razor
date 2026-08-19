@@ -29,12 +29,33 @@
 
 @code
 {
+    /// <summary>
+    /// Gets or sets the toast name value that forms part of the theme switcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The toast name value exposed by <see cref="ThemeSwitcher"/>.</value>
     string toastName { get; set; } = "ThemeSwitcherRazorToasts";
+    /// <summary>
+    /// Gets or sets the shell theme name value that forms part of the theme switcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The shell theme name value exposed by <see cref="ThemeSwitcher"/>.</value>
     string ShellThemeName { get; set; } = ThemeService.DEFAULT_THEME_NAME;
+    /// <summary>
+    /// Gets or sets the component theme name value that forms part of the theme switcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The component theme name value exposed by <see cref="ThemeSwitcher"/>.</value>
     string ComponentThemeName { get; set; } = ThemeService.DEFAULT_THEME_NAME;
+    /// <summary>
+    /// Stores the internal open state used by <see cref="ThemeSwitcher"/> while executing its surrounding workflow.
+    /// </summary>
     bool _open;
+    /// <summary>
+    /// Stores the internal disposed state used by <see cref="ThemeSwitcher"/> while executing its surrounding workflow.
+    /// </summary>
     bool _disposed;
 
+    /// <summary>
+    /// Handles the initialized lifecycle or event notification for <see cref="ThemeSwitcher"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnInitialized()
     {
         try
@@ -58,6 +79,9 @@
         }
     }
 
+    /// <summary>
+    /// Performs toggle for <see cref="ThemeSwitcher"/>, keeping the operation consistent with the state and invariants of the surrounding theme switcher workflow.
+    /// </summary>
     void Toggle()
     {
         try
@@ -72,9 +96,20 @@
         }
     }
 
+    /// <summary>
+    /// Gets the button CSS value that forms part of the theme switcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The button CSS value exposed by <see cref="ThemeSwitcher"/>.</value>
     string ButtonCss => "themeswitcher-button theme-settings " + _open;
+    /// <summary>
+    /// Gets the header CSS value that forms part of the theme switcher state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The header CSS value exposed by <see cref="ThemeSwitcher"/>.</value>
     string HeaderCss => Themes.GetThemeLayerCssClass(ShellThemeName, ComponentThemeName);
 
+    /// <summary>
+    /// Releases resources owned by <see cref="ThemeSwitcher"/> and leaves the theme switcher workflow in a safely disposed state.
+    /// </summary>
     public void Dispose()
     {
         try

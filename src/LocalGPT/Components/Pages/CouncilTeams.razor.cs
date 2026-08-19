@@ -32,9 +32,18 @@ using System.Text.RegularExpressions;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the council teams Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class CouncilTeams
     {
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly System.Text.Json.JsonSerializerOptions JsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Stores the in-memory execution modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(string Value, string Label)> ExecutionModes =
     [
         ("AllMembersParallel", "All role members in parallel"),
@@ -45,12 +54,18 @@ namespace LocalGPT.Components.Pages
         ("AssignedModelSingle", "Assigned model only"),
         ("SystemBenchmarkCalibration", "LocalGPT all-member benchmark calibration engine")
     ];
+    /// <summary>
+    /// Stores the in-memory all members readiness preflight modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(CouncilAllMembersReadinessPreflightMode Value, string Label)> AllMembersReadinessPreflightModes =
     [
         (CouncilAllMembersReadinessPreflightMode.LegacyWorkflowDefault, "Legacy compatibility (built-in readiness only)"),
         (CouncilAllMembersReadinessPreflightMode.Disabled, "Disabled"),
         (CouncilAllMembersReadinessPreflightMode.RoleAwareProbe, "Role-aware probe for every selected member")
     ];
+    /// <summary>
+    /// Stores the in-memory automatic function policy modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(CouncilAutomaticFunctionPolicyMode Value, string Label)> AutomaticFunctionPolicyModes =
     [
         (CouncilAutomaticFunctionPolicyMode.Disabled, "Disabled — expose no automatic/native tools"),
@@ -58,17 +73,26 @@ namespace LocalGPT.Components.Pages
         (CouncilAutomaticFunctionPolicyMode.TeamAllowList, "Use this team's allow-list"),
         (CouncilAutomaticFunctionPolicyMode.ExactAllowList, "Use this step's exact allow-list")
     ];
+    /// <summary>
+    /// Stores the in-memory role result synthesis member modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(CouncilRoleResultSynthesisMemberMode Value, string Label)> RoleResultSynthesisMemberModes =
     [
         (CouncilRoleResultSynthesisMemberMode.DeterministicRandomRoleMember, "Random assigned role member (stable per run)"),
         (CouncilRoleResultSynthesisMemberMode.AssignedRoleMember, "One selected role member")
     ];
+    /// <summary>
+    /// Stores the in-memory member failure recovery modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(CouncilMemberFailureRecoveryMode Value, string Label)> MemberFailureRecoveryModes =
     [
         (CouncilMemberFailureRecoveryMode.Disabled, "Disabled — preserve failure without automatic round repair"),
         (CouncilMemberFailureRecoveryMode.RetrySameMember, "Retry the same provider-qualified role member"),
         (CouncilMemberFailureRecoveryMode.RetrySameThenEligibleRolePool, "After same-member safe fallback, use another eligible member from this role pool")
     ];
+    /// <summary>
+    /// Stores the in-memory transcript visibility modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(CouncilTranscriptVisibilityMode Value, string Label)> TranscriptVisibilityModes =
     [
         (CouncilTranscriptVisibilityMode.FullCouncil, "Full Council transcript"),
@@ -77,6 +101,9 @@ namespace LocalGPT.Components.Pages
         (CouncilTranscriptVisibilityMode.SameRoleCurrentRound, "This role in this logical round"),
         (CouncilTranscriptVisibilityMode.None, "No accumulated transcript")
     ];
+    /// <summary>
+    /// Stores the in-memory AI selection modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(CouncilRoleAiSelectionMode Value, string Label)> AiSelectionModes =
     [
         (CouncilRoleAiSelectionMode.AllSelected, "All selected council AIs"),
@@ -84,6 +111,9 @@ namespace LocalGPT.Components.Pages
         (CouncilRoleAiSelectionMode.AssignedModels, "All exact models from connected providers"),
         (CouncilRoleAiSelectionMode.AssignedModelsRandomRange, "Random count from exact provider pool (repeats allowed)")
     ];
+    /// <summary>
+    /// Stores the in-memory human participation modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(HumanParticipationMode Value, string Label)> HumanParticipationModes =
     [
         (HumanParticipationMode.None, "No human role"),
@@ -91,59 +121,159 @@ namespace LocalGPT.Components.Pages
         (HumanParticipationMode.Required, "Human response required"),
         (HumanParticipationMode.HumanOnly, "Human only; no AI")
     ];
+    /// <summary>
+    /// Stores the in-memory performance modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(CouncilRolePerformanceMode Value, string Label)> PerformanceModes =
     [
         (CouncilRolePerformanceMode.TaskSpecialist, "Task specialist"),
         (CouncilRolePerformanceMode.ImprovisationPlayer, "Improvisation player / actor")
     ];
+    /// <summary>
+    /// Stores the in-memory boundary modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(CouncilRoleBoundaryMode Value, string Label)> BoundaryModes =
     [
         (CouncilRoleBoundaryMode.Bounded, "Bounded role"),
         (CouncilRoleBoundaryMode.Collaborative, "Collaborative role"),
         (CouncilRoleBoundaryMode.Strict, "Strict role ownership")
     ];
+    /// <summary>
+    /// Stores the in-memory language modes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private readonly IReadOnlyList<(CouncilRoleLanguageMode Value, string Label)> LanguageModes =
     [
         (CouncilRoleLanguageMode.ModelChoice, "Model chooses language"),
         (CouncilRoleLanguageMode.SenderLanguage, "Match latest human sender"),
         (CouncilRoleLanguageMode.English, "English")
     ];
+    /// <summary>
+    /// Stores the in-memory teams collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<OrganicCouncilTeamDefinition> _teams = [];
+    /// <summary>
+    /// Stores the in-memory default templates collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<OrganicCouncilTeamDefinition> _defaultTemplates = [];
+    /// <summary>
+    /// Stores the in-memory runtime classes collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<CouncilRuntimeClassDefinition> _runtimeClasses = [];
+    /// <summary>
+    /// Stores the in-memory DevExpress functions collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<DxAiFunctionCatalogEntry> _dxFunctions = [];
+    /// <summary>
+    /// Stores the in-memory provider models collection maintained internally by <see cref="CouncilTeams"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<MultiModelCouncilModelCandidate> _providerModels = [];
+    /// <summary>
+    /// Stores the internal editor state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private OrganicCouncilTeamDefinition _editor = new();
+    /// <summary>
+    /// Stores the internal selected key state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private string _selectedKey = string.Empty;
+    /// <summary>
+    /// Stores the internal roles JSON state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private string _rolesJson = "[]";
+    /// <summary>
+    /// Stores the internal workflow JSON state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private string _workflowJson = "[]";
+    /// <summary>
+    /// Stores the internal capabilities JSON state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private string _capabilitiesJson = "[]";
+    /// <summary>
+    /// Stores the internal allowed functions JSON state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private string _allowedFunctionsJson = "[]";
+    /// <summary>
+    /// Stores the internal reset template key state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private string _resetTemplateKey = string.Empty;
+    /// <summary>
+    /// Stores the internal contracts JSON state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private string _contractsJson = "[]";
+    /// <summary>
+    /// Stores the internal status state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private string _status = string.Empty;
+    /// <summary>
+    /// Stores the internal has error state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _hasError;
+    /// <summary>
+    /// Stores the internal confirmed state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _confirmed;
+    /// <summary>
+    /// Stores the internal busy state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _busy;
+    /// <summary>
+    /// Stores the internal DevExpress function picker expanded state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _dxFunctionPickerExpanded;
+    /// <summary>
+    /// Stores the internal DevExpress functions loading state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _dxFunctionsLoading;
+    /// <summary>
+    /// Stores the internal DevExpress functions loaded state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _dxFunctionsLoaded;
+    /// <summary>
+    /// Stores the internal provider models refreshing state used by <see cref="CouncilTeams"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _providerModelsRefreshing;
 
+    /// <summary>
+    /// Gets the preflight mode label value that forms part of the council teams state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The preflight mode label value exposed by <see cref="CouncilTeams"/>.</value>
     private string PreflightModeLabel => AllMembersReadinessPreflightModes
         .FirstOrDefault(item => item.Value == _editor.AllMembersReadinessPreflightMode).Label
         ?? _editor.AllMembersReadinessPreflightMode.ToString();
+    /// <summary>
+    /// Gets the enabled round count that quantifies the associated council teams data.
+    /// </summary>
+    /// <value>The enabled round count value exposed by <see cref="CouncilTeams"/>.</value>
     private int EnabledRoundCount => _editor.WorkflowSteps.Count(step => step.IsEnabled);
+    /// <summary>
+    /// Gets the expanded round count that quantifies the associated council teams data.
+    /// </summary>
+    /// <value>The expanded round count value exposed by <see cref="CouncilTeams"/>.</value>
     private int ExpandedRoundCount => CalculateExpandedRoundCount(_editor.WorkflowSteps);
+    /// <summary>
+    /// Gets the available DevExpress functions collection maintained or exposed by this council teams instance for downstream processing.
+    /// </summary>
+    /// <value>The available DevExpress functions value exposed by <see cref="CouncilTeams"/>.</value>
     private IEnumerable<DxAiFunctionCatalogEntry> AvailableDxFunctions => _dxFunctions
         .Where(entry => entry.IsAvailable && entry.IsEnabled && !string.IsNullOrWhiteSpace(entry.FunctionName));
+    /// <summary>
+    /// Gets the recommended runtime functions collection maintained or exposed by this council teams instance for downstream processing.
+    /// </summary>
+    /// <value>The recommended runtime functions value exposed by <see cref="CouncilTeams"/>.</value>
     private HashSet<string> RecommendedRuntimeFunctions => _runtimeClasses
         .Where(runtimeClass => _editor.Roles.Any(role => role.RuntimeClassKeys.Contains(runtimeClass.Key, StringComparer.OrdinalIgnoreCase)))
         .SelectMany(runtimeClass => runtimeClass.RecommendedDxFunctions)
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="CouncilTeams"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnInitializedAsync() => ReloadAsync();
 
+    /// <summary>
+    /// Performs reload for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ReloadAsync()
     {
         _busy = true;
@@ -206,6 +336,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Refreshes provider models for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshProviderModelsAsync()
     {
         if (_providerModelsRefreshing)
@@ -243,6 +377,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs toggle DevExpress function picker for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task ToggleDxFunctionPickerAsync()
     {
         _dxFunctionPickerExpanded = !_dxFunctionPickerExpanded;
@@ -252,6 +390,10 @@ namespace LocalGPT.Components.Pages
         await LoadDxFunctionCatalogAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Loads DevExpress function catalog for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadDxFunctionCatalogAsync()
     {
         if (_dxFunctionsLoaded || _dxFunctionsLoading)
@@ -287,6 +429,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Handles the team changed lifecycle or event notification for <see cref="CouncilTeams"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the council teams operation and used when producing its result.</param>
     private void OnTeamChanged(ChangeEventArgs args)
     {
         var key = args.Value?.ToString() ?? string.Empty;
@@ -295,6 +441,10 @@ namespace LocalGPT.Components.Pages
             SelectTeam(team);
     }
 
+    /// <summary>
+    /// Performs select team for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="team">Team value supplied to the council teams operation and used when producing its result.</param>
     private void SelectTeam(OrganicCouncilTeamDefinition team)
     {
         _selectedKey = team.Key;
@@ -307,6 +457,9 @@ namespace LocalGPT.Components.Pages
         _confirmed = false;
     }
 
+    /// <summary>
+    /// Creates team for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
     private void CreateTeam()
     {
         _selectedKey = string.Empty;
@@ -343,6 +496,9 @@ namespace LocalGPT.Components.Pages
         _hasError = false;
     }
 
+    /// <summary>
+    /// Performs duplicate team for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
     private void DuplicateTeam()
     {
         var source = _teams.FirstOrDefault(team => team.Key == _selectedKey) ?? _teams.FirstOrDefault();
@@ -370,6 +526,9 @@ namespace LocalGPT.Components.Pages
         _hasError = false;
     }
 
+    /// <summary>
+    /// Ensures workflow roles defined for editable copy for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
     private void EnsureWorkflowRolesDefinedForEditableCopy()
     {
         foreach (var step in _editor.WorkflowSteps.Where(step => step.IsEnabled && !string.IsNullOrWhiteSpace(step.Role)))
@@ -389,6 +548,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Adds role for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
     private void AddRole() => _editor.Roles.Add(new OrganicCouncilRoleDefinition
     {
         Role = $"Role {_editor.Roles.Count + 1}",
@@ -400,6 +562,10 @@ namespace LocalGPT.Components.Pages
         HumanParticipationMode = HumanParticipationMode.None
     });
 
+    /// <summary>
+    /// Removes role for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="index">Index value supplied to the council teams operation and used when producing its result.</param>
     private void RemoveRole(int index)
     {
         if (index >= 0 && index < _editor.Roles.Count)
@@ -407,6 +573,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Applies one convenience X-Round policy without hiding any of the explicit per-step controls below it.</summary>
+    /// <param name="step">Step value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="preset">Preset value supplied to the council teams operation and used when producing its result.</param>
     private void ApplyXRoundPreset(CouncilWorkflowStepDefinition step, CouncilXRoundPreset preset)
     {
         ArgumentNullException.ThrowIfNull(step);
@@ -429,13 +597,31 @@ namespace LocalGPT.Components.Pages
     /// <summary>Lists the convenience starting points for configurable X-Round step policies.</summary>
     private enum CouncilXRoundPreset
     {
+        /// <summary>
+        /// Selects the disabled option for <see cref="CouncilXRoundPreset"/>, giving callers a named value for that supported mode or state.
+        /// </summary>
         Disabled,
+        /// <summary>
+        /// Selects the gatekeeper option for <see cref="CouncilXRoundPreset"/>, giving callers a named value for that supported mode or state.
+        /// </summary>
         Gatekeeper,
+        /// <summary>
+        /// Selects the reactive revisit option for <see cref="CouncilXRoundPreset"/>, giving callers a named value for that supported mode or state.
+        /// </summary>
         ReactiveRevisit,
+        /// <summary>
+        /// Selects the derived single model option for <see cref="CouncilXRoundPreset"/>, giving callers a named value for that supported mode or state.
+        /// </summary>
         DerivedSingleModel,
+        /// <summary>
+        /// Selects the derived council option for <see cref="CouncilXRoundPreset"/>, giving callers a named value for that supported mode or state.
+        /// </summary>
         DerivedCouncil
     }
 
+    /// <summary>
+    /// Adds workflow step for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
     private void AddWorkflowStep()
     {
         foreach (var existing in _editor.WorkflowSteps)
@@ -444,6 +630,11 @@ namespace LocalGPT.Components.Pages
         NormalizeEditorOrdering();
     }
 
+    /// <summary>
+    /// Creates workflow step for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="index">Index value supplied to the council teams operation and used when producing its result.</param>
+    /// <returns>The council workflow step definition produced by the operation.</returns>
     private CouncilWorkflowStepDefinition CreateWorkflowStep(int index) => new()
     {
         Key = $"round-{index + 1}",
@@ -468,6 +659,10 @@ namespace LocalGPT.Components.Pages
         PromptTemplate = "Contribute to {{TeamName}} as {{Role}}. Address the original request, consider the prior transcript, and state disagreements or missing information plainly.\n\nUser request:\n{{UserPrompt}}\n\nPrior transcript:\n{{Transcript}}"
     };
 
+    /// <summary>
+    /// Removes workflow step for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="index">Index value supplied to the council teams operation and used when producing its result.</param>
     private void RemoveWorkflowStep(int index)
     {
         if (index < 0 || index >= _editor.WorkflowSteps.Count)
@@ -477,6 +672,11 @@ namespace LocalGPT.Components.Pages
         NormalizeEditorOrdering();
     }
 
+    /// <summary>
+    /// Performs move workflow step for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
+    /// <param name="index">Index value supplied to the council teams operation and used when producing its result.</param>
+    /// <param name="direction">Direction value supplied to the council teams operation and used when producing its result.</param>
     private void MoveWorkflowStep(int index, int direction)
     {
         var target = index + direction;
@@ -487,12 +687,18 @@ namespace LocalGPT.Components.Pages
         NormalizeEditorOrdering();
     }
 
+    /// <summary>
+    /// Performs mark workflow custom for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
     private void MarkWorkflowCustom()
     {
         foreach (var step in _editor.WorkflowSteps)
             step.UseBuiltInBehavior = false;
     }
 
+    /// <summary>
+    /// Normalizes editor ordering for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
     private void NormalizeEditorOrdering()
     {
         foreach (var role in _editor.Roles)
@@ -565,12 +771,18 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Refreshes advanced JSON for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
     private void RefreshAdvancedJson()
     {
         _rolesJson = Serialize(_editor.Roles);
         _workflowJson = Serialize(_editor.WorkflowSteps);
     }
 
+    /// <summary>
+    /// Applies advanced JSON for <see cref="CouncilTeams"/>, keeping the operation consistent with the state and invariants of the surrounding council teams workflow.
+    /// </summary>
     private void ApplyAdvancedJson()
     {
         try

@@ -1,6 +1,6 @@
-# LocalGPT 3.1.3
+# LocalGPT 3.1.4
 
-LocalGPT 3.1.3 is the Council resilience successor to 3.1.2. It preserves durable benchmark evidence and the benchmark coverage truth guard while making configured Social Team rounds recover required member work after provider/model failure, treating explicit stop as normal cancellation, and removing the live user-message shadow-DOM flicker path.
+LocalGPT 3.1.4 is the XML documentation completeness successor to 3.1.3. It preserves Council round recovery, cancellation handling, live UI stability, durable benchmark evidence and machine-derived coverage truth while extending repository documentation enforcement to Razor code-behind, Razor `@code` members, Razor component types and enum members.
 
 ## Toolchain state
 
@@ -9,19 +9,18 @@ LocalGPT 3.1.3 is the Council resilience successor to 3.1.2. It preserves durabl
 - DevExpress: existing `25.2.*` package lane retained
 - 1-Wire protocol: `2.1.1`
 
-## Council resilience state
+## Documentation state
 
-- workflow steps persist user-editable member failure recovery mode and bounded recovery turns;
-- the existing same-member safe transport fallback remains first-line recovery;
-- eligible alternate recovery members come only from the saved Social Team role pool and prefer another AI-host road when available;
-- failed attempts remain auditable and recovery attempts are separate Council steps;
-- participant infrastructure faults no longer strand a host queue;
-- phase infrastructure faults can no longer be logged and silently discarded;
-- explicit user stop is cancellation, not a failed Council result;
-- live user messages are rendered from authoritative DxAIChat state rather than heartbeat-recreated JavaScript rows.
+- 9,865 maintained direct C# declarations pass contextual XML documentation validation;
+- 45 Razor component types have documented partial class declarations;
+- 752 direct Razor `@code` declarations pass XML documentation validation;
+- required `<typeparam>`, `<param>`, `<returns>` and `<value>` tags are checked for explanatory text, not mere presence;
+- enum members are now individually documented and audited;
+- `.razor.cs` files are no longer excluded from the documentation scanner;
+- the established repository XML documentation validation entry point now covers both C# and Razor.
 
 ## Compatibility
 
-No database migration or benchmark evidence archive schema migration is introduced. Existing 3.1.1/3.1.2 evidence remains compatible, existing Social Teams load with safe defaults for the newly persisted workflow recovery fields, and the 3.1.2 machine-derived benchmark coverage truth remains authoritative.
+No database migration, benchmark evidence schema migration, provider runtime change, Council orchestration change, or 1-Wire protocol change is introduced by 3.1.4. The new Razor companion partial classes carry documentation only and do not add runtime behavior.
 
-See `CHANGELOG-v3.1.3-COUNCIL-ROUND-RECOVERY-CANCELLATION-UI-STABILITY.md` and `VALIDATION-v3.1.3-source.md`.
+See `CHANGELOG-v3.1.4-XML-DOCUMENTATION-COMPLETENESS.md` and `VALIDATION-v3.1.4-source.md`.

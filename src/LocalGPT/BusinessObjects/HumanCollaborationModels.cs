@@ -7,8 +7,17 @@ namespace LocalGPT.BusinessObjects;
 /// </summary>
 public enum HumanCollaborationBoundary
 {
+    /// <summary>
+    /// Selects the phase option for <see cref="HumanCollaborationBoundary"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Phase,
+    /// <summary>
+    /// Selects the round option for <see cref="HumanCollaborationBoundary"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Round,
+    /// <summary>
+    /// Selects the completion option for <see cref="HumanCollaborationBoundary"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Completion
 }
 
@@ -17,8 +26,17 @@ public enum HumanCollaborationBoundary
 /// </summary>
 public enum HumanApprovalReuseScope
 {
+    /// <summary>
+    /// Selects the exact request once option for <see cref="HumanApprovalReuseScope"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     ExactRequestOnce,
+    /// <summary>
+    /// Selects the current application session option for <see cref="HumanApprovalReuseScope"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     CurrentApplicationSession,
+    /// <summary>
+    /// Selects the persistent until changed option for <see cref="HumanApprovalReuseScope"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     PersistentUntilChanged
 }
 

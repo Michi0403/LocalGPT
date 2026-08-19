@@ -65,19 +65,63 @@
 </DxPopup>
 
 @code {
+    /// <summary>
+    /// Gets or sets a value indicating whether the value is visible applies to the local path explorer state.
+    /// </summary>
+    /// <value>The visible value exposed by <see cref="LocalPathExplorer"/>.</value>
     [Parameter] public bool Visible { get; set; }
+    /// <summary>
+    /// Gets or sets the visible changed value that forms part of the local path explorer state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The visible changed value exposed by <see cref="LocalPathExplorer"/>.</value>
     [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    /// <summary>
+    /// Gets or sets the selected path used by this local path explorer instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The selected path value exposed by <see cref="LocalPathExplorer"/>.</value>
     [Parameter] public string SelectedPath { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets the selected path changed used by this local path explorer instance to locate the associated file-system resource.
+    /// </summary>
+    /// <value>The selected path changed value exposed by <see cref="LocalPathExplorer"/>.</value>
     [Parameter] public EventCallback<string> SelectedPathChanged { get; set; }
+    /// <summary>
+    /// Gets or sets the selection mode value that forms part of the local path explorer state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selection mode value exposed by <see cref="LocalPathExplorer"/>.</value>
     [Parameter] public string SelectionMode { get; set; } = "Directory";
+    /// <summary>
+    /// Gets or sets a value indicating whether files applies to the local path explorer state.
+    /// </summary>
+    /// <value>The include files value exposed by <see cref="LocalPathExplorer"/>.</value>
     [Parameter] public bool IncludeFiles { get; set; } = true;
+    /// <summary>
+    /// Gets or sets the title value that forms part of the local path explorer state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The title value exposed by <see cref="LocalPathExplorer"/>.</value>
     [Parameter] public string Title { get; set; } = "Choose a local path";
 
+    /// <summary>
+    /// Stores the internal current state used by <see cref="LocalPathExplorer"/> while executing its surrounding workflow.
+    /// </summary>
     private LocalPathBrowseResult current = new();
+    /// <summary>
+    /// Stores the internal path input state used by <see cref="LocalPathExplorer"/> while executing its surrounding workflow.
+    /// </summary>
     private string pathInput = string.Empty;
+    /// <summary>
+    /// Stores the internal loaded state used by <see cref="LocalPathExplorer"/> while executing its surrounding workflow.
+    /// </summary>
     private bool loaded;
+    /// <summary>
+    /// Gets a value indicating whether go up applies to the local path explorer state.
+    /// </summary>
+    /// <value>The can go up value exposed by <see cref="LocalPathExplorer"/>.</value>
     private bool CanGoUp => !string.IsNullOrWhiteSpace(current.ParentPath);
 
+    /// <summary>
+    /// Handles the parameters set lifecycle or event notification for <see cref="LocalPathExplorer"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnParametersSet()
     {
         if (!Visible || loaded)
@@ -86,6 +130,11 @@
         Browse(string.IsNullOrWhiteSpace(SelectedPath) ? string.Empty : SelectedPath);
     }
 
+    /// <summary>
+    /// Handles the visible changed lifecycle or event notification for <see cref="LocalPathExplorer"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="visible">Value indicating whether visible should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnVisibleChanged(bool visible)
     {
         if (!visible)
@@ -93,6 +142,10 @@
         return VisibleChanged.InvokeAsync(visible);
     }
 
+    /// <summary>
+    /// Performs browse for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
+    /// </summary>
+    /// <param name="path">Path value supplied to the local path explorer operation and used when producing its result.</param>
     private void Browse(string path)
     {
         current = PathExplorer.Browse(new LocalPathBrowseRequest
@@ -104,15 +157,32 @@
         pathInput = current.CurrentPath;
     }
 
+    /// <summary>
+    /// Performs browse for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
+    /// </summary>
+    /// <param name="path">Path value supplied to the local path explorer operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task BrowseAsync(string path)
     {
         Browse(path);
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs browse typed for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task BrowseTypedAsync() => BrowseAsync(pathInput);
+    /// <summary>
+    /// Performs go up for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task GoUpAsync() => BrowseAsync(current.ParentPath);
 
+    /// <summary>
+    /// Performs select current for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectCurrentAsync()
     {
         if (!current.Exists || !current.IsDirectory)
@@ -120,6 +190,11 @@
         await SelectAsync(current.CurrentPath).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs select for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
+    /// </summary>
+    /// <param name="path">Path value supplied to the local path explorer operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectAsync(string path)
     {
         loaded = false;
@@ -127,17 +202,32 @@
         await VisibleChanged.InvokeAsync(false).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Determines whether select for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
+    /// </summary>
+    /// <param name="entry">Entry value supplied to the local path explorer operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool CanSelect(LocalPathEntry entry) =>
         SelectionMode.Equals("File", StringComparison.OrdinalIgnoreCase)
             ? entry.EntryKind.Equals("File", StringComparison.OrdinalIgnoreCase)
             : entry.EntryKind.Equals("Directory", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Handles the path key down lifecycle or event notification for <see cref="LocalPathExplorer"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the local path explorer operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnPathKeyDown(KeyboardEventArgs args)
     {
         if (args.Key == "Enter")
             await BrowseTypedAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs short root for <see cref="LocalPathExplorer"/>, keeping the operation consistent with the state and invariants of the surrounding local path explorer workflow.
+    /// </summary>
+    /// <param name="root">Root value supplied to the local path explorer operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ShortRoot(string root)
     {
         var trimmed = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

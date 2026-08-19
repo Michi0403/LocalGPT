@@ -347,7 +347,13 @@
 </main>
 
 @code {
+    /// <summary>
+    /// Stores the internal toast name state used by <see cref="Database"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string toastName = "DatabaseToasts";
+    /// <summary>
+    /// Stores the internal review status options state used by <see cref="Database"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string[] ReviewStatusOptions =
     [
         "Current",
@@ -359,28 +365,103 @@
         "Superseded",
         "Archived"
     ];
+    /// <summary>
+    /// Stores the internal knowledge accuracy options state used by <see cref="Database"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string[] KnowledgeAccuracyOptions = ["Unrated", "Supported", "Mixed", "NeedsCorrection", "Rejected"];
+    /// <summary>
+    /// Stores the internal editor kind options state used by <see cref="Database"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string[] EditorKindOptions = ["Automatic", "Text", "LongText", "Number", "Boolean", "DateTime", "Guid", "Json", "Secret"];
+    /// <summary>
+    /// Stores the internal boolean value options state used by <see cref="Database"/> while executing its surrounding workflow.
+    /// </summary>
     readonly string[] BooleanValueOptions = ["true", "false", "1", "0", "[null]"];
 
+    /// <summary>
+    /// Gets or sets the knowledge entries collection maintained or exposed by this database instance for downstream processing.
+    /// </summary>
+    /// <value>The knowledge entries value exposed by <see cref="Database"/>.</value>
     List<CouncilKnowledgeEntry> KnowledgeEntries { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the selected knowledge entry value that forms part of the database state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected knowledge entry value exposed by <see cref="Database"/>.</value>
     CouncilKnowledgeEntry? SelectedKnowledgeEntry { get; set; }
+    /// <summary>
+    /// Gets or sets the knowledge edit value that forms part of the database state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The knowledge edit value exposed by <see cref="Database"/>.</value>
     CouncilKnowledgeEntry KnowledgeEdit { get; set; } = new();
+    /// <summary>
+    /// Gets or sets the knowledge rating edit value that forms part of the database state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The knowledge rating edit value exposed by <see cref="Database"/>.</value>
     CouncilKnowledgeUserRating KnowledgeRatingEdit { get; set; } = new();
 
+    /// <summary>
+    /// Gets or sets the tables collection maintained or exposed by this database instance for downstream processing.
+    /// </summary>
+    /// <value>The tables value exposed by <see cref="Database"/>.</value>
     List<SqliteTableSummary> Tables { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the selected table value that forms part of the database state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected table value exposed by <see cref="Database"/>.</value>
     SqliteTableSummary? SelectedTable { get; set; }
+    /// <summary>
+    /// Gets or sets the current table value that forms part of the database state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The current table value exposed by <see cref="Database"/>.</value>
     SqliteTableSnapshot? CurrentTable { get; set; }
+    /// <summary>
+    /// Gets or sets the selected row value that forms part of the database state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The selected row value exposed by <see cref="Database"/>.</value>
     SqliteRowSnapshot? SelectedRow { get; set; }
+    /// <summary>
+    /// Gets or sets the row edit values collection maintained or exposed by this database instance for downstream processing.
+    /// </summary>
+    /// <value>The row edit values value exposed by <see cref="Database"/>.</value>
     Dictionary<string, string?> RowEditValues { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Gets or sets the editor overrides collection maintained or exposed by this database instance for downstream processing.
+    /// </summary>
+    /// <value>The editor overrides value exposed by <see cref="Database"/>.</value>
     Dictionary<string, SqliteEditorFieldOverride> EditorOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Gets or sets the session editor kinds collection maintained or exposed by this database instance for downstream processing.
+    /// </summary>
+    /// <value>The session editor kinds value exposed by <see cref="Database"/>.</value>
     Dictionary<string, string> SessionEditorKinds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Gets or sets the grid rows collection maintained or exposed by this database instance for downstream processing.
+    /// </summary>
+    /// <value>The grid rows value exposed by <see cref="Database"/>.</value>
     List<ExpandoObject> GridRows { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the row limit value that forms part of the database state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The row limit value exposed by <see cref="Database"/>.</value>
     int RowLimit { get; set; } = 100;
+    /// <summary>
+    /// Stores the internal is busy state used by <see cref="Database"/> while executing its surrounding workflow.
+    /// </summary>
     bool isBusy;
+    /// <summary>
+    /// Stores the internal status text state used by <see cref="Database"/> while executing its surrounding workflow.
+    /// </summary>
     string statusText = string.Empty;
+    /// <summary>
+    /// Gets the knowledge review summary value that forms part of the database state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The knowledge review summary value exposed by <see cref="Database"/>.</value>
     string KnowledgeReviewSummary => CouncilRuntime.BuildKnowledgeReviewSummary(KnowledgeEntries,Logger);
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="Database"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnInitializedAsync()
     {
         try
@@ -396,6 +477,10 @@
         }
     }
 
+    /// <summary>
+    /// Refreshes all for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RefreshAllAsync()
     {
         try
@@ -427,6 +512,10 @@
 
     }
 
+    /// <summary>
+    /// Performs select knowledge entry for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="entry">Entry value supplied to the database operation and used when producing its result.</param>
     void SelectKnowledgeEntry(CouncilKnowledgeEntry entry)
     {
         try
@@ -448,6 +537,9 @@
         }
     }
 
+    /// <summary>
+    /// Performs new knowledge entry for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
     void NewKnowledgeEntry()
     {
         try
@@ -463,6 +555,10 @@
         }
     }
 
+    /// <summary>
+    /// Persists knowledge for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveKnowledgeAsync()
     {
         try
@@ -487,6 +583,10 @@
 
     }
 
+    /// <summary>
+    /// Deletes knowledge for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task DeleteKnowledgeAsync()
     {
         try
@@ -513,6 +613,9 @@
 
     }
 
+    /// <summary>
+    /// Performs mark knowledge current for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
     void MarkKnowledgeCurrent()
     {
         try
@@ -526,6 +629,9 @@
         }
     }
 
+    /// <summary>
+    /// Performs mark knowledge needs user review for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
     void MarkKnowledgeNeedsUserReview()
     {
         try
@@ -540,6 +646,9 @@
         }
     }
 
+    /// <summary>
+    /// Performs mark knowledge needs source refresh for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
     void MarkKnowledgeNeedsSourceRefresh()
     {
         try
@@ -554,6 +663,9 @@
 
     }
 
+    /// <summary>
+    /// Performs mark knowledge expired for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
     void MarkKnowledgeExpired()
     {
         try
@@ -568,6 +680,10 @@
 
     }
 
+    /// <summary>
+    /// Applies knowledge review preset for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="reviewStatus">Review status value supplied to the database operation and used when producing its result.</param>
     void ApplyKnowledgeReviewPreset(string reviewStatus)
     {
         try
@@ -623,6 +739,11 @@
         }
     }
 
+    /// <summary>
+    /// Performs select table for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="table">Table value supplied to the database operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SelectTableAsync(SqliteTableSummary table)
     {
         try
@@ -636,6 +757,10 @@
         }
     }
 
+    /// <summary>
+    /// Loads selected table for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task LoadSelectedTableAsync()
     {
         try
@@ -650,6 +775,11 @@
         }
     }
 
+    /// <summary>
+    /// Loads table for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="table">Table value supplied to the database operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task LoadTableAsync(SqliteTableSummary table)
     {
         try
@@ -692,6 +822,10 @@
         }
     }
 
+    /// <summary>
+    /// Performs select sqlite row for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="row">Row value supplied to the database operation and used when producing its result.</param>
     void SelectSqliteRow(SqliteRowSnapshot row)
     {
         try
@@ -710,6 +844,9 @@
 
     }
 
+    /// <summary>
+    /// Performs new sqlite row for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
     void NewSqliteRow()
     {
         try
@@ -729,6 +866,10 @@
         }
     }
 
+    /// <summary>
+    /// Persists sqlite row for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveSqliteRowAsync()
     {
         try
@@ -771,6 +912,10 @@
 
     }
 
+    /// <summary>
+    /// Deletes sqlite row for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task DeleteSqliteRowAsync()
     {
         try
@@ -794,6 +939,11 @@
 
     }
 
+    /// <summary>
+    /// Refreshes tables only for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="loadSelectedTable">Value indicating whether load selected table should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RefreshTablesOnlyAsync(bool loadSelectedTable)
     {
         try
@@ -839,6 +989,11 @@
 
     }
 
+    /// <summary>
+    /// Retrieves edit value for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="columnName">Column name value supplied to the database operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string GetEditValue(string columnName)
     {
         try
@@ -854,6 +1009,11 @@
 
     }
 
+    /// <summary>
+    /// Sets edit value for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="columnName">Column name value supplied to the database operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the database operation and used when producing its result.</param>
     void SetEditValue(string columnName, string value)
     {
         try
@@ -870,6 +1030,12 @@
 
 
 
+    /// <summary>
+    /// Retrieves editor kind for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="column">Column value supplied to the database operation and used when producing its result.</param>
+    /// <param name="value">Value value supplied to the database operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string GetEditorKind(SqliteColumnSummary column, string? value)
     {
         if (SessionEditorKinds.TryGetValue(column.Name, out var sessionKind) && !sessionKind.Equals("Automatic", StringComparison.OrdinalIgnoreCase))
@@ -879,11 +1045,21 @@
         return EditorPreferences.InferEditorKind(column, value);
     }
 
+    /// <summary>
+    /// Sets editor kind for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="column">Column value supplied to the database operation and used when producing its result.</param>
+    /// <param name="kind">Kind value supplied to the database operation and used when producing its result.</param>
     void SetEditorKind(SqliteColumnSummary column, string kind)
     {
         SessionEditorKinds[column.Name] = string.IsNullOrWhiteSpace(kind) ? "Automatic" : kind;
     }
 
+    /// <summary>
+    /// Persists editor preference for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="column">Column value supplied to the database operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveEditorPreferenceAsync(SqliteColumnSummary column)
     {
         if (CurrentTable is null)
@@ -907,6 +1083,11 @@
         Notifier.ShowSuccess(toastName, statusText, "Editor preference saved");
     }
 
+    /// <summary>
+    /// Performs to date time local value for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the database operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     string ToDateTimeLocalValue(string? value)
     {
         return DateTimeOffset.TryParse(value, out var parsed)
@@ -914,6 +1095,10 @@
             : string.Empty;
     }
 
+    /// <summary>
+    /// Persists knowledge rating for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task SaveKnowledgeRatingAsync()
     {
         if (SelectedKnowledgeEntry is null)
@@ -927,6 +1112,12 @@
         Notifier.ShowSuccess(toastName, statusText, "Knowledge rated");
     }
 
+    /// <summary>
+    /// Performs run UI action for <see cref="Database"/>, keeping the operation consistent with the state and invariants of the surrounding database workflow.
+    /// </summary>
+    /// <param name="action">Action value supplied to the database operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the database operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     async Task RunUiActionAsync(Func<Task> action, string operation)
     {
         ArgumentNullException.ThrowIfNull(action);

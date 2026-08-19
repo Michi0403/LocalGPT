@@ -92,11 +92,30 @@
 </section>
 
 @code {
+    /// <summary>
+    /// Gets or sets the model names collection maintained or exposed by this council hardware road editor instance for downstream processing.
+    /// </summary>
+    /// <value>The model names value exposed by <see cref="CouncilHardwareRoadEditor"/>.</value>
     [Parameter] public IReadOnlyCollection<string> ModelNames { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the routes collection maintained or exposed by this council hardware road editor instance for downstream processing.
+    /// </summary>
+    /// <value>The routes value exposed by <see cref="CouncilHardwareRoadEditor"/>.</value>
     [Parameter, EditorRequired] public List<OneWireCouncilModelRoute> Routes { get; set; } = [];
+    /// <summary>
+    /// Gets or sets the resource load percent value that forms part of the council hardware road editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The resource load percent value exposed by <see cref="CouncilHardwareRoadEditor"/>.</value>
     [Parameter] public int ResourceLoadPercent { get; set; } = 30;
+    /// <summary>
+    /// Gets or sets the changed value that forms part of the council hardware road editor state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The changed value exposed by <see cref="CouncilHardwareRoadEditor"/>.</value>
     [Parameter] public EventCallback Changed { get; set; }
 
+    /// <summary>
+    /// Handles the parameters set lifecycle or event notification for <see cref="CouncilHardwareRoadEditor"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnParametersSet()
     {
         var synchronized = RoadConfiguration.Synchronize(ModelNames, Routes);
@@ -105,10 +124,21 @@
         Routes.AddRange(synchronized);
     }
 
+    /// <summary>
+    /// Performs same routes for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="left">One wire council model route dependency used by the council hardware road editor workflow to provide the corresponding application capability.</param>
+    /// <param name="right">One wire council model route dependency used by the council hardware road editor workflow to provide the corresponding application capability.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool SameRoutes(IReadOnlyList<OneWireCouncilModelRoute> left, IReadOnlyList<OneWireCouncilModelRoute> right) =>
         left.Count == right.Count && left.Select(route => route.ModelName).SequenceEqual(right.Select(route => route.ModelName), StringComparer.OrdinalIgnoreCase);
 
 
+    /// <summary>
+    /// Retrieves route display name for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetRouteDisplayName(OneWireCouncilModelRoute route)
     {
         var model = string.IsNullOrWhiteSpace(route.ProviderModelName) ? route.ModelName : route.ProviderModelName;
@@ -116,6 +146,11 @@
         return $"{model} — {provider}";
     }
 
+    /// <summary>
+    /// Retrieves route endpoint label for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string GetRouteEndpointLabel(OneWireCouncilModelRoute route)
     {
         if (string.IsNullOrWhiteSpace(route.ProviderEndpoint))
@@ -123,18 +158,35 @@
         return new ProviderModelIdentity().GetEndpointLabel(route.ProviderEndpoint);
     }
 
+    /// <summary>
+    /// Normalizes and notify for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task NormalizeAndNotify(OneWireCouncilModelRoute route)
     {
         RoadConfiguration.Normalize(route);
         await Changed.InvokeAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Sets enabled for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetEnabled(OneWireCouncilModelRoute route, ChangeEventArgs args)
     {
         route.IsEnabled = args.Value is bool value && value;
         return NormalizeAndNotify(route);
     }
 
+    /// <summary>
+    /// Sets hardware kind for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetHardwareKind(OneWireCouncilModelRoute route, ChangeEventArgs args)
     {
         if (!Enum.TryParse<OneWireHardwareKind>(args.Value?.ToString(), out var kind))
@@ -178,12 +230,26 @@
         return NormalizeAndNotify(route);
     }
 
+    /// <summary>
+    /// Sets text for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="property">Property value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetText(OneWireCouncilModelRoute route, string property, ChangeEventArgs args)
     {
         if (property == nameof(route.HardwareName)) route.HardwareName = args.Value?.ToString() ?? string.Empty;
         return NormalizeAndNotify(route);
     }
 
+    /// <summary>
+    /// Sets int for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="property">Property value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetInt(OneWireCouncilModelRoute route, string property, ChangeEventArgs args)
     {
         if (!int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)) return Task.CompletedTask;
@@ -199,6 +265,13 @@
         return NormalizeAndNotify(route);
     }
 
+    /// <summary>
+    /// Sets nullable int for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="property">Property value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetNullableInt(OneWireCouncilModelRoute route, string property, ChangeEventArgs args)
     {
         var text = args.Value?.ToString();
@@ -207,6 +280,12 @@
         return NormalizeAndNotify(route);
     }
 
+    /// <summary>
+    /// Performs toggle override for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task ToggleOverride(OneWireCouncilModelRoute route, ChangeEventArgs args)
     {
         route.LoadPercentOverride = args.Value is bool value && value
@@ -215,6 +294,12 @@
         return NormalizeAndNotify(route);
     }
 
+    /// <summary>
+    /// Sets load override for <see cref="CouncilHardwareRoadEditor"/>, keeping the operation consistent with the state and invariants of the surrounding council hardware road editor workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the council hardware road editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task SetLoadOverride(OneWireCouncilModelRoute route, ChangeEventArgs args)
     {
         if (int.TryParse(args.Value?.ToString(), out var value)) route.LoadPercentOverride = RoadConfiguration.NormalizeLoadPercent(value);

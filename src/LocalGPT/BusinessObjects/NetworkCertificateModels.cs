@@ -7,8 +7,17 @@ namespace LocalGPT.BusinessObjects;
 /// </summary>
 public enum NetworkCertificateKeySize
 {
+    /// <summary>
+    /// Selects the rsa2048 option for <see cref="NetworkCertificateKeySize"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Rsa2048 = 2048,
+    /// <summary>
+    /// Selects the rsa3072 option for <see cref="NetworkCertificateKeySize"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Rsa3072 = 3072,
+    /// <summary>
+    /// Selects the rsa4096 option for <see cref="NetworkCertificateKeySize"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Rsa4096 = 4096
 }
 
@@ -17,8 +26,17 @@ public enum NetworkCertificateKeySize
 /// </summary>
 public enum NetworkCertificateHash
 {
+    /// <summary>
+    /// Selects the SHA-256 option for <see cref="NetworkCertificateHash"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Sha256,
+    /// <summary>
+    /// Selects the sha384 option for <see cref="NetworkCertificateHash"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Sha384,
+    /// <summary>
+    /// Selects the sha512 option for <see cref="NetworkCertificateHash"/>, giving callers a named value for that supported mode or state.
+    /// </summary>
     Sha512
 }
 

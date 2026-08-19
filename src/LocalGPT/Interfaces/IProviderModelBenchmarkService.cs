@@ -25,7 +25,9 @@ public interface IProviderModelBenchmarkService
         int maxCount = 20,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Loads one durable benchmark report archive by run identifier.</summary>
+    /// <summary>
+    /// Loads stored evidence as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <param name="runId">Benchmark run identifier.</param>
     /// <param name="cancellationToken">Cancellation token for local evidence loading.</param>
     /// <returns>The stored benchmark report, or null when no report archive exists.</returns>

@@ -353,7 +353,15 @@
 </main>
 
 @code {
+    /// <summary>
+    /// Gets or sets the active test lab section value that forms part of the test lab state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The active test lab section value exposed by <see cref="TestLab"/>.</value>
     private string ActiveTestLabSection { get; set; } = "frontend";
+    /// <summary>
+    /// Gets the test lab sections collection maintained or exposed by this test lab instance for downstream processing.
+    /// </summary>
+    /// <value>The test lab sections value exposed by <see cref="TestLab"/>.</value>
     private IReadOnlyList<WorkbenchNavItem> TestLabSections =>
     [
         new("frontend", Localization.Get("TestLab.Workbench.Nav.Frontend", fallback: "Frontend smoke"), "Local API health and diagnostics"),
@@ -364,6 +372,11 @@
         new("result", Localization.Get("TestLab.Workbench.Nav.Result", fallback: "Result"), "Current operation output")
     ];
 
+    /// <summary>
+    /// Handles the test lab section changed lifecycle or event notification for <see cref="TestLab"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="key">Key value supplied to the test lab operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnTestLabSectionChanged(string key)
     {
         ActiveTestLabSection = key;
@@ -371,52 +384,183 @@
     }
 
 
+    /// <summary>
+    /// Stores the internal toast name state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     string toastName = "TestLabToasts";
+    /// <summary>
+    /// Stores the internal is busy state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private bool isBusy;
+    /// <summary>
+    /// Stores the internal status text state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string statusText = "Ready.";
+    /// <summary>
+    /// Stores the internal result text state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string resultText = "Run a local diagnostic route to see JSON here.";
+    /// <summary>
+    /// Stores the internal custom route state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string customRoute = "/__diag/benchmark/engineering?taskSet=replacement&validateBuildableArtifacts=true&maxBuildArtifacts=4";
+    /// <summary>
+    /// Stores the internal learn base root state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string learnBaseRoot = string.Empty;
+    /// <summary>
+    /// Stores the internal max projects state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private int maxProjects = 1;
+    /// <summary>
+    /// Stores the internal save to knowledge state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private bool saveToKnowledge = true;
+    /// <summary>
+    /// Stores the in-memory selected learn base extensions collection maintained internally by <see cref="TestLab"/> for its current workflow state.
+    /// </summary>
     private readonly HashSet<string> selectedLearnBaseExtensions = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Stores the internal learn base additional extensions state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string learnBaseAdditionalExtensions = string.Empty;
+    /// <summary>
+    /// Stores the internal learn base include regex state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string learnBaseIncludeRegex = string.Empty;
+    /// <summary>
+    /// Stores the internal learn base exclude regex state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string learnBaseExcludeRegex = string.Empty;
+    /// <summary>
+    /// Stores the internal learn base maximum file bytes state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private int learnBaseMaximumFileBytes = 1_048_576;
+    /// <summary>
+    /// Stores the internal learn base import manifests state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private bool learnBaseImportManifests = true;
+    /// <summary>
+    /// Stores the internal learn base import documentation state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private bool learnBaseImportDocumentation = true;
+    /// <summary>
+    /// Stores the internal learn base import projects state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private bool learnBaseImportProjects = true;
+    /// <summary>
+    /// Stores the internal remote source URL state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string remoteSourceUrl = "https://github.com/id-Software/DOOM";
+    /// <summary>
+    /// Stores the internal remote source kind state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string remoteSourceKind = "Auto";
+    /// <summary>
+    /// Stores the internal remote branch state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string remoteBranch = "main";
+    /// <summary>
+    /// Stores the internal remote file regex state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string remoteFileRegex = @"(?i)\.(cs|razor|csproj|sln|json|xml|md|txt|ps1|cmd|sh|py|js|ts|tsx|css|html|php|c|h|cpp|hpp|java|kt|go|rs|sql|yml|yaml)$";
+    /// <summary>
+    /// Stores the internal remote max files state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private int remoteMaxFiles = 5000;
+    /// <summary>
+    /// Stores the internal remote save to knowledge state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private bool remoteSaveToKnowledge = true;
+    /// <summary>
+    /// Stores the internal remote import approved state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private bool remoteImportApproved;
+    /// <summary>
+    /// Stores the internal remote role keys state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string remoteRoleKeys = "Map Architect; ASCII Frame Renderer";
+    /// <summary>
+    /// Stores the internal remote selected role key state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string remoteSelectedRoleKey = string.Empty;
+    /// <summary>
+    /// Stores the in-memory available remote role keys collection maintained internally by <see cref="TestLab"/> for its current workflow state.
+    /// </summary>
     private List<string> availableRemoteRoleKeys = [];
+    /// <summary>
+    /// Stores the internal remote topics state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string remoteTopics = "open-source game architecture; runtime classes";
+    /// <summary>
+    /// Stores the internal remote import result state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private RemoteKnowledgeImportResult? remoteImportResult;
+    /// <summary>
+    /// Stores the internal selected learn base preset state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private LearnBasePreset selectedLearnBasePreset = default!;
+    /// <summary>
+    /// Stores the internal selected scan profile state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private LearnBaseScanProfile selectedScanProfile = default!;
+    /// <summary>
+    /// Stores the in-memory download links collection maintained internally by <see cref="TestLab"/> for its current workflow state.
+    /// </summary>
     private List<TestLabDownloadLink> downloadLinks = [];
+    /// <summary>
+    /// Stores the in-memory artifact workspaces collection maintained internally by <see cref="TestLab"/> for its current workflow state.
+    /// </summary>
     private List<ArtifactWorkspaceSummary> artifactWorkspaces = [];
+    /// <summary>
+    /// Stores the in-memory artifact workspace files collection maintained internally by <see cref="TestLab"/> for its current workflow state.
+    /// </summary>
     private List<ArtifactWorkspaceFileSummary> artifactWorkspaceFiles = [];
+    /// <summary>
+    /// Stores the internal selected artifact workspace state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private ArtifactWorkspaceSummary? selectedArtifactWorkspace;
+    /// <summary>
+    /// Stores the internal artifact base URL state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string artifactBaseUrl = string.Empty;
+    /// <summary>
+    /// Stores the internal learn base path explorer visible state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private bool learnBasePathExplorerVisible;
+    /// <summary>
+    /// Stores the internal source popup visible state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private bool sourcePopupVisible;
+    /// <summary>
+    /// Stores the internal open source relative path state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string openSourceRelativePath = string.Empty;
+    /// <summary>
+    /// Stores the internal open source content state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string openSourceContent = string.Empty;
+    /// <summary>
+    /// Stores the internal open source preview markup state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private string openSourcePreviewMarkup = string.Empty;
+    /// <summary>
+    /// Gets the source popup title value that forms part of the test lab state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The source popup title value exposed by <see cref="TestLab"/>.</value>
     private string SourcePopupTitle => string.IsNullOrWhiteSpace(openSourceRelativePath)
         ? "Generated Source"
         : $"Generated Source - {openSourceRelativePath}";
 
+    /// <summary>
+    /// Stores the internal initial role catalog load started state used by <see cref="TestLab"/> while executing its surrounding workflow.
+    /// </summary>
     private bool initialRoleCatalogLoadStarted;
 
+    /// <summary>
+    /// Handles the initialized async lifecycle or event notification for <see cref="TestLab"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnInitializedAsync()
     {
         ApplyRequestedTestLabSection();
@@ -430,6 +574,11 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Handles the after render async lifecycle or event notification for <see cref="TestLab"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !initialRoleCatalogLoadStarted)
@@ -441,6 +590,11 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Performs preload remote role catalog for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task PreloadRemoteRoleCatalogAsync(CancellationToken cancellationToken)
     {
         try
@@ -470,6 +624,9 @@
     }
 
 
+    /// <summary>
+    /// Applies requested test lab section for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
     private void ApplyRequestedTestLabSection()
     {
         try
@@ -492,6 +649,10 @@
         }
     }
 
+    /// <summary>
+    /// Performs run custom route for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task RunCustomRouteAsync()
     {
         try
@@ -516,12 +677,20 @@
 
     }
 
+    /// <summary>
+    /// Previews remote knowledge for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task PreviewRemoteKnowledgeAsync()
     {
         remoteImportApproved = false;
         return RunRemoteKnowledgeAsync(previewOnly: true);
     }
 
+    /// <summary>
+    /// Imports remote knowledge for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task ImportRemoteKnowledgeAsync()
     {
         if (!remoteImportApproved || remoteImportResult is null)
@@ -532,6 +701,11 @@
         return RunRemoteKnowledgeAsync(previewOnly: false);
     }
 
+    /// <summary>
+    /// Performs run remote knowledge for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="previewOnly">Value indicating whether preview only should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunRemoteKnowledgeAsync(bool previewOnly) => await RunUiActionAsync(async () =>
     {
         statusText = previewOnly ? "Inspecting remote source and returned files..." : "Importing reviewed remote source...";
@@ -556,12 +730,19 @@
     }, previewOnly ? "PreviewRemoteKnowledge" : "ImportRemoteKnowledge").ConfigureAwait(false);
 
 
+    /// <summary>
+    /// Performs reset remote approval for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
     private void ResetRemoteApproval()
     {
         remoteImportApproved = false;
         remoteImportResult = null;
     }
 
+    /// <summary>
+    /// Performs select remote source preset for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="key">Key value supplied to the test lab operation and used when producing its result.</param>
     private void SelectRemoteSourcePreset(string key)
     {
         (remoteSourceUrl, remoteSourceKind, remoteBranch, remoteRoleKeys, remoteTopics) = key switch
@@ -574,6 +755,10 @@
         ResetRemoteApproval();
     }
 
+    /// <summary>
+    /// Performs run learn base import for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunLearnBaseImportAsync() => await RunUiActionAsync(async () =>
     {
         statusText = "Importing the selected LearnBase source profile...";
@@ -595,6 +780,9 @@
         statusText = $"Imported {result.ProjectCount} compact project/corpus summaries; {result.SavedKnowledgeCount} knowledge entries saved.";
     }, "RunLearnBaseImportAsync").ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs select all learn base extensions for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
     private void SelectAllLearnBaseExtensions()
     {
         selectedLearnBaseExtensions.Clear();
@@ -602,8 +790,16 @@
             selectedLearnBaseExtensions.Add(extension);
     }
 
+    /// <summary>
+    /// Performs clear learn base extensions for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
     private void ClearLearnBaseExtensions() => selectedLearnBaseExtensions.Clear();
 
+    /// <summary>
+    /// Performs toggle learn base extension for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="extension">Extension value supplied to the test lab operation and used when producing its result.</param>
+    /// <param name="args">Args value supplied to the test lab operation and used when producing its result.</param>
     private void ToggleLearnBaseExtension(string extension, ChangeEventArgs args)
     {
         if (args.Value is true || (bool.TryParse(args.Value?.ToString(), out var selected) && selected))
@@ -612,6 +808,10 @@
             selectedLearnBaseExtensions.Remove(extension);
     }
 
+    /// <summary>
+    /// Performs select learn base preset for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="preset">Preset value supplied to the test lab operation and used when producing its result.</param>
     private void SelectLearnBasePreset(LearnBasePreset preset)
     {
         try
@@ -632,6 +832,10 @@
         }
     }
 
+    /// <summary>
+    /// Performs select learn base scan profile for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="profile">Profile value supplied to the test lab operation and used when producing its result.</param>
     private void SelectLearnBaseScanProfile(LearnBaseScanProfile profile)
     {
         try
@@ -648,6 +852,11 @@
 
     }
 
+    /// <summary>
+    /// Performs run route for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the test lab operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunRouteAsync(string route)
     {
         try
@@ -694,6 +903,10 @@
 
     }
 
+    /// <summary>
+    /// Loads artifact workspaces for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadArtifactWorkspacesAsync()
     {
         try
@@ -722,6 +935,11 @@
 
     }
 
+    /// <summary>
+    /// Performs select artifact workspace for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="workspace">Workspace value supplied to the test lab operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectArtifactWorkspaceAsync(ArtifactWorkspaceSummary workspace)
     {
         try
@@ -738,6 +956,10 @@
 
     }
 
+    /// <summary>
+    /// Loads selected workspace files for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task LoadSelectedWorkspaceFilesAsync()
     {
         try
@@ -760,6 +982,11 @@
 
     }
 
+    /// <summary>
+    /// Opens workspace file for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="file">File value supplied to the test lab operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OpenWorkspaceFileAsync(ArtifactWorkspaceFileSummary file)
     {
         try
@@ -788,6 +1015,10 @@
 
     }
 
+    /// <summary>
+    /// Persists workspace file for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SaveWorkspaceFileAsync()
     {
         try
@@ -820,6 +1051,10 @@
 
     }
 
+    /// <summary>
+    /// Refreshes workspace ZIP for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshWorkspaceZipAsync()
     {
         try
@@ -850,6 +1085,11 @@
 
     }
 
+    /// <summary>
+    /// Attempts to refresh artifact workspaces after route for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="responseText">Response text value supplied to the test lab operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task TryRefreshArtifactWorkspacesAfterRouteAsync(string responseText)
     {
         try
@@ -878,6 +1118,11 @@
 
     }
 
+    /// <summary>
+    /// Performs show blocked route for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the test lab operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task ShowBlockedRouteAsync(string route)
     {
         try
@@ -899,6 +1144,11 @@
 
 
 
+    /// <summary>
+    /// Performs extract download links for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="text">Text value supplied to the test lab operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<TestLabDownloadLink> ExtractDownloadLinks(string text)
     {
         try
@@ -937,6 +1187,12 @@
     }
 
 
+    /// <summary>
+    /// Performs run UI action for <see cref="TestLab"/>, keeping the operation consistent with the state and invariants of the surrounding test lab workflow.
+    /// </summary>
+    /// <param name="action">Action value supplied to the test lab operation and used when producing its result.</param>
+    /// <param name="operation">Operation value supplied to the test lab operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunUiActionAsync(Func<Task> action, string operation)
     {
         ArgumentNullException.ThrowIfNull(action);

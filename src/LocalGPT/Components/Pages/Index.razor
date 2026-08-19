@@ -137,10 +137,27 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Stores the internal onboarding state used by <see cref="Index"/> while executing its surrounding workflow.
+    /// </summary>
     private FirstRunOnboardingStatus? _onboarding;
 
+    /// <summary>
+    /// Performs t for <see cref="Index"/>, keeping the operation consistent with the state and invariants of the surrounding index workflow.
+    /// </summary>
+    /// <param name="source">Source value supplied to the index operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string T(string source) => Localization.GetText(source);
+    /// <summary>
+    /// Performs l for <see cref="Index"/>, keeping the operation consistent with the state and invariants of the surrounding index workflow.
+    /// </summary>
+    /// <param name="key">Key value supplied to the index operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the index operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string L(string key, string fallback) => Localization.Get(key, fallback: fallback);
+    /// <summary>
+    /// Stores the internal onboarding busy state used by <see cref="Index"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _onboardingBusy = true;
 
     /// <summary>
@@ -189,6 +206,10 @@
         }
     }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether toggled sidebar applies to the index state.
+    /// </summary>
+    /// <value>The toggled sidebar value exposed by <see cref="Index"/>.</value>
     [SupplyParameterFromQuery(Name = NavigationUrlService.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }
 }

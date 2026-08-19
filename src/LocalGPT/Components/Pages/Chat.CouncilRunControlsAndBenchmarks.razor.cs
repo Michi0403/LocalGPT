@@ -33,9 +33,16 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace LocalGPT.Components.Pages
 {
+    /// <summary>
+    /// Renders the chat Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     public partial class Chat
     {
 
+    /// <summary>
+    /// Handles the hardware roads changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnHardwareRoadsChanged()
     {
         if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
@@ -60,6 +67,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Updates the Council provider timeout without changing other saved or running sessions.</summary>
+    /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilModelTimeoutChangedAsync(int value)
     {
         value = Math.Clamp(value, 30, 1800);
@@ -86,6 +95,8 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Updates the visible per-host Council concurrency ceiling while keeping per-road lane limits independently configurable.</summary>
+    /// <param name="value">Value value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilMaxParallelModelsChangedAsync(int value)
     {
         value = Math.Max(1, value);
@@ -114,6 +125,8 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Applies the simple host/road scheduling choice without requiring the advanced per-model road editor.
     /// </summary>
+    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilSchedulingModeChanged(ChangeEventArgs args)
     {
         try
@@ -149,6 +162,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Handles the council resource load changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnCouncilResourceLoadChanged(ChangeEventArgs args)
     {
         if (!int.TryParse(args.Value?.ToString(), out var value))
@@ -173,6 +191,10 @@ namespace LocalGPT.Components.Pages
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Applies council run configuration snapshot for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="snapshot">Snapshot value supplied to the chat operation and used when producing its result.</param>
     private void ApplyCouncilRunConfigurationSnapshot(CouncilRunConfigurationSnapshot snapshot)
     {
         ActiveCouncilConfigurationRunId = snapshot.RunId;
@@ -188,6 +210,10 @@ namespace LocalGPT.Components.Pages
         ActiveCouncilModelTimeoutSeconds = Math.Clamp(snapshot.ModelTimeoutSeconds, 30, 1800);
     }
 
+    /// <summary>
+    /// Loads council run configuration for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
     private void LoadCouncilRunConfiguration(Guid? runId)
     {
         if (runId is not Guid activeRunId)
@@ -235,6 +261,10 @@ namespace LocalGPT.Components.Pages
         ApplyCouncilRunConfigurationSnapshot(snapshot);
     }
 
+    /// <summary>
+    /// Handles the council run configuration changed lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="runId">Identifier of the run to use for this operation.</param>
     private void OnCouncilRunConfigurationChanged(Guid runId)
     {
         if (isDisposed || SelectedCouncilRunId != runId)
@@ -258,6 +288,9 @@ namespace LocalGPT.Components.Pages
     }
 
 
+    /// <summary>
+    /// Performs synchronize selected council routes for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void SynchronizeSelectedCouncilRoutes()
     {
         try
@@ -292,6 +325,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Creates provider qualified council routes for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <returns>The collection produced by the operation.</returns>
     private List<OneWireCouncilModelRoute> CreateProviderQualifiedCouncilRoutes()
     {
         var routes = CouncilModelRoutes.Select(CloneRoute).ToList();
@@ -312,6 +349,11 @@ namespace LocalGPT.Components.Pages
         return routes;
     }
 
+    /// <summary>
+    /// Performs clone route for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="route">Route value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>The one wire council model route produced by the operation.</returns>
     private OneWireCouncilModelRoute CloneRoute(OneWireCouncilModelRoute route) => new()
     {
         ModelName = route.ModelName,
@@ -336,6 +378,11 @@ namespace LocalGPT.Components.Pages
         MaxConcurrentModelsOnLane = route.MaxConcurrentModelsOnLane
     };
 
+    /// <summary>
+    /// Sets council host selection for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="host">Host value supplied to the chat operation and used when producing its result.</param>
+    /// <param name="isSelected">Value indicating whether is selected should apply to this operation.</param>
     private void SetCouncilHostSelection(CouncilProviderHostGroup host, bool isSelected)
     {
         try
@@ -363,6 +410,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs toggle council model for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="selectionKey">Selection key value supplied to the chat operation and used when producing its result.</param>
+    /// <param name="isChecked">Value indicating whether is checked should apply to this operation.</param>
     private void ToggleCouncilModel(string selectionKey, bool isChecked)
     {
         try
@@ -388,6 +440,10 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Removes unavailable council selection for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="selectionKey">Selection key value supplied to the chat operation and used when producing its result.</param>
     private void RemoveUnavailableCouncilSelection(string selectionKey)
     {
         try
@@ -406,6 +462,9 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Removes all unavailable council selections for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
     private void RemoveAllUnavailableCouncilSelections()
     {
         try
@@ -425,6 +484,12 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Performs reconcile available provider selection keys for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="values">String dependency used by the chat workflow to provide the corresponding application capability.</param>
+    /// <param name="selectionScope">Selection scope value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> ReconcileAvailableProviderSelectionKeys(IEnumerable<string> values, string selectionScope)
     {
         try
@@ -483,6 +548,11 @@ namespace LocalGPT.Components.Pages
         }
     }
 
+    /// <summary>
+    /// Normalizes provider selection keys for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="values">String dependency used by the chat workflow to provide the corresponding application capability.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private List<string> NormalizeProviderSelectionKeys(IEnumerable<string> values)
     {
         var normalized = new List<string>();
@@ -508,6 +578,11 @@ namespace LocalGPT.Components.Pages
         return normalized;
     }
 
+    /// <summary>
+    /// Performs select provider model from panel for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="model">Model value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task SelectProviderModelFromPanelAsync(ProviderModelReference model)
     {
         if (ChatClientProvider is null)
@@ -523,12 +598,22 @@ namespace LocalGPT.Components.Pages
         modelStatus = $"Using {model.SelectionKey} in Chat.";
     }
 
+    /// <summary>
+    /// Handles the benchmark performance preset saved async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="preset">Preset value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnBenchmarkPerformancePresetSavedAsync(HardwarePerformancePreset preset)
     {
         await LoadHardwarePerformancePresetsAsync(componentLifetimeCts.Token).ConfigureAwait(false);
         modelStatus = $"Benchmark saved hardware performance preset '{preset.Name}'. Select it in Hardware spooler to apply it without changing Council membership.";
     }
 
+    /// <summary>
+    /// Handles the chat benchmark applied async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="applied">Applied value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnChatBenchmarkAppliedAsync(ProviderModelBenchmarkAppliedEvent applied)
     {
         if (!SelectedCouncilModelNames.Contains(applied.Model.SelectionKey, StringComparer.OrdinalIgnoreCase))
@@ -541,6 +626,11 @@ namespace LocalGPT.Components.Pages
         modelStatus = $"Applied benchmark recommendation for {applied.Model.SelectionKey} as preset {applied.Preset.Name}.";
     }
 
+    /// <summary>
+    /// Handles the chat benchmark council applied async lifecycle or event notification for <see cref="Chat"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="applied">Applied value supplied to the chat operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task OnChatBenchmarkCouncilAppliedAsync(ProviderModelBenchmarkBatchAppliedEvent applied)
     {
         foreach (var model in applied.Models)

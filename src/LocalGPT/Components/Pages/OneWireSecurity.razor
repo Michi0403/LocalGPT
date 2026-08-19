@@ -218,9 +218,23 @@
 </main>
 
 @code {
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    /// <summary>
+    /// Stores the cancellation source used by <see cref="OneWireSecurity"/> to stop its current background or asynchronous operation.
+    /// </summary>
     private readonly CancellationTokenSource lifetimeCts = new();
+    /// <summary>
+    /// Gets or sets the active one wire section value that forms part of the one wire security state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The active one wire section value exposed by <see cref="OneWireSecurity"/>.</value>
     private string ActiveOneWireSection { get; set; } = "identity";
+    /// <summary>
+    /// Gets the one wire sections collection maintained or exposed by this one wire security instance for downstream processing.
+    /// </summary>
+    /// <value>The one wire sections value exposed by <see cref="OneWireSecurity"/>.</value>
     private IReadOnlyList<WorkbenchNavItem> OneWireSections =>
     [
         new("identity", "Identity", "Create, rotate and inspect the local runtime identity.", _status.HasSecret ? "ready" : "new"),
@@ -228,20 +242,64 @@
         new("pairing", "Pairing & trust", "Generate QR material and establish encrypted remote trust."),
         new("peers", "Trusted peers", "Review and revoke stored peer trust.", _trustedPeers.Count.ToString())
     ];
+    /// <summary>
+    /// Stores the internal status state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private OneWireRuntimeSecurityStatus _status = new();
+    /// <summary>
+    /// Stores the in-memory trusted peers collection maintained internally by <see cref="OneWireSecurity"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<OneWireTrustedPeerDescriptor> _trustedPeers = [];
+    /// <summary>
+    /// Stores the in-memory local capabilities collection maintained internally by <see cref="OneWireSecurity"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<OneWireCapabilityDescriptor> _localCapabilities = [];
+    /// <summary>
+    /// Stores the in-memory advertised peers collection maintained internally by <see cref="OneWireSecurity"/> for its current workflow state.
+    /// </summary>
     private IReadOnlyList<OneWirePeerAdvertisement> _advertisedPeers = [];
+    /// <summary>
+    /// Stores the internal otp URI state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private string _otpUri = string.Empty;
+    /// <summary>
+    /// Stores the internal pairing ticket JSON state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private string _pairingTicketJson = string.Empty;
+    /// <summary>
+    /// Stores the internal remote ticket JSON state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private string _remoteTicketJson = string.Empty;
+    /// <summary>
+    /// Stores the internal MFA code state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private string _mfaCode = string.Empty;
+    /// <summary>
+    /// Stores the internal valid for minutes state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private int _validForMinutes = 1440;
+    /// <summary>
+    /// Stores the internal allow reset state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _allowReset;
+    /// <summary>
+    /// Stores the internal render QR state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _renderQr;
+    /// <summary>
+    /// Stores the internal initialization started state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private bool initializationStarted;
+    /// <summary>
+    /// Stores the internal is disposed state used by <see cref="OneWireSecurity"/> while executing its surrounding workflow.
+    /// </summary>
     private bool isDisposed;
 
+    /// <summary>
+    /// Handles the one wire section changed async lifecycle or event notification for <see cref="OneWireSecurity"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="key">Key value supplied to the one wire security operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OnOneWireSectionChangedAsync(string key)
     {
         ActiveOneWireSection = key;
@@ -254,17 +312,29 @@
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Opens identity section for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OpenIdentitySectionAsync()
     {
         ActiveOneWireSection = "identity";
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Handles the initialized lifecycle or event notification for <see cref="OneWireSecurity"/>, updating the state required by the surrounding workflow.
+    /// </summary>
     protected override void OnInitialized()
     {
         ComponentActivity.RecordInformation(nameof(OneWireSecurity), nameof(OnInitialized), "The 1-Wire Security page rendered its interactive shell; runtime state will load after the first render.");
     }
 
+    /// <summary>
+    /// Handles the after render async lifecycle or event notification for <see cref="OneWireSecurity"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !initializationStarted && !isDisposed)
@@ -311,6 +381,11 @@
         }
     }
 
+    /// <summary>
+    /// Performs initialize after render for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task InitializeAfterRenderAsync(CancellationToken cancellationToken)
     {
         try
@@ -366,6 +441,11 @@
         }
     }
 
+    /// <summary>
+    /// Loads security state for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<(OneWireRuntimeSecurityStatus Status, IReadOnlyList<OneWireTrustedPeerDescriptor> TrustedPeers, IReadOnlyList<OneWireCapabilityDescriptor> LocalCapabilities, IReadOnlyList<OneWirePeerAdvertisement> AdvertisedPeers)> LoadSecurityStateAsync(CancellationToken cancellationToken)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -377,6 +457,11 @@
         return (status, trustedPeers, localCapabilities, advertisedPeers);
     }
 
+    /// <summary>
+    /// Performs refresh for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         var state = await LoadSecurityStateAsync(cancellationToken).ConfigureAwait(false);
@@ -390,12 +475,20 @@
         }).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Performs create for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CreateAsync() => await RunAsync(async cancellationToken =>
     {
         await Security.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
         Notifier.ShowSuccess("OneWireSecurityToasts", "Runtime 1-Wire identity created.", "1-Wire Security");
     }, "CreateIdentity", "Could not create the runtime 1-Wire identity.").ConfigureAwait(false);
 
+    /// <summary>
+    /// Creates pairing material for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task CreatePairingMaterialAsync() => await RunAsync(async cancellationToken =>
     {
         await Security.EnsureCreatedAsync(cancellationToken).ConfigureAwait(false);
@@ -407,6 +500,10 @@
         Notifier.ShowSuccess("OneWireSecurityToasts", "Authenticator enrollment and public pairing material created.", "1-Wire Security");
     }, "CreatePairingMaterial", "Could not create 1-Wire pairing material.").ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs regenerate for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RegenerateAsync() => await RunAsync(async cancellationToken =>
     {
         if (!_allowReset)
@@ -416,6 +513,10 @@
         Notifier.ShowWarning("OneWireSecurityToasts", "The LocalGPT runtime identity was regenerated. Previous encrypted trust is invalid.", "1-Wire trust reset");
     }, "RegenerateIdentity", "Could not regenerate the runtime 1-Wire identity.").ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs delete for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task DeleteAsync() => await RunAsync(async cancellationToken =>
     {
         if (!_allowReset)
@@ -425,6 +526,10 @@
         Notifier.ShowWarning("OneWireSecurityToasts", "The LocalGPT runtime identity and local trust bindings were deleted.", "1-Wire trust reset");
     }, "DeleteIdentity", "Could not delete the runtime 1-Wire identity.").ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs establish trust for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task EstablishTrustAsync() => await RunAsync(async cancellationToken =>
     {
         var ticket = JsonSerializer.Deserialize<OneWirePairingTicket>(_remoteTicketJson, JsonOptions)
@@ -444,12 +549,24 @@
         Notifier.ShowSuccess("OneWireSecurityToasts", $"Trusted {ticket.DisplayName} for the selected validity period.", "1-Wire trust");
     }, "EstablishTrust", "Could not establish trust for the remote 1-Wire peer.").ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs revoke for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <param name="peerId">Identifier of the peer to use for this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RevokeAsync(string peerId) => await RunAsync(async cancellationToken =>
     {
         await Security.RevokeTrustAsync(peerId, cancellationToken).ConfigureAwait(false);
         Notifier.ShowWarning("OneWireSecurityToasts", $"Trust for {peerId} was revoked.", "1-Wire trust");
     }, "RevokeTrust", "Could not revoke the selected 1-Wire trust binding.").ConfigureAwait(false);
 
+    /// <summary>
+    /// Performs run for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
+    /// <param name="action">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="operation">Operation value supplied to the one wire security operation and used when producing its result.</param>
+    /// <param name="message">Message value supplied to the one wire security operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private async Task RunAsync(Func<CancellationToken, Task> action, string operation, string message)
     {
         ArgumentNullException.ThrowIfNull(action);
@@ -479,6 +596,10 @@
         }
     }
 
+    /// <summary>
+    /// Gets the OCR capability status value that forms part of the one wire security state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The OCR capability status value exposed by <see cref="OneWireSecurity"/>.</value>
     private string OcrCapabilityStatus
     {
         get
@@ -494,6 +615,9 @@
         }
     }
 
+    /// <summary>
+    /// Performs clear material for <see cref="OneWireSecurity"/>, keeping the operation consistent with the state and invariants of the surrounding one wire security workflow.
+    /// </summary>
     private void ClearMaterial()
     {
         _otpUri = string.Empty;
@@ -502,6 +626,9 @@
         _renderQr = false;
     }
 
+    /// <summary>
+    /// Releases resources owned by <see cref="OneWireSecurity"/> and leaves the one wire security workflow in a safely disposed state.
+    /// </summary>
     public void Dispose()
     {
         if (isDisposed)

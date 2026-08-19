@@ -6,9 +6,20 @@
 @inject IComponentActivityService ComponentActivity
 
 @code {
+    /// <summary>
+    /// Stores the internal diagnostics reference state used by <see cref="InteractiveStartupMarker"/> while executing its surrounding workflow.
+    /// </summary>
     private DotNetObjectReference<InteractiveStartupMarker>? _diagnosticsReference;
+    /// <summary>
+    /// Stores the internal disposed state used by <see cref="InteractiveStartupMarker"/> while executing its surrounding workflow.
+    /// </summary>
     private bool _disposed;
 
+    /// <summary>
+    /// Handles the after render async lifecycle or event notification for <see cref="InteractiveStartupMarker"/>, updating the state required by the surrounding workflow.
+    /// </summary>
+    /// <param name="firstRender">Value indicating whether first render should apply to this operation.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         try
@@ -38,6 +49,13 @@
         }
     }
 
+    /// <summary>
+    /// Performs report java script error for <see cref="InteractiveStartupMarker"/>, keeping the operation consistent with the state and invariants of the surrounding interactive startup marker workflow.
+    /// </summary>
+    /// <param name="context">Context value supplied to the interactive startup marker operation and used when producing its result.</param>
+    /// <param name="message">Message value supplied to the interactive startup marker operation and used when producing its result.</param>
+    /// <param name="stack">Stack value supplied to the interactive startup marker operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
     [JSInvokable]
     public Task ReportJavaScriptErrorAsync(string context, string message, string stack)
     {
@@ -54,6 +72,9 @@
         }
     }
 
+    /// <summary>
+    /// Releases resources owned by <see cref="InteractiveStartupMarker"/> and leaves the interactive startup marker workflow in a safely disposed state.
+    /// </summary>
     public void Dispose()
     {
         try
