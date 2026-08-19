@@ -155,6 +155,14 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>
+    /// Applies a hardware performance preset selected from the compact prompt-line DevExpress selector by delegating to the same service-backed path used by Chat configuration.
+    /// </summary>
+    /// <param name="preset">Service-backed preset selected by the user, or <see langword="null"/> when no preset is selected.</param>
+    /// <returns>A task that completes after the shared hardware-preset application path has finished.</returns>
+    private Task OnQuickHardwarePerformancePresetChangedAsync(HardwarePerformancePreset? preset) =>
+        OnHardwarePerformancePresetChangedAsync(new ChangeEventArgs { Value = preset?.Id.ToString() ?? string.Empty });
+
+    /// <summary>
     /// Persists hardware performance preset for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
     /// <returns>A task that completes when the operation has finished.</returns>
@@ -223,14 +231,46 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>
-    /// Loads model presets for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// Refreshes the service-backed Council model-preset list without reapplying defaults or replacing the current manual Council preparation.
     /// </summary>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task LoadModelPresetsAsync()
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous refresh.</param>
+    /// <returns>A task that completes after the latest model-preset rows have been loaded.</returns>
+    private async Task RefreshModelPresetItemsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            ModelPresets = (await ModelPresetService.GetPresetsAsync().ConfigureAwait(false)).ToList();
+            var selectedId = SelectedModelPreset?.Id;
+            ModelPresets = (await ModelPresetService
+                .GetPresetsAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false)).ToList();
+            SelectedModelPreset = selectedId is Guid id
+                ? ModelPresets.FirstOrDefault(item => item.Id == id)
+                : null;
+            if (SelectedModelPreset is not null)
+                ModelPresetName = SelectedModelPreset.Name;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+        {
+            Logger.LogDebug("Council model preset refresh was cancelled during Chat teardown.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not refresh Council model presets from the model preset service.");
+            ComponentActivity.RecordWarning(nameof(Chat), "RefreshModelPresetItems", "Council model presets could not be refreshed; the current in-memory selection remains available.");
+        }
+    }
+
+    /// <summary>
+    /// Loads model presets for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous preset load.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    private async Task LoadModelPresetsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ModelPresets = (await ModelPresetService.GetPresetsAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).ToList();
             var requestedPreset = string.IsNullOrWhiteSpace(RequestedModelPresetName)
                 ? null
                 : ModelPresets.FirstOrDefault(item => string.Equals(item.Name, RequestedModelPresetName.Trim(), StringComparison.OrdinalIgnoreCase));
@@ -253,6 +293,10 @@ namespace LocalGPT.Components.Pages
                         ApplyModelPreset(defaultPreset);
                 }
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+        {
+            Logger.LogDebug("Council model preset load was cancelled during Chat teardown.");
         }
         catch (Exception ex)
         {
@@ -289,6 +333,14 @@ namespace LocalGPT.Components.Pages
             Notifier.ShowError(toastName, "The model preset could not be applied. See local logs.", "Preset failed");
         }
     }
+
+    /// <summary>
+    /// Applies a Council model preset selected from the compact prompt-line DevExpress selector through the same path used by Chat configuration.
+    /// </summary>
+    /// <param name="preset">Service-backed Council model preset selected by the user, or <see langword="null"/> when no preset is selected.</param>
+    /// <returns>A task that completes after the shared model-preset application path has finished.</returns>
+    private Task OnQuickModelPresetChangedAsync(CouncilModelPreset? preset) =>
+        OnModelPresetChangedAsync(new ChangeEventArgs { Value = preset?.Id.ToString() ?? string.Empty });
 
     /// <summary>
     /// Applies model preset for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.

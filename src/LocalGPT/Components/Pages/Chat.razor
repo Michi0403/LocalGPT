@@ -700,6 +700,34 @@
                 </AIChatSettings>
 
             </DxAIChat>
+            <div class="chat-quick-configuration-bar @(IsLiveCouncilInteractionAvailable ? "has-live-stop" : string.Empty)"
+                 data-testid="chat-quick-configuration-bar"
+                 aria-label="Quick Council configuration">
+                <div class="chat-quick-configuration-item" title="Select the database-backed Council team used by the next Council run.">
+                    <span>Team</span>
+                    <DxComboBox Data="@CouncilTeams"
+                                Value="@SelectedQuickCouncilTeam"
+                                TextFieldName="@nameof(OrganicCouncilTeamDefinition.DisplayName)"
+                                ValueChanged="OnQuickCouncilTeamChangedAsync"
+                                NullText="Council team" />
+                </div>
+                <div class="chat-quick-configuration-item" title="Select the database-backed model preset. Detailed model and runtime settings remain in Chat configuration.">
+                    <span>Models</span>
+                    <DxComboBox Data="@ModelPresets"
+                                Value="@SelectedQuickModelPreset"
+                                TextFieldName="@nameof(CouncilModelPreset.Name)"
+                                ValueChanged="OnQuickModelPresetChangedAsync"
+                                NullText="Model preset" />
+                </div>
+                <div class="chat-quick-configuration-item" title="Apply a benchmark-backed hardware performance preset without changing Council membership.">
+                    <span>Performance</span>
+                    <DxComboBox Data="@HardwarePerformancePresetItems"
+                                Value="@SelectedQuickHardwarePerformancePreset"
+                                TextFieldName="@nameof(HardwarePerformancePreset.Name)"
+                                ValueChanged="OnQuickHardwarePerformancePresetChangedAsync"
+                                NullText="Performance preset" />
+                </div>
+            </div>
         </div>
         <details class="chat-session-tools-ribbon" data-testid="chat-session-tools-ribbon">
             <summary>

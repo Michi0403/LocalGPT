@@ -437,21 +437,96 @@ namespace LocalGPT.Components.Pages
     private Task OnChatConfigurationSummaryClickedAsync()
     {
         chatConfigurationOpen = !chatConfigurationOpen;
-        if (chatConfigurationOpen && !isModelRefreshBusy && !isDisposed)
+        if (chatConfigurationOpen && !isDisposed)
         {
             TaskRunner.Run(
                 nameof(Chat),
-                "RefreshProvidersOnChatConfigurationOpen",
-                cancellationToken => DiscoverAndApplyOllamaModelsAsync(showToast: false, cancellationToken),
+                "RefreshServiceBackedChatConfigurationOnOpen",
+                RefreshServiceBackedChatConfigurationAsync,
                 componentLifetimeCts.Token);
-            TaskRunner.Run(
-                nameof(Chat),
-                "RefreshHardwarePerformancePresetsOnChatConfigurationOpen",
-                LoadHardwarePerformancePresetsAsync,
-                componentLifetimeCts.Token);
+
+            if (!isModelRefreshBusy)
+            {
+                TaskRunner.Run(
+                    nameof(Chat),
+                    "RefreshProvidersOnChatConfigurationOpen",
+                    cancellationToken => DiscoverAndApplyOllamaModelsAsync(showToast: false, cancellationToken),
+                    componentLifetimeCts.Token);
+            }
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Reloads the service-backed Chat configuration lists whenever the configuration ribbon opens without overwriting unsaved manual runtime values.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that stops the refresh when the Chat component is disposed or the owning operation is cancelled.</param>
+    /// <returns>A task that completes after the latest teams, presets, memory and project lists have been synchronized.</returns>
+    private async Task RefreshServiceBackedChatConfigurationAsync(CancellationToken cancellationToken)
+    {
+        if (Interlocked.Exchange(ref chatConfigurationRefreshGate, 1) != 0)
+            return;
+
+        try
+        {
+            try
+            {
+                await RefreshCouncilTeamItemsAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+            {
+                Logger.LogDebug("Council team refresh was cancelled while opening Chat configuration.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Council teams could not be refreshed while opening Chat configuration.");
+                ComponentActivity.RecordWarning(nameof(Chat), "RefreshCouncilTeamsOnConfigurationOpen", "Council teams could not be refreshed; the current in-memory team selection remains available.");
+            }
+
+            await RefreshModelPresetItemsAsync(cancellationToken).ConfigureAwait(false);
+            await LoadHardwarePerformancePresetsAsync(cancellationToken).ConfigureAwait(false);
+
+            try
+            {
+                AllPromptSuggestions = Catalog.GetSuggestion();
+                await LoadPersistentPromptSuggestionsAsync(cancellationToken).ConfigureAwait(false);
+                RefreshPromptSuggestions();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+            {
+                Logger.LogDebug("Prompt starter refresh was cancelled while opening Chat configuration.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Prompt starters could not be refreshed while opening Chat configuration.");
+            }
+
+            try
+            {
+                await LoadChatProjectsAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+            {
+                Logger.LogDebug("Project refresh was cancelled while opening Chat configuration.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Projects could not be refreshed while opening Chat configuration.");
+                ComponentActivity.RecordWarning(nameof(Chat), "RefreshProjectsOnConfigurationOpen", "Project choices could not be refreshed; the current project selection remains available.");
+            }
+
+            await RefreshMemoryAsync(cancellationToken).ConfigureAwait(false);
+            if (!isDisposed)
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        finally
+        {
+            Volatile.Write(ref chatConfigurationRefreshGate, 0);
+        }
     }
 
     /// <summary>

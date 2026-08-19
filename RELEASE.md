@@ -1,6 +1,6 @@
-# LocalGPT 3.1.5
+# LocalGPT 3.1.6
 
-LocalGPT 3.1.5 is the provider-stream repetition-watchdog successor to 3.1.4. It preserves the repository-wide XML documentation completeness work and all earlier benchmark/Council evidence and recovery behavior while preventing an actively streaming model from monopolizing a benchmark host road or Council member slot by repeating the same short text cycle indefinitely.
+LocalGPT 3.1.6 is the Chat quick-preset and live configuration-refresh successor to 3.1.5. It keeps the complete 3.1.5 repetition-watchdog behavior and all earlier Council/benchmark recovery and evidence work while making the most common Council preparation choices directly available beside the `/chat` prompt actions.
 
 ## Toolchain state
 
@@ -9,24 +9,22 @@ LocalGPT 3.1.5 is the provider-stream repetition-watchdog successor to 3.1.4. It
 - DevExpress: existing `25.2.*` package lane retained
 - 1-Wire protocol: `2.1.1`
 
-## Repetition watchdog
+## Chat quick configuration
 
-- starts timing on the first substantive generated provider fragment;
-- analyzes only provider-generated stream text, not LocalGPT status messages or provider-trace metadata;
-- uses a bounded 12,288-character rolling tail;
-- requires substantial output, exact-ish short-cycle periodicity, six or more cycles and 97% agreement;
-- requires four suspicious samples over at least six seconds before stopping a request;
-- cancels only the current provider request and leaves caller/Council cancellation tokens untouched;
-- preserves the partial stream as evidence and omits provider content from exception logs.
+Three compact DevExpress selectors are available on the prompt action line:
 
-## Recovery semantics
+- Council team;
+- Council model preset;
+- hardware performance preset.
 
-During deterministic all-model benchmark calibration, repetition retries use the existing configured Social Team member-recovery attempt count. The same provider-qualified subject is retried because substituting another model would invalidate the benchmark identity. When retries are exhausted the failed task is retained and the host queue continues.
+Each selector uses the same service-backed collections and application handlers as the detailed Chat configuration surface. Advanced editing remains in Chat configuration.
 
-During ordinary Council work, repetition failure feeds into the existing same-member safe recovery and configured round-member recovery introduced in 3.1.3. Social Team recovery mode, retry count and eligible role-member pool remain authoritative; no second scheduler was added.
+## Live configuration refresh
+
+Opening Chat configuration now reloads its database/service-backed lists instead of depending on the values captured when `/chat` first initialized. Council teams, model presets, hardware performance presets, persistent prompt starters, projects and chat memory are refreshed independently from provider discovery. Current manual values are not reset merely because the lists were refreshed.
 
 ## Compatibility
 
-No database migration, benchmark evidence schema migration, 1-Wire protocol change, or removal of 3.1.4 XML documentation coverage is introduced by 3.1.5.
+No database migration, benchmark evidence schema migration, 1-Wire protocol change, repetition-watchdog removal, Council recovery removal, or XML documentation regression is introduced by 3.1.6.
 
-See `CHANGELOG-v3.1.5-STREAM-REPETITION-WATCHDOG.md` and `VALIDATION-v3.1.5-source.md`.
+See `CHANGELOG-v3.1.6-CHAT-QUICK-PRESETS-LIVE-CONFIG-REFRESH.md` and `VALIDATION-v3.1.6-source.md`.

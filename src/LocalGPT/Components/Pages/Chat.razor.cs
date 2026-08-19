@@ -424,6 +424,13 @@ namespace LocalGPT.Components.Pages
     /// <value>The selected hardware performance preset value value exposed by <see cref="Chat"/>.</value>
     string SelectedHardwarePerformancePresetValue => SelectedHardwarePerformancePreset?.Id.ToString() ?? string.Empty;
     /// <summary>
+    /// Gets the currently selected hardware performance preset instance for the compact prompt-line selector.
+    /// </summary>
+    /// <value>The matching service-backed preset, or <see langword="null"/> when custom hardware settings are active.</value>
+    HardwarePerformancePreset? SelectedQuickHardwarePerformancePreset => SelectedHardwarePerformancePreset is null
+        ? null
+        : HardwarePerformancePresetItems.FirstOrDefault(item => item.Id == SelectedHardwarePerformancePreset.Id);
+    /// <summary>
     /// Gets or sets the council model routes collection maintained or exposed by this chat instance for downstream processing.
     /// </summary>
     /// <value>The council model routes value exposed by <see cref="Chat"/>.</value>
@@ -556,6 +563,19 @@ namespace LocalGPT.Components.Pages
     /// <value>The selected model preset value value exposed by <see cref="Chat"/>.</value>
     string SelectedModelPresetValue => SelectedModelPreset?.Id.ToString() ?? string.Empty;
     /// <summary>
+    /// Gets the currently selected Council model preset instance for the compact prompt-line selector.
+    /// </summary>
+    /// <value>The matching service-backed preset, or <see langword="null"/> while the current Council model selection is custom.</value>
+    CouncilModelPreset? SelectedQuickModelPreset => SelectedModelPreset is null
+        ? null
+        : ModelPresets.FirstOrDefault(item => item.Id == SelectedModelPreset.Id);
+    /// <summary>
+    /// Gets the currently selected Council team instance for the compact prompt-line selector.
+    /// </summary>
+    /// <value>The service-backed team whose stable key matches <see cref="SelectedCouncilTeamKey"/>, or <see langword="null"/> when the team is unavailable.</value>
+    OrganicCouncilTeamDefinition? SelectedQuickCouncilTeam => CouncilTeams.FirstOrDefault(team =>
+        string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
     /// Gets or sets the chat projects collection maintained or exposed by this chat instance for downstream processing.
     /// </summary>
     /// <value>The chat projects value exposed by <see cref="Chat"/>.</value>
@@ -627,6 +647,10 @@ namespace LocalGPT.Components.Pages
     /// Stores the internal chat configuration open state used by <see cref="Chat"/> while executing its surrounding workflow.
     /// </summary>
     bool chatConfigurationOpen;
+    /// <summary>
+    /// Stores the interlocked gate that prevents overlapping service-backed Chat configuration refresh passes when the configuration ribbon is opened repeatedly.
+    /// </summary>
+    int chatConfigurationRefreshGate;
     /// <summary>
     /// Stores the cancellation source used by <see cref="Chat"/> to stop its current background or asynchronous operation.
     /// </summary>
@@ -973,15 +997,15 @@ namespace LocalGPT.Components.Pages
             cancellationToken.ThrowIfCancellationRequested();
             await LoadDatabaseBackedDefaultsAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            await LoadPersistentPromptSuggestionsAsync().ConfigureAwait(false);
+            await LoadPersistentPromptSuggestionsAsync(cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            await LoadCouncilTeamsAsync().ConfigureAwait(false);
+            await LoadCouncilTeamsAsync(cancellationToken).ConfigureAwait(false);
             RefreshPromptSuggestions();
-            await LoadChatProjectsAsync().ConfigureAwait(false);
+            await LoadChatProjectsAsync(cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            await RefreshMemoryAsync().ConfigureAwait(false);
+            await RefreshMemoryAsync(cancellationToken).ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: false);
-            await LoadModelPresetsAsync().ConfigureAwait(false);
+            await LoadModelPresetsAsync(cancellationToken).ConfigureAwait(false);
             await LoadHardwarePerformancePresetsAsync(cancellationToken).ConfigureAwait(false);
             ApplyDiagnosticQueryOptions(selectSession: true);
             if (UseFreshDiagnosticChat)
@@ -1024,12 +1048,13 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Merges enabled database-owned prompt starters without removing maintained built-in quick prompts.</summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous persistence read.</param>
     /// <returns>A task that completes after persistent prompt records are merged.</returns>
-    private async Task LoadPersistentPromptSuggestionsAsync()
+    private async Task LoadPersistentPromptSuggestionsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var records = await FeaturePersistence.GetCouncilPromptStartersAsync(cancellationToken: componentLifetimeCts.Token).ConfigureAwait(false);
+            var records = await FeaturePersistence.GetCouncilPromptStartersAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             var merged = AllPromptSuggestions.ToDictionary(item => item.Key, StringComparer.OrdinalIgnoreCase);
             foreach (var record in records)
             {
@@ -1054,6 +1079,10 @@ namespace LocalGPT.Components.Pages
             }
             AllPromptSuggestions = merged.Values.ToList();
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+        {
+            Logger.LogDebug("Persistent prompt starter refresh was cancelled during Chat teardown.");
+        }
         catch (Exception exception)
         {
             Logger.LogWarning(exception, "Persistent prompt starters were unavailable; maintained built-in quick prompts remain active.");
@@ -1063,10 +1092,13 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Loads council teams for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous team refresh.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task LoadCouncilTeamsAsync()
+    private async Task LoadCouncilTeamsAsync(CancellationToken cancellationToken = default)
     {
-        var teams = await CouncilTeamConfigurations.GetTeamsAsync(includeDisabled: false).ConfigureAwait(false);
+        var teams = await CouncilTeamConfigurations
+            .GetTeamsAsync(includeDisabled: false, cancellationToken)
+            .ConfigureAwait(false);
         CouncilTeams = teams.OrderBy(team => team.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
         if (CouncilTeams.Count == 0)
             return;
@@ -1075,6 +1107,27 @@ namespace LocalGPT.Components.Pages
             SelectedCouncilTeamKey = requestedTeam;
         else if (CouncilTeams.All(team => !string.Equals(team.Key, SelectedCouncilTeamKey, StringComparison.OrdinalIgnoreCase)))
             SelectedCouncilTeamKey = CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
+        RefreshPromptSuggestions();
+    }
+
+    /// <summary>
+    /// Refreshes enabled Council team definitions from the configuration service while preserving the user's current team selection whenever it still exists.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous refresh.</param>
+    /// <returns>A task that completes after the current team list and team-filtered prompt suggestions have been synchronized.</returns>
+    private async Task RefreshCouncilTeamItemsAsync(CancellationToken cancellationToken = default)
+    {
+        var selectedKey = SelectedCouncilTeamKey;
+        var teams = await CouncilTeamConfigurations
+            .GetTeamsAsync(includeDisabled: false, cancellationToken)
+            .ConfigureAwait(false);
+        CouncilTeams = teams.OrderBy(team => team.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+        if (CouncilTeams.Count == 0)
+            return;
+
+        SelectedCouncilTeamKey = CouncilTeams.Any(team => string.Equals(team.Key, selectedKey, StringComparison.OrdinalIgnoreCase))
+            ? selectedKey
+            : CouncilTeams.FirstOrDefault(team => team.Key == "general")?.Key ?? CouncilTeams[0].Key;
         RefreshPromptSuggestions();
     }
 
@@ -1087,6 +1140,17 @@ namespace LocalGPT.Components.Pages
             SelectedCouncilTeamKey = requested;
         RefreshPromptSuggestions();
         SavePreparationConfiguration();
+    }
+
+    /// <summary>
+    /// Applies a Council team selected from the compact prompt-line DevExpress selector through the same preparation path used by Chat configuration.
+    /// </summary>
+    /// <param name="team">Service-backed Council team selected by the user.</param>
+    /// <returns>A task that completes after prompt suggestions and preparation state have been synchronized.</returns>
+    private Task OnQuickCouncilTeamChangedAsync(OrganicCouncilTeamDefinition? team)
+    {
+        OnCouncilTeamChanged(new ChangeEventArgs { Value = team?.Key ?? string.Empty });
+        return InvokeAsync(StateHasChanged);
     }
 
     /// <summary>Filters the DevExpress prompt suggestions to generic prompts plus prompts connected to the selected team.</summary>

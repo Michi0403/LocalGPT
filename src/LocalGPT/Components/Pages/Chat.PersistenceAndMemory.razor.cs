@@ -447,24 +447,29 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Refreshes memory for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous memory refresh.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task RefreshMemoryAsync()
+    private async Task RefreshMemoryAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            SavedConversations = (await ChatMemory.GetConversationsAsync().ConfigureAwait(false)).ToList();
-            RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync().ConfigureAwait(false)).ToList();
+            SavedConversations = (await ChatMemory.GetConversationsAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).ToList();
+            RecentThoughts = (await ChatMemory.GetRecentThoughtsAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).ToList();
 
             if (ActiveConversationId is Guid id)
             {
                 SelectedConversation = SavedConversations.FirstOrDefault(conversation => conversation.Id == id);
-                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(id).ConfigureAwait(false)).ToList();
+                SavedFeedback = (await ChatMemory.GetMessageFeedbackAsync(id, cancellationToken).ConfigureAwait(false)).ToList();
             }
             else
             {
                 SelectedConversation = SavedConversations.FirstOrDefault();
                 SavedFeedback.Clear();
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || isDisposed)
+        {
+            Logger.LogDebug("Chat memory refresh was cancelled during component teardown.");
         }
         catch (Exception ex)
         {
@@ -495,22 +500,24 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Loads chat projects for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous project refresh.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task LoadChatProjectsAsync()
+    private async Task LoadChatProjectsAsync(CancellationToken cancellationToken = default)
     {
-        ChatProjects = (await ProjectService.GetProjectsAsync().ConfigureAwait(false)).ToList();
-        await LoadSelectedChatProjectDetailsAsync(SessionContext.ProjectId).ConfigureAwait(false);
+        ChatProjects = (await ProjectService.GetProjectsAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).ToList();
+        await LoadSelectedChatProjectDetailsAsync(SessionContext.ProjectId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Loads selected chat project details for <see cref="Chat"/>, keeping the operation consistent with the state and invariants of the surrounding chat workflow.
     /// </summary>
     /// <param name="projectId">Identifier of the project to use for this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous project-details refresh.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task LoadSelectedChatProjectDetailsAsync(Guid? projectId)
+    private async Task LoadSelectedChatProjectDetailsAsync(Guid? projectId, CancellationToken cancellationToken = default)
     {
         SelectedChatProjectDetails = projectId is Guid id
-            ? await ProjectService.GetProjectAsync(id).ConfigureAwait(false)
+            ? await ProjectService.GetProjectAsync(id, cancellationToken).ConfigureAwait(false)
             : null;
     }
 
