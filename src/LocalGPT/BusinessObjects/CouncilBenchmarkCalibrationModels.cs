@@ -39,6 +39,10 @@ public sealed class CouncilBenchmarkCalibrationRequest
     /// <value>Zero attempts every configured profile point. Positive values are an explicit caller-selected failure shortcut.</value>
     public int StopAfterConsecutiveProfileFailures { get; set; }
 
+    /// <summary>Gets or sets the configured social-team recovery attempt count reused when the repetition watchdog terminates one measured Benchmark Subject request.</summary>
+    /// <value>A bounded same-subject retry count from zero through eight; substitution is never used because benchmark identity must remain provider-qualified and exact.</value>
+    public int RepetitionRecoveryAttempts { get; set; } = 1;
+
     /// <summary>Gets or sets the maximum duration allowed for one bounded provider call.</summary>
     /// <value>The per-call timeout in seconds.</value>
     public int MaxSecondsPerCall { get; set; } = 180;

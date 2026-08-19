@@ -54,6 +54,8 @@ namespace LocalGPT.Services
                 """));
 
                 var builder = new StringBuilder();
+                var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(logger);
+                using var recoveryCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var streamId = Guid.NewGuid().ToString("N");
                 var streamPanelOpened = streamUpdate is not null;
                 streamUpdate?.Invoke($"<details class=\"council-step council-live\" data-localgpt-stream-id=\"{streamId}\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} / {role} corrective role retry")}</summary>\n\n");
@@ -62,10 +64,21 @@ namespace LocalGPT.Services
                     await foreach (var update in client.GetStreamingResponseAsync(
                         messages,
                         new ChatOptions { MaxOutputTokens = maxOutputTokens, Temperature = 0.1f },
-                        cancellationToken).WithCancellation(cancellationToken).ConfigureAwait(false))
+                        recoveryCts.Token).WithCancellation(recoveryCts.Token).ConfigureAwait(false))
                     {
                         builder.Append(update.Text);
                         streamUpdate?.Invoke(update.Text);
+                        if (!councilRuntime.IsLocalGptStreamingStatusUpdate(update.Text, logger))
+                        {
+                            var repetitionFailure = repetitionWatchdog.Observe(update.Text);
+                            if (repetitionFailure is not null)
+                            {
+                                streamUpdate?.Invoke(
+                                    $"\n\n> **LocalGPT repetition watchdog:** the corrective role retry entered sustained repeated generation and was stopped. {WebUtility.HtmlEncode(repetitionFailure.Message)}\n\n");
+                                recoveryCts.Cancel();
+                                throw repetitionFailure;
+                            }
+                        }
                     }
                 }
                 finally
@@ -83,6 +96,17 @@ namespace LocalGPT.Services
             catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
             {
                 logger.LogDebug(exception, "Council role-compliance retry was cancelled for {ModelName} in {Phase}.", modelName, phase);
+                return (string.Empty, string.Empty, null);
+            }
+            catch (ProviderStreamRepetitionException exception)
+            {
+                logger.LogWarning(
+                    "Council repetition watchdog stopped role-compliance retry for {ModelName} in {Phase}: period {PeriodTokens} tokens, agreement {Agreement:P1}, observed {ObservedSeconds:0.0}s.",
+                    modelName,
+                    phase,
+                    exception.PeriodTokens,
+                    exception.Agreement,
+                    exception.ObservedSeconds);
                 return (string.Empty, string.Empty, null);
             }
             catch (Exception exception)
@@ -153,6 +177,8 @@ namespace LocalGPT.Services
                 """));
 
                 var builder = new StringBuilder();
+                var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(logger);
+                using var recoveryCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var streamId = Guid.NewGuid().ToString("N");
                 var streamPanelOpened = streamUpdate is not null;
                 streamUpdate?.Invoke($"<details class=\"council-step council-live\" data-localgpt-stream-id=\"{streamId}\" open><summary>{WebUtility.HtmlEncode($"{modelName} — {phase} final-answer recovery")}</summary>\n\n");
@@ -165,10 +191,21 @@ namespace LocalGPT.Services
                             MaxOutputTokens = maxOutputTokens,
                             Temperature = 0.1f
                         },
-                        cancellationToken).WithCancellation(cancellationToken).ConfigureAwait(false))
+                        recoveryCts.Token).WithCancellation(recoveryCts.Token).ConfigureAwait(false))
                     {
                         builder.Append(update.Text);
                         streamUpdate?.Invoke(update.Text);
+                        if (!councilRuntime.IsLocalGptStreamingStatusUpdate(update.Text, logger))
+                        {
+                            var repetitionFailure = repetitionWatchdog.Observe(update.Text);
+                            if (repetitionFailure is not null)
+                            {
+                                streamUpdate?.Invoke(
+                                    $"\n\n> **LocalGPT repetition watchdog:** the final-answer recovery entered sustained repeated generation and was stopped. {WebUtility.HtmlEncode(repetitionFailure.Message)}\n\n");
+                                recoveryCts.Cancel();
+                                throw repetitionFailure;
+                            }
+                        }
                     }
                 }
                 finally
@@ -184,6 +221,17 @@ namespace LocalGPT.Services
             catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
             {
                 logger.LogDebug(ex, "Council final-only recovery was canceled for model {ModelName} in phase {Phase} because the Council run was canceled.", modelName, phase);
+                return (string.Empty, string.Empty, null);
+            }
+            catch (ProviderStreamRepetitionException ex)
+            {
+                logger.LogWarning(
+                    "Council repetition watchdog stopped final-answer recovery for {ModelName} in {Phase}: period {PeriodTokens} tokens, agreement {Agreement:P1}, observed {ObservedSeconds:0.0}s.",
+                    modelName,
+                    phase,
+                    ex.PeriodTokens,
+                    ex.Agreement,
+                    ex.ObservedSeconds);
                 return (string.Empty, string.Empty, null);
             }
             catch (Exception ex)

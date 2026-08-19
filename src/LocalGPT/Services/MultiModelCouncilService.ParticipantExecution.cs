@@ -215,6 +215,7 @@ namespace LocalGPT.Services
                         }
 
                         var attemptBuilder = new StringBuilder();
+                        var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(logger);
                         using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
                         using var monitorCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
                         var liveInputSignal = new TaskCompletionSource<IReadOnlyList<HumanCouncilContribution>>(
@@ -248,6 +249,17 @@ namespace LocalGPT.Services
                                 {
                                     attemptBuilder.Append(update.Text);
                                     allContent.Append(update.Text);
+                                    var repetitionFailure = repetitionWatchdog.Observe(update.Text);
+                                    if (repetitionFailure is not null)
+                                    {
+                                        progressMessage?.Invoke(
+                                            $"Repetition watchdog stopped runaway generation from {modelName} during {phase}; existing member recovery will now handle this failed attempt.");
+                                        streamUpdate?.Invoke(
+                                            $"\n\n> **LocalGPT repetition watchdog:** sustained repeated generation was detected and only this provider request is being stopped. " +
+                                            $"The partial stream remains evidence; configured same-member and round-member recovery remain authoritative. {WebUtility.HtmlEncode(repetitionFailure.Message)}\n\n");
+                                        streamCts.Cancel();
+                                        throw repetitionFailure;
+                                    }
                                 }
 
                                 foreach (var providerTrace in councilRuntime.BuildUserVisibleProviderTrace(update, logger))

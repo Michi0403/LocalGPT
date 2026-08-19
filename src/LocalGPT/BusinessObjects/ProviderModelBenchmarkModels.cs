@@ -151,6 +151,10 @@ public sealed class ProviderModelBenchmarkRequest
     /// <value>Zero disables failure-based early stop; otherwise the bounded consecutive failure count.</value>
     public int StopAfterConsecutiveProfileFailures { get; set; }
 
+    /// <summary>Gets or sets how many same-provider retries a measured task may use after the stream repetition watchdog stops runaway generation.</summary>
+    /// <value>A bounded retry count from zero through eight. Embedded Council calibration supplies the configured social-team member recovery attempt count.</value>
+    public int RepetitionRecoveryAttempts { get; set; } = 1;
+
     /// <summary>Gets or sets whether this benchmark owns a standalone live-session entry. Embedded Council calibration sets this to false so the parent Council remains authoritative.</summary>
     /// <value><see langword="true"/> for the historical standalone benchmark behavior; otherwise the caller owns live-session presentation and cancellation.</value>
     public bool OwnLiveSession { get; set; } = true;

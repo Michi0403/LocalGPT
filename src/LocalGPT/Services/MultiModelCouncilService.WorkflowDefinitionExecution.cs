@@ -213,6 +213,9 @@ namespace LocalGPT.Services
                                             MaximumContextTokens = catalog.MaxContextTokens,
                                             MaximumOutputTokens = request.MaxOutputTokens,
                                             StopAfterConsecutiveProfileFailures = 0,
+                                            RepetitionRecoveryAttempts = definition.MemberFailureRecoveryMode == CouncilMemberFailureRecoveryMode.Disabled
+                                                ? 0
+                                                : Math.Clamp(definition.MemberFailureRecoveryAttempts, 0, 8),
                                             MaxSecondsPerCall = modelTimeoutSeconds,
                                             TaskPackText = visiblePreviousStep,
                                             PresetBaseName = $"Initial calibration {DateTimeOffset.Now:yyyy-MM-dd HHmmss}",

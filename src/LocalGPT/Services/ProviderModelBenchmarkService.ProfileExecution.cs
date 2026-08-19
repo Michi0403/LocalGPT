@@ -14,14 +14,16 @@ namespace LocalGPT.Services
     public sealed partial class ProviderModelBenchmarkService
     {
     /// <summary>
-    /// Performs run profile as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// Performs one measured profile for a provider-qualified benchmark target while retaining full task evidence and
+    /// stopping sustained stream repetition early enough that a single runaway model cannot monopolize its host queue.
     /// </summary>
     /// <param name="runId">Owning benchmark run identifier used for durable task evidence.</param>
-    /// <param name="model">Model value supplied to the provider model benchmark operation and used when producing its result.</param>
-    /// <param name="profile">Profile value supplied to the provider model benchmark operation and used when producing its result.</param>
-    /// <param name="tasks">Benchmark task dependency used by the provider model benchmark workflow to provide the corresponding application capability.</param>
-    /// <param name="maxSeconds">Max seconds value supplied to the provider model benchmark operation and used when producing its result.</param>
-    /// <param name="publish">Publish value supplied to the provider model benchmark operation and used when producing its result.</param>
+    /// <param name="model">Provider-qualified benchmark subject.</param>
+    /// <param name="profile">Measured token/hardware profile.</param>
+    /// <param name="tasks">Deterministic benchmark tasks executed at this profile.</param>
+    /// <param name="maxSeconds">Maximum duration of the bounded task operation.</param>
+    /// <param name="repetitionRecoveryAttempts">Same-subject retries allowed after the repetition watchdog terminates runaway generation.</param>
+    /// <param name="publish">User-visible benchmark progress callback.</param>
     /// <param name="providerStream">Raw provider-stream callback used to preserve token boundaries and provider-visible trace evidence.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The provider model benchmark profile result produced by the operation.</returns>
@@ -31,6 +33,7 @@ namespace LocalGPT.Services
         BenchmarkProfile profile,
         IReadOnlyList<BenchmarkTask> tasks,
         int maxSeconds,
+        int repetitionRecoveryAttempts,
         Action<string> publish,
         Action<string> providerStream,
         CancellationToken cancellationToken)
@@ -42,6 +45,7 @@ namespace LocalGPT.Services
             OutputTokens = profile.OutputTokens,
             OllamaNumGpu = profile.OllamaNumGpu
         };
+        var boundedRepetitionRecoveryAttempts = Math.Clamp(repetitionRecoveryAttempts, 0, 8);
         for (var taskIndex = 0; taskIndex < tasks.Count; taskIndex++)
         {
             var task = tasks[taskIndex];
@@ -55,6 +59,10 @@ namespace LocalGPT.Services
             var providerTrace = new StringBuilder();
             var latestAttemptTranscript = new StringBuilder();
             var stopwatch = Stopwatch.StartNew();
+            var repetitionRetriesUsed = 0;
+            var roleCorrectionRetriesUsed = 0;
+            var roleCorrectionPending = false;
+            ProviderStreamRepetitionException? exhaustedRepetition = null;
             string text = string.Empty;
             try
             {
@@ -66,11 +74,12 @@ namespace LocalGPT.Services
                     profile.OllamaNumGpu,
                     enableAutomaticTools: false,
                     throwOnFailure: true);
-                for (var attempt = 0; attempt < (task.EnforceRoleExecution ? 2 : 1); attempt++)
+
+                while (true)
                 {
-                    taskResult.AttemptCount = attempt + 1;
+                    taskResult.AttemptCount++;
                     latestAttemptTranscript.Clear();
-                    var attemptHeader = $"\n\n#### {task.Name} · provider attempt {attempt + 1}\n\n";
+                    var attemptHeader = $"\n\n#### {task.Name} · provider attempt {taskResult.AttemptCount}\n\n";
                     providerTrace.Append(attemptHeader);
                     providerStream(attemptHeader);
                     var messages = new List<ChatMessage>
@@ -80,54 +89,127 @@ namespace LocalGPT.Services
                             "The assignment is executable text/reasoning work. Execute it directly; do not decline because you are an AI model, do not ask another role to do it, do not call tools, and return only the requested final answer."),
                         new(ChatRole.User, task.Prompt)
                     };
-                    if (attempt > 0)
+                    if (roleCorrectionPending)
                     {
                         messages.Add(new ChatMessage(
                             ChatRole.User,
-                            "Your previous response was a generic capability/non-performance refusal. That does not complete this assigned Benchmark Subject job. Execute the exact assignment now with the information already supplied. State ordinary uncertainty inside an attempted answer instead of refusing the role."));
+                            "Your previous completed response was a generic capability/non-performance refusal. That does not complete this assigned Benchmark Subject job. Execute the exact assignment now with the information already supplied. State ordinary uncertainty inside an attempted answer instead of refusing the role."));
+                        roleCorrectionPending = false;
                         publish($"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} received one corrective same-role retry after generic non-performance.");
                     }
 
-                    await foreach (var update in client.GetStreamingResponseAsync(
-                        messages,
-                        new ChatOptions { MaxOutputTokens = profile.OutputTokens, Temperature = 0f },
-                        timeout.Token).WithCancellation(timeout.Token).ConfigureAwait(false))
+                    var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(logger);
+                    using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+                    try
                     {
-                        var updateText = update.Text ?? string.Empty;
-                        if (!string.IsNullOrEmpty(updateText))
+                        await foreach (var update in client.GetStreamingResponseAsync(
+                            messages,
+                            new ChatOptions { MaxOutputTokens = profile.OutputTokens, Temperature = 0f },
+                            attemptCts.Token).WithCancellation(attemptCts.Token).ConfigureAwait(false))
                         {
-                            latestAttemptTranscript.Append(updateText);
-                            providerTrace.Append(updateText);
-                            providerStream(updateText);
+                            var updateText = update.Text ?? string.Empty;
+                            if (!string.IsNullOrEmpty(updateText))
+                            {
+                                latestAttemptTranscript.Append(updateText);
+                                providerTrace.Append(updateText);
+                                providerStream(updateText);
+
+                                if (!councilRuntime.IsLocalGptStreamingStatusUpdate(updateText, logger))
+                                {
+                                    var repetitionFailure = repetitionWatchdog.Observe(updateText);
+                                    if (repetitionFailure is not null)
+                                    {
+                                        // Cancel only this provider request. The outer benchmark/Council cancellation
+                                        // tokens remain untouched so the existing bounded recovery path can continue.
+                                        attemptCts.Cancel();
+                                        throw repetitionFailure;
+                                    }
+                                }
+                            }
+
+                            foreach (var providerTraceFragment in councilRuntime.BuildUserVisibleProviderTrace(update, logger))
+                            {
+                                if (string.IsNullOrEmpty(providerTraceFragment))
+                                    continue;
+                                providerTrace.Append(providerTraceFragment);
+                                providerStream(providerTraceFragment);
+                            }
+                        }
+                    }
+                    catch (ProviderStreamRepetitionException repetitionFailure)
+                    {
+                        text = councilText.MultiModelCouncilServiceStripThinking(latestAttemptTranscript.ToString(), logger);
+                        var watchdogMarker =
+                            $"\n\n> **LocalGPT repetition watchdog:** provider attempt {taskResult.AttemptCount} was terminated after sustained repeated generation. " +
+                            $"The failed stream remains evidence. {repetitionFailure.Message}\n\n";
+                        providerTrace.Append(watchdogMarker);
+                        providerStream(watchdogMarker);
+                        logger.LogWarning(
+                            "Benchmark repetition watchdog stopped model {ModelIdentity} in profile {ProfileName}, task {TaskName}, attempt {AttemptCount}; period {PeriodTokens} tokens, agreement {Agreement:P1}, observed {ObservedSeconds:0.0}s.",
+                            model.StableId,
+                            profile.Name,
+                            task.Name,
+                            taskResult.AttemptCount,
+                            repetitionFailure.PeriodTokens,
+                            repetitionFailure.Agreement,
+                            repetitionFailure.ObservedSeconds);
+
+                        if (repetitionRetriesUsed < boundedRepetitionRecoveryAttempts)
+                        {
+                            repetitionRetriesUsed++;
+                            publish(
+                                $"- Task {taskIndex + 1}/{tasks.Count}: repetition watchdog stopped runaway output from {model.DisplayName}; " +
+                                $"retrying the same provider-qualified Benchmark Subject ({repetitionRetriesUsed}/{boundedRepetitionRecoveryAttempts}).");
+                            continue;
                         }
 
-                        foreach (var providerTraceFragment in councilRuntime.BuildUserVisibleProviderTrace(update, logger))
-                        {
-                            if (string.IsNullOrEmpty(providerTraceFragment))
-                                continue;
-                            providerTrace.Append(providerTraceFragment);
-                            providerStream(providerTraceFragment);
-                        }
+                        exhaustedRepetition = repetitionFailure;
+                        break;
                     }
 
                     // Score only the visible answer. Thinking/status/function traces remain inspectable but
                     // must not inflate the measured answer quality or token throughput.
                     text = councilText.MultiModelCouncilServiceStripThinking(latestAttemptTranscript.ToString(), logger);
-                    if (!task.EnforceRoleExecution || !LooksLikeGenericCapabilityRefusal(text) || attempt > 0)
-                        break;
+                    if (task.EnforceRoleExecution &&
+                        LooksLikeGenericCapabilityRefusal(text) &&
+                        roleCorrectionRetriesUsed == 0)
+                    {
+                        roleCorrectionRetriesUsed++;
+                        roleCorrectionPending = true;
+                        continue;
+                    }
+
+                    break;
                 }
+
                 stopwatch.Stop();
                 taskResult.TotalMilliseconds = stopwatch.ElapsedMilliseconds;
-                taskResult.QualityScore = ScoreQuality(text, task);
-                taskResult.TokensPerSecond = EstimateTokens(text) / Math.Max(0.001d, stopwatch.Elapsed.TotalSeconds);
-                taskResult.Succeeded = !string.IsNullOrWhiteSpace(text) &&
-                    !LooksLikeGenericCapabilityRefusal(text) &&
-                    taskResult.QualityScore >= 0.30d;
-                var compact = text.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Trim();
-                taskResult.ResponsePreview = compact[..Math.Min(compact.Length, 320)];
-                publish(taskResult.Succeeded
-                    ? $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} completed for {model.DisplayName} / {profile.Name} in {taskResult.TotalMilliseconds} ms · quality {taskResult.QualityScore:0.000} · {taskResult.TokensPerSecond:0.00} token/s."
-                    : $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} returned no contract-compliant response for {model.DisplayName} / {profile.Name}.");
+                if (exhaustedRepetition is not null)
+                {
+                    taskResult.Succeeded = false;
+                    taskResult.Error =
+                        $"The provider stream repetition watchdog stopped runaway generation and the configured {boundedRepetitionRecoveryAttempts} same-subject recovery attempt(s) were exhausted.";
+                    taskResult.QualityScore = 0d;
+                    taskResult.TokensPerSecond = 0d;
+                    var repeatedCompact = text.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Trim();
+                    taskResult.ResponsePreview = repeatedCompact[..Math.Min(repeatedCompact.Length, 320)];
+                    publish(
+                        $"- Task {taskIndex + 1}/{tasks.Count}: repetition recovery exhausted for {model.DisplayName} / {profile.Name}. " +
+                        "The failed provider stream remains inspectable and the benchmark will continue instead of blocking this host queue.");
+                }
+                else
+                {
+                    taskResult.QualityScore = ScoreQuality(text, task);
+                    taskResult.TokensPerSecond = EstimateTokens(text) / Math.Max(0.001d, stopwatch.Elapsed.TotalSeconds);
+                    taskResult.Succeeded = !string.IsNullOrWhiteSpace(text) &&
+                        !LooksLikeGenericCapabilityRefusal(text) &&
+                        taskResult.QualityScore >= 0.30d;
+                    var compact = text.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Trim();
+                    taskResult.ResponsePreview = compact[..Math.Min(compact.Length, 320)];
+                    publish(taskResult.Succeeded
+                        ? $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} completed for {model.DisplayName} / {profile.Name} in {taskResult.TotalMilliseconds} ms · quality {taskResult.QualityScore:0.000} · {taskResult.TokensPerSecond:0.00} token/s."
+                        : $"- Task {taskIndex + 1}/{tasks.Count}: {task.Name} returned no contract-compliant response for {model.DisplayName} / {profile.Name}.");
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -150,8 +232,8 @@ namespace LocalGPT.Services
             }
             finally
             {
-                // A timeout/failure can leave an unclosed thinking block in the partial stream. Keep that
-                // evidence in ProviderTrace rather than relabelling it as a scored final answer.
+                // A timeout/failure/repetition stop can leave an unclosed thinking block in the partial stream. Keep
+                // that evidence in ProviderTrace rather than relabelling it as a scored final answer.
                 var fullProviderTrace = providerTrace.ToString();
                 taskResult.ResponseText = LimitBenchmarkEvidence(text, 48_000, out var responseTruncated);
                 taskResult.ResponseTextTruncated = responseTruncated;

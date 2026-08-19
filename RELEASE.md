@@ -1,6 +1,6 @@
-# LocalGPT 3.1.4
+# LocalGPT 3.1.5
 
-LocalGPT 3.1.4 is the XML documentation completeness successor to 3.1.3. It preserves Council round recovery, cancellation handling, live UI stability, durable benchmark evidence and machine-derived coverage truth while extending repository documentation enforcement to Razor code-behind, Razor `@code` members, Razor component types and enum members.
+LocalGPT 3.1.5 is the provider-stream repetition-watchdog successor to 3.1.4. It preserves the repository-wide XML documentation completeness work and all earlier benchmark/Council evidence and recovery behavior while preventing an actively streaming model from monopolizing a benchmark host road or Council member slot by repeating the same short text cycle indefinitely.
 
 ## Toolchain state
 
@@ -9,18 +9,24 @@ LocalGPT 3.1.4 is the XML documentation completeness successor to 3.1.3. It pres
 - DevExpress: existing `25.2.*` package lane retained
 - 1-Wire protocol: `2.1.1`
 
-## Documentation state
+## Repetition watchdog
 
-- 9,865 maintained direct C# declarations pass contextual XML documentation validation;
-- 45 Razor component types have documented partial class declarations;
-- 752 direct Razor `@code` declarations pass XML documentation validation;
-- required `<typeparam>`, `<param>`, `<returns>` and `<value>` tags are checked for explanatory text, not mere presence;
-- enum members are now individually documented and audited;
-- `.razor.cs` files are no longer excluded from the documentation scanner;
-- the established repository XML documentation validation entry point now covers both C# and Razor.
+- starts timing on the first substantive generated provider fragment;
+- analyzes only provider-generated stream text, not LocalGPT status messages or provider-trace metadata;
+- uses a bounded 12,288-character rolling tail;
+- requires substantial output, exact-ish short-cycle periodicity, six or more cycles and 97% agreement;
+- requires four suspicious samples over at least six seconds before stopping a request;
+- cancels only the current provider request and leaves caller/Council cancellation tokens untouched;
+- preserves the partial stream as evidence and omits provider content from exception logs.
+
+## Recovery semantics
+
+During deterministic all-model benchmark calibration, repetition retries use the existing configured Social Team member-recovery attempt count. The same provider-qualified subject is retried because substituting another model would invalidate the benchmark identity. When retries are exhausted the failed task is retained and the host queue continues.
+
+During ordinary Council work, repetition failure feeds into the existing same-member safe recovery and configured round-member recovery introduced in 3.1.3. Social Team recovery mode, retry count and eligible role-member pool remain authoritative; no second scheduler was added.
 
 ## Compatibility
 
-No database migration, benchmark evidence schema migration, provider runtime change, Council orchestration change, or 1-Wire protocol change is introduced by 3.1.4. The new Razor companion partial classes carry documentation only and do not add runtime behavior.
+No database migration, benchmark evidence schema migration, 1-Wire protocol change, or removal of 3.1.4 XML documentation coverage is introduced by 3.1.5.
 
-See `CHANGELOG-v3.1.4-XML-DOCUMENTATION-COMPLETENESS.md` and `VALIDATION-v3.1.4-source.md`.
+See `CHANGELOG-v3.1.5-STREAM-REPETITION-WATCHDOG.md` and `VALIDATION-v3.1.5-source.md`.

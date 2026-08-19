@@ -138,6 +138,7 @@ public sealed class CouncilBenchmarkCalibrationService(
                                 IncludeCpuSafeControl = false,
                                 StopWhenImprovementStalls = false,
                                 StopAfterConsecutiveProfileFailures = failureStop,
+                                RepetitionRecoveryAttempts = Math.Clamp(request.RepetitionRecoveryAttempts, 0, 8),
                                 MaxTasks = 1,
                                 TaskDefinitions = [taskPack],
                                 MaxCouncilReviewers = 0,

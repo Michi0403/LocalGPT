@@ -127,8 +127,11 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         var maximumOutput = Math.Clamp(request.MaximumOutputTokens, catalog.MinOutputTokens, catalog.MaxOutputTokens);
         var threshold = Math.Clamp(request.ImprovementThresholdPercent, 0d, 50d);
         var stopAfterConsecutiveProfileFailures = Math.Clamp(request.StopAfterConsecutiveProfileFailures, 0, maxProfiles);
+        var repetitionRecoveryAttempts = Math.Clamp(request.RepetitionRecoveryAttempts, 0, 8);
         var tasks = BuildTasks(request).Take(maxTasks).ToList();
-        var maximumMeasurementCalls = (long)targets.Count * maxProfiles * tasks.Count;
+        var maximumTaskAttemptsPerProfile = tasks.Sum(task =>
+            (long)(task.EnforceRoleExecution ? 2 : 1) * (repetitionRecoveryAttempts + 1));
+        var maximumMeasurementCalls = (long)targets.Count * maxProfiles * maximumTaskAttemptsPerProfile;
         var maximumReviewCalls = request.IncludeCouncilReview
             ? (long)targets.Count * Math.Max(0, request.MaxCouncilReviewers)
             : 0L;
@@ -197,7 +200,9 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
 
         try
         {
-            Publish($"_Limits: {maxSeconds}s per call · context ≤ {maximumContext:N0} · output ≤ {maximumOutput:N0} · stop threshold {threshold:0.#}%._\n");
+            Publish(
+                $"_Limits: {maxSeconds}s per call · context ≤ {maximumContext:N0} · output ≤ {maximumOutput:N0} · stop threshold {threshold:0.#}% · " +
+                $"repetition watchdog recovery ≤ {repetitionRecoveryAttempts} same-subject retr{(repetitionRecoveryAttempts == 1 ? "y" : "ies")} per measured task._\n");
 
             for (var targetIndex = 0; targetIndex < targets.Count; targetIndex++)
             {
@@ -226,6 +231,7 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
                             profile,
                             tasks,
                             maxSeconds,
+                            repetitionRecoveryAttempts,
                             message => Publish($"  {message}"),
                             PublishProviderStream,
                             runToken).ConfigureAwait(false);
