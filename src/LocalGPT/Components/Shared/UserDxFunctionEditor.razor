@@ -44,7 +44,7 @@
                 <label class="form-label">@T("UserDx.Editor.Pipeline", "Implementing pipeline")</label>
                 <select class="form-select" @bind="_edit.PipelineKey" disabled="@_busy">
                     <option value="">@T("UserDx.Editor.SelectPipeline", "Select pipeline")</option>
-                    @foreach (var pipeline in _pipelines.Where(item => !item.Key.StartsWith("user-source.", StringComparison.OrdinalIgnoreCase)))
+                    @foreach (var pipeline in _pipelines.Where(item => !UserFunctions.IsGeneratedSourceKey(item.Key)))
                     {
                         <option value="@pipeline.Key">@pipeline.DisplayName (@pipeline.Key)</option>
                     }
@@ -369,14 +369,14 @@
         try
         {
             _originalGeneratedSourceKey = string.Empty;
-            if (!item.PipelineKey.StartsWith("user-source.", StringComparison.OrdinalIgnoreCase))
+            if (!UserFunctions.IsGeneratedSourceKey(item.PipelineKey))
             {
                 _mode = "Pipeline";
                 return;
             }
 
             var pipeline = await Pipelines.GetAsync(item.PipelineKey).ConfigureAwait(true);
-            if (pipeline is null || !pipeline.ConnectorKey.StartsWith("user-source.", StringComparison.OrdinalIgnoreCase) || Pipelines.ParseSteps(pipeline.StepsJson).Count != 0)
+            if (pipeline is null || !UserFunctions.IsGeneratedSourceKey(pipeline.ConnectorKey) || Pipelines.ParseSteps(pipeline.StepsJson).Count != 0)
             {
                 _mode = "Pipeline";
                 return;
@@ -418,7 +418,7 @@
                 throw new InvalidOperationException(T("UserDx.Editor.HttpDisabled", "Plain HTTP is disabled for this source. Use HTTPS or explicitly allow HTTP."));
 
             using (JsonDocument.Parse(string.IsNullOrWhiteSpace(_headersJson) ? "{}" : _headersJson)) { }
-            var key = CreateGeneratedSourceKey(_edit.FunctionName);
+            var key = UserFunctions.CreateGeneratedSourceKey(_edit.FunctionName);
             var connector = new RemoteControlConnectorDefinition
             {
                 Key = key,
@@ -464,7 +464,7 @@
     {
         try
         {
-            if (!key.StartsWith("user-source.", StringComparison.OrdinalIgnoreCase))
+            if (!UserFunctions.IsGeneratedSourceKey(key))
                 return;
             await Pipelines.DeleteAsync(key).ConfigureAwait(false);
             await Connectors.DeleteAsync(key).ConfigureAwait(false);
@@ -476,24 +476,5 @@
         }
     }
 
-    /// <summary>Creates a bounded deterministic Remote Control key for a simple user data source.</summary>
-    /// <param name="functionName">Function name value supplied to the user DevExpress function editor operation and used when producing its result.</param>
-    /// <returns>The string produced by the operation.</returns>
-    private string CreateGeneratedSourceKey(string functionName)
-    {
-        try
-        {
-            var normalized = functionName?.Trim().ToLowerInvariant() ?? string.Empty;
-            if (!normalized.StartsWith("user.", StringComparison.Ordinal) || normalized.Length <= 5)
-                throw new ArgumentException(T("UserDx.Editor.RuntimeInvalid", "Enter a complete user.* runtime name before saving the source."));
-            var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(normalized));
-            return "user-source." + Convert.ToHexString(hash[..12]).ToLowerInvariant();
-        }
-        catch (Exception exception)
-        {
-            Logger.LogError(exception, "Could not create the generated source adapter key; function name was omitted from logs.");
-            throw;
-        }
-    }
 
 }

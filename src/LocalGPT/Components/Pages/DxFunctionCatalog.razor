@@ -244,6 +244,8 @@
     /// Stores the internal user editor function name state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
     /// </summary>
     private string _userEditorFunctionName = string.Empty;
+    /// <summary>Stores the initial implementation mode requested when opening the user AI-function editor.</summary>
+    private string _userEditorInitialMode = "Pipeline";
 
     /// <summary>
     /// Gets the filtered entries collection maintained or exposed by this DevExpress function instance for downstream processing.

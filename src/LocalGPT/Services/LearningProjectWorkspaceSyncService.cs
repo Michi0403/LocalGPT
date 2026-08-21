@@ -661,29 +661,42 @@ public sealed class LearningProjectWorkspaceSyncService(
     /// <param name="root">Root value supplied to the learning project workspace sync operation and used when producing its result.</param>
     /// <param name="searchPattern">Search pattern value supplied to the learning project workspace sync operation and used when producing its result.</param>
     /// <returns>The collection produced by the operation.</returns>
-    private IEnumerable<string> EnumerateRepositoryFiles(string root, string searchPattern = "*")
+    private IReadOnlyList<string> EnumerateRepositoryFiles(string root, string searchPattern = "*")
     {
-        var pending = new Stack<string>();
-        pending.Push(root);
-        while (pending.Count > 0)
+        try
         {
-            var directory = pending.Pop();
-            IEnumerable<string> childDirectories;
-            IEnumerable<string> files;
-            try
+            var results = new List<string>();
+            var pending = new Stack<string>();
+            pending.Push(root);
+            while (pending.Count > 0)
             {
-                childDirectories = Directory.EnumerateDirectories(directory).Where(path => !ExcludedDirectoryNames.Contains(Path.GetFileName(path))).ToArray();
-                files = Directory.EnumerateFiles(directory, searchPattern, SearchOption.TopDirectoryOnly).ToArray();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                continue;
+                var directory = pending.Pop();
+                IReadOnlyList<string> childDirectories;
+                IReadOnlyList<string> files;
+                try
+                {
+                    childDirectories = Directory.EnumerateDirectories(directory)
+                        .Where(path => !ExcludedDirectoryNames.Contains(Path.GetFileName(path)))
+                        .ToArray();
+                    files = Directory.EnumerateFiles(directory, searchPattern, SearchOption.TopDirectoryOnly).ToArray();
+                }
+                catch (UnauthorizedAccessException exception)
+                {
+                    logger.LogWarning(exception, "Skipping an inaccessible source repository directory while synchronizing project structure; path omitted from logs.");
+                    continue;
+                }
+
+                results.AddRange(files);
+                foreach (var child in childDirectories)
+                    pending.Push(child);
             }
 
-            foreach (var file in files)
-                yield return file;
-            foreach (var child in childDirectories)
-                pending.Push(child);
+            return results;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Enumerating source repository files failed; source paths were omitted from logs.");
+            throw;
         }
     }
 

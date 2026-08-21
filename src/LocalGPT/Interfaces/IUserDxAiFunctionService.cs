@@ -5,6 +5,14 @@ namespace LocalGPT.Interfaces;
 /// <summary>Manages user-owned DXFunctions whose implementation is a persisted Remote Control action pipeline.</summary>
 public interface IUserDxAiFunctionService
 {
+    /// <summary>Returns whether a Remote Control key belongs to the generated JSON/OData source-adapter namespace.</summary>
+    /// <param name="key">Remote Control connector or pipeline key to classify.</param>
+    /// <returns><see langword="true"/> when the key is owned by the generated user-source adapter workflow.</returns>
+    bool IsGeneratedSourceKey(string? key);
+    /// <summary>Creates the deterministic generated Remote Control key for a user-owned JSON/OData source function.</summary>
+    /// <param name="functionName">User-owned runtime function name in the <c>user.*</c> namespace.</param>
+    /// <returns>The bounded deterministic generated source-adapter key.</returns>
+    string CreateGeneratedSourceKey(string functionName);
     /// <summary>Reloads enabled and disabled definitions into the synchronized runtime descriptor cache.</summary>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>A task that completes when the operation has finished.</returns>

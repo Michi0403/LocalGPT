@@ -34,6 +34,42 @@ public sealed class UserDxAiFunctionService(
     /// </summary>
     private readonly System.Text.RegularExpressions.Regex namePattern = regexCompilation.Compile("^user\\.[a-z0-9][a-z0-9._-]{0,118}$", "c", TimeSpan.FromSeconds(2), nameof(UserDxAiFunctionService));
 
+    /// <summary>Returns whether the supplied Remote Control key belongs to a generated JSON/OData user source adapter.</summary>
+    /// <param name="key">Remote Control connector or pipeline key to classify.</param>
+    /// <returns><see langword="true"/> when the key is owned by the generated user-source adapter workflow.</returns>
+    public bool IsGeneratedSourceKey(string? key)
+    {
+        try
+        {
+            return !string.IsNullOrWhiteSpace(key) && key.StartsWith("user-source.", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Classifying a generated user source key failed; key content omitted from logs.");
+            throw;
+        }
+    }
+
+    /// <summary>Creates the deterministic Remote Control key used by a generated JSON/OData user source adapter.</summary>
+    /// <param name="functionName">User-owned runtime function name in the <c>user.*</c> namespace.</param>
+    /// <returns>The bounded deterministic generated source-adapter key.</returns>
+    public string CreateGeneratedSourceKey(string functionName)
+    {
+        try
+        {
+            var normalized = functionName?.Trim().ToLowerInvariant() ?? string.Empty;
+            if (!normalized.StartsWith("user.", StringComparison.Ordinal) || normalized.Length <= 5)
+                throw new ArgumentException("Enter a complete user.* runtime name before saving the source.", nameof(functionName));
+            var hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(normalized));
+            return "user-source." + Convert.ToHexString(hash[..12]).ToLowerInvariant();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Creating a generated user source adapter key failed; function name omitted from logs.");
+            throw;
+        }
+    }
+
     /// <summary>
     /// Performs refresh as part of the user DevExpress AI function service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
