@@ -189,6 +189,88 @@ public sealed class InspectRemoteKnowledgeFunction(
     }
 }
 
+/// <summary>Refreshes the database-backed project knowledge for a public GitHub repository without writing to that repository.</summary>
+/// <param name="importer">Remote knowledge importer that owns bounded public GitHub retrieval.</param>
+/// <param name="parameters">Parameter reader used to build the existing bounded remote import request.</param>
+/// <param name="projectWorkspaceSync">Project synchronization service that materializes source-backed repository evidence.</param>
+/// <param name="logger">Logger used to record refresh diagnostics without logging repository content.</param>
+public sealed class RefreshRepositoryKnowledgeFunction(
+    IRemoteKnowledgeImportService importer,
+    RemoteImportDxParameterReader parameters,
+    ILearningProjectWorkspaceSyncService projectWorkspaceSync,
+    ILogger<RefreshRepositoryKnowledgeFunction> logger) : IDxAiFunctionHandler
+{
+    /// <summary>Gets the runtime descriptor for the explicit repository knowledge refresh operation.</summary>
+    /// <value>The descriptor exposed by <see cref="RefreshRepositoryKnowledgeFunction"/>.</value>
+    public DxaichatFunctionInfo Descriptor { get; } = new(
+        "localgpt.repository.knowledge.refresh",
+        "POST",
+        "/api/dxai/functions/localgpt.repository.knowledge.refresh/invoke",
+        "Downloads the user-selected public GitHub repository through LocalGPT's bounded remote cache and synchronizes its project identity, exact source version, revision, workspace, SDK/framework requirements and full tracked-file structure into the project database.",
+        "JSON parameters: sourceUrl required and must be a public github.com repository URL; branch optional and defaults to main; maxFiles optional and uses the database-backed remote-import policy when omitted or non-positive.",
+        "User-invoked project knowledge maintenance only. Reads public GitHub source and updates LocalGPT's local project knowledge; it never writes to GitHub or the source repository and is not eligible for automatic model invocation.",
+        IsReadOnly: false,
+        AvailableToAi: true,
+        RequiresHumanConfirmation: false,
+        SupportsDirectInvocation: true,
+        SupportsAutomaticInvocation: false,
+        Source: "DIHandler",
+        ParameterSchemaJson: """{"type":"object","required":["sourceUrl"],"properties":{"sourceUrl":{"type":"string"},"branch":{"type":"string"},"maxFiles":{"type":"integer"}},"additionalProperties":false}""",
+        IsCoordinationOnly: true);
+
+    /// <summary>Invokes the bounded GitHub refresh and materializes the retrieved repository as project knowledge.</summary>
+    /// <param name="request">DXFunction request containing the repository URL and optional branch.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The repository refresh result including the source revision and synchronized projects.</returns>
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var sourceUrl = parameters.String(request.Parameters, "sourceUrl").Trim();
+            if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var sourceUri) ||
+                !string.Equals(sourceUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(sourceUri.Host, "github.com", StringComparison.OrdinalIgnoreCase))
+            {
+                return new DxAiFunctionInvocationResult
+                {
+                    Succeeded = false,
+                    Status = "Rejected",
+                    Error = "Repository knowledge refresh requires an HTTPS github.com repository URL."
+                };
+            }
+
+            var importRequest = parameters.Build(request.Parameters, preview: true, confirmed: false);
+            importRequest.SourceUrl = sourceUrl;
+            importRequest.SourceKind = "GitHub";
+            importRequest.SaveToKnowledge = false;
+            importRequest.PreviewOnly = true;
+            importRequest.UserConfirmed = false;
+
+            var remote = await importer.ImportAsync(importRequest, cancellationToken).ConfigureAwait(false);
+            var projects = await projectWorkspaceSync.SynchronizeRemoteRepositoryAsync(remote, cancellationToken).ConfigureAwait(false);
+            var value = new RepositoryKnowledgeRefreshResult(
+                remote.SourceUrl,
+                remote.ResolvedRevision,
+                remote.DownloadedFileCount,
+                projects);
+
+            logger.LogInformation(
+                "Repository knowledge refresh synchronized {ProjectCount} project(s) from public GitHub source host {SourceHost}.",
+                projects.Count,
+                sourceUri.Host);
+            return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = value };
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Repository knowledge refresh was cancelled.");
+            else
+                logger.LogError(exception, "Repository knowledge refresh failed; repository content and URL were omitted from logs.");
+            throw;
+        }
+    }
+}
+
 /// <summary>
 /// Represents an import remote knowledge function application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>

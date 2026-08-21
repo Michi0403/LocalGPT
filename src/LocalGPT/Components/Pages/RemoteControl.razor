@@ -13,24 +13,34 @@
 <ToastWrapper Name="RemoteControlToasts" />
 
 <div class="remote-control-page">
-    <header class="remote-control-hero">
-        <div>
-            <span class="remote-control-kicker">@T("RemoteControl.Kicker", "User-owned integrations")</span>
-            <h1>@T("RemoteControl.Title", "Remote Control Integration Fabric")</h1>
-            <p>@T("RemoteControl.Intro", "Build local-first REST, OData and webhook connectors, then route their payloads through existing DXFunctions and public service actions. Nothing online is enabled by default.")</p>
-        </div>
-        <div class="remote-control-safety">
-            <strong>@T("RemoteControl.OfflineDefault", "Offline by default")</strong>
-            <span>@T("RemoteControl.OfflineDefault.Help", "Each outbound connector needs explicit enablement and a host allowlist. Nested write actions keep their own approval policy.")</span>
-        </div>
-    </header>
+    <WorkbenchHeader Eyebrow='@T("RemoteControl.Kicker", "User-owned integrations")'
+                     Title='@T("RemoteControl.Title", "Remote Control Integration Fabric")'
+                     Subtitle='@T("RemoteControl.Intro", "Build local-first REST, OData and webhook connectors, then route their payloads through existing DXFunctions and public service actions. Nothing online is enabled by default.")'>
+        <Actions>
+            <DxButton Text='@T("Common.Refresh", "Refresh")'
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                      Click="ReloadAsync" />
+        </Actions>
+    </WorkbenchHeader>
+
+    <div class="remote-control-safety">
+        <strong>@T("RemoteControl.OfflineDefault", "Offline by default")</strong>
+        <span>@T("RemoteControl.OfflineDefault.Help", "Each outbound connector needs explicit enablement and a host allowlist. Nested write actions keep their own approval policy.")</span>
+    </div>
 
     @if (!string.IsNullOrWhiteSpace(Status))
     {
         <div class="remote-control-status">@Status</div>
     }
 
-    <section class="remote-control-grid">
+    <div class="remote-control-workbench-layout">
+        <ConfigurationWorkbenchNav Items="@RemoteControlSections"
+                                   ActiveKey="@ActiveRemoteControlSection"
+                                   ActiveKeyChanged="OnRemoteControlSectionChanged"
+                                   AriaLabel="Remote Control sections" />
+        <div class="remote-control-workbench-stage">
+            <ConfigurationWorkbenchPanel SectionKey="connectors" ActiveKey="@ActiveRemoteControlSection" AriaLabel="Remote Control connectors">
         <article class="remote-control-panel">
             <div class="remote-control-panel-heading">
                 <div>
@@ -119,7 +129,9 @@
                 <details><summary>@T("RemoteControl.LastPayload", "Latest pull payload")</summary><pre>@LastPayloadPreview</pre></details>
             }
         </article>
+            </ConfigurationWorkbenchPanel>
 
+            <ConfigurationWorkbenchPanel SectionKey="pipelines" ActiveKey="@ActiveRemoteControlSection" AriaLabel="Remote Control action pipelines">
         <article class="remote-control-panel">
             <div class="remote-control-panel-heading">
                 <div>
@@ -190,8 +202,9 @@
             </div>
             <label class="remote-control-manual-payload">@T("RemoteControl.ManualPayload", "Manual execution payload")<textarea rows="6" @bind="ManualPayload"></textarea></label>
         </article>
-    </section>
+            </ConfigurationWorkbenchPanel>
 
+            <ConfigurationWorkbenchPanel SectionKey="history" ActiveKey="@ActiveRemoteControlSection" AriaLabel="Remote Control execution history">
     <section class="remote-control-panel remote-control-history">
         <div class="remote-control-panel-heading">
             <div><h2>@T("RemoteControl.History", "Execution history")</h2><small>@T("RemoteControl.History.Help", "Bounded audit metadata only; full remote payloads are not persisted here.")</small></div>
@@ -209,7 +222,9 @@
             </table>
         </div>
     </section>
+            </ConfigurationWorkbenchPanel>
 
+            <ConfigurationWorkbenchPanel SectionKey="templates" ActiveKey="@ActiveRemoteControlSection" AriaLabel="Remote Control template language">
     <section class="remote-control-panel remote-control-help">
         <h2>@T("RemoteControl.TemplateLanguage", "Template language")</h2>
         <code>{{payload}}</code>
@@ -220,4 +235,8 @@
         <code>{{text:payload.description}}</code>
         <p>@T("RemoteControl.TemplateLanguage.Help", "Use payload values, previous step results and LocalGPT system variables. Prefix a token with text: when it must be JSON-string escaped inside an argument template.")</p>
     </section>
+            </ConfigurationWorkbenchPanel>
+        </div>
+    </div>
 </div>
+

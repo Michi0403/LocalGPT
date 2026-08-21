@@ -146,8 +146,10 @@ public sealed class InitialDataCatalog(
             "Learning Round reads bounded evidence from chat memory, application logs, CouncilKnowledgeEntries and database-backed RegexPatterns.",
             "Use localgpt.learning.snapshot before drawing conclusions and compare multiple evidence categories rather than learning from one isolated answer.",
             "Use localgpt.regex.test before localgpt.regex.upsert. Generic project, compiler, namespace, dependency-injection, installer-port and 1-Wire patterns are preferred over product-specific one-offs.",
-            "Use localgpt.learning.maintain only for compact knowledge self-maintenance. Stored facts remain ModelSuggested and NeedsUserReview; they never authorize commands, project writes, external access or permission changes.",
-            "Knowledge self-maintenance itself needs no confirmation because it cannot perform consequential side effects, but promotion to user-approved authority remains a user decision."
+            "Use localgpt.learning.maintain for compact knowledge self-maintenance and repository-shaped chat workspace synchronization. Stored facts remain ModelSuggested and NeedsUserReview; source synchronization may update LocalGPT's local project/version/revision/workspace/tracked-file knowledge but never writes into the supplied repository or grants command, network, credential or permission authority.",
+            "Recognize repository identity from the inspected source: LocalGPT source maintains the canonical LocalGPT Core project, PublisherStudio or BlazorPublisher source maintains the canonical PublisherStudio project, and any other identifiable repository maintains its own project tied to the chat upload workspace instead of a generic Learning Round project.",
+            "Canonical public repositories supplied by the user are https://github.com/Michi0403/LocalGPT and https://github.com/Michi0403/BlazorPublisher. Councils may use localgpt.knowledge.remote.inspect for current read-only repository facts; use localgpt.repository.knowledge.refresh only when the user explicitly wants LocalGPT to update its persisted source knowledge.",
+            "Knowledge self-maintenance and local source-knowledge synchronization need no separate confirmation because they cannot execute source code or write to the source repository, but promotion to user-approved authority remains a user decision."
         })),
         new("HarmonyResponseProtocol", "en", string.Join(" ", new[]
         {
@@ -211,7 +213,8 @@ public sealed class InitialDataCatalog(
             "docs/engineering/build-validation.md",
             "docs/reference/capability-map.md",
             "docs/reference/toolchain-discovery.md",
-            "docs/reference/ai-provider-installation.md"
+            "docs/reference/ai-provider-installation.md",
+            "docs/reference/canonical-repositories.md"
         ];
 
         var entries = new List<CouncilKnowledgeEntry>();

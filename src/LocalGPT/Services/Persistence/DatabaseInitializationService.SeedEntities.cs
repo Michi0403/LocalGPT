@@ -207,14 +207,24 @@ public sealed partial class DatabaseInitializationService
     try
     {
             var current = new DirectoryInfo(Path.GetFullPath(contentRoot));
+            DirectoryInfo? projectFallback = null;
             while (current is not null)
             {
-                if (current.EnumerateFiles("*.csproj", SearchOption.TopDirectoryOnly).Any() ||
-                    current.EnumerateDirectories("src", SearchOption.TopDirectoryOnly).Any())
+                if (File.Exists(Path.Combine(current.FullName, "global.json")) &&
+                    (Directory.Exists(Path.Combine(current.FullName, "src")) ||
+                     current.EnumerateFiles("*.sln*", SearchOption.TopDirectoryOnly).Any()))
+                {
                     return current.FullName;
+                }
+
+                if (File.Exists(Path.Combine(current.FullName, "src", "LocalGPT", "LocalGPT.csproj")))
+                    return current.FullName;
+
+                if (projectFallback is null && current.EnumerateFiles("*.csproj", SearchOption.TopDirectoryOnly).Any())
+                    projectFallback = current;
                 current = current.Parent;
             }
-            return Path.GetFullPath(contentRoot);
+            return projectFallback?.FullName ?? Path.GetFullPath(contentRoot);
     
     }
     catch (Exception __serviceMethodException)

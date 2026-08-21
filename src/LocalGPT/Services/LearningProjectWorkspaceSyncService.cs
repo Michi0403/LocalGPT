@@ -68,7 +68,14 @@ public sealed class LearningProjectWorkspaceSyncService(
             foreach (var repositoryRoot in repositoryRoots)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var result = await SynchronizeRepositoryAsync(workspace, repositoryRoot, cancellationToken).ConfigureAwait(false);
+                var result = await SynchronizeRepositoryAsync(
+                    workspace.WorkspaceName,
+                    workspace.RootPath,
+                    Path.Combine(workspace.RootPath, "original"),
+                    "ChatUpload",
+                    string.Empty,
+                    repositoryRoot,
+                    cancellationToken).ConfigureAwait(false);
                 if (result is not null)
                     results.Add(result);
             }
@@ -85,6 +92,64 @@ public sealed class LearningProjectWorkspaceSyncService(
                 logger.LogDebug(exception, "Learning project synchronization was cancelled.");
             else
                 logger.LogError(exception, "Learning project synchronization failed; repository file content was omitted from logs.");
+            throw;
+        }
+    }
+
+    /// <summary>Synchronizes a bounded remote repository cache into canonical LocalGPT project knowledge.</summary>
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<LearningProjectSyncResult>> SynchronizeRemoteRepositoryAsync(RemoteKnowledgeImportResult remoteSource, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(remoteSource);
+            if (string.IsNullOrWhiteSpace(remoteSource.CacheRoot))
+                return [];
+
+            var sourceRoot = Path.Combine(remoteSource.CacheRoot, "source");
+            if (!Directory.Exists(sourceRoot))
+            {
+                logger.LogInformation("Remote repository synchronization found no extracted source tree.");
+                return [];
+            }
+
+            var repositoryRoots = DiscoverRepositoryRoots(sourceRoot);
+            if (repositoryRoots.Count == 0)
+            {
+                logger.LogInformation("Remote repository synchronization found no repository-shaped source tree.");
+                return [];
+            }
+
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            var workspaceName = BuildRemoteWorkspaceName(remoteSource);
+            var results = new List<LearningProjectSyncResult>(repositoryRoots.Count);
+            foreach (var repositoryRoot in repositoryRoots)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = await SynchronizeRepositoryAsync(
+                    workspaceName,
+                    remoteSource.CacheRoot,
+                    remoteSource.CacheRoot,
+                    "RemoteGitHub",
+                    remoteSource.SourceUrl,
+                    repositoryRoot,
+                    cancellationToken).ConfigureAwait(false);
+                if (result is not null)
+                    results.Add(result);
+            }
+
+            logger.LogInformation(
+                "Remote repository synchronization persisted {ProjectCount} canonical project(s) from host {SourceHost}.",
+                results.Count,
+                ResolveSourceHost(remoteSource.SourceUrl));
+            return results;
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Remote repository synchronization was cancelled.");
+            else
+                logger.LogError(exception, "Remote repository synchronization failed; repository paths and content were omitted from logs.");
             throw;
         }
     }
@@ -184,12 +249,20 @@ public sealed class LearningProjectWorkspaceSyncService(
     /// <summary>
     /// Performs synchronize repository as part of the learning project workspace sync service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
-    /// <param name="workspace">Workspace value supplied to the learning project workspace sync operation and used when producing its result.</param>
+    /// <param name="workspaceName">Display name of the chat or remote cache workspace that supplied the repository.</param>
+    /// <param name="workspaceRootPath">Owning chat workspace or remote-cache root associated with the learned source.</param>
+    /// <param name="snapshotArchivePath">Path metadata that identifies the supplied upload/cache snapshot without modifying it.</param>
+    /// <param name="sourceKind">Evidence transport such as ChatUpload or RemoteGitHub.</param>
+    /// <param name="sourceReference">Canonical public repository URL when the source came from a user-requested remote refresh.</param>
     /// <param name="repositoryRoot">Repository root value supplied to the learning project workspace sync operation and used when producing its result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The learning project sync result produced by the operation.</returns>
     private async Task<LearningProjectSyncResult?> SynchronizeRepositoryAsync(
-        ChatUploadWorkspaceSummary workspace,
+        string workspaceName,
+        string workspaceRootPath,
+        string snapshotArchivePath,
+        string sourceKind,
+        string sourceReference,
         string repositoryRoot,
         CancellationToken cancellationToken)
     {
@@ -206,15 +279,18 @@ public sealed class LearningProjectWorkspaceSyncService(
             var now = DateTime.UtcNow;
             var sourceSnapshotHash = await ComputeRepositorySnapshotHashAsync(repositoryRoot, files, cancellationToken).ConfigureAwait(false);
             var structureEntries = files.Select(path => BuildStructureEntry(repositoryRoot, path)).ToList();
+            var databaseProjectName = CanonicalDatabaseProjectName(source.ProjectName);
             var structureJson = JsonSerializer.Serialize(new
             {
-                source.ProjectName,
+                ProjectName = databaseProjectName,
                 source.Version,
                 source.SdkVersion,
                 TargetFrameworks = source.TargetFrameworks,
-                workspace.WorkspaceName,
-                WorkspaceRoot = workspace.RootPath,
+                WorkspaceName = workspaceName,
+                WorkspaceRoot = workspaceRootPath,
                 RepositoryRoot = repositoryRoot,
+                SourceKind = sourceKind,
+                SourceReference = sourceReference,
                 SourceSnapshotHash = sourceSnapshotHash,
                 FileCount = structureEntries.Count,
                 Files = structureEntries
@@ -231,14 +307,14 @@ public sealed class LearningProjectWorkspaceSyncService(
                 {
                     Id = Guid.NewGuid(),
                     CreatedAtUtc = now,
-                    Name = source.ProjectName,
-                    Purpose = $"Source-backed project learned from chat upload workspace {workspace.WorkspaceName}.",
+                    Name = databaseProjectName,
+                    Purpose = $"Source-backed project learned from {workspaceName}.",
                     RecommendGit = true
                 };
                 db.LocalGptProjects.Add(project);
             }
 
-            project.Name = source.ProjectName;
+            project.Name = databaseProjectName;
             project.RootPath = repositoryRoot;
             project.ProjectType = "DotNetSolution";
             project.SolutionPath = source.SolutionPath;
@@ -260,7 +336,7 @@ public sealed class LearningProjectWorkspaceSyncService(
                     Id = Guid.NewGuid(),
                     ProjectId = project.Id,
                     Version = source.Version,
-                    Notes = "Source-backed version detected from the uploaded repository. Runtime/framework values are read from repository metadata and are not model guesses.",
+                    Notes = "Source-backed version detected from repository metadata. Runtime/framework values are read from source and are not model guesses.",
                     CreatedAtUtc = now
                 };
                 db.LocalGptProjectVersions.Add(version);
@@ -273,7 +349,7 @@ public sealed class LearningProjectWorkspaceSyncService(
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
             foreach (var item in existingRevisions)
                 item.IsCurrent = false;
-            var revisionName = $"chat-upload-{source.Version}-{sourceSnapshotHash[..12].ToLowerInvariant()}";
+            var revisionName = $"source-{source.Version}-{sourceSnapshotHash[..12].ToLowerInvariant()}";
             var revision = existingRevisions.FirstOrDefault(item => string.Equals(item.SourceSnapshotHash, sourceSnapshotHash, StringComparison.OrdinalIgnoreCase));
             if (revision is null)
             {
@@ -282,9 +358,9 @@ public sealed class LearningProjectWorkspaceSyncService(
                     Id = Guid.NewGuid(),
                     ProjectId = project.Id,
                     CreatedAtUtc = now,
-                    BranchName = "chat-upload",
+                    BranchName = sourceKind == "RemoteGitHub" ? "remote-main" : "chat-upload",
                     RevisionName = revisionName,
-                    CreatedBy = "Chat upload workspace",
+                    CreatedBy = sourceKind == "RemoteGitHub" ? "User-requested remote repository refresh" : "Chat upload workspace",
                     SourceSnapshotHash = sourceSnapshotHash
                 };
                 db.LocalGptProjectRevisions.Add(revision);
@@ -294,10 +370,11 @@ public sealed class LearningProjectWorkspaceSyncService(
             revision.SourceRootPath = repositoryRoot;
             revision.SolutionPath = source.SolutionPath;
             revision.ProjectStructureJson = structureJson;
-            revision.SnapshotArchivePath = Path.Combine(workspace.RootPath, "original");
+            revision.SnapshotArchivePath = snapshotArchivePath;
 
+            var workspaceRootName = sourceKind == "RemoteGitHub" ? "Remote repository cache" : "Chat upload source";
             var workspaceRoot = await db.ProjectWorkspaceRoots
-                .SingleOrDefaultAsync(item => item.ProjectId == project.Id && item.ScopeKind == "Project" && item.Name == "Chat upload source", cancellationToken)
+                .SingleOrDefaultAsync(item => item.ProjectId == project.Id && item.ScopeKind == "Project" && item.Name == workspaceRootName, cancellationToken)
                 .ConfigureAwait(false);
             if (workspaceRoot is null)
             {
@@ -306,7 +383,7 @@ public sealed class LearningProjectWorkspaceSyncService(
                     Id = Guid.NewGuid(),
                     ProjectId = project.Id,
                     ScopeKind = "Project",
-                    Name = "Chat upload source",
+                    Name = workspaceRootName,
                     CreatedAtUtc = now
                 };
                 db.ProjectWorkspaceRoots.Add(workspaceRoot);
@@ -322,7 +399,7 @@ public sealed class LearningProjectWorkspaceSyncService(
             workspaceRoot.LastPermissionStatus = "SourceBackedReadOnly";
             workspaceRoot.LastPermissionReadAccess = true;
             workspaceRoot.LastPermissionWriteAccess = false;
-            workspaceRoot.LastPermissionSummary = $"Prefilled from chat upload workspace {workspace.WorkspaceName}; source is evidence and is not modified by learning synchronization.";
+            workspaceRoot.LastPermissionSummary = $"Prefilled from {workspaceName}; source is evidence and is not modified by learning synchronization.";
             workspaceRoot.LastPermissionCheckedAtUtc = now;
             workspaceRoot.Priority = 1;
             workspaceRoot.IsDefault = true;
@@ -330,17 +407,18 @@ public sealed class LearningProjectWorkspaceSyncService(
             workspaceRoot.UpdatedAtUtc = now;
 
             await SynchronizeSourceRequirementsAsync(db, project.Id, revision.Id, source, now, cancellationToken).ConfigureAwait(false);
+            await SynchronizeSourceRepositoryArtifactAsync(db, project.Id, revision.Id, sourceReference, sourceKind, now, cancellationToken).ConfigureAwait(false);
             await SynchronizeTrackedFilesAsync(db, project.Id, revision.Id, repositoryRoot, source.SolutionPath, files, now, cancellationToken).ConfigureAwait(false);
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             return new LearningProjectSyncResult(
                 project.Id,
                 revision.Id,
-                source.ProjectName,
+                project.Name,
                 source.Version,
                 source.SdkVersion,
                 source.TargetFrameworks,
-                workspace.WorkspaceName,
+                workspaceName,
                 repositoryRoot,
                 structureEntries.Count,
                 sourceSnapshotHash);
@@ -351,6 +429,60 @@ public sealed class LearningProjectWorkspaceSyncService(
                 logger.LogDebug(exception, "Synchronizing one learned source repository was cancelled.");
             else
                 logger.LogError(exception, "Synchronizing one learned source repository failed; repository content and paths were omitted from logs.");
+            throw;
+        }
+    }
+
+    /// <summary>Builds a stable display name for a remote repository workspace without exposing local paths.</summary>
+    /// <param name="remoteSource">Remote source result used to identify the public repository.</param>
+    /// <returns>A bounded workspace display name.</returns>
+    private string BuildRemoteWorkspaceName(RemoteKnowledgeImportResult remoteSource)
+    {
+        try
+        {
+            if (Uri.TryCreate(remoteSource.SourceUrl, UriKind.Absolute, out var uri))
+                return $"GitHub {uri.Host}{uri.AbsolutePath.TrimEnd('/')} @ {remoteSource.ResolvedRevision}";
+            return $"Remote repository @ {remoteSource.ResolvedRevision}";
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Building the remote repository workspace label failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Resolves only the public host used for bounded remote-source diagnostics.</summary>
+    /// <param name="sourceUrl">Public source URL.</param>
+    /// <returns>The source host or an unresolved marker.</returns>
+    private string ResolveSourceHost(string sourceUrl)
+    {
+        try
+        {
+            return Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) ? uri.Host : "unresolved";
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Resolving the remote repository source host failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Maps source identity to the stable database project name used by LocalGPT project maintenance.</summary>
+    /// <param name="sourceProjectName">Canonical source identity detected from repository files.</param>
+    /// <returns>The stable database project name.</returns>
+    private string CanonicalDatabaseProjectName(string sourceProjectName)
+    {
+        try
+        {
+            if (string.Equals(sourceProjectName, "LocalGPT", StringComparison.OrdinalIgnoreCase))
+                return "LocalGPT Core";
+            if (string.Equals(sourceProjectName, "PublisherStudio", StringComparison.OrdinalIgnoreCase))
+                return "PublisherStudio";
+            return sourceProjectName;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Resolving the canonical database project name failed.");
             throw;
         }
     }
@@ -571,6 +703,67 @@ public sealed class LearningProjectWorkspaceSyncService(
         catch (Exception exception)
         {
             logger.LogError(exception, "Synchronizing source-backed project requirements failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Persists the canonical public repository source alongside a source-backed project revision when one is known.</summary>
+    /// <param name="db">Database context used for project persistence.</param>
+    /// <param name="projectId">Project that owns the source reference.</param>
+    /// <param name="revisionId">Current source-backed revision associated with the repository reference.</param>
+    /// <param name="sourceReference">Canonical public source URL, when supplied by a remote refresh.</param>
+    /// <param name="sourceKind">Source transport that produced the repository evidence.</param>
+    /// <param name="now">UTC timestamp used for deterministic audit metadata.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the repository source artifact has been synchronized.</returns>
+    private async Task SynchronizeSourceRepositoryArtifactAsync(
+        LocalGptMemoryDbContext db,
+        Guid projectId,
+        Guid revisionId,
+        string sourceReference,
+        string sourceKind,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sourceReference))
+                return;
+
+            var artifact = await db.LocalGptProjectArtifacts
+                .SingleOrDefaultAsync(
+                    item => item.ProjectId == projectId && item.ArtifactKind == "SourceRepository" && item.Name == "Canonical repository source",
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (artifact is null)
+            {
+                artifact = new LocalGptProjectArtifact
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectId = projectId,
+                    ArtifactKind = "SourceRepository",
+                    Name = "Canonical repository source",
+                    CreatedAtUtc = now
+                };
+                db.LocalGptProjectArtifacts.Add(artifact);
+            }
+
+            artifact.RevisionId = revisionId;
+            artifact.Value = sourceReference.Trim();
+            artifact.DataType = "uri";
+            artifact.Description = $"Canonical public repository source last verified through {sourceKind} evidence.";
+            artifact.Flags = "source-backed;read-only";
+            artifact.CouncilReviewStatus = "Current";
+            artifact.IsSensitive = false;
+            artifact.IsUserApproved = true;
+            artifact.UpdatedAtUtc = now;
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Synchronizing a canonical repository source artifact was cancelled.");
+            else
+                logger.LogError(exception, "Synchronizing a canonical repository source artifact failed; the repository URL was omitted from logs.");
             throw;
         }
     }

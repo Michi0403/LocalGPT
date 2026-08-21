@@ -1,17 +1,11 @@
-# LocalGPT 3.2.4
+# LocalGPT 3.2.5
 
-LocalGPT 3.2.4 is the **Build Guard Ownership, Iterator & User AI Function Editor Repair** release. It is a focused correction to 3.2.3 after the user's Windows .NET 10 build exposed repository-policy and Razor compile failures.
+LocalGPT 3.2.5 is the **Repository Maintenance, DX Workbench & GitHub Refresh** release.
 
-## What changed
+It makes repository-shaped Learning Round evidence maintain the repository's own project record rather than an anonymous Learning Round shell; reconciles LocalGPT Core's current version/revision from maintained source; seeds PublisherStudio as a canonical companion project; and adds explicit read-only knowledge-refresh functions/pipelines for the LocalGPT and BlazorPublisher repositories supplied by the user.
 
-- User JSON/OData generated-source key classification/key creation is now service-owned, satisfying the repository's Text Service Ownership boundary without adding an exemption.
-- Learning-project repository enumeration is materialized and logged instead of using a catch-bearing iterator, satisfying the Iterator Exception Policy without weakening it.
-- `DxFunctionCatalog.razor` again owns the `_userEditorInitialMode` backing field required by its Source/Pipeline editor controls.
+The DX Functions and Remote Control frontends now use the established workbench navigation model. DX-function actions expose a clear InteractiveServer loading state, open user-function editors retain their state across catalog rerenders, and Remote Control's Connectors/Pipelines/History/Templates no longer force a wide two-column editor.
 
-## Retained behavior
+Existing Chat behavior, X-Round automation, advanced Remote Control definitions, EF schema, render-mode architecture, and LocalGPT 1-Wire protocol are preserved.
 
-The 3.2.3 JSON/OData AI Function frontend, advanced pipelines, X Functions & automation frontend, source-backed Learning Round project/version/workspace/full-file persistence, .NET 10 requirement grounding, and nullable X-Round recovery fix remain. Existing render-mode boundaries, Chat UI/CSS, EF migrations and 1-Wire protocol are unchanged.
-
-## Build status
-
-This package was not compiled in the preparation environment. Source/static validation only was performed; the user's own Windows .NET 10 build is authoritative. See `CHANGELOG-v3.2.4-BUILD-GUARD-OWNERSHIP-ITERATOR-EDITOR-FIX.md` and `VALIDATION-v3.2.4-source.md`.
+This archive is **SOURCE-NOT-COMPILED**. See `CHANGELOG-v3.2.5-REPOSITORY-MAINTENANCE-DX-WORKBENCH-GITHUB-REFRESH.md` and `VALIDATION-v3.2.5-source.md`.

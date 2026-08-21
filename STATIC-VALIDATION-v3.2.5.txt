@@ -1,0 +1,19 @@
+LocalGPT 3.2.5 source/static validation
+=======================================
+No dotnet/MSBuild/NuGet restore/publish/EF command was run.
+
+PASS  XML documentation: 10,001 C# declarations; 775 Razor members
+PASS  Application architecture policy
+PASS  Async continuation policy: 256 source files / 2,919 await tokens
+PASS  Service resilience: 2,149 service methods
+PASS  Provider-qualified Council audit: 282 checks
+PASS  Council X-Round/heartbeat source audit
+PASS  Configurable Council behavior-policy audit
+PASS  Code-generation/DXFunction source audit
+PASS  Provider stream repetition policy audit
+PASS  Text-service ownership baseline mirror: 0 new component/controller operations
+PASS  Localization parity: 1,994 keys in each of de-DE/en-US/es-ES/fr-FR/ja-JP/uk-UA
+PASS  Explicit render-mode directives unchanged from 3.2.4
+PASS  EF migration tree byte-identical to 3.2.4: 26 files
+PASS  Chat.razor and Chat.razor.css byte-identical to 3.2.4
+PASS  Dedicated 3.2.5 release audit

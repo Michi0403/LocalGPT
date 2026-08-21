@@ -104,7 +104,7 @@ public sealed partial class DatabaseInitializationService
                 Name = "LocalGPT Core",
                 Purpose = "Human-guided, humanitarian self-development of LocalGPT, its AI Council, project architecture, database knowledge, regex links, diagnostics and organic 1-Wire organs.",
                 RootPath = repositoryRoot,
-                CurrentVersion = "2.3.6",
+                CurrentVersion = "source-pending",
                 Status = "Active",
                 RecommendGit = true,
                 CreatedAtUtc = now,
@@ -257,7 +257,14 @@ public sealed partial class DatabaseInitializationService
             EnsureArtifact(core, "Authoritative WireProtocol package", "NuGetPackage",
                 "LocalGPT.WireProtocolVersion.2.0.0.nupkg",
                 "application/zip", "Built from the LocalGPT protocol project and copied beside release/install artifacts for PublisherStudio and future organ plugins.");
+            EnsureArtifact(core, "Canonical repository source", "SourceRepository",
+                "https://github.com/Michi0403/LocalGPT",
+                "uri", "Canonical public LocalGPT repository supplied by the user. Councils may inspect it read-only and explicit refresh pipelines may update local source-backed project knowledge.");
+            EnsureRequirement(core, "Canonical LocalGPT and PublisherStudio repository knowledge",
+                "LocalGPT Councils may inspect the canonical public LocalGPT and PublisherStudio/BlazorPublisher repositories for current source facts. Explicit user-invoked refresh pipelines may persist those retrieved repository versions, revisions, framework requirements, workspaces and complete tracked-file structures into their separate canonical projects.",
+                "localgpt.repository.knowledge.refresh", "Critical");
 
+            var reconciledCoreVersion = PrepareLocalGptReleaseHistory(core, repositoryRoot);
             TrackMissingProjectSeedRecords(
                 db,
                 core,
@@ -267,6 +274,9 @@ public sealed partial class DatabaseInitializationService
                 coreRevisionIds,
                 coreRequirementIds,
                 coreArtifactIds);
+            await ReconcilePersistedCoreProjectAsync(db, core, coreIsNew, reconciledCoreVersion, repositoryRoot, token).ConfigureAwait(false);
+            await SeedPublisherStudioProjectAsync(db, token).ConfigureAwait(false);
+            await SeedRepositoryRefreshPipelinesAsync(db, token).ConfigureAwait(false);
 
             var humanitarian = await db.LocalGptProjects
                 .AsNoTracking()

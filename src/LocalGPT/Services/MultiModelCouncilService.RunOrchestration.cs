@@ -95,7 +95,7 @@ namespace LocalGPT.Services
                 humanCollaboration.BeginCouncilRun(result.RunId, collaborationMembers);
                 councilSpooler.Begin(result);
 
-                if (request.CreateProjectForRun)
+                if (request.CreateProjectForRun && !string.Equals(request.CouncilTeamKey, "learning-round", StringComparison.OrdinalIgnoreCase))
                 {
                     var created = await projectArchitecture.EnsureCouncilRunProjectAsync(
                         result.RunId,

@@ -189,3 +189,15 @@ public sealed record LearningProjectSyncResult(
     string RepositoryRoot,
     int TrackedFileCount,
     string SourceSnapshotHash);
+
+
+/// <summary>Describes one user-requested refresh of canonical repository knowledge from a bounded public remote source.</summary>
+/// <param name="SourceUrl">Public repository URL that supplied the refreshed evidence.</param>
+/// <param name="ResolvedRevision">Branch or remote revision resolved by the importer.</param>
+/// <param name="DownloadedFileCount">Number of files reported by the bounded remote importer.</param>
+/// <param name="ProjectsSynchronized">Canonical projects synchronized from the downloaded source tree.</param>
+public sealed record RepositoryKnowledgeRefreshResult(
+    string SourceUrl,
+    string ResolvedRevision,
+    int DownloadedFileCount,
+    IReadOnlyList<LearningProjectSyncResult> ProjectsSynchronized);

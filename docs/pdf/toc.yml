@@ -1,6 +1,6 @@
 order: 200
 pdf: true
-pdfFileName: LocalGPT-3.2.4.pdf
+pdfFileName: LocalGPT-3.2.5.pdf
 pdfTocPage: true
 pdfCoverPage: pdf-cover.html
 pdfPrintBackground: true

@@ -10,34 +10,53 @@
 <PageTitle>DX Functions &amp; 1-Wire</PageTitle>
 
 <main class="dx-catalog-page localgpt-surface">
-    <header class="dx-catalog-header">
-        <div>
-            <h1>DX Functions &amp; 1-Wire exposure</h1>
-            <p>The person using this offline frontend decides what AI chat and linked applications may see and invoke. Consequential calls return here for confirmation or requested input before execution.</p>
-        </div>
-        <div class="dx-catalog-actions">
-            <button type="button" class="btn btn-secondary" @onclick="ReloadAsync" disabled="@_busy">Reload</button>
-            <button type="button" class="btn btn-primary" @onclick="SynchronizeAsync" disabled="@_busy">Synchronize runtime catalog</button>
-            <button type="button" class="btn btn-outline-primary" @onclick='() => CreateUserFunction("Source")' disabled="@_busy">New JSON / OData AI function</button>
-            <button type="button" class="btn btn-outline-primary" @onclick='() => CreateUserFunction("Pipeline")' disabled="@_busy">Advanced pipeline AI function</button>
-            <a class="btn btn-outline-secondary" href="/council-teams#x-functions-automation">X Functions &amp; automation</a>
-            @if (_viewMode == "Grid")
-            {
-                <button type="button" class="btn btn-outline-primary" @onclick="SaveVisibleAsync" disabled="@_busy">Save visible/edited grid policies</button>
-            }
-        </div>
-    </header>
+    <div class="dx-catalog-workbench">
+        <WorkbenchHeader Eyebrow="Function studio"
+                         Title="DX Functions &amp; 1-Wire exposure"
+                         Subtitle="Control what AI chat and linked applications may see and invoke, create user-owned data functions, and reach the existing X Functions automation controls from one responsive workbench.">
+            <Actions>
+                <DxButton Text="Reload"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Enabled="@(_interactiveAttached && !_busy)"
+                          Click="ReloadAsync" />
+                <DxButton Text="Synchronize runtime catalog"
+                          RenderStyle="ButtonRenderStyle.Primary"
+                          RenderStyleMode="ButtonRenderStyleMode.Contained"
+                          Enabled="@(_interactiveAttached && !_busy)"
+                          Click="SynchronizeAsync" />
+                @if (_viewMode == "Grid" && _activeSection == "catalog")
+                {
+                    <DxButton Text="Save visible/edited grid policies"
+                              RenderStyle="ButtonRenderStyle.Primary"
+                              RenderStyleMode="ButtonRenderStyleMode.Outline"
+                              Enabled="@(_interactiveAttached && !_busy)"
+                              Click="SaveVisibleAsync" />
+                }
+            </Actions>
+        </WorkbenchHeader>
 
-    @if (!string.IsNullOrWhiteSpace(_status))
-    {
-        <div class="alert @(_hasError ? "alert-danger" : "alert-info")" role="status">@_status</div>
-    }
+        @if (!string.IsNullOrWhiteSpace(_status))
+        {
+            <div class="alert @(_hasError ? "alert-danger" : "alert-info") dx-catalog-status" role="status" aria-live="polite">@_status</div>
+        }
 
-    @if (_showUserEditor)
-    {
-        <UserDxFunctionEditor FunctionName="@_userEditorFunctionName" InitialMode="@_userEditorInitialMode" Changed="HandleUserFunctionsChangedAsync" Closed="CloseUserEditorAsync" />
-    }
-
+        <div class="dx-catalog-workbench-layout @(!_interactiveAttached || _busy ? "is-loading" : string.Empty)" aria-busy="@(!_interactiveAttached || _busy)">
+            <ConfigurationWorkbenchNav Items="@DxFunctionSections"
+                                       ActiveKey="@_activeSection"
+                                       ActiveKeyChanged="OnDxFunctionSectionChanged"
+                                       AriaLabel="DX Function sections" />
+            <div class="dx-catalog-workbench-stage">
+                @if (!_interactiveAttached)
+                {
+                    <section class="dx-catalog-loading-panel" role="status">
+                        <strong>Connecting InteractiveServer DX Functions…</strong>
+                        <p>The catalog and editor controls become active after the Blazor circuit attaches. A loading page no longer presents controls that look clickable before events can be handled.</p>
+                    </section>
+                }
+                else
+                {
+                    <ConfigurationWorkbenchPanel SectionKey="catalog" ActiveKey="@_activeSection" AriaLabel="DX Function catalog">
     <section class="dx-catalog-toolbar">
         <label>
             <span>Search</span>
@@ -193,6 +212,63 @@
             </section>
         }
     }
+                    </ConfigurationWorkbenchPanel>
+
+                    <ConfigurationWorkbenchPanel SectionKey="user-functions" ActiveKey="@_activeSection" AriaLabel="User AI functions">
+                        <section class="dx-user-function-stage">
+                            <header class="dx-stage-heading">
+                                <div>
+                                    <span class="dx-stage-kicker">User-owned function studio</span>
+                                    <h2>JSON/OData and pipeline AI Functions</h2>
+                                    <p>Use the simple source form for read-only JSON or OData endpoints, or retain the advanced pipeline path for existing Remote Control action workflows.</p>
+                                </div>
+                            </header>
+
+                            @if (_busy)
+                            {
+                                <div class="alert alert-info" role="status">The runtime catalog is still loading. Creation controls will enable when synchronization finishes.</div>
+                            }
+                            else
+                            {
+                                <div class="dx-user-function-actions">
+                                    <button type="button" class="btn btn-primary" @onclick='() => CreateUserFunction("Source")'>New JSON / OData AI function</button>
+                                    <button type="button" class="btn btn-outline-primary" @onclick='() => CreateUserFunction("Pipeline")'>Advanced pipeline AI function</button>
+                                </div>
+                            }
+
+                            @if (_showUserEditor)
+                            {
+                                <UserDxFunctionEditor FunctionName="@_userEditorFunctionName"
+                                                      InitialMode="@_userEditorInitialMode"
+                                                      Changed="HandleUserFunctionsChangedAsync"
+                                                      Closed="CloseUserEditorAsync" />
+                            }
+                            else
+                            {
+                                <div class="dx-stage-empty">
+                                    <strong>Select an implementation path above.</strong>
+                                    <span>@UserFunctionCount user-owned AI function(s) are currently registered.</span>
+                                </div>
+                            }
+                        </section>
+                    </ConfigurationWorkbenchPanel>
+
+                    <ConfigurationWorkbenchPanel SectionKey="x-functions" ActiveKey="@_activeSection" AriaLabel="X Functions and automation">
+                        <section class="dx-x-function-stage">
+                            <header class="dx-stage-heading">
+                                <div>
+                                    <span class="dx-stage-kicker">Council workflow automation</span>
+                                    <h2>X Functions &amp; automation</h2>
+                                    <p>X Functions remain part of the existing Council workflow architecture. Open the maintained Council Teams editor to configure X-Rounds, revisits, text returns, child models/Councils, approval policy and transition limits.</p>
+                                </div>
+                            </header>
+                            <a class="btn btn-primary align-self-start" href="/council-teams#x-functions-automation">Open X Functions &amp; automation</a>
+                        </section>
+                    </ConfigurationWorkbenchPanel>
+                }
+            </div>
+        </div>
+    </div>
 </main>
 
 @code {
@@ -215,7 +291,7 @@
     /// <summary>
     /// Stores the internal status state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
     /// </summary>
-    private string _status = string.Empty;
+    private string _status = "Connecting InteractiveServer DX Functions…";
     /// <summary>
     /// Stores the internal only exposed state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
     /// </summary>
@@ -231,7 +307,7 @@
     /// <summary>
     /// Stores the internal busy state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
     /// </summary>
-    private bool _busy;
+    private bool _busy = true;
     /// <summary>
     /// Stores the internal has error state used by <see cref="DxFunctionCatalog"/> while executing its surrounding workflow.
     /// </summary>
@@ -246,6 +322,25 @@
     private string _userEditorFunctionName = string.Empty;
     /// <summary>Stores the initial implementation mode requested when opening the user AI-function editor.</summary>
     private string _userEditorInitialMode = "Pipeline";
+    /// <summary>Stores the active workbench section so the DX Function page follows the same tabbed navigation contract as the other configuration workbenches.</summary>
+    private string _activeSection = "catalog";
+    /// <summary>Stores whether the InteractiveServer circuit has attached and page events can be handled.</summary>
+    private bool _interactiveAttached;
+    /// <summary>Stores whether the first interactive catalog load has already been scheduled.</summary>
+    private bool _catalogLoadStarted;
+
+    /// <summary>Gets the workbench sections shown by the responsive DX Function navigation rail.</summary>
+    /// <value>The catalog, user-function and X-Function workbench sections.</value>
+    private IReadOnlyList<WorkbenchNavItem> DxFunctionSections =>
+    [
+        new("catalog", "Catalog & exposure", "Browse and mass-edit runtime DXFunction/service policy", _entries.Count.ToString()),
+        new("user-functions", "User AI functions", "Create JSON/OData sources or advanced pipelines", UserFunctionCount.ToString()),
+        new("x-functions", "X Functions & automation", "Open maintained Council X-Round workflow controls")
+    ];
+
+    /// <summary>Counts user-owned catalog rows for the User AI functions workbench badge.</summary>
+    /// <value>The count of catalog rows owned by user DXFunctions.</value>
+    private int UserFunctionCount => _entries.Count(entry => entry.Source == "UserDxFunction");
 
     /// <summary>
     /// Gets the filtered entries collection maintained or exposed by this DevExpress function instance for downstream processing.
@@ -278,11 +373,49 @@
             entry => _groupCardsByNamespace ? FunctionNamespace(entry) : "All functions",
             StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Handles the initialized async lifecycle or event notification for <see cref="DxFunctionCatalog"/>, updating the state required by the surrounding workflow.
-    /// </summary>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    protected override Task OnInitializedAsync() => ReloadAsync();
+    /// <summary>Attaches the DX Function workbench to its InteractiveServer circuit before beginning the potentially large catalog load.</summary>
+    /// <param name="firstRender">Indicates whether this is the first interactive render.</param>
+    /// <returns>A task that completes when first-render catalog loading has been scheduled and completed.</returns>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (!firstRender || _catalogLoadStarted)
+                return;
+
+            _catalogLoadStarted = true;
+            _interactiveAttached = true;
+            _status = "InteractiveServer connected. Loading the database-backed DX Function catalog…";
+            StateHasChanged();
+            await ReloadAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Attaching the DX Function workbench and loading its initial catalog failed.");
+            ComponentActivity.RecordFailure(nameof(DxFunctionCatalog), nameof(OnAfterRenderAsync), exception);
+            _hasError = true;
+            _status = exception.Message;
+            _busy = false;
+        }
+    }
+
+    /// <summary>Switches the rendered DX Function workbench stage to the user-selected section.</summary>
+    /// <param name="key">Stable workbench section key selected by the user.</param>
+    /// <returns>A completed task after the section state has been updated.</returns>
+    private Task OnDxFunctionSectionChanged(string key)
+    {
+        try
+        {
+            _activeSection = key;
+            return Task.CompletedTask;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Changing the DX Function workbench section failed for {SectionKey}.", key);
+            ComponentActivity.RecordFailure(nameof(DxFunctionCatalog), nameof(OnDxFunctionSectionChanged), exception);
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs reload in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
@@ -442,6 +575,7 @@
         {
             _userEditorFunctionName = string.Empty;
             _userEditorInitialMode = string.Equals(mode, "Source", StringComparison.OrdinalIgnoreCase) ? "Source" : "Pipeline";
+            _activeSection = "user-functions";
             _showUserEditor = true;
             Logger.LogInformation("Opened the user DXFunction editor in {Mode} mode.", _userEditorInitialMode);
         }
@@ -462,6 +596,7 @@
         {
             _userEditorFunctionName = functionName;
             _userEditorInitialMode = "Pipeline";
+            _activeSection = "user-functions";
             _showUserEditor = true;
         }
         catch (Exception exception)

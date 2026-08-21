@@ -1,4 +1,5 @@
 using LocalGPT.BusinessObjects;
+using LocalGPT.Components.Shared;
 using Microsoft.AspNetCore.Components;
 
 namespace LocalGPT.Components.Pages;
@@ -8,6 +9,42 @@ namespace LocalGPT.Components.Pages;
 /// </summary>
 public partial class RemoteControl : ComponentBase
 {
+    /// <summary>
+    /// Stores the navigation key for the Remote Control editor section currently visible to the user without reloading connector or pipeline state.
+    /// </summary>
+    /// <value>The workbench section key currently presented to the user.</value>
+    private string ActiveRemoteControlSection { get; set; } = "connectors";
+
+    /// <summary>
+    /// Gets the navigation model used by the Remote Control configuration workbench.
+    /// </summary>
+    /// <value>The connector, pipeline, history, and template sections.</value>
+    private IReadOnlyList<WorkbenchNavItem> RemoteControlSections =>
+    [
+        new("connectors", T("RemoteControl.Connectors", "Connectors"), T("RemoteControl.Connectors.Help", "REST/OData pulls or token-protected inbound webhooks.")),
+        new("pipelines", T("RemoteControl.Pipelines", "Action pipelines"), T("RemoteControl.Pipelines.Help", "Compose existing DXFunctions or published public service methods; no raw reflection path is used.")),
+        new("history", T("RemoteControl.History", "Execution history"), T("RemoteControl.History.Help", "Bounded audit metadata only; full remote payloads are not persisted here.")),
+        new("templates", T("RemoteControl.TemplateLanguage", "Template language"), T("RemoteControl.TemplateLanguage.Help", "Use payload values, previous step results and LocalGPT system variables."))
+    ];
+
+    /// <summary>
+    /// Changes the active Remote Control workbench section without reloading editor state.
+    /// </summary>
+    /// <param name="key">The selected workbench section key.</param>
+    /// <returns>A completed task for the navigation callback.</returns>
+    private Task OnRemoteControlSectionChanged(string key)
+    {
+        try
+        {
+            ActiveRemoteControlSection = key;
+            return Task.CompletedTask;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Changing the Remote Control workbench section failed.");
+            throw;
+        }
+    }
     /// <summary>
     /// Gets or sets the connector rows collection maintained or exposed by this remote control instance for downstream processing.
     /// </summary>
