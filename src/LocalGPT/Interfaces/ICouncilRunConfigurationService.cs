@@ -88,6 +88,12 @@ public interface ICouncilRunConfigurationService
         int maxParallelModels,
         int modelTimeoutSeconds);
 
+    /// <summary>Updates the saved hardware-performance preset identity associated with a running Council after the preset service successfully applies that profile.</summary>
+    /// <param name="runId">Identifier of the running Council whose service-owned snapshot should be updated.</param>
+    /// <param name="hardwarePerformancePresetId">Saved hardware-performance preset identifier, or <see langword="null"/> when the running settings are no longer associated with a saved profile.</param>
+    /// <returns><see langword="true"/> when the running snapshot accepted the identity update; otherwise <see langword="false"/>.</returns>
+    bool UpdateHardwarePerformancePresetIdentity(Guid runId, Guid? hardwarePerformancePresetId);
+
     /// <summary>
     /// Performs begin round as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

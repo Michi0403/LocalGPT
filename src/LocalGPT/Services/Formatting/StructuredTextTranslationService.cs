@@ -35,6 +35,8 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     /// Defines the JSON scalar pattern name constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string JsonScalarPatternName = "builtin.json-scalar-pattern";
+    /// <summary>Defines the database-overridable display-recognition pattern used for LocalGPT self-assessment envelopes.</summary>
+    public const string SelfAssessmentBlockPatternName = "builtin.localgpt-self-assessment-block-pattern";
 
     /// <summary>
     /// Defines the maximum input length constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
@@ -64,6 +66,11 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     /// Stores the internal key token regex state used by <see cref="StructuredTextTranslationService"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex keyTokenRegex;
+    /// <summary>
+    /// Matches the two LocalGPT self-assessment envelope spellings emitted by Council prompts, whether
+    /// the model-owned tag brackets are still HTML-encoded or already literal.
+    /// </summary>
+    private readonly Regex selfAssessmentBlockRegex;
     /// <summary>
     /// Stores the logger used by <see cref="StructuredTextTranslationService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
@@ -121,6 +128,13 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
             "(?<=[a-z0-9])(?=[A-Z])|[_\\-.]+",
             "CultureInvariant|Compiled",
             runtimePolicy.RegexTimeout);
+
+        selfAssessmentBlockRegex = CreateCatalogRegex(
+            initialDataCatalog.RegexPatterns,
+            SelfAssessmentBlockPatternName,
+            @"(?:#{1,6}[ \t]+)?(?:(?:<)|(?:&lt;))(?<tag>localgpt-self-(?:annotated-)?assessment)(?:(?:>)|(?:&gt;))(?<json>[\s\S]*?)(?:(?:<)|(?:&lt;))/(?<close>localgpt-self-(?:annotated-)?assessment)(?:(?:>)|(?:&gt;))",
+            "IgnoreCase|Singleline|Compiled|CultureInvariant",
+            runtimePolicy.RegexTimeout);
     }
 
     /// <summary>
@@ -177,7 +191,11 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
                 var markdown = RenderElement(document.RootElement, 0, null);
                 var normalizedJson = JsonSerializer.Serialize(
                     document.RootElement,
-                    new JsonSerializerOptions { WriteIndented = true });
+                    new JsonSerializerOptions
+                    {
+                        WriteIndented = true,
+                        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                    });
                 var translatedBlock = BuildTranslatedBlock(markdown, normalizedJson, request.IncludeRawJson);
                 var index = result.Documents.Count + 1;
                 result.Documents.Add(new StructuredJsonDocument
@@ -217,6 +235,109 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         result.TranslatedText = builder.ToString();
         logger.LogDebug("Translated {DocumentCount} standalone JSON document(s) into readable chat structure.", result.Documents.Count);
         return result;
+    }
+
+    /// <summary>
+    /// Converts LocalGPT self-assessment tagged JSON into controlled structured/code markup before Markdig
+    /// can interpret URLs or tag-like payload text. This is display normalization only; it does not trust or
+    /// approve the self-assessment contents.
+    /// </summary>
+    /// <param name="text">Chat text that may contain encoded or literal LocalGPT self-assessment blocks.</param>
+    /// <returns>The text with recognized self-assessment blocks rendered as inert structured data.</returns>
+    public string TranslateSelfAssessmentBlocksToMarkdown(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return text ?? string.Empty;
+
+        try
+        {
+            return selfAssessmentBlockRegex.Replace(text, match =>
+            {
+                var tag = match.Groups["tag"].Value;
+
+                // Both LocalGPT assessment envelope spellings carry the same structured-data contract.
+                // Local models occasionally mix the two names between opening and closing tags; accepting
+                // either recognized closing spelling repairs display formatting without trusting arbitrary tags.
+                // Model-visible content is HTML-encoded by ChatResponseFormatter. Decode exactly once
+                // inside this recognized data envelope, then encode again at the final controlled HTML boundary.
+                var jsonText = System.Net.WebUtility.HtmlDecode(match.Groups["json"].Value).Trim();
+                if (jsonText.Length > 1 && jsonText[^1] == '\\' && jsonText[^2] is '}' or ']')
+                    jsonText = jsonText[..^1].TrimEnd();
+                if (jsonText.Length == 0 || jsonText.Length > MaximumJsonDocumentLength)
+                    return BuildTaggedPayloadCodeBlock(tag, jsonText, isValidJson: false);
+
+                try
+                {
+                    using var document = JsonDocument.Parse(jsonText, documentOptions);
+                    if (document.RootElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
+                        return BuildTaggedPayloadCodeBlock(tag, jsonText, isValidJson: false);
+
+                    var markdown = RenderElement(document.RootElement, 0, null);
+                    var normalizedJson = JsonSerializer.Serialize(
+                        document.RootElement,
+                        new JsonSerializerOptions
+                        {
+                            WriteIndented = true,
+                            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                        });
+                    var label = tag.Contains("annotated", StringComparison.OrdinalIgnoreCase)
+                        ? "Self-annotated assessment"
+                        : "Self-assessment";
+                    return new StringBuilder()
+                        .AppendLine("<details class=\"localgpt-json-translation\" open>")
+                        .Append("<summary>").Append(label).AppendLine(" · structured data</summary>")
+                        .AppendLine()
+                        .AppendLine(markdown)
+                        .AppendLine()
+                        .AppendLine("<details class=\"localgpt-json-source\">")
+                        .AppendLine("<summary>Raw JSON</summary>")
+                        .Append("<pre><code class=\"language-json\">")
+                        .Append(Encode(normalizedJson))
+                        .AppendLine("</code></pre>")
+                        .AppendLine("</details>")
+                        .Append("</details>")
+                        .ToString();
+                }
+                catch (JsonException)
+                {
+                    return BuildTaggedPayloadCodeBlock(tag, jsonText, isValidJson: false);
+                }
+            });
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            logger.LogWarning(ex, "LocalGPT self-assessment display normalization timed out; the original text will remain visible.");
+            return text;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "LocalGPT self-assessment display normalization failed; payload content was omitted from logs.");
+            return text;
+        }
+    }
+
+    /// <summary>
+    /// Builds an inert code disclosure for a tagged assessment that could not be parsed as valid JSON.
+    /// </summary>
+    /// <param name="tag">Recognized LocalGPT assessment tag name.</param>
+    /// <param name="payload">Decoded payload text.</param>
+    /// <param name="isValidJson">Whether the payload was validated as JSON; retained for explicit display semantics.</param>
+    /// <returns>Controlled markup that cannot activate payload HTML.</returns>
+    private string BuildTaggedPayloadCodeBlock(string tag, string payload, bool isValidJson)
+    {
+        try
+        {
+            var label = tag.Contains("annotated", StringComparison.OrdinalIgnoreCase)
+                ? "Self-annotated assessment"
+                : "Self-assessment";
+            var status = isValidJson ? "JSON" : "unparsed payload";
+            return $"<details class=\"localgpt-json-source\"><summary>{label} · {status}</summary>\n<pre><code>{Encode(payload)}</code></pre>\n</details>";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Could not build the inert self-assessment code disclosure; payload content was omitted from logs.");
+            return Encode(payload);
+        }
     }
 
     /// <summary>

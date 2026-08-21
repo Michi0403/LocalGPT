@@ -484,6 +484,7 @@ namespace LocalGPT.Components.Pages
             var snapshot = CouncilLiveSessions.GetAttachmentSnapshot(runId);
             if (snapshot is null)
                 return false;
+            var runConfigurationSnapshot = CouncilRunConfigurations.Get(runId);
 
             var firstAttachmentToRun = AttachedLiveCouncilRunId != runId;
             if (!firstAttachmentToRun
@@ -543,6 +544,8 @@ namespace LocalGPT.Components.Pages
                 attachedLiveCouncilSnapshot = snapshot;
                 SelectedCouncilRunId = runId;
                 LoadCouncilRunConfiguration(runId);
+                if (runConfigurationSnapshot is { IsRunning: true })
+                    ApplyRejoinedCouncilPreparationSnapshot(runConfigurationSnapshot);
                 ChatClientProvider.SelectedSession = councilSession;
                 hasUserSelectedSession = true;
 

@@ -93,7 +93,7 @@ public sealed partial class OllamaThinkingChatClient
         {
             var functionName = string.IsNullOrWhiteSpace(call.Function.Name) ? "(unnamed)" : call.Function.Name.Trim();
             var arguments = NormalizeArguments(call.Function.Arguments).GetRawText();
-            return $"<details class=\"council-step\" open><summary>Function call · {System.Net.WebUtility.HtmlEncode(functionName)}</summary>\n\n<pre>{System.Net.WebUtility.HtmlEncode(arguments)}</pre>\n\n</details>\n\n";
+            return $"<details class=\"council-step\" open><summary>Function call · {System.Net.WebUtility.HtmlEncode(functionName)}</summary>\n\n{councilRuntime.FormatUserVisibleCodePayload(arguments, logger)}\n\n</details>\n\n";
         }
         catch (Exception ex)
         {
@@ -120,7 +120,7 @@ public sealed partial class OllamaThinkingChatClient
             var status = string.IsNullOrWhiteSpace(result.Status)
                 ? (result.Succeeded ? "Succeeded" : "Failed")
                 : result.Status.Trim();
-            return $"<details class=\"council-step\" open><summary>Function result · {System.Net.WebUtility.HtmlEncode(displayName)} · {System.Net.WebUtility.HtmlEncode(status)}</summary>\n\n<pre>{System.Net.WebUtility.HtmlEncode(serializedResult)}</pre>\n\n</details>\n\n";
+            return $"<details class=\"council-step\" open><summary>Function result · {System.Net.WebUtility.HtmlEncode(displayName)} · {System.Net.WebUtility.HtmlEncode(status)}</summary>\n\n{councilRuntime.FormatUserVisibleCodePayload(serializedResult, logger)}\n\n</details>\n\n";
         }
         catch (Exception ex)
         {

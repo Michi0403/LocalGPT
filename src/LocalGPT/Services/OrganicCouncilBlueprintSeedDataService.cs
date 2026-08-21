@@ -922,16 +922,20 @@ Runtime classes: {{RuntimeClasses}}
         {
             Key = "learning-round",
             DisplayName = "Learning Round",
-            Purpose = "A database-grounded council preset that studies LocalGPT chat memory, logs, knowledge, regex definitions and verified project facts, then stores only bounded model-suggested learning evidence for later review.",
+            Purpose = "A topic-neutral, evidence-driven council preset that learns from whatever the user supplies or writes together with LocalGPT — documents, media-derived text, research, school work, science, software, creative material, project context, chat memory or other domain evidence — and stores only bounded reusable learning evidence for later review.",
+            AllMembersReadinessPreflightMode = CouncilAllMembersReadinessPreflightMode.Disabled,
             Roles =
             [
-                new() { Role = "History curator", Expertise = "chat memory, prior council runs and feedback", Responsibility = "select representative evidence without dumping entire databases into one prompt" },
-                new() { Role = "RegEx and architecture analyst", Expertise = "generic project structure probes, compiler syntax and protocol wiring", Responsibility = "identify reusable patterns and validate proposed regexes against evidence" },
-                new() { Role = "Evidence verifier", Expertise = "application logs, knowledge provenance, contradictions and staleness", Responsibility = "separate observed facts from hypotheses and flag anything needing user or source verification" },
-                new() { Role = "Learning leader", Expertise = "democratic synthesis and bounded knowledge maintenance", Responsibility = "coordinate the round and store only compact model-suggested facts and timeout-validated regexes" }
+                new() { Role = "Source and context curator", Expertise = "user uploads, user-written content, chat memory, prior Council evidence and source inventory", Responsibility = "inventory what evidence actually exists before interpretation, then assign bounded source slices without assuming the material is code" },
+                new() { Role = "Pattern and terminology analyst", Expertise = "concepts, vocabulary, relationships, structures, repeated patterns and domain terminology", Responsibility = "extract reusable concepts and propose regexes only when matching materially improves retrieval, validation or future learning" },
+                new() { Role = "Evidence verifier", Expertise = "provenance, contradictions, staleness, source confidence and cross-source verification", Responsibility = "separate source-backed facts and user assertions from model hypotheses, resolve tool-answerable ambiguities and flag genuinely unresolved conflicts" },
+                new() { Role = "Learning leader", Expertise = "democratic synthesis, topic-neutral knowledge maintenance and bounded evidence storage", Responsibility = "turn inspected evidence into compact reusable knowledge while preventing meta-planning, unsupported quality claims and unnecessary user questions" }
             ],
             PreferredCapabilities =
             [
+                "chat.upload_workspace_context",
+                "chat.upload_workspace_files",
+                "chat.upload_workspace_file",
                 "localgpt.learning.snapshot",
                 "localgpt.learning.maintain",
                 "localgpt.regex.list",
@@ -944,24 +948,62 @@ Runtime classes: {{RuntimeClasses}}
                 "localgpt.logs",
                 "localgpt.knowledge"
             ],
+            WorkflowSteps =
+            [
+                Step("learning-inventory", "Inventory available learning evidence", 10, "Inventory", "Source and context curator", """
+Inventory the evidence actually available for the user's learning request before interpreting it. Treat uploads and user-written chat as first-class evidence regardless of subject. When an upload workspace exists, use the bounded upload-workspace list/context/read functions to identify original uploads and inspect representative content. A flattened text export can contain the subject material itself; do not conclude that source material is absent merely because it is represented inside one uploaded text file. Use existing learning/knowledge evidence only where it helps establish prior context. Return a concise evidence map with source categories, representative slices, obvious gaps and contradictions. Do not produce a meta-plan and do not ask the user questions that a read-only function can answer.
+
+User learning request:
+{{UserPrompt}}
+""", "LeaderSingle", canUseOrganicFunctions: true, includePriorTranscript: false, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.regex.list"]),
+                Step("learning-study", "Study concepts, terminology and relationships", 20, "Study", "Pattern and terminology analyst", """
+Study the evidence inventory and the underlying evidence itself. Extract source-backed concepts, terminology, relationships, explanations, repeated structures and reusable patterns for the user's actual subject. The subject may be science, school work, research, creative material, software or anything else; do not impose a coding/project frame. Distinguish direct user statements and source evidence from model inference. Use bounded read-only functions when they can resolve uncertainty. Regex is optional: propose a regex candidate only when a repeated textual pattern would materially improve future retrieval or validation, and test it before recommending storage. Return concrete learning findings, not a discussion of how you would learn later.
+
+User learning request:
+{{UserPrompt}}
+
+Evidence inventory:
+{{PreviousStep}}
+""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
+                Step("learning-verify", "Verify learning claims and contradictions", 30, "Verification", "Evidence verifier", """
+Verify the proposed learning findings against the available evidence. Reject unsupported quality claims, self-reported capability claims and conclusions that contradict tool-visible evidence. Resolve disagreements with bounded read-only functions when possible instead of asking the user. Mark what is directly observed, what the user asserted, what is inferred, and what remains genuinely unresolved. Preserve useful minority findings when evidence supports them. Return the compact verified candidate set that the learning leader can maintain.
+
+User learning request:
+{{UserPrompt}}
+
+Prior learning findings:
+{{PreviousStep}}
+""", "AllMembersSequentialOnEachAIHostParallel", canUseOrganicFunctions: true, enableRolePeerReview: true, summarizeRoleResults: true, allowedAutomaticFunctions: ["chat.upload_workspace_files", "chat.upload_workspace_context", "chat.upload_workspace_file", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test"]),
+                Step("learning-maintain", "Maintain reusable learning and answer", 40, "Learning synthesis", "Learning leader", """
+Turn the verified evidence into a useful answer and bounded reusable LocalGPT learning. Store compact source-backed facts through localgpt.learning.maintain as ModelSuggested/NeedsUserReview evidence. Knowledge is the primary outcome. Store regex definitions only when the verified evidence shows a clear reusable retrieval/validation purpose and the pattern has been tested. Do not invent authority, do not mutate user projects, and do not substitute a future-work plan for the requested learning. In the visible answer summarize what LocalGPT learned, important contradictions or uncertainty, and the most useful next collaboration point if one genuinely remains.
+
+User learning request:
+{{UserPrompt}}
+
+Verified learning candidates:
+{{PreviousStep}}
+""", "LeaderSingle", canUseOrganicFunctions: true, producesFinalAnswer: true, allowedAutomaticFunctions: ["localgpt.learning.maintain", "localgpt.learning.snapshot", "localgpt.knowledge.list", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.regex.upsert"])
+            ],
             ExpertPreparationPromptTemplate = """
-You lead the expert preparation round for {{TeamName}}. Call localgpt.learning.snapshot first with a bounded takePerSource. Identify representative chat-memory, log, knowledge and regex evidence. Do not treat model output as authority. List contradictions, stale facts, reusable project/architecture patterns and regex candidates that can be tested before storage.
+You lead the expert preparation round for {{TeamName}}. Treat the user's subject as domain-neutral: it may be science, school work, research, software, LocalGPT, creative work or any other topic. First establish what evidence is actually available. Inventory the upload workspace with chat.upload_workspace_files/context when uploads are present, inspect representative content with bounded chat.upload_workspace_file reads, and use localgpt.learning.snapshot where existing knowledge matters. A large flattened text upload is evidence to inspect, not proof that the underlying subject is absent. Distinguish uploads, user-written statements, prior memory, project context, logs and model hypotheses. If a read-only function can resolve an ambiguity, use it instead of asking the user. Do not make quality, architecture or domain claims before reading supporting evidence. Return concrete evidence slices, contradictions and learning targets rather than a plan for how you might start.
 User learning request:
 {{UserPrompt}}
 """,
             LeaderSynthesisPromptTemplate = """
-You are the learning leader for {{TeamName}}. Convert the evidence preparation into a bounded democratic learning work order. Assign history, regex/architecture and verification tasks. Require regex candidates to be tested. Facts saved through localgpt.learning.maintain remain ModelSuggested/NeedsUserReview; this knowledge self-maintenance needs no approval because it cannot run commands, mutate projects or authorize side effects.
+You are the learning leader for {{TeamName}}. Convert the inspected preparation evidence into a bounded democratic learning work order that performs the user's learning request rather than merely discussing it. Assign members by source slice, concept or verification question, not by an assumed software/code domain. Require every reusable claim to identify the evidence it came from. Resolve disagreements with available read-only tools before escalating to the user. Knowledge entries are the primary learning output; propose regexes only where a reusable pattern materially improves retrieval or validation and test them before storage. Facts saved through localgpt.learning.maintain remain ModelSuggested/NeedsUserReview; this knowledge self-maintenance needs no approval because it cannot run commands, mutate projects or authorize side effects.
 Expert preparation:
 {{Preparation}}
 Original learning request:
 {{UserPrompt}}
 """,
-            MainRoundInstructionTemplate = "Every member studies a distinct evidence slice, cites the local source category, corrects contradictions and proposes compact reusable facts or regexes. Use localgpt.learning.maintain only for untrusted knowledge maintenance; never promote self-reports to user-approved authority and never perform external side effects.",
+            MainRoundInstructionTemplate = "Every member must inspect the assigned evidence before concluding. Extract source-backed facts, terminology, relationships, reusable explanations and contradictions for the user's actual topic. Cite the local source category and distinguish user assertions from model inference. Do not ask the user to repeat scope already present in the request, and do not substitute meta-planning for evidence work. Use localgpt.learning.maintain for bounded untrusted knowledge maintenance. Propose and test regexes only when they have a clear reusable purpose; never promote self-reports to user-approved authority and never perform external side effects.",
             ArchitectureContracts =
             [
                 .. DefaultArchitectureContracts(),
-                "Learning reads bounded SQLite evidence packages and never depends on an in-memory static prompt or regex catalog.",
-                "New facts remain ModelSuggested/NeedsUserReview until verified; regex definitions must compile with a timeout before persistence.",
+                "Learning is domain-neutral. A LocalGPT project is a context container and may represent science, school, research, software, creative work or any other user-defined subject.",
+                "User uploads and user-written chat content are first-class learning evidence. Members inventory and inspect available evidence before making domain, quality or completeness claims.",
+                "Learning reads bounded service-backed evidence and never depends on an in-memory static prompt or regex catalog. If a read-only tool can settle an ambiguity, it is preferred over an unnecessary user clarification.",
+                "New facts remain ModelSuggested/NeedsUserReview until verified; regex definitions are optional learning aids and must compile with a timeout before persistence.",
                 "Knowledge self-maintenance may run automatically because it cannot execute commands, write project files or grant permissions."
             ]
         }

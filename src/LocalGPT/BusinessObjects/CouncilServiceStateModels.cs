@@ -321,6 +321,24 @@ internal sealed class CouncilRunState
     /// <summary>Gets or sets the provider-request timeout in seconds for Council members in this run.</summary>
     /// <value>The model timeout seconds value exposed by <see cref="CouncilRunState"/>.</value>
     public int ModelTimeoutSeconds { get; set; }
+    /// <summary>Gets or sets the Council team key captured when the live run began.</summary>
+    /// <value>The service-backed Council team key.</value>
+    public string CouncilTeamKey { get; set; } = "general";
+    /// <summary>Gets or sets the saved model preset identity captured when the live run began.</summary>
+    /// <value>The optional model preset identifier.</value>
+    public Guid? ModelPresetId { get; set; }
+    /// <summary>Gets or sets the saved hardware performance preset identity captured when the live run began.</summary>
+    /// <value>The optional hardware performance preset identifier.</value>
+    public Guid? HardwarePerformancePresetId { get; set; }
+    /// <summary>Gets or sets the critique-round count captured when the live run began.</summary>
+    /// <value>The configured number of critique rounds.</value>
+    public int CritiqueRounds { get; set; }
+    /// <summary>Gets or sets a value indicating whether chat memory was included when the live run began.</summary>
+    /// <value><see langword="true"/> when chat memory was included.</value>
+    public bool IncludeMemory { get; set; }
+    /// <summary>Gets or sets a value indicating whether automatic project creation was enabled when the live run began.</summary>
+    /// <value><see langword="true"/> when automatic project creation was enabled.</value>
+    public bool CreateProjectPerRun { get; set; }
     /// <summary>
     /// Gets or sets the current round value that forms part of the council run state consumed or produced by the surrounding workflow.
     /// </summary>

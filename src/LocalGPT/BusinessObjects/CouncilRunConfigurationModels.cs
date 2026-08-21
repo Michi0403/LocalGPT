@@ -29,7 +29,16 @@ public sealed record CouncilPreparationConfiguration(
     int CritiqueRounds,
     bool IncludeMemory,
     bool CreateProjectPerRun,
-    string CouncilTeamKey);
+    string CouncilTeamKey)
+{
+    /// <summary>Gets the saved model preset identity that produced this preparation state, when the state still corresponds to a saved preset.</summary>
+    /// <value>The optional model preset identifier.</value>
+    public Guid? ModelPresetId { get; init; }
+
+    /// <summary>Gets the saved hardware performance preset identity applied to this preparation state, when available.</summary>
+    /// <value>The optional hardware performance preset identifier.</value>
+    public Guid? HardwarePerformancePresetId { get; init; }
+}
 
 /// <summary>
 /// Represents a council run configuration snapshot application type, grouping the state and behavior that belong to that domain concept.
@@ -64,4 +73,29 @@ public sealed record CouncilRunConfigurationSnapshot(
     int CurrentRound,
     string CurrentPhase,
     bool IsRoundSkipRequested,
-    bool IsRunning);
+    bool IsRunning)
+{
+    /// <summary>Gets the Council team key captured when this live run was created.</summary>
+    /// <value>The service-backed Council team key.</value>
+    public string CouncilTeamKey { get; init; } = "general";
+
+    /// <summary>Gets the saved model preset identity captured for this run, when one was selected.</summary>
+    /// <value>The optional model preset identifier.</value>
+    public Guid? ModelPresetId { get; init; }
+
+    /// <summary>Gets the saved hardware performance preset identity captured for this run, when one was selected.</summary>
+    /// <value>The optional hardware performance preset identifier.</value>
+    public Guid? HardwarePerformancePresetId { get; init; }
+
+    /// <summary>Gets how many peer-review critique rounds were configured when this live Council run started.</summary>
+    /// <value>The number of critique rounds configured when the run started.</value>
+    public int CritiqueRounds { get; init; }
+
+    /// <summary>Gets a value indicating whether chat memory was included for this run.</summary>
+    /// <value><see langword="true"/> when memory was included.</value>
+    public bool IncludeMemory { get; init; }
+
+    /// <summary>Gets a value indicating whether this run was configured to create a project context automatically.</summary>
+    /// <value><see langword="true"/> when automatic project creation was configured.</value>
+    public bool CreateProjectPerRun { get; init; }
+}

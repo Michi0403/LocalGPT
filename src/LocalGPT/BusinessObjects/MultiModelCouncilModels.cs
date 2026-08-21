@@ -179,6 +179,14 @@ namespace LocalGPT.BusinessObjects
         /// <value>The council team key value exposed by <see cref="MultiModelCouncilRequest"/>.</value>
         public string CouncilTeamKey { get; set; } = "general";
 
+        /// <summary>Gets or sets the saved model preset identity selected when this Council run was started, when applicable.</summary>
+        /// <value>The optional model preset identifier used for UI/session restoration.</value>
+        public Guid? ModelPresetId { get; set; }
+
+        /// <summary>Gets or sets the saved hardware performance preset identity selected when this Council run was started, when applicable.</summary>
+        /// <value>The optional hardware performance preset identifier used for UI/session restoration.</value>
+        public Guid? HardwarePerformancePresetId { get; set; }
+
         /// <summary>
         /// Gets or sets the council leader model name value that forms part of the multi model council state consumed or produced by the surrounding workflow.
         /// </summary>

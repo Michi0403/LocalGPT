@@ -139,12 +139,15 @@ namespace LocalGPT.Services
                     if (data.Length == 0)
                         continue;
 
+                    var mediaType = string.IsNullOrWhiteSpace(dataContent.MediaType)
+                        ? "application/octet-stream"
+                        : dataContent.MediaType.Trim();
                     var fileName = TryGetDataContentFileName(dataContent, logger) ??
-                        BuildDataContentFileName(index, dataContent.MediaType, logger);
+                        BuildDataContentFileName(index, mediaType, logger);
                     index++;
                     yield return new ChatUploadWorkspaceInputFile(
                         fileName,
-                        dataContent.MediaType,
+                        mediaType,
                         data.Length,
                         data);
                 }

@@ -196,6 +196,10 @@ public sealed class ChatContentRenderer(
             // preserving valid surrogate pairs and every other character.
             var text = SanitizeInvalidUnicode(content);
             text = DecodeHumanTextEntities(text);
+            // Self-assessment envelopes are tiny machine-readable islands even inside very large Council
+            // transcripts. Normalize them before generic Markdown so URLs cannot corrupt JSON and encoded
+            // tags/entities do not leak into the visible chat as \uXXXX or &amp; artifacts.
+            text = structuredText.TranslateSelfAssessmentBlocksToMarkdown(text);
             text = HarmonyMarkerRegex.Replace(text, string.Empty);
             text = RepairCommonProseSpacing(text);
             text = RenderAsciiFrames(text);

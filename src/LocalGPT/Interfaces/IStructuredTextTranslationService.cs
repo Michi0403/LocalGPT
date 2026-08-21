@@ -20,4 +20,12 @@ public interface IStructuredTextTranslationService
     /// <param name="text">Text value supplied to the structured text translation operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>
     string TranslatePlainJsonBlocksToMarkdown(string? text);
+
+    /// <summary>
+    /// Converts LocalGPT self-assessment tagged JSON blocks into controlled structured/code markup so
+    /// model-produced tags, HTML entities and JSON Unicode escapes remain readable without becoming active HTML.
+    /// </summary>
+    /// <param name="text">Chat text that may contain encoded or literal LocalGPT self-assessment blocks.</param>
+    /// <returns>The text with recognized self-assessment blocks rendered as controlled structured data.</returns>
+    string TranslateSelfAssessmentBlocksToMarkdown(string? text);
 }

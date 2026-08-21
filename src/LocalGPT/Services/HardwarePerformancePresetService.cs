@@ -401,7 +401,11 @@ public sealed class HardwarePerformancePresetService(
                 preparation.CritiqueRounds,
                 preparation.IncludeMemory,
                 preparation.CreateProjectPerRun,
-                preparation.CouncilTeamKey));
+                preparation.CouncilTeamKey)
+            {
+                ModelPresetId = preparation.ModelPresetId,
+                HardwarePerformancePresetId = preset.Id
+            });
             logger.LogInformation(
                 "Applied hardware performance preset {PresetId} to {RouteCount} prepared Council route(s) without changing membership.",
                 preset.Id,
@@ -458,6 +462,9 @@ public sealed class HardwarePerformancePresetService(
             {
                 throw new InvalidOperationException($"Council {runId} could not accept the performance-profile revision.");
             }
+
+            if (!runConfigurations.UpdateHardwarePerformancePresetIdentity(runId, preset.Id))
+                throw new InvalidOperationException($"Council {runId} could not retain the applied performance-profile identity.");
 
             logger.LogInformation(
                 "Applied hardware performance preset {PresetId} to {RouteCount} route(s) in running Council {RunId} without changing participants.",

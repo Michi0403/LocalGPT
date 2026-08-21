@@ -512,6 +512,167 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
     }
 
     const liveUploadFileCache = new WeakMap();
+    const nativeSendDraftRecovery = new WeakMap();
+    const nativeUploadMimeFailureText = 'File has no MIME type. Please ensure that the attached file has an extension.';
+
+    function normalizeSelectedUploadFileTypes(event) {
+        try {
+            const input = event?.target;
+            if (!(input instanceof HTMLInputElement)
+                || input.type !== 'file'
+                || !(input.closest(hostSelector) instanceof HTMLElement)
+                || !input.files
+                || input.files.length === 0) return;
+
+            const files = [...input.files];
+            const composer = input.closest('.localgpt-chat-composer');
+            if (composer instanceof HTMLElement) liveUploadFileCache.set(composer, files);
+            if (files.every(file => String(file.type || '').trim().length > 0)) return;
+
+            const transfer = new DataTransfer();
+            files.forEach((file, index) => {
+                const mediaType = String(file.type || '').trim() || 'application/octet-stream';
+                const fileName = String(file.name || '').trim() || `attachment-${index + 1}.bin`;
+                transfer.items.add(new File([file], fileName, {
+                    type: mediaType,
+                    lastModified: file.lastModified
+                }));
+            });
+            input.files = transfer.files;
+            if (composer instanceof HTMLElement) liveUploadFileCache.set(composer, [...transfer.files]);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.normalizeSelectedUploadFileTypes', error);
+        }
+    }
+
+    function countNativeUploadMimeFailures(host) {
+        try {
+            if (!(host instanceof HTMLElement)) return 0;
+            const text = host.innerText || host.textContent || '';
+            if (!text) return 0;
+            return text.split(nativeUploadMimeFailureText).length - 1;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.countNativeUploadMimeFailures', error);
+            return 0;
+        }
+    }
+
+    function rememberNativeSendDraft(host, composer, editor) {
+        try {
+            if (!(host instanceof HTMLElement)
+                || !(composer instanceof HTMLElement)
+                || !(editor instanceof HTMLElement)
+                || councilComposerActive) return;
+
+            const text = editorText(editor);
+            const files = [...pendingUploadFiles(composer)];
+            if (!text && files.length === 0) return;
+
+            const state = {
+                text,
+                files,
+                failureCount: countNativeUploadMimeFailures(host),
+                startedAt: Date.now()
+            };
+            nativeSendDraftRecovery.set(host, state);
+            window.setTimeout(diagnostics.guard('localgpt-chat-ui.nativeSendDraftRecovery.expire', () => {
+                try {
+                    if (nativeSendDraftRecovery.get(host) === state) nativeSendDraftRecovery.delete(host);
+                } catch (error) {
+                    diagnostics.report('localgpt-chat-ui.nativeSendDraftRecovery.expire', error);
+                }
+            }), 15000);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.rememberNativeSendDraft', error);
+        }
+    }
+
+    function captureNativeSendDraft(event) {
+        try {
+            if (councilComposerActive) return;
+            const target = event?.target;
+            if (!(target instanceof Element)) return;
+            const host = target.closest(hostSelector);
+            if (!(host instanceof HTMLElement)) return;
+
+            const editor = host.querySelector('textarea,[contenteditable="true"],[role="textbox"]');
+            if (!(editor instanceof HTMLElement)) return;
+            const buttons = [...host.querySelectorAll('button,[role="button"]')].filter(visible);
+            const send = buttons.find(button => {
+                const buttonMarker = marker(button);
+                return /send|submit|paper-plane|arrow-right/i.test(buttonMarker)
+                    && !/attach|upload|file|paperclip|clip|stop|cancel generation|abort|square/i.test(buttonMarker);
+            }) || null;
+            const composer = findComposer(host, editor, send);
+            if (!(composer instanceof HTMLElement)) return;
+
+            if (event.type === 'click') {
+                const button = target.closest('button,[role="button"]');
+                if (!(button instanceof HTMLElement) || button !== send) return;
+            } else if (event.type === 'keydown') {
+                if (event.key !== 'Enter' || event.shiftKey || event.isComposing || !composer.contains(target)) return;
+            } else {
+                return;
+            }
+
+            rememberNativeSendDraft(host, composer, editor);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.captureNativeSendDraft', error);
+        }
+    }
+
+    function restorePendingUploadFiles(composer, files) {
+        try {
+            if (!(composer instanceof HTMLElement) || !Array.isArray(files) || files.length === 0) return;
+            const input = pendingUploadInput(composer);
+            if (!(input instanceof HTMLInputElement)) return;
+
+            const transfer = new DataTransfer();
+            for (const file of files) {
+                if (file instanceof File) transfer.items.add(file);
+            }
+            if (transfer.files.length === 0) return;
+
+            input.files = transfer.files;
+            liveUploadFileCache.set(composer, [...transfer.files]);
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.restorePendingUploadFiles', error);
+        }
+    }
+
+    function maybeRestoreFailedNativeSendDraft(host) {
+        try {
+            if (!(host instanceof HTMLElement)) return;
+            const state = nativeSendDraftRecovery.get(host);
+            if (!state) return;
+            if ((Date.now() - state.startedAt) > 15000) {
+                nativeSendDraftRecovery.delete(host);
+                return;
+            }
+            if (countNativeUploadMimeFailures(host) <= state.failureCount) return;
+
+            nativeSendDraftRecovery.delete(host);
+            const editor = host.querySelector('textarea,[contenteditable="true"],[role="textbox"]');
+            const buttons = [...host.querySelectorAll('button,[role="button"]')].filter(visible);
+            const send = buttons.find(button => {
+                const buttonMarker = marker(button);
+                return /send|submit|paper-plane|arrow-right/i.test(buttonMarker)
+                    && !/attach|upload|file|paperclip|clip|stop|cancel generation|abort|square/i.test(buttonMarker);
+            }) || null;
+            const composer = findComposer(host, editor, send);
+
+            if (editor instanceof HTMLElement && !editorText(editor) && state.text) {
+                if (editor instanceof HTMLTextAreaElement || editor instanceof HTMLInputElement) editor.value = state.text;
+                else editor.textContent = state.text;
+                editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: state.text }));
+            }
+            if (composer instanceof HTMLElement && pendingUploadFiles(composer).length === 0)
+                restorePendingUploadFiles(composer, state.files);
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.maybeRestoreFailedNativeSendDraft', error);
+        }
+    }
 
     function cachePendingUploadFiles(composer) {
         try {
@@ -889,6 +1050,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                     if (scrollState.follow) scheduleSlowFollow(host, scrollRegion);
                 }
             }
+            maybeRestoreFailedNativeSendDraft(host);
             host.dataset.localgptChatEnhanced = 'true';
         } catch (error) {
             diagnostics.report('localgpt-chat-ui.enhance', error);
@@ -1146,6 +1308,9 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                     scheduleSlowFollow(host, region);
                 }
             });
+            document.addEventListener('change', diagnostics.guard('localgpt-chat-ui.uploadMime.normalize', normalizeSelectedUploadFileTypes), true);
+            document.addEventListener('click', diagnostics.guard('localgpt-chat-ui.nativeSendDraft.click', captureNativeSendDraft), true);
+            document.addEventListener('keydown', diagnostics.guard('localgpt-chat-ui.nativeSendDraft.keydown', captureNativeSendDraft), true);
             document.addEventListener('focusin', diagnostics.guard('localgpt-chat-ui.focusin', event => { try {
                 if (event.target instanceof Element && event.target.closest(hostSelector)) scheduleApply();
              } catch (__javascriptError) { localGptDiagnostics.report('js/localgpt-chat-ui.js:callback:diagnostics.guard@166', __javascriptError); throw __javascriptError; }}), true);

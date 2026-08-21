@@ -617,7 +617,14 @@ namespace LocalGPT.Services
                     using var json = System.Text.Json.JsonDocument.Parse(text);
                     return System.Text.Json.JsonSerializer.Serialize(
                         json.RootElement,
-                        new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                        new System.Text.Json.JsonSerializerOptions
+                        {
+                            WriteIndented = true,
+                            // The value is HTML-encoded at the final chat markup boundary. Keeping human
+                            // Unicode and markup characters readable here avoids leaking \u2014, \u003C,
+                            // \u0022 and similar serializer escapes into user-visible code blocks.
+                            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                        });
                 }
                 catch (System.Text.Json.JsonException)
                 {

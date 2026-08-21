@@ -50,7 +50,7 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 26;
+    private const int CurrentSeedVersion = 27;
     /// <summary>
     /// Defines the max roles constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>

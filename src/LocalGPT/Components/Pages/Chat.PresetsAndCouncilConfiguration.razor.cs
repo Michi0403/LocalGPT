@@ -51,6 +51,7 @@ namespace LocalGPT.Components.Pages
         {
             Guid? selectedId = null;
             await InvokeAsync(() => selectedId = SelectedHardwarePerformancePreset?.Id).ConfigureAwait(false);
+            selectedId ??= CouncilRunConfigurations.GetPreparation()?.HardwarePerformancePresetId;
             var loadedPresets = (await HardwarePerformancePresets
                 .GetPresetsAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(false)).ToList();
@@ -60,6 +61,7 @@ namespace LocalGPT.Components.Pages
                 SelectedHardwarePerformancePreset = selectedId is Guid id
                     ? loadedPresets.FirstOrDefault(item => item.Id == id)
                     : null;
+                HardwarePerformancePresetName = SelectedHardwarePerformancePreset?.Name ?? HardwarePerformancePresetName;
                 StateHasChanged();
             }).ConfigureAwait(false);
         }
@@ -94,6 +96,10 @@ namespace LocalGPT.Components.Pages
             {
                 SelectedHardwarePerformancePreset = null;
                 HardwarePerformancePresetName = string.Empty;
+                if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
+                    CouncilRunConfigurations.UpdateHardwarePerformancePresetIdentity(runId, null);
+                else
+                    SavePreparationConfiguration();
                 modelStatus = "Custom hardware settings are active. Current roads were not reset.";
                 return;
             }
@@ -333,6 +339,8 @@ namespace LocalGPT.Components.Pages
             if (!Guid.TryParse(Convert.ToString(args.Value, CultureInfo.InvariantCulture), out var presetId))
             {
                 SelectedModelPreset = null;
+                ModelPresetName = string.Empty;
+                SavePreparationConfiguration();
                 return;
             }
 
@@ -480,7 +488,11 @@ namespace LocalGPT.Components.Pages
             Math.Clamp(CouncilCritiqueRounds, 0, 3),
             IncludeCouncilMemory,
             CreateProjectPerCouncilRun,
-            string.IsNullOrWhiteSpace(SelectedCouncilTeamKey) ? "general" : SelectedCouncilTeamKey));
+            string.IsNullOrWhiteSpace(SelectedCouncilTeamKey) ? "general" : SelectedCouncilTeamKey)
+        {
+            ModelPresetId = SelectedModelPreset?.Id,
+            HardwarePerformancePresetId = SelectedHardwarePerformancePreset?.Id
+        });
     }
 
     /// <summary>
@@ -489,7 +501,14 @@ namespace LocalGPT.Components.Pages
     /// <param name="configuration">Configuration containing the caller-supplied values that control this operation.</param>
     private void ApplyPreparationConfiguration(CouncilPreparationConfiguration configuration)
     {
-        SelectedModelPreset = null;
+        SelectedModelPreset = configuration.ModelPresetId is Guid modelPresetId
+            ? ModelPresets.FirstOrDefault(item => item.Id == modelPresetId)
+            : null;
+        ModelPresetName = SelectedModelPreset?.Name ?? string.Empty;
+        SelectedHardwarePerformancePreset = configuration.HardwarePerformancePresetId is Guid hardwarePresetId
+            ? HardwarePerformancePresetItems.FirstOrDefault(item => item.Id == hardwarePresetId)
+            : null;
+        HardwarePerformancePresetName = SelectedHardwarePerformancePreset?.Name ?? string.Empty;
         SelectedCouncilModelNames = NormalizeProviderSelectionKeys(configuration.ModelNames);
         CouncilModelRoutes = configuration.ModelRoutes.Select(CloneRoute).ToList();
         SynchronizeSelectedCouncilRoutes();
@@ -521,6 +540,33 @@ namespace LocalGPT.Components.Pages
         }
 
         modelStatus = "Restored the last Council preparation settings for this LocalGPT process.";
+    }
+
+    /// <summary>Restores the detailed and compact Chat configuration selectors from the authoritative configuration captured by a live Council session.</summary>
+    /// <param name="snapshot">Running Council configuration snapshot being rejoined by this browser circuit.</param>
+    private void ApplyRejoinedCouncilPreparationSnapshot(CouncilRunConfigurationSnapshot snapshot)
+    {
+        var preparation = new CouncilPreparationConfiguration(
+            snapshot.Participants,
+            snapshot.ModelRoutes,
+            snapshot.ResourceLoadPercent,
+            snapshot.RequestedMaxOutputTokens,
+            snapshot.RequestedMaxContextTokens,
+            snapshot.FallbackOllamaNumGpu,
+            snapshot.AllowParallelHardwareRoads,
+            snapshot.MaxParallelModels,
+            snapshot.ModelTimeoutSeconds,
+            snapshot.CritiqueRounds,
+            snapshot.IncludeMemory,
+            snapshot.CreateProjectPerRun,
+            snapshot.CouncilTeamKey)
+        {
+            ModelPresetId = snapshot.ModelPresetId,
+            HardwarePerformancePresetId = snapshot.HardwarePerformancePresetId
+        };
+
+        ApplyPreparationConfiguration(preparation);
+        modelStatus = $"Restored the configuration captured by running Council {ShortCouncilRunId(snapshot.RunId)} for this Chat circuit.";
     }
 
     /// <summary>

@@ -281,6 +281,8 @@ namespace LocalGPT.Components.Pages
                 Title = $"DXAiChat AI Council · {CouncilTeams.FirstOrDefault(team => team.Key == SelectedCouncilTeamKey)?.DisplayName ?? SelectedCouncilTeamKey}",
                 UseOrganicCouncilWorkflow = true,
                 CouncilTeamKey = string.IsNullOrWhiteSpace(SelectedCouncilTeamKey) ? "general" : SelectedCouncilTeamKey,
+                ModelPresetId = SelectedModelPreset?.Id,
+                HardwarePerformancePresetId = SelectedHardwarePerformancePreset?.Id,
                 ProjectId = SessionContext.ProjectId,
                 CreateProjectForRun = CreateProjectPerCouncilRun
             };

@@ -1,26 +1,21 @@
-# LocalGPT 3.1.9
+# LocalGPT 3.1.11
 
-LocalGPT 3.1.9 is the **Chat Quick Preset Row** release. It keeps the working service-backed Team, Models and Performance selectors while completing their requested visual placement as one normal-flow DevExpress row directly below Chat and above Running session tools.
+LocalGPT 3.1.11 is the **Council Formatting, Topic-Neutral Learning & Session Restore** release. It is additive over 3.1.10 and keeps the working chat composer, attachment recovery and quick-preset row intact.
 
 ## Toolchain state
 
-- .NET SDK policy: `10.0.400`
-- Target framework: `net10.0`
+- .NET SDK policy: 10.0.400 / `net10.0`
 - DevExpress: existing `25.2.*` package lane retained
 - 1-Wire protocol: `2.1.1`
 
-## Quick Preset Row
+## Main changes
 
-The three selectors are now bundled in a single `DxFormLayout`. Each item occupies four of twelve medium-width columns, so normal desktop layouts show Team, Models and Performance side by side from left to right. Smaller layouts are handled by DevExpress FormLayout rather than selector-specific CSS or a horizontal scrolling dock.
+Council provider/function payloads and LocalGPT self-assessment envelopes now render through controlled structured/code boundaries so JSON stays readable instead of leaking serializer escapes or being corrupted by Markdown URL parsing. The Learning Round seed is topic-neutral and uses a persisted four-step evidence workflow rather than assuming a software project. Running Council snapshots now retain the saved team/model/performance identities and the remaining Chat configuration needed to repopulate the existing editors and quick selectors when a browser circuit rejoins the session.
 
-The quick row is outside the DevExpress Chat host. It does not modify the memo editor, Attach, Send, Stop, transcript, prompt suggestions or detailed Chat Configuration workspace.
+## Protected UI
 
-## CSS boundary
+`Chat.razor`, `Chat.razor.css`, and `wwwroot/js/localgpt-chat-ui.js` are byte-identical to 3.1.10. This release does not alter composer geometry, Attach/Send/Stop, the quick-selector row or Running session tools placement.
 
-All 3.1.8 quick-selector overlay CSS was removed. The only existing Chat CSS change adds one normal-flow grid row (and the matching optional ASCII-game row) so the new sibling has a real layout slot. The release audit normalizes those row-count changes and verifies the rest of `Chat.razor.css` still matches the known-good pre-feature baseline.
+## Validation boundary
 
-## Preserved behavior
-
-3.1.9 retains live service refresh, renderer-affine state commits, the repetition watchdog, Council recovery/failover, cancellation handling, benchmark evidence, coverage truth guard and XML documentation completeness. No database migration or evidence-schema migration is introduced.
-
-See `CHANGELOG-v3.1.9-CHAT-QUICK-PRESET-ROW.md` and `VALIDATION-v3.1.9-source.md`.
+This source package is not compiled in the preparation environment. Validation is source/static only. See `CHANGELOG-v3.1.11-COUNCIL-FORMATTING-LEARNING-SESSION-RESTORE.md` and `VALIDATION-v3.1.11-source.md`.

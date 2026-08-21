@@ -143,11 +143,13 @@ namespace LocalGPT.Services
                         var name = ReadProviderTraceProperty(content, "Name", "FunctionName", "ToolName") ?? typeName;
                         var callId = ReadProviderTraceProperty(content, "CallId", "Id");
                         var arguments = ReadProviderTraceProperty(content, "Arguments", "Parameters", "Input");
-                        var body = new StringBuilder();
-                        if (!string.IsNullOrWhiteSpace(callId))
-                            body.AppendLine($"Call id: {WebUtility.HtmlEncode(callId)}");
-                        body.Append(WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(arguments) ? "{}" : arguments));
-                        traces.Add($"<details class=\"council-step\" open><summary>Function call · {WebUtility.HtmlEncode(name)}</summary>\n\n<pre>{body}</pre>\n\n</details>\n\n");
+                        var callIdMarkup = string.IsNullOrWhiteSpace(callId)
+                            ? string.Empty
+                            : $"Call id: <code>{WebUtility.HtmlEncode(callId)}</code>\n\n";
+                        var payloadMarkup = FormatUserVisibleCodePayload(
+                            string.IsNullOrWhiteSpace(arguments) ? "{}" : arguments,
+                            logger);
+                        traces.Add($"<details class=\"council-step\" open><summary>Function call · {WebUtility.HtmlEncode(name)}</summary>\n\n{callIdMarkup}{payloadMarkup}\n\n</details>\n\n");
                         continue;
                     }
 
@@ -157,11 +159,13 @@ namespace LocalGPT.Services
                         var name = ReadProviderTraceProperty(content, "Name", "FunctionName", "ToolName") ?? typeName;
                         var callId = ReadProviderTraceProperty(content, "CallId", "Id");
                         var result = ReadProviderTraceProperty(content, "Result", "Output", "Value", "Content");
-                        var body = new StringBuilder();
-                        if (!string.IsNullOrWhiteSpace(callId))
-                            body.AppendLine($"Call id: {WebUtility.HtmlEncode(callId)}");
-                        body.Append(WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(result) ? "(no provider result payload)" : result));
-                        traces.Add($"<details class=\"council-step\" open><summary>Function result · {WebUtility.HtmlEncode(name)}</summary>\n\n<pre>{body}</pre>\n\n</details>\n\n");
+                        var callIdMarkup = string.IsNullOrWhiteSpace(callId)
+                            ? string.Empty
+                            : $"Call id: <code>{WebUtility.HtmlEncode(callId)}</code>\n\n";
+                        var payloadMarkup = FormatUserVisibleCodePayload(
+                            string.IsNullOrWhiteSpace(result) ? "(no provider result payload)" : result,
+                            logger);
+                        traces.Add($"<details class=\"council-step\" open><summary>Function result · {WebUtility.HtmlEncode(name)}</summary>\n\n{callIdMarkup}{payloadMarkup}\n\n</details>\n\n");
                         continue;
                     }
 
@@ -183,6 +187,94 @@ namespace LocalGPT.Services
             {
                 logger.LogWarning(ex, "Could not project provider-specific stream metadata into the user-visible chat trace; the original provider update will continue unchanged.");
                 return [];
+            }
+        }
+
+        /// <summary>
+        /// Formats a provider/tool payload as an inert user-visible code block, pretty-printing valid JSON while
+        /// keeping Unicode characters readable and preventing payload markup from becoming executable HTML.
+        /// </summary>
+        /// <param name="payload">Provider or tool payload to render.</param>
+        /// <param name="logger">Logger used by JSON normalization diagnostics.</param>
+        /// <returns>Controlled HTML containing an encoded code block.</returns>
+        public string FormatUserVisibleCodePayload(string? payload, ILogger logger)
+        {
+            try
+            {
+                var raw = string.IsNullOrWhiteSpace(payload) ? "(empty payload)" : payload;
+                var looksJson = raw.TrimStart().StartsWith('{') || raw.TrimStart().StartsWith('[');
+                var formatted = looksJson
+                    ? FormatJsonForUserVisibleCode(raw)
+                    : text.PrettyPrintJson(raw, logger);
+                var languageClass = looksJson ? " class=\"language-json\"" : string.Empty;
+                return $"<pre><code{languageClass}>{WebUtility.HtmlEncode(formatted)}</code></pre>";
+            }
+            catch (Exception ex)
+            {
+                serviceLogger.LogWarning(ex, "Could not format a provider/tool payload for user-visible code rendering; payload content was omitted from logs.");
+                return $"<pre><code>{WebUtility.HtmlEncode(payload ?? string.Empty)}</code></pre>";
+            }
+        }
+
+        /// <summary>Pretty-prints a JSON payload for an inert user-visible code surface while decoding display-only HTML entities inside JSON string values.</summary>
+        /// <param name="raw">Raw JSON payload produced by a provider or LocalGPT function.</param>
+        /// <returns>Indented JSON whose Unicode and human text are readable before the final HTML encoding boundary.</returns>
+        private string FormatJsonForUserVisibleCode(string raw)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(raw);
+                using var stream = new MemoryStream();
+                using (var writer = new Utf8JsonWriter(
+                    stream,
+                    new JsonWriterOptions
+                    {
+                        Indented = true,
+                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                    }))
+                {
+                    static void WriteElement(Utf8JsonWriter target, JsonElement element)
+                    {
+                        switch (element.ValueKind)
+                        {
+                            case JsonValueKind.Object:
+                                target.WriteStartObject();
+                                foreach (var property in element.EnumerateObject())
+                                {
+                                    target.WritePropertyName(WebUtility.HtmlDecode(property.Name));
+                                    WriteElement(target, property.Value);
+                                }
+                                target.WriteEndObject();
+                                break;
+                            case JsonValueKind.Array:
+                                target.WriteStartArray();
+                                foreach (var item in element.EnumerateArray())
+                                    WriteElement(target, item);
+                                target.WriteEndArray();
+                                break;
+                            case JsonValueKind.String:
+                                target.WriteStringValue(WebUtility.HtmlDecode(element.GetString() ?? string.Empty));
+                                break;
+                            default:
+                                element.WriteTo(target);
+                                break;
+                        }
+                    }
+
+                    WriteElement(writer, document.RootElement);
+                }
+
+                return Encoding.UTF8.GetString(stream.ToArray());
+            }
+            catch (JsonException exception)
+            {
+                serviceLogger.LogDebug(exception, "Provider/tool payload was not valid JSON during user-visible code formatting; the original payload will be rendered as inert code.");
+                return raw;
+            }
+            catch (Exception exception)
+            {
+                serviceLogger.LogError(exception, "Formatting provider/tool JSON for the user-visible code surface failed; payload content was omitted from diagnostics.");
+                return raw;
             }
         }
 
@@ -230,12 +322,12 @@ namespace LocalGPT.Services
                     else if (key.Contains("tool_call", StringComparison.OrdinalIgnoreCase) ||
                              key.Contains("function_call", StringComparison.OrdinalIgnoreCase))
                     {
-                        traces.Add($"<details class=\"council-step\" open><summary>Function call metadata · {WebUtility.HtmlEncode(key)}</summary>\n\n<pre>{WebUtility.HtmlEncode(serialized)}</pre>\n\n</details>\n\n");
+                        traces.Add($"<details class=\"council-step\" open><summary>Function call metadata · {WebUtility.HtmlEncode(key)}</summary>\n\n{FormatUserVisibleCodePayload(serialized, serviceLogger)}\n\n</details>\n\n");
                     }
                     else if (key.Contains("tool_result", StringComparison.OrdinalIgnoreCase) ||
                              key.Contains("function_result", StringComparison.OrdinalIgnoreCase))
                     {
-                        traces.Add($"<details class=\"council-step\" open><summary>Function result metadata · {WebUtility.HtmlEncode(key)}</summary>\n\n<pre>{WebUtility.HtmlEncode(serialized)}</pre>\n\n</details>\n\n");
+                        traces.Add($"<details class=\"council-step\" open><summary>Function result metadata · {WebUtility.HtmlEncode(key)}</summary>\n\n{FormatUserVisibleCodePayload(serialized, serviceLogger)}\n\n</details>\n\n");
                     }
                 }
             }

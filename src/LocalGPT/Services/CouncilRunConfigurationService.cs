@@ -58,7 +58,15 @@ public sealed class CouncilRunConfigurationService(
                     request.OllamaNumGpu is < 0 ? 0 : request.OllamaNumGpu,
                     request.AllowParallelHardwareRoads,
                     request.MaxParallelModels,
-                    request.ModelTimeoutSeconds));
+                    request.ModelTimeoutSeconds)
+                {
+                    CouncilTeamKey = string.IsNullOrWhiteSpace(request.CouncilTeamKey) ? "general" : request.CouncilTeamKey.Trim(),
+                    ModelPresetId = request.ModelPresetId,
+                    HardwarePerformancePresetId = request.HardwarePerformancePresetId,
+                    CritiqueRounds = Math.Max(0, request.MaxRounds),
+                    IncludeMemory = request.IncludeMemory,
+                    CreateProjectPerRun = request.CreateProjectForRun
+                });
 
             lock (state.SyncRoot)
             {
@@ -229,6 +237,46 @@ public sealed class CouncilRunConfigurationService(
         throw;
     }
 }
+
+    /// <summary>Updates the hardware-performance preset identity retained by a running Council configuration snapshot.</summary>
+    /// <param name="runId">Identifier of the running Council to update.</param>
+    /// <param name="hardwarePerformancePresetId">Saved performance-preset identifier, or <see langword="null"/> for custom running settings.</param>
+    /// <returns><see langword="true"/> when the running snapshot was updated.</returns>
+    public bool UpdateHardwarePerformancePresetIdentity(Guid runId, Guid? hardwarePerformancePresetId)
+    {
+        try
+        {
+            if (!runs.TryGetValue(runId, out var state))
+                return false;
+
+            long revision;
+            lock (state.SyncRoot)
+            {
+                if (!state.IsRunning)
+                    return false;
+
+                state.HardwarePerformancePresetId = hardwarePerformancePresetId;
+                revision = ++state.Revision;
+                PulseLocked(state);
+            }
+
+            logger.LogInformation(
+                "Updated running Council {RunId} hardware performance preset identity to {PresetId} at revision {Revision}.",
+                runId,
+                hardwarePerformancePresetId,
+                revision);
+            Changed?.Invoke(runId);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            if (exception is OperationCanceledException)
+                logger.LogDebug(exception, "Updating running Council {RunId} hardware performance preset identity was cancelled.", runId);
+            else
+                logger.LogError(exception, "Updating running Council {RunId} hardware performance preset identity failed.", runId);
+            throw;
+        }
+    }
 
     /// <summary>
     /// Performs begin round as part of the council run configuration service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -654,7 +702,15 @@ public sealed class CouncilRunConfigurationService(
             state.CurrentRound,
             state.CurrentPhase,
             state.IsRoundSkipRequested,
-            state.IsRunning);
+            state.IsRunning)
+        {
+            CouncilTeamKey = state.CouncilTeamKey,
+            ModelPresetId = state.ModelPresetId,
+            HardwarePerformancePresetId = state.HardwarePerformancePresetId,
+            CritiqueRounds = state.CritiqueRounds,
+            IncludeMemory = state.IncludeMemory,
+            CreateProjectPerRun = state.CreateProjectPerRun
+        };
     }
     catch (Exception __serviceMethodException)
     {
@@ -698,7 +754,11 @@ public sealed class CouncilRunConfigurationService(
                 Math.Max(0, configuration.CritiqueRounds),
                 configuration.IncludeMemory,
                 configuration.CreateProjectPerRun,
-                string.IsNullOrWhiteSpace(configuration.CouncilTeamKey) ? "general" : configuration.CouncilTeamKey.Trim());
+                string.IsNullOrWhiteSpace(configuration.CouncilTeamKey) ? "general" : configuration.CouncilTeamKey.Trim())
+            {
+                ModelPresetId = configuration.ModelPresetId,
+                HardwarePerformancePresetId = configuration.HardwarePerformancePresetId
+            };
     
     }
     catch (Exception __serviceMethodException)
@@ -732,7 +792,11 @@ public sealed class CouncilRunConfigurationService(
             configuration.CritiqueRounds,
             configuration.IncludeMemory,
             configuration.CreateProjectPerRun,
-            configuration.CouncilTeamKey);
+            configuration.CouncilTeamKey)
+        {
+            ModelPresetId = configuration.ModelPresetId,
+            HardwarePerformancePresetId = configuration.HardwarePerformancePresetId
+        };
     }
     catch (Exception __serviceMethodException)
     {
