@@ -390,10 +390,10 @@
                 </datalist>
             </section>
 
-            <section class="council-structure-section">
+            <section id="x-functions-automation" class="council-structure-section">
                 <header>
                     <div>
-                        <h2>Rounds and workflow</h2>
+                        <h2>Rounds, workflow &amp; automated X Functions</h2>
                         <p>Each enabled entry is a workflow step. Multiple steps may share one logical Council round, and every role/model binding is authoritative for that run. Repeat count expands one step. Consecutive steps with the same loop group repeat together until their completion marker appears or the safety limit is reached. Placeholders include <code>{{UserPrompt}}</code>, <code>{{Transcript}}</code>, <code>{{PreviousStep}}</code>, <code>{{ModelName}}</code>, <code>{{CouncilMembers}}</code>, <code>{{RoleMembers}}</code>, <code>{{ExecutingRoleMember}}</code>, <code>{{RolePeerMembers}}</code>, <code>{{RuntimeClasses}}</code>, <code>{{PairedParticipant}}</code>, <code>{{PairedRole}}</code>, <code>{{RolePairings}}</code>, <code>{{HumanParticipationMode}}</code>, <code>{{RolePerformanceMode}}</code>, <code>{{RoleBoundaryMode}}</code>, <code>{{RoleLanguageMode}}</code>, <code>{{RolePerformanceInstruction}}</code>, <code>{{RoleBoundaryInstruction}}</code>, <code>{{RoleLanguageInstruction}}</code>, <code>{{LoopGroup}}</code>, <code>{{LoopIteration}}</code>, <code>{{LoopMaximumIterations}}</code>, <code>{{TeamName}}</code>, <code>{{Role}}</code>, <code>{{Phase}}</code>, and <code>{{RoundNumber}}</code>.</p>
                     </div>
                     <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddWorkflowStep">Add round</button>
@@ -563,8 +563,8 @@
                             </div>
                         </details>
                         <details class="council-advanced-section">
-                            <summary>X-Rounds / revisable control flow @(step.XFunctionsEnabled ? "· enabled" : "· disabled")</summary>
-                            <p class="hint">X-Rounds do not erase history. A revisit creates a new workflow-step revision caused by the requesting step. Reconsider suppresses DX/organic side effects; Reexecute deliberately runs the target's normal function policy again.</p>
+                            <summary>X-Rounds / revisable control flow · X Functions &amp; automation @(step.XFunctionsEnabled ? "· enabled" : "· disabled")</summary>
+                            <p class="hint"><strong>Automated X Functions:</strong> enable and authorize the X actions for this workflow step here. The existing X-Round engine remains the execution layer. X-Rounds do not erase history. A revisit creates a new workflow-step revision caused by the requesting step. Reconsider suppresses DX/organic side effects; Reexecute deliberately runs the target's normal function policy again.</p>
                             <div class="d-flex flex-wrap gap-2 mb-2" aria-label="X-Round workflow presets">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.Gatekeeper)">Gatekeeper</button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => ApplyXRoundPreset(step, CouncilXRoundPreset.ReactiveRevisit)">Reactive revisit</button>

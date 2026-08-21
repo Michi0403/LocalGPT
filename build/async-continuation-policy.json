@@ -34,8 +34,10 @@
       "DeletePipelineAsync"
     ],
     "Components/Shared/UserDxFunctionEditor.razor": [
+      "DeleteAsync",
+      "LoadSourceDefinitionAsync",
       "SaveAsync",
-      "DeleteAsync"
+      "SaveSourceAdapterAsync"
     ],
     "Components/Shared/ToolchainEnvironmentEditor.razor": [
       "SaveAsync"

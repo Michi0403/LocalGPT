@@ -35,6 +35,9 @@ public sealed class LearningRoundSnapshot
     /// </summary>
     /// <value>The regex count value exposed by <see cref="LearningRoundSnapshot"/>.</value>
     public int RegexCount { get; set; }
+    /// <summary>Gets or sets the number of database-first projects available to the learning round.</summary>
+    /// <value>The project count value exposed by <see cref="LearningRoundSnapshot"/>.</value>
+    public int ProjectCount { get; set; }
     /// <summary>
     /// Gets or sets the recent conversations collection maintained or exposed by this learning round snapshot instance for downstream processing.
     /// </summary>
@@ -60,6 +63,9 @@ public sealed class LearningRoundSnapshot
     /// </summary>
     /// <value>The regex patterns value exposed by <see cref="LearningRoundSnapshot"/>.</value>
     public IReadOnlyList<object> RegexPatterns { get; set; } = [];
+    /// <summary>Gets or sets bounded source-backed project/version/revision summaries for learning-round verification.</summary>
+    /// <value>The projects value exposed by <see cref="LearningRoundSnapshot"/>.</value>
+    public IReadOnlyList<object> Projects { get; set; } = [];
 }
 
 /// <summary>
@@ -126,6 +132,12 @@ public sealed class LearningRegexInput
 /// </summary>
 public sealed class LearningMaintenanceRequest
 {
+    /// <summary>Gets or sets whether source repositories in the chat upload workspace are synchronized into the database-first project structure.</summary>
+    /// <value>True by default so a completed software learning round cannot silently omit project/version/file persistence.</value>
+    public bool SynchronizeProjectStructure { get; set; } = true;
+    /// <summary>Gets or sets the exact chat upload workspace to synchronize; empty selects the latest workspace.</summary>
+    /// <value>The workspace name value exposed by <see cref="LearningMaintenanceRequest"/>.</value>
+    public string WorkspaceName { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the facts collection maintained or exposed by this learning maintenance instance for downstream processing.
     /// </summary>
@@ -145,8 +157,35 @@ public sealed class LearningMaintenanceRequest
 /// <param name="RegexPatternsStored">Regex patterns stored value supplied to the learning maintenance operation and used when producing its result.</param>
 /// <param name="KnowledgeEntryIds">Guid dependency used by the learning maintenance workflow to provide the corresponding application capability.</param>
 /// <param name="RegexNames">String dependency used by the learning maintenance workflow to provide the corresponding application capability.</param>
+/// <param name="WorkspaceName">Workspace name value supplied to the learning maintenance operation and used when producing its result.</param>
+/// <param name="ProjectsSynchronized">Learning project sync result dependency used by the learning maintenance workflow to provide the corresponding application capability.</param>
 public sealed record LearningMaintenanceResult(
     int FactsStored,
     int RegexPatternsStored,
     IReadOnlyList<Guid> KnowledgeEntryIds,
-    IReadOnlyList<string> RegexNames);
+    IReadOnlyList<string> RegexNames,
+    string WorkspaceName,
+    IReadOnlyList<LearningProjectSyncResult> ProjectsSynchronized);
+
+/// <summary>Describes one repository that a learning round synchronized into LocalGPT's database-first project structure.</summary>
+/// <param name="ProjectId">Stable project identifier.</param>
+/// <param name="RevisionId">Source-backed revision identifier.</param>
+/// <param name="ProjectName">Detected canonical project name.</param>
+/// <param name="Version">Exact repository version read from project metadata.</param>
+/// <param name="SdkVersion">Exact SDK version read from global.json when present.</param>
+/// <param name="TargetFrameworks">Exact target frameworks declared by repository project files.</param>
+/// <param name="WorkspaceName">Chat upload workspace that supplied the source repository.</param>
+/// <param name="RepositoryRoot">Repository root inside the chat upload workspace.</param>
+/// <param name="TrackedFileCount">Number of repository files persisted in the tracked-file structure.</param>
+/// <param name="SourceSnapshotHash">SHA-256 hash binding the revision to the complete tracked source structure.</param>
+public sealed record LearningProjectSyncResult(
+    Guid ProjectId,
+    Guid RevisionId,
+    string ProjectName,
+    string Version,
+    string SdkVersion,
+    IReadOnlyList<string> TargetFrameworks,
+    string WorkspaceName,
+    string RepositoryRoot,
+    int TrackedFileCount,
+    string SourceSnapshotHash);

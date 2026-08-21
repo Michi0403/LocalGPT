@@ -459,7 +459,7 @@ namespace LocalGPT.Services
                         effectiveAllowDxFunctions,
                         automaticFunctionPolicy,
                         workflowRevision,
-                        xRoundCause,
+                        xRoundCause ?? string.Empty,
                         cancellationToken).ConfigureAwait(false);
 
                     var recoveredModels = recoveredMemberSteps

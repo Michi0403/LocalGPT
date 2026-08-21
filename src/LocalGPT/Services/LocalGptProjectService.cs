@@ -481,7 +481,17 @@ public sealed class LocalGptProjectService(
 
             var currentRevision = details.Revisions.FirstOrDefault(item => item.IsCurrent);
             if (currentRevision is not null)
+            {
                 builder.AppendLine($"Current database revision: {currentRevision.BranchName}/{currentRevision.RevisionName}.");
+                if (!string.IsNullOrWhiteSpace(currentRevision.SourceSnapshotHash))
+                    builder.AppendLine($"Current source snapshot SHA-256: {currentRevision.SourceSnapshotHash}.");
+                if (!string.IsNullOrWhiteSpace(currentRevision.SourceRootPath))
+                    builder.AppendLine($"Current source-backed workspace root: {currentRevision.SourceRootPath}.");
+                if (!string.IsNullOrWhiteSpace(currentRevision.ProjectStructureJson))
+                    builder.AppendLine($"Source-backed project structure metadata: {currentRevision.ProjectStructureJson}");
+            }
+
+            builder.AppendLine("Repository-fact rule: SDK/runtime/framework/version/project-structure claims must come from this selected project revision, its tracked files, or an explicitly inspected chat upload workspace. Never invent fallback versions or ask whether the project targets .NET 7/8 when source metadata already declares a different target. If exact metadata is absent, say it is absent instead of substituting a remembered default.");
 
             var approvedRequirements = details.Requirements.Where(item => item.IsUserApproved).Take(30).ToList();
             if (approvedRequirements.Count > 0)

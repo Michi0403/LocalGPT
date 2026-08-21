@@ -87,8 +87,8 @@ public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService
         "localgpt.learning.maintain",
         "POST",
         "/api/dxai/functions/localgpt.learning.maintain/invoke",
-        "Stores topic-neutral model-suggested learning facts and optional validated regex definitions in LocalGPT's SQLite self-maintenance layer.",
-        "JSON parameters: facts array and regexPatterns array; both optional.",
+        "Stores topic-neutral model-suggested learning facts and optional validated regex definitions, and synchronizes repository-shaped chat uploads into LocalGPT's existing project/version/revision/tracked-file structure.",
+        "JSON parameters: facts array and regexPatterns array optional; synchronizeProjectStructure defaults true; workspaceName optionally selects the exact chat upload workspace.",
         "Knowledge maintenance only. New facts remain ModelSuggested/NeedsUserReview and regexes are timeout-validated. This function cannot run commands or authorize side effects.",
         IsReadOnly: false,
         AvailableToAi: true,
@@ -100,6 +100,8 @@ public sealed class MaintainLearningRoundKnowledgeFunction(ILearningRoundService
         {
           "type":"object",
           "properties":{
+            "synchronizeProjectStructure":{"type":"boolean","default":true},
+            "workspaceName":{"type":"string","maxLength":240},
             "facts":{"type":"array","items":{"type":"object","required":["topic","content"],"properties":{"topic":{"type":"string","maxLength":240},"scope":{"type":"string","maxLength":120},"content":{"type":"string"},"helpfulSources":{"type":"string"},"tags":{"type":"string","maxLength":400},"confidence":{"type":"integer","minimum":0,"maximum":100}},"additionalProperties":false}},
             "regexPatterns":{"type":"array","items":{"type":"object","required":["name","pattern"],"properties":{"name":{"type":"string","maxLength":128},"pattern":{"type":"string","maxLength":16000},"flags":{"type":"string","maxLength":64}},"additionalProperties":false}}
           },

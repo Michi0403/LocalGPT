@@ -18,7 +18,9 @@
         <div class="dx-catalog-actions">
             <button type="button" class="btn btn-secondary" @onclick="ReloadAsync" disabled="@_busy">Reload</button>
             <button type="button" class="btn btn-primary" @onclick="SynchronizeAsync" disabled="@_busy">Synchronize runtime catalog</button>
-            <button type="button" class="btn btn-outline-primary" @onclick="CreateUserFunction" disabled="@_busy">New user DXFunction</button>
+            <button type="button" class="btn btn-outline-primary" @onclick='() => CreateUserFunction("Source")' disabled="@_busy">New JSON / OData AI function</button>
+            <button type="button" class="btn btn-outline-primary" @onclick='() => CreateUserFunction("Pipeline")' disabled="@_busy">Advanced pipeline AI function</button>
+            <a class="btn btn-outline-secondary" href="/council-teams#x-functions-automation">X Functions &amp; automation</a>
             @if (_viewMode == "Grid")
             {
                 <button type="button" class="btn btn-outline-primary" @onclick="SaveVisibleAsync" disabled="@_busy">Save visible/edited grid policies</button>
@@ -33,7 +35,7 @@
 
     @if (_showUserEditor)
     {
-        <UserDxFunctionEditor FunctionName="@_userEditorFunctionName" Changed="HandleUserFunctionsChangedAsync" Closed="CloseUserEditorAsync" />
+        <UserDxFunctionEditor FunctionName="@_userEditorFunctionName" InitialMode="@_userEditorInitialMode" Changed="HandleUserFunctionsChangedAsync" Closed="CloseUserEditorAsync" />
     }
 
     <section class="dx-catalog-toolbar">
@@ -431,10 +433,21 @@
     /// <summary>
     /// Creates user function in the DevExpress function directory so callers observe a consistent, authoritative runtime view.
     /// </summary>
-    private void CreateUserFunction()
+    /// <param name="mode">Mode value supplied to the DevExpress function operation and used when producing its result.</param>
+    private void CreateUserFunction(string mode)
     {
-        _userEditorFunctionName = string.Empty;
-        _showUserEditor = true;
+        try
+        {
+            _userEditorFunctionName = string.Empty;
+            _userEditorInitialMode = string.Equals(mode, "Source", StringComparison.OrdinalIgnoreCase) ? "Source" : "Pipeline";
+            _showUserEditor = true;
+            Logger.LogInformation("Opened the user DXFunction editor in {Mode} mode.", _userEditorInitialMode);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Opening the user DXFunction editor failed.");
+            throw;
+        }
     }
 
     /// <summary>
@@ -443,8 +456,17 @@
     /// <param name="functionName">Function name value supplied to the DevExpress function operation and used when producing its result.</param>
     private void EditUserFunction(string functionName)
     {
-        _userEditorFunctionName = functionName;
-        _showUserEditor = true;
+        try
+        {
+            _userEditorFunctionName = functionName;
+            _userEditorInitialMode = "Pipeline";
+            _showUserEditor = true;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Opening user DXFunction {FunctionName} for editing failed.", functionName);
+            throw;
+        }
     }
 
     /// <summary>
@@ -464,6 +486,7 @@
     {
         _showUserEditor = false;
         _userEditorFunctionName = string.Empty;
+        _userEditorInitialMode = "Pipeline";
         return Task.CompletedTask;
     }
 

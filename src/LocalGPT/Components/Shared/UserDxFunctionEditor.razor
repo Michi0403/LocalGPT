@@ -1,5 +1,7 @@
+@using System.Text.Json
 @inject IUserDxAiFunctionService UserFunctions
 @inject IRemoteControlPipelineService Pipelines
+@inject IRemoteControlConnectorService Connectors
 @inject IDxAiFunctionCatalogService Catalog
 @inject INotificationService Notifier
 @inject ILogger<UserDxFunctionEditor> Logger
@@ -9,7 +11,7 @@
     <header class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
         <div>
             <h2>@(string.IsNullOrWhiteSpace(FunctionName) ? T("UserDx.Editor.CreateTitle", "Create user DXFunction") : T("UserDx.Editor.EditTitle", "Edit user DXFunction"))</h2>
-            <p>@T("UserDx.Editor.Intro", "Compose a runtime function from a saved Remote Control pipeline. The function enters the normal DX registry, schema, approval and catalog policy path.")</p>
+            <p>@T("UserDx.Editor.Intro", "Create a simple JSON/OData-backed AI function or bind an advanced Remote Control pipeline. Both enter the normal DX registry, schema, approval and catalog policy path.")</p>
         </div>
         <button type="button" class="btn btn-secondary" @onclick="CancelAsync" disabled="@_busy">@T("Common.Close", "Close")</button>
     </header>
@@ -30,15 +32,59 @@
             <input class="form-control" @bind="_edit.DisplayName" disabled="@_busy" />
         </div>
         <div class="col-lg-4">
-            <label class="form-label">@T("UserDx.Editor.Pipeline", "Implementing pipeline")</label>
-            <select class="form-select" @bind="_edit.PipelineKey" disabled="@_busy">
-                <option value="">@T("UserDx.Editor.SelectPipeline", "Select pipeline")</option>
-                @foreach (var pipeline in _pipelines)
-                {
-                    <option value="@pipeline.Key">@pipeline.DisplayName (@pipeline.Key)</option>
-                }
+            <label class="form-label">@T("UserDx.Editor.Mode", "Implementation")</label>
+            <select class="form-select" @bind="_mode" disabled="@_busy">
+                <option value="Source">@T("UserDx.Editor.ModeSource", "JSON / OData source")</option>
+                <option value="Pipeline">@T("UserDx.Editor.ModePipeline", "Advanced Remote Control pipeline")</option>
             </select>
         </div>
+        @if (_mode == "Pipeline")
+        {
+            <div class="col-lg-4">
+                <label class="form-label">@T("UserDx.Editor.Pipeline", "Implementing pipeline")</label>
+                <select class="form-select" @bind="_edit.PipelineKey" disabled="@_busy">
+                    <option value="">@T("UserDx.Editor.SelectPipeline", "Select pipeline")</option>
+                    @foreach (var pipeline in _pipelines.Where(item => !item.Key.StartsWith("user-source.", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        <option value="@pipeline.Key">@pipeline.DisplayName (@pipeline.Key)</option>
+                    }
+                </select>
+            </div>
+        }
+        else
+        {
+            <div class="col-lg-4">
+                <label class="form-label">@T("UserDx.Editor.SourceType", "Source type")</label>
+                <select class="form-select" @bind="_sourceType" disabled="@_busy">
+                    <option value="Json">@T("UserDx.Editor.SourceJson", "JSON / REST")</option>
+                    <option value="OData">@T("UserDx.Editor.SourceOData", "OData")</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label">@T("UserDx.Editor.SourceUrl", "Source URL")</label>
+                <input class="form-control" @bind="_sourceUrl" placeholder="https://example.local/api/items" disabled="@_busy" />
+                <small class="text-muted">@T("UserDx.Editor.SourceUrlHelp", "The host from this URL becomes the connector allow-list. Network access remains scoped to this saved source.")</small>
+            </div>
+            <div class="col-lg-6">
+                <label class="form-label">@T("UserDx.Editor.ResponseSelector", "Response selector")</label>
+                <input class="form-control" @bind="_responseSelector" placeholder="value" disabled="@_busy" />
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label">@T("UserDx.Editor.Timeout", "Timeout (seconds)")</label>
+                <input class="form-control" type="number" min="1" max="300" @bind="_timeoutSeconds" disabled="@_busy" />
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label">@T("UserDx.Editor.MaxPayload", "Maximum payload (bytes)")</label>
+                <input class="form-control" type="number" min="1024" max="16777216" @bind="_maxPayloadBytes" disabled="@_busy" />
+            </div>
+            <div class="col-12">
+                <label class="form-label">@T("UserDx.Editor.Headers", "Request headers JSON")</label>
+                <textarea class="form-control font-monospace" rows="3" @bind="_headersJson" disabled="@_busy"></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-check"><input class="form-check-input" type="checkbox" @bind="_allowInsecureHttp" disabled="@_busy" /><span>@T("UserDx.Editor.AllowHttp", "Allow plain HTTP for this source")</span></label>
+            </div>
+        }
         <div class="col-lg-6">
             <label class="form-label">@T("UserDx.Editor.Purpose", "Purpose")</label>
             <textarea class="form-control" rows="3" @bind="_edit.Purpose" disabled="@_busy"></textarea>
@@ -76,6 +122,9 @@
     /// </summary>
     /// <value>The function name value exposed by <see cref="UserDxFunctionEditor"/>.</value>
     [Parameter] public string FunctionName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the initial editor mode selected by the parent page for new functions.</summary>
+    /// <value>Source for the simple JSON/OData form or Pipeline for the advanced existing workflow.</value>
+    [Parameter] public string InitialMode { get; set; } = "Pipeline";
     /// <summary>
     /// Gets or sets the changed value that forms part of the user DevExpress function editor state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -113,6 +162,36 @@
     /// Stores the internal status state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
     /// </summary>
     private string _status = string.Empty;
+    /// <summary>Stores whether the editor uses the simple source adapter or the existing advanced pipeline flow.</summary>
+    private string _mode = "Pipeline";
+    /// <summary>
+    /// Stores the internal source type state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
+    /// </summary>
+    private string _sourceType = "Json";
+    /// <summary>Stores the source URL entered by the local user.</summary>
+    private string _sourceUrl = string.Empty;
+    /// <summary>
+    /// Stores the internal response selector state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
+    /// </summary>
+    private string _responseSelector = string.Empty;
+    /// <summary>
+    /// Stores the internal headers JSON state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
+    /// </summary>
+    private string _headersJson = "{}";
+    /// <summary>
+    /// Stores the internal timeout seconds state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
+    /// </summary>
+    private int _timeoutSeconds = 30;
+    /// <summary>
+    /// Stores the internal max payload bytes state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
+    /// </summary>
+    private int _maxPayloadBytes = RemoteControlLimits.DefaultMaximumPayloadBytes;
+    /// <summary>
+    /// Stores the internal allow insecure HTTP state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
+    /// </summary>
+    private bool _allowInsecureHttp;
+    /// <summary>Stores the generated source adapter key loaded with an existing function so it can be cleaned up after retargeting or deletion.</summary>
+    private string _originalGeneratedSourceKey = string.Empty;
 
     /// <summary>
     /// Handles the parameters set async lifecycle or event notification for <see cref="UserDxFunctionEditor"/>, updating the state required by the surrounding workflow.
@@ -129,10 +208,12 @@
                 var item = await UserFunctions.GetAsync(FunctionName).ConfigureAwait(true)
                     ?? throw new KeyNotFoundException($"User DXFunction {FunctionName} was not found.");
                 CopyFrom(item);
+                await LoadSourceDefinitionAsync(item).ConfigureAwait(true);
             }
             else
             {
                 ResetNew();
+                _mode = string.Equals(InitialMode, "Source", StringComparison.OrdinalIgnoreCase) ? "Source" : "Pipeline";
             }
             _error = false;
             _status = string.Empty;
@@ -159,8 +240,15 @@
         _busy = true;
         try
         {
+            var previousGeneratedSourceKey = _originalGeneratedSourceKey;
+            if (_mode == "Source")
+                await SaveSourceAdapterAsync().ConfigureAwait(true);
+
             _edit.UserConfirmed = true;
             var saved = await UserFunctions.SaveAsync(_edit).ConfigureAwait(true);
+            if (!string.IsNullOrWhiteSpace(previousGeneratedSourceKey) && !string.Equals(previousGeneratedSourceKey, _edit.PipelineKey, StringComparison.OrdinalIgnoreCase))
+                await DeleteGeneratedSourceAdapterAsync(previousGeneratedSourceKey).ConfigureAwait(true);
+            _originalGeneratedSourceKey = _mode == "Source" ? _edit.PipelineKey : string.Empty;
             await Catalog.SynchronizeAsync().ConfigureAwait(true);
             _status = $"{T("UserDx.Editor.SavedPrefix", "Saved")} {saved.FunctionName}.";
             _error = false;
@@ -189,7 +277,10 @@
         _busy = true;
         try
         {
+            var generatedSourceKey = _originalGeneratedSourceKey;
             await UserFunctions.DeleteAsync(FunctionName, true).ConfigureAwait(true);
+            if (!string.IsNullOrWhiteSpace(generatedSourceKey))
+                await DeleteGeneratedSourceAdapterAsync(generatedSourceKey).ConfigureAwait(true);
             await Catalog.SynchronizeAsync().ConfigureAwait(true);
             Notifier.ShowSuccess(nameof(UserDxFunctionEditor), $"{T("UserDx.Editor.DeletedPrefix", "Deleted")} {FunctionName}.", T("UserDx.Editor.DeletedTitle", "User DXFunction deleted"));
             await Changed.InvokeAsync().ConfigureAwait(true);
@@ -240,6 +331,14 @@
         _edit.RequiresHumanConfirmation = false;
         _edit.SupportsAutomaticInvocation = false;
         _edit.UserConfirmed = false;
+        _sourceType = "Json";
+        _sourceUrl = string.Empty;
+        _responseSelector = string.Empty;
+        _headersJson = "{}";
+        _timeoutSeconds = 30;
+        _maxPayloadBytes = RemoteControlLimits.DefaultMaximumPayloadBytes;
+        _allowInsecureHttp = false;
+        _originalGeneratedSourceKey = string.Empty;
     }
 
     /// <summary>
@@ -262,4 +361,139 @@
         _edit.SupportsAutomaticInvocation = item.SupportsAutomaticInvocation;
         _edit.UserConfirmed = false;
     }
+    /// <summary>Loads the generated connector/pipeline adapter when an existing user function is source-backed.</summary>
+    /// <param name="item">Item value supplied to the user DevExpress function editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    private async Task LoadSourceDefinitionAsync(UserDxAiFunctionDefinition item)
+    {
+        try
+        {
+            _originalGeneratedSourceKey = string.Empty;
+            if (!item.PipelineKey.StartsWith("user-source.", StringComparison.OrdinalIgnoreCase))
+            {
+                _mode = "Pipeline";
+                return;
+            }
+
+            var pipeline = await Pipelines.GetAsync(item.PipelineKey).ConfigureAwait(true);
+            if (pipeline is null || !pipeline.ConnectorKey.StartsWith("user-source.", StringComparison.OrdinalIgnoreCase) || Pipelines.ParseSteps(pipeline.StepsJson).Count != 0)
+            {
+                _mode = "Pipeline";
+                return;
+            }
+
+            var connector = await Connectors.GetAsync(pipeline.ConnectorKey).ConfigureAwait(true);
+            if (connector is null)
+            {
+                _mode = "Pipeline";
+                return;
+            }
+
+            _mode = "Source";
+            _originalGeneratedSourceKey = pipeline.Key;
+            _sourceType = connector.Transport == RemoteControlTransportKind.OData ? "OData" : "Json";
+            _sourceUrl = connector.UrlTemplate;
+            _responseSelector = connector.ResponseSelector;
+            _headersJson = string.IsNullOrWhiteSpace(connector.HeadersJson) ? "{}" : connector.HeadersJson;
+            _timeoutSeconds = connector.TimeoutSeconds;
+            _maxPayloadBytes = connector.MaxPayloadBytes;
+            _allowInsecureHttp = connector.AllowInsecureHttp;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not load the simple source adapter for user DXFunction {FunctionName}.", item.FunctionName);
+            throw;
+        }
+    }
+
+    /// <summary>Saves a JSON/OData connector and zero-action pipeline through the existing Remote Control architecture.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    private async Task SaveSourceAdapterAsync()
+    {
+        try
+        {
+            if (!Uri.TryCreate(_sourceUrl?.Trim(), UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+                throw new ArgumentException(T("UserDx.Editor.SourceUrlInvalid", "Enter a valid absolute HTTP or HTTPS source URL."));
+            if (uri.Scheme == Uri.UriSchemeHttp && !_allowInsecureHttp)
+                throw new InvalidOperationException(T("UserDx.Editor.HttpDisabled", "Plain HTTP is disabled for this source. Use HTTPS or explicitly allow HTTP."));
+
+            using (JsonDocument.Parse(string.IsNullOrWhiteSpace(_headersJson) ? "{}" : _headersJson)) { }
+            var key = CreateGeneratedSourceKey(_edit.FunctionName);
+            var connector = new RemoteControlConnectorDefinition
+            {
+                Key = key,
+                DisplayName = string.IsNullOrWhiteSpace(_edit.DisplayName) ? _edit.FunctionName : _edit.DisplayName.Trim(),
+                Description = string.IsNullOrWhiteSpace(_edit.Purpose) ? T("UserDx.Editor.SourcePurposeFallback", "Read the configured data source and return its selected JSON result.") : _edit.Purpose.Trim(),
+                Transport = _sourceType == "OData" ? RemoteControlTransportKind.OData : RemoteControlTransportKind.Rest,
+                Method = RemoteControlHttpMethod.Get,
+                UrlTemplate = uri.AbsoluteUri,
+                HeadersJson = string.IsNullOrWhiteSpace(_headersJson) ? "{}" : _headersJson.Trim(),
+                ResponseFormat = RemoteControlResponseFormat.Json,
+                ResponseSelector = _responseSelector?.Trim() ?? string.Empty,
+                TimeoutSeconds = Math.Clamp(_timeoutSeconds, 1, 300),
+                MaxPayloadBytes = Math.Clamp(_maxPayloadBytes, 1024, RemoteControlLimits.AbsoluteMaximumPayloadBytes),
+                IsEnabled = true,
+                NetworkEnabled = true,
+                AllowInsecureHttp = _allowInsecureHttp,
+                AllowedHostsJson = JsonSerializer.Serialize(new[] { uri.Host })
+            };
+            await Connectors.SaveAsync(connector).ConfigureAwait(true);
+            await Pipelines.SaveAsync(new RemoteControlPipelineDefinition
+            {
+                Key = key,
+                DisplayName = connector.DisplayName,
+                Description = T("UserDx.Editor.SourcePipelineDescription", "Generated source adapter for a user-created AI function."),
+                ConnectorKey = key,
+                Triggers = RemoteControlTriggerKind.Manual,
+                StepsJson = "[]",
+                IsEnabled = true
+            }).ConfigureAwait(true);
+            _edit.PipelineKey = key;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not save the simple JSON/OData source adapter for user DXFunction {FunctionName}; URL and headers were omitted from logs.", _edit.FunctionName);
+            throw;
+        }
+    }
+
+    /// <summary>Deletes only adapters generated by the simple user-source editor after the owning DXFunction no longer references them.</summary>
+    /// <param name="key">Key value supplied to the user DevExpress function editor operation and used when producing its result.</param>
+    /// <returns>A task that completes when the operation has finished.</returns>
+    private async Task DeleteGeneratedSourceAdapterAsync(string key)
+    {
+        try
+        {
+            if (!key.StartsWith("user-source.", StringComparison.OrdinalIgnoreCase))
+                return;
+            await Pipelines.DeleteAsync(key).ConfigureAwait(false);
+            await Connectors.DeleteAsync(key).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not delete generated source adapter {SourceKey}.", key);
+            throw;
+        }
+    }
+
+    /// <summary>Creates a bounded deterministic Remote Control key for a simple user data source.</summary>
+    /// <param name="functionName">Function name value supplied to the user DevExpress function editor operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
+    private string CreateGeneratedSourceKey(string functionName)
+    {
+        try
+        {
+            var normalized = functionName?.Trim().ToLowerInvariant() ?? string.Empty;
+            if (!normalized.StartsWith("user.", StringComparison.Ordinal) || normalized.Length <= 5)
+                throw new ArgumentException(T("UserDx.Editor.RuntimeInvalid", "Enter a complete user.* runtime name before saving the source."));
+            var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(normalized));
+            return "user-source." + Convert.ToHexString(hash[..12]).ToLowerInvariant();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not create the generated source adapter key; function name was omitted from logs.");
+            throw;
+        }
+    }
+
 }

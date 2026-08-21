@@ -17,11 +17,13 @@ namespace LocalGPT.Services;
 /// <param name="knowledgeService">Council knowledge service dependency used by the learning round workflow to provide the corresponding application capability.</param>
 /// <param name="regexPatternService">Regex pattern service dependency used by the learning round workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="projectWorkspaceSync">Learning project workspace sync service dependency used by the learning round workflow to provide the corresponding application capability.</param>
 public sealed class LearningRoundService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     ICouncilKnowledgeService knowledgeService,
     IRegexPatternService regexPatternService,
+    ILearningProjectWorkspaceSyncService projectWorkspaceSync,
     ILogger<LearningRoundService> logger) : ILearningRoundService
 {
     /// <summary>
@@ -113,6 +115,32 @@ public sealed class LearningRoundService(
                 .Select(item => new { item.Name, item.Pattern, item.Flags, item.UpdatedOn })
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
 
+            var projects = await db.LocalGptProjects.AsNoTracking()
+                .Where(item => !item.IsArchived)
+                .OrderByDescending(item => item.UpdatedAtUtc)
+                .Take(take)
+                .Select(item => new
+                {
+                    item.Id,
+                    item.Name,
+                    item.ProjectType,
+                    item.CurrentVersion,
+                    item.RootPath,
+                    item.SolutionPath,
+                    item.UpdatedAtUtc,
+                    CurrentRevision = item.Revisions.Where(revision => revision.IsCurrent).Select(revision => new
+                    {
+                        revision.Id,
+                        revision.RevisionName,
+                        revision.SourceSnapshotHash,
+                        revision.SourceRootPath,
+                        revision.ProjectStructureJson
+                    }).FirstOrDefault(),
+                    TrackedFileCount = item.TrackedFiles.Count(file => file.Exists)
+                })
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+
             var snapshot = new LearningRoundSnapshot
             {
                 GeneratedAtUtc = DateTime.UtcNow,
@@ -121,6 +149,7 @@ public sealed class LearningRoundService(
                 LogCount = await db.ApplicationLogs.CountAsync(cancellationToken).ConfigureAwait(false),
                 KnowledgeCount = await db.CouncilKnowledgeEntries.CountAsync(cancellationToken).ConfigureAwait(false),
                 RegexCount = await db.RegexPatterns.CountAsync(cancellationToken).ConfigureAwait(false),
+                ProjectCount = await db.LocalGptProjects.CountAsync(item => !item.IsArchived, cancellationToken).ConfigureAwait(false),
                 RecentConversations = conversations.Cast<object>().ToList(),
                 RecentMessages = messages.Select(item => (object)new
                 {
@@ -157,12 +186,31 @@ public sealed class LearningRoundService(
                     item.IsUserApproved,
                     item.UpdatedAtUtc
                 }).ToList(),
-                RegexPatterns = regexPatterns.Cast<object>().ToList()
+                RegexPatterns = regexPatterns.Cast<object>().ToList(),
+                Projects = projects.Select(item => (object)new
+                {
+                    item.Id,
+                    item.Name,
+                    item.ProjectType,
+                    item.CurrentVersion,
+                    item.RootPath,
+                    item.SolutionPath,
+                    item.UpdatedAtUtc,
+                    item.TrackedFileCount,
+                    CurrentRevision = item.CurrentRevision is null ? null : new
+                    {
+                        item.CurrentRevision.Id,
+                        item.CurrentRevision.RevisionName,
+                        item.CurrentRevision.SourceSnapshotHash,
+                        item.CurrentRevision.SourceRootPath,
+                        ProjectStructureJson = Truncate(item.CurrentRevision.ProjectStructureJson, 12_000)
+                    }
+                }).ToList()
             };
 
             logger.LogInformation(
-                "Prepared learning-round snapshot with {ConversationCount} conversations, {MessageCount} messages, {LogCount} logs, {KnowledgeCount} knowledge entries and {RegexCount} regex patterns.",
-                snapshot.ConversationCount, snapshot.MessageCount, snapshot.LogCount, snapshot.KnowledgeCount, snapshot.RegexCount);
+                "Prepared learning-round snapshot with {ConversationCount} conversations, {MessageCount} messages, {LogCount} logs, {KnowledgeCount} knowledge entries, {RegexCount} regex patterns and {ProjectCount} source projects.",
+                snapshot.ConversationCount, snapshot.MessageCount, snapshot.LogCount, snapshot.KnowledgeCount, snapshot.RegexCount, snapshot.ProjectCount);
             return snapshot;
     
     }
@@ -230,10 +278,15 @@ public sealed class LearningRoundService(
                 regexNames.Add(name);
             }
 
+            var synchronizedProjects = request.SynchronizeProjectStructure
+                ? await projectWorkspaceSync.SynchronizeAsync(request.WorkspaceName, cancellationToken).ConfigureAwait(false)
+                : [];
+            var synchronizedWorkspace = synchronizedProjects.FirstOrDefault()?.WorkspaceName ?? request.WorkspaceName?.Trim() ?? string.Empty;
+
             logger.LogInformation(
-                "Learning self-maintenance stored {FactCount} model-suggested fact(s) and {RegexCount} regex pattern(s).",
-                knowledgeIds.Count, regexNames.Count);
-            return new LearningMaintenanceResult(knowledgeIds.Count, regexNames.Count, knowledgeIds, regexNames);
+                "Learning self-maintenance stored {FactCount} model-suggested fact(s), {RegexCount} regex pattern(s), and synchronized {ProjectCount} source project(s).",
+                knowledgeIds.Count, regexNames.Count, synchronizedProjects.Count);
+            return new LearningMaintenanceResult(knowledgeIds.Count, regexNames.Count, knowledgeIds, regexNames, synchronizedWorkspace, synchronizedProjects);
     
     }
     catch (Exception __serviceMethodException)

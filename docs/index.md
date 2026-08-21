@@ -1,6 +1,6 @@
-# LocalGPT documentation
+﻿# LocalGPT documentation
 
-**Version 3.2.2**
+**Version 2.3.7**
 
 LocalGPT is a local-first AI workbench for direct chat, configurable AI Councils, project maintenance, persistent knowledge, provider-qualified model routing, embedded planning, game runtimes, and guarded local execution.
 
@@ -76,4 +76,9 @@ The conceptual pages are built together with compiler-generated XML documentatio
 
 The packaged PDF is rendered from the same reviewed Kawaii HTML tree as the website. It contains every maintained guide, architecture, engineering, and reference chapter together with every generated API page; a tiny source-only or fallback PDF is rejected by the release and Pages gates.
 
-<a class="btn btn-primary" href="LocalGPT-3.2.2.pdf" download>🐾 Download the Kawaii handbook</a>
+<a class="btn btn-primary" href="LocalGPT-2.3.7.pdf" download>🐾 Download the Kawaii handbook</a>
+
+
+
+
+

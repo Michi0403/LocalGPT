@@ -180,6 +180,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
                 builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
                 builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
+                builder.Services.AddScoped<ILearningProjectWorkspaceSyncService, LearningProjectWorkspaceSyncService>();
                 builder.Services.AddScoped<ILearningRoundService, LearningRoundService>();
                 builder.Services.AddScoped<ILocalGptProjectService, LocalGptProjectService>();
                 builder.Services.AddScoped<IProjectArchitectureService, ProjectArchitectureService>();

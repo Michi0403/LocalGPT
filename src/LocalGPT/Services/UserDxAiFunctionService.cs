@@ -277,6 +277,22 @@ public sealed class UserDxAiFunctionService(
 
             using var scope = scopeFactory.CreateScope();
             var pipelines = scope.ServiceProvider.GetRequiredService<IRemoteControlPipelineService>();
+            var pipeline = await pipelines.GetAsync(row.PipelineKey, cancellationToken).ConfigureAwait(false)
+                ?? throw new KeyNotFoundException($"Remote Control pipeline '{row.PipelineKey}' was not found.");
+            if (pipeline.ConnectorKey.StartsWith("user-source.", StringComparison.OrdinalIgnoreCase) &&
+                pipelines.ParseSteps(pipeline.StepsJson).Count == 0)
+            {
+                var connectors = scope.ServiceProvider.GetRequiredService<IRemoteControlConnectorService>();
+                var sourcePayload = await connectors.PullAsync(pipeline.ConnectorKey, runPipelines: false, automaticInvocation: request.AutomaticInvocation, cancellationToken: cancellationToken).ConfigureAwait(false);
+                return new DxAiFunctionInvocationResult
+                {
+                    FunctionName = functionName,
+                    Succeeded = true,
+                    Status = "Completed",
+                    Value = sourcePayload.Json is JsonElement selectedJson ? selectedJson.Clone() : sourcePayload.RawText
+                };
+            }
+
             var raw = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? "{}" : request.Parameters.GetRawText();
             var json = request.Parameters.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
                 ? JsonSerializer.SerializeToElement(new Dictionary<string, object?>())
