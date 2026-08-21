@@ -23,6 +23,18 @@ public interface IProviderModelRuntimeService
     /// <returns>The provider model reference produced by the operation.</returns>
     Task<ProviderModelReference> ResolveAsync(string selectionOrModelName, CancellationToken cancellationToken = default);
     /// <summary>
+    /// Waits for the exact provider-qualified model endpoint to become reachable again without changing provider,
+    /// model identity, or hardware-road policy.
+    /// </summary>
+    /// <param name="model">Exact provider-qualified model reference whose endpoint should be checked.</param>
+    /// <param name="maximumWait">Maximum bounded time to wait for provider reavailability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns><see langword="true"/> when the exact model is reachable before the bounded wait expires.</returns>
+    Task<bool> WaitForAvailabilityAsync(
+        ProviderModelReference model,
+        TimeSpan maximumWait,
+        CancellationToken cancellationToken = default);
+    /// <summary>
     /// Performs remember as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="model">Model value supplied to the provider model runtime operation and used when producing its result.</param>

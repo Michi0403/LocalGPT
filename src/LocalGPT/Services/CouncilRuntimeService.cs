@@ -202,7 +202,8 @@ namespace LocalGPT.Services
             try
             {
                 var raw = string.IsNullOrWhiteSpace(payload) ? "(empty payload)" : payload;
-                var looksJson = raw.TrimStart().StartsWith('{') || raw.TrimStart().StartsWith('[');
+                var trimmed = raw.TrimStart();
+                var looksJson = trimmed.Length > 0 && (trimmed[0] == (char)123 || trimmed[0] == '[');
                 var formatted = looksJson
                     ? FormatJsonForUserVisibleCode(raw)
                     : text.PrettyPrintJson(raw, logger);
@@ -233,6 +234,20 @@ namespace LocalGPT.Services
                         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
                     }))
                 {
+                    static string DecodeDisplayEntities(string value)
+                    {
+                        var current = value;
+                        for (var pass = 0; pass < 3; pass++)
+                        {
+                            var decoded = WebUtility.HtmlDecode(current);
+                            if (decoded.Equals(current, StringComparison.Ordinal))
+                                break;
+                            current = decoded;
+                        }
+
+                        return current;
+                    }
+
                     static void WriteElement(Utf8JsonWriter target, JsonElement element)
                     {
                         switch (element.ValueKind)
@@ -241,7 +256,7 @@ namespace LocalGPT.Services
                                 target.WriteStartObject();
                                 foreach (var property in element.EnumerateObject())
                                 {
-                                    target.WritePropertyName(WebUtility.HtmlDecode(property.Name));
+                                    target.WritePropertyName(DecodeDisplayEntities(property.Name));
                                     WriteElement(target, property.Value);
                                 }
                                 target.WriteEndObject();
@@ -253,7 +268,7 @@ namespace LocalGPT.Services
                                 target.WriteEndArray();
                                 break;
                             case JsonValueKind.String:
-                                target.WriteStringValue(WebUtility.HtmlDecode(element.GetString() ?? string.Empty));
+                                target.WriteStringValue(DecodeDisplayEntities(element.GetString() ?? string.Empty));
                                 break;
                             default:
                                 element.WriteTo(target);

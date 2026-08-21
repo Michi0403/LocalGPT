@@ -248,6 +248,90 @@ public sealed class ProviderModelRuntimeService(
 }
 
     /// <summary>
+    /// Waits for the exact provider-qualified model endpoint to become reachable again. Ollama restarts are treated as
+    /// transient host availability changes; this method never substitutes a different provider/model or changes GPU policy.
+    /// </summary>
+    /// <param name="model">Exact provider-qualified model reference whose endpoint should be checked.</param>
+    /// <param name="maximumWait">Maximum bounded time to wait for provider reavailability.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns><see langword="true"/> when the exact model is reachable before the bounded wait expires.</returns>
+    public async Task<bool> WaitForAvailabilityAsync(
+        ProviderModelReference model,
+        TimeSpan maximumWait,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(model);
+            if (!model.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var boundedWait = maximumWait < TimeSpan.Zero ? TimeSpan.Zero : maximumWait;
+            var deadlineUtc = DateTime.UtcNow + boundedWait;
+            var attempt = 0;
+            do
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                attempt++;
+                var candidates = await ProbeOllamaAsync(
+                    NormalizeOllamaEndpoint(model.Endpoint),
+                    cancellationToken).ConfigureAwait(false);
+                if (candidates.Any(candidate =>
+                        candidate.ModelName.Equals(model.ModelName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    if (attempt > 1)
+                    {
+                        logger.LogInformation(
+                            "Ollama model {Model} at {Endpoint} became reachable again after {AttemptCount} availability probe(s).",
+                            model.ModelName,
+                            model.Endpoint,
+                            attempt);
+                    }
+
+                    return true;
+                }
+
+                var remaining = deadlineUtc - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                    break;
+
+                var delay = remaining < TimeSpan.FromSeconds(2)
+                    ? remaining
+                    : TimeSpan.FromSeconds(2);
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            }
+            while (DateTime.UtcNow <= deadlineUtc);
+
+            logger.LogWarning(
+                "Ollama model {Model} at {Endpoint} did not become reachable during the bounded {WaitSeconds:F0}s recovery wait.",
+                model.ModelName,
+                model.Endpoint,
+                boundedWait.TotalSeconds);
+            return false;
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(
+                exception,
+                "Provider availability wait was canceled for {Provider} model {Model} at {Endpoint}.",
+                model?.ProviderName,
+                model?.ModelName,
+                model?.Endpoint);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                exception,
+                "Provider availability wait failed for {Provider} model {Model} at {Endpoint}.",
+                model?.ProviderName,
+                model?.ModelName,
+                model?.Endpoint);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Performs remember as part of the provider model runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="model">Model value supplied to the provider model runtime operation and used when producing its result.</param>

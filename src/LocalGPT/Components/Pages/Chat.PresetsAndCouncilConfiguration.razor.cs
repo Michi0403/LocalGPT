@@ -96,8 +96,8 @@ namespace LocalGPT.Components.Pages
             {
                 SelectedHardwarePerformancePreset = null;
                 HardwarePerformancePresetName = string.Empty;
-                if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid runId)
-                    CouncilRunConfigurations.UpdateHardwarePerformancePresetIdentity(runId, null);
+                if (EditingRunningCouncilConfiguration && ActiveCouncilConfigurationRunId is Guid activeRunId)
+                    CouncilRunConfigurations.UpdateHardwarePerformancePresetIdentity(activeRunId, null);
                 else
                     SavePreparationConfiguration();
                 modelStatus = "Custom hardware settings are active. Current roads were not reset.";

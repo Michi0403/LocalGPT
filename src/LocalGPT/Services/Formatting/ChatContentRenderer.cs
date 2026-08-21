@@ -1,5 +1,6 @@
 using LocalGPT.Interfaces;
 using Markdig;
+using System.Net;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
@@ -131,6 +132,63 @@ public sealed class ChatContentRenderer(
     }
 
     /// <summary>
+    /// Decodes nested HTML entities only inside Markdown fenced-code bodies. Markdig owns the subsequent code-block
+    /// encoding boundary, so source/code text such as <c>&amp;amp;lt;</c> becomes readable without decoding prose or
+    /// allowing model-supplied HTML outside a fence to become active markup.
+    /// </summary>
+    /// <param name="text">Chat snapshot that may contain encoded fenced-code content.</param>
+    /// <returns>The snapshot with fenced-code entities decoded up to three stable passes.</returns>
+    private string DecodeFencedCodeEntities(string text)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(text))
+                return string.Empty;
+
+            var lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+            var builder = new StringBuilder(text.Length);
+            string? activeFence = null;
+            for (var index = 0; index < lines.Length; index++)
+            {
+                var line = lines[index];
+                var trimmed = line.TrimStart();
+                if (activeFence is null)
+                {
+                    if (trimmed.StartsWith("```", StringComparison.Ordinal))
+                        activeFence = "```";
+                    else if (trimmed.StartsWith("~~~", StringComparison.Ordinal))
+                        activeFence = "~~~";
+                }
+                else if (trimmed.StartsWith(activeFence, StringComparison.Ordinal))
+                {
+                    activeFence = null;
+                }
+                else
+                {
+                    for (var pass = 0; pass < 3; pass++)
+                    {
+                        var decoded = WebUtility.HtmlDecode(line);
+                        if (decoded.Equals(line, StringComparison.Ordinal))
+                            break;
+                        line = decoded;
+                    }
+                }
+
+                if (index > 0)
+                    builder.Append('\n');
+                builder.Append(line);
+            }
+
+            return builder.ToString();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Fenced-code entity normalization failed; LocalGPT will retain the original encoded code text.");
+            return text;
+        }
+    }
+
+    /// <summary>
     /// Repairs a small set of known prose label/number boundaries emitted without whitespace by some local models.
     /// </summary>
     private readonly Regex ProseLabelBoundaryRegex = new(
@@ -196,6 +254,7 @@ public sealed class ChatContentRenderer(
             // preserving valid surrogate pairs and every other character.
             var text = SanitizeInvalidUnicode(content);
             text = DecodeHumanTextEntities(text);
+            text = DecodeFencedCodeEntities(text);
             // Self-assessment envelopes are tiny machine-readable islands even inside very large Council
             // transcripts. Normalize them before generic Markdown so URLs cannot corrupt JSON and encoded
             // tags/entities do not leak into the visible chat as \uXXXX or &amp; artifacts.

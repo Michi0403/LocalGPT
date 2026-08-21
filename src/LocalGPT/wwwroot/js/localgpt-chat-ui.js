@@ -963,6 +963,120 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
         }
     }
 
+    function liveCouncilCopyText(button) {
+        try {
+            if (!(button instanceof HTMLElement)) return null;
+            const messageContainer = button.closest('.dxbl-chatui-message-container');
+            if (!(messageContainer instanceof HTMLElement)) return null;
+            const content = messageContainer.querySelector(
+                '.dxbl-chatui-message-assistant .demo-chat-content[data-localgpt-copyable="true"]');
+            if (!(content instanceof HTMLElement)) return null;
+            if (!content.querySelector('.localgpt-live-update-footer,.localgpt-live-participant-board'))
+                return null;
+
+            const clone = content.cloneNode(true);
+            if (!(clone instanceof HTMLElement)) return null;
+            clone.querySelectorAll(
+                '.localgpt-live-participant-board,.localgpt-message-utility-row,.localgpt-live-update-footer')
+                .forEach(element => element.remove());
+
+            const chunks = [];
+            const blockTags = new Set([
+                'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DETAILS', 'DIV', 'DL', 'FIELDSET',
+                'FIGCAPTION', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+                'HEADER', 'HR', 'LI', 'MAIN', 'NAV', 'OL', 'P', 'PRE', 'SECTION', 'SUMMARY',
+                'TABLE', 'TBODY', 'TD', 'TFOOT', 'TH', 'THEAD', 'TR', 'UL'
+            ]);
+            const appendBreak = () => {
+                if (chunks.length === 0 || chunks[chunks.length - 1] !== '\n') chunks.push('\n');
+            };
+            const visit = node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    chunks.push(node.nodeValue || '');
+                    return;
+                }
+                if (!(node instanceof Element)) return;
+                if (node.matches('script,style,button,[aria-hidden="true"]')) return;
+                if (node.tagName === 'BR') {
+                    appendBreak();
+                    return;
+                }
+
+                const isBlock = blockTags.has(node.tagName);
+                if (isBlock) appendBreak();
+                if (node.tagName === 'LI') chunks.push('- ');
+                for (const child of node.childNodes) visit(child);
+                if (isBlock) appendBreak();
+            };
+            visit(clone);
+
+            return chunks.join('')
+                .replace(/\u00a0/g, ' ')
+                .replace(/[ \t]+\n/g, '\n')
+                .replace(/\n[ \t]+/g, '\n')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.liveCouncilCopyText', error);
+            return null;
+        }
+    }
+
+    async function writeLiveCouncilClipboard(text) {
+        try {
+            if (!text) return false;
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+
+            const fallback = document.createElement('textarea');
+            fallback.value = text;
+            fallback.setAttribute('readonly', '');
+            fallback.style.position = 'fixed';
+            fallback.style.left = '-10000px';
+            fallback.style.top = '0';
+            document.body.appendChild(fallback);
+            fallback.select();
+            const copied = document.execCommand('copy');
+            fallback.remove();
+            return copied;
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.writeLiveCouncilClipboard', error);
+            return false;
+        }
+    }
+
+    function bindLiveCouncilCopy(button) {
+        try {
+            if (!(button instanceof HTMLElement)
+                || button.dataset.localgptLiveCouncilCopyBound === 'true'
+                || liveCouncilCopyText(button) === null) return;
+
+            button.dataset.localgptLiveCouncilCopyBound = 'true';
+            button.addEventListener('click', diagnostics.guard(
+                'localgpt-chat-ui.liveCouncilCopy.click',
+                async event => {
+                    try {
+                        const text = liveCouncilCopyText(button);
+                        if (text === null) return;
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        const copied = await writeLiveCouncilClipboard(text);
+                        if (!copied)
+                            diagnostics.report(
+                                'localgpt-chat-ui.liveCouncilCopy.write',
+                                new Error('The browser rejected the live Council clipboard write.'));
+                    } catch (error) {
+                        diagnostics.report('localgpt-chat-ui.liveCouncilCopy.clickAsync', error);
+                    }
+                }), { capture: true });
+        } catch (error) {
+            diagnostics.report('localgpt-chat-ui.bindLiveCouncilCopy', error);
+            throw error;
+        }
+    }
+
     function enhance(host) {
         try {
             if (!(host instanceof HTMLElement)) return;
@@ -997,6 +1111,7 @@ var localGptDiagnostics = globalThis.localGptJavaScriptDiagnostics || {
                 if (/copy|clipboard/i.test(copyMarker)) {
                     addClass(button, 'localgpt-native-copy-always-visible');
                     setAttributeIfMissing(button, 'title', 'Copy message');
+                    bindLiveCouncilCopy(button);
                 }
             }
 

@@ -95,6 +95,7 @@ namespace LocalGPT.Services
         /// <param name="streamUpdate">Stream update value supplied to the multi model council operation and used when producing its result.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
         /// <param name="originalFailure">Original failure value supplied to the multi model council operation and used when producing its result.</param>
+        /// <param name="executionPlan">The exact run-scoped hardware road used by the failed attempt. Recovery preserves its acceleration policy.</param>
         /// <returns>The multi model council step produced by the operation.</returns>
         private async Task<MultiModelCouncilStep?> RetryParticipantWithSafeLimitsAsync(
             string baseUri,
@@ -111,28 +112,51 @@ namespace LocalGPT.Services
             int modelTimeoutSeconds,
             Action<string>? streamUpdate,
             CancellationToken cancellationToken,
-            string originalFailure)
+            string originalFailure,
+            CouncilHardwareRoadPlan executionPlan)
         {
             try
             {
                 var recoveryOutput = Math.Clamp(Math.Min(maxOutputTokens, 8192), catalog.MinOutputTokens, catalog.MaxOutputTokens);
                 var recoveryContext = Math.Clamp(Math.Min(maxContextTokens, 65536), catalog.MinContextTokens, catalog.MaxContextTokens);
                 var recoveryModel = await providerModels.ResolveAsync(modelName, cancellationToken).ConfigureAwait(false);
-                var usesOllamaCpuFallback = recoveryModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase);
-                var recoveryDescription = usesOllamaCpuFallback
-                    ? "safe Ollama CPU and bounded context/output settings"
-                    : $"conservative bounded {recoveryModel.ProviderName} context/output settings";
+                var isOllama = recoveryModel.ProviderKind.Equals(ProviderModelKinds.Ollama, StringComparison.OrdinalIgnoreCase);
+                if (isOllama)
+                {
+                    var availabilityWait = TimeSpan.FromSeconds(Math.Clamp(modelTimeoutSeconds / 6, 30, 120));
+                    streamUpdate?.Invoke(
+                        Environment.NewLine + Environment.NewLine +
+                        $"> {WebUtility.HtmlEncode(modelName)} failed in {WebUtility.HtmlEncode(phase)}. LocalGPT is checking the same Ollama host/model for reavailability before retrying; the current hardware road remains unchanged." +
+                        Environment.NewLine + Environment.NewLine);
+                    var available = await providerModels
+                        .WaitForAvailabilityAsync(recoveryModel, availabilityWait, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (!available)
+                        return null;
+                }
+
+                var recoveryPlan = executionPlan with
+                {
+                    EffectiveMaxOutputTokens = recoveryOutput,
+                    EffectiveMaxContextTokens = recoveryContext
+                };
+                var acceleration = isOllama
+                    ? $"Ollama num_gpu={(recoveryPlan.OllamaNumGpu?.ToString() ?? "auto")}"
+                    : $"{recoveryModel.ProviderName} provider route";
+                var recoveryDescription =
+                    $"bounded retry on existing hardware road {recoveryPlan.LaneKey}; {acceleration}";
                 streamUpdate?.Invoke(
                     Environment.NewLine + Environment.NewLine +
-                    $"> {WebUtility.HtmlEncode(modelName)} failed in {WebUtility.HtmlEncode(phase)}. LocalGPT is retrying once with {WebUtility.HtmlEncode(recoveryDescription)}." +
+                    $"> {WebUtility.HtmlEncode(modelName)} is retrying once with {WebUtility.HtmlEncode(recoveryDescription)}." +
                     Environment.NewLine + Environment.NewLine);
                 logger.LogInformation(
-                    "Retrying Council participant {ModelName} after failure in {Phase} with output {MaxOutputTokens}, context {MaxContextTokens}, provider-specific fallback {ProviderFallback}.",
+                    "Retrying Council participant {ModelName} after failure in {Phase} with output {MaxOutputTokens}, context {MaxContextTokens}, preserved hardware road {HardwareRoad}, Ollama num_gpu {OllamaNumGpu}.",
                     modelName,
                     phase,
                     recoveryOutput,
                     recoveryContext,
-                    recoveryDescription);
+                    recoveryPlan.LaneKey,
+                    recoveryPlan.OllamaNumGpu?.ToString() ?? "auto");
                 var recovered = await RunParticipantAsync(
                     baseUri,
                     modelName,
@@ -145,12 +169,13 @@ namespace LocalGPT.Services
                     bootstrap,
                     recoveryOutput,
                     keepAlive,
-                    usesOllamaCpuFallback ? 0 : null,
+                    isOllama ? recoveryPlan.OllamaNumGpu : null,
                     recoveryContext,
                     Math.Max(60, Math.Min(modelTimeoutSeconds, 600)),
                     streamUpdate,
                     cancellationToken,
                     allowRecovery: false,
+                    fallbackPlan: recoveryPlan,
                     useRunConfiguration: false).ConfigureAwait(false);
                 if (recovered is null)
                     return null;

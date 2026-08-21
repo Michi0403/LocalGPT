@@ -502,7 +502,7 @@ namespace LocalGPT.Services
                         var recovered = await RetryParticipantWithSafeLimitsAsync(
                             baseUri, modelName, councilMembers, round, phase, role, prompt, bootstrap,
                             maxOutputTokens, keepAlive, maxContextTokens, modelTimeoutSeconds,
-                            streamUpdate, cancellationToken, message).ConfigureAwait(false);
+                            streamUpdate, cancellationToken, message, executionPlan).ConfigureAwait(false);
                         if (recovered is not null)
                             return recovered;
                     }
@@ -537,7 +537,7 @@ namespace LocalGPT.Services
                         var recovered = await RetryParticipantWithSafeLimitsAsync(
                             baseUri, modelName, councilMembers, round, phase, role, prompt, bootstrap,
                             maxOutputTokens, keepAlive, maxContextTokens, modelTimeoutSeconds,
-                            streamUpdate, cancellationToken, ex.Message).ConfigureAwait(false);
+                            streamUpdate, cancellationToken, ex.Message, executionPlan).ConfigureAwait(false);
                         if (recovered is not null)
                             return recovered;
                     }

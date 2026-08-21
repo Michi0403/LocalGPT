@@ -12,7 +12,7 @@ namespace LocalGPT.Services;
 internal sealed class ProviderStreamRepetitionWatchdog
 {
     /// <summary>Maximum recent provider text retained for repetition analysis.</summary>
-    private const int MaximumBufferedCharacters = 12_288;
+    private const int MaximumBufferedCharacters = 32_768;
 
     /// <summary>Minimum generated character count required before repetition analysis may classify a stream.</summary>
     private const int MinimumObservedCharacters = 1_024;
@@ -21,13 +21,22 @@ internal sealed class ProviderStreamRepetitionWatchdog
     private const int MinimumAnalyzedTokens = 72;
 
     /// <summary>Maximum repeated token-cycle length considered by the bounded detector.</summary>
-    private const int MaximumPeriodTokens = 32;
+    private const int MaximumPeriodTokens = 512;
 
-    /// <summary>Minimum number of complete repeated cycles required in the sampled tail.</summary>
+    /// <summary>Largest token-cycle length that retains the historical short-loop thresholds.</summary>
+    private const int ShortPeriodMaximumTokens = 32;
+
+    /// <summary>Minimum number of complete repeated cycles required for short token loops.</summary>
     private const int MinimumRepeatedCycles = 6;
 
-    /// <summary>Minimum periodic token agreement required before one sample is classified as suspicious.</summary>
+    /// <summary>Minimum number of complete repeated cycles required for longer sentence/paragraph loops.</summary>
+    private const int MinimumLongPeriodRepeatedCycles = 4;
+
+    /// <summary>Minimum periodic token agreement required before a short-cycle sample is classified as suspicious.</summary>
     private const double MinimumPeriodicAgreement = 0.97d;
+
+    /// <summary>Higher agreement floor used for longer cycles so ordinary prose is not classified as repetition.</summary>
+    private const double MinimumLongPeriodAgreement = 0.985d;
 
     /// <summary>Number of consecutive suspicious time-spaced samples required before the stream is stopped.</summary>
     private const int RequiredSuspiciousSamples = 4;
@@ -125,9 +134,10 @@ internal sealed class ProviderStreamRepetitionWatchdog
     }
 
     /// <summary>
-    /// Finds an exact-ish periodic token cycle in the bounded text tail. The comparison uses six or more complete cycles
-    /// and a 97% agreement floor, avoiding broad lexical-diversity heuristics that could misclassify legitimate prose,
-    /// source code, tables, or enumerations merely because they reuse vocabulary.
+    /// Finds an exact-ish periodic token cycle in the bounded text tail. Short cycles retain the historical six-cycle
+    /// and 97% agreement thresholds; longer sentence/paragraph cycles require four complete cycles and a stricter 98.5%
+    /// agreement floor. Broad lexical-diversity heuristics are intentionally avoided so legitimate prose, source code,
+    /// tables, and enumerations are not classified merely because they reuse vocabulary.
     /// </summary>
     /// <param name="text">Bounded recent provider text.</param>
     /// <param name="patternPreview">Receives a short human-readable token-cycle preview when repetition is found.</param>
@@ -167,10 +177,13 @@ internal sealed class ProviderStreamRepetitionWatchdog
             if (tokens.Count < MinimumAnalyzedTokens)
                 return false;
 
-            var maximumPeriod = Math.Min(MaximumPeriodTokens, tokens.Count / MinimumRepeatedCycles);
+            var maximumPeriod = Math.Min(MaximumPeriodTokens, tokens.Count / MinimumLongPeriodRepeatedCycles);
             for (var period = 1; period <= maximumPeriod; period++)
             {
-                var analyzedTokenCount = Math.Max(MinimumAnalyzedTokens, period * MinimumRepeatedCycles);
+                var isLongPeriod = period > ShortPeriodMaximumTokens;
+                var requiredCycles = isLongPeriod ? MinimumLongPeriodRepeatedCycles : MinimumRepeatedCycles;
+                var requiredAgreement = isLongPeriod ? MinimumLongPeriodAgreement : MinimumPeriodicAgreement;
+                var analyzedTokenCount = Math.Max(MinimumAnalyzedTokens, period * requiredCycles);
                 if (tokens.Count < analyzedTokenCount)
                     continue;
 
@@ -184,7 +197,7 @@ internal sealed class ProviderStreamRepetitionWatchdog
                 }
 
                 var currentAgreement = comparisons <= 0 ? 0d : matches / (double)comparisons;
-                if (currentAgreement < MinimumPeriodicAgreement)
+                if (currentAgreement < requiredAgreement)
                     continue;
 
                 periodTokens = period;
