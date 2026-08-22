@@ -80,8 +80,67 @@
                 {
                     <label class="check"><input type="checkbox" @bind="ConnectorEdit.NetworkEnabled" /> @T("RemoteControl.NetworkEnabled", "Allow outbound network access")</label>
                     <label class="wide">@T("RemoteControl.UrlTemplate", "URL template")<input @bind="ConnectorEdit.UrlTemplate" placeholder="https://example.org/api?city={{var:CITY}}" /></label>
-                    <label class="wide">@T("RemoteControl.AllowedHosts", "Allowed hosts JSON")<textarea rows="2" @bind="ConnectorEdit.AllowedHostsJson"></textarea></label>
-                    <label class="wide">@T("RemoteControl.Headers", "Headers JSON templates")<textarea rows="3" @bind="ConnectorEdit.HeadersJson"></textarea></label>
+
+                    <section class="wide remote-control-guided" aria-label='@T("RemoteControl.AllowedHosts", "Allowed hosts")'>
+                        <div class="remote-control-guided-heading">
+                            <div>
+                                <strong>@T("RemoteControl.AllowedHosts", "Allowed hosts")</strong>
+                                <small>@T("RemoteControl.AllowedHosts.Help", "Add the host names this connector may contact. LocalGPT stores the same JSON array format behind this guided editor.")</small>
+                            </div>
+                            <div class="remote-control-guided-actions">
+                                <button type="button" class="localgpt-native-button" @onclick="AddAllowedHost">@T("RemoteControl.AddHost", "Add host")</button>
+                                <button type="button" class="localgpt-native-button" @onclick="UseUrlHost">@T("RemoteControl.UseUrlHost", "Use URL host")</button>
+                            </div>
+                        </div>
+                        @if (AllowedHostRows.Count == 0)
+                        {
+                            <small class="remote-control-empty-row">@T("RemoteControl.NoAllowedHosts", "No allowed hosts yet. Add one or use the host from the URL template.")</small>
+                        }
+                        @for (var index = 0; index < AllowedHostRows.Count; index++)
+                        {
+                            var rowIndex = index;
+                            <div class="remote-control-guided-row">
+                                <input aria-label='@T("RemoteControl.AllowedHostName", "Allowed host name")' @bind="AllowedHostRows[rowIndex]" placeholder="api.example.org" />
+                                <button type="button" class="localgpt-native-button danger compact" @onclick="() => RemoveAllowedHost(rowIndex)">@T("RemoteControl.RemoveHost", "Remove")</button>
+                            </div>
+                        }
+                    </section>
+
+                    <section class="wide remote-control-guided" aria-label='@T("RemoteControl.Headers", "Request headers")'>
+                        <div class="remote-control-guided-heading">
+                            <div>
+                                <strong>@T("RemoteControl.Headers", "Request headers")</strong>
+                                <small>@T("RemoteControl.Headers.Help", "Add headers one at a time. Template variables stay supported and LocalGPT serializes these rows to the existing JSON object format when you save.")</small>
+                            </div>
+                            <button type="button" class="localgpt-native-button" @onclick="AddHeader">@T("RemoteControl.AddHeader", "Add header")</button>
+                        </div>
+                        <div class="remote-control-preset-row" aria-label='@T("RemoteControl.HeaderPresets", "Header presets")'>
+                            <span>@T("RemoteControl.HeaderPresets", "Presets")</span>
+                            <button type="button" class="localgpt-native-button compact" @onclick="AddAcceptJsonHeader">@T("RemoteControl.PresetAcceptJson", "Accept JSON")</button>
+                            <button type="button" class="localgpt-native-button compact" @onclick="AddBearerHeader">@T("RemoteControl.PresetBearer", "Bearer token")</button>
+                            <button type="button" class="localgpt-native-button compact" @onclick="AddApiKeyHeader">@T("RemoteControl.PresetApiKey", "API key")</button>
+                        </div>
+                        @if (HeaderRows.Count == 0)
+                        {
+                            <small class="remote-control-empty-row">@T("RemoteControl.NoHeaders", "No custom request headers configured.")</small>
+                        }
+                        @for (var index = 0; index < HeaderRows.Count; index++)
+                        {
+                            var rowIndex = index;
+                            <div class="remote-control-header-row">
+                                <label>
+                                    <span>@T("RemoteControl.HeaderName", "Header name")</span>
+                                    <input @bind="HeaderRows[rowIndex].Name" placeholder="X-API-Key" />
+                                </label>
+                                <label>
+                                    <span>@T("RemoteControl.HeaderValue", "Header value")</span>
+                                    <input @bind="HeaderRows[rowIndex].Value" placeholder="{{var:API_KEY}}" />
+                                </label>
+                                <button type="button" class="localgpt-native-button danger compact" @onclick="() => RemoveHeader(rowIndex)">@T("RemoteControl.RemoveHeader", "Remove")</button>
+                            </div>
+                        }
+                    </section>
+
                     <label class="wide">@T("RemoteControl.RequestBody", "Request body template")<textarea rows="3" @bind="ConnectorEdit.RequestBodyTemplate"></textarea></label>
                     <label>@T("RemoteControl.RequestContentType", "Request content type")<input @bind="ConnectorEdit.RequestContentType" /></label>
                     <label class="check"><input type="checkbox" @bind="ConnectorEdit.AllowInsecureHttp" /> @T("RemoteControl.AllowHttp", "Explicitly allow plain HTTP")</label>

@@ -70,6 +70,12 @@ public partial class RemoteControl : ComponentBase
     /// </summary>
     /// <value>The connector edit value exposed by <see cref="RemoteControl"/>.</value>
     private RemoteControlConnectorDefinition ConnectorEdit { get; set; } = new();
+    /// <summary>Gets or sets the guided allowed-host rows shown by the connector editor while preserving the persisted JSON-array contract.</summary>
+    /// <value>The editable allowed-host values.</value>
+    private List<string> AllowedHostRows { get; set; } = [];
+    /// <summary>Gets or sets the guided request-header rows shown by the connector editor while preserving the persisted JSON-object contract.</summary>
+    /// <value>The editable request-header values.</value>
+    private List<RemoteControlHeaderEditRow> HeaderRows { get; set; } = [];
     /// <summary>
     /// Gets or sets the pipeline edit value that forms part of the remote control state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -140,6 +146,7 @@ public partial class RemoteControl : ComponentBase
         try
         {
             ConnectorEdit = CreateConnector();
+            LoadConnectorGuidedFields();
             PipelineEdit = CreatePipeline();
             await ReloadAsync().ConfigureAwait(true);
         }
@@ -179,6 +186,7 @@ public partial class RemoteControl : ComponentBase
         try
         {
             ConnectorEdit = CreateConnector();
+            LoadConnectorGuidedFields();
             LastWebhookToken = string.Empty;
             LastPayloadPreview = string.Empty;
             Status = T("RemoteControl.NewConnectorReady", "New connector ready. Network access is off until you explicitly enable it.");
@@ -200,6 +208,7 @@ public partial class RemoteControl : ComponentBase
         try
         {
             ConnectorEdit = await Connectors.GetAsync(key).ConfigureAwait(true) ?? CreateConnector();
+            LoadConnectorGuidedFields();
             LastWebhookToken = string.Empty;
             LastPayloadPreview = ConnectorEdit.LastPayloadPreview;
         }
@@ -210,6 +219,144 @@ public partial class RemoteControl : ComponentBase
         }
     }
 
+    /// <summary>Loads the persisted connector JSON fields into the guided host and header row editors.</summary>
+    private void LoadConnectorGuidedFields()
+    {
+        try
+        {
+            AllowedHostRows = JsonText.Deserialize<List<string>>(ConnectorEdit.AllowedHostsJson ?? "[]")?
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? [];
+
+            var headers = JsonText.Deserialize<Dictionary<string, string>>(ConnectorEdit.HeadersJson ?? "{}")
+                ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            HeaderRows = headers
+                .Where(item => !string.IsNullOrWhiteSpace(item.Key))
+                .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(item => new RemoteControlHeaderEditRow { Name = item.Key, Value = item.Value ?? string.Empty })
+                .ToList();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Loading guided Remote Control host/header fields failed; the stored JSON values were left unchanged until the user edits or saves the connector.");
+            AllowedHostRows = [];
+            HeaderRows = [];
+        }
+    }
+
+    /// <summary>Serializes guided host and header rows back to the existing connector JSON fields before persistence.</summary>
+    private void ApplyConnectorGuidedFields()
+    {
+        try
+        {
+            var hosts = AllowedHostRows
+                .Select(item => item?.Trim() ?? string.Empty)
+                .Where(item => item.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            ConnectorEdit.AllowedHostsJson = JsonText.Serialize(hosts);
+
+            var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in HeaderRows)
+            {
+                var name = row.Name?.Trim() ?? string.Empty;
+                if (name.Length == 0) continue;
+                headers[name] = row.Value ?? string.Empty;
+            }
+            ConnectorEdit.HeadersJson = JsonText.Serialize(headers);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Serializing guided Remote Control host/header fields failed.");
+            throw;
+        }
+    }
+
+    /// <summary>Adds an empty allowed-host row to the guided connector editor.</summary>
+    private void AddAllowedHost()
+    {
+        try { AllowedHostRows.Add(string.Empty); }
+        catch (Exception exception) { Logger.LogError(exception, "Adding a Remote Control allowed-host row failed."); throw; }
+    }
+
+    /// <summary>Removes one allowed-host row from the guided connector editor.</summary>
+    /// <param name="index">Zero-based row index.</param>
+    private void RemoveAllowedHost(int index)
+    {
+        try
+        {
+            if (index >= 0 && index < AllowedHostRows.Count) AllowedHostRows.RemoveAt(index);
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Removing a Remote Control allowed-host row failed."); throw; }
+    }
+
+    /// <summary>Adds the DNS host from the URL template to the guided allowlist when it can be resolved safely.</summary>
+    private void UseUrlHost()
+    {
+        try
+        {
+            var template = ConnectorEdit.UrlTemplate?.Trim() ?? string.Empty;
+            if (!Uri.TryCreate(template, UriKind.Absolute, out var uri) || string.IsNullOrWhiteSpace(uri.Host))
+            {
+                Status = T("RemoteControl.UrlHostInvalid", "Enter a valid absolute URL template before using its host.");
+                return;
+            }
+
+            var host = uri.Host.Trim().TrimEnd('.');
+            if (!AllowedHostRows.Any(item => string.Equals(item?.Trim().TrimEnd('.'), host, StringComparison.OrdinalIgnoreCase)))
+                AllowedHostRows.Add(host);
+            Status = T("RemoteControl.UrlHostAdded", "The URL host was added to the connector allowlist.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Adding the Remote Control URL host to the guided allowlist failed.");
+            Notifier.ShowError(nameof(RemoteControl), exception.Message, T("Common.Error", "Error"));
+        }
+    }
+
+    /// <summary>Adds an empty request-header row to the guided connector editor.</summary>
+    private void AddHeader()
+    {
+        try { HeaderRows.Add(new RemoteControlHeaderEditRow()); }
+        catch (Exception exception) { Logger.LogError(exception, "Adding a Remote Control request-header row failed."); throw; }
+    }
+
+    /// <summary>Removes one request-header row from the guided connector editor.</summary>
+    /// <param name="index">Zero-based row index.</param>
+    private void RemoveHeader(int index)
+    {
+        try
+        {
+            if (index >= 0 && index < HeaderRows.Count) HeaderRows.RemoveAt(index);
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Removing a Remote Control request-header row failed."); throw; }
+    }
+
+    /// <summary>Adds or updates a request-header row by case-insensitive header name.</summary>
+    /// <param name="name">Header name.</param>
+    /// <param name="value">Header value or template.</param>
+    private void UpsertHeader(string name, string value)
+    {
+        try
+        {
+            var row = HeaderRows.FirstOrDefault(item => string.Equals(item.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase));
+            if (row is null) HeaderRows.Add(new RemoteControlHeaderEditRow { Name = name, Value = value });
+            else row.Value = value;
+        }
+        catch (Exception exception) { Logger.LogError(exception, "Applying a Remote Control request-header preset failed."); throw; }
+    }
+
+    /// <summary>Applies an <c>Accept: application/json</c> row to the guided Remote Control connector header editor.</summary>
+    private void AddAcceptJsonHeader() => UpsertHeader("Accept", "application/json");
+
+    /// <summary>Adds the bearer-token Authorization header preset using a LocalGPT template variable.</summary>
+    private void AddBearerHeader() => UpsertHeader("Authorization", "Bearer {{var:API_TOKEN}}");
+
+    /// <summary>Adds the API-key header preset using a LocalGPT template variable.</summary>
+    private void AddApiKeyHeader() => UpsertHeader("X-API-Key", "{{var:API_KEY}}");
+
     /// <summary>
     /// Persists connector for <see cref="RemoteControl"/>, keeping the operation consistent with the state and invariants of the surrounding remote control workflow.
     /// </summary>
@@ -218,6 +365,7 @@ public partial class RemoteControl : ComponentBase
     {
         try
         {
+            ApplyConnectorGuidedFields();
             ConnectorEdit = await Connectors.SaveAsync(ConnectorEdit).ConfigureAwait(true);
             var issuedWebhookToken = ConnectorEdit.Transport == RemoteControlTransportKind.Webhook
                 ? ConnectorEdit.WebhookToken
@@ -563,6 +711,17 @@ public partial class RemoteControl : ComponentBase
             Logger.LogError(exception, "Cloning a Remote Control pipeline step for editing failed.");
             throw;
         }
+    }
+
+    /// <summary>Represents one editable request-header row in the guided Remote Control connector editor.</summary>
+    private sealed class RemoteControlHeaderEditRow
+    {
+        /// <summary>Stores the editable HTTP request-header name serialized into the connector header dictionary.</summary>
+        /// <value>The user-entered header name, or an empty string for a new row.</value>
+        public string Name { get; set; } = string.Empty;
+        /// <summary>Stores the editable HTTP request-header value, including supported LocalGPT template variables.</summary>
+        /// <value>The user-entered header value or template expression.</value>
+        public string Value { get; set; } = string.Empty;
     }
 
 }
