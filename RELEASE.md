@@ -1,11 +1,13 @@
-# LocalGPT 3.2.8
+# LocalGPT 3.2.9
 
-LocalGPT 3.2.8 repairs the `/dx-functions` InteractiveServer catalog presentation regression introduced by the responsive workbench loading flow.
+LocalGPT 3.2.9 is a database-workbench, relationship-model and lifecycle-hardening release. It keeps the 3.2.8 DX Functions render repair and applies the same lessons to the broader application without changing PublisherStudio.
 
-The database-backed entries were loading, but the first interactive `OnAfterRenderAsync` path rendered the loading frame before awaiting the catalog and never scheduled the completed state for rendering. The release adds the required post-load render and aligns the DX Function catalog's asynchronous state-changing helpers with the repository's renderer-affine continuation policy.
+The SQLite Database page now uses the newer responsive workbench layout with separate **Knowledge & relationships** and **SQLite tables** panels. Knowledge and generic database records use semantic selection labels instead of making raw row identifiers the primary way to find data. Council knowledge can now be explicitly related to reusable RegEx patterns with a purpose and human-readable meaning, and the previously difficult-to-reach project/topic knowledge links are editable from the same knowledge workbench.
 
-PublisherStudio remains at 2.9.7 because it is unchanged in this round.
+The EF object graph now restores reverse navigation for persisted foreign keys that were already present in the database, while deliberately leaving correlation-style and currently soft identifiers unchanged. The supplied database passed SQLite integrity and foreign-key checks; the release therefore repairs application navigation/accessibility rather than inventing a broad destructive relationship migration.
 
-This archive is **SOURCE-NOT-COMPILED** in the preparation environment. The user's Windows build remains authoritative.
+Lifecycle review found another post-await first-render update in the responsive drawer and hardened the narrow asynchronous-disposal paths that can legitimately race with browser/circuit shutdown. The user's `IJSObjectReference.IsDisposed()` guard in `ThemeJsChangeDispatcher` is retained; expected disconnect, cancellation and already-disposed teardown outcomes no longer become noisy failures there or in the ASCII game-console teardown. Streaming enumerator cleanup is also tolerant of requested cancellation/already-disposed races while unexpected cleanup faults remain visible.
 
-See `CHANGELOG-v3.2.8-DX-FUNCTIONS-INTERACTIVE-RENDER-REPAIR.md` and `VALIDATION-v3.2.8-source.md`.
+See `CHANGELOG-v3.2.9-DATABASE-KNOWLEDGE-RELATIONSHIPS-LIFECYCLE-HARDENING.md`, `DATABASE-RELATIONSHIP-ANALYSIS-v3.2.9.md`, `HISTORICAL-CAPABILITY-REVIEW-v3.2.9.md`, and `VALIDATION-v3.2.9-source.md`.
+
+PublisherStudio remains at **2.9.7** and is unchanged by this release.

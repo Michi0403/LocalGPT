@@ -41,5 +41,11 @@ namespace LocalGPT.BusinessObjects
         /// </summary>
         /// <value>The updated on value exposed by <see cref="RegexPattern"/>.</value>
         public DateTime UpdatedOn { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Gets or sets the Council knowledge relationships that describe what this reusable pattern means in context.
+        /// </summary>
+        /// <value>The knowledge relationships associated with this regex pattern.</value>
+        public ICollection<CouncilKnowledgeRegexPatternLink> KnowledgeLinks { get; set; } = [];
     }
 }

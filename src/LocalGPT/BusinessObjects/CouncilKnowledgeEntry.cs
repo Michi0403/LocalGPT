@@ -131,5 +131,40 @@ namespace LocalGPT.BusinessObjects
         /// </summary>
         /// <value>The is archived value exposed by <see cref="CouncilKnowledgeEntry"/>.</value>
         public bool IsArchived { get; set; }
+
+        /// <summary>
+        /// Gets a compact human-readable identity for selection controls where topic text alone is not unique.
+        /// </summary>
+        /// <value>The topic and scope, followed by a short stable identifier when available.</value>
+        [NotMapped]
+        public string DisplayName
+        {
+            get
+            {
+                var topic = string.IsNullOrWhiteSpace(Topic) ? "Untitled knowledge" : Topic.Trim();
+                var scope = string.IsNullOrWhiteSpace(Scope) ? "Unscoped" : Scope.Trim();
+                var compactTopic = topic.Length <= 92 ? topic : $"{topic[..89]}...";
+                var compactId = Id == Guid.Empty ? "unsaved" : Id.ToString("N")[..8];
+                return $"{compactTopic} · {scope} · {compactId}";
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the project-topic relationships that make this knowledge entry available to explicit project scopes.
+        /// </summary>
+        /// <value>The project-topic relationships associated with this knowledge entry.</value>
+        public ICollection<LocalGptProjectTopicKnowledgeLink> ProjectTopicLinks { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the regex relationships that give this knowledge entry structured recognition semantics.
+        /// </summary>
+        /// <value>The regex relationships associated with this knowledge entry.</value>
+        public ICollection<CouncilKnowledgeRegexPatternLink> RegexPatternLinks { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets explicit human ratings associated with this knowledge entry.
+        /// </summary>
+        /// <value>The human knowledge ratings associated with this entry.</value>
+        public ICollection<CouncilKnowledgeUserRating> UserRatings { get; set; } = [];
     }
 }

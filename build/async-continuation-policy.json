@@ -48,6 +48,31 @@
       "SaveAsync",
       "SaveVisibleAsync",
       "HandleUserFunctionsChangedAsync"
+    ],
+    "Components/Pages/Database.razor": [
+      "RefreshAllAsync",
+      "SaveKnowledgeAsync",
+      "DeleteKnowledgeAsync",
+      "SelectTableAsync",
+      "LoadSelectedTableAsync",
+      "LoadTableAsync",
+      "SaveSqliteRowAsync",
+      "DeleteSqliteRowAsync",
+      "RefreshTablesOnlyAsync",
+      "SaveEditorPreferenceAsync",
+      "SaveKnowledgeRatingAsync",
+      "RunUiActionAsync"
+    ],
+    "Components/Pages/Database.razor.cs": [
+      "SelectKnowledgeEntryAsync",
+      "LoadRelationshipCatalogsAsync",
+      "RefreshSelectedKnowledgeRelationshipsAsync",
+      "LoadRelationshipProjectTopicsAsync",
+      "TestKnowledgeRecognitionAsync",
+      "SaveKnowledgeRegexRelationshipAsync",
+      "RemoveKnowledgeRegexRelationshipAsync",
+      "LinkKnowledgeToProjectTopicAsync",
+      "RemoveKnowledgeProjectRelationshipAsync"
     ]
   },
   "preconfiguredAwaitablePolicy": "Awaiting ConfiguredTaskAwaitable variables directly is forbidden; await the originating Task with explicit ConfigureAwait(false/true)."

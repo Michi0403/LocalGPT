@@ -394,6 +394,44 @@ namespace LocalGPT.Migrations
                     b.ToTable("CouncilKnowledgeEntries", (string)null);
                 });
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilKnowledgeRegexPatternLink", b =>
+                {
+                    b.Property<Guid>("KnowledgeEntryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RegexPatternId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LinkPurpose")
+                        .IsRequired()
+                        .HasMaxLength(96)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LinkedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("LinkedByHuman")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Meaning")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("KnowledgeEntryId", "RegexPatternId");
+
+                    b.HasIndex("RegexPatternId");
+
+                    b.HasIndex("LinkedAtUtc");
+
+                    b.HasIndex("IsEnabled", "LinkPurpose");
+
+                    b.ToTable("CouncilKnowledgeRegexPatternLinks", (string)null);
+                });
+
             modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilKnowledgeUserRating", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2153,18 +2191,22 @@ namespace LocalGPT.Migrations
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilGameSessionRecord", b =>
                 {
-                    b.HasOne("LocalGPT.BusinessObjects.ChatMemoryConversation", null)
-                        .WithMany()
+                    b.HasOne("LocalGPT.BusinessObjects.ChatMemoryConversation", "Conversation")
+                        .WithMany("CouncilGameSessions")
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Conversation");
                 });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.EmbeddedFirmwarePlanRecord", b =>
                 {
-                    b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", null)
-                        .WithMany()
+                    b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")
+                        .WithMany("EmbeddedFirmwarePlans")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectBuildVerification", b =>
@@ -2770,10 +2812,29 @@ namespace LocalGPT.Migrations
                     b.Navigation("Conversation");
                 });
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilKnowledgeRegexPatternLink", b =>
+                {
+                    b.HasOne("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", "KnowledgeEntry")
+                        .WithMany("RegexPatternLinks")
+                        .HasForeignKey("KnowledgeEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LocalGPT.BusinessObjects.RegexPattern", "RegexPattern")
+                        .WithMany("KnowledgeLinks")
+                        .HasForeignKey("RegexPatternId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("KnowledgeEntry");
+
+                    b.Navigation("RegexPattern");
+                });
+
             modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilKnowledgeUserRating", b =>
                 {
                     b.HasOne("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", "KnowledgeEntry")
-                        .WithMany()
+                        .WithMany("UserRatings")
                         .HasForeignKey("KnowledgeEntryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -2801,12 +2862,12 @@ namespace LocalGPT.Migrations
                         .IsRequired();
 
                     b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRequirement", "Requirement")
-                        .WithMany()
+                        .WithMany("Artifacts")
                         .HasForeignKey("RequirementId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision")
-                        .WithMany()
+                        .WithMany("Artifacts")
                         .HasForeignKey("RevisionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -2826,7 +2887,7 @@ namespace LocalGPT.Migrations
                         .IsRequired();
 
                     b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision")
-                        .WithMany()
+                        .WithMany("Requirements")
                         .HasForeignKey("RevisionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -2878,7 +2939,7 @@ namespace LocalGPT.Migrations
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProjectTopicKnowledgeLink", b =>
                 {
                     b.HasOne("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", "KnowledgeEntry")
-                        .WithMany()
+                        .WithMany("ProjectTopicLinks")
                         .HasForeignKey("KnowledgeEntryId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -2926,7 +2987,7 @@ namespace LocalGPT.Migrations
             modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectBuildVerification", b =>
                 {
                     b.HasOne("LocalGPT.BusinessObjects.ProjectCompilerInstallation", "CompilerInstallation")
-                        .WithMany()
+                        .WithMany("BuildVerifications")
                         .HasForeignKey("CompilerInstallationId")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -2952,13 +3013,13 @@ namespace LocalGPT.Migrations
             modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectDocumentImport", b =>
                 {
                     b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")
-                        .WithMany()
+                        .WithMany("DocumentImports")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision")
-                        .WithMany()
+                        .WithMany("DocumentImports")
                         .HasForeignKey("RevisionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -2970,7 +3031,7 @@ namespace LocalGPT.Migrations
             modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectOrganicSkillLink", b =>
                 {
                     b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")
-                        .WithMany()
+                        .WithMany("OrganicSkillLinks")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2998,7 +3059,23 @@ namespace LocalGPT.Migrations
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.ChatMemoryConversation", b =>
                 {
+                    b.Navigation("CouncilGameSessions");
+
                     b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", b =>
+                {
+                    b.Navigation("ProjectTopicLinks");
+
+                    b.Navigation("RegexPatternLinks");
+
+                    b.Navigation("UserRatings");
+                });
+
+            modelBuilder.Entity("LocalGPT.BusinessObjects.RegexPattern", b =>
+                {
+                    b.Navigation("KnowledgeLinks");
                 });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProject", b =>
@@ -3006,6 +3083,12 @@ namespace LocalGPT.Migrations
                     b.Navigation("Artifacts");
 
                     b.Navigation("BuildVerifications");
+
+                    b.Navigation("DocumentImports");
+
+                    b.Navigation("EmbeddedFirmwarePlans");
+
+                    b.Navigation("OrganicSkillLinks");
 
                     b.Navigation("Requirements");
 
@@ -3020,16 +3103,29 @@ namespace LocalGPT.Migrations
                     b.Navigation("WorkspaceRoots");
                 });
 
+            modelBuilder.Entity("LocalGPT.BusinessObjects.ProjectCompilerInstallation", b =>
+                {
+                    b.Navigation("BuildVerifications");
+                });
+
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProjectRequirement", b =>
                 {
+                    b.Navigation("Artifacts");
+
                     b.Navigation("Links");
                 });
 
             modelBuilder.Entity("LocalGPT.BusinessObjects.LocalGptProjectRevision", b =>
                 {
+                    b.Navigation("Artifacts");
+
                     b.Navigation("BuildVerifications");
 
                     b.Navigation("ChildRevisions");
+
+                    b.Navigation("DocumentImports");
+
+                    b.Navigation("Requirements");
 
                     b.Navigation("TrackedFiles");
                 });

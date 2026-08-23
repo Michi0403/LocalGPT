@@ -74,6 +74,30 @@ public interface ILocalGptProjectService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lists the project/topic relationships currently associated with one Council knowledge entry.
+    /// </summary>
+    /// <param name="knowledgeEntryId">Identifier of the Council knowledge entry.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human-readable relationship summaries.</returns>
+    Task<IReadOnlyList<KnowledgeProjectTopicLinkSummary>> GetKnowledgeLinksAsync(
+        Guid knowledgeEntryId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes one explicitly confirmed project/topic relationship without deleting either the project topic or knowledge entry.
+    /// </summary>
+    /// <param name="projectTopicId">Identifier of the linked project topic.</param>
+    /// <param name="knowledgeEntryId">Identifier of the linked Council knowledge entry.</param>
+    /// <param name="userConfirmed">Whether the user explicitly confirmed the unlink operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the relationship was removed or was already absent.</returns>
+    Task UnlinkKnowledgeAsync(
+        Guid projectTopicId,
+        Guid knowledgeEntryId,
+        bool userConfirmed,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Builds project briefing as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="projectId">Identifier of the project to use for this operation.</param>

@@ -133,6 +133,21 @@ public sealed class LocalGptProjectRevision
     /// </summary>
     /// <value>The build verifications value exposed by <see cref="LocalGptProjectRevision"/>.</value>
     public ICollection<ProjectBuildVerification> BuildVerifications { get; set; } = [];
+    /// <summary>
+    /// Navigates to the requirement records whose scope is anchored to this exact project revision.
+    /// </summary>
+    /// <value>The revision-scoped requirements.</value>
+    public ICollection<LocalGptProjectRequirement> Requirements { get; set; } = [];
+    /// <summary>
+    /// Navigates to the generated or reviewed artifact records whose scope is anchored to this exact project revision.
+    /// </summary>
+    /// <value>The revision-scoped project artifacts.</value>
+    public ICollection<LocalGptProjectArtifact> Artifacts { get; set; } = [];
+    /// <summary>
+    /// Gets or sets imported project documents explicitly scoped to this revision.
+    /// </summary>
+    /// <value>The revision-scoped document imports.</value>
+    public ICollection<ProjectDocumentImport> DocumentImports { get; set; } = [];
 }
 
 /// <summary>
@@ -225,6 +240,11 @@ public sealed class LocalGptProjectRequirement
     /// </summary>
     /// <value>The links value exposed by <see cref="LocalGptProjectRequirement"/>.</value>
     public ICollection<LocalGptProjectRequirementLink> Links { get; set; } = [];
+    /// <summary>
+    /// Gets or sets project artifacts that explicitly satisfy or document this requirement.
+    /// </summary>
+    /// <value>The artifacts associated with this requirement.</value>
+    public ICollection<LocalGptProjectArtifact> Artifacts { get; set; } = [];
 }
 
 /// <summary>

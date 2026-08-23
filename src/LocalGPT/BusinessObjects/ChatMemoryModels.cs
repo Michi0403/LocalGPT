@@ -52,6 +52,11 @@ namespace LocalGPT.BusinessObjects
         /// </summary>
         /// <value>The messages value exposed by <see cref="ChatMemoryConversation"/>.</value>
         public ICollection<ChatMemoryMessage> Messages { get; set; } = new List<ChatMemoryMessage>();
+        /// <summary>
+        /// Navigates to GameDirector session records explicitly scoped to this persisted conversation.
+        /// </summary>
+        /// <value>The Council game sessions associated with this conversation.</value>
+        public ICollection<CouncilGameSessionRecord> CouncilGameSessions { get; set; } = [];
     }
 
     /// <summary>

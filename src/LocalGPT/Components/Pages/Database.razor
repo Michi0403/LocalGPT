@@ -10,28 +10,44 @@
 @inject ISqliteTableEditorService TableEditor
 @inject ISqliteEditorPreferenceService EditorPreferences
 @inject IKnowledgeRatingService KnowledgeRatings
+@inject IRegexPatternService RegexPatterns
+@inject IKnowledgeRegexLinkService KnowledgeRegexLinks
+@inject ILocalGptProjectService ProjectService
 @inject ILogger<Database> Logger
 @inject INotificationService Notifier
 @inject IComponentActivityService ComponentActivity
 
 <PageTitle>SQLite Database</PageTitle>
 
-<main class="database-page">
+<main class="database-page localgpt-surface">
     <ToastWrapper Name="@toastName" />
 
-    <section class="database-header">
-        <div>
-            <h1>SQLite Database</h1>
-            <p>Inspect and edit LocalGPT memory, council knowledge, application logs, and other local tables.</p>
-        </div>
-        <DxButton Text="Refresh"
-                  RenderStyle="ButtonRenderStyle.Secondary"
-                  RenderStyleMode="ButtonRenderStyleMode.Outline"
-                  Enabled="@(!isBusy)"
-                  Click="RefreshAllAsync" />
-    </section>
+    <div class="database-workbench">
+        <WorkbenchHeader Eyebrow="Data studio"
+                         Title="SQLite Database &amp; knowledge"
+                         Subtitle="Inspect LocalGPT persistence, curate grounded knowledge and maintain explicit project/regex relationships from one responsive workbench.">
+            <Actions>
+                <DxButton Text="Refresh"
+                          RenderStyle="ButtonRenderStyle.Secondary"
+                          RenderStyleMode="ButtonRenderStyleMode.Outline"
+                          Enabled="@(!isBusy)"
+                          Click="RefreshAllAsync" />
+            </Actions>
+        </WorkbenchHeader>
 
-    <section class="knowledge-panel">
+        @if (!string.IsNullOrWhiteSpace(statusText))
+        {
+            <div class="alert alert-info database-status" role="status" aria-live="polite">@statusText</div>
+        }
+
+        <div class="database-workbench-layout" aria-busy="@isBusy">
+            <ConfigurationWorkbenchNav Items="@DatabaseSections"
+                                       ActiveKey="@ActiveDatabaseSection"
+                                       ActiveKeyChanged="OnDatabaseSectionChanged"
+                                       AriaLabel="SQLite Database sections" />
+            <div class="database-workbench-stage">
+                <ConfigurationWorkbenchPanel SectionKey="knowledge" ActiveKey="@ActiveDatabaseSection" AriaLabel="Council knowledge and relationships">
+                    <section class="knowledge-panel">
         <div class="panel-heading">
             <div>
                 <h2>Council Knowledge</h2>
@@ -71,9 +87,9 @@
                     <span title="Choose a knowledge entry to edit in the form.">
                         <DxComboBox Data="@KnowledgeEntries"
                                     Value="@SelectedKnowledgeEntry"
-                                    TextFieldName="@nameof(CouncilKnowledgeEntry.Topic)"
+                                    TextFieldName="@nameof(CouncilKnowledgeEntry.DisplayName)"
                                     CssClass="knowledge-selector"
-                                    ValueChanged="@((CouncilKnowledgeEntry entry) => SelectKnowledgeEntry(entry))" />
+                                    ValueChanged="@((CouncilKnowledgeEntry entry) => SelectKnowledgeEntryAsync(entry))" />
                     </span>
                 </div>
             </div>
@@ -170,6 +186,157 @@
                               Enabled="@(!isBusy && SelectedKnowledgeEntry is not null)"
                               Click="SaveKnowledgeRatingAsync" />
                 </fieldset>
+
+                <fieldset class="knowledge-relationship-panel">
+                    <legend>Knowledge recognition patterns</legend>
+                    <p class="hint">Connect reusable RegEx rules to this note with an explicit meaning instead of hiding aliases, names and recognition structure inside free-form tags.</p>
+                    @if (SelectedKnowledgeEntry is null)
+                    {
+                        <p class="hint">Save the knowledge note first, then connect recognition patterns.</p>
+                    }
+                    else
+                    {
+                        <div class="relationship-editor-grid">
+                            <label title="Choose an existing pattern from the user-maintained RegEx system.">
+                                RegEx pattern
+                                <DxComboBox Data="@RelationshipRegexPatterns"
+                                            Value="@SelectedRelationshipRegexPattern"
+                                            TextFieldName="@nameof(RegexPattern.Name)"
+                                            ValueChanged="@((RegexPattern value) => SelectedRelationshipRegexPattern = value)" />
+                            </label>
+                            <label title="Describe how this pattern participates in knowledge recognition.">
+                                Meaning type
+                                <DxComboBox Data="@RegexRelationshipPurposeOptions" @bind-Value="KnowledgeRegexPurpose" />
+                            </label>
+                            <DxCheckBox @bind-Checked="KnowledgeRegexEnabled" Text="Recognition link enabled" />
+                        </div>
+                        <label title="Explain what a successful match means in the context of this knowledge entry.">
+                            Match meaning
+                            <DxMemo @bind-Text="KnowledgeRegexMeaning" Rows="2" />
+                        </label>
+                        <div class="run-row">
+                            <DxButton Text="Link / update RegEx"
+                                      RenderStyle="ButtonRenderStyle.Primary"
+                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                      Enabled="@(!isBusy && SelectedRelationshipRegexPattern is not null)"
+                                      Click="SaveKnowledgeRegexRelationshipAsync" />
+                        </div>
+
+                        <div class="recognition-test-panel">
+                            <label title="Transient test text is evaluated locally and is not persisted by the relationship service.">
+                                Test recognition text
+                                <DxMemo @bind-Text="KnowledgeRecognitionTestText" Rows="2" />
+                            </label>
+                            <DxButton Text="Test linked patterns"
+                                      RenderStyle="ButtonRenderStyle.Secondary"
+                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                      Enabled="@(!isBusy && !string.IsNullOrWhiteSpace(KnowledgeRecognitionTestText) && KnowledgeRegexRelationships.Count > 0)"
+                                      Click="TestKnowledgeRecognitionAsync" />
+                            @if (KnowledgeRecognitionMatches.Count > 0)
+                            {
+                                <div class="recognition-match-list" aria-label="Recognition matches">
+                                    @foreach (var match in KnowledgeRecognitionMatches)
+                                    {
+                                        <span class="recognition-match">@match.DisplayName</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        @if (KnowledgeRegexRelationships.Count > 0)
+                        {
+                            <div class="relationship-list" aria-label="Linked RegEx patterns">
+                                @foreach (var link in KnowledgeRegexRelationships)
+                                {
+                                    <article class="relationship-card">
+                                        <div>
+                                            <strong>@link.DisplayName</strong>
+                                            @if (!string.IsNullOrWhiteSpace(link.Meaning))
+                                            {
+                                                <small>@link.Meaning</small>
+                                            }
+                                        </div>
+                                        <div class="relationship-actions">
+                                            <DxButton Text="Edit"
+                                                      RenderStyle="ButtonRenderStyle.Secondary"
+                                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                                      Enabled="@(!isBusy)"
+                                                      Click="@(() => EditKnowledgeRegexRelationship(link))" />
+                                            <DxButton Text="Unlink"
+                                                      RenderStyle="ButtonRenderStyle.Danger"
+                                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                                      Enabled="@(!isBusy)"
+                                                      Click="@(() => RemoveKnowledgeRegexRelationshipAsync(link))" />
+                                        </div>
+                                    </article>
+                                }
+                            </div>
+                        }
+                    }
+                </fieldset>
+
+                <fieldset class="knowledge-relationship-panel">
+                    <legend>Project knowledge scope</legend>
+                    <p class="hint">The database already owns project-topic-to-knowledge links. This editor makes that relationship reachable instead of relying on Council runs to create it indirectly.</p>
+                    @if (SelectedKnowledgeEntry is null)
+                    {
+                        <p class="hint">Save the knowledge note first, then connect it to a project topic.</p>
+                    }
+                    else
+                    {
+                        <div class="relationship-editor-grid">
+                            <label>
+                                Project
+                                <DxComboBox Data="@RelationshipProjects"
+                                            Value="@SelectedRelationshipProject"
+                                            TextFieldName="@nameof(LocalGptProjectSummary.DisplayName)"
+                                            ValueChanged="@((LocalGptProjectSummary value) => LoadRelationshipProjectTopicsAsync(value))" />
+                            </label>
+                            <label>
+                                Topic
+                                <DxComboBox Data="@RelationshipProjectTopics"
+                                            Value="@SelectedRelationshipProjectTopic"
+                                            TextFieldName="@nameof(LocalGptProjectTopic.Name)"
+                                            ValueChanged="@((LocalGptProjectTopic value) => SelectedRelationshipProjectTopic = value)" />
+                            </label>
+                        </div>
+                        <label>
+                            Link reason
+                            <DxTextBox @bind-Text="ProjectKnowledgeLinkReason" />
+                        </label>
+                        <div class="run-row">
+                            <DxButton Text="Link to project topic"
+                                      RenderStyle="ButtonRenderStyle.Primary"
+                                      RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                      Enabled="@(!isBusy && SelectedRelationshipProjectTopic is not null)"
+                                      Click="LinkKnowledgeToProjectTopicAsync" />
+                        </div>
+
+                        @if (KnowledgeProjectRelationships.Count > 0)
+                        {
+                            <div class="relationship-list" aria-label="Linked project topics">
+                                @foreach (var link in KnowledgeProjectRelationships)
+                                {
+                                    <article class="relationship-card">
+                                        <div>
+                                            <strong>@link.DisplayName</strong>
+                                            @if (!string.IsNullOrWhiteSpace(link.LinkReason))
+                                            {
+                                                <small>@link.LinkReason</small>
+                                            }
+                                        </div>
+                                        <DxButton Text="Unlink"
+                                                  RenderStyle="ButtonRenderStyle.Danger"
+                                                  RenderStyleMode="ButtonRenderStyleMode.Outline"
+                                                  Enabled="@(!isBusy)"
+                                                  Click="@(() => RemoveKnowledgeProjectRelationshipAsync(link))" />
+                                    </article>
+                                }
+                            </div>
+                        }
+                    }
+                </fieldset>
+
                 <div class="run-row">
                     <DxButton Text="Mark Current"
                               RenderStyle="ButtonRenderStyle.Success"
@@ -206,18 +373,16 @@
                 </div>
             </div>
         </div>
-    </section>
+                    </section>
+                </ConfigurationWorkbenchPanel>
 
-    <section class="table-panel">
+                <ConfigurationWorkbenchPanel SectionKey="tables" ActiveKey="@ActiveDatabaseSection" AriaLabel="Live SQLite tables">
+                    <section class="table-panel">
         <div class="panel-heading">
             <div>
                 <h2>Live SQLite Tables</h2>
                 <p>@TableEditor.DatabasePath</p>
             </div>
-            @if (!string.IsNullOrWhiteSpace(statusText))
-            {
-                <span class="status-text">@statusText</span>
-            }
         </div>
 
         <div class="table-toolbar">
@@ -269,11 +434,12 @@
                             TextWrapEnabled="true"
                             CssClass="database-grid database-grid-preview">
                         <Columns>
-                            <DxGridDataColumn FieldName="__rowid" Caption="rowid" />
+                            <DxGridDataColumn FieldName="__record" Caption="Record" />
                             @foreach (var column in CurrentTable.Columns)
                             {
                                 <DxGridDataColumn FieldName="@column.Name" Caption="@column.Name" />
                             }
+                            <DxGridDataColumn FieldName="__rowid" Caption="rowid" />
                         </Columns>
                     </DxGrid>
                 </div>
@@ -343,7 +509,11 @@
                 </div>
             </div>
         }
-    </section>
+                    </section>
+                </ConfigurationWorkbenchPanel>
+            </div>
+        </div>
+    </div>
 </main>
 
 @code {
@@ -468,7 +638,7 @@
         {
             KnowledgeEdit = Catalog.CouncilKnowledgeEntryNew;
 
-            await RefreshAllAsync().ConfigureAwait(false);
+            await RefreshAllAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -487,22 +657,28 @@
         {
             await RunUiActionAsync(async () =>
      {
-         KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
-         Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(false)).ToList();
+         KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(true), Logger);
+         Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(true)).ToList();
+         await LoadRelationshipCatalogsAsync().ConfigureAwait(true);
          SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == SelectedKnowledgeEntry?.Id) ?? KnowledgeEntries.FirstOrDefault();
          if (SelectedKnowledgeEntry is not null)
+         {
              SelectKnowledgeEntry(SelectedKnowledgeEntry);
+             await RefreshSelectedKnowledgeRelationshipsAsync().ConfigureAwait(true);
+         }
          else
+         {
              NewKnowledgeEntry();
+         }
 
          if (SelectedTable is not null)
              SelectedTable = Tables.FirstOrDefault(table => table.Name.Equals(SelectedTable.Name, StringComparison.OrdinalIgnoreCase));
          SelectedTable ??= Tables.FirstOrDefault(table => table.Name.Equals("CouncilKnowledgeEntries", StringComparison.OrdinalIgnoreCase)) ?? Tables.FirstOrDefault();
          if (SelectedTable is not null)
-             await LoadTableAsync(SelectedTable).ConfigureAwait(false);
+             await LoadTableAsync(SelectedTable).ConfigureAwait(true);
 
          statusText = $"Loaded {Tables.Count} table(s) and {KnowledgeEntries.Count} knowledge note(s).";
-     }, "RefreshAllAsync").ConfigureAwait(false);
+     }, "RefreshAllAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -546,6 +722,13 @@
         {
             SelectedKnowledgeEntry = null;
             KnowledgeEdit = Catalog.CouncilKnowledgeEntryNew;
+            KnowledgeRegexRelationships = [];
+            KnowledgeProjectRelationships = [];
+            KnowledgeRegexPurpose = "Classification";
+            KnowledgeRegexMeaning = string.Empty;
+            KnowledgeRegexEnabled = true;
+            KnowledgeRecognitionTestText = string.Empty;
+            KnowledgeRecognitionMatches = [];
             statusText = "New council knowledge note ready.";
         }
         catch (Exception ex)
@@ -565,15 +748,18 @@
         {
             await RunUiActionAsync(async () =>
        {
-           KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit).ConfigureAwait(false);
-           KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
+           KnowledgeEdit = await CouncilKnowledge.SaveEntryAsync(KnowledgeEdit).ConfigureAwait(true);
+           KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(true), Logger);
            SelectedKnowledgeEntry = KnowledgeEntries.FirstOrDefault(entry => entry.Id == KnowledgeEdit.Id);
            if (SelectedKnowledgeEntry is not null)
-               KnowledgeEdit = CouncilRuntime.CopyKnowledgeEntry(SelectedKnowledgeEntry, Logger) ?? new();
-           await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
+           {
+               SelectKnowledgeEntry(SelectedKnowledgeEntry);
+               await RefreshSelectedKnowledgeRelationshipsAsync().ConfigureAwait(true);
+           }
+           await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(true);
            statusText = $"Saved knowledge note: {KnowledgeEdit.Topic}";
            Notifier.ShowSuccess(toastName, "Council knowledge saved to SQLite.", "Knowledge saved");
-       }, "SaveKnowledgeAsync").ConfigureAwait(false);
+       }, "SaveKnowledgeAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -596,14 +782,16 @@
 
             await RunUiActionAsync(async () =>
             {
-                await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id).ConfigureAwait(false);
+                await CouncilKnowledge.DeleteEntryAsync(SelectedKnowledgeEntry.Id).ConfigureAwait(true);
                 SelectedKnowledgeEntry = null;
                 KnowledgeEdit = Catalog.CouncilKnowledgeEntryNew;
-                KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(false), Logger);
-                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
+                KnowledgeRegexRelationships = [];
+                KnowledgeProjectRelationships = [];
+                KnowledgeEntries = CouncilRuntime.SortKnowledgeEntries(await CouncilKnowledge.GetEntriesAsync(includeArchived: true, take: 250).ConfigureAwait(true), Logger);
+                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(true);
                 statusText = "Deleted council knowledge note.";
                 Notifier.ShowSuccess(toastName, "Council knowledge deleted.", "Knowledge deleted");
-            }, "DeleteKnowledgeAsync").ConfigureAwait(false);
+            }, "DeleteKnowledgeAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -748,7 +936,7 @@
     {
         try
         {
-            await LoadTableAsync(table).ConfigureAwait(false);
+            await LoadTableAsync(table).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -766,7 +954,7 @@
         try
         {
             if (SelectedTable is not null)
-                await LoadTableAsync(SelectedTable).ConfigureAwait(false);
+                await LoadTableAsync(SelectedTable).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -787,8 +975,8 @@
             await RunUiActionAsync(async () =>
         {
             SelectedTable = table;
-            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(false);
-            EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(false), StringComparer.OrdinalIgnoreCase);
+            CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(true);
+            EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(true), StringComparer.OrdinalIgnoreCase);
             SessionEditorKinds.Clear();
             GridRows.Clear();
             foreach (var row in CurrentTable.Rows)
@@ -813,7 +1001,7 @@
             else
                 NewSqliteRow();
             statusText = $"Loaded {CurrentTable.Rows.Count} row(s) from {CurrentTable.TableName}.";
-        }, "LoadTableAsync").ConfigureAwait(false);
+        }, "LoadTableAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -888,7 +1076,7 @@
 
                 if (SelectedRow is null)
                 {
-                    await TableEditor.InsertRowAsync(CurrentTable.TableName, editableValues).ConfigureAwait(false);
+                    await TableEditor.InsertRowAsync(CurrentTable.TableName, editableValues).ConfigureAwait(true);
                     statusText = $"Inserted row into {CurrentTable.TableName}.";
                 }
                 else
@@ -896,13 +1084,13 @@
                     var updates = editableValues
                         .Select(pair => new SqliteCellUpdate { ColumnName = pair.Key, Value = pair.Value })
                         .ToList();
-                    await TableEditor.UpdateRowAsync(CurrentTable.TableName, SelectedRow.RowId, updates).ConfigureAwait(false);
+                    await TableEditor.UpdateRowAsync(CurrentTable.TableName, SelectedRow.RowId, updates).ConfigureAwait(true);
                     statusText = $"Updated row {SelectedRow.RowId} in {CurrentTable.TableName}.";
                 }
 
-                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
+                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(true);
                 Notifier.ShowSuccess(toastName, "SQLite row saved.", "Database saved");
-            }, "SaveSqliteRowAsync").ConfigureAwait(false);
+            }, "SaveSqliteRowAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -925,11 +1113,11 @@
 
             await RunUiActionAsync(async () =>
             {
-                await TableEditor.DeleteRowAsync(CurrentTable.TableName, SelectedRow.RowId).ConfigureAwait(false);
+                await TableEditor.DeleteRowAsync(CurrentTable.TableName, SelectedRow.RowId).ConfigureAwait(true);
                 statusText = $"Deleted row {SelectedRow.RowId} from {CurrentTable.TableName}.";
-                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(false);
+                await RefreshTablesOnlyAsync(loadSelectedTable: true).ConfigureAwait(true);
                 Notifier.ShowSuccess(toastName, "SQLite row deleted.", "Database saved");
-            }, "DeleteSqliteRowAsync").ConfigureAwait(false);
+            }, "DeleteSqliteRowAsync").ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -948,7 +1136,7 @@
     {
         try
         {
-            Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(false)).ToList();
+            Tables = (await TableEditor.GetTablesAsync().ConfigureAwait(true)).ToList();
             if (!loadSelectedTable || CurrentTable is null)
                 return;
 
@@ -956,8 +1144,8 @@
             if (table is not null)
             {
                 SelectedTable = table;
-                CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(false);
-                EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(false), StringComparer.OrdinalIgnoreCase);
+                CurrentTable = await TableEditor.GetTableAsync(table.Name, RowLimit).ConfigureAwait(true);
+                EditorOverrides = new Dictionary<string, SqliteEditorFieldOverride>(await EditorPreferences.GetOverridesAsync(table.Name).ConfigureAwait(true), StringComparer.OrdinalIgnoreCase);
                 SessionEditorKinds.Clear();
                 GridRows.Clear();
                 foreach (var row in CurrentTable.Rows)
@@ -1077,7 +1265,7 @@
             NullText = existing?.NullText ?? "[null]",
             IsSensitive = kind.Equals("Secret", StringComparison.OrdinalIgnoreCase) || existing?.IsSensitive == true,
             RequireHumanApproval = existing?.RequireHumanApproval == true
-        }, userConfirmed: true).ConfigureAwait(false);
+        }, userConfirmed: true).ConfigureAwait(true);
         EditorOverrides[column.Name] = saved;
         statusText = $"Remembered {kind} editor for {CurrentTable.TableName}.{column.Name}.";
         Notifier.ShowSuccess(toastName, statusText, "Editor preference saved");
@@ -1104,7 +1292,7 @@
         if (SelectedKnowledgeEntry is null)
             return;
         KnowledgeRatingEdit.KnowledgeEntryId = SelectedKnowledgeEntry.Id;
-        KnowledgeRatingEdit = await KnowledgeRatings.SaveRatingAsync(KnowledgeRatingEdit, userConfirmed: true).ConfigureAwait(false);
+        KnowledgeRatingEdit = await KnowledgeRatings.SaveRatingAsync(KnowledgeRatingEdit, userConfirmed: true).ConfigureAwait(true);
         KnowledgeEdit.Confidence = KnowledgeRatingEdit.Rating;
         KnowledgeEdit.IsUserApproved = KnowledgeRatingEdit.ApprovedForCouncilUse;
         KnowledgeEdit.ReviewStatus = KnowledgeRatingEdit.ApprovedForCouncilUse ? "Current" : "NeedsUserReview";
@@ -1123,9 +1311,10 @@
         ArgumentNullException.ThrowIfNull(action);
         isBusy = true;
         ComponentActivity.RecordInformation(nameof(Database), operation, "The database UI operation started.");
+        await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine busy-state refresh */;
         try
         {
-            await action().ConfigureAwait(false);
+            await action().ConfigureAwait(true);
             ComponentActivity.RecordInformation(nameof(Database), operation, "The database UI operation completed.");
         }
         catch (OperationCanceledException)
@@ -1145,6 +1334,7 @@
         finally
         {
             isBusy = false;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine completion refresh */;
         }
     }
 }

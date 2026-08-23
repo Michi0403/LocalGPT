@@ -1,161 +1,274 @@
 .database-page {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    max-width: 82rem;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 0;
     padding: 1rem;
 }
 
-.database-header,
+.database-workbench {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .85rem;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+
+.database-workbench ::deep .localgpt-workbench-header,
+.database-workbench-layout,
+.database-workbench-stage,
+.database-workbench-stage > ::deep .configuration-workbench-panel {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+
+.database-workbench-layout {
+    display: grid;
+    grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
+    gap: .85rem;
+    align-items: start;
+}
+
+.database-workbench-layout ::deep .configuration-workbench-nav {
+    position: sticky;
+    top: .25rem;
+    max-height: calc(100dvh - 7rem);
+    overflow: auto;
+}
+
+.database-workbench-layout[aria-busy="true"] .database-workbench-stage {
+    cursor: wait;
+}
+
+.database-status {
+    margin: 0;
+}
+
+.knowledge-panel,
+.table-panel {
+    display: grid;
+    gap: 1rem;
+    width: 100%;
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .8rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+
 .panel-heading {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
+    min-width: 0;
 }
 
-.database-header h1,
-.knowledge-panel h2,
-.table-panel h2,
+.panel-heading > div {
+    min-width: 0;
+}
+
+.panel-heading h2,
 .table-preview h3 {
     margin: 0;
 }
 
-.database-header p,
 .panel-heading p {
-    margin: 0.25rem 0 0;
+    margin: .25rem 0 0;
     color: var(--bs-secondary-color);
     overflow-wrap: anywhere;
 }
 
-.knowledge-panel,
-.table-panel {
-    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.24);
-    border-radius: 8px;
-    background: var(--bs-body-bg);
-    padding: 1rem;
-}
-
-.knowledge-layout,
-.table-workspace {
+.knowledge-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 28rem);
+    grid-template-columns: minmax(0, 1.25fr) minmax(22rem, 34rem);
     gap: 1rem;
     align-items: start;
-    margin-top: 1rem;
+    min-width: 0;
+}
+
+.table-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(22rem, 34rem);
+    gap: 1rem;
+    align-items: start;
+    min-width: 0;
 }
 
 .table-toolbar,
 .selector-row,
 .run-row,
-.form-row {
+.form-row,
+.relationship-actions {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: .65rem;
+    min-width: 0;
 }
 
 .table-toolbar {
-    margin: 1rem 0;
+    display: grid;
+    grid-template-columns: minmax(14rem, 2fr) minmax(8rem, .7fr) auto auto;
+    align-items: end;
 }
 
 .selector-row {
-    margin-top: 0.75rem;
+    margin-top: .75rem;
 }
 
+.selector-row > span,
+.table-toolbar > span,
 .knowledge-selector,
 .table-selector {
-    min-width: 18rem;
+    width: 100%;
+    min-width: 0;
 }
 
 .editor-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    border: 1px solid rgba(var(--localgpt-body-color-rgb, 33, 37, 41), 0.2);
-    border-radius: 8px;
-    padding: 0.85rem;
+    display: grid;
+    gap: .75rem;
+    min-width: 0;
+    padding: .9rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .7rem;
+    background: color-mix(in srgb, var(--bs-tertiary-bg) 55%, var(--bs-body-bg));
 }
 
-.editor-panel label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+.editor-panel > label,
+.knowledge-relationship-panel > label,
+.relationship-editor-grid > label {
+    display: grid;
+    gap: .35rem;
     min-width: 0;
-    font-weight: 600;
+    font-weight: 650;
 }
 
 .editor-panel small,
 .hint,
-.status-text {
+.status-text,
+.relationship-card small {
     color: var(--bs-secondary-color);
-    font-size: 0.88rem;
+    font-size: .86rem;
 }
 
-.hint {
+.hint,
+.status-text {
     margin: 0;
 }
 
+.knowledge-rating-panel,
+.knowledge-relationship-panel {
+    display: grid;
+    gap: .7rem;
+    min-width: 0;
+    margin: 0;
+    padding: .8rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .65rem;
+    background: var(--bs-body-bg);
+}
+
+.knowledge-rating-panel legend,
+.knowledge-relationship-panel legend {
+    float: none;
+    width: auto;
+    margin: 0;
+    padding: 0 .25rem;
+    font-size: .92rem;
+    font-weight: 750;
+}
+
+.relationship-editor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: .65rem;
+    align-items: end;
+    min-width: 0;
+}
+
+.relationship-list {
+    display: grid;
+    gap: .5rem;
+    min-width: 0;
+}
+
+.relationship-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+    min-width: 0;
+    padding: .65rem .7rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .55rem;
+    background: var(--bs-tertiary-bg);
+}
+
+.relationship-card > div:first-child {
+    display: grid;
+    gap: .15rem;
+    min-width: 0;
+}
+
+.relationship-card strong,
+.relationship-card small {
+    overflow-wrap: anywhere;
+}
+
+.relationship-actions {
+    flex: 0 0 auto;
+}
+
 .table-list {
-    margin-bottom: 1rem;
+    min-width: 0;
 }
 
 .table-preview {
     min-width: 0;
+    overflow: hidden;
+}
+
+.table-preview h3 {
+    margin-bottom: .6rem;
+    overflow-wrap: anywhere;
 }
 
 .database-grid {
     width: 100%;
-}
-
-@media (max-width: 1000px) {
-    .knowledge-layout,
-    .table-workspace {
-        grid-template-columns: 1fr;
-    }
-}
-
-
-/* final15: use the complete application viewport and wrap long SQLite values. */
-.database-page{width:100%;max-width:none;height:100%;min-height:0;margin:0;padding:.75rem;overflow:auto}
-.knowledge-panel,.table-panel{min-width:0}
-.table-workspace{grid-template-columns:minmax(0,1fr) minmax(20rem,32rem)}
-.database-grid{min-width:0;max-width:100%}
-.database-grid ::deep .dxbl-grid-table{table-layout:auto;width:max-content;min-width:100%;max-width:none}
-.database-grid ::deep td,.database-grid ::deep th,.database-grid ::deep .dxbl-grid-cell{white-space:normal!important;overflow-wrap:anywhere;word-break:break-word;vertical-align:top;min-width:7rem;max-width:34rem}
-.database-grid-preview{max-height:65dvh;overflow:auto}
-.localgpt-grid-wrap .database-grid ::deep td,.localgpt-grid-wrap .database-grid ::deep .dxbl-grid-cell{white-space:normal!important;max-width:24rem}
-.localgpt-database-compact .database-page{font-size:.9rem}.localgpt-database-compact .editor-panel{padding:.55rem}.localgpt-database-compact .database-grid ::deep td{padding:.25rem .4rem}
-@media(max-width:1000px){.database-page{padding:.5rem}.knowledge-layout,.table-workspace{grid-template-columns:1fr}.database-grid-preview{max-height:55dvh}}
-
-
-/* final15: use the available viewport instead of a narrow centered column. */
-.database-page,
-.sqlite-database-page,
-.database-workspace,
-.database-shell {
-    width: 100%;
-    max-width: none;
     min-width: 0;
+    max-width: 100%;
 }
-::deep .dxbl-grid,
-::deep .dx-datagrid,
-::deep table { max-width: 100%; }
-::deep .dxbl-grid td,
-::deep .dxbl-grid th,
-::deep .dx-datagrid td,
-::deep .dx-datagrid th,
-::deep table td,
-::deep table th {
+
+.database-grid ::deep .dxbl-grid-table {
+    width: max-content;
+    min-width: 100%;
+    max-width: none;
+    table-layout: auto;
+}
+
+.database-grid ::deep td,
+.database-grid ::deep th,
+.database-grid ::deep .dxbl-grid-cell {
+    min-width: 7rem;
+    max-width: 34rem;
     white-space: normal !important;
     overflow-wrap: anywhere;
     word-break: break-word;
     vertical-align: top;
 }
 
-/* Grid previews deliberately stay compact; the row editor still contains the complete database value. */
-.database-grid-preview :is(td, .dxbl-grid-data-cell) {
+.database-grid-preview {
+    max-height: 65dvh;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.database-grid-preview ::deep td,
+.database-grid-preview ::deep .dxbl-grid-data-cell {
     max-width: 34rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -163,6 +276,173 @@
     vertical-align: middle;
 }
 
-@media (max-width: 800px) {
-    .database-grid-preview :is(td, .dxbl-grid-data-cell) { max-width: 18rem; }
+.sqlite-field-editor {
+    display: grid;
+    gap: .4rem;
+    min-width: 0;
+    padding: .65rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .55rem;
+    background: var(--bs-body-bg);
+}
+
+.sqlite-field-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .65rem;
+    min-width: 0;
+}
+
+.sqlite-field-heading > label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-weight: 700;
+}
+
+.sqlite-field-heading > label small {
+    display: block;
+    font-weight: 400;
+}
+
+.sqlite-editor-choice {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: .4rem;
+    min-width: min(100%, 14rem);
+}
+
+.sqlite-field-editor input,
+.sqlite-field-editor textarea,
+.table-toolbar input,
+.editor-panel input,
+.editor-panel textarea,
+.editor-panel select {
+    max-width: 100%;
+    min-width: 0;
+}
+
+.localgpt-database-compact .database-page {
+    font-size: .9rem;
+}
+
+.localgpt-database-compact .editor-panel {
+    padding: .6rem;
+}
+
+.localgpt-database-compact .database-grid ::deep td {
+    padding: .25rem .4rem;
+}
+
+@media (max-width: 1100px) {
+    .knowledge-layout,
+    .table-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .table-toolbar {
+        grid-template-columns: minmax(0, 1fr) minmax(8rem, .45fr) auto;
+    }
+
+    .table-toolbar > :last-child {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+}
+
+@media (max-width: 860px) {
+    .database-page {
+        padding: .6rem;
+    }
+
+    .database-workbench-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .database-workbench-layout ::deep .configuration-workbench-nav {
+        position: static;
+        max-height: none;
+    }
+
+    .panel-heading,
+    .relationship-card,
+    .sqlite-field-heading {
+        display: grid;
+    }
+
+    .relationship-actions,
+    .sqlite-editor-choice {
+        justify-content: flex-start;
+    }
+
+    .database-grid-preview {
+        max-height: 55dvh;
+    }
+}
+
+@media (max-width: 620px) {
+    .table-toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .table-toolbar > :last-child {
+        grid-column: auto;
+    }
+
+    .table-toolbar ::deep .dxbl-btn,
+    .run-row ::deep .dxbl-btn,
+    .relationship-actions ::deep .dxbl-btn {
+        width: 100%;
+    }
+
+    .database-grid-preview ::deep td,
+    .database-grid-preview ::deep .dxbl-grid-data-cell {
+        max-width: 18rem;
+    }
+}
+
+.recognition-test-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .55rem;
+    align-items: end;
+    min-width: 0;
+    padding-top: .2rem;
+}
+
+.recognition-test-panel > label {
+    display: grid;
+    gap: .35rem;
+    min-width: 0;
+    font-weight: 650;
+}
+
+.recognition-match-list {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    min-width: 0;
+}
+
+.recognition-match {
+    max-width: 100%;
+    padding: .25rem .5rem;
+    border: 1px solid color-mix(in srgb, var(--bs-success) 45%, var(--bs-border-color));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bs-success) 8%, var(--bs-body-bg));
+    overflow-wrap: anywhere;
+    font-size: .82rem;
+}
+
+@media (max-width: 620px) {
+    .recognition-test-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .recognition-match-list {
+        grid-column: auto;
+    }
 }

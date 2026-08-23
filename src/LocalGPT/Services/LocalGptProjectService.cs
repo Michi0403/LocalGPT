@@ -427,6 +427,103 @@ public sealed class LocalGptProjectService(
 }
 
     /// <summary>
+    /// Lists the project/topic relationships currently associated with one Council knowledge entry.
+    /// </summary>
+    /// <param name="knowledgeEntryId">Identifier of the Council knowledge entry.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The human-readable relationship summaries.</returns>
+    public async Task<IReadOnlyList<KnowledgeProjectTopicLinkSummary>> GetKnowledgeLinksAsync(
+        Guid knowledgeEntryId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (knowledgeEntryId == Guid.Empty)
+                return [];
+
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
+
+            return await (
+                    from link in db.LocalGptProjectTopicKnowledgeLinks.AsNoTracking()
+                    join topic in db.LocalGptProjectTopics.AsNoTracking()
+                        on link.ProjectTopicId equals topic.Id
+                    join project in db.LocalGptProjects.AsNoTracking()
+                        on topic.ProjectId equals project.Id
+                    where link.KnowledgeEntryId == knowledgeEntryId
+                    orderby project.Name, topic.Name
+                    select new KnowledgeProjectTopicLinkSummary(
+                        project.Id,
+                        topic.Id,
+                        link.KnowledgeEntryId,
+                        project.Name,
+                        topic.Name,
+                        link.LinkReason,
+                        link.LinkedAtUtc,
+                        link.LinkedByHuman))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptProjectService)}.{nameof(GetKnowledgeLinksAsync)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptProjectService)}.{nameof(GetKnowledgeLinksAsync)} failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Removes one explicitly confirmed project/topic relationship without deleting either endpoint.
+    /// </summary>
+    /// <param name="projectTopicId">Identifier of the linked project topic.</param>
+    /// <param name="knowledgeEntryId">Identifier of the linked Council knowledge entry.</param>
+    /// <param name="userConfirmed">Whether the user explicitly confirmed the unlink operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>A task that completes when the relationship was removed or was already absent.</returns>
+    public async Task UnlinkKnowledgeAsync(
+        Guid projectTopicId,
+        Guid knowledgeEntryId,
+        bool userConfirmed,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            RequireHumanConfirmation(userConfirmed, "unlinking council knowledge from a project topic");
+            if (projectTopicId == Guid.Empty || knowledgeEntryId == Guid.Empty)
+                return;
+
+            await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
+            var link = await db.LocalGptProjectTopicKnowledgeLinks
+                .SingleOrDefaultAsync(
+                    item => item.ProjectTopicId == projectTopicId && item.KnowledgeEntryId == knowledgeEntryId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (link is null)
+                return;
+
+            db.LocalGptProjectTopicKnowledgeLinks.Remove(link);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation(
+                "Unlinked knowledge {KnowledgeEntryId} from project topic {ProjectTopicId}.",
+                knowledgeEntryId,
+                projectTopicId);
+        }
+        catch (Exception __serviceMethodException)
+        {
+            if (__serviceMethodException is OperationCanceledException)
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(LocalGptProjectService)}.{nameof(UnlinkKnowledgeAsync)} was canceled.");
+            else
+                logger.LogError(__serviceMethodException, $"Service method {nameof(LocalGptProjectService)}.{nameof(UnlinkKnowledgeAsync)} failed.");
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Builds project briefing as part of the LocalGPT project service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="projectId">Identifier of the project to use for this operation.</param>

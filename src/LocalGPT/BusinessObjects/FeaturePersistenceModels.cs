@@ -171,6 +171,11 @@ public sealed class EmbeddedFirmwarePlanRecord
     /// <value>The project identifier value exposed by <see cref="EmbeddedFirmwarePlanRecord"/>.</value>
     public Guid? ProjectId { get; set; }
     /// <summary>
+    /// Navigates to the owning project when this firmware plan is project-scoped.
+    /// </summary>
+    /// <value>The associated LocalGPT project, or <see langword="null"/> for a global plan.</value>
+    public LocalGptProject? Project { get; set; }
+    /// <summary>
     /// Gets or sets the device name value that forms part of the embedded firmware plan state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The device name value exposed by <see cref="EmbeddedFirmwarePlanRecord"/>.</value>
@@ -221,6 +226,11 @@ public sealed class CouncilGameSessionRecord
     /// </summary>
     /// <value>The conversation identifier value exposed by <see cref="CouncilGameSessionRecord"/>.</value>
     public Guid? ConversationId { get; set; }
+    /// <summary>
+    /// Navigates to the chat conversation that owns this game session when a conversation scope was persisted.
+    /// </summary>
+    /// <value>The associated chat-memory conversation, or <see langword="null"/> for an unscoped game session.</value>
+    public ChatMemoryConversation? Conversation { get; set; }
     /// <summary>
     /// Gets or sets the stable game key used to identify or correlate this council game session instance with related application state.
     /// </summary>

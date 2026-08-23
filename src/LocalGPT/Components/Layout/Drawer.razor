@@ -115,6 +115,7 @@
 
                 ComponentActivity.RecordInformation(nameof(Drawer), "ResponsiveWidth", $"Navigation drawer width selected as {Width}.", NavigationManager.Uri);
                 Logger.LogInformation("Navigation drawer responsive width selected as {Width}.", Width);
+                await InvokeAsync(StateHasChanged).ConfigureAwait(true) /* renderer-affine responsive-width refresh */;
             }
         }
         catch (Exception ex)

@@ -175,6 +175,10 @@
     /// </summary>
     private bool attached;
     /// <summary>
+    /// Stores whether asynchronous teardown has already started so duplicate renderer disposal calls remain harmless.
+    /// </summary>
+    private bool disposed;
+    /// <summary>
     /// Stores the internal show controls state used by <see cref="ChatGameConsole"/> while executing its surrounding workflow.
     /// </summary>
     private bool showControls = true;
@@ -429,13 +433,38 @@
     /// <returns>A task that completes when the operation has finished.</returns>
     public async ValueTask DisposeAsync()
     {
+        if (disposed)
+            return;
+
+        disposed = true;
         Games.Changed -= OnGameChanged;
         Console.Changed -= OnConsoleChanged;
         try
         {
-            if (attached) await JS.InvokeVoidAsync("localGptGameConsole.detach", elementId).ConfigureAwait(false);
+            if (attached)
+                await JS.InvokeVoidAsync("localGptGameConsole.detach", elementId).ConfigureAwait(false);
         }
-        catch (JSDisconnectedException) { }
-        reference?.Dispose();
+        catch (JSDisconnectedException)
+        {
+            Logger.LogDebug("ASCII game console detach ended after browser disconnect.");
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogDebug("ASCII game console detach was canceled during component teardown.");
+        }
+        catch (ObjectDisposedException)
+        {
+            Logger.LogDebug("ASCII game console browser resources were already disposed during component teardown.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "ASCII game console detach failed during component teardown.");
+        }
+        finally
+        {
+            attached = false;
+            reference?.Dispose();
+            reference = null;
+        }
     }
 }

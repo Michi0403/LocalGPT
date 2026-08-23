@@ -131,6 +131,24 @@ public sealed class LocalGptProject
     public ICollection<LocalGptProjectArtifact> Artifacts { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets the imported project documents associated with this project.
+    /// </summary>
+    /// <value>The project document imports associated with this project.</value>
+    public ICollection<ProjectDocumentImport> DocumentImports { get; set; } = [];
+
+    /// <summary>
+    /// Navigates to the organic-skill assignments explicitly owned by this project.
+    /// </summary>
+    /// <value>The project's persisted organic-skill assignments.</value>
+    public ICollection<ProjectOrganicSkillLink> OrganicSkillLinks { get; set; } = [];
+
+    /// <summary>
+    /// Navigates to embedded firmware plans whose optional project scope points at this project.
+    /// </summary>
+    /// <value>The embedded firmware plans associated with this project.</value>
+    public ICollection<EmbeddedFirmwarePlanRecord> EmbeddedFirmwarePlans { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets the workspace roots collection maintained or exposed by this LocalGPT project instance for downstream processing.
     /// </summary>
     /// <value>The workspace roots value exposed by <see cref="LocalGptProject"/>.</value>
@@ -325,6 +343,32 @@ public sealed class LocalGptProjectTopicKnowledgeLink
     /// </summary>
     /// <value>The linked by human value exposed by <see cref="LocalGptProjectTopicKnowledgeLink"/>.</value>
     public bool LinkedByHuman { get; set; }
+}
+
+/// <summary>
+/// Represents one human-readable project/topic association for a Council knowledge entry.
+/// </summary>
+/// <param name="ProjectId">Identifier of the owning project.</param>
+/// <param name="ProjectTopicId">Identifier of the linked project topic.</param>
+/// <param name="KnowledgeEntryId">Identifier of the linked Council knowledge entry.</param>
+/// <param name="ProjectName">Human-readable project name.</param>
+/// <param name="TopicName">Human-readable topic name.</param>
+/// <param name="LinkReason">Persisted explanation for the relationship.</param>
+/// <param name="LinkedAtUtc">UTC timestamp when the relationship was last refreshed.</param>
+/// <param name="LinkedByHuman">Whether a human explicitly created or confirmed the relationship.</param>
+public sealed record KnowledgeProjectTopicLinkSummary(
+    Guid ProjectId,
+    Guid ProjectTopicId,
+    Guid KnowledgeEntryId,
+    string ProjectName,
+    string TopicName,
+    string LinkReason,
+    DateTime LinkedAtUtc,
+    bool LinkedByHuman)
+{
+    /// <summary>Combines the owning project and topic names into the stable human-readable label used by relationship selectors.</summary>
+    /// <value>The project name and topic name joined into one human-readable label.</value>
+    public string DisplayName => $"{ProjectName} · {TopicName}";
 }
 
 /// <summary>

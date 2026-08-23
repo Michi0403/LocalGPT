@@ -96,6 +96,7 @@ namespace LocalGPT.Services
             {
                 serviceLogger.LogTrace("SQLite grid presentation operation {Operation} started.", nameof(ToGridRow));
                 IDictionary<string, object?> expando = new ExpandoObject();
+                expando["__record"] = row.DisplayName;
                 expando["__rowid"] = row.RowId;
                 foreach (var pair in row.Values)
                     expando[pair.Key] = BuildCellPreview(pair.Key, pair.Value);

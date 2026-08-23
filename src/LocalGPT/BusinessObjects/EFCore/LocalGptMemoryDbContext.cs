@@ -71,6 +71,11 @@ namespace LocalGPT.BusinessObjects.EFCore
         /// <value>The LocalGPT project topic knowledge links value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
         public DbSet<LocalGptProjectTopicKnowledgeLink> LocalGptProjectTopicKnowledgeLinks => Set<LocalGptProjectTopicKnowledgeLink>();
         /// <summary>
+        /// Gets the Council knowledge regex relationships that connect persisted knowledge semantics with reusable recognition patterns.
+        /// </summary>
+        /// <value>The Council knowledge regex relationships exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
+        public DbSet<CouncilKnowledgeRegexPatternLink> CouncilKnowledgeRegexPatternLinks => Set<CouncilKnowledgeRegexPatternLink>();
+        /// <summary>
         /// Gets the code generation change reviews value that forms part of the LocalGPT memory database context state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The code generation change reviews value exposed by <see cref="LocalGptMemoryDbContext"/>.</value>
@@ -254,6 +259,25 @@ namespace LocalGPT.BusinessObjects.EFCore
                 e.HasIndex(p => p.Name).IsUnique();
             });
 
+            modelBuilder.Entity<CouncilKnowledgeRegexPatternLink>(entity =>
+            {
+                entity.ToTable("CouncilKnowledgeRegexPatternLinks");
+                entity.HasKey(link => new { link.KnowledgeEntryId, link.RegexPatternId });
+                entity.Property(link => link.LinkPurpose).HasMaxLength(96).IsRequired();
+                entity.Property(link => link.Meaning).HasMaxLength(1000).IsRequired();
+                entity.HasIndex(link => link.RegexPatternId);
+                entity.HasIndex(link => new { link.IsEnabled, link.LinkPurpose });
+                entity.HasIndex(link => link.LinkedAtUtc);
+                entity.HasOne(link => link.KnowledgeEntry)
+                    .WithMany(entry => entry.RegexPatternLinks)
+                    .HasForeignKey(link => link.KnowledgeEntryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(link => link.RegexPattern)
+                    .WithMany(pattern => pattern.KnowledgeLinks)
+                    .HasForeignKey(link => link.RegexPatternId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
 
             modelBuilder.Entity<PromptConfig>(e =>
             {
@@ -404,7 +428,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                     .HasForeignKey(link => link.ProjectTopicId)
                     .OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(link => link.KnowledgeEntry)
-                    .WithMany()
+                    .WithMany(entry => entry.ProjectTopicLinks)
                     .HasForeignKey(link => link.KnowledgeEntryId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
@@ -446,7 +470,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasIndex(item => new { item.ProjectId, item.Name }).IsUnique();
                 entity.HasOne(item => item.Project).WithMany(project => project.Requirements)
                     .HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
-                entity.HasOne(item => item.Revision).WithMany()
+                entity.HasOne(item => item.Revision).WithMany(revision => revision.Requirements)
                     .HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -480,9 +504,9 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasIndex(item => new { item.ProjectId, item.IsUserApproved, item.UpdatedAtUtc });
                 entity.HasOne(item => item.Project).WithMany(project => project.Artifacts)
                     .HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
-                entity.HasOne(item => item.Revision).WithMany()
+                entity.HasOne(item => item.Revision).WithMany(revision => revision.Artifacts)
                     .HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
-                entity.HasOne(item => item.Requirement).WithMany()
+                entity.HasOne(item => item.Requirement).WithMany(requirement => requirement.Artifacts)
                     .HasForeignKey(item => item.RequirementId).OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -499,9 +523,9 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.Status).HasMaxLength(80).IsRequired();
                 entity.Property(item => item.SafetyNotes).HasMaxLength(2000).IsRequired();
                 entity.HasIndex(item => new { item.ProjectId, item.ContentHash }).IsUnique();
-                entity.HasOne(item => item.Project).WithMany()
+                entity.HasOne(item => item.Project).WithMany(project => project.DocumentImports)
                     .HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
-                entity.HasOne(item => item.Revision).WithMany()
+                entity.HasOne(item => item.Revision).WithMany(revision => revision.DocumentImports)
                     .HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -570,7 +594,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.Notes).HasMaxLength(2000).IsRequired();
                 entity.HasIndex(item => new { item.ProjectId, item.SkillId }).IsUnique();
                 entity.HasIndex(item => new { item.ProjectId, item.IsEnabled, item.IsRequired });
-                entity.HasOne(item => item.Project).WithMany()
+                entity.HasOne(item => item.Project).WithMany(project => project.OrganicSkillLinks)
                     .HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(item => item.Skill).WithMany(skill => skill.ProjectLinks)
                     .HasForeignKey(item => item.SkillId).OnDelete(DeleteBehavior.Cascade);
@@ -633,7 +657,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.Notes).HasMaxLength(4000).IsRequired();
                 entity.Property(item => item.RatedBy).HasMaxLength(120).IsRequired();
                 entity.HasIndex(item => new { item.KnowledgeEntryId, item.UpdatedAtUtc });
-                entity.HasOne(item => item.KnowledgeEntry).WithMany()
+                entity.HasOne(item => item.KnowledgeEntry).WithMany(entry => entry.UserRatings)
                     .HasForeignKey(item => item.KnowledgeEntryId).OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -842,7 +866,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.HasIndex(item => new { item.ProjectId, item.RevisionId, item.CompletedAtUtc });
                 entity.HasOne(item => item.Project).WithMany(project => project.BuildVerifications).HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasOne(item => item.Revision).WithMany(revision => revision.BuildVerifications).HasForeignKey(item => item.RevisionId).OnDelete(DeleteBehavior.Restrict);
-                entity.HasOne(item => item.CompilerInstallation).WithMany().HasForeignKey(item => item.CompilerInstallationId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.CompilerInstallation).WithMany(installation => installation.BuildVerifications).HasForeignKey(item => item.CompilerInstallationId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<CouncilPromptStarterConfiguration>(entity =>
@@ -893,7 +917,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.PlanJson).IsRequired();
                 entity.HasIndex(item => item.PlanKey).IsUnique();
                 entity.HasIndex(item => new { item.ProjectId, item.UpdatedAtUtc });
-                entity.HasOne<LocalGptProject>().WithMany().HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.Project).WithMany(project => project.EmbeddedFirmwarePlans).HasForeignKey(item => item.ProjectId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<CouncilGameSessionRecord>(entity =>
@@ -907,7 +931,7 @@ namespace LocalGPT.BusinessObjects.EFCore
                 entity.Property(item => item.SnapshotJson).IsRequired();
                 entity.HasIndex(item => item.SessionKey).IsUnique();
                 entity.HasIndex(item => new { item.GameKey, item.Status, item.UpdatedAtUtc });
-                entity.HasOne<ChatMemoryConversation>().WithMany().HasForeignKey(item => item.ConversationId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(item => item.Conversation).WithMany(conversation => conversation.CouncilGameSessions).HasForeignKey(item => item.ConversationId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<RemoteControlConnectorDefinition>(entity =>

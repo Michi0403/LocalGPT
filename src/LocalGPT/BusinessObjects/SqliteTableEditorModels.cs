@@ -79,10 +79,53 @@ namespace LocalGPT.BusinessObjects
         {
             get
             {
-                var firstValue = Values.Values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-                return string.IsNullOrWhiteSpace(firstValue)
-                    ? $"rowid {RowId}"
-                    : $"rowid {RowId} - {firstValue}";
+                string? preferredColumn = null;
+                string? preferredValue = null;
+                foreach (var columnName in new[]
+                {
+                    "DisplayName", "Name", "Title", "Topic", "Key", "FunctionName", "ModelName",
+                    "ProviderName", "Label", "Version", "ProjectRelativePath", "Scope", "Status", "Description"
+                })
+                {
+                    if (!Values.TryGetValue(columnName, out var candidate) || string.IsNullOrWhiteSpace(candidate))
+                        continue;
+
+                    preferredColumn = columnName;
+                    preferredValue = candidate.Trim();
+                    break;
+                }
+
+                if (string.IsNullOrWhiteSpace(preferredValue))
+                {
+                    var fallback = Values
+                        .Where(pair => !string.IsNullOrWhiteSpace(pair.Value)
+                            && !pair.Key.Equals("Id", StringComparison.OrdinalIgnoreCase)
+                            && !pair.Key.EndsWith("Id", StringComparison.OrdinalIgnoreCase))
+                        .FirstOrDefault();
+                    preferredColumn = fallback.Key;
+                    preferredValue = fallback.Value?.Trim();
+                }
+
+                var stableIdentity = Values
+                    .Where(pair => pair.Key.Equals("Id", StringComparison.OrdinalIgnoreCase)
+                        || pair.Key.EndsWith("Id", StringComparison.OrdinalIgnoreCase))
+                    .Select(pair => pair.Value)
+                    .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+                if (string.IsNullOrWhiteSpace(preferredValue))
+                    return !string.IsNullOrWhiteSpace(stableIdentity)
+                        ? $"Record {stableIdentity}"
+                        : $"Record #{RowId}";
+
+                var compactValue = preferredValue.Length <= 96 ? preferredValue : $"{preferredValue[..93]}...";
+                var prefix = string.IsNullOrWhiteSpace(preferredColumn) ? "Record" : preferredColumn;
+                var compactIdentity = string.IsNullOrWhiteSpace(stableIdentity)
+                    ? string.Empty
+                    : stableIdentity.Length <= 16 ? stableIdentity : stableIdentity[..12] + "...";
+                var identitySuffix = string.IsNullOrWhiteSpace(compactIdentity)
+                    ? $" · row {RowId}"
+                    : $" · id {compactIdentity}";
+                return $"{prefix}: {compactValue}{identitySuffix}";
             }
         }
     }

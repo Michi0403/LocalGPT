@@ -24,6 +24,21 @@ function Position([string]$name, [string]$token) {
     return $index
 }
 
+function Get-BracedBlock([string]$text, [int]$searchIndex) {
+    if ($searchIndex -lt 0) { return $null }
+    $open = $text.IndexOf('{', $searchIndex)
+    if ($open -lt 0) { return $null }
+    $depth = 0
+    for ($i = $open; $i -lt $text.Length; $i++) {
+        if ($text[$i] -eq '{') { $depth++ }
+        elseif ($text[$i] -eq '}') {
+            $depth--
+            if ($depth -eq 0) { return $text.Substring($open, $i - $open + 1) }
+        }
+    }
+    return $null
+}
+
 $projectProperties = Position 'the LocalGptProject property block' "modelBuilder.Entity(`"LocalGPT.BusinessObjects.LocalGptProject`", b =>`n                {`n                    b.Property<Guid>(`"Id`")"
 $revisionProperties = Position 'the LocalGptProjectRevision property block' "modelBuilder.Entity(`"LocalGPT.BusinessObjects.LocalGptProjectRevision`", b =>`n                {`n                    b.Property<Guid>(`"Id`")"
 $requirementProperties = Position 'the LocalGptProjectRequirement property block' "modelBuilder.Entity(`"LocalGPT.BusinessObjects.LocalGptProjectRequirement`", b =>`n                {`n                    b.Property<Guid>(`"Id`")"
@@ -50,32 +65,60 @@ if ($errors.Count -eq 0) {
     }
 }
 
-foreach ($navigation in @('Artifacts', 'Requirements', 'Revisions', 'Topics', 'Versions')) {
-    $count = ([regex]::Matches($snapshot, [regex]::Escape("b.Navigation(`"$navigation`");"))).Count
-    if ($count -ne 1) {
-        $errors.Add("LocalGptProject navigation '$navigation' must occur exactly once in the snapshot; found $count.")
-    }
-    if (-not ($projectModel.IndexOf("ICollection<", [StringComparison]::Ordinal) -ge 0) -or -not ($projectModel.IndexOf(" $navigation { get; set; }", [StringComparison]::Ordinal) -ge 0)) {
-        $errors.Add("LocalGptProject CLR model must retain collection navigation '$navigation'.")
+$projectNavigationBlock = Get-BracedBlock $snapshot $projectNavigation
+if ([string]::IsNullOrWhiteSpace($projectNavigationBlock)) {
+    $errors.Add('Final LocalGptProject navigation block could not be parsed.')
+} else {
+    foreach ($navigation in @('Artifacts', 'Requirements', 'Revisions', 'Topics', 'Versions', 'BuildVerifications', 'DocumentImports', 'EmbeddedFirmwarePlans', 'OrganicSkillLinks', 'WorkspaceRoots')) {
+        $token = "b.Navigation(`"$navigation`");"
+        $count = ([regex]::Matches($projectNavigationBlock, [regex]::Escape($token))).Count
+        if ($count -ne 1) {
+            $errors.Add("LocalGptProject navigation '$navigation' must occur exactly once in its final snapshot block; found $count.")
+        }
+        if (-not ($projectModel.IndexOf("ICollection<", [StringComparison]::Ordinal) -ge 0) -or -not ($projectModel.IndexOf(" $navigation { get; set; }", [StringComparison]::Ordinal) -ge 0)) {
+            $errors.Add("LocalGptProject CLR model must retain collection navigation '$navigation'.")
+        }
     }
 }
 
-foreach ($relationship in @('.WithMany("Artifacts")', '.WithMany("Requirements")', '.WithMany("Revisions")', '.WithMany("Topics")', '.WithMany("Versions")')) {
-    $count = ([regex]::Matches($snapshot, [regex]::Escape($relationship))).Count
-    if ($count -ne 1) {
-        $errors.Add("Snapshot relationship '$relationship' must occur exactly once; found $count.")
+# Relationship checks are entity-specific because revision, requirement and project entities now deliberately
+# share navigation names such as Artifacts and BuildVerifications. Global token counts would reject valid
+# reverse navigations and hide the actual architectural contract that each FK must target the right owner.
+foreach ($relationshipToken in @(
+    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Artifacts")',
+    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Requirements")',
+    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Revisions")',
+    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Topics")',
+    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProject", "Project")' + "`n" + '                        .WithMany("Versions")',
+    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision")' + "`n" + '                        .WithMany("Artifacts")',
+    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRevision", "Revision")' + "`n" + '                        .WithMany("Requirements")',
+    'b.HasOne("LocalGPT.BusinessObjects.LocalGptProjectRequirement", "Requirement")' + "`n" + '                        .WithMany("Artifacts")',
+    'b.HasOne("LocalGPT.BusinessObjects.ProjectCompilerInstallation", "CompilerInstallation")' + "`n" + '                        .WithMany("BuildVerifications")',
+    'b.HasOne("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", "KnowledgeEntry")' + "`n" + '                        .WithMany("ProjectTopicLinks")',
+    'b.HasOne("LocalGPT.BusinessObjects.CouncilKnowledgeEntry", "KnowledgeEntry")' + "`n" + '                        .WithMany("RegexPatternLinks")',
+    'b.HasOne("LocalGPT.BusinessObjects.RegexPattern", "RegexPattern")' + "`n" + '                        .WithMany("KnowledgeLinks")'
+)) {
+    if ($snapshot.IndexOf($relationshipToken, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("Snapshot relationship contract is missing: $relationshipToken")
     }
 }
 
-foreach ($token in @(
-    'modelBuilder.Entity<LocalGptProject>(entity =>',
+foreach ($contextToken in @(
     '.WithMany(project => project.Artifacts)',
     '.WithMany(project => project.Requirements)',
     '.WithMany(project => project.Revisions)',
     '.WithMany(project => project.Topics)',
-    '.WithMany(project => project.Versions)')) {
-    if (-not ($context.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
-        $errors.Add("DbContext must retain '$token'.")
+    '.WithMany(project => project.Versions)',
+    '.WithMany(revision => revision.Artifacts)',
+    '.WithMany(revision => revision.Requirements)',
+    '.WithMany(requirement => requirement.Artifacts)',
+    '.WithMany(installation => installation.BuildVerifications)',
+    '.WithMany(entry => entry.ProjectTopicLinks)',
+    '.WithMany(entry => entry.RegexPatternLinks)',
+    '.WithMany(pattern => pattern.KnowledgeLinks)'
+)) {
+    if ($context.IndexOf($contextToken, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("DbContext must retain '$contextToken'.")
     }
 }
 

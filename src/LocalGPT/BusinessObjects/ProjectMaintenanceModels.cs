@@ -260,6 +260,11 @@ public sealed class ProjectCompilerInstallation
     /// </summary>
     /// <value>The last validation message value exposed by <see cref="ProjectCompilerInstallation"/>.</value>
     [MaxLength(4000)] public string LastValidationMessage { get; set; } = string.Empty;
+    /// <summary>
+    /// Navigates to project build-verification records that used this exact compiler/runtime installation.
+    /// </summary>
+    /// <value>The build verifications performed with this installation.</value>
+    public ICollection<ProjectBuildVerification> BuildVerifications { get; set; } = [];
 }
 
 /// <summary>

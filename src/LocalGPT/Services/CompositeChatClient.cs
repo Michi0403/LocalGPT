@@ -495,7 +495,18 @@ public class CompositeChatClient : IChatClient
         }
         finally
         {
-            await updates.DisposeAsync().ConfigureAwait(false);
+            try
+            {
+                await updates.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogDebug("Streaming enumerator disposal completed during requested cancellation for session {SessionName}.", session.Name);
+            }
+            catch (ObjectDisposedException)
+            {
+                _logger.LogDebug("Streaming enumerator for session {SessionName} was already disposed during teardown.", session.Name);
+            }
         }
 
         if (streamFailure is not null && responseText.Length == 0 && !cancellationToken.IsCancellationRequested)
@@ -542,7 +553,18 @@ public class CompositeChatClient : IChatClient
             }
             finally
             {
-                await retryUpdates.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await retryUpdates.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogDebug("Retry streaming enumerator disposal completed during requested cancellation for session {SessionName}.", session.Name);
+                }
+                catch (ObjectDisposedException)
+                {
+                    _logger.LogDebug("Retry streaming enumerator for session {SessionName} was already disposed during teardown.", session.Name);
+                }
             }
         }
 

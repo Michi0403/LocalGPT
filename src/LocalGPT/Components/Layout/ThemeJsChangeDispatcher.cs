@@ -1,4 +1,5 @@
 using DevExpress.Blazor;
+using DevExpress.Blazor.Popup.Internal;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using LocalGPT.Services;
@@ -508,11 +509,20 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             {
                 try
                 {
-                    await _module.DisposeAsync().ConfigureAwait(false);
+                    if (!_module.IsDisposed())
+                        await _module.DisposeAsync().ConfigureAwait(false);
                 }
                 catch (JSDisconnectedException)
                 {
                     Logger.LogDebug("Theme JavaScript module disposal ended after browser disconnect.");
+                }
+                catch (OperationCanceledException)
+                {
+                    Logger.LogDebug("Theme JavaScript module disposal was canceled during component teardown.");
+                }
+                catch (ObjectDisposedException)
+                {
+                    Logger.LogDebug("Theme JavaScript module was already disposed during component teardown.");
                 }
                 finally
                 {

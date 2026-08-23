@@ -112,6 +112,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<INativeCommandRunner, NativeCommandRunner>();
                 builder.Services.AddSingleton<IRegexCompilationService, RegexCompilationService>();
                 builder.Services.AddSingleton<IRegexPatternService, RegexPatternService>();
+                builder.Services.AddSingleton<IKnowledgeRegexLinkService, KnowledgeRegexLinkService>();
                 builder.Services.AddScoped<IPromptConfigService, PromptConfigService>();
                 builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
                 builder.Services.AddScoped<IFirstRunOnboardingService, FirstRunOnboardingService>();
