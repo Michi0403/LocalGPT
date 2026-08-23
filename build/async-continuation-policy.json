@@ -43,6 +43,10 @@
       "SaveAsync"
     ],
     "Components/Pages/DxFunctionCatalog.razor": [
+      "ReloadAsync",
+      "SynchronizeAsync",
+      "SaveAsync",
+      "SaveVisibleAsync",
       "HandleUserFunctionsChangedAsync"
     ]
   },
