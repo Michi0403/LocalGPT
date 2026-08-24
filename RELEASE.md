@@ -1,13 +1,11 @@
-# LocalGPT 3.2.9
+# LocalGPT 3.3.0
 
-LocalGPT 3.2.9 is a database-workbench, relationship-model and lifecycle-hardening release. It keeps the 3.2.8 DX Functions render repair and applies the same lessons to the broader application without changing PublisherStudio.
+LocalGPT 3.3.0 is a theme-contrast and navigation-chrome repair release built on the 3.2.9 database, relationship and lifecycle work.
 
-The SQLite Database page now uses the newer responsive workbench layout with separate **Knowledge & relationships** and **SQLite tables** panels. Knowledge and generic database records use semantic selection labels instead of making raw row identifiers the primary way to find data. Council knowledge can now be explicitly related to reusable RegEx patterns with a purpose and human-readable meaning, and the previously difficult-to-reach project/topic knowledge links are editable from the same knowledge workbench.
+The main correction is architectural rather than a theme-by-theme patch: LocalGPT's shell and DevExpress component themes are intentionally selectable independently, so application chrome can no longer depend on DevExpress button foreground variables. Menu, Back to Home, drawer header/footer controls and the important Chat actions now consume LocalGPT-owned contrast tokens instead. Navigation icons are rendered as masks, eliminating the white-square/background artifact caused by the old broad `MainLayout ::deep .icon` rule and making black/white source SVGs equally visible.
 
-The EF object graph now restores reverse navigation for persisted foreign keys that were already present in the database, while deliberately leaving correlation-style and currently soft identifiers unchanged. The supplied database passed SQLite integrity and foreign-key checks; the release therefore repairs application navigation/accessibility rather than inventing a broad destructive relationship migration.
+Projects now has its own `projects.svg` navigation/heading icon and Project Maintenance has a related maintenance variant. Chat primary, neutral, success and danger actions plus runtime send/upload controls also use explicit shell-aware contrast styling.
 
-Lifecycle review found another post-await first-render update in the responsive drawer and hardened the narrow asynchronous-disposal paths that can legitimately race with browser/circuit shutdown. The user's `IJSObjectReference.IsDisposed()` guard in `ThemeJsChangeDispatcher` is retained; expected disconnect, cancellation and already-disposed teardown outcomes no longer become noisy failures there or in the ASCII game-console teardown. Streaming enumerator cleanup is also tolerant of requested cancellation/already-disposed races while unexpected cleanup faults remain visible.
+No persistence, Council, RegEx, DXFunction, provider, 1-Wire or deployment behavior changes in this release. InteractiveServer boundaries remain unchanged. DevExpress remains **25.2.9** and PublisherStudio remains **2.9.7**.
 
-See `CHANGELOG-v3.2.9-DATABASE-KNOWLEDGE-RELATIONSHIPS-LIFECYCLE-HARDENING.md`, `DATABASE-RELATIONSHIP-ANALYSIS-v3.2.9.md`, `HISTORICAL-CAPABILITY-REVIEW-v3.2.9.md`, and `VALIDATION-v3.2.9-source.md`.
-
-PublisherStudio remains at **2.9.7** and is unchanged by this release.
+See `CHANGELOG-v3.3.0-THEME-CONTRAST-NAVIGATION-ICON-REPAIR.md` and `VALIDATION-v3.3.0-source.md`.

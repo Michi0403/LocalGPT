@@ -47,13 +47,13 @@
         <ToastWrapper Name="@toastName" />
         <div class="chat-primary-actions" data-testid="chat-primary-actions">
             <DxButton Text="Start new chat"
-                      CssClass="chat-new-session-button localgpt-rounded-action"
+                      CssClass="chat-new-session-button localgpt-rounded-action localgpt-action-primary"
                       RenderStyle="ButtonRenderStyle.Primary"
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       IconCssClass="oi oi-plus"
                       Click="ClearHistoryAsync" />
             <DxButton Text="@(showGameConsole ? "Hide ASCII games" : "Show ASCII games")"
-                      CssClass="localgpt-rounded-action"
+                      CssClass="localgpt-rounded-action localgpt-action-neutral"
                       RenderStyle="ButtonRenderStyle.Secondary"
                       RenderStyleMode="ButtonRenderStyleMode.Outline"
                       IconCssClass="oi oi-monitor"
@@ -533,11 +533,11 @@
                            @bind="ArchitecturePollNotes"
                            placeholder="Example: ask me first if target platform, framework, data model, or deployment are unclear." />
                 </label>
-                <DxButton CssClass="localgpt-rounded-action" Text="Add Decision To Chat"
+                <DxButton CssClass="localgpt-rounded-action localgpt-action-primary" Text="Add Decision To Chat"
                           RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Click="AddArchitecturePollToChatAsync" />
-                <DxButton CssClass="localgpt-rounded-action" Text="Reset"
+                <DxButton CssClass="localgpt-rounded-action localgpt-action-neutral" Text="Reset"
                           RenderStyle="ButtonRenderStyle.Secondary"
                           RenderStyleMode="ButtonRenderStyleMode.Outline"
                           Click="ResetArchitecturePoll" />
@@ -565,7 +565,7 @@
             var newestLiveSession = RunningLiveCouncilSessions[0];
             <div class="chat-live-session-inline-info" aria-live="off">
                 <span><strong>Live Council @ShortCouncilRunId(newestLiveSession.RunId)</strong> is running and can be joined without stopping it.</span>
-                <DxButton CssClass="localgpt-rounded-action" Text="Join live transcript"
+                <DxButton CssClass="localgpt-rounded-action localgpt-action-primary" Text="Join live transcript"
                           RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Click="@(() => JoinCouncilSessionAsync(newestLiveSession.RunId))" />
@@ -777,14 +777,14 @@
             </details>
             @if (CanJoinSelectedCouncilRun)
             {
-                <DxButton CssClass="localgpt-rounded-action" Text="Join selected transcript"
+                <DxButton CssClass="localgpt-rounded-action localgpt-action-primary" Text="Join selected transcript"
                           RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Click="RejoinSelectedCouncilSessionAsync" />
             }
             @if (IsLiveCouncilInteractionAvailable)
             {
-                <DxButton CssClass="localgpt-rounded-action" Text="Stop active Council"
+                <DxButton CssClass="localgpt-rounded-action localgpt-action-danger" Text="Stop active Council"
                           RenderStyle="ButtonRenderStyle.Danger"
                           RenderStyleMode="ButtonRenderStyleMode.Outline"
                           Click="StopSelectedCouncilSessionAsync" />
@@ -802,7 +802,7 @@
             </label>
             @if (collaborationSnapshot.Profile.IsEnabled && IsLiveCouncilInteractionAvailable && !string.IsNullOrWhiteSpace(RunningCouncilContribution))
             {
-                <DxButton CssClass="localgpt-rounded-action" Text="Share without stopping generation"
+                <DxButton CssClass="localgpt-rounded-action localgpt-action-primary" Text="Share without stopping generation"
                           RenderStyle="ButtonRenderStyle.Primary"
                           RenderStyleMode="ButtonRenderStyleMode.Contained"
                           Click="QueueRunningCouncilContributionAsync" />
@@ -837,15 +837,15 @@
                     <input type="text" maxlength="4000" @bind="FeedbackComment" placeholder="What was useful or wrong?" />
                 </label>
                 <div class="chat-feedback-actions">
-                    <DxButton CssClass="localgpt-rounded-action" Text="Helpful"
+                    <DxButton CssClass="localgpt-rounded-action localgpt-action-success" Text="Helpful"
                               RenderStyle="ButtonRenderStyle.Success"
                               RenderStyleMode="ButtonRenderStyleMode.Contained"
                               Click="@(() => RecordSelectedFeedbackAsync(true))" />
-                    <DxButton CssClass="localgpt-rounded-action" Text="Not helpful"
+                    <DxButton CssClass="localgpt-rounded-action localgpt-action-danger" Text="Not helpful"
                               RenderStyle="ButtonRenderStyle.Danger"
                               RenderStyleMode="ButtonRenderStyleMode.Outline"
                               Click="@(() => RecordSelectedFeedbackAsync(false))" />
-                    <DxButton CssClass="localgpt-rounded-action" Text="Clear rating"
+                    <DxButton CssClass="localgpt-rounded-action localgpt-action-neutral" Text="Clear rating"
                               RenderStyle="ButtonRenderStyle.Secondary"
                               RenderStyleMode="ButtonRenderStyleMode.Outline"
                               Click="ClearSelectedFeedbackAsync" />

@@ -1164,6 +1164,85 @@
     touch-action: manipulation;
 }
 
+/* Mixed shell/component themes can otherwise inherit a DevExpress text color that has
+   insufficient contrast against the Chat surface. Semantic classes keep meaning and contrast. */
+.main-container ::deep .localgpt-rounded-action * {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+}
+
+.main-container ::deep .localgpt-action-neutral {
+    --dxbl-btn-color: var(--localgpt-body-color);
+    --dxbl-btn-hover-color: var(--localgpt-body-color);
+    color: var(--localgpt-body-color) !important;
+    -webkit-text-fill-color: var(--localgpt-body-color) !important;
+    background: var(--localgpt-surface-raised-bg) !important;
+    border-color: var(--localgpt-border-color) !important;
+}
+
+.main-container ::deep .localgpt-action-primary {
+    --dxbl-btn-color: #fff;
+    --dxbl-btn-hover-color: #fff;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    background: var(--localgpt-primary) !important;
+    background: color-mix(in srgb, var(--localgpt-primary) 55%, #111827 45%) !important;
+    border-color: color-mix(in srgb, var(--localgpt-primary) 55%, #111827 45%) !important;
+}
+
+.main-container ::deep .localgpt-action-success {
+    --dxbl-btn-color: #fff;
+    --dxbl-btn-hover-color: #fff;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    background: var(--localgpt-success) !important;
+    background: color-mix(in srgb, var(--localgpt-success) 78%, #111827 22%) !important;
+    border-color: color-mix(in srgb, var(--localgpt-success) 78%, #111827 22%) !important;
+}
+
+.main-container ::deep .localgpt-action-danger {
+    --dxbl-btn-color: #fff;
+    --dxbl-btn-hover-color: #fff;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    background: var(--localgpt-danger) !important;
+    background: color-mix(in srgb, var(--localgpt-danger) 78%, #111827 22%) !important;
+    border-color: color-mix(in srgb, var(--localgpt-danger) 78%, #111827 22%) !important;
+}
+
+.main-container ::deep :is(.localgpt-action-primary, .localgpt-action-success, .localgpt-action-danger):disabled {
+    opacity: .58;
+}
+
+/* Native Bootstrap buttons in Chat use the same shell palette instead of assuming the
+   Bootstrap theme and DevExpress component theme have matching luminance. */
+.main-container .btn-outline-secondary {
+    color: var(--localgpt-body-color) !important;
+    background: var(--localgpt-surface-raised-bg) !important;
+    border-color: var(--localgpt-border-color) !important;
+}
+
+.main-container .btn-outline-secondary:hover,
+.main-container .btn-outline-secondary:focus-visible {
+    color: var(--localgpt-body-color) !important;
+    background: color-mix(in srgb, var(--localgpt-surface-raised-bg) 84%, var(--localgpt-primary) 16%) !important;
+    border-color: color-mix(in srgb, var(--localgpt-border-color) 55%, var(--localgpt-primary) 45%) !important;
+}
+
+.main-container .btn-primary {
+    color: #fff !important;
+    background: var(--localgpt-primary) !important;
+    background: color-mix(in srgb, var(--localgpt-primary) 55%, #111827 45%) !important;
+    border-color: color-mix(in srgb, var(--localgpt-primary) 55%, #111827 45%) !important;
+}
+
+.main-container .btn-outline-danger {
+    color: #fff !important;
+    background: var(--localgpt-danger) !important;
+    background: color-mix(in srgb, var(--localgpt-danger) 62%, #111827 38%) !important;
+    border-color: color-mix(in srgb, var(--localgpt-danger) 62%, #111827 38%) !important;
+}
+
 .main-container ::deep .localgpt-rounded-action:focus-visible {
     outline: 3px solid color-mix(in srgb, var(--bs-primary, #ff6b00) 38%, transparent) !important;
     outline-offset: 2px;
@@ -3025,4 +3104,35 @@
     color: inherit;
     cursor: pointer;
     font: inherit;
+}
+
+
+/* v3.3.0 composer contrast: these runtime-owned classes are attached by LocalGPT's chat UI
+   observer, so the send/upload controls stay visible even when shell and DevExpress themes differ. */
+.main-container ::deep .localgpt-send-button {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    background: var(--localgpt-primary) !important;
+    background: color-mix(in srgb, var(--localgpt-primary) 55%, #111827 45%) !important;
+    border: 1px solid color-mix(in srgb, var(--localgpt-primary) 55%, #111827 45%) !important;
+    box-shadow: var(--localgpt-shadow-soft);
+}
+
+.main-container ::deep .localgpt-upload-button {
+    color: var(--localgpt-body-color) !important;
+    -webkit-text-fill-color: var(--localgpt-body-color) !important;
+    background: var(--localgpt-surface-raised-bg) !important;
+    border: 1px solid var(--localgpt-border-color) !important;
+    box-shadow: var(--localgpt-shadow-soft);
+}
+
+.main-container ::deep .localgpt-send-button:hover,
+.main-container ::deep .localgpt-send-button:focus-visible {
+    background: color-mix(in srgb, var(--localgpt-primary) 62%, #111827 38%) !important;
+}
+
+.main-container ::deep .localgpt-upload-button:hover,
+.main-container ::deep .localgpt-upload-button:focus-visible {
+    background: color-mix(in srgb, var(--localgpt-surface-raised-bg) 84%, var(--localgpt-primary) 16%) !important;
+    border-color: color-mix(in srgb, var(--localgpt-border-color) 55%, var(--localgpt-primary) 45%) !important;
 }

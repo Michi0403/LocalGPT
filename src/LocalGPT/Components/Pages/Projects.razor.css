@@ -14,6 +14,25 @@
 }
 
 .projects-header > div { min-width: 0; }
+
+.projects-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: .85rem;
+    min-width: 0;
+}
+
+.projects-heading > div { min-width: 0; }
+
+.projects-heading-icon {
+    flex: 0 0 3rem;
+    width: 3rem;
+    height: 3rem;
+    margin-top: .15rem;
+    background: var(--localgpt-primary);
+    -webkit-mask: url("images/projects.svg") center / contain no-repeat;
+    mask: url("images/projects.svg") center / contain no-repeat;
+}
 .projects-header p { max-width: 100ch; }
 
 .projects-layout {

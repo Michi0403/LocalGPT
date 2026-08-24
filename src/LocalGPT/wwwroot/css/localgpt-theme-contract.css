@@ -34,6 +34,12 @@
     --localgpt-focus-ring: 0 0 0 0.25rem rgba(var(--localgpt-primary-rgb), 0.25);
     --localgpt-radius: var(--bs-border-radius, 0.375rem);
     --localgpt-radius-lg: var(--bs-border-radius-lg, 0.5rem);
+    /* Stable application-chrome colors bridge independently selectable shell/component themes. */
+    --localgpt-navigation-bg: #151d29;
+    --localgpt-navigation-color: #f8fafc;
+    --localgpt-navigation-muted: rgba(248, 250, 252, .78);
+    --localgpt-navigation-border: rgba(248, 250, 252, .22);
+    --localgpt-navigation-hover-bg: rgba(248, 250, 252, .12);
 }
 
 html[data-bs-theme="dark"] {

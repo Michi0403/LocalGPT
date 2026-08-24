@@ -1,50 +1,86 @@
+
 .page {
     height: 100%;
     font-family: var(--bs-font-sans-serif);
-}
-
-::deep .icon-back {
-    -webkit-mask-image: url("images/back.svg");
-    mask-image: url("images/back.svg");
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    width: 1rem;
-    height: 1rem;
-    background-repeat: no-repeat;
-    background-color: var(--dxbl-btn-color);
 }
 
 ::deep .content {
     overflow: auto;
 }
 
-::deep .back-button:hover .icon-back {
-    background-color: var(--dxbl-btn-hover-color);
-}
-
-/*@media (max-width: 768px) {
-    ::deep .layout-sidebar {
-        grid-area: header / header / header / header !important;
-    }
-}*/
-
 .logo {
     text-align: center;
     max-width: 150px;
-    opacity: 0.85; /* Slight translucency */
-    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3)); /* Soft glow */
-    transition: all 0.3s ease; /* Smooth on hover, if needed */
+    opacity: 0.85;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+    transition: all 0.3s ease;
 }
 
-::deep .icon {
+/*
+ * Shell controls deliberately use LocalGPT palette tokens instead of the active DevExpress
+ * component theme. Shell and component themes are independently selectable, so relying on
+ * --dxbl-btn-color here can make toolbar text/icons disappear in mixed theme combinations.
+ */
+::deep .localgpt-shell-toolbar-button {
+    --dxbl-btn-color: var(--localgpt-body-color);
+    --dxbl-btn-hover-color: var(--localgpt-body-color);
+    --dxbl-btn-active-color: var(--localgpt-body-color);
+    color: var(--localgpt-body-color) !important;
+    -webkit-text-fill-color: var(--localgpt-body-color) !important;
+    background: transparent !important;
+    border: 1px solid color-mix(in srgb, var(--localgpt-border-color) 72%, transparent) !important;
+    box-shadow: none;
+}
+
+::deep .localgpt-shell-toolbar-button *,
+::deep .localgpt-navigation-button * {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+}
+
+::deep .localgpt-shell-toolbar-button:hover,
+::deep .localgpt-shell-toolbar-button:focus-visible {
+    color: var(--localgpt-body-color) !important;
+    -webkit-text-fill-color: var(--localgpt-body-color) !important;
+    background: color-mix(in srgb, var(--localgpt-surface-raised-bg) 86%, var(--localgpt-primary) 14%) !important;
+    border-color: color-mix(in srgb, var(--localgpt-border-color) 55%, var(--localgpt-primary) 45%) !important;
+}
+
+::deep .localgpt-navigation-button {
+    --dxbl-btn-color: var(--localgpt-navigation-color);
+    --dxbl-btn-hover-color: var(--localgpt-navigation-color);
+    --dxbl-btn-active-color: var(--localgpt-navigation-color);
+    color: var(--localgpt-navigation-color) !important;
+    -webkit-text-fill-color: var(--localgpt-navigation-color) !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+}
+
+::deep .localgpt-navigation-button:hover,
+::deep .localgpt-navigation-button:focus-visible {
+    color: var(--localgpt-navigation-color) !important;
+    -webkit-text-fill-color: var(--localgpt-navigation-color) !important;
+    background: var(--localgpt-navigation-hover-bg) !important;
+    border-color: var(--localgpt-navigation-border) !important;
+}
+
+/* Only shell buttons receive masked icon foregrounds. Do not target every .icon descendant:
+   NavMenu owns its own icons and a generic background-color creates the white square regression. */
+::deep .localgpt-shell-toolbar-button .icon,
+::deep .localgpt-navigation-button .icon {
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
-    mask-position: center center;
-    -webkit-mask-mask-position: center center;
-    width: 6rem;
-    height: 2rem;
-    background-repeat: no-repeat;
-    background-color: var(--dxbl-btn-color);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    width: 1.25rem;
+    height: 1.25rem;
+    background: currentColor !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
 
 ::deep .icon-back {
@@ -58,57 +94,40 @@
 }
 
 ::deep .icon-menu {
-    color: var(--bs-primary); /* for text color */
-    background: var(--bs-primary); /* for backgrounds */
-    -webkit-mask-image: url("images/menubutton.svg");
-    mask-image: url("images/menubutton.svg");
+    -webkit-mask-image: url("images/menu.svg");
+    mask-image: url("images/menu.svg");
 }
 
-
 ::deep .docs-icon {
-    mask-image: url("images/doc.svg");
     -webkit-mask-image: url("images/doc.svg");
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    background-color: var(--dxbl-btn-color);
+    mask-image: url("images/doc.svg");
 }
 
 ::deep .demos-icon {
-    mask-image: url("images/demos.svg");
     -webkit-mask-image: url("images/demos.svg");
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    background-color: var(--dxbl-btn-color);
-}
-
-::deep .footer-button:hover .demos-icon {
-    background-color: var(--dxbl-btn-hover-color);
-}
-
-::deep .footer-button:hover .docs-icon {
-    background-color: var(--dxbl-btn-hover-color);
-}
-
-::deep .menu-button:hover .icon {
-    background-color: var(--dxbl-btn-hover-color);
-}
-
-::deep .menu-button-nav:hover .icon {
-    background-color: var(--dxbl-btn-hover-color);
+    mask-image: url("images/demos.svg");
 }
 
 .panel-open .menu-button {
     display: inline-flex;
 }
 
+.menu-button,
 .menu-button-nav {
-    background-image: url("images/close.svg");
-    width: 1.875rem;
-    height: 1.875rem;
+    min-width: 2.65rem;
+    min-height: 2.65rem;
+}
+
+::deep .localgpt-back-home-button {
+    width: auto !important;
+    min-width: max-content;
+    padding-inline: .8rem !important;
+    gap: .4rem;
 }
 
 .nav-buttons-container {
     display: flex;
+    align-items: center;
     gap: 10px;
     padding: 2rem 1rem;
 }

@@ -26,12 +26,12 @@
                 <div class="nav-buttons-container drawer-target">
 
                     <NavLink data-enhance-nav="false" href="@NavigationUrls.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
-                        <DxButton RenderStyle="@ButtonRenderStyle.Dark" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button" IconCssClass="icon icon-menu"></DxButton>
+                        <DxButton RenderStyle="@ButtonRenderStyle.Dark" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button localgpt-shell-toolbar-button" IconCssClass="icon icon-menu"></DxButton>
                     </NavLink>
                     @if (new Uri(NavigationManager.Uri).LocalPath != "/")
                     {
                         <NavLink data-enhance-nav="false" href="@NavigationUrls.GetUrl("/", ToggledSidebar)" class="button-link hidden">
-                            <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Back to Home" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="icon icon-back"></DxButton>
+                            <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Back to Home" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav localgpt-shell-toolbar-button localgpt-back-home-button" IconCssClass="icon icon-back"></DxButton>
                         </NavLink>
                     }
                     <div class="language-switcher" aria-label="@LanguageLabel">
@@ -171,7 +171,7 @@
     private RenderFragment drawerHeader => @<div class="navigation-drawer-header">
         <img class="logo" src="images/TacosLogos.svg" alt="LocalGPT logo" />
         <NavLink data-enhance-nav="false" href="@NavigationUrls.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
-            <DxButton RenderStyle="@ButtonRenderStyle.Light" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="@(ToggledSidebar ? "icon icon-close" : "icon icon-menu")"></DxButton>
+            <DxButton RenderStyle="@ButtonRenderStyle.Light" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav localgpt-navigation-button" IconCssClass="@(ToggledSidebar ? "icon icon-close" : "icon icon-menu")"></DxButton>
         </NavLink>
     </div>;
 
@@ -181,7 +181,7 @@
     /// <value>The drawer footer value exposed by <see cref="MainLayout"/>.</value>
     private RenderFragment drawerFooter => @<div>
     <NavLink href="https://github.com/Michi0403/LocalGPT" class="button-link">
-            <DxButton Text="Github" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="footer-button" RenderStyle="@ButtonRenderStyle.Light" IconCssClass="icon docs-icon"></DxButton>
+            <DxButton Text="Github" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="footer-button localgpt-navigation-button" RenderStyle="@ButtonRenderStyle.Light" IconCssClass="icon docs-icon"></DxButton>
         </NavLink>
     </div>
     ;
