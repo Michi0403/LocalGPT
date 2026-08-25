@@ -211,5 +211,15 @@ See [`docs/reference/design-evolution.md`](docs/reference/design-evolution.md).
 
 **Built as a workshop, not operated as a store.**<br>
 Use it, inspect it, fork it, improve it, or build something entirely different from it.
-
+How it works:
+https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/Screenshot.2026-08-26.005223.png
+https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/Screenshot.2026-08-26.005245.png
+https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/Screenshot.2026-08-26.005253.png
+https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/Screenshot.2026-08-26.005314.png
+https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/Screenshot.2026-08-26.005514.png
+https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/teamssettings.html
+https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/LocalGPTChat.html
+https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/LocalGPTAiSetupPage.html
+https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/council-20260816-134119-8e6e1a77d24c40b99c7c096dbb06b197.md
+https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/council-20260821-000301-fd21d7bdaeb84f2b93ad688541ca140d.md
 </div>
