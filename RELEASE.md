@@ -1,9 +1,9 @@
-# LocalGPT 3.3.3
+# LocalGPT 3.3.4
 
-LocalGPT 3.3.3 hardens the .NET 10 / DocFX documentation pipeline after the macOS release build reached documentation generation but reported an unresolved `System.Formats.Nrbf` assembly reference.
+LocalGPT 3.3.4 completes the cross-platform PowerShell documentation prerequisite path exposed by the macOS release build.
 
-The documentation source build now materializes package dependencies, the DocFX pipeline repairs missing shared-framework probe assemblies from installed .NET runtimes, retries metadata extraction, records the dependency-resolution result, and refuses to accept a supposedly complete API graph while unresolved assembly references remain.
+`Build-Release.ps1` and `Build-LocalDevelopment.ps1` now run an early prerequisite bootstrap that keeps the DevExpress license preflight, checks `dotnet`, and resolves Node.js before the long build. A compatible Node.js 20-22 installation is reused when available; otherwise LocalGPT downloads portable Node.js 22.23.2 for the current Windows, macOS or Linux architecture into a per-user cache, verifies the archive against the official Node.js SHA-256 manifest, and exports it to DocFX/Playwright without requiring an administrator/root install.
 
-This intentionally fixes the documentation toolchain instead of adding a synthetic `System.Formats.Nrbf` package dependency to the LocalGPT application.
+The documentation pipeline uses the same shared resolver. Large macOS/Linux manuals now bypass the direct Chromium print path above 1000 pages and use the DocFX PDF plug-in directly, avoiding the noisy Edge `Printing failed` path observed on the 1132-page LocalGPT manual. The 3.3.3 DocFX assembly-reference closure repair remains included, so unresolved framework references are still repaired/retried and release documentation still requires zero unresolved assembly references.
 
-See `CHANGELOG-v3.3.3-DOCFX-ASSEMBLY-REFERENCE-CLOSURE.md` and `VALIDATION-v3.3.3-source.md`.
+See `CHANGELOG-v3.3.4-CROSS-PLATFORM-DOCUMENTATION-RUNTIME.md` and `VALIDATION-v3.3.4-source.md`.

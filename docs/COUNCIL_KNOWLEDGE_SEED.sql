@@ -1,6 +1,0 @@
--- Retired historical seed file.
---
--- Runtime repository knowledge is now seeded by InitialDataCatalog from an explicit,
--- human-reviewed allowlist of Markdown files. Raw SQL knowledge seeds are deliberately
--- not copied to runtime output and must not be treated as instructions or authority.
--- Model-generated feature reports remain unapproved until the human reviews them.

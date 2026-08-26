@@ -144,7 +144,19 @@ pwsh ./build/Register-DevExpressLicense.ps1 -LicenseFile "$HOME/Downloads/DevExp
 
 Alternatively use the case-sensitive `DevExpress_LicensePath` (folder) or `DevExpress_License` (key value) environment variable. If DevExpress reports DX1002 after the key is found, update the key so it supports the 25.2 major version, then restart the IDE/terminal and rebuild. Never commit `DevExpress_License.txt` or a license value.
 
-The documentation stage now looks for Chromium-family browsers both on `PATH` and in normal macOS application-bundle locations. `LOCALGPT_DOCUMENTATION_BROWSER` can still override the browser executable explicitly.
+#### Cross-platform documentation prerequisites
+
+The release and local-development PowerShell entry points now prepare the documentation runtime before the long build starts. LocalGPT accepts an existing Node.js 20-22 installation, but if no compatible runtime is available it downloads a **portable per-user Node.js 22.23.2 runtime** for the current Windows, macOS, or Linux architecture. The download is verified against the official Node.js `SHASUMS256.txt` manifest and is stored outside the repository in the LocalGPT documentation-tool cache; administrator/root installation is not required.
+
+You can run the same preflight explicitly:
+
+```powershell
+pwsh ./build/Initialize-BuildPrerequisites.ps1
+```
+
+On Apple Silicon this selects the `darwin-arm64` distribution; Intel Macs use `darwin-x64`; Linux uses the matching `linux-x64` or `linux-arm64` archive; Windows selects the matching ZIP. The resolved executable is exported as `PLAYWRIGHT_NODEJS_PATH` for DocFX/Playwright and its directory is prepended to the current build process `PATH` only.
+
+The documentation stage also looks for Chromium-family browsers both on `PATH` and in normal macOS application-bundle locations. `LOCALGPT_DOCUMENTATION_BROWSER` can still override the browser executable explicitly. If direct Chromium-family printing cannot produce the very large complete manual, the build falls back to the DocFX PDF plug-in using the provisioned Node.js runtime instead of asking the developer to install Node manually.
 
 Before publishing or creating a verified source package, follow the repository validation and release process rather than improvising a manual package:
 

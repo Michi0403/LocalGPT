@@ -1,9 +1,0 @@
-items:
-- name: Reference home
-  href: index.md
-- name: Capability map
-  href: capability-map.md
-- name: Design evolution
-  href: design-evolution.md
-- name: Documentation migration
-  href: documentation-migration.md

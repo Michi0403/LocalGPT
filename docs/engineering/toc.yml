@@ -1,9 +1,0 @@
-items:
-- name: Engineering home
-  href: index.md
-- name: Build and validation
-  href: build-validation.md
-- name: Release and documentation
-  href: release-and-docs.md
-- name: Maintenance status
-  href: maintenance-status.md
