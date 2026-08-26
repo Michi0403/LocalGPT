@@ -62,6 +62,8 @@ $apiYamlCount = 0
 $apiHtmlCount = 0
 $apiNavigationGroupCount = 0
 $xmlCommentPolishCount = 0
+$unresolvedAssemblyReferences = @()
+$docfxDependencyRepairCount = 0
 $articleSourceCount = @(
     Get-ChildItem -LiteralPath $docsRoot -Filter "*.md" -File -Recurse -ErrorAction SilentlyContinue |
         Where-Object {
@@ -1995,6 +1997,88 @@ function Test-LocalGptTransientDocfxFailure {
     return $text -match '(?i)(being used by another process|process cannot access the file|sharing violation|System\.IO\.IOException|SafeFileHandle\.CreateFile)'
 }
 
+function Get-LocalGptUnresolvedAssemblyReferences {
+    param([AllowNull()][object[]]$Output)
+
+    $names = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($entry in @($Output)) {
+        $line = [string]$entry
+        $match = [regex]::Match($line, '(?i)Unable\s+to\s+resolve\s+assembly\s+reference\s+([^,\s]+)')
+        if ($match.Success) {
+            [void]$names.Add($match.Groups[1].Value.Trim())
+        }
+    }
+    return @($names | Sort-Object)
+}
+
+function Get-LocalGptSharedRuntimeProbeDirectories {
+    $directories = [System.Collections.Generic.List[string]]::new()
+    $dotnetCommand = Get-Command dotnet -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $dotnetCommand) { return @() }
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $runtimeLines = @(& dotnet --list-runtimes 2>$null)
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    foreach ($entry in $runtimeLines) {
+        $line = [string]$entry
+        $match = [regex]::Match($line, '^\s*(Microsoft\.(?:NETCore|AspNetCore)\.App)\s+([^\s]+)\s+\[(.+)\]\s*$')
+        if (-not $match.Success) { continue }
+        $version = $match.Groups[2].Value.Trim()
+        $basePath = $match.Groups[3].Value.Trim()
+        $candidate = Join-Path $basePath $version
+        if ((Test-Path -LiteralPath $candidate -PathType Container) -and -not $directories.Contains($candidate)) {
+            $directories.Add($candidate)
+        }
+    }
+
+    # Prefer the .NET 10 runtime family used by LocalGPT, then keep other installed runtimes as a
+    # last-resort probe source for tooling-only references without changing the application target.
+    return @($directories | Sort-Object @{ Expression = { if ($_ -match '[\\/]10\.0\.[^\\/]+$') { 0 } else { 1 } } }, @{ Expression = { $_ } })
+}
+
+function Repair-LocalGptDocfxAssemblyReferences {
+    param(
+        [Parameter(Mandatory)][string[]]$ReferenceNames,
+        [Parameter(Mandatory)][string]$InputRoot,
+        [Parameter(Mandatory)][string]$AssemblyDirectory
+    )
+
+    $probeDirectories = [System.Collections.Generic.List[string]]::new()
+    if (Test-Path -LiteralPath $AssemblyDirectory -PathType Container) { $probeDirectories.Add($AssemblyDirectory) }
+    foreach ($runtimeDirectory in @(Get-LocalGptSharedRuntimeProbeDirectories)) {
+        if (-not $probeDirectories.Contains($runtimeDirectory)) { $probeDirectories.Add($runtimeDirectory) }
+    }
+
+    $copied = [System.Collections.Generic.List[string]]::new()
+    foreach ($referenceName in @($ReferenceNames | Sort-Object -Unique)) {
+        if ([string]::IsNullOrWhiteSpace($referenceName)) { continue }
+        $destination = Join-Path $InputRoot ($referenceName + '.dll')
+        if (Test-Path -LiteralPath $destination -PathType Leaf) { continue }
+
+        $source = $null
+        foreach ($probeDirectory in $probeDirectories) {
+            $candidate = Join-Path $probeDirectory ($referenceName + '.dll')
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                $source = $candidate
+                break
+            }
+        }
+        if ($null -eq $source) { continue }
+
+        Copy-Item -LiteralPath $source -Destination $destination -Force
+        $copied.Add($referenceName)
+        Write-Host "DocFX dependency probe: copied '$referenceName.dll' from '$source'." -ForegroundColor DarkCyan
+    }
+
+    return @($copied)
+}
+
 function Invoke-LocalGptDocfxWithRetry {
     param(
         [Parameter(Mandatory)][string[]]$Arguments,
@@ -2194,13 +2278,34 @@ try {
                 Copy-Item -LiteralPath $polishedXmlPath -Destination $documentationXmlPath -Force
             }
             $metadataResult = Invoke-LocalGptDocfxWithRetry -Arguments @("metadata", $configPath) -ReadableRoot $inputRoot -ResetRootOnRetry $apiRoot
+            for ($dependencyRepairPass = 1; $dependencyRepairPass -le 3; $dependencyRepairPass++) {
+                $unresolvedAssemblyReferences = @(Get-LocalGptUnresolvedAssemblyReferences -Output $metadataResult.Output)
+                if ($unresolvedAssemblyReferences.Count -eq 0) { break }
+
+                $repairedReferences = @(Repair-LocalGptDocfxAssemblyReferences `
+                    -ReferenceNames $unresolvedAssemblyReferences `
+                    -InputRoot $inputRoot `
+                    -AssemblyDirectory $assemblyDirectory)
+                $docfxDependencyRepairCount += $repairedReferences.Count
+                if ($repairedReferences.Count -eq 0) { break }
+
+                Remove-LocalGptTemporaryPath -Path $apiRoot -Attempts 8 -DelayMilliseconds 250
+                Write-Host "Retrying DocFX metadata after repairing $($repairedReferences.Count) assembly reference(s)." -ForegroundColor Cyan
+                $metadataResult = Invoke-LocalGptDocfxWithRetry -Arguments @("metadata", $configPath) -ReadableRoot $inputRoot -ResetRootOnRetry $apiRoot
+            }
+            $unresolvedAssemblyReferences = @(Get-LocalGptUnresolvedAssemblyReferences -Output $metadataResult.Output)
             $apiTocPath = Join-Path $apiRoot "toc.yml"
             $apiYamlCount = @(Get-ChildItem -LiteralPath $apiRoot -Filter "*.yml" -File -Recurse -ErrorAction SilentlyContinue).Count
-            $metadataSucceeded = $metadataResult.ExitCode -eq 0 -and (Test-Path -LiteralPath $apiTocPath -PathType Leaf) -and $apiYamlCount -gt 1
+            $metadataSucceeded = $metadataResult.ExitCode -eq 0 -and $unresolvedAssemblyReferences.Count -eq 0 -and (Test-Path -LiteralPath $apiTocPath -PathType Leaf) -and $apiYamlCount -gt 1
             if (-not $metadataSucceeded) {
                 $metadataTail = @($metadataResult.Output | Select-Object -Last 20) -join " | "
                 if ([string]::IsNullOrWhiteSpace($metadataTail)) { $metadataTail = "DocFX returned no metadata diagnostic." }
-                $warnings.Add("DocFX metadata extraction did not produce the complete API graph (exit code $($metadataResult.ExitCode)): $metadataTail")
+                if ($unresolvedAssemblyReferences.Count -gt 0) {
+                    $warnings.Add("DocFX metadata extraction retained unresolved assembly references after dependency repair: $($unresolvedAssemblyReferences -join ', '). $metadataTail")
+                }
+                else {
+                    $warnings.Add("DocFX metadata extraction did not produce the complete API graph (exit code $($metadataResult.ExitCode)): $metadataTail")
+                }
             }
             else {
                 $apiIndex = @"
@@ -2479,7 +2584,10 @@ foreach ($publishRoot in $publishRoots) {
         nodeVersion = $nodeVersionUsed
         nodeProvisioned = $nodeProvisioned
         pdfTimeoutMilliseconds = $pdfTimeoutMilliseconds
-        completeApiReference = $documentationMode -eq "docfx" -and $apiYamlCount -gt 1 -and $apiHtmlCount -gt 1
+        completeApiReference = $documentationMode -eq "docfx" -and $apiYamlCount -gt 1 -and $apiHtmlCount -gt 1 -and $unresolvedAssemblyReferences.Count -eq 0
+        unresolvedAssemblyReferenceCount = $unresolvedAssemblyReferences.Count
+        unresolvedAssemblyReferences = @($unresolvedAssemblyReferences)
+        docfxDependencyRepairCount = $docfxDependencyRepairCount
         warnings = @($warnings)
     }
     $statusPath = Join-Path $publishRoot "documentation-status.json"

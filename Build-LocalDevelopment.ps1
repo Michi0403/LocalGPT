@@ -84,6 +84,7 @@ function Assert-LocalGptDocumentation {
     if ([string]$status.pdfMode -notin @("html-browser-print", "docfx-pdf-plugin")) { throw "The LocalGPT development build did not produce the complete HTML-backed documentation PDF." }
     if ([string]$status.pdfMode -eq "html-browser-print" -and [int]$status.pdfSourcePageCount -lt 10) { throw "The LocalGPT documentation PDF did not include the expected HTML page set." }
     if (-not ([bool]$status.completeApiReference)) { throw "The LocalGPT development documentation does not contain the complete XML-generated API reference." }
+    if ([int]$status.unresolvedAssemblyReferenceCount -ne 0) { throw "The LocalGPT development documentation contains unresolved assembly references: $($status.unresolvedAssemblyReferences -join ', ')" }
     if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "The LocalGPT development documentation API graph is incomplete." }
     if ([long]$status.pdfBytes -lt 65536) { throw "The LocalGPT development PDF is unexpectedly small and is not accepted as complete." }
     if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "The LocalGPT development build did not record a real documentation PDF source." }
@@ -129,7 +130,8 @@ $appProperties = @(
     "-p:UseLocalWireProtocolProject=$useProject",
     "-p:LocalGptWireProtocolVersion=$wireVersion",
     "-p:LocalGptWireProtocolPackageDirectory=$packageDirectory",
-    "-p:RestoreAdditionalProjectSources=$packageDirectory"
+    "-p:RestoreAdditionalProjectSources=$packageDirectory",
+    "-p:CopyLocalLockFileAssemblies=true"
 )
 if ($UseWireProtocolPackage) { $appProperties += "-p:RestorePackagesPath=$packageRestoreCache" }
 Write-Host "Restoring and building LocalGPT..." -ForegroundColor Cyan

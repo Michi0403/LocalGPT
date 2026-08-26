@@ -99,6 +99,7 @@ function Assert-LocalGptDocumentationPayload {
     if ([string]$status.pdfMode -eq "html-browser-print" -and [int]$status.pdfSourcePageCount -lt 10) { throw "The LocalGPT documentation PDF did not include the expected HTML page set." }
     if ([string]$status.pdfMode -eq "html-browser-print" -and [int]$status.apiHtmlCount -gt 0 -and [int]$status.pdfSourcePageCount -lt [int]$status.apiHtmlCount) { throw "The LocalGPT documentation PDF omitted generated API pages." }
     if (-not ([bool]$status.completeApiReference)) { throw "Published LocalGPT documentation is missing the complete XML-generated API reference." }
+    if ([int]$status.unresolvedAssemblyReferenceCount -ne 0) { throw "Published LocalGPT documentation contains unresolved assembly references: $($status.unresolvedAssemblyReferences -join ', ')" }
     if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "Published LocalGPT documentation contains an incomplete API graph." }
     if ([long]$status.pdfBytes -lt 1048576) { throw "Published LocalGPT documentation contains an unexpectedly small PDF." }
     if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "Published LocalGPT documentation did not record a real documentation PDF source." }
@@ -129,7 +130,8 @@ function Prepare-LocalGptDocumentation {
         "-p:RuntimeIdentifier=",
         "-p:RuntimeIdentifiers=",
         "-p:BuildLocalGptDocumentation=false",
-        "-p:SeedLocalGptGitHubPagesSnapshotOnBuild=false"
+        "-p:SeedLocalGptGitHubPagesSnapshotOnBuild=false",
+        "-p:CopyLocalLockFileAssemblies=true"
     )
 
     Write-Host "Building the RID-neutral LocalGPT assembly once for shared release documentation..." -ForegroundColor Cyan
