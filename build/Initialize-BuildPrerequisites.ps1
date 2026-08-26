@@ -14,6 +14,7 @@ if ($null -eq (Get-Command dotnet -CommandType Application -ErrorAction Silently
 $requiredDocumentationSources = @(
     'docs/index.md',
     'docs/docfx.json',
+    'docs/DocfxDependencies.csproj',
     'docs/toc.yml',
     'docs/pdf/toc.yml',
     'docs/architecture/system-overview.md',

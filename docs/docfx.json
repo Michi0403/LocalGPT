@@ -34,7 +34,8 @@
     "resource": [
       {
         "files": [
-          "pdf-cover.html"
+          "pdf-cover.html",
+          "LocalGPT-*.pdf"
         ]
       }
     ],
@@ -46,8 +47,8 @@
     "globalMetadata": {
       "_appName": "LocalGPT Documentation",
       "_appTitle": "LocalGPT Documentation",
-      "_appFooter": "LocalGPT 3.3.5 · generated documentation",
-      "localgptVersion": "3.3.5"
+      "_appFooter": "LocalGPT 3.3.8 · generated documentation",
+      "localgptVersion": "3.3.8"
     }
   }
 }

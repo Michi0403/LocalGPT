@@ -1,9 +1,9 @@
-# LocalGPT 3.3.5
+# LocalGPT 3.3.8
 
-LocalGPT 3.3.5 repairs the clean-source documentation build after the cross-platform prerequisite bootstrap reached the .NET build successfully on macOS.
+LocalGPT 3.3.8 cleans up the remaining DocFX site warnings and makes the long PDF phase observable instead of appearing frozen.
 
-The source distribution now contains the authored `docs/` payload that `LocalGPT.csproj` and `Build-Documentation.ps1` require: the conceptual documentation chapters, root/category TOCs, DocFX configuration, complete-PDF TOC/cover and Kawaii theme sources. The shared build prerequisite script verifies this payload before DevExpress/Node setup and before the long build, so an incomplete source archive reports its missing files immediately rather than failing later with `MSB3030` copy errors.
+The 3.3.7 macOS release run confirmed that the isolated `System.Formats.Nrbf` documentation dependency probe works: DocFX metadata completed without warnings or errors. The remaining warnings came from links that referenced generated outputs before DocFX had produced them. The API link now points to its authored Markdown source, and the temporary PDF validation stub is included as a DocFX resource until the real handbook PDF replaces it.
 
-The 3.3.4 Windows/macOS/Linux portable Node.js bootstrap remains intact. DocFX assembly-reference repair is also expanded: unresolved metadata-only references are now probed in the NuGet global package cache after normal build output/shared-runtime probing. This specifically addresses references such as `System.Formats.Nrbf` without adding a synthetic LocalGPT runtime package dependency, while the release still requires zero unresolved DocFX assembly references.
+The DocFX process wrapper now streams output live instead of buffering it until process exit. The PDF command runs with verbose diagnostics and announces that a four-digit page set can legitimately take several minutes. The cross-platform Node.js bootstrap, DevExpress license preflight, documentation source preflight, PowerShell parser guard, and installer/platform work remain intact.
 
-See `CHANGELOG-v3.3.5-DOCUMENTATION-SOURCE-PACKAGE-REPAIR.md` and `VALIDATION-v3.3.5-source.md`.
+See `CHANGELOG-v3.3.8-DOCFX-LINK-PROGRESS-REPAIR.md` and `VALIDATION-v3.3.8-source.md`.

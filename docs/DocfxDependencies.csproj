@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RestoreDisableParallel>true</RestoreDisableParallel>
+    <RestoreIgnoreFailedSources>false</RestoreIgnoreFailedSources>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <!--
+      Documentation-tooling dependency only. This project is never referenced by LocalGPT and therefore
+      does not change the application/runtime dependency graph. DocFX 2.78.x can encounter this assembly
+      while reflecting .NET 10 resource metadata even though the RID-neutral app build does not copy it.
+    -->
+    <PackageReference Include="System.Formats.Nrbf" Version="10.0.11" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

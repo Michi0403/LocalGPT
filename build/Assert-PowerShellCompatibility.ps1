@@ -66,6 +66,23 @@ $scriptFiles = Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object {
 
 foreach ($file in $scriptFiles) {
     $content = Read-RepositoryScriptText -File $file
+
+    # Parse every repository script before any release/local-development helper can invoke it.
+    # This catches interpolation mistakes such as an unbraced variable immediately followed by a colon (which PowerShell reads as an
+    # invalid scoped-variable reference) at the initial compatibility preflight instead of deep
+    # into a long build.
+    $tokens = $null
+    $parseErrors = $null
+    [void][System.Management.Automation.Language.Parser]::ParseInput(
+        $content,
+        [ref]$tokens,
+        [ref]$parseErrors)
+    foreach ($parseError in @($parseErrors)) {
+        $relative = Get-RepositoryRelativePath -Path $file.FullName
+        $line = $parseError.Extent.StartLineNumber
+        $message = $parseError.Message
+        $failures.Add("${relative}:$line has a PowerShell parser error: $message")
+    }
     foreach ($match in [regex]::Matches($content, $unsupportedContainsPattern)) {
         $line = [regex]::Matches($content.Substring(0, $match.Index), "`r`n|`r|`n").Count + 1
         $relative = Get-RepositoryRelativePath -Path $file.FullName
@@ -94,4 +111,4 @@ if ($failures.Count -gt 0) {
     throw "PowerShell compatibility validation failed:`n - $($failures -join "`n - ")"
 }
 
-Write-Host 'PowerShell compatibility validation passed for Windows PowerShell 5.1, cross-platform pwsh path literals, and protected platform automatic-variable assignments.'
+Write-Host 'PowerShell compatibility validation passed for parser syntax, Windows PowerShell 5.1, cross-platform pwsh path literals, and protected platform automatic-variable assignments.'

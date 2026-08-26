@@ -42,6 +42,7 @@ $siteRoot = Join-Path $docsRoot "_site"
 $apiRoot = Join-Path $docsRoot "api"
 $sourceWebRoot = Join-Path $RepositoryRoot "src/LocalGPT/wwwroot/help-docs"
 $configPath = Join-Path $docsRoot "docfx.json"
+$docfxDependencyProjectPath = Join-Path $docsRoot "DocfxDependencies.csproj"
 $tocPath = Join-Path $docsRoot "toc.yml"
 $guideTocPath = Join-Path $docsRoot "guide/toc.yml"
 $pdfTocPath = Join-Path $docsRoot "pdf/toc.yml"
@@ -1899,6 +1900,38 @@ function Resolve-LocalGptNuGetAssemblyReference {
     return $null
 }
 
+function Initialize-LocalGptDocfxPinnedDependencies {
+    param([Parameter(Mandatory)][string]$DependencyProjectPath)
+
+    if (-not (Test-Path -LiteralPath $DependencyProjectPath -PathType Leaf)) {
+        throw "The DocFX dependency project is missing: $DependencyProjectPath"
+    }
+
+    # Avoid an extra restore when the exact probe assembly is already available in the user package cache.
+    if ($null -ne (Resolve-LocalGptNuGetAssemblyReference -ReferenceName 'System.Formats.Nrbf')) {
+        return
+    }
+
+    Write-Host "Restoring pinned DocFX-only dependency probes (application dependency graph remains unchanged)..." -ForegroundColor DarkCyan
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & dotnet restore $DependencyProjectPath --disable-parallel --force-evaluate
+        $restoreExitCode = [int]$LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    if ($restoreExitCode -ne 0) {
+        throw "DocFX dependency probe restore failed with exit code ${restoreExitCode}: $DependencyProjectPath"
+    }
+
+    if ($null -eq (Resolve-LocalGptNuGetAssemblyReference -ReferenceName 'System.Formats.Nrbf')) {
+        throw "The DocFX dependency probe restore completed, but System.Formats.Nrbf.dll could not be located in the NuGet package cache."
+    }
+}
+
 function Repair-LocalGptDocfxAssemblyReferences {
     param(
         [Parameter(Mandatory)][string[]]$ReferenceNames,
@@ -2068,35 +2101,43 @@ $useManifestTool = $false
 function Invoke-LocalGptDocfx {
     param([Parameter(Mandatory)][string[]]$Arguments)
 
-    # Windows PowerShell promotes native stderr records to terminating errors when the
-    # script-wide ErrorActionPreference is Stop. DocFX's PDF renderer writes Node warnings
-    # to stderr even on a successful run, so capture them as diagnostics and trust the
-    # native exit code plus generated artifacts instead.
+    # Stream DocFX output as it arrives. The PDF command can legitimately spend many minutes
+    # rendering a four-digit page set, and buffering native output until process exit makes a
+    # healthy build look frozen. Keep a copy for retry/error diagnostics while writing each line
+    # immediately to the host. Windows PowerShell can promote native stderr records when the
+    # script-wide ErrorActionPreference is Stop, so temporarily continue and trust the native
+    # exit code plus generated artifacts.
     $previousErrorActionPreference = $ErrorActionPreference
+    $capturedOutput = [System.Collections.Generic.List[string]]::new()
     try {
         $ErrorActionPreference = "Continue"
-        $output = if ($script:useManifestTool) {
-            @(& dotnet tool run docfx @Arguments 2>&1)
+        if ($script:useManifestTool) {
+            & dotnet tool run docfx @Arguments 2>&1 | ForEach-Object {
+                $rawLine = [string]$_
+                $capturedOutput.Add($rawLine)
+                # ConsoleToMSBuild scans text independently from the native exit code. Keep
+                # handled DocFX/Node diagnostics visible without turning them into MSB3077.
+                $displayLine = [regex]::Replace($rawLine, '(?i)\b(?:fatalerror|error)\s*:', 'diagnostic:')
+                Write-Host "[DocFX] $displayLine"
+            }
         }
         else {
-            @(& $script:docfxExecutable @Arguments 2>&1)
+            & $script:docfxExecutable @Arguments 2>&1 | ForEach-Object {
+                $rawLine = [string]$_
+                $capturedOutput.Add($rawLine)
+                $displayLine = [regex]::Replace($rawLine, '(?i)\b(?:fatalerror|error)\s*:', 'diagnostic:')
+                Write-Host "[DocFX] $displayLine"
+            }
         }
         $exitCode = [int]$LASTEXITCODE
     }
     finally {
         $ErrorActionPreference = $previousErrorActionPreference
     }
-    foreach ($entry in $output) {
-        $line = [string]$entry
-        # ConsoleToMSBuild scans text independently from the native exit code. Keep DocFX and
-        # Node diagnostics visible without allowing a handled stderr line to become MSB3077.
-        $line = [regex]::Replace($line, '(?i)\b(?:fatalerror|error)\s*:', 'diagnostic:')
-        Write-Host "[DocFX] $line"
-    }
 
     return [pscustomobject]@{
         ExitCode = $exitCode
-        Output = @($output | ForEach-Object { [string]$_ })
+        Output = @($capturedOutput.ToArray())
     }
 }
 
@@ -2137,6 +2178,18 @@ try {
             if (-not (Test-Path -LiteralPath $documentationXmlPath -PathType Leaf)) {
                 Copy-Item -LiteralPath $polishedXmlPath -Destination $documentationXmlPath -Force
             }
+
+            # DocFX 2.78.x may reflect System.Resources.Extensions metadata that references
+            # System.Formats.Nrbf. The application itself does not need a direct reference, so keep
+            # this dependency in the documentation-only project and materialize it solely into the
+            # temporary DocFX probe directory.
+            Initialize-LocalGptDocfxPinnedDependencies -DependencyProjectPath $docfxDependencyProjectPath
+            $pinnedProbeReferences = @(Repair-LocalGptDocfxAssemblyReferences `
+                -ReferenceNames @('System.Formats.Nrbf') `
+                -InputRoot $inputRoot `
+                -AssemblyDirectory $assemblyDirectory)
+            $docfxDependencyRepairCount += $pinnedProbeReferences.Count
+
             $metadataResult = Invoke-LocalGptDocfxWithRetry -Arguments @("metadata", $configPath) -ReadableRoot $inputRoot -ResetRootOnRetry $apiRoot
             for ($dependencyRepairPass = 1; $dependencyRepairPass -le 3; $dependencyRepairPass++) {
                 $unresolvedAssemblyReferences = @(Get-LocalGptUnresolvedAssemblyReferences -Output $metadataResult.Output)
@@ -2227,6 +2280,10 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
     }
     else {
         $warnings.Add("DocFX was unavailable; deterministic static documentation was generated.")
+    }
+
+    if ($unresolvedAssemblyReferences.Count -gt 0) {
+        throw "DocFX metadata extraction failed before PDF generation because unresolved assembly references remain: $($unresolvedAssemblyReferences -join ', ')."
     }
 
     if (-not $docfxBuildSucceeded) {
@@ -2325,8 +2382,8 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                         $env:NODE_OPTIONS = "$($env:NODE_OPTIONS) --max-old-space-size=4096"
                     }
 
-                    Write-Host "Browser printing was unavailable; generating the complete PDF with the DocFX PDF plug-in and Node.js $nodeVersionUsed." -ForegroundColor Cyan
-                    $pdfResult = Invoke-LocalGptDocfx -Arguments @("pdf", $configPath, "--logLevel", "info")
+                    Write-Host "Browser printing was unavailable; generating the complete PDF with the DocFX PDF plug-in and Node.js $nodeVersionUsed. This can take several minutes for $pdfSourcePageCount pages; DocFX output is streamed live below." -ForegroundColor Cyan
+                    $pdfResult = Invoke-LocalGptDocfx -Arguments @("pdf", $configPath, "--logLevel", "verbose")
                     $pdfCandidates = @(
                         Get-ChildItem -LiteralPath $siteRoot -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue |
                             Sort-Object @{ Expression = { if ($_.Name -eq $pdfName) { 0 } else { 1 } } },

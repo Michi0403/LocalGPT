@@ -59,6 +59,8 @@ Important checks include:
 ## Documentation checks
 
 The documentation build verifies conceptual pages, generated API YAML/HTML, versioned PDF, Kawaii CSS/JS markers, icon assets, status JSON, and nonzero source/API counts.
+DocFX-only reflection dependencies are isolated in `docs/DocfxDependencies.csproj`; they are restored and staged into the temporary documentation probe directory and do not become LocalGPT runtime package references. Unresolved assembly metadata is a hard failure before PDF generation.
+Cross-platform release/local-development prerequisites validate the DevExpress license location and provide a compatible Node.js 20–22 runtime for documentation tooling on Windows, macOS, and Linux.
 Windows Debug/Release builds also use Python 3 to validate and seed the version-matched GitHub Pages snapshot from the documentation output of that exact build.
 
 The Pages extractor accepts UTF-8 files with or without BOM, normalizes ZIP separators, rejects unsafe paths, and chooses the strongest complete release candidate.
