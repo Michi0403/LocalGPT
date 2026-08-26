@@ -12,6 +12,7 @@ namespace LocalGPT.Services;
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ArtifactBuildExecutor(
     IOptionsMonitor<ArtifactBuildOptions> options,
+    IPlatformRuntimeService platform,
     ILogger<ArtifactBuildExecutor> logger) : IArtifactBuildExecutor
 {
     /// <summary>
@@ -173,8 +174,7 @@ public sealed class ArtifactBuildExecutor(
     {
     try
     {
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            return string.Equals(path, root, comparison) || path.StartsWith(root + Path.DirectorySeparatorChar, comparison);
+            return platform.IsSameOrDescendantPath(root, path);
     
     }
     catch (Exception __serviceMethodException)

@@ -19,6 +19,7 @@ public sealed class OrganicAddonManifestService(
     IWebHostEnvironment environment,
     IOneWireConnectionRegistry connections,
     IOneWirePeerRegistry peers,
+    IPlatformRuntimeService platform,
     ILogger<OrganicAddonManifestService> logger) : IOrganicAddonManifestService
 {
     /// <summary>
@@ -214,7 +215,7 @@ public sealed class OrganicAddonManifestService(
             yield return contentDirectory;
 
             var outputDirectory = Path.Combine(AppContext.BaseDirectory, "Configuration", "OrganicAddons");
-            if (!string.Equals(outputDirectory, contentDirectory, StringComparison.OrdinalIgnoreCase))
+            if (!platform.PathsEqual(outputDirectory, contentDirectory))
                 yield return outputDirectory;
         }
         finally

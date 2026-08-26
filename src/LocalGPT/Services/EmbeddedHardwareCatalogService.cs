@@ -11,6 +11,7 @@ namespace LocalGPT.Services;
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class EmbeddedHardwareCatalogService(
     IWebHostEnvironment environment,
+    IPlatformRuntimeService platform,
     ILogger<EmbeddedHardwareCatalogService> logger) : IEmbeddedHardwareCatalogService
 {
     /// <summary>
@@ -191,7 +192,7 @@ public sealed class EmbeddedHardwareCatalogService(
             var contentDirectory = Path.Combine(environment.ContentRootPath, "Configuration", "EmbeddedBoards");
             var outputDirectory = Path.Combine(AppContext.BaseDirectory, "Configuration", "EmbeddedBoards");
             var directories = new List<string> { contentDirectory };
-            if (!string.Equals(contentDirectory, outputDirectory, StringComparison.OrdinalIgnoreCase))
+            if (!platform.PathsEqual(contentDirectory, outputDirectory))
                 directories.Add(outputDirectory);
             return directories;
     

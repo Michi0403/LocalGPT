@@ -212,21 +212,11 @@ namespace LocalGPT
         /// <returns>The collection produced by the operation.</returns>
         private static IEnumerable<string> GetRuntimeTraceDirectories()
         {
-            var directories = new[]
-            {
-                Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "LocalGPT",
-                    "runtime"),
-                Path.Combine(
-                    Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? string.Empty,
-                    "LocalGPT",
-                    "runtime")
-            };
+            var localApplicationData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrWhiteSpace(localApplicationData))
+                return Array.Empty<string>();
 
-            return directories
-                .Where(directory => !string.IsNullOrWhiteSpace(directory))
-                .Distinct(StringComparer.OrdinalIgnoreCase);
+            return [Path.Combine(localApplicationData, "LocalGPT", "runtime")];
         }
 
         /// <summary>

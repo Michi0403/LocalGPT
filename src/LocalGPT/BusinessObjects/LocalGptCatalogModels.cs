@@ -51,7 +51,7 @@ public sealed class WorkspaceLayout(WorkspaceContext context)
     /// <param name="eclipseImportHint">Eclipse import hint value supplied to the workspace layout operation and used when producing its result.</param>
     /// <returns>The minecraft mod workspace produced by the operation.</returns>
     public MinecraftModWorkspace ToResult(
-        string buildCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1",
+        string buildCommand,
         string eclipseImportHint = "File > Import > Gradle > Existing Gradle Project") => new()
         {
             ProjectName = Context.ProjectName,

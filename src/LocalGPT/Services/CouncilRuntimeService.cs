@@ -3,11 +3,11 @@ using DevExpress.Xpo;
 using DevExpress.XtraCharts;
 using DevExpress.XtraRichEdit.Import.Html;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.AI;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO.Compression;
 using System.Net;
 using System.Security.AccessControl;
@@ -37,20 +37,25 @@ namespace LocalGPT.Services
         /// Stores the logger used by <see cref="CouncilRuntimeService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
         private readonly ILogger<CouncilRuntimeService> serviceLogger;
+        /// <summary>Stores host filesystem semantics behind the injected platform boundary.</summary>
+        private readonly IPlatformRuntimeService platform;
 
         /// <summary>
         /// Initializes the service with its dependency-injected collaborators.
         /// </summary>
         /// <param name="text">Injected dependency used by the service.</param>
         /// <param name="catalog">Injected dependency used by the service.</param>
+        /// <param name="platform">Injected host filesystem/platform semantics.</param>
         /// <param name="serviceLogger">Injected dependency used by the service.</param>
         public CouncilRuntimeService(
             CouncilTextService text,
             LocalGptCatalogService catalog,
+            IPlatformRuntimeService platform,
             ILogger<CouncilRuntimeService> serviceLogger)
         {
             this.text = text;
             this.catalog = catalog;
+            this.platform = platform;
             this.serviceLogger = serviceLogger;
         }
 

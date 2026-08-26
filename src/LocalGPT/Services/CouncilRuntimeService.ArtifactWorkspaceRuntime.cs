@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.AI;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO.Compression;
 using System.Net;
 using System.Security.AccessControl;
@@ -177,7 +176,7 @@ namespace LocalGPT.Services
 
                 var root = Path.GetFullPath(artifactRoot);
                 var path = Path.GetFullPath(Path.Combine(root, safeName));
-                if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) ||
+                if (!platform.IsSameOrDescendantPath(root, path) ||
                     !Directory.Exists(path))
                 {
                     return null;
@@ -210,7 +209,7 @@ namespace LocalGPT.Services
 
                 var root = Path.GetFullPath(workspaceRoot);
                 var path = Path.GetFullPath(Path.Combine(root, normalizedRelativePath));
-                if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase) ||
+                if (!platform.IsSameOrDescendantPath(root, path) ||
                     !IsSupportedArtifactTextFile(path, logger))
                 {
                     return null;

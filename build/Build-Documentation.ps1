@@ -1632,6 +1632,8 @@ function Invoke-LocalGptBrowserPdf {
                 "--disable-features=BackForwardCache,CalculateNativeWinOcclusion,MediaRouter,OptimizationHints,Translate,msEdgeStartupBoost,msEdgeBackgroundMode",
                 "--print-to-pdf-no-header",
                 "--no-pdf-header-footer",
+                "--export-tagged-pdf",
+                "--generate-pdf-document-outline",
                 "--user-data-dir=$profileRoot",
                 "--print-to-pdf=$PdfPath",
                 $inputUri
@@ -2474,17 +2476,27 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
         }
 
         if ($pdfGenerated) {
-            $compression = Optimize-LocalGptPdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
-            $pdfCompressionMode = [string]$compression.Mode
-            $pdfBytesBeforeCompression = [long]$compression.BeforeBytes
-            $pdfCompressionSavedBytes = [long]$compression.SavedBytes
-            if ($compression.Applied) {
-                $pdfFileSize = [long]$compression.AfterBytes
-                Write-Host "Compressed the documentation PDF from $pdfBytesBeforeCompression to $pdfFileSize bytes without downsampling content." -ForegroundColor Green
+            if ($pdfMode -eq "html-browser-print") {
+                # Chromium's tagged PDF structure is more important than post-render compression.
+                # Ghostscript pdfwrite may discard or rewrite accessibility structure metadata.
+                $pdfBytesBeforeCompression = (Get-Item -LiteralPath $pdfPath).Length
+                $pdfFileSize = $pdfBytesBeforeCompression
+                $pdfCompressionMode = "skipped-preserve-tagging"
+                $pdfCompressionSavedBytes = 0
             }
-            elseif (-not [string]::IsNullOrWhiteSpace([string]$compression.Diagnostic)) {
-                $warnings.Add([string]$compression.Diagnostic)
-                $pdfFileSize = (Get-Item -LiteralPath $pdfPath).Length
+            else {
+                $compression = Optimize-LocalGptPdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
+                $pdfCompressionMode = [string]$compression.Mode
+                $pdfBytesBeforeCompression = [long]$compression.BeforeBytes
+                $pdfCompressionSavedBytes = [long]$compression.SavedBytes
+                if ($compression.Applied) {
+                    $pdfFileSize = [long]$compression.AfterBytes
+                    Write-Host "Compressed the documentation PDF from $pdfBytesBeforeCompression to $pdfFileSize bytes without downsampling content." -ForegroundColor Green
+                }
+                elseif (-not [string]::IsNullOrWhiteSpace([string]$compression.Diagnostic)) {
+                    $warnings.Add([string]$compression.Diagnostic)
+                    $pdfFileSize = (Get-Item -LiteralPath $pdfPath).Length
+                }
             }
         }
     }
@@ -2533,6 +2545,7 @@ foreach ($publishRoot in $publishRoots) {
         xmlDocumentationFileName = "LocalGPT.xml"
         documentationMode = $documentationMode
         pdfMode = $pdfMode
+        pdfAccessibilityMode = if ($pdfMode -eq "docfx-pdf-plugin") { "html-accessibility-fallback" } else { "tagged-pdf-required" }
         docfxVersion = "2.78.5"
         toolSource = $toolSource
         articleSourceCount = $articleSourceCount

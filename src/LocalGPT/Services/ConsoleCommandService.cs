@@ -8,7 +8,9 @@ namespace LocalGPT.Services;
 
 /// <summary>Runs explicitly bounded local commands through one cross-platform console abstraction and publishes sanitized live output for LocalGPT UI surfaces.</summary>
 /// <param name="logger">Writes bounded command lifecycle diagnostics without logging command arguments or output.</param>
-public sealed class ConsoleCommandService(ILogger<ConsoleCommandService> logger) : IConsoleCommandService
+public sealed class ConsoleCommandService(
+    ILocalConsolePlatformService platform,
+    ILogger<ConsoleCommandService> logger) : IConsoleCommandService
 {
     /// <summary>
     /// Defines the max recent events constant used by <see cref="ConsoleCommandService"/> so callers and internal logic share the same stable value.
@@ -161,9 +163,7 @@ public sealed class ConsoleCommandService(ILogger<ConsoleCommandService> logger)
     {
         try
         {
-            var shell = request.Shell == LocalConsoleShellKind.Auto
-                ? OperatingSystem.IsWindows() ? LocalConsoleShellKind.PowerShell : LocalConsoleShellKind.Bash
-                : request.Shell;
+            var shell = platform.ResolveShell(request.Shell);
             var startInfo = new ProcessStartInfo
             {
                 RedirectStandardOutput = true,
@@ -184,25 +184,12 @@ public sealed class ConsoleCommandService(ILogger<ConsoleCommandService> logger)
                         startInfo.ArgumentList.Add(argument ?? string.Empty);
                     break;
                 case LocalConsoleShellKind.PowerShell:
-                    startInfo.FileName = ResolvePowerShellExecutable();
-                    startInfo.ArgumentList.Add("-NoProfile");
-                    startInfo.ArgumentList.Add("-NonInteractive");
-                    startInfo.ArgumentList.Add("-Command");
-                    startInfo.ArgumentList.Add(RequireCommandText(request));
-                    break;
                 case LocalConsoleShellKind.Bash:
-                    startInfo.FileName = OperatingSystem.IsWindows() ? "bash.exe" : "/bin/bash";
-                    startInfo.ArgumentList.Add("-lc");
-                    startInfo.ArgumentList.Add(RequireCommandText(request));
-                    break;
                 case LocalConsoleShellKind.Cmd:
-                    if (!OperatingSystem.IsWindows())
-                        throw new PlatformNotSupportedException("cmd.exe is only available on Windows hosts.");
-                    startInfo.FileName = "cmd.exe";
-                    startInfo.ArgumentList.Add("/d");
-                    startInfo.ArgumentList.Add("/s");
-                    startInfo.ArgumentList.Add("/c");
-                    startInfo.ArgumentList.Add(RequireCommandText(request));
+                    var shellCommand = platform.CreateShellCommand(shell, RequireCommandText(request));
+                    startInfo.FileName = shellCommand.Executable;
+                    foreach (var argument in shellCommand.Arguments)
+                        startInfo.ArgumentList.Add(argument);
                     break;
                 default:
                     throw new InvalidOperationException($"Unsupported console shell '{shell}'.");
@@ -242,27 +229,6 @@ public sealed class ConsoleCommandService(ILogger<ConsoleCommandService> logger)
         catch (Exception exception)
         {
             logger.LogError(exception, "Resolving local console working directory failed; path details omitted.");
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Resolves power shell executable as part of the console command service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <returns>The string produced by the operation.</returns>
-    private string ResolvePowerShellExecutable()
-    {
-        try
-        {
-            if (!OperatingSystem.IsWindows())
-                return "pwsh";
-            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            var pwsh = Path.Combine(programFiles, "PowerShell", "7", "pwsh.exe");
-            return File.Exists(pwsh) ? pwsh : "powershell.exe";
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Resolving PowerShell executable failed; executable paths omitted.");
             throw;
         }
     }

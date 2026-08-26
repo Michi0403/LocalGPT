@@ -240,8 +240,7 @@ namespace LocalGPT.Services
                     continue;
                 }
 
-                var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-                if (Path.GetFullPath(source.FullPath).Equals(Path.GetFullPath(destinationPath), comparison))
+                if (platform.PathsEqual(source.FullPath, destinationPath))
                 {
                     copiedAny = true;
                     continue;

@@ -32,6 +32,8 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
     /// Stores the local GPT catalog service dependency used by <see cref="RemoteKnowledgeImportService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly LocalGptCatalogService catalog;
+    /// <summary>Stores host filesystem semantics behind the injected platform boundary.</summary>
+    private readonly IPlatformRuntimeService platform;
     /// <summary>
     /// Stores the logger used by <see cref="RemoteKnowledgeImportService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
@@ -42,18 +44,21 @@ public sealed partial class RemoteKnowledgeImportService : IRemoteKnowledgeImpor
     /// <param name="knowledge">Injected dependency used by the RemoteKnowledgeImportService.</param>
     /// <param name="regexPatterns">Injected dependency used by the RemoteKnowledgeImportService.</param>
     /// <param name="catalog">Injected dependency used by the RemoteKnowledgeImportService.</param>
+    /// <param name="platform">Injected host filesystem/platform semantics.</param>
     /// <param name="logger">Injected dependency used by the RemoteKnowledgeImportService.</param>
     public RemoteKnowledgeImportService(
         ILearnBaseKnowledgeImporterService learnBaseImporter,
         ICouncilKnowledgeService knowledge,
         IRegexPatternService regexPatterns,
         LocalGptCatalogService catalog,
+        IPlatformRuntimeService platform,
         ILogger<RemoteKnowledgeImportService> logger)
     {
         this.learnBaseImporter = learnBaseImporter;
         this.knowledge = knowledge;
         this.regexPatterns = regexPatterns;
         this.catalog = catalog;
+        this.platform = platform;
         this.logger = logger;
     }
 

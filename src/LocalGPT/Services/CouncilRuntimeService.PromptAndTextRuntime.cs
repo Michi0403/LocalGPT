@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.AI;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO.Compression;
 using System.Net;
 using System.Security.AccessControl;
@@ -636,11 +635,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var normalizedRoot = Path.GetFullPath(root)
-      .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
-      Path.DirectorySeparatorChar;
-                var normalizedPath = Path.GetFullPath(path);
-                return normalizedPath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+                return platform.IsSameOrDescendantPath(root, path);
             }
             catch (Exception ex)
             {

@@ -29,7 +29,7 @@ namespace LocalGPT.Services
             var maximumZipEntryBytes = Math.Max(1L, catalog.MaxZipEntryBytes);
             if (archive.Entries.Count > maximumZipEntries)
                 throw new InvalidDataException($"Archive has more entries than the database-backed MaxZipEntries policy ({maximumZipEntries:n0}).");
-            var normalizedRoot = Path.GetFullPath(targetRoot) + Path.DirectorySeparatorChar;
+            var normalizedRoot = Path.GetFullPath(targetRoot);
             long total = 0;
             foreach (var entry in archive.Entries)
             {
@@ -39,7 +39,7 @@ namespace LocalGPT.Services
                 if (total > maximumExtractedBytes)
                     throw new InvalidDataException($"Archive exceeds the database-backed MaxExtractedBytes policy ({maximumExtractedBytes:n0} bytes).");
                 var destination = Path.GetFullPath(Path.Combine(targetRoot, entry.FullName));
-                if (!destination.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase))
+                if (!platform.IsSameOrDescendantPath(normalizedRoot, destination))
                     throw new InvalidDataException("Archive contains an unsafe traversal path.");
                 if (string.IsNullOrEmpty(entry.Name))
                 {
@@ -110,18 +110,18 @@ namespace LocalGPT.Services
             var selectedRoot = Path.Combine(result.CacheRoot, "selected-for-import");
             if (Directory.Exists(selectedRoot)) Directory.Delete(selectedRoot, recursive: true);
             Directory.CreateDirectory(selectedRoot);
-            var cacheFull = Path.GetFullPath(result.CacheRoot) + Path.DirectorySeparatorChar;
-            var selectedFull = Path.GetFullPath(selectedRoot) + Path.DirectorySeparatorChar;
+            var cacheFull = Path.GetFullPath(result.CacheRoot);
+            var selectedFull = Path.GetFullPath(selectedRoot);
             foreach (var file in result.Files.Where(item => item.MatchesFilePolicy))
             {
                 var source = Path.GetFullPath(Path.Combine(result.CacheRoot, file.RelativePath));
-                if (!source.StartsWith(cacheFull, StringComparison.OrdinalIgnoreCase) ||
-                    source.StartsWith(selectedFull, StringComparison.OrdinalIgnoreCase) ||
+                if (!platform.IsSameOrDescendantPath(cacheFull, source) ||
+                    platform.IsSameOrDescendantPath(selectedFull, source) ||
                     !File.Exists(source))
                     continue;
                 var relative = Path.GetRelativePath(result.CacheRoot, source);
                 var destination = Path.GetFullPath(Path.Combine(selectedRoot, relative));
-                if (!destination.StartsWith(selectedFull, StringComparison.OrdinalIgnoreCase))
+                if (!platform.IsSameOrDescendantPath(selectedFull, destination))
                     throw new InvalidDataException("A selected import path escaped the bounded staging directory.");
                 Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
                 File.Copy(source, destination, overwrite: true);

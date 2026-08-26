@@ -63,7 +63,7 @@ namespace LocalGPT.Services
     private string FindNearestProjectFile(string root, string file)
     {
         var directory = Path.GetDirectoryName(file);
-        while (!string.IsNullOrWhiteSpace(directory) && directory.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        while (!string.IsNullOrWhiteSpace(directory) && platform.IsSameOrDescendantPath(root, directory))
         {
             try
             {
@@ -152,10 +152,7 @@ namespace LocalGPT.Services
     {
     try
     {
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar;
-            var normalizedPath = Path.GetFullPath(path);
-            return normalizedPath.StartsWith(normalizedRoot, comparison) || string.Equals(Path.TrimEndingDirectorySeparator(normalizedPath), Path.TrimEndingDirectorySeparator(root), comparison);
+            return platform.IsSameOrDescendantPath(root, path);
     
     }
     catch (Exception __serviceMethodException)

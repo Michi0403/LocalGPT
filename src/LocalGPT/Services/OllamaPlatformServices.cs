@@ -28,7 +28,7 @@ public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
 
         return candidates
             .Select(candidate => ExpandHome(candidate))
-            .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+            .Distinct(ExecutablePathComparer)
             .FirstOrDefault(File.Exists);
     }
 
@@ -38,7 +38,7 @@ public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
     /// <summary>Expands a leading home-directory marker without invoking a shell.</summary>
     /// <param name="path">Candidate path to normalize.</param>
     /// <returns>The normalized candidate path.</returns>
-    private static string ExpandHome(string path)
+    private string ExpandHome(string path)
     {
         if (!path.StartsWith("~/", StringComparison.Ordinal))
             return path;
@@ -50,6 +50,9 @@ public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
 /// <summary>Resolves Windows Ollama installations from standard per-user/system locations and PATH.</summary>
 public sealed class WindowsOllamaPlatformService : OllamaPlatformServiceBase
 {
+    /// <inheritdoc />
+    protected override StringComparer ExecutablePathComparer => StringComparer.OrdinalIgnoreCase;
+
     /// <inheritdoc />
     public override string PlatformName => "Windows";
 

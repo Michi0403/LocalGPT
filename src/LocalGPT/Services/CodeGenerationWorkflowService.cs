@@ -38,6 +38,8 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         /// Stores the regex pattern service dependency used by <see cref="CodeGenerationWorkflowService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly IRegexPatternService regexPatterns;
+        /// <summary>Stores host filesystem semantics behind the injected platform boundary.</summary>
+        private readonly IPlatformRuntimeService platform;
         /// <summary>
         /// Stores the logger used by <see cref="CodeGenerationWorkflowService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -56,6 +58,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             IArtifactBuildExecutor artifactBuildExecutor,
             IProjectMaintenanceService projectMaintenance,
             IRegexPatternService regexPatterns,
+            IPlatformRuntimeService platform,
             ILogger<CodeGenerationWorkflowService> logger)
         {
             this.dbContextFactory = dbContextFactory;
@@ -63,6 +66,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
             this.artifactBuildExecutor = artifactBuildExecutor;
             this.projectMaintenance = projectMaintenance;
             this.regexPatterns = regexPatterns;
+            this.platform = platform;
             this.logger = logger;
         }
 

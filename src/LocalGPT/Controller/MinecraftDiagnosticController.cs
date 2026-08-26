@@ -187,7 +187,7 @@ namespace LocalGPT.Controller
         /// Retrieves minecraft datapack benchmark for the minecraft diagnostic API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
         /// </summary>
         /// <param name="workspaceService">Minecraft mod workspace service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
-        /// <param name="commandRunner">Native command runner dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
+        /// <param name="console">Shared cross-platform console service used to execute the generated build script through the host-specific shell boundary.</param>
         /// <param name="knowledgeService">Council knowledge service dependency used by the minecraft diagnostic workflow to provide the corresponding application capability.</param>
         /// <param name="minecraftVersion">Minecraft version value supplied to the minecraft diagnostic operation and used when producing its result.</param>
         /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
@@ -197,7 +197,7 @@ namespace LocalGPT.Controller
         [HumanApprovalRequired("diagnostic.minecraft.datapack.benchmark", "Build Minecraft datapack benchmark", "Create, validate, build, and persist the exact Minecraft datapack benchmark request.", "High", "Minecraft build reviewer", requiredBeforeCompletion: true)]
         public async Task<IResult> GetMinecraftDatapackBenchmark(
             [FromServices] IMinecraftModWorkspaceService workspaceService,
-            [FromServices] INativeCommandRunner commandRunner,
+            [FromServices] IConsoleCommandService console,
             [FromServices] ICouncilKnowledgeService knowledgeService,
             string? minecraftVersion,
             [FromQuery] bool userConfirmed,
@@ -223,13 +223,16 @@ namespace LocalGPT.Controller
                 };
 
                 var workspace = await workspaceService.CreateWorkspaceAsync(request, ct).ConfigureAwait(false);
-                var build = await commandRunner.RunAsync(
-                    "powershell.exe",
-                    "-NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1",
-                    workspace.RootPath,
-                    ct,
-                    userConfirmed: userConfirmed).ConfigureAwait(false)
-                    ?? throw new InvalidOperationException("The approved datapack build did not produce a command result.");
+                var build = await console.ExecuteAsync(new LocalConsoleCommandRequest
+                {
+                    DisplayName = "Minecraft datapack local build",
+                    Shell = LocalConsoleShellKind.PowerShell,
+                    CommandText = "& ./build-local.ps1",
+                    WorkingDirectory = workspace.RootPath,
+                    TimeoutSeconds = 900,
+                    IsReadOnly = false,
+                    UserConfirmed = userConfirmed
+                }, ct).ConfigureAwait(false);
                 var files = Directory.GetFiles(workspace.RootPath, "*", SearchOption.AllDirectories)
                     .Select(path => councilText.ToForwardSlash(Path.GetRelativePath(workspace.RootPath, path), logger))
                     .Order(StringComparer.OrdinalIgnoreCase)

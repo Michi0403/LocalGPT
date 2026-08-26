@@ -243,17 +243,7 @@ namespace LocalGPT.Services
     {
     try
     {
-            var normalized = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-            var root = Path.TrimEndingDirectorySeparator(Path.GetPathRoot(normalized) ?? string.Empty);
-            if (string.Equals(normalized, root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) return true;
-            var protectedRoots = new[]
-            {
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
-            }.Where(item => !string.IsNullOrWhiteSpace(item));
-            return protectedRoots.Any(item => string.Equals(normalized, Path.TrimEndingDirectorySeparator(Path.GetFullPath(item)), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+            return platform.IsProtectedWorkspaceRoot(path);
     
     }
     catch (Exception __serviceMethodException)

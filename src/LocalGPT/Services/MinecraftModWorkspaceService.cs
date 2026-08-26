@@ -15,7 +15,9 @@ namespace LocalGPT.Services
     public partial class MinecraftModWorkspaceService(ILogger<MinecraftModWorkspaceService> logger,
         MinecraftProjectService projectService,
         MinecraftDatapackService datapackService,
-        LocalGptCatalogService catalog) : IMinecraftModWorkspaceService
+        LocalGptCatalogService catalog,
+        IPlatformRuntimeService platform,
+        ILocalConsolePlatformService consolePlatform) : IMinecraftModWorkspaceService
     {
     
         /// <summary>
@@ -87,7 +89,7 @@ namespace LocalGPT.Services
                 await File.WriteAllTextAsync(context.ReadmePath, projectService.CreateWorkspaceReadme(request, context, "Fabric"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created Fabric Minecraft mod workspace at {ProjectRoot}", context.ProjectRoot);
-                return workspace.ToResult();
+                return workspace.ToResult(CreateBuildCommandDisplay());
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -123,7 +125,7 @@ namespace LocalGPT.Services
                 await File.WriteAllTextAsync(context.ReadmePath, projectService.CreateWorkspaceReadme(request, context, "Paper plugin"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created Paper plugin workspace at {ProjectRoot}", context.ProjectRoot);
-                return workspace.ToResult();
+                return workspace.ToResult(CreateBuildCommandDisplay());
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -195,7 +197,7 @@ namespace LocalGPT.Services
                 await File.WriteAllTextAsync(context.ReadmePath, datapackService.CreateDatapackReadme(request, context), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created Minecraft datapack workspace at {ProjectRoot}", context.ProjectRoot);
-                return workspace.ToResult("powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\build-local.ps1", "Copy the zip from build\\ to a world's datapacks folder, then run /reload.");
+                return workspace.ToResult(CreateBuildCommandDisplay(), "Copy the zip from build/ to a world's datapacks folder, then run /reload.");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -235,7 +237,7 @@ namespace LocalGPT.Services
                 await File.WriteAllTextAsync(context.ReadmePath, projectService.CreateWorkspaceReadme(request, context, "NeoForge"), catalog.Utf8NoBom, cancellationToken).ConfigureAwait(false);
 
                 logger.LogInformation("Created NeoForge Minecraft mod workspace at {ProjectRoot}", context.ProjectRoot);
-                return workspace.ToResult();
+                return workspace.ToResult(CreateBuildCommandDisplay());
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -257,9 +259,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var root = Path.GetFullPath(WorkspaceRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-                var candidate = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-                return candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+                return platform.IsSameOrDescendantPath(WorkspaceRoot, path);
             }
             catch (Exception ex)
             {
@@ -421,6 +421,13 @@ namespace LocalGPT.Services
                 logger.LogError(ex, "Operation {Operation} failed; request and generated payloads were omitted from logs.", "WriteBuildHelperAsync");
                 throw;
             }
+        }
+
+        /// <summary>Returns the host-specific command users can run to build the generated workspace.</summary>
+        private string CreateBuildCommandDisplay()
+        {
+            var command = consolePlatform.CreatePowerShellScriptCommand("build-local.ps1");
+            return command.DisplayCommand;
         }
 
         /// <summary>

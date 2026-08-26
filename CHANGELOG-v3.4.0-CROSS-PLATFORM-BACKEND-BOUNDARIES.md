@@ -1,0 +1,15 @@
+# LocalGPT 3.4.0 — cross-platform backend boundaries
+
+- Moves host operating-system decisions out of common backend services and into dependency-injected Windows/Unix platform implementations selected at application composition time.
+- Adds `IPlatformRuntimeService` for filesystem semantics, protected-root policy, platform identity, and case-sensitive/case-insensitive physical-path containment.
+- Adds `ILocalConsolePlatformService` with Windows and Unix command/shell implementations so common console, Minecraft, and workspace code no longer selects `cmd.exe`, PowerShell, Bash, Java, or Gradle through host checks scattered across services.
+- Adds `IHardwarePlatformProbeService` with Windows and Unix GPU discovery implementations; shared hardware inventory remains platform-neutral.
+- Adds `IRuntimeSecretFileProtectionService` with Windows and Unix implementations so 1-Wire private runtime material receives host-appropriate file protection without `OperatingSystem` checks in the common security service.
+- Routes project maintenance, code generation, artifact builds, learning workspaces, documentation lookup, remote ZIP extraction, Council artifact workspaces, provider bootstrap, embedded hardware catalogs, and organic add-on manifests through the shared platform boundary for physical paths and host identity.
+- Fixes path traversal/root checks that previously used unconditional `OrdinalIgnoreCase`, which is incorrect on case-sensitive Linux filesystems and on case-sensitive macOS volumes.
+- Removes unused Windows-only/Windows-biased application dependencies: `Microsoft.Windows.AI.MachineLearning`, `System.Data.OleDb`, `System.Diagnostics.PerformanceCounter`, `System.Drawing.Common`, and `System.Security.Cryptography.ProtectedData`.
+- Removes unused `System.Drawing` imports from Council backend code; LocalGPT now has no maintained GDI+/`System.Drawing.Common` backend dependency.
+- Adds a cross-platform source guard that fails release/development builds if OS branching, Windows executable/environment selection, or known hard-coded path-containment patterns leak back into common LocalGPT services.
+- Preserves the existing Windows/macOS/Linux Ollama platform services, cross-platform Node/DocFX provisioning, documentation preflight, and interactive Blazor render-mode boundaries.
+- Makes Chromium browser-print PDF generation explicitly request tagged accessibility structure and document outlines, and skips Ghostscript recompression for browser-tagged output so `/StructTreeRoot` metadata is not destroyed after rendering.
+- Records a renderer-specific PDF accessibility contract in `documentation-status.json`: browser-generated PDFs must be tagged, while the DocFX 2.78.x Playwright plug-in is accepted only through an explicit `html-accessibility-fallback` mode after the already-strict HTML accessibility/link preflight has passed. This avoids failing GitHub Pages after a 30-60 minute successful DocFX PDF render while still recording `taggedPdf=false` honestly in deployment metadata.

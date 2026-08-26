@@ -17,7 +17,8 @@ public sealed class InitialDataCatalog(
     IWebHostEnvironment environment,
     ILogger<InitialDataCatalog> logger,
     ISystemVariableDefinitionService systemVariables,
-    ILocalGptRuntimePolicySeedDataService runtimePolicySeed) : IInitialDataCatalog
+    ILocalGptRuntimePolicySeedDataService runtimePolicySeed,
+    IPlatformRuntimeService platform) : IInitialDataCatalog
 {
     /// <summary>
     /// Gets the regex patterns collection maintained or exposed by this initial data instance for downstream processing.
@@ -272,10 +273,7 @@ public sealed class InitialDataCatalog(
     {
     try
     {
-            var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            return string.Equals(path, normalizedRoot, comparison) ||
-                   path.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, comparison);
+            return platform.IsSameOrDescendantPath(root, path);
     
     }
     catch (Exception __serviceMethodException)

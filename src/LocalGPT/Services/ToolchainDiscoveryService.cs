@@ -12,6 +12,7 @@ namespace LocalGPT.Services;
 public sealed class ToolchainDiscoveryService(
     IToolchainKnowledgeService knowledge,
     IRegexPatternService regexPatterns,
+    IPlatformRuntimeService platform,
     ILogger<ToolchainDiscoveryService> logger) : IToolchainDiscoveryService
 {
     /// <summary>
@@ -23,13 +24,7 @@ public sealed class ToolchainDiscoveryService(
     /// Gets the current platform value that forms part of the toolchain discovery state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <inheritdoc />
-    public ToolchainPlatformKind CurrentPlatform => OperatingSystem.IsWindows()
-        ? ToolchainPlatformKind.Windows
-        : OperatingSystem.IsLinux()
-            ? ToolchainPlatformKind.Linux
-            : OperatingSystem.IsMacOS()
-                ? ToolchainPlatformKind.MacOS
-                : ToolchainPlatformKind.Other;
+    public ToolchainPlatformKind CurrentPlatform => platform.ToolchainPlatform;
 
     /// <summary>
     /// Performs discover as part of the toolchain discovery service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -503,7 +498,7 @@ public sealed class ToolchainDiscoveryService(
     {
         try
         {
-            return OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            return platform.PathComparer;
         }
         catch (Exception exception)
         {

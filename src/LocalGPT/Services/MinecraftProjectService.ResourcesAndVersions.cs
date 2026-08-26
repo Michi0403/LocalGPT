@@ -57,10 +57,10 @@ namespace LocalGPT.Services
             ## Build
 
             ```powershell
-            .\build-local.ps1
+            pwsh ./build-local.ps1
             ```
 
-            The helper script uses `JAVA_HOME` when available, otherwise it tries the Microsoft OpenJDK 21 path installed by winget. It uses LocalGPT's local Gradle install under `%LOCALAPPDATA%\LocalGPT\Tools` when present.
+            The helper script is host-neutral: it uses `JAVA_HOME` or `java` from PATH, then checks LocalGPT's per-user tool cache under the host `LocalApplicationData` folder before falling back to `gradle` from PATH.
 
             ## Eclipse
 
@@ -316,34 +316,53 @@ namespace LocalGPT.Services
 
             $ErrorActionPreference = "Stop"
 
-            $javaHome = $env:JAVA_HOME
-            if ([string]::IsNullOrWhiteSpace($javaHome) -or -not (Test-Path (Join-Path $javaHome "bin\java.exe"))) {
-                $javaCandidate = Join-Path $env:ProgramFiles "Microsoft\jdk-21.0.11.10-hotspot"
-                if (Test-Path (Join-Path $javaCandidate "bin\java.exe")) {
-                    $javaHome = $javaCandidate
+            function Find-ExecutableInDirectory {
+                param(
+                    [Parameter(Mandatory = $true)][string]$Directory,
+                    [Parameter(Mandatory = $true)][string]$BaseName
+                )
+
+                if (-not (Test-Path -LiteralPath $Directory -PathType Container)) {
+                    return $null
+                }
+
+                return Get-ChildItem -LiteralPath $Directory -File -ErrorAction SilentlyContinue |
+                    Where-Object { $_.BaseName -eq $BaseName } |
+                    Select-Object -First 1
+            }
+
+            $javaCommand = $null
+            if (-not [string]::IsNullOrWhiteSpace($env:JAVA_HOME)) {
+                $javaCommand = Find-ExecutableInDirectory -Directory ([IO.Path]::Combine($env:JAVA_HOME, "bin")) -BaseName "java"
+            }
+            if ($null -eq $javaCommand) {
+                $javaCommand = Get-Command java -CommandType Application -ErrorAction SilentlyContinue
+            }
+            if ($null -eq $javaCommand) {
+                throw "JDK {{request.JavaVersion}} was not found. Set JAVA_HOME or place java on PATH."
+            }
+
+            $javaBin = Split-Path -Parent $javaCommand.Source
+            $env:JAVA_HOME = Split-Path -Parent $javaBin
+            $env:Path = "$javaBin$([IO.Path]::PathSeparator)$env:Path"
+
+            $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+            if (-not [string]::IsNullOrWhiteSpace($localApplicationData)) {
+                $localGradleBin = [IO.Path]::Combine($localApplicationData, "LocalGPT", "Tools", "gradle-{{gradleVersion}}", "bin")
+                $localGradle = Find-ExecutableInDirectory -Directory $localGradleBin -BaseName "gradle"
+                if ($null -ne $localGradle) {
+                    & $localGradle.FullName $Task
+                    exit $LASTEXITCODE
                 }
             }
 
-            if ([string]::IsNullOrWhiteSpace($javaHome) -or -not (Test-Path (Join-Path $javaHome "bin\java.exe"))) {
-                throw "JDK 21 was not found. Install Microsoft.OpenJDK.21 or run src\build\Setup-MinecraftModToolchain.ps1 -Install."
-            }
-
-            $env:JAVA_HOME = $javaHome
-            $env:Path = "$(Join-Path $javaHome "bin");$env:Path"
-
-            $localGradle = Join-Path $env:LOCALAPPDATA "LocalGPT\Tools\gradle-{{gradleVersion}}\bin\gradle.bat"
-            if (Test-Path $localGradle) {
-                & $localGradle $Task
-                exit $LASTEXITCODE
-            }
-
-            $globalGradle = Get-Command gradle -ErrorAction SilentlyContinue
+            $globalGradle = Get-Command gradle -CommandType Application -ErrorAction SilentlyContinue
             if ($null -ne $globalGradle) {
                 & $globalGradle.Source $Task
                 exit $LASTEXITCODE
             }
 
-            throw "Gradle {{gradleVersion}} was not found. Run LocalGPT\build\Setup-MinecraftModToolchain.ps1 -InstallGradle."
+            throw "Gradle {{gradleVersion}} was not found. Install Gradle or place the LocalGPT Gradle tool cache under the current user's LocalApplicationData folder."
             """;
             }
             catch (Exception ex)

@@ -310,20 +310,20 @@ namespace LocalGPT.Services
 
             $required = @(
                 "pack.mcmeta",
-                "data\minecraft\tags\function\load.json",
-                "data\minecraft\tags\function\tick.json",
-                "data\{{context.ModId}}\function\core\load.mcfunction",
-                "data\{{context.ModId}}\function\core\tick.mcfunction",
-                "data\{{context.ModId}}\function\city\create.mcfunction",
-                "data\{{context.ModId}}\function\citizens\register.mcfunction",
-                "data\{{context.ModId}}\function\food\update.mcfunction",
-                "data\{{context.ModId}}\function\security\update.mcfunction",
-                "data\{{context.ModId}}\function\ui\townhall.mcfunction",
-                "data\{{context.ModId}}\function\ui\status.mcfunction"
+                "data/minecraft/tags/function/load.json",
+                "data/minecraft/tags/function/tick.json",
+                "data/{{context.ModId}}/function/core/load.mcfunction",
+                "data/{{context.ModId}}/function/core/tick.mcfunction",
+                "data/{{context.ModId}}/function/city/create.mcfunction",
+                "data/{{context.ModId}}/function/citizens/register.mcfunction",
+                "data/{{context.ModId}}/function/food/update.mcfunction",
+                "data/{{context.ModId}}/function/security/update.mcfunction",
+                "data/{{context.ModId}}/function/ui/townhall.mcfunction",
+                "data/{{context.ModId}}/function/ui/status.mcfunction"
             )
 
             foreach ($relative in $required) {
-                $path = Join-Path $root $relative
+                $path = [IO.Path]::Combine($root, $relative.Replace('/', [IO.Path]::DirectorySeparatorChar))
                 if (-not (Test-Path $path)) {
                     throw "Missing datapack file: $relative"
                 }
@@ -340,8 +340,8 @@ namespace LocalGPT.Services
             }
 
             Get-Content (Join-Path $root "pack.mcmeta") -Raw | ConvertFrom-Json | Out-Null
-            Get-Content (Join-Path $root "data\minecraft\tags\function\load.json") -Raw | ConvertFrom-Json | Out-Null
-            Get-Content (Join-Path $root "data\minecraft\tags\function\tick.json") -Raw | ConvertFrom-Json | Out-Null
+            Get-Content (Join-Path $root "data/minecraft/tags/function/load.json") -Raw | ConvertFrom-Json | Out-Null
+            Get-Content (Join-Path $root "data/minecraft/tags/function/tick.json") -Raw | ConvertFrom-Json | Out-Null
 
             $txtPlaceholders = Get-ChildItem (Join-Path $root "data") -Recurse -File -Filter "*.mcfunction.txt"
             if ($txtPlaceholders.Count -gt 0) {
@@ -364,7 +364,7 @@ namespace LocalGPT.Services
                 $functionIds["${namespace}:$functionPath"] = $relativePath
             }
 
-            $tagFiles = Get-ChildItem (Join-Path $root "data\minecraft\tags\function") -File -Filter "*.json"
+            $tagFiles = Get-ChildItem $minecraftTagRoot -File -Filter "*.json"
             foreach ($tag in $tagFiles) {
                 $json = Get-Content $tag.FullName -Raw | ConvertFrom-Json
                 foreach ($value in $json.values) {
@@ -481,10 +481,10 @@ namespace LocalGPT.Services
             ## Build
 
             ```powershell
-            .\build-local.ps1
+            pwsh ./build-local.ps1
             ```
 
-            The build helper validates JSON files and creates `build\{{context.ProjectName}}-datapack.zip`.
+            The build helper validates JSON files and creates `build/{{context.ProjectName}}-datapack.zip`.
 
             ## Install
 
@@ -501,7 +501,7 @@ namespace LocalGPT.Services
             - for Minecraft 1.21+ ensure folders are `data/<namespace>/function` and `data/minecraft/tags/function`
             - run `/reload`, `/datapack list`, then `/function {{context.ModId}}:city/register_banner`
             - ensure no file ends in `.mcfunction.txt`
-            - run `.\build-local.ps1` to validate references before copying the zip
+            - run `pwsh ./build-local.ps1` to validate references before copying the zip
 
             ## Structure
 

@@ -19,6 +19,7 @@ public sealed class LearningProjectWorkspaceSyncService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     IChatUploadWorkspaceService workspaces,
+    IPlatformRuntimeService platform,
     ILogger<LearningProjectWorkspaceSyncService> logger) : ILearningProjectWorkspaceSyncService
 {
     /// <summary>
@@ -185,7 +186,7 @@ public sealed class LearningProjectWorkspaceSyncService(
     {
         try
         {
-            var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var candidates = new HashSet<string>(platform.PathComparer);
             foreach (var projectFile in EnumerateRepositoryFiles(extractedRoot, "*.csproj"))
             {
                 var directory = Path.GetDirectoryName(projectFile);
@@ -220,9 +221,9 @@ public sealed class LearningProjectWorkspaceSyncService(
         try
         {
             var current = new DirectoryInfo(startDirectory);
-            var extracted = Path.GetFullPath(extractedRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var extracted = platform.NormalizeAbsolutePath(extractedRoot);
             DirectoryInfo? best = null;
-            while (current is not null && current.FullName.StartsWith(extracted, StringComparison.OrdinalIgnoreCase))
+            while (current is not null && platform.IsSameOrDescendantPath(extracted, current.FullName))
             {
                 if (File.Exists(Path.Combine(current.FullName, "global.json")) ||
                     current.EnumerateFiles("*.sln", SearchOption.TopDirectoryOnly).Any() ||
@@ -232,7 +233,7 @@ public sealed class LearningProjectWorkspaceSyncService(
                     best = current;
                 }
 
-                if (string.Equals(current.FullName.TrimEnd(Path.DirectorySeparatorChar), extracted, StringComparison.OrdinalIgnoreCase))
+                if (platform.PathsEqual(current.FullName, extracted))
                     break;
                 current = current.Parent;
             }
@@ -1071,8 +1072,8 @@ public sealed class LearningProjectWorkspaceSyncService(
         try
         {
             var current = new DirectoryInfo(Path.GetDirectoryName(path) ?? repositoryRoot);
-            var root = Path.GetFullPath(repositoryRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            while (current is not null && current.FullName.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            var root = platform.NormalizeAbsolutePath(repositoryRoot);
+            while (current is not null && platform.IsSameOrDescendantPath(root, current.FullName))
             {
                 var project = current.EnumerateFiles("*.csproj", SearchOption.TopDirectoryOnly).OrderBy(file => file.Name, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
                 if (project is not null)

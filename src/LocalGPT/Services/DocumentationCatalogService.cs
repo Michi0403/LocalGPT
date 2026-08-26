@@ -19,6 +19,7 @@ public sealed class DocumentationCatalogService(
     IWebHostEnvironment environment,
     ICustomVersion version,
     IDocumentationTranslationAdapter translation,
+    IPlatformRuntimeService platform,
     ILogger<DocumentationCatalogService> logger) : IDocumentationCatalogService
 {
     /// <summary>
@@ -699,10 +700,7 @@ public sealed class DocumentationCatalogService(
     {
     try
     {
-            var normalizedRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var normalizedCandidate = Path.GetFullPath(candidate);
-            return string.Equals(normalizedRoot, normalizedCandidate, StringComparison.OrdinalIgnoreCase) ||
-                normalizedCandidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            return platform.IsSameOrDescendantPath(root, candidate);
     
     }
     catch (Exception __serviceMethodException)

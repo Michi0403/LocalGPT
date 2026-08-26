@@ -38,6 +38,8 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
         /// Stores the toolchain knowledge service dependency used by <see cref="ProjectMaintenanceService"/> to delegate that application responsibility to its owning collaborator.
         /// </summary>
         private readonly IToolchainKnowledgeService toolchainKnowledge;
+        /// <summary>Stores host filesystem semantics behind the injected platform boundary.</summary>
+        private readonly IPlatformRuntimeService platform;
         /// <summary>
         /// Stores the logger used by <see cref="ProjectMaintenanceService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
@@ -58,6 +60,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             IRegexCompilationService regexCompilation,
             IToolchainDiscoveryService toolchainDiscovery,
             IToolchainKnowledgeService toolchainKnowledge,
+            IPlatformRuntimeService platform,
             ILogger<ProjectMaintenanceService> logger)
         {
             this.dbContextFactory = dbContextFactory;
@@ -66,6 +69,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             this.regexCompilation = regexCompilation;
             this.toolchainDiscovery = toolchainDiscovery;
             this.toolchainKnowledge = toolchainKnowledge;
+            this.platform = platform;
             this.logger = logger;
         }
 

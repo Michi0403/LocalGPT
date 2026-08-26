@@ -22,6 +22,7 @@ public sealed class AiProviderBootstrapService(
     IOptionsMonitor<global::LocalGPT.BusinessObjects.ConfigurationRoot> options,
     IConfigurationWriter configurationWriter,
     IAiProviderConfigurationRegistryService providerRegistry,
+    IPlatformRuntimeService platformRuntime,
     ILogger<AiProviderBootstrapService> logger) : IAiProviderBootstrapService
 {
 
@@ -33,7 +34,7 @@ public sealed class AiProviderBootstrapService(
         {
             var blockRegex = await regexPatterns.GetRegexAsync("builtin.ai-provider-bootstrap-block").ConfigureAwait(false)
                 ?? throw new InvalidOperationException("The AI-provider bootstrap profile regex is unavailable.");
-            var platform = GetPlatformToken();
+            var platform = platformRuntime.ProviderBootstrapToken;
             var entries = await knowledge.GetEntriesAsync(includeArchived: false, take: 500, cancellationToken).ConfigureAwait(false);
             var profiles = new List<AiProviderBootstrapProfile>();
             foreach (var entry in entries.OrderByDescending(item => item.IsUserApproved).ThenByDescending(item => item.UpdatedAtUtc))
@@ -298,23 +299,5 @@ public sealed class AiProviderBootstrapService(
         }
     }
 
-    /// <summary>
-    /// Retrieves platform token as part of the AI provider bootstrap service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <returns>The string produced by the operation.</returns>
-    private string GetPlatformToken()
-    {
-        try
-        {
-            if (OperatingSystem.IsWindows()) return "windows";
-            if (OperatingSystem.IsLinux()) return "linux";
-            if (OperatingSystem.IsMacOS()) return "macos";
-            return "other";
-        }
-        catch (Exception exception)
-        {
-            logger.LogError(exception, "Resolving current provider-bootstrap platform failed.");
-            throw;
-        }
-    }
+
 }

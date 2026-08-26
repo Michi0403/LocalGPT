@@ -100,11 +100,7 @@ namespace LocalGPT.Services
     {
     try
     {
-            var normalizedDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
-            var normalizedPath = Path.GetFullPath(path);
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            return string.Equals(normalizedPath, normalizedDirectory, comparison) ||
-                   normalizedPath.StartsWith(normalizedDirectory + Path.DirectorySeparatorChar, comparison);
+            return platform.IsSameOrDescendantPath(directory, path);
     
     }
     catch (Exception __serviceMethodException)
@@ -127,11 +123,9 @@ namespace LocalGPT.Services
     {
     try
     {
-            var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+            var normalizedRoot = platform.NormalizeAbsolutePath(root);
             var candidate = Path.GetFullPath(Path.Combine(normalizedRoot, relativePath));
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            if (!string.Equals(candidate, normalizedRoot, comparison) &&
-                !candidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, comparison))
+            if (!platform.IsSameOrDescendantPath(normalizedRoot, candidate))
             {
                 throw new InvalidOperationException("The requested output path escapes the reviewed artifact workspace.");
             }

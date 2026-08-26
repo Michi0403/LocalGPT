@@ -88,17 +88,7 @@ public sealed partial class OneWireRuntimeSecurityService
     /// <param name="path">Path value supplied to the one wire runtime security operation and used when producing its result.</param>
     private void TryRestrictSecretPermissions(string path)
     {
-        if (OperatingSystem.IsWindows()) return;
-        try
-        {
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            logger.LogWarning(ex, "Could not restrict 1-Wire secret file permissions at {SecretPath}; private material was not logged.", path);
-            // Persistence still succeeds on filesystems that do not support Unix modes; the frontend shows the path
-            // so the owner can apply platform-specific ACLs. Never write private material to logs.
-        }
+        secretFileProtection.RestrictToCurrentUser(path);
     }
 
     /// <summary>

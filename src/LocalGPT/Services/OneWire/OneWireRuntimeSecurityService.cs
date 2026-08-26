@@ -18,12 +18,16 @@ public sealed partial class OneWireRuntimeSecurityService : IOneWireRuntimeSecur
     /// Stores the logger used by <see cref="OneWireRuntimeSecurityService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
     private readonly ILogger<OneWireRuntimeSecurityService> logger;
+    /// <summary>Stores host-specific secret-file permission handling behind an injected boundary.</summary>
+    private readonly IRuntimeSecretFileProtectionService secretFileProtection;
 
     /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
     /// <param name="logger">Injected dependency used by OneWireRuntimeSecurityService.</param>
     public OneWireRuntimeSecurityService(
+        IRuntimeSecretFileProtectionService secretFileProtection,
         ILogger<OneWireRuntimeSecurityService> logger)
     {
+        this.secretFileProtection = secretFileProtection;
         this.logger = logger;
     }
 
