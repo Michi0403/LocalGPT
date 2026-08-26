@@ -15,11 +15,11 @@ if ((Get-Item -LiteralPath $source).Length -le 0) {
     throw 'The selected DevExpress license file is empty.'
 }
 
-$isWindows = [IO.Path]::DirectorySeparatorChar -eq '\'
+$runningOnWindows = [IO.Path]::DirectorySeparatorChar -eq '\'
 $homePath = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
 if ([string]::IsNullOrWhiteSpace($homePath)) { $homePath = $env:HOME }
 
-if ($isWindows) {
+if ($runningOnWindows) {
     if ([string]::IsNullOrWhiteSpace($env:APPDATA)) { throw 'APPDATA is not available for the current Windows user.' }
     $destinationDirectory = Join-Path $env:APPDATA 'DevExpress'
 }

@@ -7,8 +7,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Get-LocalGptDevExpressDefaultLicenseDirectory {
-    $isWindows = [IO.Path]::DirectorySeparatorChar -eq '\'
-    if ($isWindows) {
+    $runningOnWindows = [IO.Path]::DirectorySeparatorChar -eq '\'
+    if ($runningOnWindows) {
         if ([string]::IsNullOrWhiteSpace($env:APPDATA)) { return $null }
         return Join-Path $env:APPDATA 'DevExpress'
     }

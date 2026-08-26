@@ -5,6 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $unsupportedContainsPattern = '\.Contains\([^\r\n]*,\s*\[(?:System\.)?StringComparison\]::'
+$readOnlyPlatformVariableAssignmentPattern = '(?i)\$(?:IsWindows|IsLinux|IsMacOS|IsCoreCLR)\s*='
 $failures = [System.Collections.Generic.List[string]]::new()
 
 function Get-RepositoryRelativePath {
@@ -74,6 +75,10 @@ foreach ($file in $scriptFiles) {
     $sourceLines = $content -split "`r`n|`r|`n"
     for ($lineIndex = 0; $lineIndex -lt $sourceLines.Length; $lineIndex++) {
         $sourceLine = $sourceLines[$lineIndex]
+        if ([regex]::IsMatch($sourceLine, $readOnlyPlatformVariableAssignmentPattern)) {
+            $relative = Get-RepositoryRelativePath -Path $file.FullName
+            $failures.Add("${relative}:$($lineIndex + 1) assigns to a PowerShell 7 read-only platform automatic variable (IsWindows/IsLinux/IsMacOS/IsCoreCLR). Use a repository-specific variable name such as runningOnWindows instead; PowerShell variable names are case-insensitive.")
+        }
         if ($sourceLine.IndexOf('Join-Path', [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
         foreach ($quoted in [regex]::Matches($sourceLine, '(["''])(?<value>[^"'']*\\[^"'']*)\1')) {
             $value = $quoted.Groups['value'].Value
@@ -89,4 +94,4 @@ if ($failures.Count -gt 0) {
     throw "PowerShell compatibility validation failed:`n - $($failures -join "`n - ")"
 }
 
-Write-Host 'PowerShell compatibility validation passed for Windows PowerShell 5.1 and cross-platform pwsh path literals.'
+Write-Host 'PowerShell compatibility validation passed for Windows PowerShell 5.1, cross-platform pwsh path literals, and protected platform automatic-variable assignments.'

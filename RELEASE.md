@@ -1,13 +1,11 @@
-# LocalGPT 3.3.1
+# LocalGPT 3.3.2
 
-LocalGPT 3.3.1 is a cross-platform developer-build and local-runtime setup repair release built on 3.3.0.
+LocalGPT 3.3.2 is a focused PowerShell 7 portability repair on top of 3.3.1.
 
-A clean macOS/Linux source checkout can now pass the two repository-level restore gates that previously stopped development before normal compilation: the Windows WinUI/WebView wrapper explicitly allows Windows cross-targeting, and the normal NuGet configuration no longer requires a missing repository-local `./packages` source. The maintained PowerShell build paths were reviewed for `pwsh` portability, macOS/Linux documentation-browser discovery was added, and Unix documentation builds no longer attempt the Windows-only Node fallback.
+The DevExpress license helpers no longer assign to `$isWindows`, which is the same variable as PowerShell 7's read-only `$IsWindows` because PowerShell variable names are case-insensitive. Both license initialization and manual license registration now use a repository-owned `$runningOnWindows` variable.
 
-The Install workbench now exposes Ollama and LM Studio/llmster setup more clearly and links directly to the existing service-backed, confirmation-gated setup assistant. Ollama executable discovery is separated behind `IOllamaPlatformService`, with Windows, macOS, Linux and fallback implementations selected through dependency injection while the shared process coordinator keeps the existing lifecycle/logging behavior.
+The PowerShell compatibility validator also rejects future assignments to the read-only platform automatic variables `IsWindows`, `IsLinux`, `IsMacOS` and `IsCoreCLR`, and the release build executes that guard before invoking the DevExpress license helper.
 
-DevExpress 25.2 developer licensing now has a repository-side preflight and registration helper for the official Windows/macOS/Linux per-user key locations and case-sensitive environment variables. License values are never printed or included in the repository.
+All 3.3.1 cross-platform install, build, Ollama/LM Studio setup and DevExpress licensing work is preserved. InteractiveServer render-mode boundaries remain unchanged. DevExpress remains **25.2.9**. PublisherStudio is unchanged by this archive.
 
-InteractiveServer render-mode boundaries are unchanged. DevExpress remains **25.2.9**. PublisherStudio is unchanged by this archive.
-
-See `CHANGELOG-v3.3.1-CROSS-PLATFORM-INSTALL-BUILD-LICENSING.md` and `VALIDATION-v3.3.1-source.md`.
+See `CHANGELOG-v3.3.2-POWERSHELL-PLATFORM-AUTOMATIC-VARIABLE-REPAIR.md` and `VALIDATION-v3.3.2-source.md`.
