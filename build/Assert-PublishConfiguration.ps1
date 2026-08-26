@@ -37,7 +37,7 @@ function Assert-Profile(
     [string]$TargetFramework,
     [string]$PublishSingleFile) {
     $properties = Read-ProfileProperties $RelativePath
-    $output = "..\..\artifacts\release\$Folder\"
+    $output = "..\..\artifacts/release\$Folder\"
     foreach ($requirement in @(
         @{ Name = 'Configuration'; Value = 'Release' },
         @{ Name = 'RuntimeIdentifier'; Value = $Runtime },
@@ -77,8 +77,8 @@ $profiles = @(
 )
 
 foreach ($profile in $profiles) {
-    Assert-Profile "src\LocalGPT\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.App 'AnyCPU' 'net10.0' 'false'
-    Assert-Profile "src\LocalGPTInstallerConsole\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Setup $profile.SetupPlatform 'net10.0' 'true'
+    Assert-Profile "src/LocalGPT\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.App 'AnyCPU' 'net10.0' 'false'
+    Assert-Profile "src/LocalGPTInstallerConsole\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Setup $profile.SetupPlatform 'net10.0' 'true'
 }
 
 $wrapperProfiles = @(
@@ -87,7 +87,7 @@ $wrapperProfiles = @(
     @{ File = 'winarm64.pubxml'; Runtime = 'win-arm64'; Platform = 'ARM64'; Folder = 'wrapper-winarm64' }
 )
 foreach ($profile in $wrapperProfiles) {
-    Assert-Profile "src\LocalGPTWebviewWrapper\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Folder $profile.Platform 'net10.0-windows10.0.26100.0' 'false'
+    Assert-Profile "src/LocalGPTWebviewWrapper\Properties\PublishProfiles\$($profile.File)" $profile.Runtime $profile.Folder $profile.Platform 'net10.0-windows10.0.26100.0' 'false'
 }
 
 $userProfiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Recurse -File -Filter '*.pubxml.user' -ErrorAction SilentlyContinue)
@@ -113,7 +113,7 @@ foreach ($forbidden in @(
     if ($release.Contains($forbidden)) { Fail "Build-Release.ps1 overrides profile-owned publish policy with $forbidden" }
 }
 
-$legacy = [IO.File]::ReadAllText((Join-Path $root 'build\PublishBlazorSolutionAndCreateZips.ps1'))
+$legacy = [IO.File]::ReadAllText((Join-Path $root 'build/PublishBlazorSolutionAndCreateZips.ps1'))
 if (([regex]::Matches($legacy, '-p:PublishProfile=')).Count -lt 2) {
     Fail 'The legacy release script must publish both LocalGPT and its installer through checked-in profiles.'
 }

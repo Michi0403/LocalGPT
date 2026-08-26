@@ -6,8 +6,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$project = Join-Path $repoRoot "src\LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
-$packageRoot = Join-Path $repoRoot "artifacts\release\protocol"
+$project = Join-Path $repoRoot "src/LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj"
+$packageRoot = Join-Path $repoRoot "artifacts/release/protocol"
 $packageName = "LocalGPT.WireProtocolVersion.$Version.nupkg"
 $packagePath = Join-Path $packageRoot $packageName
 

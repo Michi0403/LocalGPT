@@ -1,11 +1,13 @@
-# LocalGPT 3.3.0
+# LocalGPT 3.3.1
 
-LocalGPT 3.3.0 is a theme-contrast and navigation-chrome repair release built on the 3.2.9 database, relationship and lifecycle work.
+LocalGPT 3.3.1 is a cross-platform developer-build and local-runtime setup repair release built on 3.3.0.
 
-The main correction is architectural rather than a theme-by-theme patch: LocalGPT's shell and DevExpress component themes are intentionally selectable independently, so application chrome can no longer depend on DevExpress button foreground variables. Menu, Back to Home, drawer header/footer controls and the important Chat actions now consume LocalGPT-owned contrast tokens instead. Navigation icons are rendered as masks, eliminating the white-square/background artifact caused by the old broad `MainLayout ::deep .icon` rule and making black/white source SVGs equally visible.
+A clean macOS/Linux source checkout can now pass the two repository-level restore gates that previously stopped development before normal compilation: the Windows WinUI/WebView wrapper explicitly allows Windows cross-targeting, and the normal NuGet configuration no longer requires a missing repository-local `./packages` source. The maintained PowerShell build paths were reviewed for `pwsh` portability, macOS/Linux documentation-browser discovery was added, and Unix documentation builds no longer attempt the Windows-only Node fallback.
 
-Projects now has its own `projects.svg` navigation/heading icon and Project Maintenance has a related maintenance variant. Chat primary, neutral, success and danger actions plus runtime send/upload controls also use explicit shell-aware contrast styling.
+The Install workbench now exposes Ollama and LM Studio/llmster setup more clearly and links directly to the existing service-backed, confirmation-gated setup assistant. Ollama executable discovery is separated behind `IOllamaPlatformService`, with Windows, macOS, Linux and fallback implementations selected through dependency injection while the shared process coordinator keeps the existing lifecycle/logging behavior.
 
-No persistence, Council, RegEx, DXFunction, provider, 1-Wire or deployment behavior changes in this release. InteractiveServer boundaries remain unchanged. DevExpress remains **25.2.9** and PublisherStudio remains **2.9.7**.
+DevExpress 25.2 developer licensing now has a repository-side preflight and registration helper for the official Windows/macOS/Linux per-user key locations and case-sensitive environment variables. License values are never printed or included in the repository.
 
-See `CHANGELOG-v3.3.0-THEME-CONTRAST-NAVIGATION-ICON-REPAIR.md` and `VALIDATION-v3.3.0-source.md`.
+InteractiveServer render-mode boundaries are unchanged. DevExpress remains **25.2.9**. PublisherStudio is unchanged by this archive.
+
+See `CHANGELOG-v3.3.1-CROSS-PLATFORM-INSTALL-BUILD-LICENSING.md` and `VALIDATION-v3.3.1-source.md`.

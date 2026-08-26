@@ -747,3 +747,153 @@
     width: 100%;
     font-family: var(--bs-font-monospace, monospace);
 }
+
+/* v3.3.1: explicit cross-platform local provider installation guidance. */
+.provider-install-guide {
+    display: grid;
+    gap: .8rem;
+    margin-bottom: 1rem;
+    padding: clamp(.85rem, 1.2vw, 1.2rem);
+    border: 1px solid var(--bs-border-color, #d0d5dd);
+    border-radius: .8rem;
+    background: color-mix(in srgb, var(--bs-secondary-bg, Canvas) 70%, var(--bs-body-bg, Canvas));
+}
+
+.provider-install-guide-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .8rem;
+}
+
+.provider-install-guide-heading > div {
+    min-width: 0;
+}
+
+.provider-install-guide-heading h3 {
+    margin: .15rem 0 .3rem;
+}
+
+.provider-install-guide-heading p,
+.provider-install-guide-card p,
+.provider-install-guide-card ol,
+.provider-install-guide-note {
+    margin-bottom: 0;
+}
+
+.provider-install-guide-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .8rem;
+}
+
+.provider-install-guide-card {
+    display: grid;
+    align-content: start;
+    gap: .8rem;
+    min-width: 0;
+    padding: .9rem;
+    border: 1px solid var(--bs-border-color, #d0d5dd);
+    border-radius: .7rem;
+    background: var(--bs-body-bg, Canvas);
+}
+
+.provider-install-guide-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .8rem;
+}
+
+.provider-install-guide-card-heading > div {
+    display: grid;
+    gap: .2rem;
+    min-width: 0;
+}
+
+.provider-install-guide-card-heading strong {
+    font-size: 1.05rem;
+}
+
+.provider-install-guide-card-heading small {
+    line-height: 1.4;
+    opacity: .82;
+}
+
+.provider-install-link {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.35rem;
+    padding: .35rem .65rem;
+    border: 1px solid currentColor;
+    border-radius: .55rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.provider-install-link:focus-visible {
+    outline: .2rem solid color-mix(in srgb, var(--bs-primary, Highlight) 55%, transparent);
+    outline-offset: .15rem;
+}
+
+.provider-install-commands {
+    display: grid;
+    gap: .45rem;
+}
+
+.provider-install-commands > div {
+    display: grid;
+    gap: .2rem;
+    min-width: 0;
+}
+
+.provider-install-commands span {
+    font-size: .78rem;
+    font-weight: 750;
+    opacity: .76;
+}
+
+.provider-install-commands code,
+.provider-install-guide-card li code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.provider-install-commands code {
+    display: block;
+    padding: .45rem .55rem;
+    border-radius: .45rem;
+    background: var(--bs-tertiary-bg, color-mix(in srgb, CanvasText 7%, Canvas));
+}
+
+.provider-install-guide-card ol {
+    display: grid;
+    gap: .45rem;
+    padding-inline-start: 1.35rem;
+}
+
+.provider-install-guide-note {
+    padding-top: .65rem;
+    border-top: 1px solid var(--bs-border-color, #d0d5dd);
+    font-size: .85rem;
+    opacity: .82;
+}
+
+@media (max-width: 900px) {
+    .provider-install-guide-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 580px) {
+    .provider-install-guide-heading,
+    .provider-install-guide-card-heading {
+        display: grid;
+    }
+
+    .provider-install-link {
+        justify-self: stretch;
+        justify-content: center;
+    }
+}

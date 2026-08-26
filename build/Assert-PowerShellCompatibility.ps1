@@ -70,10 +70,23 @@ foreach ($file in $scriptFiles) {
         $relative = Get-RepositoryRelativePath -Path $file.FullName
         $failures.Add("${relative}:$line uses String.Contains(value, StringComparison), which is unavailable in Windows PowerShell 5.1. Use String.IndexOf(value, comparison) instead.")
     }
+
+    $sourceLines = $content -split "`r`n|`r|`n"
+    for ($lineIndex = 0; $lineIndex -lt $sourceLines.Length; $lineIndex++) {
+        $sourceLine = $sourceLines[$lineIndex]
+        if ($sourceLine.IndexOf('Join-Path', [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+        foreach ($quoted in [regex]::Matches($sourceLine, '(["''])(?<value>[^"'']*\\[^"'']*)\1')) {
+            $value = $quoted.Groups['value'].Value
+            # A Join-Path call can share a line with a regex literal. Only path-like literals are rejected here.
+            if ($value.StartsWith('[', [System.StringComparison]::Ordinal) -or $value.IndexOf('(?:', [System.StringComparison]::Ordinal) -ge 0) { continue }
+            $relative = Get-RepositoryRelativePath -Path $file.FullName
+            $failures.Add("${relative}:$($lineIndex + 1) passes a backslash-delimited path literal to Join-Path. Use '/' or nested Join-Path calls so pwsh on macOS/Linux resolves the same path.")
+        }
+    }
 }
 
 if ($failures.Count -gt 0) {
     throw "PowerShell compatibility validation failed:`n - $($failures -join "`n - ")"
 }
 
-Write-Host 'PowerShell compatibility validation passed for Windows PowerShell 5.1 release and maintenance scripts.'
+Write-Host 'PowerShell compatibility validation passed for Windows PowerShell 5.1 and cross-platform pwsh path literals.'

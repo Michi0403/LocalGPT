@@ -276,7 +276,7 @@ function PublishThingsToGithub {
     "Automated publish on $timestamp" | Out-File $notesFile -Encoding utf8 -Force
 
     # GitHub CLI finden
-    $releaseRoot = Join-Path "..\" $OutputRoot
+    $releaseRoot = Join-Path ".." $OutputRoot
     $ghCommand = Resolve-GitHubCli
     if ([string]::IsNullOrWhiteSpace($ghCommand)) {
         throw "GitHub CLI 'gh' was not found. Install it or upload the zip files from $releaseRoot manually."
@@ -392,7 +392,7 @@ if ($AddBrain -match '^(Y|y|1|J|j)$') {
    
     try
     {
-        $dbfile = Join-Path $env:LOCALAPPDATA "LocalGPT\localgpt-memory.db"
+        $dbfile = Join-Path $env:LOCALAPPDATA "LocalGPT/localgpt-memory.db"
         $destinationPathDbFile  = Join-Path $OutputRoot "localgpt-memory.db"
         Copy-Item -Path $dbfile -Destination $destinationPathDbFile
     }
@@ -402,7 +402,7 @@ if ($AddBrain -match '^(Y|y|1|J|j)$') {
     }
     try
     {
-        $dbfileshm = Join-Path $env:LOCALAPPDATA "LocalGPT\localgpt-memory.db-shm"
+        $dbfileshm = Join-Path $env:LOCALAPPDATA "LocalGPT/localgpt-memory.db-shm"
         $destinationPathDbFile  = Join-Path $OutputRoot "localgpt-memory.db-shm"
         Copy-Item -Path $dbfileshm -Destination $destinationPathDbFile
     }
@@ -412,7 +412,7 @@ if ($AddBrain -match '^(Y|y|1|J|j)$') {
     }
     try
     {
-        $dbfilewal = Join-Path $env:LOCALAPPDATA "LocalGPT\localgpt-memory.db-wal"
+        $dbfilewal = Join-Path $env:LOCALAPPDATA "LocalGPT/localgpt-memory.db-wal"
         $destinationPathDbFile  = Join-Path $OutputRoot "localgpt-memory.db-wal"
         Copy-Item -Path $dbfilewal -Destination $destinationPathDbFile
     }

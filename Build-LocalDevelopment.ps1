@@ -4,35 +4,41 @@ param(
     [ValidateSet("x64", "x86", "arm64")]
     [string]$Platform = "x64",
     [switch]$UseWireProtocolPackage,
-    [switch]$Clean
+    [switch]$Clean,
+    [switch]$AllowMissingDevExpressLicense
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+& (Join-Path $root 'build/Assert-PowerShellCompatibility.ps1')
+if ($null -eq (Get-Command dotnet -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+    throw 'dotnet was not found on PATH. Install the repository-required .NET SDK and reopen the terminal before running this build script.'
+}
+& (Join-Path $root 'build/Initialize-DevExpressLicense.ps1') -Require:(-not $AllowMissingDevExpressLicense)
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
-& (Join-Path $root 'build\Update-JavaScriptDiagnosticsManifest.ps1')
-& (Join-Path $root 'build\Assert-JavaScriptDiagnostics.ps1')
+& (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
+& (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')
 Write-Host "Clearing repository-local obj restore state before the ordered CLI build..." -ForegroundColor DarkCyan
 Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force |
     Where-Object { $_.Name -eq "obj" } |
     Sort-Object FullName -Descending |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 $solutionRoot = Join-Path $root "src"
-$wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
-$appProject = Join-Path $solutionRoot "LocalGPT\LocalGPT.csproj"
-$setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole\LocalGPTInstallerConsole.csproj"
-$wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj"
-$documentationScript = Join-Path $root "build\Build-Documentation.ps1"
-$pagesSnapshotScript = Join-Path $root "build\Update-GitHubPagesSnapshot.ps1"
-$pagesSnapshotArchive = Join-Path $root ".github\pages\localgpt-kawaii-docs.zip"
+$wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj"
+$appProject = Join-Path $solutionRoot "LocalGPT/LocalGPT.csproj"
+$setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj"
+$wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj"
+$documentationScript = Join-Path $root "build/Build-Documentation.ps1"
+$pagesSnapshotScript = Join-Path $root "build/Update-GitHubPagesSnapshot.ps1"
+$pagesSnapshotArchive = Join-Path $root ".github/pages/localgpt-kawaii-docs.zip"
 $packageDirectory = Join-Path $root "packages"
 $wireVersion = "2.1.1"
 $wirePackage = Join-Path $packageDirectory "LocalGPT.WireProtocolVersion.$wireVersion.nupkg"
-$packageRestoreCache = Join-Path $root "artifacts\development\.nuget-packages"
+$packageRestoreCache = Join-Path $root "artifacts/development/.nuget-packages"
 $useProject = if ($UseWireProtocolPackage) { "false" } else { "true" }
-$appOutputRoot = Join-Path (Split-Path -Parent $appProject) "bin\$Configuration\net10.0"
-$documentationRoot = Join-Path $appOutputRoot "wwwroot\help-docs"
+$appOutputRoot = Join-Path (Split-Path -Parent $appProject) "bin/$Configuration/net10.0"
+$documentationRoot = Join-Path $appOutputRoot "wwwroot/help-docs"
 $requireDocumentationPdf = $true
 
 function Invoke-DotNet {
@@ -114,7 +120,7 @@ if (-not (Test-Path -LiteralPath $wirePackage)) { throw "Expected wire protocol 
 if ($UseWireProtocolPackage) {
     # Local packages are intentionally rebuilt with the stable public version. Use an isolated restore
     # cache and evict only this package/version so NuGet cannot reuse an older 2.1.1 extraction.
-    $cachedWirePackage = Join-Path $packageRestoreCache "localgpt.wireprotocolversion\$wireVersion"
+    $cachedWirePackage = Join-Path $packageRestoreCache "localgpt.wireprotocolversion/$wireVersion"
     Remove-Item -LiteralPath $cachedWirePackage -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path $packageRestoreCache -Force | Out-Null
 }

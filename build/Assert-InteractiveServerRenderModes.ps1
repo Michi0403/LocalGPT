@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 function Fail([string]$Message) { throw "InteractiveServer render-mode validation failed: $Message" }
 
 $root = Split-Path -Parent $PSScriptRoot
-$appRoot = Join-Path $root 'src\LocalGPT'
+$appRoot = Join-Path $root 'src/LocalGPT'
 $expected = [ordered]@{
     'Components/InteractiveStartupMarker.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
     'Components/Layout/CouncilSpoolerPanel.razor' = '@rendermode @(new InteractiveServerRenderMode(prerender: false))'
@@ -54,9 +54,9 @@ foreach ($relative in $inheritedThemeChildren) {
     }
 }
 
-$appPath = Join-Path $appRoot 'Components\App.razor'
+$appPath = Join-Path $appRoot 'Components/App.razor'
 $programPaths = @(Get-ChildItem -LiteralPath $appRoot -File -Filter 'Program*.cs' | Sort-Object Name | Select-Object -ExpandProperty FullName)
-$importsPath = Join-Path $appRoot 'Components\_Imports.razor'
+$importsPath = Join-Path $appRoot 'Components/_Imports.razor'
 foreach ($path in @($appPath, $importsPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Fail "Required source file is missing: $path" }
 }

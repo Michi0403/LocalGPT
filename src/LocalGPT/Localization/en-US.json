@@ -2010,5 +2010,19 @@
   "RemoteControl.RemoveHost": "Remove",
   "RemoteControl.RemoveHeader": "Remove",
   "RemoteControl.UrlHostInvalid": "Enter a valid absolute URL template before using its host.",
-  "RemoteControl.UrlHostAdded": "The URL host was added to the connector allowlist."
+  "RemoteControl.UrlHostAdded": "The URL host was added to the connector allowlist.",
+  "Install.ProviderInstall.Kicker": "Local runtime installation",
+  "Install.ProviderInstall.Title": "Need Ollama or LM Studio first?",
+  "Install.ProviderInstall.Help": "Use the official installer for your operating system, start a local model server, then return here and refresh connectivity. LocalGPT shows installation commands but never runs download or installer commands automatically.",
+  "Install.ProviderInstall.OllamaHelp": "Best fit when you want a lightweight local model service that LocalGPT can also start, stop and restart after installation.",
+  "Install.ProviderInstall.OpenDownload": "Official download",
+  "Install.ProviderInstall.OllamaStep1": "Install Ollama, then start it if your installer did not start the service automatically.",
+  "Install.ProviderInstall.OllamaStep2": "Pull at least one model. The maintained quick preset can use",
+  "Install.ProviderInstall.OllamaStep3": "Return to this page, refresh process/connectivity status and select the discovered model. Native Ollama normally listens on",
+  "Install.ProviderInstall.LmStudioHelp": "Best fit when you want a desktop model catalog and an OpenAI-compatible local server. Headless llmster is also available for macOS and Linux.",
+  "Install.ProviderInstall.LmStudioStep1": "Install the desktop app or llmster, download/load a model, then start the local server.",
+  "Install.ProviderInstall.LmStudioStep2": "LM Studio's OpenAI-compatible server normally listens on",
+  "Install.ProviderInstall.LmStudioStep3": "Return here, choose LM Studio / local OpenAI-compatible, test the endpoint and save the discovered model id.",
+  "Install.ProviderInstall.SecurityNote": "Security note: review vendor installer scripts before running them. LocalGPT does not download, execute or elevate these commands on your behalf.",
+  "Install.ProviderInstall.GuidedAction": "Open guided install actions"
 }

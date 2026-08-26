@@ -1,15 +1,16 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace LocalGPT.Services;
 
 /// <summary>
 /// Coordinates Ollama process behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
+/// <param name="platform">Resolves the operating-system-specific Ollama executable without leaking platform path policy into the shared process coordinator.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OllamaProcessService(
+    IOllamaPlatformService platform,
     ILogger<OllamaProcessService> logger) : IOllamaProcessService
 {
     /// <summary>
@@ -58,11 +59,11 @@ public sealed class OllamaProcessService(
             if (current.IsRunning)
                 return current with { Message = $"Ollama is already running in {current.Processes.Count} process(es); no duplicate instance was started." };
 
-            var executable = ResolveOllamaExecutable();
+            var executable = platform.ResolveExecutable();
             if (string.IsNullOrWhiteSpace(executable))
                 return current with { Message = "Ollama is not installed or its executable could not be resolved." };
 
-            var isGuiExecutable = IsOllamaAppExecutable(executable);
+            var isGuiExecutable = platform.IsGuiExecutable(executable);
             var startInfo = new ProcessStartInfo
             {
                 FileName = executable,
@@ -120,7 +121,7 @@ public sealed class OllamaProcessService(
                         ? $"Ollama stop was requested, but {stopped.Processes.Count} process(es) are still running."
                         : terminatedCount == 0
                             ? "Ollama was not running."
-                            : $"Stopped {terminatedCount} Ollama process(es), including ollama.exe and Ollama app processes."
+                            : $"Stopped {terminatedCount} Ollama process(es)."
                 };
             }
             finally
@@ -153,11 +154,11 @@ public sealed class OllamaProcessService(
             {
                 await TerminateAllOllamaProcessesAsync(cancellationToken).ConfigureAwait(false);
 
-                var executable = ResolveOllamaExecutable();
+                var executable = platform.ResolveExecutable();
                 if (string.IsNullOrWhiteSpace(executable))
                     return BuildStatus() with { Message = "Ollama was stopped, but its executable could not be resolved for restart." };
 
-                var isGuiExecutable = IsOllamaAppExecutable(executable);
+                var isGuiExecutable = platform.IsGuiExecutable(executable);
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = executable,
@@ -202,7 +203,7 @@ public sealed class OllamaProcessService(
     {
     try
     {
-            var executable = ResolveOllamaExecutable();
+            var executable = platform.ResolveExecutable();
             var processes = GetOllamaProcesses()
                 .Select(process =>
                 {
@@ -297,74 +298,6 @@ public sealed class OllamaProcessService(
             logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(NormalizeProcessName)} was canceled.");
         else
             logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(NormalizeProcessName)} failed.");
-        throw;
-    }
-}
-
-    /// <summary>
-    /// Determines whether Ollama app executable as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="executable">Executable value supplied to the Ollama process operation and used when producing its result.</param>
-    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-    private bool IsOllamaAppExecutable(string executable) {
-    try
-    {
-        return NormalizeProcessName(Path.GetFileNameWithoutExtension(executable)) == "ollamaapp";
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(IsOllamaAppExecutable)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(IsOllamaAppExecutable)} failed.");
-        throw;
-    }
-}
-
-    /// <summary>
-    /// Resolves Ollama executable as part of the Ollama process service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <returns>The string produced by the operation.</returns>
-    private string? ResolveOllamaExecutable()
-    {
-    try
-    {
-            var executableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "ollama.exe" : "ollama";
-            var candidates = new List<string>();
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                if (!string.IsNullOrWhiteSpace(localAppData))
-                {
-                    candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", executableName));
-                    candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", "ollama app.exe"));
-                    candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", "ollama.app.exe"));
-                }
-
-                var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                if (!string.IsNullOrWhiteSpace(programFiles))
-                {
-                    candidates.Add(Path.Combine(programFiles, "Ollama", executableName));
-                    candidates.Add(Path.Combine(programFiles, "Ollama", "ollama app.exe"));
-                    candidates.Add(Path.Combine(programFiles, "Ollama", "ollama.app.exe"));
-                }
-            }
-
-            var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-            candidates.AddRange(path
-                .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(directory => Path.Combine(directory, executableName)));
-
-            return candidates.FirstOrDefault(File.Exists);
-    
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(ResolveOllamaExecutable)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(OllamaProcessService)}.{nameof(ResolveOllamaExecutable)} failed.");
         throw;
     }
 }

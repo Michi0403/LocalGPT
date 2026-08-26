@@ -45,7 +45,7 @@ function Read-Catalog([string]$Path) {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
-$localization = Join-Path $root 'src\LocalGPT\Localization'
+$localization = Join-Path $root 'src/LocalGPT/Localization'
 $englishPath = Join-Path $localization 'en-US.json'
 $germanPath = Join-Path $localization 'de-DE.json'
 if (-not (Test-Path -LiteralPath $englishPath -PathType Leaf)) { Fail "Missing $englishPath" }
@@ -130,7 +130,7 @@ foreach ($template in $requiredTemplates) {
 # Keep the server loader tolerant without ever constructing an OrdinalIgnoreCase dictionary from an
 # already materialized case-sensitive Dictionary. JsonDocument preserves duplicate properties so the
 # service can resolve them deterministically while source-controlled catalogs remain build-fail strict.
-$loaderPath = Join-Path $root 'src\LocalGPT\Services\Localization\LocalGptLocalizationService.cs'
+$loaderPath = Join-Path $root 'src/LocalGPT/Services/Localization/LocalGptLocalizationService.cs'
 if (-not (Test-Path -LiteralPath $loaderPath -PathType Leaf)) { Fail "Missing $loaderPath" }
 $loader = Read-StrictUtf8 $loaderPath
 foreach ($requiredLoaderToken in @('JsonDocument.Parse(stream)', 'EnumerateObject()', 'StringComparer.OrdinalIgnoreCase')) {
@@ -142,7 +142,7 @@ if ($loader.IndexOf('JsonSerializer.Deserialize<Dictionary<string, string>>(stre
     Fail 'LocalGPT localization loader regressed to Dictionary deserialization before case-insensitive normalization.'
 }
 
-$runtimePath = Join-Path $root 'src\LocalGPT\wwwroot\js\localgpt-localization.js'
+$runtimePath = Join-Path $root 'src/LocalGPT/wwwroot/js/localgpt-localization.js'
 if (-not (Test-Path -LiteralPath $runtimePath -PathType Leaf)) { Fail "Missing $runtimePath" }
 $runtime = Read-StrictUtf8 $runtimePath
 foreach ($requiredRuntimeToken in @('request(''en-US'')', 'document.createTreeWalker', 'characterData: true', 'sourceDictionary')) {

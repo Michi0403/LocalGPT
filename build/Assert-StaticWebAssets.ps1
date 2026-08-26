@@ -2,8 +2,8 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$projectFile = Join-Path $repositoryRoot "src\LocalGPT\LocalGPT.csproj"
-$projectRoot = Join-Path $repositoryRoot "src\LocalGPT"
+$projectFile = Join-Path $repositoryRoot "src/LocalGPT/LocalGPT.csproj"
+$projectRoot = Join-Path $repositoryRoot "src/LocalGPT"
 $webRoot = Join-Path $projectRoot "wwwroot"
 
 if (-not (Test-Path -LiteralPath $projectFile -PathType Leaf)) { throw "LocalGPT project file is missing: $projectFile" }

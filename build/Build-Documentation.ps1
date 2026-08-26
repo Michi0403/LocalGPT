@@ -38,13 +38,13 @@ $docsRoot = Join-Path $RepositoryRoot "docs"
 $inputRoot = Join-Path $docsRoot "input"
 $siteRoot = Join-Path $docsRoot "_site"
 $apiRoot = Join-Path $docsRoot "api"
-$sourceWebRoot = Join-Path $RepositoryRoot "src\LocalGPT\wwwroot\help-docs"
+$sourceWebRoot = Join-Path $RepositoryRoot "src/LocalGPT/wwwroot/help-docs"
 $configPath = Join-Path $docsRoot "docfx.json"
 $tocPath = Join-Path $docsRoot "toc.yml"
-$guideTocPath = Join-Path $docsRoot "guide\toc.yml"
-$pdfTocPath = Join-Path $docsRoot "pdf\toc.yml"
+$guideTocPath = Join-Path $docsRoot "guide/toc.yml"
+$pdfTocPath = Join-Path $docsRoot "pdf/toc.yml"
 $pdfCoverPath = Join-Path $docsRoot "pdf-cover.html"
-$manifestPath = Join-Path $RepositoryRoot ".config\dotnet-tools.json"
+$manifestPath = Join-Path $RepositoryRoot ".config/dotnet-tools.json"
 $fallbackToolRoot = Join-Path $docsRoot ".tools"
 $internalNotesRoot = Join-Path $docsRoot "internal-notes"
 $printBookParentRoot = Join-Path $docsRoot ".print-book"
@@ -88,14 +88,14 @@ $documentationToolCacheRoot = if ([string]::IsNullOrWhiteSpace($localApplication
     Join-Path $fallbackToolRoot "runtime"
 }
 else {
-    Join-Path $localApplicationData "LocalGPT\DocumentationTools"
+    Join-Path $localApplicationData "LocalGPT/DocumentationTools"
 }
 $provisionedNodeRoot = Join-Path $documentationToolCacheRoot "node-v$provisionedNodeVersion-win-x64"
 $provisionedNodeExecutable = Join-Path $provisionedNodeRoot "node.exe"
 $playwrightBrowserRoot = Join-Path $documentationToolCacheRoot "ms-playwright-docfx-2.78.5"
 $documentationLockRoot = Join-Path $documentationToolCacheRoot "locks"
 $documentationLockPath = Join-Path $documentationLockRoot "LocalGPT-documentation.lock"
-$documentationWorkRoot = Join-Path $documentationToolCacheRoot ("work\" + [Guid]::NewGuid().ToString('N'))
+$documentationWorkRoot = Join-Path $documentationToolCacheRoot ("work/" + [Guid]::NewGuid().ToString('N'))
 $polishedXmlPath = Join-Path $documentationWorkRoot "LocalGPT.xml"
 $documentationLockStream = $null
 $nodeVersionUsed = ""
@@ -336,11 +336,11 @@ td, th { padding: .55rem; border-bottom: 1px solid var(--line); text-align: left
             $rows.Add("<tr><td><code>$memberName</code></td><td>$memberSummary$detail</td></tr>")
         }
         $body = "<h1><code>$(ConvertTo-LocalGptHtml $typeName)</code></h1><p>$([System.Net.WebUtility]::HtmlEncode($summary))</p><table><thead><tr><th>Member</th><th>Documentation</th></tr></thead><tbody>$($rows -join '')</tbody></table>"
-        Set-Content -LiteralPath (Join-Path $Destination "api\$fileName") -Value (Get-LocalGptHtmlPage -Title $typeName -Body $body -RelativePrefix "../") -Encoding utf8
+        Set-Content -LiteralPath (Join-Path $Destination "api/$fileName") -Value (Get-LocalGptHtmlPage -Title $typeName -Body $body -RelativePrefix "../") -Encoding utf8
         $apiLinks.Add("<li><a href=`"$fileName`">$(ConvertTo-LocalGptHtml $typeName)</a></li>")
     }
     $apiBody = "<h1>API reference</h1><p class=`"muted`">$($types.Count) documented types and $($members.Count) compiler XML members.</p><ul>$($apiLinks -join '')</ul>"
-    Set-Content -LiteralPath (Join-Path $Destination "api\index.html") -Value (Get-LocalGptHtmlPage -Title "API reference" -Body $apiBody -RelativePrefix "../") -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $Destination "api/index.html") -Value (Get-LocalGptHtmlPage -Title "API reference" -Body $apiBody -RelativePrefix "../") -Encoding utf8
 
     $articleLinks = [System.Collections.Generic.List[string]]::new()
     $articleIndex = 0
@@ -361,7 +361,7 @@ td, th { padding: .55rem; border-bottom: 1px solid var(--line); text-align: left
         $target = "article-{0:D3}.html" -f $articleIndex
         $markdown = Get-Content -LiteralPath $article.FullName -Raw -Encoding UTF8
         $body = Convert-LocalGptMarkdownToHtml $markdown
-        Set-Content -LiteralPath (Join-Path $Destination "articles\$target") -Value (Get-LocalGptHtmlPage -Title $name -Body $body -RelativePrefix "../") -Encoding utf8
+        Set-Content -LiteralPath (Join-Path $Destination "articles/$target") -Value (Get-LocalGptHtmlPage -Title $name -Body $body -RelativePrefix "../") -Encoding utf8
         $articleLinks.Add("<article class=`"card`"><h2><a href=`"articles/$target`">$(ConvertTo-LocalGptHtml $name)</a></h2></article>")
     }
 
@@ -432,7 +432,7 @@ function Test-LocalGptDocfxPdfLinkStub {
 function Install-LocalGptWebsiteThemeAssets {
     param([Parameter(Mandatory)][string]$SiteRoot)
 
-    $themeSourceRoot = Join-Path $docsRoot "templates\localgpt\public"
+    $themeSourceRoot = Join-Path $docsRoot "templates/localgpt/public"
     $cssSource = Join-Path $themeSourceRoot "main.css"
     $javascriptSource = Join-Path $themeSourceRoot "main.js"
     $faviconSource = Join-Path $themeSourceRoot "favicon.ico"
@@ -600,19 +600,35 @@ function Find-LocalGptDocumentationBrowser {
 
     $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
     if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
-        $candidates.Add([pscustomobject]@{ Path = (Join-Path $env:ProgramFiles "Microsoft\Edge\Application\msedge.exe"); Name = "Microsoft Edge" })
-        $candidates.Add([pscustomobject]@{ Path = (Join-Path $env:ProgramFiles "Google\Chrome\Application\chrome.exe"); Name = "Google Chrome" })
+        $candidates.Add([pscustomobject]@{ Path = (Join-Path $env:ProgramFiles "Microsoft/Edge/Application/msedge.exe"); Name = "Microsoft Edge" })
+        $candidates.Add([pscustomobject]@{ Path = (Join-Path $env:ProgramFiles "Google/Chrome/Application/chrome.exe"); Name = "Google Chrome" })
     }
     if (-not [string]::IsNullOrWhiteSpace($programFilesX86)) {
-        $candidates.Add([pscustomobject]@{ Path = (Join-Path $programFilesX86 "Microsoft\Edge\Application\msedge.exe"); Name = "Microsoft Edge" })
-        $candidates.Add([pscustomobject]@{ Path = (Join-Path $programFilesX86 "Google\Chrome\Application\chrome.exe"); Name = "Google Chrome" })
+        $candidates.Add([pscustomobject]@{ Path = (Join-Path $programFilesX86 "Microsoft/Edge/Application/msedge.exe"); Name = "Microsoft Edge" })
+        $candidates.Add([pscustomobject]@{ Path = (Join-Path $programFilesX86 "Google/Chrome/Application/chrome.exe"); Name = "Google Chrome" })
     }
     if (-not [string]::IsNullOrWhiteSpace($localApplicationData)) {
-        $candidates.Add([pscustomobject]@{ Path = (Join-Path $localApplicationData "Microsoft\Edge\Application\msedge.exe"); Name = "Microsoft Edge" })
-        $candidates.Add([pscustomobject]@{ Path = (Join-Path $localApplicationData "Google\Chrome\Application\chrome.exe"); Name = "Google Chrome" })
+        $candidates.Add([pscustomobject]@{ Path = (Join-Path $localApplicationData "Microsoft/Edge/Application/msedge.exe"); Name = "Microsoft Edge" })
+        $candidates.Add([pscustomobject]@{ Path = (Join-Path $localApplicationData "Google/Chrome/Application/chrome.exe"); Name = "Google Chrome" })
     }
 
-    foreach ($commandName in @("msedge", "chrome", "chromium", "chromium-browser")) {
+    if ([IO.Path]::DirectorySeparatorChar -ne '\') {
+        $unixName = ''
+        try { $unixName = [string](& uname -s 2>$null | Select-Object -First 1) } catch { $unixName = '' }
+        if ([string]::Equals($unixName.Trim(), 'Darwin', [StringComparison]::OrdinalIgnoreCase)) {
+            $homePath = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
+            $applicationRoots = [System.Collections.Generic.List[string]]::new()
+            $applicationRoots.Add('/Applications')
+            if (-not [string]::IsNullOrWhiteSpace($homePath)) { $applicationRoots.Add((Join-Path $homePath 'Applications')) }
+            foreach ($applicationRoot in $applicationRoots) {
+                $candidates.Add([pscustomobject]@{ Path = (Join-Path $applicationRoot 'Google Chrome.app/Contents/MacOS/Google Chrome'); Name = 'Google Chrome' })
+                $candidates.Add([pscustomobject]@{ Path = (Join-Path $applicationRoot 'Microsoft Edge.app/Contents/MacOS/Microsoft Edge'); Name = 'Microsoft Edge' })
+                $candidates.Add([pscustomobject]@{ Path = (Join-Path $applicationRoot 'Chromium.app/Contents/MacOS/Chromium'); Name = 'Chromium' })
+            }
+        }
+    }
+
+    foreach ($commandName in @("msedge", "microsoft-edge", "microsoft-edge-stable", "chrome", "google-chrome", "google-chrome-stable", "chromium", "chromium-browser")) {
         $command = Get-Command $commandName -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($null -ne $command) {
             $commandPath = if (-not [string]::IsNullOrWhiteSpace([string]$command.Source)) { [string]$command.Source } else { [string]$command.Path }
@@ -1548,7 +1564,7 @@ function Invoke-LocalGptBrowserPdf {
     Remove-Item -LiteralPath $PdfPath -Force -ErrorAction SilentlyContinue
     $inputUri = ConvertTo-LocalGptFileUri -Path $HtmlPath
     $diagnostics = [System.Collections.Generic.List[string]]::new()
-    $profileParentRoot = Join-Path ([IO.Path]::GetTempPath()) "LocalGPT\DocumentationBrowserProfiles"
+    $profileParentRoot = Join-Path ([IO.Path]::GetTempPath()) "LocalGPT/DocumentationBrowserProfiles"
     New-Item -ItemType Directory -Path $profileParentRoot -Force | Out-Null
     foreach ($headlessMode in @("--headless=new", "--headless")) {
         # Keep Chromium's volatile profile outside the print-book directory. Chromium child
@@ -1654,8 +1670,8 @@ function Find-LocalGptGhostscript {
         Get-ChildItem -LiteralPath $ghostscriptRoot -Directory -ErrorAction SilentlyContinue |
             Sort-Object Name -Descending |
             ForEach-Object {
-                $candidates.Add((Join-Path $_.FullName "bin\gswin64c.exe"))
-                $candidates.Add((Join-Path $_.FullName "bin\gswin32c.exe"))
+                $candidates.Add((Join-Path $_.FullName "bin/gswin64c.exe"))
+                $candidates.Add((Join-Path $_.FullName "bin/gswin32c.exe"))
             }
     }
 
@@ -1783,14 +1799,14 @@ function Find-LocalGptNode {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
-        $candidates.Add((Join-Path $env:ProgramFiles "nodejs\node.exe"))
+        $candidates.Add((Join-Path $env:ProgramFiles "nodejs/node.exe"))
     }
     $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
     if (-not [string]::IsNullOrWhiteSpace($programFilesX86)) {
-        $candidates.Add((Join-Path $programFilesX86 "nodejs\node.exe"))
+        $candidates.Add((Join-Path $programFilesX86 "nodejs/node.exe"))
     }
     if (-not [string]::IsNullOrWhiteSpace($localApplicationData)) {
-        $candidates.Add((Join-Path $localApplicationData "Programs\nodejs\node.exe"))
+        $candidates.Add((Join-Path $localApplicationData "Programs/nodejs/node.exe"))
     }
     $candidates.Add($provisionedNodeExecutable)
 
@@ -1813,6 +1829,10 @@ function Find-LocalGptNode {
 }
 
 function Install-LocalGptNode {
+    if ([IO.Path]::DirectorySeparatorChar -ne '\') {
+        throw "Automatic Node.js provisioning is currently Windows-only. Install Node.js $minimumNodeMajor-$maximumPreferredNodeMajor on PATH (or set PLAYWRIGHT_NODEJS_PATH) before generating LocalGPT documentation on macOS/Linux."
+    }
+
     New-Item -ItemType Directory -Path $documentationToolCacheRoot -Force | Out-Null
 
     $existing = Get-LocalGptNodeInfo -Path $provisionedNodeExecutable -Provisioned $true
@@ -2470,8 +2490,8 @@ foreach ($publishRoot in $publishRoots) {
     $requiredArtifacts.Add((Join-Path $publishRoot "LocalGPT.xml"))
     $requiredArtifacts.Add($statusPath)
     if ($documentationMode -eq "docfx") {
-        $requiredArtifacts.Add((Join-Path $publishRoot "styles\localgpt-kawaii.css"))
-        $requiredArtifacts.Add((Join-Path $publishRoot "styles\localgpt-kawaii.js"))
+        $requiredArtifacts.Add((Join-Path $publishRoot "styles/localgpt-kawaii.css"))
+        $requiredArtifacts.Add((Join-Path $publishRoot "styles/localgpt-kawaii.js"))
         $requiredArtifacts.Add((Join-Path $publishRoot "favicon.ico"))
         $requiredArtifacts.Add((Join-Path $publishRoot "favicon.svg"))
         $requiredArtifacts.Add((Join-Path $publishRoot "logo.svg"))

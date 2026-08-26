@@ -1,4 +1,4 @@
-﻿param(
+param(
     [ValidateSet("all", "win-x64", "win-x86", "win-arm64", "linux-x64", "linux-arm64", "osx-x64", "osx-arm64")]
     [string]$Runtime = "all",
     [ValidateSet("Release", "Debug")]
@@ -6,40 +6,45 @@
     [string]$WireProtocolVersion = "2.1.1",
     [string]$WireProtocolPackageUrl = "",
     [switch]$UseBundledWireProtocolPackage,
-    [switch]$IncludeWindowsWrapper
+    [switch]$IncludeWindowsWrapper,
+    [switch]$AllowMissingDevExpressLicense
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ($null -eq (Get-Command dotnet -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+    throw 'dotnet was not found on PATH. Install the repository-required .NET SDK and reopen the terminal before running this build script.'
+}
+& (Join-Path $root 'build/Initialize-DevExpressLicense.ps1') -Require:(-not $AllowMissingDevExpressLicense)
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
-& (Join-Path $root 'build\Update-JavaScriptDiagnosticsManifest.ps1')
-& (Join-Path $root 'build\Assert-JavaScriptDiagnostics.ps1')
+& (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
+& (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')
 Write-Host "Clearing repository-local bin/obj build state for the authoritative release build..." -ForegroundColor Cyan
 Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force |
     Where-Object { $_.Name -in @("bin", "obj") } |
     Sort-Object FullName -Descending |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 $solutionRoot = Join-Path $root "src"
-$artifacts = Join-Path $root "artifacts\release"
+$artifacts = Join-Path $root "artifacts/release"
 $packageDirectory = Join-Path $root "packages"
-$appProject = Join-Path $solutionRoot "LocalGPT\LocalGPT.csproj"
-$setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole\LocalGPTInstallerConsole.csproj"
-$wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper\LocalGPTWebviewWrapper.csproj"
-$wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion\LocalGPT.WireProtocolVersion.csproj"
-$documentationScript = Join-Path $root "build\Build-Documentation.ps1"
-$pagesSnapshotScript = Join-Path $root "build\Update-GitHubPagesSnapshot.ps1"
-$pagesSnapshotArchive = Join-Path $root ".github\pages\localgpt-kawaii-docs.zip"
+$appProject = Join-Path $solutionRoot "LocalGPT/LocalGPT.csproj"
+$setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj"
+$wrapperProject = Join-Path $solutionRoot "LocalGPTWebviewWrapper/LocalGPTWebviewWrapper.csproj"
+$wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj"
+$documentationScript = Join-Path $root "build/Build-Documentation.ps1"
+$pagesSnapshotScript = Join-Path $root "build/Update-GitHubPagesSnapshot.ps1"
+$pagesSnapshotArchive = Join-Path $root ".github/pages/localgpt-kawaii-docs.zip"
 $wirePackageName = "LocalGPT.WireProtocolVersion.$WireProtocolVersion.nupkg"
 $wirePackage = Join-Path $packageDirectory $wirePackageName
 $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
-$sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT\NuGet" }
+$sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT/NuGet" }
 $documentationCacheRoot = Join-Path $artifacts ".documentation-cache"
 $documentationPrepared = $false
 $releaseZipPaths = New-Object 'System.Collections.Generic.List[string]'
 
-& (Join-Path $root 'build\Assert-PowerShellCompatibility.ps1')
+& (Join-Path $root 'build/Assert-PowerShellCompatibility.ps1')
 
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
@@ -86,7 +91,7 @@ function Assert-LocalGptDocumentationPayload {
     if ($versionedPdfs.Count -ne 1 -or -not [string]::Equals($versionedPdfs[0].Name, "LocalGPT-$Version.pdf", [StringComparison]::OrdinalIgnoreCase)) {
         throw "Published LocalGPT documentation must contain exactly one current versioned PDF (LocalGPT-$Version.pdf). Found: $($versionedPdfs.Name -join ', ')"
     }
-    $apiIndex = Join-Path $DocumentationRoot 'api\index.html'
+    $apiIndex = Join-Path $DocumentationRoot 'api/index.html'
     if (-not (Test-Path -LiteralPath $apiIndex -PathType Leaf)) { throw "Published LocalGPT documentation is missing api/index.html: $apiIndex" }
     $physicalApiHtmlCount = @(Get-ChildItem -LiteralPath (Join-Path $DocumentationRoot 'api') -Filter '*.html' -File -Recurse -ErrorAction SilentlyContinue).Count
     if ($physicalApiHtmlCount -le 1) { throw "Published LocalGPT documentation API directory is physically incomplete ($physicalApiHtmlCount HTML file(s))." }
@@ -112,10 +117,10 @@ function Prepare-LocalGptDocumentation {
     }
 
     $appProjectDirectory = Split-Path -Parent $appProject
-    $neutralOutputRoot = Join-Path $appProjectDirectory "bin\$Configuration\net10.0"
+    $neutralOutputRoot = Join-Path $appProjectDirectory "bin/$Configuration/net10.0"
     $documentationAssembly = Join-Path $neutralOutputRoot "LocalGPT.dll"
     $documentationXml = Join-Path $neutralOutputRoot "LocalGPT.xml"
-    $documentationOutput = Join-Path $neutralOutputRoot "wwwroot\help-docs"
+    $documentationOutput = Join-Path $neutralOutputRoot "wwwroot/help-docs"
     # Documentation is produced from the authoritative source-project graph. The release package is still
     # packed and delivered for package-mode consumers, but rebuilding that same mutable local package
     # version through NuGet can reuse a stale global-packages entry. That failure presents as hundreds of
@@ -163,7 +168,7 @@ function Resolve-PublishProfilePath {
     )
 
     $projectDirectory = Split-Path -Parent $ProjectPath
-    $profilePath = Join-Path $projectDirectory "Properties\PublishProfiles\$ProfileName.pubxml"
+    $profilePath = Join-Path $projectDirectory "Properties/PublishProfiles/$ProfileName.pubxml"
     if (-not (Test-Path -LiteralPath $profilePath)) {
         throw "Publish profile not found: $profilePath"
     }
@@ -473,7 +478,7 @@ function Publish-Runtime {
         throw "Published LocalGPT setup executable not found in the publish-profile output: $(Join-Path $setupFolder $setupExecutable)"
     }
 
-    $publishedDocumentationRoot = Join-Path $appFolder "wwwroot\help-docs"
+    $publishedDocumentationRoot = Join-Path $appFolder "wwwroot/help-docs"
     if ($script:documentationPrepared) {
         if (-not (Test-Path -LiteralPath $script:documentationCacheRoot -PathType Container)) {
             throw "The shared LocalGPT documentation cache is missing: $script:documentationCacheRoot"
@@ -556,7 +561,7 @@ try {
         -ReadmePath (Join-Path $root "README.md") `
         -LicensePath $licensePath `
         -WireProtocolPackagePath $wirePackage `
-        -SetupIconPath (Join-Path $root "src\LocalGPT\wwwroot\favicon.ico") `
+        -SetupIconPath (Join-Path $root "src/LocalGPT/wwwroot/favicon.ico") `
         -RequireWindowsX64Setup $requireWinX64Setup
 }
 finally {

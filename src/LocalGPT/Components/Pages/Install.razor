@@ -61,6 +61,56 @@
                 </div>
             </header>
 
+        <section class="provider-install-guide" aria-labelledby="provider-install-guide-heading">
+            <header class="provider-install-guide-heading">
+                <div>
+                    <span class="install-region-kicker">@T("Install.ProviderInstall.Kicker", "Local runtime installation")</span>
+                    <h3 id="provider-install-guide-heading">@T("Install.ProviderInstall.Title", "Need Ollama or LM Studio first?")</h3>
+                    <p>@T("Install.ProviderInstall.Help", "Use the official installer for your operating system, start a local model server, then return here and refresh connectivity. LocalGPT never installs a runtime automatically; confirmation-gated install/start/model actions are available through the guided setup service.")</p>
+                </div>
+                <button type="button" class="localgpt-native-button" @onclick="OpenGuidedRuntimeSetup">@T("Install.ProviderInstall.GuidedAction", "Open guided install actions")</button>
+            </header>
+            <div class="provider-install-guide-grid">
+                <article class="provider-install-guide-card">
+                    <div class="provider-install-guide-card-heading">
+                        <div>
+                            <strong>Ollama</strong>
+                            <small>@T("Install.ProviderInstall.OllamaHelp", "Best fit when you want a lightweight local model service that LocalGPT can also start, stop and restart after installation.")</small>
+                        </div>
+                        <a class="provider-install-link" href="https://ollama.com/download" target="_blank" rel="noopener noreferrer">@T("Install.ProviderInstall.OpenDownload", "Official download")</a>
+                    </div>
+                    <div class="provider-install-commands">
+                        <div><span>Windows PowerShell</span><code>irm https://ollama.com/install.ps1 | iex</code></div>
+                        <div><span>macOS / Linux</span><code>curl -fsSL https://ollama.com/install.sh | sh</code></div>
+                    </div>
+                    <ol>
+                        <li>@T("Install.ProviderInstall.OllamaStep1", "Install Ollama, then start it if your installer did not start the service automatically.") <code>ollama serve</code></li>
+                        <li>@T("Install.ProviderInstall.OllamaStep2", "Pull at least one model. The maintained quick preset can use") <code>ollama pull gpt-oss:20b</code></li>
+                        <li>@T("Install.ProviderInstall.OllamaStep3", "Return to this page, refresh process/connectivity status and select the discovered model. Native Ollama normally listens on") <code>http://127.0.0.1:11434</code></li>
+                    </ol>
+                </article>
+                <article class="provider-install-guide-card">
+                    <div class="provider-install-guide-card-heading">
+                        <div>
+                            <strong>LM Studio</strong>
+                            <small>@T("Install.ProviderInstall.LmStudioHelp", "Best fit when you want a desktop model catalog and an OpenAI-compatible local server. Headless llmster is also available for macOS and Linux.")</small>
+                        </div>
+                        <a class="provider-install-link" href="https://lmstudio.ai/download" target="_blank" rel="noopener noreferrer">@T("Install.ProviderInstall.OpenDownload", "Official download")</a>
+                    </div>
+                    <div class="provider-install-commands">
+                        <div><span>macOS / Linux · llmster</span><code>curl -fsSL https://lmstudio.ai/install.sh | bash</code></div>
+                        <div><span>Windows PowerShell · llmster</span><code>irm https://lmstudio.ai/install.ps1 | iex</code></div>
+                    </div>
+                    <ol>
+                        <li>@T("Install.ProviderInstall.LmStudioStep1", "Install the desktop app or llmster, download/load a model, then start the local server.") <code>lms server start</code></li>
+                        <li>@T("Install.ProviderInstall.LmStudioStep2", "LM Studio's OpenAI-compatible server normally listens on") <code>http://127.0.0.1:1234/v1</code></li>
+                        <li>@T("Install.ProviderInstall.LmStudioStep3", "Return here, choose LM Studio / local OpenAI-compatible, test the endpoint and save the discovered model id.")</li>
+                    </ol>
+                </article>
+            </div>
+            <p class="provider-install-guide-note">@T("Install.ProviderInstall.SecurityNote", "Security note: review vendor installer scripts before running them. LocalGPT does not download, execute or elevate these commands on your behalf.")</p>
+        </section>
+
         <div class="@ConnectivityAlertCss" role="status">
             <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
                 <div>

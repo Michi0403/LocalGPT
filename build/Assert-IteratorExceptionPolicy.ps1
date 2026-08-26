@@ -50,7 +50,7 @@ function Get-BaselineRelativePath([string]$RelativePath) {
     return $RelativePath
 }
 $failures = New-Object System.Collections.Generic.List[string]
-$files = @(Get-ChildItem -LiteralPath (Join-Path $root 'src\LocalGPT') -Recurse -File | Where-Object { $_.Extension -in @('.cs','.razor') -and $_.FullName -notmatch '[\\/](?:bin|obj|Migrations)[\\/]' -and $_.Name -notlike '*.Designer.cs' })
+$files = @(Get-ChildItem -LiteralPath (Join-Path $root 'src/LocalGPT') -Recurse -File | Where-Object { $_.Extension -in @('.cs','.razor') -and $_.FullName -notmatch '[\\/](?:bin|obj|Migrations)[\\/]' -and $_.Name -notlike '*.Designer.cs' })
 foreach ($file in $files) {
     $relative = $file.FullName.Substring($root.Length).TrimStart([char[]]@([char]'\', [char]'/')).Replace([char]'\', [char]'/')
     $baselineRelative = Get-BaselineRelativePath $relative

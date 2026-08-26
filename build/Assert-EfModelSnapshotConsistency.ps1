@@ -18,9 +18,9 @@ function Get-BracedBlock([string]$Text, [int]$SearchIndex) {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
-$businessObjectsRoot = Join-Path $root 'src\LocalGPT\BusinessObjects'
-$contextPath = Join-Path $businessObjectsRoot 'EFCore\LocalGptMemoryDbContext.cs'
-$snapshotPath = Join-Path $root 'src\LocalGPT\Migrations\LocalGptMemoryDbContextModelSnapshot.cs'
+$businessObjectsRoot = Join-Path $root 'src/LocalGPT/BusinessObjects'
+$contextPath = Join-Path $businessObjectsRoot 'EFCore/LocalGptMemoryDbContext.cs'
+$snapshotPath = Join-Path $root 'src/LocalGPT/Migrations/LocalGptMemoryDbContextModelSnapshot.cs'
 
 if (-not (Test-Path -LiteralPath $contextPath -PathType Leaf)) { Fail 'LocalGptMemoryDbContext.cs is missing.' }
 if (-not (Test-Path -LiteralPath $snapshotPath -PathType Leaf)) { Fail 'LocalGptMemoryDbContextModelSnapshot.cs is missing.' }

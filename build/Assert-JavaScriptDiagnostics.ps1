@@ -15,7 +15,7 @@ function Get-NormalizedTextSha256([string]$Path) {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
-$jsRoot = Join-Path $root 'src\LocalGPT\wwwroot\js'
+$jsRoot = Join-Path $root 'src/LocalGPT/wwwroot/js'
 $manifestPath = Join-Path $PSScriptRoot 'javascript-diagnostics-files.sha256'
 if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { Fail "Required diagnostics manifest is missing: $manifestPath" }
 
@@ -49,6 +49,6 @@ foreach ($relative in $relativeFiles) {
 foreach ($relative in $manifest.Keys | Where-Object { $_ -notin $relativeFiles }) { $errors.Add("Unexpected JavaScript diagnostics manifest entry: $relative") }
 if ($errors.Count -gt 0) {
     $errors | ForEach-Object { Write-Error $_ }
-    Fail "$($errors.Count) problem(s) found. Run build\Update-JavaScriptDiagnosticsManifest.ps1 only after reviewing the frontend change."
+    Fail "$($errors.Count) problem(s) found. Run build/Update-JavaScriptDiagnosticsManifest.ps1 only after reviewing the frontend change."
 }
 Write-Host "JavaScript diagnostics validation passed for $($relativeFiles.Count) maintained LocalGPT browser files." -ForegroundColor Green

@@ -7,7 +7,7 @@ if (-not (Test-Path -LiteralPath $baselinePath -PathType Leaf)) { Fail 'Text-ser
 $parsedBaseline = [System.IO.File]::ReadAllText($baselinePath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 $known = @{}; foreach ($item in $parsedBaseline) { $known[[string]$item] = $true }
 $failures = New-Object System.Collections.Generic.List[string]
-$sourceRoot = (Join-Path $root 'src\LocalGPT')
+$sourceRoot = (Join-Path $root 'src/LocalGPT')
 $folders = @('Components','Controllers','Controller')
 $pattern = '(?m)^(?<line>.*(?:\bRegex\s*\.|\bnew\s+Regex\s*\(|\.Replace\s*\(|\.Split\s*\(|\bstring\.Join\s*\(|\bWebUtility\.HtmlDecode\s*\(|\.StartsWith\s*\(|\.EndsWith\s*\(|\.IndexOf\s*\(|\.Substring\s*\(|\.Contains\s*\([^\r\n;]*StringComparison\.).*)$'
 foreach ($folder in $folders) {

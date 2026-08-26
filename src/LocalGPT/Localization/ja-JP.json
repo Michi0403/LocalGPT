@@ -2010,5 +2010,19 @@
   "RemoteControl.RemoveHost": "削除",
   "RemoteControl.RemoveHeader": "削除",
   "RemoteControl.UrlHostInvalid": "ホストを使用する前に、有効な絶対 URL テンプレートを入力してください。",
-  "RemoteControl.UrlHostAdded": "URL のホストをコネクターの許可リストに追加しました。"
+  "RemoteControl.UrlHostAdded": "URL のホストをコネクターの許可リストに追加しました。",
+  "Install.ProviderInstall.Kicker": "ローカルランタイムのインストール",
+  "Install.ProviderInstall.Title": "Ollama または LM Studio のインストールが必要ですか？",
+  "Install.ProviderInstall.Help": "お使いの OS 向け公式インストーラーを使用し、ローカルモデルサーバーを起動してから、この画面に戻って接続状態を更新してください。LocalGPT はインストールコマンドを表示するだけで、ダウンロードやインストーラーを自動実行しません。",
+  "Install.ProviderInstall.OllamaHelp": "軽量なローカルモデルサービス向けです。インストール後は LocalGPT から起動、停止、再起動もできます。",
+  "Install.ProviderInstall.OpenDownload": "公式ダウンロード",
+  "Install.ProviderInstall.OllamaStep1": "Ollama をインストールし、インストーラーが自動起動しなかった場合はサービスを起動します。",
+  "Install.ProviderInstall.OllamaStep2": "少なくとも 1 つのモデルを取得してください。保守されているクイックプリセットでは次を利用できます：",
+  "Install.ProviderInstall.OllamaStep3": "この画面に戻り、プロセスと接続状態を更新して検出されたモデルを選択します。ネイティブ Ollama は通常次で待ち受けます：",
+  "Install.ProviderInstall.LmStudioHelp": "デスクトップのモデルカタログと OpenAI 互換ローカルサーバーを使いたい場合に適しています。macOS と Linux ではヘッドレスの llmster も利用できます。",
+  "Install.ProviderInstall.LmStudioStep1": "デスクトップアプリまたは llmster をインストールし、モデルをダウンロード／ロードしてからローカルサーバーを起動します。",
+  "Install.ProviderInstall.LmStudioStep2": "LM Studio の OpenAI 互換サーバーは通常次で待ち受けます：",
+  "Install.ProviderInstall.LmStudioStep3": "この画面に戻り、LM Studio / ローカル OpenAI 互換を選択してエンドポイントをテストし、検出されたモデル ID を保存します。",
+  "Install.ProviderInstall.SecurityNote": "セキュリティ: 実行前にベンダーのインストーラースクリプトを確認してください。LocalGPT がこれらのコマンドをダウンロード、実行、または権限昇格することはありません。",
+  "Install.ProviderInstall.GuidedAction": "ガイド付きインストール操作を開く"
 }

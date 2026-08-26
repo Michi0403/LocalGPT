@@ -112,17 +112,45 @@ See [`src/LocalGPTInstallerConsole/README.md`](src/LocalGPTInstallerConsole/READ
 
 ### Build from source
 
-Local development currently targets the pinned .NET SDK and requires the authorized DevExpress package feed/assets used by the project. The optional Windows desktop wrapper also requires the relevant Windows App SDK and WebView2 prerequisites.
+Local development targets the pinned .NET SDK and DevExpress 25.2.x. DevExpress 25.1+ packages are restored from NuGet.org; the personal **DevExpress .NET license key is separate from package restore credentials** and must remain outside the repository.
+
+The PowerShell build entry points are intended to run from Windows PowerShell 5.1 or PowerShell 7 (`pwsh`) on Windows, macOS, and Linux. The optional WinUI/WebView2 wrapper remains a Windows application, but its project enables Windows cross-targeting so a non-Windows developer machine can restore/build the Windows target without pretending that the wrapper is runnable on macOS/Linux.
 
 ```powershell
+# Windows
 .\Build-LocalDevelopment.ps1 -Configuration Debug -Platform x64
+
+# macOS / Linux
+pwsh ./Build-LocalDevelopment.ps1 -Configuration Debug -Platform arm64
 ```
+
+`NuGet.Config` no longer requires a repository-local `./packages` folder for ordinary source builds. The release scripts inject that source explicitly only when they intentionally consume the locally packed wire-protocol package.
+
+#### DevExpress license registration on macOS/Linux
+
+DevExpress 25.2 performs build-time license validation. The exact file/environment-variable casing matters on Unix-like systems. LocalGPT build scripts run a preflight and never print the key value.
+
+Default license locations:
+
+- Windows: `%AppData%\DevExpress\DevExpress_License.txt`
+- macOS: `$HOME/Library/Application Support/DevExpress/DevExpress_License.txt`
+- Linux: `$HOME/.config/DevExpress/DevExpress_License.txt`
+
+You can register a downloaded key file into the correct per-user location without adding it to the repository:
+
+```powershell
+pwsh ./build/Register-DevExpressLicense.ps1 -LicenseFile "$HOME/Downloads/DevExpress_License.txt"
+```
+
+Alternatively use the case-sensitive `DevExpress_LicensePath` (folder) or `DevExpress_License` (key value) environment variable. If DevExpress reports DX1002 after the key is found, update the key so it supports the 25.2 major version, then restart the IDE/terminal and rebuild. Never commit `DevExpress_License.txt` or a license value.
+
+The documentation stage now looks for Chromium-family browsers both on `PATH` and in normal macOS application-bundle locations. `LOCALGPT_DOCUMENTATION_BROWSER` can still override the browser executable explicitly.
 
 Before publishing or creating a verified source package, follow the repository validation and release process rather than improvising a manual package:
 
 ```powershell
-.\build\Invoke-RepositoryValidation.ps1
-.\build\New-VerifiedSourcePackage.ps1 -Version "<version>"
+pwsh ./build/Invoke-RepositoryValidation.ps1
+pwsh ./build/New-VerifiedSourcePackage.ps1 -Version "<version>"
 ```
 
 See [`docs/engineering/release-and-docs.md`](docs/engineering/release-and-docs.md) and [`VALIDATION.md`](VALIDATION.md).
@@ -211,20 +239,5 @@ See [`docs/reference/design-evolution.md`](docs/reference/design-evolution.md).
 
 **Built as a workshop, not operated as a store.**<br>
 Use it, inspect it, fork it, improve it, or build something entirely different from it.
-How it works:
-![Alt text](https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/Screenshot.2026-08-26.005223.png "human collaboration")
-![Alt text](https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/Screenshot.2026-08-26.005245.png "teams settings")
-
-![Alt text](https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/Screenshot.2026-08-26.005314.png "teams settings2")
-![Alt text](https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/Screenshot.2026-08-26.005253.png "model selection in chat config")
-(https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/council-20260816-134119-8e6e1a77d24c40b99c7c096dbb06b197.md "a title")
-(https://github.com/Michi0403/LocalGPT/releases/download/v3.3.0/council-20260821-000301-fd21d7bdaeb84f2b93ad688541ca140d.md "a title")
-
-
-
-
-
-
-
 
 </div>

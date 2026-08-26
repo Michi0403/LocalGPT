@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$DocumentationRoot = "",
     [string]$OutputArchive = ""
 )
@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$projectFile = Join-Path $repositoryRoot 'src\\LocalGPT\\LocalGPT.csproj'
+$projectFile = Join-Path $repositoryRoot 'src/LocalGPT/LocalGPT.csproj'
 if (-not (Test-Path -LiteralPath $projectFile -PathType Leaf)) {
     throw "LocalGPT project file was not found: $projectFile"
 }
@@ -37,9 +37,9 @@ function Get-LocalGptDocumentationVersion {
 
 if ([string]::IsNullOrWhiteSpace($DocumentationRoot)) {
     $candidateRoots = @(
-        (Join-Path $repositoryRoot 'src\\LocalGPT\\bin\\Release\\net10.0\\wwwroot\\help-docs'),
-        (Join-Path $repositoryRoot 'src\\LocalGPT\\bin\\Debug\\net10.0\\wwwroot\\help-docs'),
-        (Join-Path $repositoryRoot 'src\\LocalGPT\\wwwroot\\help-docs')
+        (Join-Path $repositoryRoot 'src/LocalGPT/bin/Release/net10.0/wwwroot/help-docs'),
+        (Join-Path $repositoryRoot 'src/LocalGPT/bin/Debug/net10.0/wwwroot/help-docs'),
+        (Join-Path $repositoryRoot 'src/LocalGPT/wwwroot/help-docs')
     )
     $matchingRoots = @()
     $detectedRoots = [System.Collections.Generic.List[string]]::new()
@@ -76,10 +76,10 @@ if (-not (Test-Path -LiteralPath $DocumentationRoot -PathType Container)) {
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputArchive)) {
-    $OutputArchive = Join-Path $repositoryRoot '.github\\pages\\localgpt-kawaii-docs.zip'
+    $OutputArchive = Join-Path $repositoryRoot '.github/pages/localgpt-kawaii-docs.zip'
 }
 $OutputArchive = [IO.Path]::GetFullPath($OutputArchive)
-$validator = Join-Path $repositoryRoot ".github\scripts\prepare-pages-artifact.py"
+$validator = Join-Path $repositoryRoot ".github/scripts/prepare-pages-artifact.py"
 if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
     throw "Repository-root GitHub Pages validator was not found: $validator"
 }

@@ -97,6 +97,14 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IAiProviderConfigurationRegistryService, AiProviderConfigurationRegistryService>();
                 builder.Services.AddSingleton<INetworkCertificateService, NetworkCertificateService>();
                 builder.Services.AddSingleton<IAiConnectivityProbe, AiConnectivityProbe>();
+                if (OperatingSystem.IsWindows())
+                    builder.Services.AddSingleton<IOllamaPlatformService, WindowsOllamaPlatformService>();
+                else if (OperatingSystem.IsMacOS())
+                    builder.Services.AddSingleton<IOllamaPlatformService, MacOsOllamaPlatformService>();
+                else if (OperatingSystem.IsLinux())
+                    builder.Services.AddSingleton<IOllamaPlatformService, LinuxOllamaPlatformService>();
+                else
+                    builder.Services.AddSingleton<IOllamaPlatformService, GenericOllamaPlatformService>();
                 builder.Services.AddSingleton<IOllamaProcessService, OllamaProcessService>();
                 builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
                 builder.Services.AddSingleton<IArtifactBuildExecutor, ArtifactBuildExecutor>();

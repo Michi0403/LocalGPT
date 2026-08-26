@@ -2010,5 +2010,19 @@
   "RemoteControl.RemoveHost": "Quitar",
   "RemoteControl.RemoveHeader": "Quitar",
   "RemoteControl.UrlHostInvalid": "Introduzca una plantilla de URL absoluta válida antes de usar su host.",
-  "RemoteControl.UrlHostAdded": "El host de la URL se añadió a la lista permitida del conector."
+  "RemoteControl.UrlHostAdded": "El host de la URL se añadió a la lista permitida del conector.",
+  "Install.ProviderInstall.Kicker": "Instalación del runtime local",
+  "Install.ProviderInstall.Title": "¿Necesitas instalar primero Ollama o LM Studio?",
+  "Install.ProviderInstall.Help": "Usa el instalador oficial de tu sistema operativo, inicia un servidor de modelos local y vuelve aquí para actualizar la conectividad. LocalGPT solo muestra los comandos de instalación y nunca ejecuta automáticamente descargas ni instaladores.",
+  "Install.ProviderInstall.OllamaHelp": "Ideal si quieres un servicio de modelos local ligero que LocalGPT también pueda iniciar, detener y reiniciar después de instalarlo.",
+  "Install.ProviderInstall.OpenDownload": "Descarga oficial",
+  "Install.ProviderInstall.OllamaStep1": "Instala Ollama y luego inícialo si el instalador no arrancó el servicio automáticamente.",
+  "Install.ProviderInstall.OllamaStep2": "Descarga al menos un modelo. El perfil rápido mantenido puede usar",
+  "Install.ProviderInstall.OllamaStep3": "Vuelve a esta página, actualiza el estado del proceso y de la conectividad y selecciona el modelo detectado. Ollama nativo normalmente escucha en",
+  "Install.ProviderInstall.LmStudioHelp": "Ideal si quieres un catálogo de modelos de escritorio y un servidor local compatible con OpenAI. llmster sin interfaz también está disponible para macOS y Linux.",
+  "Install.ProviderInstall.LmStudioStep1": "Instala la aplicación de escritorio o llmster, descarga/carga un modelo y luego inicia el servidor local.",
+  "Install.ProviderInstall.LmStudioStep2": "El servidor compatible con OpenAI de LM Studio normalmente escucha en",
+  "Install.ProviderInstall.LmStudioStep3": "Vuelve aquí, elige LM Studio / compatible con OpenAI local, prueba el endpoint y guarda el id de modelo detectado.",
+  "Install.ProviderInstall.SecurityNote": "Nota de seguridad: revisa los scripts de instalación del proveedor antes de ejecutarlos. LocalGPT no descarga, ejecuta ni eleva estos comandos por ti.",
+  "Install.ProviderInstall.GuidedAction": "Abrir acciones de instalación guiada"
 }

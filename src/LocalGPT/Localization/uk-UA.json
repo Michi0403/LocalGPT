@@ -2010,5 +2010,19 @@
   "RemoteControl.RemoveHost": "Видалити",
   "RemoteControl.RemoveHeader": "Видалити",
   "RemoteControl.UrlHostInvalid": "Введіть коректний абсолютний шаблон URL, перш ніж використовувати його хост.",
-  "RemoteControl.UrlHostAdded": "Хост URL додано до списку дозволених хостів конектора."
+  "RemoteControl.UrlHostAdded": "Хост URL додано до списку дозволених хостів конектора.",
+  "Install.ProviderInstall.Kicker": "Встановлення локального середовища",
+  "Install.ProviderInstall.Title": "Спочатку потрібно встановити Ollama або LM Studio?",
+  "Install.ProviderInstall.Help": "Скористайтеся офіційним інсталятором для вашої ОС, запустіть локальний сервер моделей, а потім поверніться сюди й оновіть стан підключення. LocalGPT лише показує команди встановлення й ніколи автоматично не запускає завантаження або інсталятори.",
+  "Install.ProviderInstall.OllamaHelp": "Добре підходить для легкого локального сервісу моделей, який LocalGPT після встановлення також може запускати, зупиняти й перезапускати.",
+  "Install.ProviderInstall.OpenDownload": "Офіційне завантаження",
+  "Install.ProviderInstall.OllamaStep1": "Встановіть Ollama, а потім запустіть його, якщо інсталятор не запустив сервіс автоматично.",
+  "Install.ProviderInstall.OllamaStep2": "Завантажте щонайменше одну модель. Підтримуваний швидкий профіль може використовувати",
+  "Install.ProviderInstall.OllamaStep3": "Поверніться на цю сторінку, оновіть стан процесу/підключення та виберіть знайдену модель. Нативний Ollama зазвичай слухає на",
+  "Install.ProviderInstall.LmStudioHelp": "Добре підходить для настільного каталогу моделей і локального OpenAI-сумісного сервера. Для macOS і Linux також доступний headless llmster.",
+  "Install.ProviderInstall.LmStudioStep1": "Встановіть настільну програму або llmster, завантажте/підвантажте модель, а потім запустіть локальний сервер.",
+  "Install.ProviderInstall.LmStudioStep2": "OpenAI-сумісний сервер LM Studio зазвичай слухає на",
+  "Install.ProviderInstall.LmStudioStep3": "Поверніться сюди, виберіть LM Studio / локальний OpenAI-сумісний режим, перевірте endpoint і збережіть знайдений ідентифікатор моделі.",
+  "Install.ProviderInstall.SecurityNote": "Безпека: перевіряйте інсталяційні скрипти постачальника перед запуском. LocalGPT не завантажує, не виконує й не підвищує привілеї для цих команд замість вас.",
+  "Install.ProviderInstall.GuidedAction": "Відкрити керовані дії встановлення"
 }
