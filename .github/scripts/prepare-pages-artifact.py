@@ -222,10 +222,26 @@ def main() -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--archive", type=Path)
     group.add_argument("--source", type=Path)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--expected-version")
+    parser.add_argument("--html-only", action="store_true", help="Validate generated HTML accessibility and local links without requiring status/PDF artifacts.")
     args = parser.parse_args()
     try:
+        if args.html_only:
+            if args.source is None:
+                fail("--html-only requires --source")
+            source = args.source.resolve(strict=True)
+            html_count, api_count = validate_html(source)
+            print(json.dumps({
+                "source": source.as_posix(),
+                "htmlFiles": html_count,
+                "apiHtmlFiles": api_count,
+                "localLinksValid": True,
+                "htmlAccessibilityValid": True,
+            }, indent=2, ensure_ascii=False))
+            return 0
+        if args.output is None:
+            fail("--output is required unless --html-only is used")
         output = args.output.resolve(strict=False)
         if args.archive is not None:
             archive = args.archive.resolve(strict=True)

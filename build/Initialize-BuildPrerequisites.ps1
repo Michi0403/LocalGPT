@@ -41,6 +41,15 @@ if ($missingDocumentationSources.Count -gt 0) {
 }
 Write-Host "Documentation source preflight: $($requiredDocumentationSources.Count) required source file(s) are present." -ForegroundColor DarkGreen
 
+$python = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($null -eq $python) { $python = Get-Command python3 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 }
+if ($null -eq $python) {
+    throw 'Python 3 was not found on PATH. It is required for LocalGPT documentation accessibility/link validation and GitHub Pages snapshot preparation.'
+}
+& $python.Source -c "import sys; raise SystemExit(0 if sys.version_info.major >= 3 else 1)"
+if ($LASTEXITCODE -ne 0) { throw 'The resolved Python executable is not Python 3.' }
+Write-Host "Documentation Python preflight: using $($python.Source)." -ForegroundColor DarkGreen
+
 & (Join-Path $repositoryRoot 'build/Initialize-DevExpressLicense.ps1') -Require:(-not $AllowMissingDevExpressLicense)
 
 if (-not $SkipDocumentationNodeProvisioning) {

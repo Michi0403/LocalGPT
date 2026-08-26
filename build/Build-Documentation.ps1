@@ -57,6 +57,7 @@ $pdfName = "LocalGPT-$Version.pdf"
 $pdfLinkStubPath = Join-Path $docsRoot $pdfName
 $pdfLinkStubCreated = $false
 $websiteThemeAssetCount = 0
+$htmlPreflightValidated = $false
 $warnings = [System.Collections.Generic.List[string]]::new()
 $documentationMode = "static-fallback"
 $pdfMode = "unavailable"
@@ -389,6 +390,31 @@ function Get-LocalGptRelativePath {
 }
 
 
+function Assert-LocalGptGeneratedHtmlPreflight {
+    param([Parameter(Mandatory)][string]$SiteRoot)
+
+    $validator = Join-Path $RepositoryRoot ".github/scripts/prepare-pages-artifact.py"
+    if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
+        throw "The LocalGPT documentation HTML preflight validator was not found: $validator"
+    }
+
+    $python = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $python) {
+        $python = Get-Command python3 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    }
+    if ($null -eq $python) {
+        throw "Python 3 is required to validate generated documentation HTML before the long PDF render."
+    }
+
+    Write-Host "Validating generated DocFX HTML accessibility and local links before the long PDF render..." -ForegroundColor DarkCyan
+    & $python.Source $validator --source $SiteRoot --html-only
+    if ($LASTEXITCODE -ne 0) {
+        throw "Generated DocFX HTML failed the pre-PDF accessibility/link validation. PDF rendering was skipped so the release fails fast."
+    }
+
+    Write-Host "Generated DocFX HTML preflight passed before PDF rendering." -ForegroundColor DarkGreen
+}
+
 function New-LocalGptDocfxPdfLinkStub {
     param([Parameter(Mandatory)][string]$Path)
 
@@ -515,6 +541,18 @@ function Install-LocalGptWebsiteThemeAssets {
             }
             else {
                 $updated = [regex]::Replace($updated, '(?i)<html\b', '<html class="localgpt-kawaii-docs"', 1)
+            }
+        }
+
+        # DocFX modern API pages can omit the html language attribute on some hosts. Keep the
+        # generated site accessible and deterministic before PDF/Pages validation rather than
+        # discovering this only after the expensive PDF render has completed.
+        if ($updated -notmatch '(?i)<html\b[^>]*\blang\s*=\s*["''][^"'']+["'']') {
+            if ($updated -match '(?i)<html\b[^>]*\blang\s*=') {
+                $updated = [regex]::Replace($updated, '(?i)(<html\b[^>]*\blang\s*=\s*)["''][^"'']*["'']', '${1}"en"', 1)
+            }
+            else {
+                $updated = [regex]::Replace($updated, '(?i)<html\b', '<html lang="en"', 1)
             }
         }
 
@@ -2294,6 +2332,19 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
     else {
         $documentationMode = "docfx"
         Copy-Item -LiteralPath $polishedXmlPath -Destination (Join-Path $siteRoot "LocalGPT.xml") -Force
+        $preflightPdfStubPath = Join-Path $siteRoot $pdfName
+        if ($pdfLinkStubCreated) {
+            Copy-Item -LiteralPath $pdfLinkStubPath -Destination $preflightPdfStubPath -Force
+        }
+        try {
+            Assert-LocalGptGeneratedHtmlPreflight -SiteRoot $siteRoot
+            $htmlPreflightValidated = $true
+        }
+        finally {
+            if ($pdfLinkStubCreated) {
+                Remove-Item -LiteralPath $preflightPdfStubPath -Force -ErrorAction SilentlyContinue
+            }
+        }
     }
 
     # Publish the current HTML tree before the long PDF render. This prevents a failed or
@@ -2491,6 +2542,7 @@ foreach ($publishRoot in $publishRoots) {
         apiHtmlCount = $apiHtmlCount
         apiNavigationGroupCount = $apiNavigationGroupCount
         websiteThemeAssetCount = $websiteThemeAssetCount
+        htmlPreflightValidated = $htmlPreflightValidated
         pdfBytes = $pdfFileSize
         pdfBytesBeforeCompression = $pdfBytesBeforeCompression
         pdfCompressionMode = $pdfCompressionMode
