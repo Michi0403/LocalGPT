@@ -1,0 +1,19 @@
+order: 200
+pdf: true
+pdfFileName: LocalGPT-3.3.5.pdf
+pdfTocPage: true
+pdfCoverPage: pdf-cover.html
+pdfPrintBackground: true
+items:
+- name: Overview
+  href: ../index.md
+- name: User guide
+  href: ../guide/toc.yml
+- name: Architecture
+  href: ../architecture/toc.yml
+- name: Engineering
+  href: ../engineering/toc.yml
+- name: Reference
+  href: ../reference/toc.yml
+- name: API reference
+  href: ../api/toc.yml

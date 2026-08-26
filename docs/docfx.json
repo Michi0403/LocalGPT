@@ -1,0 +1,53 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": [
+            "LocalGPT.dll"
+          ],
+          "src": "input"
+        }
+      ],
+      "dest": "api",
+      "namespaceLayout": "nested",
+      "memberLayout": "samePage",
+      "outputFormat": "mref"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "**/*.{md,yml}"
+        ],
+        "exclude": [
+          "_site/**",
+          "input/**",
+          "templates/**",
+          ".tools/**",
+          "internal-notes/**",
+          ".print-book/**"
+        ]
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "pdf-cover.html"
+        ]
+      }
+    ],
+    "dest": "_site",
+    "template": [
+      "default",
+      "modern"
+    ],
+    "globalMetadata": {
+      "_appName": "LocalGPT Documentation",
+      "_appTitle": "LocalGPT Documentation",
+      "_appFooter": "LocalGPT 3.3.5 · generated documentation",
+      "localgptVersion": "3.3.5"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+- name: "User guide"
+  href: index.md
+- name: "Getting started"
+  href: getting-started.md
+- name: "Chat and AI Council"
+  href: chat-and-council.md
+- name: "Projects and workspaces"
+  href: projects-and-workspaces.md
+- name: "Code generation and DXFunctions"
+  href: code-generation-and-dxfunctions.md
+- name: "Embedded planning and games"
+  href: embedded-and-games.md
+- name: "Documentation inside LocalGPT"
+  href: documentation.md

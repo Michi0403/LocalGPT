@@ -1,0 +1,17 @@
+- name: Overview
+  href: index.md
+- name: User guide
+  href: guide/
+  homepage: guide/index.md
+- name: Architecture
+  href: architecture/
+  homepage: architecture/index.md
+- name: Engineering
+  href: engineering/
+  homepage: engineering/index.md
+- name: Reference
+  href: reference/
+  homepage: reference/index.md
+- name: API reference
+  href: api/
+  homepage: api/index.md

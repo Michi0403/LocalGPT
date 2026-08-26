@@ -1865,6 +1865,40 @@ function Get-LocalGptSharedRuntimeProbeDirectories {
     return @($directories | Sort-Object @{ Expression = { if ($_ -match '[\\/]10\.0\.[^\\/]+$') { 0 } else { 1 } } }, @{ Expression = { $_ } })
 }
 
+function Resolve-LocalGptNuGetAssemblyReference {
+    param([Parameter(Mandatory)][string]$ReferenceName)
+
+    $packageRoots = [System.Collections.Generic.List[string]]::new()
+    if (-not [string]::IsNullOrWhiteSpace($env:NUGET_PACKAGES)) {
+        $explicitRoot = [IO.Path]::GetFullPath($env:NUGET_PACKAGES)
+        if ((Test-Path -LiteralPath $explicitRoot -PathType Container) -and -not $packageRoots.Contains($explicitRoot)) {
+            $packageRoots.Add($explicitRoot)
+        }
+    }
+
+    $userProfile = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
+    if (-not [string]::IsNullOrWhiteSpace($userProfile)) {
+        $defaultRoot = Join-Path $userProfile '.nuget/packages'
+        if ((Test-Path -LiteralPath $defaultRoot -PathType Container) -and -not $packageRoots.Contains($defaultRoot)) {
+            $packageRoots.Add($defaultRoot)
+        }
+    }
+
+    foreach ($packageRoot in $packageRoots) {
+        $packageDirectory = Join-Path $packageRoot $ReferenceName.ToLowerInvariant()
+        if (-not (Test-Path -LiteralPath $packageDirectory -PathType Container)) { continue }
+        $candidates = @(
+            Get-ChildItem -LiteralPath $packageDirectory -Filter ($ReferenceName + '.dll') -File -Recurse -ErrorAction SilentlyContinue |
+                Sort-Object `
+                    @{ Expression = { if ($_.FullName -match '[\\/]lib[\\/]net10\.0[\\/]') { 0 } elseif ($_.FullName -match '[\\/]lib[\\/]netstandard2\.[01][\\/]') { 1 } else { 2 } } }, `
+                    @{ Expression = { $_.FullName }; Descending = $true }
+        )
+        if ($candidates.Count -gt 0) { return $candidates[0].FullName }
+    }
+
+    return $null
+}
+
 function Repair-LocalGptDocfxAssemblyReferences {
     param(
         [Parameter(Mandatory)][string[]]$ReferenceNames,
@@ -1891,6 +1925,9 @@ function Repair-LocalGptDocfxAssemblyReferences {
                 $source = $candidate
                 break
             }
+        }
+        if ($null -eq $source) {
+            $source = Resolve-LocalGptNuGetAssemblyReference -ReferenceName $referenceName
         }
         if ($null -eq $source) { continue }
 
