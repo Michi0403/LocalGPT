@@ -1,9 +1,7 @@
-# LocalGPT 3.4.1
+# LocalGPT 3.4.2
 
-LocalGPT 3.4.1 is the **Ollama Path Comparer Compile Repair** release.
+LocalGPT 3.4.2 is the **Pages PDF Payload Split** release.
 
-It fixes the `CS0115` failure introduced in 3.4.0 by restoring the base `ExecutablePathComparer` member that the Windows Ollama platform implementation overrides. The default comparer is case-sensitive for Unix/macOS and the Windows implementation remains case-insensitive.
+It keeps the 3.4.x cross-platform backend boundaries and fixes the post-documentation release failure caused by duplicating a multi-gigabyte PDF into the tracked GitHub Pages snapshot. GitHub Pages now receives the validated HTML/API site, while the complete PDF remains part of release documentation rather than the tracked Pages archive.
 
-All 3.4.0 cross-platform backend boundaries and the 3.3.x documentation/Pages fixes remain intact. No wire-protocol, InteractiveServer render-mode, GitHub Pages workflow, or documentation accessibility policy is changed by this patch.
-
-This handoff is source-only and was not built with .NET or executed with PowerShell in the packaging environment. See `CHANGELOG-v3.4.1-OLLAMA-PATH-COMPARER-COMPILE-REPAIR.md` and `VALIDATION-v3.4.1-source.md`.
+This handoff is source-only and was not built with .NET or executed with PowerShell in the packaging environment. See `CHANGELOG-v3.4.2-PAGES-PDF-PAYLOAD-SPLIT.md` and `VALIDATION-v3.4.2-source.md`.

@@ -1,6 +1,6 @@
 # LocalGPT GitHub Pages payload
 
-`localgpt-kawaii-docs.zip` is the single tracked publishing snapshot for GitHub Pages.
+`localgpt-kawaii-docs.zip` is the single tracked **HTML** publishing snapshot for GitHub Pages. The complete versioned PDF remains a release artifact and is deliberately excluded from the tracked Pages ZIP so multi-gigabyte handbooks do not exceed repository/Pages artifact budgets.
 
 The authored `docs/` tree and generated `docs/_site/` output are not branch-deployment mirrors. GitHub Actions validates and extracts this ZIP, adds `.nojekyll`, and deploys the resulting static artifact directly.
 

@@ -2449,6 +2449,10 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                         $pdfGeneratedSourcePath = Get-LocalGptRelativePath -Root $siteRoot -Path $docfxPdf.FullName
                         if (-not [string]::Equals($docfxPdf.FullName, $pdfPath, [StringComparison]::OrdinalIgnoreCase)) {
                             Copy-Item -LiteralPath $docfxPdf.FullName -Destination $pdfPath -Force
+                            # DocFX emits the PDF below pdf/ while LocalGPT publishes one canonical root copy.
+                            # Remove the generated candidate after the canonical copy so runtime/Pages payloads do not
+                            # accidentally carry the same multi-gigabyte handbook twice.
+                            Remove-Item -LiteralPath $docfxPdf.FullName -Force -ErrorAction SilentlyContinue
                         }
                         $pdfGenerated = Test-LocalGptCompletePdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
                         if ($pdfGenerated) {

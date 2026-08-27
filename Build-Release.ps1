@@ -65,14 +65,15 @@ function Resolve-ProjectVersion {
 function Assert-LocalGptDocumentationPayload {
     param(
         [Parameter(Mandatory)][string]$DocumentationRoot,
-        [Parameter(Mandatory)][string]$Version
+        [Parameter(Mandatory)][string]$Version,
+        [switch]$RequirePhysicalPdf
     )
     $requiredArtifacts = @(
         (Join-Path $DocumentationRoot "index.html"),
         (Join-Path $DocumentationRoot "documentation-status.json"),
-        (Join-Path $DocumentationRoot "LocalGPT.xml"),
-        (Join-Path $DocumentationRoot "LocalGPT-$Version.pdf")
+        (Join-Path $DocumentationRoot "LocalGPT.xml")
     )
+    if ($RequirePhysicalPdf) { $requiredArtifacts += (Join-Path $DocumentationRoot "LocalGPT-$Version.pdf") }
     foreach ($requiredArtifact in $requiredArtifacts) {
         if (-not (Test-Path -LiteralPath $requiredArtifact -PathType Leaf)) {
             throw "Published LocalGPT documentation is incomplete: $requiredArtifact"
@@ -85,8 +86,13 @@ function Assert-LocalGptDocumentationPayload {
         throw "Published LocalGPT documentation version '$($status.version)' does not match application version '$Version'."
     }
     $versionedPdfs = @(Get-ChildItem -LiteralPath $DocumentationRoot -File -Filter 'LocalGPT-*.pdf' -ErrorAction SilentlyContinue)
-    if ($versionedPdfs.Count -ne 1 -or -not [string]::Equals($versionedPdfs[0].Name, "LocalGPT-$Version.pdf", [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Published LocalGPT documentation must contain exactly one current versioned PDF (LocalGPT-$Version.pdf). Found: $($versionedPdfs.Name -join ', ')"
+    if ($RequirePhysicalPdf) {
+        if ($versionedPdfs.Count -ne 1 -or -not [string]::Equals($versionedPdfs[0].Name, "LocalGPT-$Version.pdf", [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Published LocalGPT documentation must contain exactly one current versioned PDF (LocalGPT-$Version.pdf). Found: $($versionedPdfs.Name -join ', ')"
+        }
+    }
+    elseif ($versionedPdfs.Count -ne 0) {
+        throw "Runtime HTML documentation must not duplicate the standalone release PDF. Found: $($versionedPdfs.Name -join ', ')"
     }
     $apiIndex = Join-Path $DocumentationRoot 'api/index.html'
     if (-not (Test-Path -LiteralPath $apiIndex -PathType Leaf)) { throw "Published LocalGPT documentation is missing api/index.html: $apiIndex" }
@@ -102,8 +108,14 @@ function Assert-LocalGptDocumentationPayload {
     if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "Published LocalGPT documentation contains an incomplete API graph." }
     if ([long]$status.pdfBytes -lt 1048576) { throw "Published LocalGPT documentation contains an unexpectedly small PDF." }
     if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "Published LocalGPT documentation did not record a real documentation PDF source." }
+    if (-not $RequirePhysicalPdf) {
+        if ([bool]$status.pdfAvailable) { throw "Runtime documentation status must declare pdfAvailable=false when the standalone PDF is not embedded." }
+        if (-not [string]::Equals([string]$status.releasePdfFileName, "LocalGPT-$Version.pdf", [StringComparison]::OrdinalIgnoreCase)) { throw "Runtime documentation did not preserve the standalone release PDF identity." }
+        if ([long]$status.releasePdfBytes -lt 1048576) { throw "Runtime documentation did not preserve the standalone release PDF size metadata." }
+    }
 
-    Write-Host "Verified complete LocalGPT $Version DocFX modern HTML and HTML-backed PDF documentation in $DocumentationRoot" -ForegroundColor Green
+    $payloadLabel = if ($RequirePhysicalPdf) { "modern HTML and HTML-backed PDF" } else { "modern HTML with standalone release-PDF metadata" }
+    Write-Host "Verified complete LocalGPT $Version DocFX $payloadLabel documentation in $DocumentationRoot" -ForegroundColor Green
 }
 
 $appVersion = Resolve-ProjectVersion -ProjectPath $appProject
@@ -149,7 +161,7 @@ function Prepare-LocalGptDocumentation {
         -OutputWebRoot $documentationOutput `
         -RequirePdf
 
-    Assert-LocalGptDocumentationPayload -DocumentationRoot $documentationOutput -Version $appVersion
+    Assert-LocalGptDocumentationPayload -DocumentationRoot $documentationOutput -Version $appVersion -RequirePhysicalPdf
     if (-not (Test-Path -LiteralPath $pagesSnapshotScript -PathType Leaf)) { throw "GitHub Pages snapshot script not found: $pagesSnapshotScript" }
     Write-Host "Validating and seeding the LocalGPT $appVersion GitHub Pages snapshot from the release documentation payload..." -ForegroundColor Cyan
     & $pagesSnapshotScript -DocumentationRoot $documentationOutput -OutputArchive $pagesSnapshotArchive
@@ -159,6 +171,41 @@ function Prepare-LocalGptDocumentation {
     Copy-Item -Path (Join-Path $documentationOutput "*") -Destination $script:documentationCacheRoot -Recurse -Force
     $script:documentationPrepared = $true
     Write-Host "Cached one verified documentation payload for all RID publishes." -ForegroundColor Green
+}
+
+function Copy-LocalGptRuntimeDocumentation {
+    param(
+        [Parameter(Mandatory)][string]$SourceRoot,
+        [Parameter(Mandatory)][string]$DestinationRoot,
+        [Parameter(Mandatory)][string]$Version
+    )
+
+    $pdfName = "LocalGPT-$Version.pdf"
+    Remove-Item -LiteralPath $DestinationRoot -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Path $DestinationRoot -Force | Out-Null
+    foreach ($entry in Get-ChildItem -LiteralPath $SourceRoot -Force) {
+        if (-not $entry.PSIsContainer -and [string]::Equals($entry.Name, $pdfName, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        Copy-Item -LiteralPath $entry.FullName -Destination (Join-Path $DestinationRoot $entry.Name) -Recurse -Force
+    }
+
+    $statusPath = Join-Path $DestinationRoot "documentation-status.json"
+    $status = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
+    $releasePdfBytes = [long]$status.pdfBytes
+    $status | Add-Member -NotePropertyName releasePdfFileName -NotePropertyValue $pdfName -Force
+    $status | Add-Member -NotePropertyName releasePdfBytes -NotePropertyValue $releasePdfBytes -Force
+    $status | Add-Member -NotePropertyName runtimePdfPublished -NotePropertyValue $false -Force
+    $status | Add-Member -NotePropertyName pdfAvailable -NotePropertyValue $false -Force
+    $status | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $statusPath -Encoding utf8
+
+    $releaseUrl = "https://github.com/Michi0403/LocalGPT/releases/latest"
+    foreach ($htmlFile in Get-ChildItem -LiteralPath $DestinationRoot -Filter '*.html' -File -Recurse -ErrorAction SilentlyContinue) {
+        $html = [IO.File]::ReadAllText($htmlFile.FullName)
+        if ($html.Contains($pdfName, [StringComparison]::OrdinalIgnoreCase)) {
+            $escapedPdf = [regex]::Escape($pdfName)
+            $html = [regex]::Replace($html, '(?i)href=["''](?:\.\./|\./)?' + $escapedPdf + '["'']', 'href="' + $releaseUrl + '"')
+            [IO.File]::WriteAllText($htmlFile.FullName, $html, [Text.UTF8Encoding]::new($false))
+        }
+    }
 }
 
 function Resolve-PublishProfilePath {
@@ -483,10 +530,8 @@ function Publish-Runtime {
         if (-not (Test-Path -LiteralPath $script:documentationCacheRoot -PathType Container)) {
             throw "The shared LocalGPT documentation cache is missing: $script:documentationCacheRoot"
         }
-        Remove-Item -LiteralPath $publishedDocumentationRoot -Recurse -Force -ErrorAction SilentlyContinue
-        New-Item -ItemType Directory -Path $publishedDocumentationRoot -Force | Out-Null
-        Copy-Item -Path (Join-Path $script:documentationCacheRoot "*") -Destination $publishedDocumentationRoot -Recurse -Force
-        Write-Host "Reused the verified complete documentation payload for $Rid." -ForegroundColor Cyan
+        Copy-LocalGptRuntimeDocumentation -SourceRoot $script:documentationCacheRoot -DestinationRoot $publishedDocumentationRoot -Version $appVersion
+        Write-Host "Reused the verified HTML documentation payload for $Rid without duplicating the standalone release PDF." -ForegroundColor Cyan
     }
 
     Assert-LocalGptDocumentationPayload -DocumentationRoot $publishedDocumentationRoot -Version $appVersion
