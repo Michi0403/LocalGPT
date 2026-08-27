@@ -1,11 +1,9 @@
-# LocalGPT 3.4.0
+# LocalGPT 3.4.1
 
-LocalGPT 3.4.0 is the **Cross-Platform Backend Boundaries** release.
+LocalGPT 3.4.1 is the **Ollama Path Comparer Compile Repair** release.
 
-This release removes unused Windows-only application dependencies and moves host-sensitive filesystem, console, hardware, and secret-file behavior behind dependency-injected Windows/Unix services. Physical-path security checks now follow the actual host filesystem semantics instead of assuming Windows-style case-insensitivity.
+It fixes the `CS0115` failure introduced in 3.4.0 by restoring the base `ExecutablePathComparer` member that the Windows Ollama platform implementation overrides. The default comparer is case-sensitive for Unix/macOS and the Windows implementation remains case-insensitive.
 
-The release also adds a source-level cross-platform guard to prevent common services from reintroducing direct OS branching, Windows executable/environment selection, or known unsafe path-containment patterns.
+All 3.4.0 cross-platform backend boundaries and the 3.3.x documentation/Pages fixes remain intact. No wire-protocol, InteractiveServer render-mode, GitHub Pages workflow, or documentation accessibility policy is changed by this patch.
 
-Documentation build/runtime improvements from 3.3.3 through 3.3.9 remain intact.
-
-This handoff is source-only and was not built with .NET or executed with PowerShell in the packaging environment. See `CHANGELOG-v3.4.0-CROSS-PLATFORM-BACKEND-BOUNDARIES.md` and `VALIDATION-v3.4.0-source.md`.
+This handoff is source-only and was not built with .NET or executed with PowerShell in the packaging environment. See `CHANGELOG-v3.4.1-OLLAMA-PATH-COMPARER-COMPILE-REPAIR.md` and `VALIDATION-v3.4.1-source.md`.

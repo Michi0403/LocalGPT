@@ -12,6 +12,9 @@ public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
     /// <returns>Candidate executable paths ordered from most specific to least specific.</returns>
     protected abstract IEnumerable<string> GetKnownExecutableCandidates();
 
+    /// <summary>Gets the comparer used to de-duplicate executable paths on the current host filesystem.</summary>
+    protected virtual StringComparer ExecutablePathComparer => StringComparer.Ordinal;
+
     /// <summary>Gets the executable file name expected on the current operating system.</summary>
     protected virtual string ExecutableName => "ollama";
 

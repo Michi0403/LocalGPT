@@ -111,6 +111,14 @@ require("public StringComparer PathComparer => StringComparer.Ordinal;" in unix_
 require("public StringComparison PathComparison => StringComparison.Ordinal;" in unix_section,
         "Unix path comparison is ordinal/case-sensitive")
 
+# Ollama executable discovery also follows host filesystem semantics. The base comparer must
+# exist so the Windows implementation can override it without a CS0115 compile failure.
+ollama_platform = text(APP / "Services" / "OllamaPlatformServices.cs")
+require("protected virtual StringComparer ExecutablePathComparer => StringComparer.Ordinal;" in ollama_platform,
+        "Ollama base executable-path comparer is ordinal/case-sensitive")
+require("protected override StringComparer ExecutablePathComparer => StringComparer.OrdinalIgnoreCase;" in ollama_platform,
+        "Windows Ollama executable-path comparer override is available")
+
 # Required platform boundary and DI wiring.
 required_snippets = [
     (APP / "Interfaces" / "IPlatformRuntimeService.cs", "interface IPlatformRuntimeService"),
