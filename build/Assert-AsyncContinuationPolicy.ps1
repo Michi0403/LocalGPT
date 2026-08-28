@@ -9,6 +9,7 @@ $pythonScript = Join-Path $PSScriptRoot 'audit_async_continuations.py'
 
 function Invoke-PythonAudit {
     $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $python) { $python = Get-Command python3 -ErrorAction SilentlyContinue }
     if ($python) {
         $output = @(& $python.Source $pythonScript --source-root $sourceRoot 2>&1)
         $exitCode = [int]$LASTEXITCODE

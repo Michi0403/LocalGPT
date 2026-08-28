@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $serviceAudit = Join-Path $PSScriptRoot 'audit_service_resilience.py'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $python = Get-Command python -ErrorAction SilentlyContinue
+if ($null -eq $python) { $python = Get-Command python3 -ErrorAction SilentlyContinue }
 if ($python) {
     & $python.Source $serviceAudit --root $repoRoot --product localgpt
     if ($LASTEXITCODE -ne 0) { throw 'Service resilience audit failed.' }

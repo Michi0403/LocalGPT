@@ -1,16 +1,24 @@
 <Project>
+  <PropertyGroup>
+    <!-- Repository policy/build scripts are required on every supported build host. -->
+    <RepositoryPowerShell Condition="'$(RepositoryPowerShell)' == '' and '$(OS)' == 'Windows_NT'">powershell</RepositoryPowerShell>
+    <RepositoryPowerShell Condition="'$(RepositoryPowerShell)' == '' and '$(OS)' != 'Windows_NT'">pwsh</RepositoryPowerShell>
+    <RepositoryPowerShellArguments Condition="'$(RepositoryPowerShellArguments)' == '' and '$(OS)' == 'Windows_NT'">-NoProfile -NonInteractive -ExecutionPolicy Bypass</RepositoryPowerShellArguments>
+    <RepositoryPowerShellArguments Condition="'$(RepositoryPowerShellArguments)' == '' and '$(OS)' != 'Windows_NT'">-NoProfile -NonInteractive</RepositoryPowerShellArguments>
+  </PropertyGroup>
+
 
   <PropertyGroup>
-    <OneWireArchitectureScript>$(MSBuildThisFileDirectory)build\Assert-OneWireArchitecture.ps1</OneWireArchitectureScript>
+    <OneWireArchitectureScript>$(MSBuildThisFileDirectory)build/Assert-OneWireArchitecture.ps1</OneWireArchitectureScript>
   </PropertyGroup>
 
   <!--<Target Name="AssertLocalGptOneWireArchitecture"
           BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipOneWireArchitectureGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipOneWireArchitectureGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(OneWireArchitectureScript)')"
            Text="1-Wire architecture guard script is missing: $(OneWireArchitectureScript)" />
     <Exec Condition="Exists('$(OneWireArchitectureScript)')"
-          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(OneWireArchitectureScript)&quot;"
+          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(OneWireArchitectureScript)&quot;"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
@@ -19,21 +27,21 @@
 
 
   <PropertyGroup>
-    <ProtectedRepositoryFilesScript>$(MSBuildThisFileDirectory)build\Assert-ProtectedRepositoryFiles.ps1</ProtectedRepositoryFilesScript>
-    <RuntimeValueOwnershipScript>$(MSBuildThisFileDirectory)build\Assert-RuntimeValueOwnership.ps1</RuntimeValueOwnershipScript>
+    <ProtectedRepositoryFilesScript>$(MSBuildThisFileDirectory)build/Assert-ProtectedRepositoryFiles.ps1</ProtectedRepositoryFilesScript>
+    <RuntimeValueOwnershipScript>$(MSBuildThisFileDirectory)build/Assert-RuntimeValueOwnership.ps1</RuntimeValueOwnershipScript>
   </PropertyGroup>
 
   <PropertyGroup>
-    <LocalizationIntegrityScript>$(MSBuildThisFileDirectory)build\Assert-LocalizationIntegrity.ps1</LocalizationIntegrityScript>
+    <LocalizationIntegrityScript>$(MSBuildThisFileDirectory)build/Assert-LocalizationIntegrity.ps1</LocalizationIntegrityScript>
   </PropertyGroup>
 
   <Target Name="AssertLocalGptLocalizationIntegrity"
           BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipLocalizationIntegrityGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipLocalizationIntegrityGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(LocalizationIntegrityScript)')"
            Text="Localization integrity guard script is missing: $(LocalizationIntegrityScript)" />
     <Exec Condition="Exists('$(LocalizationIntegrityScript)')"
-          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalizationIntegrityScript)&quot;"
+          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalizationIntegrityScript)&quot;"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
@@ -41,17 +49,17 @@
   </Target>
 
   <PropertyGroup>
-    <OperationalDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-OperationalDiagnostics.ps1</OperationalDiagnosticsScript>
+    <OperationalDiagnosticsScript>$(MSBuildThisFileDirectory)build/Assert-OperationalDiagnostics.ps1</OperationalDiagnosticsScript>
   </PropertyGroup>
 
   <Target Name="AssertLocalGptOperationalDiagnostics"
           BeforeTargets="BeforeBuild"
           AfterTargets="AssertLocalGptLoggingIntegrity"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipOperationalDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipOperationalDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(OperationalDiagnosticsScript)')"
            Text="Operational diagnostics guard script is missing: $(OperationalDiagnosticsScript)" />
     <Exec Condition="Exists('$(OperationalDiagnosticsScript)')"
-          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(OperationalDiagnosticsScript)&quot;"
+          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(OperationalDiagnosticsScript)&quot;"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
@@ -59,18 +67,18 @@
   </Target>
 
   <PropertyGroup>
-    <InteractiveServerRenderModeScript>$(MSBuildThisFileDirectory)build\Assert-InteractiveServerRenderModes.ps1</InteractiveServerRenderModeScript>
-    <AsyncContinuationScript>$(MSBuildThisFileDirectory)build\Assert-AsyncContinuationPolicy.ps1</AsyncContinuationScript>
+    <InteractiveServerRenderModeScript>$(MSBuildThisFileDirectory)build/Assert-InteractiveServerRenderModes.ps1</InteractiveServerRenderModeScript>
+    <AsyncContinuationScript>$(MSBuildThisFileDirectory)build/Assert-AsyncContinuationPolicy.ps1</AsyncContinuationScript>
   </PropertyGroup>
 
   <Target Name="AssertLocalGptInteractiveServerRenderModes"
           BeforeTargets="BeforeBuild"
           AfterTargets="AssertLocalGptOperationalDiagnostics"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipInteractiveServerRenderModeGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipInteractiveServerRenderModeGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(InteractiveServerRenderModeScript)')"
            Text="InteractiveServer render-mode guard script is missing: $(InteractiveServerRenderModeScript)" />
     <Exec Condition="Exists('$(InteractiveServerRenderModeScript)')"
-          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(InteractiveServerRenderModeScript)&quot;"
+          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(InteractiveServerRenderModeScript)&quot;"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
@@ -80,11 +88,11 @@
   <Target Name="AssertLocalGptAsyncContinuationPolicy"
           BeforeTargets="BeforeBuild"
           AfterTargets="AssertLocalGptInteractiveServerRenderModes"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipAsyncContinuationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipAsyncContinuationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(AsyncContinuationScript)')"
            Text="Async continuation guard script is missing: $(AsyncContinuationScript)" />
     <Exec Condition="Exists('$(AsyncContinuationScript)')"
-          Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(AsyncContinuationScript)&quot;"
+          Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(AsyncContinuationScript)&quot;"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
@@ -92,86 +100,87 @@
   </Target>
 
   <PropertyGroup>
-    <MethodDiagnosticsPolicyScript>$(MSBuildThisFileDirectory)build\Assert-MethodDiagnostics.ps1</MethodDiagnosticsPolicyScript>
-    <ApplicationStaticPolicyScript>$(MSBuildThisFileDirectory)build\Assert-ApplicationStaticPolicy.ps1</ApplicationStaticPolicyScript>
-    <TextServiceOwnershipScript>$(MSBuildThisFileDirectory)build\Assert-TextServiceOwnership.ps1</TextServiceOwnershipScript>
-    <IteratorExceptionPolicyScript>$(MSBuildThisFileDirectory)build\Assert-IteratorExceptionPolicy.ps1</IteratorExceptionPolicyScript>
-    <SystemVariableInitializationScript>$(MSBuildThisFileDirectory)build\Assert-SystemVariableInitialization.ps1</SystemVariableInitializationScript>
-    <EfModelSnapshotConsistencyScript>$(MSBuildThisFileDirectory)build\Assert-EfModelSnapshotConsistency.ps1</EfModelSnapshotConsistencyScript>
+    <MethodDiagnosticsPolicyScript>$(MSBuildThisFileDirectory)build/Assert-MethodDiagnostics.ps1</MethodDiagnosticsPolicyScript>
+    <ApplicationStaticPolicyScript>$(MSBuildThisFileDirectory)build/Assert-ApplicationStaticPolicy.ps1</ApplicationStaticPolicyScript>
+    <TextServiceOwnershipScript>$(MSBuildThisFileDirectory)build/Assert-TextServiceOwnership.ps1</TextServiceOwnershipScript>
+    <IteratorExceptionPolicyScript>$(MSBuildThisFileDirectory)build/Assert-IteratorExceptionPolicy.ps1</IteratorExceptionPolicyScript>
+    <SystemVariableInitializationScript>$(MSBuildThisFileDirectory)build/Assert-SystemVariableInitialization.ps1</SystemVariableInitializationScript>
+    <EfModelSnapshotConsistencyScript>$(MSBuildThisFileDirectory)build/Assert-EfModelSnapshotConsistency.ps1</EfModelSnapshotConsistencyScript>
   </PropertyGroup>
 
-  <!--<Target Name="AssertLocalGptMethodDiagnosticsPolicy"
+  <Target Name="AssertLocalGptMethodDiagnosticsPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptAsyncContinuationPolicy"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipMethodDiagnosticsPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipMethodDiagnosticsPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(MethodDiagnosticsPolicyScript)')" Text="Method diagnostics policy script is missing: $(MethodDiagnosticsPolicyScript)" />
-    <Exec Condition="Exists('$(MethodDiagnosticsPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MethodDiagnosticsPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>-->
+    <Exec Condition="Exists('$(MethodDiagnosticsPolicyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(MethodDiagnosticsPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
 
   <Target Name="AssertLocalGptApplicationStaticPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptMethodDiagnosticsPolicy"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipApplicationStaticPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipApplicationStaticPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(ApplicationStaticPolicyScript)')" Text="Application static policy script is missing: $(ApplicationStaticPolicyScript)" />
-    <Exec Condition="Exists('$(ApplicationStaticPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(ApplicationStaticPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Condition="Exists('$(ApplicationStaticPolicyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(ApplicationStaticPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
   <Target Name="AssertLocalGptTextServiceOwnership"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptApplicationStaticPolicy"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipTextServiceOwnershipGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipTextServiceOwnershipGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(TextServiceOwnershipScript)')" Text="Text-service ownership script is missing: $(TextServiceOwnershipScript)" />
-    <Exec Condition="Exists('$(TextServiceOwnershipScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(TextServiceOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Condition="Exists('$(TextServiceOwnershipScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(TextServiceOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
-  <!--<Target Name="AssertLocalGptIteratorExceptionPolicy"
+  <Target Name="AssertLocalGptIteratorExceptionPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptTextServiceOwnership"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipIteratorExceptionPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipIteratorExceptionPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(IteratorExceptionPolicyScript)')" Text="Iterator exception policy script is missing: $(IteratorExceptionPolicyScript)" />
-    <Exec Condition="Exists('$(IteratorExceptionPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(IteratorExceptionPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>-->
+    <Exec Condition="Exists('$(IteratorExceptionPolicyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(IteratorExceptionPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+  </Target>
 
   <Target Name="AssertLocalGptSystemVariableInitialization"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptIteratorExceptionPolicy"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipSystemVariableInitializationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipSystemVariableInitializationGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(SystemVariableInitializationScript)')" Text="System-variable initialization script is missing: $(SystemVariableInitializationScript)" />
-    <Exec Condition="Exists('$(SystemVariableInitializationScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(SystemVariableInitializationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Condition="Exists('$(SystemVariableInitializationScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(SystemVariableInitializationScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
   <Target Name="AssertLocalGptEfModelSnapshotConsistency"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptSystemVariableInitialization"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipEfModelSnapshotConsistencyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipEfModelSnapshotConsistencyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(EfModelSnapshotConsistencyScript)')" Text="EF model/snapshot consistency script is missing: $(EfModelSnapshotConsistencyScript)" />
-    <Exec Condition="Exists('$(EfModelSnapshotConsistencyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(EfModelSnapshotConsistencyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Condition="Exists('$(EfModelSnapshotConsistencyScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(EfModelSnapshotConsistencyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
   <PropertyGroup>
-    <LocalGptStaticWebAssetsScript>$(MSBuildThisFileDirectory)build\Assert-StaticWebAssets.ps1</LocalGptStaticWebAssetsScript>
-    <LocalGptJavaScriptDiagnosticsScript>$(MSBuildThisFileDirectory)build\Assert-JavaScriptDiagnostics.ps1</LocalGptJavaScriptDiagnosticsScript>
+    <LocalGptStaticWebAssetsScript>$(MSBuildThisFileDirectory)build/Assert-StaticWebAssets.ps1</LocalGptStaticWebAssetsScript>
+    <LocalGptJavaScriptDiagnosticsScript>$(MSBuildThisFileDirectory)build/Assert-JavaScriptDiagnostics.ps1</LocalGptJavaScriptDiagnosticsScript>
   </PropertyGroup>
 
 
   <Target Name="AssertLocalGptJavaScriptDiagnostics"
           BeforeTargets="BeforeBuild"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipJavaScriptDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipJavaScriptDiagnosticsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(LocalGptJavaScriptDiagnosticsScript)')" Text="JavaScript diagnostics guard script is missing: $(LocalGptJavaScriptDiagnosticsScript)" />
-    <Exec Condition="Exists('$(LocalGptJavaScriptDiagnosticsScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptJavaScriptDiagnosticsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Condition="Exists('$(LocalGptJavaScriptDiagnosticsScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptJavaScriptDiagnosticsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
   <Target Name="AssertLocalGptStaticWebAssets"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptEfModelSnapshotConsistency"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipStaticWebAssetsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipStaticWebAssetsGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(LocalGptStaticWebAssetsScript)')" Text="Static web asset validation script is missing: $(LocalGptStaticWebAssetsScript)" />
-    <Exec Condition="Exists('$(LocalGptStaticWebAssetsScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptStaticWebAssetsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
+    <Exec Condition="Exists('$(LocalGptStaticWebAssetsScript)')" Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptStaticWebAssetsScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
   <PropertyGroup>
-    <LocalGptDocumentationScript>$(MSBuildThisFileDirectory)build\Build-Documentation.ps1</LocalGptDocumentationScript>
-    <LocalGptPagesSnapshotScript>$(MSBuildThisFileDirectory)build\Update-GitHubPagesSnapshot.ps1</LocalGptPagesSnapshotScript>
-    <LocalGptPagesSnapshotArchive>$(MSBuildThisFileDirectory).github\pages\localgpt-kawaii-docs.zip</LocalGptPagesSnapshotArchive>
+    <LocalGptDocumentationScript>$(MSBuildThisFileDirectory)build/Build-Documentation.ps1</LocalGptDocumentationScript>
+    <LocalGptPagesSnapshotScript>$(MSBuildThisFileDirectory)build/Update-GitHubPagesSnapshot.ps1</LocalGptPagesSnapshotScript>
+    <LocalGptPagesSnapshotArchive>$(MSBuildThisFileDirectory).github/pages/localgpt-kawaii-docs.zip</LocalGptPagesSnapshotArchive>
     <SeedLocalGptGitHubPagesSnapshotOnBuild Condition="'$(SeedLocalGptGitHubPagesSnapshotOnBuild)' == ''">true</SeedLocalGptGitHubPagesSnapshotOnBuild>
     <!-- Append a dot so the quoted Windows argument never ends in a backslash.
          A trailing backslash before a closing quote can absorb the remaining PowerShell -File arguments. -->
     <LocalGptDocumentationRepositoryRoot>$(MSBuildThisFileDirectory).</LocalGptDocumentationRepositoryRoot>
-    <LocalGptDocumentationOutputRoot>$(TargetDir)wwwroot\help-docs</LocalGptDocumentationOutputRoot>
+    <LocalGptDocumentationOutputRoot>$(TargetDir)wwwroot/help-docs</LocalGptDocumentationOutputRoot>
     <BuildLocalGptDocumentation Condition="'$(BuildLocalGptDocumentation)' == ''">true</BuildLocalGptDocumentation>
-    <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">true</RequireLocalGptDocumentationPdf>
+    <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == '' and '$(Configuration)' == 'Release'">true</RequireLocalGptDocumentationPdf>
+    <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">false</RequireLocalGptDocumentationPdf>
     <LocalGptDocumentationPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' == 'true'">-RequirePdf</LocalGptDocumentationPdfArgument>
   </PropertyGroup>
 
@@ -182,21 +191,21 @@
   -->
   <Target Name="BuildLocalGptDocumentation"
           AfterTargets="Build"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(LocalGptDocumentationScript)')" Text="LocalGPT documentation build script is missing: $(LocalGptDocumentationScript)" />
     <Error Condition="!Exists('$(TargetPath)')" Text="LocalGPT documentation cannot be generated because the application assembly is missing: $(TargetPath)" />
     <Error Condition="!Exists('$(TargetDir)$(AssemblyName).xml')" Text="LocalGPT documentation cannot be generated because compiler XML is missing: $(TargetDir)$(AssemblyName).xml" />
     <Message Importance="High" Text="Generating LocalGPT $(Version) documentation into $(LocalGptDocumentationOutputRoot)" />
-    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptDocumentationScript)&quot; -RepositoryRoot &quot;$(LocalGptDocumentationRepositoryRoot)&quot; -AssemblyPath &quot;$(TargetPath)&quot; -XmlDocumentationPath &quot;$(TargetDir)$(AssemblyName).xml&quot; -Version &quot;$(Version)&quot; -OutputWebRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; $(LocalGptDocumentationPdfArgument)"
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptDocumentationScript)&quot; -RepositoryRoot &quot;$(LocalGptDocumentationRepositoryRoot)&quot; -AssemblyPath &quot;$(TargetPath)&quot; -XmlDocumentationPath &quot;$(TargetDir)$(AssemblyName).xml&quot; -Version &quot;$(Version)&quot; -OutputWebRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; $(LocalGptDocumentationPdfArgument)"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\index.html')" Text="LocalGPT documentation generation completed without index.html: $(LocalGptDocumentationOutputRoot)" />
-    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\api\index.html')" Text="LocalGPT documentation generation completed without the API reference root: $(LocalGptDocumentationOutputRoot)\api\index.html" />
-    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\documentation-status.json')" Text="LocalGPT documentation generation completed without documentation-status.json: $(LocalGptDocumentationOutputRoot)" />
-    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)\LocalGPT.xml')" Text="LocalGPT documentation generation completed without LocalGPT.xml: $(LocalGptDocumentationOutputRoot)" />
-    <Error Condition="'$(RequireLocalGptDocumentationPdf)' == 'true' and !Exists('$(LocalGptDocumentationOutputRoot)\LocalGPT-$(Version).pdf')" Text="LocalGPT documentation generation completed without the complete versioned PDF: $(LocalGptDocumentationOutputRoot)\LocalGPT-$(Version).pdf" />
+    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)/index.html')" Text="LocalGPT documentation generation completed without index.html: $(LocalGptDocumentationOutputRoot)" />
+    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)/api/index.html')" Text="LocalGPT documentation generation completed without the API reference root: $(LocalGptDocumentationOutputRoot)/api/index.html" />
+    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)/documentation-status.json')" Text="LocalGPT documentation generation completed without documentation-status.json: $(LocalGptDocumentationOutputRoot)" />
+    <Error Condition="!Exists('$(LocalGptDocumentationOutputRoot)/LocalGPT.xml')" Text="LocalGPT documentation generation completed without LocalGPT.xml: $(LocalGptDocumentationOutputRoot)" />
+    <Error Condition="'$(RequireLocalGptDocumentationPdf)' == 'true' and !Exists('$(LocalGptDocumentationOutputRoot)/LocalGPT-$(Version).pdf')" Text="LocalGPT documentation generation completed without the complete versioned PDF: $(LocalGptDocumentationOutputRoot)/LocalGPT-$(Version).pdf" />
   </Target>
 
   <!--
@@ -210,10 +219,10 @@
   -->
   <Target Name="SeedLocalGptGitHubPagesSnapshot"
           AfterTargets="BuildLocalGptDocumentation"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(SeedLocalGptGitHubPagesSnapshotOnBuild)' == 'true' and ('$(Configuration)' == 'Debug' or '$(Configuration)' == 'Release') and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(SeedLocalGptGitHubPagesSnapshotOnBuild)' == 'true' and ('$(Configuration)' == 'Debug' or '$(Configuration)' == 'Release') and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(LocalGptPagesSnapshotScript)')" Text="LocalGPT GitHub Pages snapshot script is missing: $(LocalGptPagesSnapshotScript)" />
     <Message Importance="High" Text="Validating and seeding the LocalGPT $(Version) GitHub Pages snapshot from $(LocalGptDocumentationOutputRoot)" />
-    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(LocalGptPagesSnapshotScript)&quot; -DocumentationRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; -OutputArchive &quot;$(LocalGptPagesSnapshotArchive)&quot;"
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptPagesSnapshotScript)&quot; -DocumentationRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; -OutputArchive &quot;$(LocalGptPagesSnapshotArchive)&quot;"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
@@ -225,11 +234,11 @@
           AfterTargets="ComputeFilesToPublish"
           BeforeTargets="CopyFilesToPublishDirectory"
           DependsOnTargets="BuildLocalGptDocumentation"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(MSBuildProjectName)' == 'LocalGPT'">
     <ItemGroup>
-      <LocalGptDocumentationPublishFiles Include="$(LocalGptDocumentationOutputRoot)\**\*" />
+      <LocalGptDocumentationPublishFiles Include="$(LocalGptDocumentationOutputRoot)/**/*" />
       <ResolvedFileToPublish Include="@(LocalGptDocumentationPublishFiles)">
-        <RelativePath>wwwroot\help-docs\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <RelativePath>wwwroot/help-docs/%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
         <CopyToPublishDirectory>Always</CopyToPublishDirectory>
         <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
       </ResolvedFileToPublish>

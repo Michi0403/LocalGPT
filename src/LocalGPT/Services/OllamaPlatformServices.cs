@@ -21,32 +21,59 @@ public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
     /// <inheritdoc />
     public string? ResolveExecutable()
     {
-        var candidates = new List<string>();
-        candidates.AddRange(GetKnownExecutableCandidates().Where(path => !string.IsNullOrWhiteSpace(path)));
+        try
+        {
+            var candidates = new List<string>();
+            candidates.AddRange(GetKnownExecutableCandidates().Where(path => !string.IsNullOrWhiteSpace(path)));
 
-        var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-        candidates.AddRange(path
-            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(directory => Path.Combine(directory, ExecutableName)));
+            var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            candidates.AddRange(path
+                .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(directory => Path.Combine(directory, ExecutableName)));
 
-        return candidates
-            .Select(candidate => ExpandHome(candidate))
-            .Distinct(ExecutablePathComparer)
-            .FirstOrDefault(File.Exists);
+            return candidates
+                .Select(candidate => ExpandHome(candidate))
+                .Distinct(ExecutablePathComparer)
+                .FirstOrDefault(File.Exists);
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Ollama executable discovery failed: {0}", exception);
+            throw;
+        }
     }
 
     /// <inheritdoc />
-    public virtual bool IsGuiExecutable(string executable) => false;
+    public virtual bool IsGuiExecutable(string executable)
+    {
+        try
+        {
+            return false;
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Ollama GUI executable classification failed: {0}", exception);
+            throw;
+        }
+    }
 
     /// <summary>Expands a leading home-directory marker without invoking a shell.</summary>
     /// <param name="path">Candidate path to normalize.</param>
     /// <returns>The normalized candidate path.</returns>
     private string ExpandHome(string path)
     {
-        if (!path.StartsWith("~/", StringComparison.Ordinal))
-            return path;
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return string.IsNullOrWhiteSpace(home) ? path : Path.Combine(home, path[2..]);
+        try
+        {
+            if (!path.StartsWith("~/", StringComparison.Ordinal))
+                return path;
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return string.IsNullOrWhiteSpace(home) ? path : Path.Combine(home, path[2..]);
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Ollama home-path expansion failed: {0}", exception);
+            throw;
+        }
     }
 }
 
@@ -65,31 +92,50 @@ public sealed class WindowsOllamaPlatformService : OllamaPlatformServiceBase
     /// <inheritdoc />
     protected override IEnumerable<string> GetKnownExecutableCandidates()
     {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!string.IsNullOrWhiteSpace(localAppData))
+        try
         {
-            yield return Path.Combine(localAppData, "Programs", "Ollama", "ollama.exe");
-            yield return Path.Combine(localAppData, "Programs", "Ollama", "ollama app.exe");
-            yield return Path.Combine(localAppData, "Programs", "Ollama", "ollama.app.exe");
-        }
+            var candidates = new List<string>();
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (!string.IsNullOrWhiteSpace(localAppData))
+            {
+                candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", "ollama.exe"));
+                candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", "ollama app.exe"));
+                candidates.Add(Path.Combine(localAppData, "Programs", "Ollama", "ollama.app.exe"));
+            }
 
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        if (!string.IsNullOrWhiteSpace(programFiles))
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            if (!string.IsNullOrWhiteSpace(programFiles))
+            {
+                candidates.Add(Path.Combine(programFiles, "Ollama", "ollama.exe"));
+                candidates.Add(Path.Combine(programFiles, "Ollama", "ollama app.exe"));
+                candidates.Add(Path.Combine(programFiles, "Ollama", "ollama.app.exe"));
+            }
+
+            return candidates;
+        }
+        catch (Exception exception)
         {
-            yield return Path.Combine(programFiles, "Ollama", "ollama.exe");
-            yield return Path.Combine(programFiles, "Ollama", "ollama app.exe");
-            yield return Path.Combine(programFiles, "Ollama", "ollama.app.exe");
+            System.Diagnostics.Trace.TraceError("Windows Ollama candidate discovery failed: {0}", exception);
+            throw;
         }
     }
 
     /// <inheritdoc />
     public override bool IsGuiExecutable(string executable)
     {
-        var name = new string(Path.GetFileNameWithoutExtension(executable)
-            .Where(char.IsLetterOrDigit)
-            .Select(char.ToLowerInvariant)
-            .ToArray());
-        return name == "ollamaapp";
+        try
+        {
+            var name = new string(Path.GetFileNameWithoutExtension(executable)
+                .Where(char.IsLetterOrDigit)
+                .Select(char.ToLowerInvariant)
+                .ToArray());
+            return name == "ollamaapp";
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Windows Ollama GUI executable classification failed: {0}", exception);
+            throw;
+        }
     }
 }
 
@@ -102,9 +148,15 @@ public sealed class MacOsOllamaPlatformService : OllamaPlatformServiceBase
     /// <inheritdoc />
     protected override IEnumerable<string> GetKnownExecutableCandidates()
     {
-        yield return "/opt/homebrew/bin/ollama";
-        yield return "/usr/local/bin/ollama";
-        yield return "~/.local/bin/ollama";
+        try
+        {
+            return ["/opt/homebrew/bin/ollama", "/usr/local/bin/ollama", "~/.local/bin/ollama"];
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("macOS Ollama candidate discovery failed: {0}", exception);
+            throw;
+        }
     }
 }
 
@@ -117,9 +169,15 @@ public sealed class LinuxOllamaPlatformService : OllamaPlatformServiceBase
     /// <inheritdoc />
     protected override IEnumerable<string> GetKnownExecutableCandidates()
     {
-        yield return "/usr/local/bin/ollama";
-        yield return "/usr/bin/ollama";
-        yield return "~/.local/bin/ollama";
+        try
+        {
+            return ["/usr/local/bin/ollama", "/usr/bin/ollama", "~/.local/bin/ollama"];
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Linux Ollama candidate discovery failed: {0}", exception);
+            throw;
+        }
     }
 }
 
@@ -130,5 +188,16 @@ public sealed class GenericOllamaPlatformService : OllamaPlatformServiceBase
     public override string PlatformName => "Other";
 
     /// <inheritdoc />
-    protected override IEnumerable<string> GetKnownExecutableCandidates() => [];
+    protected override IEnumerable<string> GetKnownExecutableCandidates()
+    {
+        try
+        {
+            return [];
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Generic Ollama candidate discovery failed: {0}", exception);
+            throw;
+        }
+    }
 }

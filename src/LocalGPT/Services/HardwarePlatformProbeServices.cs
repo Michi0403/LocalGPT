@@ -79,11 +79,19 @@ public sealed class WindowsHardwarePlatformProbeService(ILogger<WindowsHardwareP
 
     private string InferVendor(string name)
     {
-        if (name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)) return "NVIDIA";
-        if (name.Contains("AMD", StringComparison.OrdinalIgnoreCase) || name.Contains("Radeon", StringComparison.OrdinalIgnoreCase)) return "AMD";
-        if (name.Contains("Intel", StringComparison.OrdinalIgnoreCase)) return "Intel";
-        if (name.Contains("Apple", StringComparison.OrdinalIgnoreCase)) return "Apple";
-        return string.Empty;
+        try
+        {
+            if (name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)) return "NVIDIA";
+            if (name.Contains("AMD", StringComparison.OrdinalIgnoreCase) || name.Contains("Radeon", StringComparison.OrdinalIgnoreCase)) return "AMD";
+            if (name.Contains("Intel", StringComparison.OrdinalIgnoreCase)) return "Intel";
+            if (name.Contains("Apple", StringComparison.OrdinalIgnoreCase)) return "Apple";
+            return string.Empty;
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(WindowsHardwarePlatformProbeService), nameof(InferVendor), exception);
+            throw;
+        }
     }
 }
 
@@ -93,11 +101,23 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
     /// <inheritdoc />
     public async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbePlatformGpusAsync(CancellationToken cancellationToken = default)
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            return await ProbeLinuxDrmAsync(cancellationToken).ConfigureAwait(false);
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            return await ProbeMacDisplaysAsync(cancellationToken).ConfigureAwait(false);
-        return [];
+        try
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                return await ProbeLinuxDrmAsync(cancellationToken).ConfigureAwait(false);
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                return await ProbeMacDisplaysAsync(cancellationToken).ConfigureAwait(false);
+            return [];
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(UnixHardwarePlatformProbeService), nameof(ProbePlatformGpusAsync), exception);
+            throw;
+        }
     }
 
     private async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeLinuxDrmAsync(CancellationToken cancellationToken)
@@ -180,69 +200,89 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
 
     private async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeMacDisplaysAsync(CancellationToken cancellationToken)
     {
-        var lines = await RunProbeAsync("/usr/sbin/system_profiler", "SPDisplaysDataType", cancellationToken).ConfigureAwait(false);
-        var result = new List<OneWireHardwareDescriptor>();
-        string? currentName = null;
-        string currentVendor = string.Empty;
-        long? currentMemory = null;
-
-        void Flush()
+        try
         {
-            if (string.IsNullOrWhiteSpace(currentName))
-                return;
-            result.Add(new OneWireHardwareDescriptor
-            {
-                Kind = OneWireHardwareKind.Gpu,
-                Index = result.Count,
-                Name = currentName.Trim(),
-                Vendor = string.IsNullOrWhiteSpace(currentVendor) ? InferVendor(currentName) : currentVendor,
-                DedicatedMemoryBytes = currentMemory,
-                IsOnline = true
-            });
-            currentName = null;
-            currentVendor = string.Empty;
-            currentMemory = null;
-        }
+            var lines = await RunProbeAsync("/usr/sbin/system_profiler", "SPDisplaysDataType", cancellationToken).ConfigureAwait(false);
+            var result = new List<OneWireHardwareDescriptor>();
+            string? currentName = null;
+            string currentVendor = string.Empty;
+            long? currentMemory = null;
 
-        foreach (var rawLine in lines)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var line = rawLine.Trim();
-            if (line.StartsWith("Chipset Model:", StringComparison.OrdinalIgnoreCase))
+            void Flush()
             {
-                Flush();
-                currentName = line[(line.IndexOf(':') + 1)..].Trim();
+                if (string.IsNullOrWhiteSpace(currentName))
+                    return;
+                result.Add(new OneWireHardwareDescriptor
+                {
+                    Kind = OneWireHardwareKind.Gpu,
+                    Index = result.Count,
+                    Name = currentName.Trim(),
+                    Vendor = string.IsNullOrWhiteSpace(currentVendor) ? InferVendor(currentName) : currentVendor,
+                    DedicatedMemoryBytes = currentMemory,
+                    IsOnline = true
+                });
+                currentName = null;
+                currentVendor = string.Empty;
+                currentMemory = null;
             }
-            else if (line.StartsWith("Vendor:", StringComparison.OrdinalIgnoreCase))
+
+            foreach (var rawLine in lines)
             {
-                currentVendor = line[(line.IndexOf(':') + 1)..].Trim();
-                var parenthesis = currentVendor.IndexOf('(');
-                if (parenthesis > 0)
-                    currentVendor = currentVendor[..parenthesis].Trim();
+                cancellationToken.ThrowIfCancellationRequested();
+                var line = rawLine.Trim();
+                if (line.StartsWith("Chipset Model:", StringComparison.OrdinalIgnoreCase))
+                {
+                    Flush();
+                    currentName = line[(line.IndexOf(':') + 1)..].Trim();
+                }
+                else if (line.StartsWith("Vendor:", StringComparison.OrdinalIgnoreCase))
+                {
+                    currentVendor = line[(line.IndexOf(':') + 1)..].Trim();
+                    var parenthesis = currentVendor.IndexOf('(');
+                    if (parenthesis > 0)
+                        currentVendor = currentVendor[..parenthesis].Trim();
+                }
+                else if (line.StartsWith("VRAM", StringComparison.OrdinalIgnoreCase))
+                {
+                    currentMemory = ParseMemoryBytes(line);
+                }
             }
-            else if (line.StartsWith("VRAM", StringComparison.OrdinalIgnoreCase))
-            {
-                currentMemory = ParseMemoryBytes(line);
-            }
+            Flush();
+            return result;
         }
-        Flush();
-        return result;
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(UnixHardwarePlatformProbeService), nameof(ProbeMacDisplaysAsync), exception);
+            throw;
+        }
     }
 
     private long? ParseMemoryBytes(string line)
     {
-        var colon = line.IndexOf(':');
-        if (colon < 0) return null;
-        var value = line[(colon + 1)..].Trim();
-        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length < 2 || !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var amount))
-            return null;
-        var multiplier = parts[1].StartsWith("GB", StringComparison.OrdinalIgnoreCase)
-            ? 1024d * 1024d * 1024d
-            : parts[1].StartsWith("MB", StringComparison.OrdinalIgnoreCase)
-                ? 1024d * 1024d
-                : 1d;
-        return (long)(amount * multiplier);
+        try
+        {
+            var colon = line.IndexOf(':');
+            if (colon < 0) return null;
+            var value = line[(colon + 1)..].Trim();
+            var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length < 2 || !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var amount))
+                return null;
+            var multiplier = parts[1].StartsWith("GB", StringComparison.OrdinalIgnoreCase)
+                ? 1024d * 1024d * 1024d
+                : parts[1].StartsWith("MB", StringComparison.OrdinalIgnoreCase)
+                    ? 1024d * 1024d
+                    : 1d;
+            return (long)(amount * multiplier);
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(UnixHardwarePlatformProbeService), nameof(ParseMemoryBytes), exception);
+            throw;
+        }
     }
 
     private async Task<string> ReadTrimmedFileAsync(string path, CancellationToken cancellationToken)
@@ -294,10 +334,18 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
 
     private string InferVendor(string name)
     {
-        if (name.Contains("Apple", StringComparison.OrdinalIgnoreCase)) return "Apple";
-        if (name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)) return "NVIDIA";
-        if (name.Contains("AMD", StringComparison.OrdinalIgnoreCase) || name.Contains("Radeon", StringComparison.OrdinalIgnoreCase)) return "AMD";
-        if (name.Contains("Intel", StringComparison.OrdinalIgnoreCase)) return "Intel";
-        return string.Empty;
+        try
+        {
+            if (name.Contains("Apple", StringComparison.OrdinalIgnoreCase)) return "Apple";
+            if (name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)) return "NVIDIA";
+            if (name.Contains("AMD", StringComparison.OrdinalIgnoreCase) || name.Contains("Radeon", StringComparison.OrdinalIgnoreCase)) return "AMD";
+            if (name.Contains("Intel", StringComparison.OrdinalIgnoreCase)) return "Intel";
+            return string.Empty;
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(UnixHardwarePlatformProbeService), nameof(InferVendor), exception);
+            throw;
+        }
     }
 }

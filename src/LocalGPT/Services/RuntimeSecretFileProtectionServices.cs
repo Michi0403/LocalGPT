@@ -8,8 +8,16 @@ public sealed class WindowsRuntimeSecretFileProtectionService : IRuntimeSecretFi
     /// <inheritdoc />
     public void RestrictToCurrentUser(string path)
     {
-        // No portable ACL mutation is required here. Windows user-profile/application ACL inheritance
-        // remains the authoritative boundary and avoids adding Windows-only access-control packages.
+        try
+        {
+            // No portable ACL mutation is required here. Windows user-profile/application ACL inheritance
+            // remains the authoritative boundary and avoids adding Windows-only access-control packages.
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(WindowsRuntimeSecretFileProtectionService), nameof(RestrictToCurrentUser), exception);
+            throw;
+        }
     }
 }
 

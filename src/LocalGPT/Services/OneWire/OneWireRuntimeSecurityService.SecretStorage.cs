@@ -88,7 +88,15 @@ public sealed partial class OneWireRuntimeSecurityService
     /// <param name="path">Path value supplied to the one wire runtime security operation and used when producing its result.</param>
     private void TryRestrictSecretPermissions(string path)
     {
-        secretFileProtection.RestrictToCurrentUser(path);
+        try
+        {
+            secretFileProtection.RestrictToCurrentUser(path);
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(OneWireRuntimeSecurityService), nameof(TryRestrictSecretPermissions), exception);
+            throw;
+        }
     }
 
     /// <summary>

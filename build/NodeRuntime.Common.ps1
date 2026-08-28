@@ -387,31 +387,21 @@ function Resolve-LocalGptNodeRuntime {
     )
 
     $nodeInfo = Find-LocalGptNodeRuntime -CacheRoot $CacheRoot -Version $Version -MinimumMajor $MinimumMajor
-    if ($PreferCompatibleLts) {
-        if ($null -ne $nodeInfo -and $nodeInfo.Major -le $MaximumPreferredMajor) {
-            Set-LocalGptNodeProcessEnvironment -NodeInfo $nodeInfo
-            return $nodeInfo
-        }
 
-        if ($AllowProvisioning) {
-            try {
-                return Install-LocalGptNodeRuntime -CacheRoot $CacheRoot -Version $Version -MinimumMajor $MinimumMajor
-            }
-            catch {
-                if ($null -ne $nodeInfo -and $nodeInfo.Major -gt $MaximumPreferredMajor) {
-                    throw "Installed Node.js $($nodeInfo.Version) is newer than the supported DocFX/Playwright range ($MinimumMajor-$MaximumPreferredMajor), and compatible Node.js v$Version provisioning failed: $($_.Exception.Message)"
-                }
-                throw
-            }
-        }
-    }
-
-    if ($null -eq $nodeInfo -and $AllowProvisioning) {
-        $nodeInfo = Install-LocalGptNodeRuntime -CacheRoot $CacheRoot -Version $Version -MinimumMajor $MinimumMajor
-    }
-    elseif ($null -ne $nodeInfo) {
+    # Reuse any already-installed Node.js runtime that satisfies the actual minimum.
+    # PreferCompatibleLts must never mean "install a second Node.js" merely because the
+    # developer has a newer supported runtime on PATH. Provision only when no usable Node exists.
+    if ($null -ne $nodeInfo) {
         Set-LocalGptNodeProcessEnvironment -NodeInfo $nodeInfo
+        if ($PreferCompatibleLts -and $nodeInfo.Major -gt $MaximumPreferredMajor) {
+            Write-Host "Using existing Node.js $($nodeInfo.Version); no additional Node.js runtime will be provisioned." -ForegroundColor DarkGray
+        }
+        return $nodeInfo
     }
 
-    return $nodeInfo
+    if ($AllowProvisioning) {
+        return Install-LocalGptNodeRuntime -CacheRoot $CacheRoot -Version $Version -MinimumMajor $MinimumMajor
+    }
+
+    return $null
 }

@@ -428,8 +428,16 @@ namespace LocalGPT.Services
         /// <summary>Returns the host-specific command users can run to build the generated workspace.</summary>
         private string CreateBuildCommandDisplay()
         {
-            var command = consolePlatform.CreatePowerShellScriptCommand("build-local.ps1");
-            return command.DisplayCommand;
+            try
+            {
+                var command = consolePlatform.CreatePowerShellScriptCommand("build-local.ps1");
+                return command.DisplayCommand;
+            }
+            catch (Exception exception)
+            {
+                System.Diagnostics.Trace.TraceError("Service method {0}.{1} failed: {2}", nameof(MinecraftModWorkspaceService), nameof(CreateBuildCommandDisplay), exception);
+                throw;
+            }
         }
 
         /// <summary>

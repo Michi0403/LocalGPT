@@ -87,6 +87,7 @@ $minimumCompletePdfBytes = 1048576
 $minimumNodeMajor = 20
 $maximumPreferredNodeMajor = 22
 $provisionedNodeVersion = "22.23.2"
+$localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
 $documentationToolCacheRoot = Get-LocalGptDocumentationToolCacheRoot -FallbackRoot $fallbackToolRoot
 $playwrightBrowserRoot = Join-Path $documentationToolCacheRoot "ms-playwright-docfx-2.78.5"
 $documentationLockRoot = Join-Path $documentationToolCacheRoot "locks"
@@ -102,7 +103,7 @@ $pdfTimeoutMilliseconds = 1800000
 $pdfCompressionMode = "none"
 $pdfBytesBeforeCompression = 0
 $pdfCompressionSavedBytes = 0
-$maximumBrowserPrintSourcePages = if ([IO.Path]::DirectorySeparatorChar -eq '\') { 1500 } else { 1000 }
+$maximumBrowserPrintSourcePages = 1500
 
 if (-not (Test-Path -LiteralPath $AssemblyPath)) { throw "Documentation assembly was not found: $AssemblyPath" }
 if (-not (Test-Path -LiteralPath $XmlDocumentationPath)) { throw "XML documentation file was not found: $XmlDocumentationPath" }
@@ -2141,44 +2142,70 @@ $useManifestTool = $false
 function Invoke-LocalGptDocfx {
     param([Parameter(Mandatory)][string[]]$Arguments)
 
-    # Stream DocFX output as it arrives. The PDF command can legitimately spend many minutes
-    # rendering a four-digit page set, and buffering native output until process exit makes a
-    # healthy build look frozen. Keep a copy for retry/error diagnostics while writing each line
-    # immediately to the host. Windows PowerShell can promote native stderr records when the
-    # script-wide ErrorActionPreference is Stop, so temporarily continue and trust the native
-    # exit code plus generated artifacts.
+    # Keep native DocFX output available for diagnostics, but render interactive progress as
+    # bounded normal lines. Carriage-return redraws otherwise flood macOS/Linux terminals, while
+    # redirected Unicode bars can become mojibake under Windows/MSBuild.
     $previousErrorActionPreference = $ErrorActionPreference
     $capturedOutput = [System.Collections.Generic.List[string]]::new()
+    $progressState = @{}
+    $writeEntry = {
+        param([object]$Entry)
+        $rawLine = [string]$Entry
+        $capturedOutput.Add($rawLine)
+        foreach ($rawSegment in @($rawLine -split "`r")) {
+            if ([string]::IsNullOrWhiteSpace($rawSegment)) { continue }
+            $displayLine = [regex]::Replace($rawSegment, '\x1B\[[0-?]*[ -/]*[@-~]', '')
+            if ([string]::IsNullOrWhiteSpace($displayLine)) { continue }
+
+            # File-copy redraw counters are terminal-only progress. Their carriage-return records
+            # are not stable once redirected and can report impossible totals, so do not print them.
+            if ($displayLine -match '^\s*(?:Removed|Copied)\s+\d+\s+of\s+\d+\s+files\b') { continue }
+
+            # Replace Spectre/Playwright download bars with compact numeric milestones. This also
+            # strips block characters before Windows code-page conversion can turn them into Ôû... text.
+            $downloadMatch = [regex]::Match($displayLine, '\|[^\r\n]*\|\s*(?<percent>\d{1,3})%\s+of\s+(?<size>.+?)\s*$')
+            if ($downloadMatch.Success) {
+                $percent = [int]$downloadMatch.Groups['percent'].Value
+                $size = $downloadMatch.Groups['size'].Value.Trim()
+                $key = 'download|' + $size
+                $last = if ($progressState.ContainsKey($key)) { [int]$progressState[$key] } else { -100 }
+                if ($last -lt 0 -or $percent -eq 100 -or ($percent -ge 95 -and $last -lt 95) -or ($percent - $last -ge 10)) {
+                    $progressState[$key] = $percent
+                    Write-Host "[DocFX] Tool download: $percent% of $size"
+                }
+                continue
+            }
+
+            # DocFX PDF progress can sit at 98% for a long final merge. Print meaningful movement
+            # once, not hundreds of identical redraw records.
+            $pdfMatch = [regex]::Match($displayLine, '(?i)(?<name>[^\r\n]*?\.pdf):\s*(?<percent>\d{1,3})%\s*$')
+            if ($pdfMatch.Success) {
+                $percent = [int]$pdfMatch.Groups['percent'].Value
+                $name = $pdfMatch.Groups['name'].Value.Trim()
+                $key = 'pdf|' + $name
+                $last = if ($progressState.ContainsKey($key)) { [int]$progressState[$key] } else { -100 }
+                if ($last -lt 0 -or $percent -eq 100 -or ($percent -ge 95 -and $last -lt 95) -or ($percent - $last -ge 10)) {
+                    $progressState[$key] = $percent
+                    Write-Host "[DocFX] $name: $percent%"
+                }
+                continue
+            }
+
+            # Suppress any remaining progress-bar-only record. Non-progress diagnostics, warnings,
+            # build stages, and final status lines continue to pass through unchanged.
+            if ($displayLine -match '^\s*\|[^\r\n]*\|\s*\d{1,3}%') { continue }
+
+            $displayLine = [regex]::Replace($displayLine, '(?i)\b(?:fatalerror|error)\s*:', 'diagnostic:')
+            Write-Host "[DocFX] $displayLine"
+        }
+    }
     try {
         $ErrorActionPreference = "Continue"
         if ($script:useManifestTool) {
-            & dotnet tool run docfx @Arguments 2>&1 | ForEach-Object {
-                $rawLine = [string]$_
-                $capturedOutput.Add($rawLine)
-                # DocFX uses carriage-return transfer counters for an interactive terminal.
-                # Redirected through PowerShell they can repaint into impossible totals, so
-                # retain the raw record for diagnostics but show only stable output segments.
-                foreach ($rawSegment in @($rawLine -split "`r")) {
-                    if ([string]::IsNullOrWhiteSpace($rawSegment)) { continue }
-                    $displayLine = [regex]::Replace($rawSegment, '\x1B\[[0-?]*[ -/]*[@-~]', '')
-                    if ($displayLine -match '^\s*(?:Removed|Copied)\s+\d+\s+of\s+\d+\s+files\b') { continue }
-                    $displayLine = [regex]::Replace($displayLine, '(?i)\b(?:fatalerror|error)\s*:', 'diagnostic:')
-                    Write-Host "[DocFX] $displayLine"
-                }
-            }
+            & dotnet tool run docfx @Arguments 2>&1 | ForEach-Object { & $writeEntry $_ }
         }
         else {
-            & $script:docfxExecutable @Arguments 2>&1 | ForEach-Object {
-                $rawLine = [string]$_
-                $capturedOutput.Add($rawLine)
-                foreach ($rawSegment in @($rawLine -split "`r")) {
-                    if ([string]::IsNullOrWhiteSpace($rawSegment)) { continue }
-                    $displayLine = [regex]::Replace($rawSegment, '\x1B\[[0-?]*[ -/]*[@-~]', '')
-                    if ($displayLine -match '^\s*(?:Removed|Copied)\s+\d+\s+of\s+\d+\s+files\b') { continue }
-                    $displayLine = [regex]::Replace($displayLine, '(?i)\b(?:fatalerror|error)\s*:', 'diagnostic:')
-                    Write-Host "[DocFX] $displayLine"
-                }
-            }
+            & $script:docfxExecutable @Arguments 2>&1 | ForEach-Object { & $writeEntry $_ }
         }
         $exitCode = [int]$LASTEXITCODE
     }

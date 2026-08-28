@@ -18,6 +18,7 @@ $pythonScript = Join-Path $PSScriptRoot 'audit_application_architecture.py'
 
 function Invoke-PythonAudit {
     $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $python) { $python = Get-Command python3 -ErrorAction SilentlyContinue }
     if ($python) {
         $auditOutput = @(& $python.Source $pythonScript --root $root --product $product --mode $Mode 2>&1)
         $auditExitCode = [int]$LASTEXITCODE
