@@ -10,6 +10,7 @@ namespace LocalGPT.Services;
 /// <param name="regexPatterns">Parses profile blocks and validates provider model identifiers through database-backed regexes.</param>
 /// <param name="console">Runs read-only and explicitly approved provider commands through the common console feed.</param>
 /// <param name="jsonText">Applies the maintained LocalGPT JSON policy when reading provider profiles from Knowledge.</param>
+/// <param name="platformRuntime">Platform runtime service used to select the operating-system-specific provider bootstrap token.</param>
 /// <param name="logger">Writes bounded provider-bootstrap diagnostics without logging command text.</param>
 /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
 /// <param name="configurationWriter">Configuration writer dependency used by the AI provider bootstrap workflow to provide the corresponding application capability.</param>

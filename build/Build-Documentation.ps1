@@ -2155,18 +2155,29 @@ function Invoke-LocalGptDocfx {
             & dotnet tool run docfx @Arguments 2>&1 | ForEach-Object {
                 $rawLine = [string]$_
                 $capturedOutput.Add($rawLine)
-                # ConsoleToMSBuild scans text independently from the native exit code. Keep
-                # handled DocFX/Node diagnostics visible without turning them into MSB3077.
-                $displayLine = [regex]::Replace($rawLine, '(?i)\b(?:fatalerror|error)\s*:', 'diagnostic:')
-                Write-Host "[DocFX] $displayLine"
+                # DocFX uses carriage-return transfer counters for an interactive terminal.
+                # Redirected through PowerShell they can repaint into impossible totals, so
+                # retain the raw record for diagnostics but show only stable output segments.
+                foreach ($rawSegment in @($rawLine -split "`r")) {
+                    if ([string]::IsNullOrWhiteSpace($rawSegment)) { continue }
+                    $displayLine = [regex]::Replace($rawSegment, '\x1B\[[0-?]*[ -/]*[@-~]', '')
+                    if ($displayLine -match '^\s*(?:Removed|Copied)\s+\d+\s+of\s+\d+\s+files\b') { continue }
+                    $displayLine = [regex]::Replace($displayLine, '(?i)\b(?:fatalerror|error)\s*:', 'diagnostic:')
+                    Write-Host "[DocFX] $displayLine"
+                }
             }
         }
         else {
             & $script:docfxExecutable @Arguments 2>&1 | ForEach-Object {
                 $rawLine = [string]$_
                 $capturedOutput.Add($rawLine)
-                $displayLine = [regex]::Replace($rawLine, '(?i)\b(?:fatalerror|error)\s*:', 'diagnostic:')
-                Write-Host "[DocFX] $displayLine"
+                foreach ($rawSegment in @($rawLine -split "`r")) {
+                    if ([string]::IsNullOrWhiteSpace($rawSegment)) { continue }
+                    $displayLine = [regex]::Replace($rawSegment, '\x1B\[[0-?]*[ -/]*[@-~]', '')
+                    if ($displayLine -match '^\s*(?:Removed|Copied)\s+\d+\s+of\s+\d+\s+files\b') { continue }
+                    $displayLine = [regex]::Replace($displayLine, '(?i)\b(?:fatalerror|error)\s*:', 'diagnostic:')
+                    Write-Host "[DocFX] $displayLine"
+                }
             }
         }
         $exitCode = [int]$LASTEXITCODE

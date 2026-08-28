@@ -52,6 +52,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
         /// <param name="regexCompilation">Injected bounded regular-expression compiler used by project policy evaluation.</param>
         /// <param name="toolchainDiscovery">Injected knowledge-backed cross-platform compiler/runtime discovery service.</param>
         /// <param name="toolchainKnowledge">Injected local knowledge service for exact toolchain-version context.</param>
+        /// <param name="platform">Injected platform runtime service providing cross-platform workspace filesystem semantics.</param>
         /// <param name="logger">Injected dependency used by the ProjectMaintenanceService.</param>
         public ProjectMaintenanceService(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,

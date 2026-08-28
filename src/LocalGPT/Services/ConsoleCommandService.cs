@@ -7,6 +7,7 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Runs explicitly bounded local commands through one cross-platform console abstraction and publishes sanitized live output for LocalGPT UI surfaces.</summary>
+/// <param name="platform">Cross-platform console adapter used to start and supervise bounded local commands.</param>
 /// <param name="logger">Writes bounded command lifecycle diagnostics without logging command arguments or output.</param>
 public sealed class ConsoleCommandService(
     ILocalConsolePlatformService platform,

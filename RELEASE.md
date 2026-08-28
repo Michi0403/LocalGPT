@@ -1,7 +1,7 @@
-# LocalGPT 3.4.2
+# LocalGPT 3.4.5
 
-LocalGPT 3.4.2 is the **Pages PDF Payload Split** release.
+LocalGPT 3.4.5 is the **DocFX Console Progress Repair** release.
 
-It keeps the 3.4.x cross-platform backend boundaries and fixes the post-documentation release failure caused by duplicating a multi-gigabyte PDF into the tracked GitHub Pages snapshot. GitHub Pages now receives the validated HTML/API site, while the complete PDF remains part of release documentation rather than the tracked Pages archive.
+It keeps the complete documentation and PDF build unchanged. The only functional change is in DocFX console rendering: raw carriage-return progress records remain captured for diagnostics, while the redirected `Removed ... files` / `Copied ... files` redraws that become impossible-looking counters in PowerShell are no longer written back to the release terminal.
 
-This handoff is source-only and was not built with .NET or executed with PowerShell in the packaging environment. See `CHANGELOG-v3.4.2-PAGES-PDF-PAYLOAD-SPLIT.md` and `VALIDATION-v3.4.2-source.md`.
+No application, UI, service, documentation content, PDF requirement, deployment, or packaging behavior was changed. This handoff is source-only; no .NET build and no GitHub/network source access were used while preparing it. See `CHANGELOG-v3.4.5-DOCFX-CONSOLE-PROGRESS-REPAIR.md` and `VALIDATION-v3.4.5-source.md`.

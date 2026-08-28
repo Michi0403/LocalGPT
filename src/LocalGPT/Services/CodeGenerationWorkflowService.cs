@@ -51,6 +51,7 @@ public sealed partial class CodeGenerationWorkflowService : ICodeGenerationWorkf
         /// <param name="artifactBuildExecutor">Injected dependency used by the CodeGenerationWorkflowService.</param>
         /// <param name="projectMaintenance">Injected dependency used by the CodeGenerationWorkflowService.</param>
         /// <param name="regexPatterns">Injected dependency used by the CodeGenerationWorkflowService.</param>
+        /// <param name="platform">Injected platform runtime service providing cross-platform filesystem semantics.</param>
         /// <param name="logger">Injected dependency used by the CodeGenerationWorkflowService.</param>
         public CodeGenerationWorkflowService(
             IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,

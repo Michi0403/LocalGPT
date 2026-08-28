@@ -22,6 +22,7 @@ public sealed partial class OneWireRuntimeSecurityService : IOneWireRuntimeSecur
     private readonly IRuntimeSecretFileProtectionService secretFileProtection;
 
     /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
+    /// <param name="secretFileProtection">Platform boundary that applies host-appropriate protection to runtime secret files.</param>
     /// <param name="logger">Injected dependency used by OneWireRuntimeSecurityService.</param>
     public OneWireRuntimeSecurityService(
         IRuntimeSecretFileProtectionService secretFileProtection,

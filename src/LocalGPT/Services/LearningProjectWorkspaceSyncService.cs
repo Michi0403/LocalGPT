@@ -14,6 +14,7 @@ namespace LocalGPT.Services;
 /// <param name="dbContextFactory">Database context factory used for project persistence.</param>
 /// <param name="databaseInitializer">Database initializer used before project persistence.</param>
 /// <param name="workspaces">Chat upload workspace service that owns the extracted source roots.</param>
+/// <param name="platform">Platform runtime service used to normalize and compare imported workspace paths cross-platform.</param>
 /// <param name="logger">Logger used for source-ingestion diagnostics.</param>
 public sealed class LearningProjectWorkspaceSyncService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,

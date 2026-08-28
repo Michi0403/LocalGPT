@@ -8,6 +8,7 @@ namespace LocalGPT.Services;
 /// <summary>Performs bounded, cross-platform local toolchain discovery from PATH and knowledge-defined roots without performing network I/O.</summary>
 /// <param name="knowledge">Toolchain knowledge service dependency used by the toolchain discovery workflow to provide the corresponding application capability.</param>
 /// <param name="regexPatterns">Regex pattern service dependency used by the toolchain discovery workflow to provide the corresponding application capability.</param>
+/// <param name="platform">Platform runtime service used to select host-specific toolchain roots, executable names, and path comparison rules.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ToolchainDiscoveryService(
     IToolchainKnowledgeService knowledge,

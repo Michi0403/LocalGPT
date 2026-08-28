@@ -14,6 +14,7 @@ namespace LocalGPT.Services;
 /// <param name="environment">Web host environment dependency used by the organic addon manifest workflow to provide the corresponding application capability.</param>
 /// <param name="connections">One wire connection registry dependency used by the organic addon manifest workflow to provide the corresponding application capability.</param>
 /// <param name="peers">One wire peer registry dependency used by the organic addon manifest workflow to provide the corresponding application capability.</param>
+/// <param name="platform">Platform runtime service used for cross-platform manifest path normalization and comparison.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OrganicAddonManifestService(
     IWebHostEnvironment environment,

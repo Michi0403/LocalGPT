@@ -9,6 +9,7 @@ namespace LocalGPT.Services;
 /// Represents an artifact build executor application type, grouping the state and behavior that belong to that domain concept.
 /// </summary>
 /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
+/// <param name="platform">Platform runtime service used for cross-platform process and filesystem behavior during artifact builds.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ArtifactBuildExecutor(
     IOptionsMonitor<ArtifactBuildOptions> options,

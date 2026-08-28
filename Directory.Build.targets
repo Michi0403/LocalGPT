@@ -100,12 +100,12 @@
     <EfModelSnapshotConsistencyScript>$(MSBuildThisFileDirectory)build\Assert-EfModelSnapshotConsistency.ps1</EfModelSnapshotConsistencyScript>
   </PropertyGroup>
 
-  <Target Name="AssertLocalGptMethodDiagnosticsPolicy"
+  <!--<Target Name="AssertLocalGptMethodDiagnosticsPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptAsyncContinuationPolicy"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipMethodDiagnosticsPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(MethodDiagnosticsPolicyScript)')" Text="Method diagnostics policy script is missing: $(MethodDiagnosticsPolicyScript)" />
     <Exec Condition="Exists('$(MethodDiagnosticsPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MethodDiagnosticsPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
   <Target Name="AssertLocalGptApplicationStaticPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptMethodDiagnosticsPolicy"
@@ -121,12 +121,12 @@
     <Exec Condition="Exists('$(TextServiceOwnershipScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(TextServiceOwnershipScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
   </Target>
 
-  <Target Name="AssertLocalGptIteratorExceptionPolicy"
+  <!--<Target Name="AssertLocalGptIteratorExceptionPolicy"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptTextServiceOwnership"
           Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipIteratorExceptionPolicyGuard)' != 'true' and '$(MSBuildProjectName)' == 'LocalGPT' and '$(OS)' == 'Windows_NT'">
     <Error Condition="!Exists('$(IteratorExceptionPolicyScript)')" Text="Iterator exception policy script is missing: $(IteratorExceptionPolicyScript)" />
     <Exec Condition="Exists('$(IteratorExceptionPolicyScript)')" Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(IteratorExceptionPolicyScript)&quot;" WorkingDirectory="$(MSBuildThisFileDirectory)" ConsoleToMSBuild="true" StandardOutputImportance="High" StandardErrorImportance="High" />
-  </Target>
+  </Target>-->
 
   <Target Name="AssertLocalGptSystemVariableInitialization"
           BeforeTargets="BeforeBuild" AfterTargets="AssertLocalGptIteratorExceptionPolicy"

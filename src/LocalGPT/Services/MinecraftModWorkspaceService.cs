@@ -12,6 +12,8 @@ namespace LocalGPT.Services
     /// <param name="projectService">Minecraft Java project service owning loader/project generation and dependency policy.</param>
     /// <param name="datapackService">Minecraft datapack service owning datapack content and pack metadata.</param>
     /// <param name="catalog">Local gpt catalog service dependency used by the minecraft mod workspace workflow to provide the corresponding application capability.</param>
+    /// <param name="platform">Platform runtime service used for cross-platform Minecraft workspace path semantics.</param>
+    /// <param name="consolePlatform">Cross-platform console adapter used for bounded Minecraft tooling commands.</param>
     public partial class MinecraftModWorkspaceService(ILogger<MinecraftModWorkspaceService> logger,
         MinecraftProjectService projectService,
         MinecraftDatapackService datapackService,

@@ -13,6 +13,7 @@ namespace LocalGPT.Services.Persistence;
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="systemVariables">System variable definition service dependency used by the initial data workflow to provide the corresponding application capability.</param>
 /// <param name="runtimePolicySeed">Local gpt runtime policy seed data service dependency used by the initial data workflow to provide the corresponding application capability.</param>
+/// <param name="platform">Platform runtime service used for cross-platform initial-data path and host semantics.</param>
 public sealed class InitialDataCatalog(
     IWebHostEnvironment environment,
     ILogger<InitialDataCatalog> logger,

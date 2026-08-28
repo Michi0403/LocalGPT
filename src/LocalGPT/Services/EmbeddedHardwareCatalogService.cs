@@ -8,6 +8,7 @@ namespace LocalGPT.Services;
 /// Coordinates embedded hardware catalog behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 /// <param name="environment">Web host environment dependency used by the embedded hardware catalog workflow to provide the corresponding application capability.</param>
+/// <param name="platform">Platform runtime service used for cross-platform embedded-hardware path and host semantics.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class EmbeddedHardwareCatalogService(
     IWebHostEnvironment environment,

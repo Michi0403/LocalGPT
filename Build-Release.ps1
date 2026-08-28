@@ -200,7 +200,7 @@ function Copy-LocalGptRuntimeDocumentation {
     $releaseUrl = "https://github.com/Michi0403/LocalGPT/releases/latest"
     foreach ($htmlFile in Get-ChildItem -LiteralPath $DestinationRoot -Filter '*.html' -File -Recurse -ErrorAction SilentlyContinue) {
         $html = [IO.File]::ReadAllText($htmlFile.FullName)
-        if ($html.Contains($pdfName, [StringComparison]::OrdinalIgnoreCase)) {
+        if ($html.IndexOf($pdfName, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
             $escapedPdf = [regex]::Escape($pdfName)
             $html = [regex]::Replace($html, '(?i)href=["''](?:\.\./|\./)?' + $escapedPdf + '["'']', 'href="' + $releaseUrl + '"')
             [IO.File]::WriteAllText($htmlFile.FullName, $html, [Text.UTF8Encoding]::new($false))

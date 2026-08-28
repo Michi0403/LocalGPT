@@ -13,6 +13,7 @@ namespace LocalGPT.Services;
 /// <param name="environment">Web host environment dependency used by the documentation catalog workflow to provide the corresponding application capability.</param>
 /// <param name="version">Custom version dependency used by the documentation catalog workflow to provide the corresponding application capability.</param>
 /// <param name="translation">Documentation translation adapter dependency used by the documentation catalog workflow to provide the corresponding application capability.</param>
+/// <param name="platform">Platform runtime service used to compare and normalize documentation filesystem paths safely.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 [DocumentationUpdated("2.2.8")]
 public sealed class DocumentationCatalogService(

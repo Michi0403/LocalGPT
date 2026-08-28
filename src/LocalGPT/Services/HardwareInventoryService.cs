@@ -10,6 +10,7 @@ namespace LocalGPT.Services;
 /// Read-only, cached hardware inventory used for council scheduling. It never changes device state.
 /// GPU discovery is best-effort and falls back to explicit user-configured routes when vendor tools are unavailable.
 /// </summary>
+/// <param name="platformProbe">Platform-specific read-only hardware probe used to discover local devices without changing device state.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class HardwareInventoryService(
     IHardwarePlatformProbeService platformProbe,
