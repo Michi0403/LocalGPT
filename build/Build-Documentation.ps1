@@ -2186,7 +2186,7 @@ function Invoke-LocalGptDocfx {
                 $last = if ($progressState.ContainsKey($key)) { [int]$progressState[$key] } else { -100 }
                 if ($last -lt 0 -or $percent -eq 100 -or ($percent -ge 95 -and $last -lt 95) -or ($percent - $last -ge 10)) {
                     $progressState[$key] = $percent
-                    Write-Host "[DocFX] $name: $percent%"
+                    Write-Host "[DocFX] ${name}: $percent%"
                 }
                 continue
             }
