@@ -1,7 +1,7 @@
-# LocalGPT 3.5.1
+# LocalGPT 3.5.2
 
-LocalGPT 3.5.1 is the **Compiler Follow-up and Shared Release-Packaging** maintenance release.
+LocalGPT 3.5.2 is the **Release Packaging Pipeline Contract** maintenance release.
 
-It carries the user-confirmed localization namespace fix, repairs the remaining runtime-policy compile regressions in Theme Fusion, chat rendering, and Human Collaboration, and makes the `LocalGPT.ReleasePackaging` tool a first-class LocalGPT release asset/cache package alongside the authoritative 1-Wire NuGet package.
+The application itself already compiled in the supplied Windows release run; the failure was later, when PowerShell captured `dotnet` progress output together with the release-packaging executable path and passed the resulting multi-value object to the Linux packaging script. This release makes package/tool helper return values single-purpose and validated before native packaging begins.
 
-The Windows/macOS/Linux release matrix and existing `InteractiveServer` boundaries remain intact. This source handoff is statically validated in this environment; the user's Windows .NET build remains the authoritative compile/runtime check. See `CHANGELOG-v3.5.1-COMPILER-SHARED-PACKAGING-FOLLOWUP.md` and `VALIDATION-v3.5.1-source.md`.
+The intended installer matrix remains: Windows uses the one-click installer console, Linux uses native package formats without a setup console, and macOS uses `.app`/DMG packaging without a setup console. The LocalGPT-owned release-packaging tool remains shared with PublisherStudio alongside the 1-Wire package. See `CHANGELOG-v3.5.2-RELEASE-PACKAGING-PIPELINE-CONTRACT.md` and `VALIDATION-v3.5.2-source.md`.

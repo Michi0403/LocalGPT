@@ -626,7 +626,10 @@ function Publish-Runtime {
 New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
 Remove-Item -LiteralPath $documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
 Ensure-WireProtocolPackage
-$releasePackagingTool = & (Join-Path $root 'build/Ensure-ReleasePackagingPackage.ps1') -Configuration $Configuration -Version $releasePackagingVersion
+$releasePackagingToolOutput = @(& (Join-Path $root 'build/Ensure-ReleasePackagingPackage.ps1') -Configuration $Configuration -Version $releasePackagingVersion)
+if ($releasePackagingToolOutput.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$releasePackagingToolOutput[0])) { throw "Release-packaging tool preparation returned $($releasePackagingToolOutput.Count) pipeline value(s); expected exactly one executable path." }
+$releasePackagingTool = [string]$releasePackagingToolOutput[0]
+if (-not (Test-Path -LiteralPath $releasePackagingTool -PathType Leaf)) { throw "Prepared release-packaging tool is missing: $releasePackagingTool" }
 if (-not (Test-Path -LiteralPath $releasePackagingPackage -PathType Leaf)) { throw "Release-packaging package preparation did not produce $releasePackagingPackage" }
 Copy-Item $wirePackage (Join-Path $artifacts $wirePackageName) -Force
 Copy-Item $releasePackagingPackage (Join-Path $artifacts $releasePackagingPackageName) -Force

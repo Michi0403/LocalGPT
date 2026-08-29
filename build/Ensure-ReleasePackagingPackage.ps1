@@ -8,7 +8,11 @@ $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $packages = Join-Path $root "packages"
 $package = Join-Path $packages "LocalGPT.ReleasePackaging.$Version.nupkg"
 if (-not (Test-Path -LiteralPath $package -PathType Leaf)) {
-    $package = & (Join-Path $root "build/Publish-ReleasePackagingPackage.ps1") -Configuration $Configuration -Version $Version
+    $packageOutput = @(& (Join-Path $root "build/Publish-ReleasePackagingPackage.ps1") -Configuration $Configuration -Version $Version)
+    if ($packageOutput.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$packageOutput[0])) {
+        throw "Release-packaging package publication returned $($packageOutput.Count) pipeline value(s); expected exactly one package path."
+    }
+    $package = [string]$packageOutput[0]
 }
 $toolRoot = Join-Path $root "artifacts/release-tools"
 Remove-Item -LiteralPath $toolRoot -Recurse -Force -ErrorAction SilentlyContinue
@@ -29,10 +33,10 @@ $nugetConfigText = @"
 "@
 [IO.File]::WriteAllText($nugetConfig, $nugetConfigText, (New-Object Text.UTF8Encoding($false)))
 
-& dotnet tool install LocalGPT.ReleasePackaging --tool-path $toolRoot --version $Version --configfile $nugetConfig --ignore-failed-sources
+& dotnet tool install LocalGPT.ReleasePackaging --tool-path $toolRoot --version $Version --configfile $nugetConfig --ignore-failed-sources | ForEach-Object { Write-Host $_ }
 if ($LASTEXITCODE -ne 0) { throw "LocalGPT.ReleasePackaging tool installation failed." }
 $isWindowsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)
 $commandName = if ($isWindowsHost) { "localgpt-release-packaging.exe" } else { "localgpt-release-packaging" }
 $command = Join-Path $toolRoot $commandName
 if (-not (Test-Path -LiteralPath $command -PathType Leaf)) { throw "Installed release-packaging tool was not found: $command" }
-Write-Output $command
+Write-Output ([string]$command)
