@@ -29,21 +29,26 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
     /// Stores the logger used by <see cref="CouncilTeamConfigurationService"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
     private readonly ILogger<CouncilTeamConfigurationService> logger;
+    /// <summary>Database-backed operator runtime policy for Council size limits.</summary>
+    private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
 
     /// <summary>Initializes the type with its dependency-injected collaborators.</summary>
     /// <param name="dbContextFactory">Injected dependency used by the CouncilTeamConfigurationService.</param>
     /// <param name="databaseInitializer">Injected dependency used by the CouncilTeamConfigurationService.</param>
     /// <param name="seedData">Injected dependency used by the CouncilTeamConfigurationService.</param>
+    /// <param name="runtimePolicy">Database-backed operator runtime policy.</param>
     /// <param name="logger">Injected dependency used by the CouncilTeamConfigurationService.</param>
     public CouncilTeamConfigurationService(
         IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
         IDatabaseInitializationService databaseInitializer,
         IOrganicCouncilBlueprintSeedDataService seedData,
+        ILocalGptRuntimePolicyDataService runtimePolicy,
         ILogger<CouncilTeamConfigurationService> logger)
     {
         this.dbContextFactory = dbContextFactory;
         this.databaseInitializer = databaseInitializer;
         this.seedData = seedData;
+        this.runtimePolicy = runtimePolicy;
         this.logger = logger;
     }
 
@@ -51,18 +56,10 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
     /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     private const int CurrentSeedVersion = 27;
-    /// <summary>
-    /// Defines the max roles constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxRoles = 100;
-    /// <summary>
-    /// Defines the max workflow steps constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxWorkflowSteps = 100;
-    /// <summary>
-    /// Defines the max expanded workflow steps constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxExpandedWorkflowSteps = 100;
+    private int MaxRoles => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilTeamMaximumRoles));
+    private int MaxWorkflowSteps => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilTeamMaximumWorkflowSteps));
+    private int MaxExpandedWorkflowSteps => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilTeamMaximumExpandedWorkflowSteps));
+
     /// <summary>
     /// Stores the in-memory supported execution modes collection maintained internally by <see cref="CouncilTeamConfigurationService"/> for its current workflow state.
     /// </summary>

@@ -652,8 +652,8 @@ public partial class RemoteControl : ComponentBase
                 IsEnabled = false,
                 NetworkEnabled = false,
                 PollIntervalSeconds = 0,
-                TimeoutSeconds = 30,
-                MaxPayloadBytes = RemoteControlLimits.DefaultMaximumPayloadBytes
+                TimeoutSeconds = 0,
+                MaxPayloadBytes = int.MaxValue
             };
         }
         catch (Exception exception)

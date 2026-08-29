@@ -652,8 +652,8 @@ namespace LocalGPT.Services
                 if (usable.Count == 0)
                     return string.Empty;
 
-                const int perMemberLimit = 48000;
-                const int totalLimit = 160000;
+                var perMemberLimit = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilRoleEvidenceMaximumPerMemberCharacters));
+                var totalLimit = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilRoleEvidenceMaximumTotalCharacters));
                 var builder = new StringBuilder();
                 foreach (var step in usable)
                 {

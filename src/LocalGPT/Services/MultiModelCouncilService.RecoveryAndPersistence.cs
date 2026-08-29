@@ -54,7 +54,7 @@ namespace LocalGPT.Services
                 """));
 
                 var builder = new StringBuilder();
-                var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(logger);
+                var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger);
                 using var recoveryCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var streamId = Guid.NewGuid().ToString("N");
                 var streamPanelOpened = streamUpdate is not null;
@@ -177,7 +177,7 @@ namespace LocalGPT.Services
                 """));
 
                 var builder = new StringBuilder();
-                var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(logger);
+                var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger);
                 using var recoveryCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 var streamId = Guid.NewGuid().ToString("N");
                 var streamPanelOpened = streamUpdate is not null;

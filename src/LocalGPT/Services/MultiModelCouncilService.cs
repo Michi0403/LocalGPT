@@ -124,6 +124,10 @@ namespace LocalGPT.Services
         /// </summary>
         private readonly IProviderModelRuntimeService providerModels;
         /// <summary>
+        /// Stores the persisted operator runtime policy dependency used by <see cref="MultiModelCouncilService"/>.
+        /// </summary>
+        private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
+        /// <summary>
         /// Stores the logger used by <see cref="MultiModelCouncilService"/> to record operational diagnostics without coupling callers to logging details.
         /// </summary>
         private readonly ILogger<MultiModelCouncilService> logger;
@@ -170,6 +174,7 @@ namespace LocalGPT.Services
         /// <param name="liveCouncilSessions">Injected dependency used by the service.</param>
         /// <param name="benchmarkCalibration">Injected dependency used by the service.</param>
         /// <param name="providerModels">Injected dependency used by the service.</param>
+        /// <param name="runtimePolicy">Persisted operator runtime policy.</param>
         /// <param name="logger">Injected dependency used by the service.</param>
         /// <param name="councilRuntime">Injected dependency used by the service.</param>
         /// <param name="councilText">Injected dependency used by the service.</param>
@@ -202,6 +207,7 @@ namespace LocalGPT.Services
             ICouncilLiveSessionService liveCouncilSessions,
             ICouncilBenchmarkCalibrationService benchmarkCalibration,
             IProviderModelRuntimeService providerModels,
+            ILocalGptRuntimePolicyDataService runtimePolicy,
             ILogger<MultiModelCouncilService> logger,
             CouncilRuntimeService councilRuntime,
             CouncilTextService councilText,
@@ -234,6 +240,7 @@ namespace LocalGPT.Services
             this.liveCouncilSessions = liveCouncilSessions;
             this.benchmarkCalibration = benchmarkCalibration;
             this.providerModels = providerModels;
+            this.runtimePolicy = runtimePolicy;
             this.logger = logger;
             this.councilRuntime = councilRuntime;
             this.councilText = councilText;

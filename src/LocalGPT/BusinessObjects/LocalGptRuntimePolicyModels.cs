@@ -356,6 +356,86 @@ public enum LocalGptRuntimeValue
     /// Selects the local vision maximum image bytes option for <see cref="LocalGptRuntimeValue"/>, giving callers a named value for that supported mode or state.
     /// </summary>
     LocalVisionMaximumImageBytes,
+    /// <summary>Maximum local OCR request duration in seconds. Zero disables the HttpClient timeout so the local operator owns the limit.</summary>
+    LocalVisionRequestTimeoutSeconds,
+    /// <summary>Minimum output-token request accepted by local OCR.</summary>
+    LocalVisionMinimumOutputTokens,
+    /// <summary>Maximum output-token request accepted by local OCR.</summary>
+    LocalVisionMaximumOutputTokens,
+    /// <summary>Maximum provider error-body characters retained in local OCR diagnostics.</summary>
+    LocalVisionMaximumDiagnosticCharacters,
+    /// <summary>Whether the provider-stream repetition watchdog may terminate a provider stream. Disabled by default.</summary>
+    ProviderStreamRepetitionWatchdogEnabled,
+    /// <summary>Maximum recent provider characters retained by the repetition watchdog.</summary>
+    ProviderStreamRepetitionMaximumBufferedCharacters,
+    /// <summary>Minimum observed provider characters before repetition analysis begins.</summary>
+    ProviderStreamRepetitionMinimumObservedCharacters,
+    /// <summary>Minimum analyzed tokens before repetition analysis may classify a stream.</summary>
+    ProviderStreamRepetitionMinimumAnalyzedTokens,
+    /// <summary>Maximum token-cycle length considered by repetition analysis.</summary>
+    ProviderStreamRepetitionMaximumPeriodTokens,
+    /// <summary>Largest token-cycle length treated as a short cycle.</summary>
+    ProviderStreamRepetitionShortPeriodMaximumTokens,
+    /// <summary>Minimum complete repeated cycles for short-cycle classification.</summary>
+    ProviderStreamRepetitionMinimumRepeatedCycles,
+    /// <summary>Minimum complete repeated cycles for long-cycle classification.</summary>
+    ProviderStreamRepetitionMinimumLongPeriodRepeatedCycles,
+    /// <summary>Minimum short-cycle periodic agreement in basis points.</summary>
+    ProviderStreamRepetitionMinimumPeriodicAgreementBasisPoints,
+    /// <summary>Minimum long-cycle periodic agreement in basis points.</summary>
+    ProviderStreamRepetitionMinimumLongPeriodAgreementBasisPoints,
+    /// <summary>Required suspicious samples before an enabled repetition watchdog stops a stream.</summary>
+    ProviderStreamRepetitionRequiredSuspiciousSamples,
+    /// <summary>Initial observation delay in milliseconds for the repetition watchdog.</summary>
+    ProviderStreamRepetitionInitialObservationMilliseconds,
+    /// <summary>Sampling interval in milliseconds for the repetition watchdog.</summary>
+    ProviderStreamRepetitionSampleIntervalMilliseconds,
+    /// <summary>Minimum suspicious duration in milliseconds for the repetition watchdog.</summary>
+    ProviderStreamRepetitionMinimumSuspiciousDurationMilliseconds,
+    /// <summary>Maximum retained local console events; operator-owned and permissive by default.</summary>
+    ConsoleMaximumRecentEvents,
+    /// <summary>Maximum characters retained per local console event.</summary>
+    ConsoleMaximumEventCharacters,
+    /// <summary>Maximum captured stdout/stderr characters per local console operation.</summary>
+    ConsoleMaximumCaptureCharacters,
+    /// <summary>Maximum local console timeout in seconds.</summary>
+    ConsoleMaximumTimeoutSeconds,
+    /// <summary>Maximum characters accepted from an opted-in CanIRun.ai response.</summary>
+    CanIRunMaximumPageCharacters,
+    /// <summary>Maximum CanIRun.ai recommendations retained from a response.</summary>
+    CanIRunMaximumRecommendations,
+    /// <summary>Maximum localization catalog bytes accepted by operator policy.</summary>
+    LocalizationMaximumCatalogBytes,
+    /// <summary>Maximum localization catalog entries accepted by operator policy.</summary>
+    LocalizationMaximumCatalogEntries,
+    /// <summary>Maximum saved roles in a Council team.</summary>
+    CouncilTeamMaximumRoles,
+    /// <summary>Maximum saved workflow steps in a Council team.</summary>
+    CouncilTeamMaximumWorkflowSteps,
+    /// <summary>Maximum expanded workflow steps in one Council run.</summary>
+    CouncilTeamMaximumExpandedWorkflowSteps,
+    /// <summary>Maximum characters retained from one Council role member when constructing peer evidence.</summary>
+    CouncilRoleEvidenceMaximumPerMemberCharacters,
+    /// <summary>Maximum total characters retained when constructing Council peer evidence.</summary>
+    CouncilRoleEvidenceMaximumTotalCharacters,
+    /// <summary>Minimum enabled Remote Control polling interval in seconds; zero remains the explicit disabled value.</summary>
+    RemoteControlMinimumPollIntervalSeconds,
+    /// <summary>Maximum transient Council live transcript characters.</summary>
+    CouncilLiveMaximumTranscriptCharacters,
+    /// <summary>Maximum transient participant activity characters.</summary>
+    CouncilLiveMaximumParticipantActivityCharacters,
+    /// <summary>Maximum live transcript characters projected to one UI circuit.</summary>
+    CouncilLiveMaximumDisplayCharacters,
+    /// <summary>Maximum Theme Fusion route steps retained by a circuit.</summary>
+    ThemeMaximumFusionRouteSteps,
+    /// <summary>Maximum structured-text input characters.</summary>
+    StructuredTextMaximumInputCharacters,
+    /// <summary>Maximum JSON candidate characters inspected by structured-text translation.</summary>
+    StructuredTextMaximumJsonDocumentCharacters,
+    /// <summary>Maximum embedded telemetry snapshots retained in memory.</summary>
+    EmbeddedTelemetryMaximumSnapshots,
+    /// <summary>Maximum replay identifiers tracked by 1-Wire replay protection.</summary>
+    OneWireReplayMaximumTrackedMessages,
     /// <summary>
     /// Selects the one wire security schema version option for <see cref="LocalGptRuntimeValue"/>, giving callers a named value for that supported mode or state.
     /// </summary>

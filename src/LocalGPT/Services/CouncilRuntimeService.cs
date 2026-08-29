@@ -40,6 +40,11 @@ namespace LocalGPT.Services
         /// <summary>Stores host filesystem semantics behind the injected platform boundary.</summary>
         private readonly IPlatformRuntimeService platform;
 
+        /// <summary>Gets the database-backed operator ceiling for automatic Ollama tool rounds.</summary>
+        internal int OllamaMaximumAutomaticToolRounds => Math.Max(1, catalog.OllamaMaximumAutomaticToolRounds);
+        /// <summary>Gets the database-backed operator ceiling for Ollama tool-result characters.</summary>
+        internal int OllamaMaximumToolResultCharacters => Math.Max(1, catalog.OllamaMaximumToolResultCharacters);
+
         /// <summary>
         /// Initializes the service with its dependency-injected collaborators.
         /// </summary>

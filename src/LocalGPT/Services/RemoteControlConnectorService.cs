@@ -15,6 +15,7 @@ namespace LocalGPT.Services;
 /// <param name="pipelines">Remote Control action-pipeline service.</param>
 /// <param name="executionStore">Bounded execution audit store.</param>
 /// <param name="regex">Shared regular-expression policy service.</param>
+/// <param name="runtimePolicy">Persisted operator runtime policy.</param>
 /// <param name="logger">Logger used for operational diagnostics.</param>
 public sealed class RemoteControlConnectorService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
@@ -23,6 +24,7 @@ public sealed class RemoteControlConnectorService(
     IRemoteControlPipelineService pipelines,
     IRemoteControlExecutionStoreService executionStore,
     IRegexCompilationService regex,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<RemoteControlConnectorService> logger) : IRemoteControlConnectorService
 {
     /// <summary>
@@ -293,7 +295,7 @@ public sealed class RemoteControlConnectorService(
             var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var candidates = await db.RemoteControlConnectorDefinitions.AsNoTracking()
-                .Where(item => item.IsEnabled && item.NetworkEnabled && item.Transport != RemoteControlTransportKind.Webhook && item.PollIntervalSeconds >= RemoteControlLimits.MinimumPollIntervalSeconds)
+                .Where(item => item.IsEnabled && item.NetworkEnabled && item.Transport != RemoteControlTransportKind.Webhook && item.PollIntervalSeconds >= Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.RemoteControlMinimumPollIntervalSeconds)))
                 .OrderBy(item => item.Key)
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
             return candidates.Where(item => !item.LastAttemptUtc.HasValue || item.LastAttemptUtc.Value.AddSeconds(item.PollIntervalSeconds) <= utcNow).ToList();
@@ -360,9 +362,9 @@ public sealed class RemoteControlConnectorService(
             definition.RequestBodyTemplate = Bound(definition.RequestBodyTemplate, 65_536);
             definition.RequestContentType = Bound(definition.RequestContentType, 160, "application/json");
             definition.ResponseSelector = Bound(definition.ResponseSelector, 1_024);
-            definition.TimeoutSeconds = Math.Clamp(definition.TimeoutSeconds <= 0 ? 30 : definition.TimeoutSeconds, 1, RemoteControlLimits.MaximumTimeoutSeconds);
-            definition.MaxPayloadBytes = Math.Clamp(definition.MaxPayloadBytes <= 0 ? RemoteControlLimits.DefaultMaximumPayloadBytes : definition.MaxPayloadBytes, 1_024, RemoteControlLimits.AbsoluteMaximumPayloadBytes);
-            definition.PollIntervalSeconds = definition.PollIntervalSeconds <= 0 ? 0 : Math.Max(RemoteControlLimits.MinimumPollIntervalSeconds, definition.PollIntervalSeconds);
+            definition.TimeoutSeconds = Math.Max(0, definition.TimeoutSeconds);
+            definition.MaxPayloadBytes = definition.MaxPayloadBytes <= 0 ? int.MaxValue : definition.MaxPayloadBytes;
+            definition.PollIntervalSeconds = definition.PollIntervalSeconds <= 0 ? 0 : Math.Max(Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.RemoteControlMinimumPollIntervalSeconds)), definition.PollIntervalSeconds);
             definition.HeadersJson = NormalizeHeaders(definition.HeadersJson);
             definition.AllowedHostsJson = NormalizeAllowedHosts(definition.AllowedHostsJson);
 

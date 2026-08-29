@@ -215,7 +215,7 @@ namespace LocalGPT.Services
                         }
 
                         var attemptBuilder = new StringBuilder();
-                        var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(logger);
+                        var repetitionWatchdog = new ProviderStreamRepetitionWatchdog(catalog, logger);
                         using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
                         using var monitorCts = CancellationTokenSource.CreateLinkedTokenSource(participantCts.Token);
                         var liveInputSignal = new TaskCompletionSource<IReadOnlyList<HumanCouncilContribution>>(

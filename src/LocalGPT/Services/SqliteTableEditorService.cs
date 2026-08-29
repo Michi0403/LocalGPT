@@ -19,12 +19,9 @@ namespace LocalGPT.Services
         IDatabaseInitializationService databaseInitializer,
         LocalGptDatabaseOptions databaseOptions,
         ILogger<SqliteTableEditorService> logger,
-        SqliteUtilityService sqliteUtility) : ISqliteTableEditorService
+        SqliteUtilityService sqliteUtility,
+        ILocalGptRuntimePolicyDataService runtimePolicy) : ISqliteTableEditorService
     {
-        /// <summary>
-        /// Defines the max rows constant used by <see cref="SqliteTableEditorService"/> so callers and internal logic share the same stable value.
-        /// </summary>
-        private const int MaxRows = 500;
 
         /// <summary>
         /// Gets the database path used by this sqlite table editor instance to locate the associated file-system resource.
@@ -107,7 +104,7 @@ namespace LocalGPT.Services
                 ArgumentNullException.ThrowIfNull(connection);
                 await sqliteUtility.EnsureValidTableAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
 
-                var safeTake = Math.Clamp(take, 1, MaxRows);
+                var safeTake = Math.Clamp(take, 1, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.SqliteTableEditorMaximumRows)));
                 var columns = await sqliteUtility.GetColumnsAsync(connection, tableName, cancellationToken).ConfigureAwait(false);
                 var rows = new List<SqliteRowSnapshot>();
 

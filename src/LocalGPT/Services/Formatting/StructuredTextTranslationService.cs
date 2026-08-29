@@ -39,14 +39,6 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     public const string SelfAssessmentBlockPatternName = "builtin.localgpt-self-assessment-block-pattern";
 
     /// <summary>
-    /// Defines the maximum input length constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaximumInputLength = 1_000_000;
-    /// <summary>
-    /// Defines the maximum JSON document length constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaximumJsonDocumentLength = 200_000;
-    /// <summary>
     /// Defines the maximum depth constant used by <see cref="StructuredTextTranslationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     private const int MaximumDepth = 32;
@@ -79,6 +71,8 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
     /// Stores the regex pattern service dependency used by <see cref="StructuredTextTranslationService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly IRegexPatternService regexPatternService;
+    /// <summary>Database-backed operator runtime policy for structured-text capacity.</summary>
+    private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
     /// <summary>
     /// Stores the internal document options state used by <see cref="StructuredTextTranslationService"/> while executing its surrounding workflow.
     /// </summary>
@@ -103,6 +97,7 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         ILogger<StructuredTextTranslationService> logger)
     {
         this.logger = logger;
+        this.runtimePolicy = runtimePolicy;
         regexPatternService = regexPatterns;
         fencedBlockRegex = CreateCatalogRegex(
             initialDataCatalog.RegexPatterns,
@@ -158,13 +153,13 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
             return result;
         }
 
-        if (text.Length > MaximumInputLength)
+        if (text.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumInputCharacters)))
         {
-            result.Warnings.Add($"Input was truncated to {MaximumInputLength:n0} characters before structured JSON inspection.");
-            text = text[..MaximumInputLength];
+            result.Warnings.Add($"Input was truncated to {Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumInputCharacters)):n0} characters before structured JSON inspection.");
+            text = text[..Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumInputCharacters))];
         }
 
-        var maximumDocuments = Math.Clamp(request.MaximumDocuments, 1, 100);
+        var maximumDocuments = Math.Max(1, request.MaximumDocuments);
         var candidates = FindJsonCandidates(text, maximumDocuments);
         if (candidates.Count == 0)
         {
@@ -176,9 +171,9 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
         var replacements = new List<(int Start, int Length, string Replacement)>();
         foreach (var candidate in candidates)
         {
-            if (candidate.Length > MaximumJsonDocumentLength)
+            if (candidate.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumJsonDocumentCharacters)))
             {
-                result.Warnings.Add($"Skipped a JSON candidate longer than {MaximumJsonDocumentLength:n0} characters.");
+                result.Warnings.Add($"Skipped a JSON candidate longer than {Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumJsonDocumentCharacters)):n0} characters.");
                 continue;
             }
 
@@ -263,7 +258,7 @@ public sealed class StructuredTextTranslationService : IStructuredTextTranslatio
                 var jsonText = System.Net.WebUtility.HtmlDecode(match.Groups["json"].Value).Trim();
                 if (jsonText.Length > 1 && jsonText[^1] == '\\' && jsonText[^2] is '}' or ']')
                     jsonText = jsonText[..^1].TrimEnd();
-                if (jsonText.Length == 0 || jsonText.Length > MaximumJsonDocumentLength)
+                if (jsonText.Length == 0 || jsonText.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumJsonDocumentCharacters)))
                     return BuildTaggedPayloadCodeBlock(tag, jsonText, isValidJson: false);
 
                 try

@@ -17,12 +17,9 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
     
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IServiceScopeFactory scopeFactory,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<DeferredDxAiInvocationService> logger) : IDeferredDxAiInvocationService
 {
-    /// <summary>
-    /// Defines the max result characters constant used by <see cref="DeferredDxAiInvocationService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxResultCharacters = 8_000;
     /// <summary>
     /// Stores the synchronization primitive that protects concurrent access to database gate state owned by <see cref="DeferredDxAiInvocationService"/>.
     /// </summary>
@@ -489,7 +486,7 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
                     Value = value,
                     result.Error
                 });
-                return Limit(payload, MaxResultCharacters);
+                return Limit(payload, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.DeferredDxAiMaximumResultCharacters)));
             }
             catch
             {
@@ -501,7 +498,7 @@ public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService voc
                         Error = result.Error,
                         ValueSerialization = "The returned value could not be serialized for council context."
                     }),
-                    MaxResultCharacters);
+                    Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.DeferredDxAiMaximumResultCharacters)));
             }
     
     }

@@ -17,12 +17,9 @@ namespace LocalGPT.Services;
 public sealed class SafeTextDocumentService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<SafeTextDocumentService> logger) : ISafeTextDocumentService
 {
-    /// <summary>
-    /// Defines the max bytes constant used by <see cref="SafeTextDocumentService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxBytes = 8 * 1024 * 1024;
     /// <summary>
     /// Gets the allowed extensions value that forms part of the safe text document state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -54,8 +51,9 @@ public sealed class SafeTextDocumentService(
             var info = new FileInfo(fullPath);
             if (!info.Exists)
                 throw new FileNotFoundException("The selected text document was not found.", fullPath);
-            if (info.Length > MaxBytes)
-                throw new InvalidOperationException($"Text documents are limited to {MaxBytes / 1024 / 1024} MiB.");
+            var maximumBytes = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.SafeTextDocumentMaximumBytes));
+            if (info.Length > maximumBytes)
+                throw new InvalidOperationException($"Text document size exceeds the configured SafeTextDocumentMaximumBytes policy ({maximumBytes:n0} bytes).");
 
             var bytes = await File.ReadAllBytesAsync(fullPath, cancellationToken).ConfigureAwait(false);
             if (LooksBinary(bytes))
@@ -63,7 +61,7 @@ public sealed class SafeTextDocumentService(
 
             var (encoding, bomLength) = DetectEncoding(bytes);
             var decoded = encoding.GetString(bytes, bomLength, bytes.Length - bomLength);
-            var normalized = NormalizeText(decoded, Math.Clamp(maxCharacters, 1_000, 2_000_000), out var truncated, out var removedControls);
+            var normalized = NormalizeText(decoded, Math.Max(1, maxCharacters), out var truncated, out var removedControls);
             var warnings = new List<string>();
             if (truncated)
                 warnings.Add("Content was truncated to the configured character limit.");

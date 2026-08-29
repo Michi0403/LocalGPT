@@ -10,20 +10,15 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilLiveSessionService(
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilLiveSessionService> logger) : ICouncilLiveSessionService
 {
-    /// <summary>
-    /// Defines the max transcript characters constant used by <see cref="CouncilLiveSessionService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxTranscriptCharacters = 2_000_000;
-    /// <summary>Target size used when the transient live transcript crosses its technical memory ceiling, avoiding repeated full-buffer shifts for every streamed token.</summary>
-    private const int TranscriptTrimTargetCharacters = 1_750_000;
-    /// <summary>Technical ceiling for one transient participant provider stream; final answers are stored independently and are not trimmed by this limit.</summary>
-    private const int MaxParticipantActivityCharacters = 320_000;
-    /// <summary>Target size used when trimming one large transient participant stream.</summary>
-    private const int ParticipantActivityTrimTargetCharacters = 280_000;
-    /// <summary>Maximum ordered transcript projection repeatedly rendered by one live Blazor circuit.</summary>
-    private const int LiveTranscriptDisplayCharacters = 128_000;
+    private int MaxTranscriptCharacters => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilLiveMaximumTranscriptCharacters));
+    private int TranscriptTrimTargetCharacters => Math.Max(1, MaxTranscriptCharacters - Math.Max(1, MaxTranscriptCharacters / 8));
+    private int MaxParticipantActivityCharacters => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilLiveMaximumParticipantActivityCharacters));
+    private int ParticipantActivityTrimTargetCharacters => Math.Max(1, MaxParticipantActivityCharacters - Math.Max(1, MaxParticipantActivityCharacters / 8));
+    private int LiveTranscriptDisplayCharacters => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilLiveMaximumDisplayCharacters));
+
     /// <summary>Maximum transient stream projection for a participant that is still actively producing output.</summary>
     private const int RunningParticipantDisplayCharacters = 64_000;
     /// <summary>Completed lanes keep only a small transient audit window because they are rendered on demand after completion.</summary>

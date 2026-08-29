@@ -42,6 +42,9 @@ $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplication
 $documentationCacheRoot = Join-Path $artifacts ".documentation-cache"
 $documentationPrepared = $false
 $releaseZipPaths = New-Object 'System.Collections.Generic.List[string]'
+$releasePackagingVersion = '1.0.0'
+$releasePackagingTool = $null
+$nativeReleasePackagingScript = Join-Path $root 'build/NativeReleasePackaging.ps1'
 
 function Invoke-DotNet {
     param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$FailureMessage)
@@ -429,6 +432,14 @@ function Complete-ReleaseBundle {
             Move-Item -LiteralPath $file.FullName -Destination (Join-Path $versionDirectory $file.Name)
         }
 
+        $checksumPath = Join-Path $versionDirectory 'SHA256SUMS.txt'
+        $checksumLines = foreach ($file in Get-ChildItem -LiteralPath $versionDirectory -File | Sort-Object Name) {
+            if ($file.Name -eq 'SHA256SUMS.txt') { continue }
+            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($file.Name)"
+        }
+        $checksumLines | Set-Content -LiteralPath $checksumPath -Encoding utf8NoBOM
+
         foreach ($zipPath in $uniqueZipPaths) {
             Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
         }
@@ -485,8 +496,45 @@ function Ensure-WireProtocolPackage {
     }
 }
 
+
+function Publish-UnixRuntime {
+    param([Parameter(Mandatory)][string]$Rid)
+    if ($Rid.StartsWith('win-')) { throw "Publish-UnixRuntime received Windows RID $Rid." }
+    if (-not $script:releasePackagingTool) { throw 'Release packaging tool was not prepared.' }
+    if (-not (Test-Path -LiteralPath $script:nativeReleasePackagingScript -PathType Leaf)) { throw "Native packaging script is missing: $script:nativeReleasePackagingScript" }
+
+    foreach ($mode in @('Full','Light')) {
+        $selfContained = if ($mode -eq 'Full') { 'true' } else { 'false' }
+        $publishFolder = Join-Path $artifacts ("staging/$Rid/$($mode.ToLowerInvariant())")
+        Remove-Item -LiteralPath $publishFolder -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Path $publishFolder -Force | Out-Null
+        Write-Host "Publishing LocalGPT $Rid $mode application payload (no setup console)..." -ForegroundColor Cyan
+        Invoke-DotNet -Arguments @(
+            'restore', $appProject, '-r', $Rid, '--disable-parallel', '--force-evaluate'
+        ) -FailureMessage "LocalGPT application restore failed for $Rid $mode."
+        Invoke-DotNet -Arguments @(
+            'publish', $appProject, '-c', $Configuration, '-r', $Rid, '--no-restore', '-o', $publishFolder,
+            '--self-contained', $selfContained,
+            '-p:PublishSingleFile=false',
+            '-p:BuildLocalGptDocumentation=false',
+            '-p:SeedLocalGptGitHubPagesSnapshotOnBuild=false',
+            '-p:RequireLocalGptDocumentationPdf=false'
+        ) -FailureMessage "LocalGPT application publish failed for $Rid $mode."
+        $appExecutable = 'LocalGPT'
+        if (-not (Test-Path -LiteralPath (Join-Path $publishFolder $appExecutable) -PathType Leaf)) { throw "Published LocalGPT apphost is missing for $Rid $mode." }
+        Copy-LocalGptRuntimeDocumentation -SourceRoot $script:documentationCacheRoot -DestinationRoot (Join-Path $publishFolder 'wwwroot/help-docs') -Version $appVersion
+        Assert-LocalGptDocumentationPayload -DocumentationRoot (Join-Path $publishFolder 'wwwroot/help-docs') -Version $appVersion
+        $protocolDirectory = Join-Path $publishFolder 'protocol'; New-Item -ItemType Directory -Path $protocolDirectory -Force | Out-Null
+        Copy-Item -LiteralPath $wirePackage -Destination (Join-Path $protocolDirectory $wirePackageName) -Force
+        $nativeArtifacts = & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName $appExecutable -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT
+        foreach ($artifact in @($nativeArtifacts)) { if (-not [string]::IsNullOrWhiteSpace([string]$artifact)) { $script:releaseZipPaths.Add([string]$artifact) } }
+    }
+}
+
 function Publish-Runtime {
     param([Parameter(Mandatory)][string]$Rid)
+
+    if (-not $Rid.StartsWith('win-')) { Publish-UnixRuntime -Rid $Rid; return }
 
     $profile = Resolve-ReleaseProfile $Rid
     $appFolder = Resolve-ProfilePublishFolder -ProjectPath $appProject -ProfileName $profile.AppProfile
@@ -572,6 +620,7 @@ function Publish-Runtime {
 New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
 Remove-Item -LiteralPath $documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
 Ensure-WireProtocolPackage
+$releasePackagingTool = & (Join-Path $root 'build/Ensure-ReleasePackagingPackage.ps1') -Configuration $Configuration -Version $releasePackagingVersion
 Copy-Item $wirePackage (Join-Path $artifacts $wirePackageName) -Force
 if ($sharedWirePackageDirectory) {
     New-Item -ItemType Directory -Path $sharedWirePackageDirectory -Force | Out-Null

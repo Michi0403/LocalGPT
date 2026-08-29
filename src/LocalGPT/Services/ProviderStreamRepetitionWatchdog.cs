@@ -4,92 +4,61 @@ using System.Text;
 namespace LocalGPT.Services;
 
 /// <summary>
-/// Watches one actively generated provider stream for sustained exact token-cycle repetition so a runaway model can be
-/// stopped before it monopolizes a benchmark host road or Council member slot until the much larger request timeout.
-/// The detector is deliberately conservative: it requires a substantial generated tail, repeated periodic agreement
-/// across multiple time-spaced samples, and several complete cycles before it reports a failure.
+/// Optionally watches one actively generated provider stream for sustained token-cycle repetition. The feature is
+/// operator controlled through the persisted LocalGPT runtime policy and is disabled in the shipped policy so a local
+/// model is never terminated by an invisible developer ceiling unless the operator explicitly enables that behavior.
 /// </summary>
 internal sealed class ProviderStreamRepetitionWatchdog
 {
-    /// <summary>Maximum recent provider text retained for repetition analysis.</summary>
-    private const int MaximumBufferedCharacters = 32_768;
-
-    /// <summary>Minimum generated character count required before repetition analysis may classify a stream.</summary>
-    private const int MinimumObservedCharacters = 1_024;
-
-    /// <summary>Minimum token count examined before a repeated cycle can be considered pathological.</summary>
-    private const int MinimumAnalyzedTokens = 72;
-
-    /// <summary>Maximum repeated token-cycle length considered by the bounded detector.</summary>
-    private const int MaximumPeriodTokens = 512;
-
-    /// <summary>Largest token-cycle length that retains the historical short-loop thresholds.</summary>
-    private const int ShortPeriodMaximumTokens = 32;
-
-    /// <summary>Minimum number of complete repeated cycles required for short token loops.</summary>
-    private const int MinimumRepeatedCycles = 6;
-
-    /// <summary>Minimum number of complete repeated cycles required for longer sentence/paragraph loops.</summary>
-    private const int MinimumLongPeriodRepeatedCycles = 4;
-
-    /// <summary>Minimum periodic token agreement required before a short-cycle sample is classified as suspicious.</summary>
-    private const double MinimumPeriodicAgreement = 0.97d;
-
-    /// <summary>Higher agreement floor used for longer cycles so ordinary prose is not classified as repetition.</summary>
-    private const double MinimumLongPeriodAgreement = 0.985d;
-
-    /// <summary>Number of consecutive suspicious time-spaced samples required before the stream is stopped.</summary>
-    private const int RequiredSuspiciousSamples = 4;
-
-    /// <summary>Diagnostics sink used when the bounded detector itself encounters an unexpected implementation failure.</summary>
     private readonly ILogger logger;
-
-    /// <summary>Minimum generation time before the first repetition sample is evaluated.</summary>
-    private readonly TimeSpan initialObservationDelay = TimeSpan.FromSeconds(4);
-
-    /// <summary>Spacing between repetition samples while provider text continues to arrive.</summary>
-    private readonly TimeSpan sampleInterval = TimeSpan.FromSeconds(2);
-
-    /// <summary>Minimum wall-clock duration over which suspicious repetition must remain present.</summary>
-    private readonly TimeSpan minimumSuspiciousDuration = TimeSpan.FromSeconds(6);
-
-    /// <summary>Recent provider-generated text retained as a bounded rolling window.</summary>
+    private readonly bool enabled;
+    private readonly int maximumBufferedCharacters;
+    private readonly int minimumObservedCharacters;
+    private readonly int minimumAnalyzedTokens;
+    private readonly int maximumPeriodTokens;
+    private readonly int shortPeriodMaximumTokens;
+    private readonly int minimumRepeatedCycles;
+    private readonly int minimumLongPeriodRepeatedCycles;
+    private readonly double minimumPeriodicAgreement;
+    private readonly double minimumLongPeriodAgreement;
+    private readonly int requiredSuspiciousSamples;
+    private readonly TimeSpan initialObservationDelay;
+    private readonly TimeSpan sampleInterval;
+    private readonly TimeSpan minimumSuspiciousDuration;
     private readonly StringBuilder recentText = new();
-
-    /// <summary>Wall-clock generation timer started by the first substantive provider fragment.</summary>
     private readonly Stopwatch generationClock = new();
-
-    /// <summary>Total provider-generated characters observed since this watchdog was created.</summary>
     private long observedCharacters;
-
-    /// <summary>Elapsed generation time at which the previous periodicity sample was evaluated.</summary>
     private TimeSpan lastSampleAt;
-
-    /// <summary>Elapsed generation time at which the current run of suspicious samples began.</summary>
     private TimeSpan? suspiciousSince;
-
-    /// <summary>Number of consecutive suspicious samples observed at the configured sample interval.</summary>
     private int suspiciousSamples;
 
-    /// <summary>Creates a conservative repetition watchdog using the caller's normal LocalGPT diagnostics sink.</summary>
-    /// <param name="logger">Diagnostics logger used only when watchdog implementation logic itself fails.</param>
-    public ProviderStreamRepetitionWatchdog(ILogger logger)
+    /// <summary>Creates a repetition watchdog from database-backed operator policy.</summary>
+    public ProviderStreamRepetitionWatchdog(LocalGptCatalogService catalog, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(catalog);
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        enabled = catalog.ProviderStreamRepetitionWatchdogEnabled;
+        maximumBufferedCharacters = Math.Max(1, catalog.ProviderStreamRepetitionMaximumBufferedCharacters);
+        minimumObservedCharacters = Math.Max(1, catalog.ProviderStreamRepetitionMinimumObservedCharacters);
+        minimumAnalyzedTokens = Math.Max(2, catalog.ProviderStreamRepetitionMinimumAnalyzedTokens);
+        maximumPeriodTokens = Math.Max(1, catalog.ProviderStreamRepetitionMaximumPeriodTokens);
+        shortPeriodMaximumTokens = Math.Max(1, catalog.ProviderStreamRepetitionShortPeriodMaximumTokens);
+        minimumRepeatedCycles = Math.Max(2, catalog.ProviderStreamRepetitionMinimumRepeatedCycles);
+        minimumLongPeriodRepeatedCycles = Math.Max(2, catalog.ProviderStreamRepetitionMinimumLongPeriodRepeatedCycles);
+        minimumPeriodicAgreement = Math.Clamp(catalog.ProviderStreamRepetitionMinimumPeriodicAgreementBasisPoints / 10_000d, 0d, 1d);
+        minimumLongPeriodAgreement = Math.Clamp(catalog.ProviderStreamRepetitionMinimumLongPeriodAgreementBasisPoints / 10_000d, 0d, 1d);
+        requiredSuspiciousSamples = Math.Max(1, catalog.ProviderStreamRepetitionRequiredSuspiciousSamples);
+        initialObservationDelay = TimeSpan.FromMilliseconds(Math.Max(0, catalog.ProviderStreamRepetitionInitialObservationMilliseconds));
+        sampleInterval = TimeSpan.FromMilliseconds(Math.Max(0, catalog.ProviderStreamRepetitionSampleIntervalMilliseconds));
+        minimumSuspiciousDuration = TimeSpan.FromMilliseconds(Math.Max(0, catalog.ProviderStreamRepetitionMinimumSuspiciousDurationMilliseconds));
     }
 
-    /// <summary>
-    /// Observes one provider-generated fragment and returns a bounded failure when sustained periodic repetition has
-    /// crossed every safety threshold. Callers should cancel/dispose only the current provider request before throwing
-    /// the returned exception so normal user cancellation and larger workflow cancellation remain distinguishable.
-    /// </summary>
-    /// <param name="fragment">The provider-generated text fragment. Status-only application messages should not be supplied.</param>
-    /// <returns>A repetition failure when the stream is classified as runaway; otherwise <see langword="null"/>.</returns>
+    /// <summary>Observes one provider-generated fragment and returns a failure only when the operator enabled the watchdog.</summary>
     public ProviderStreamRepetitionException? Observe(string? fragment)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(fragment))
+            if (!enabled || string.IsNullOrWhiteSpace(fragment))
                 return null;
 
             if (!generationClock.IsRunning)
@@ -97,11 +66,11 @@ internal sealed class ProviderStreamRepetitionWatchdog
 
             observedCharacters += fragment.Length;
             recentText.Append(fragment);
-            if (recentText.Length > MaximumBufferedCharacters)
-                recentText.Remove(0, recentText.Length - MaximumBufferedCharacters);
+            if (recentText.Length > maximumBufferedCharacters)
+                recentText.Remove(0, recentText.Length - maximumBufferedCharacters);
 
             var elapsed = generationClock.Elapsed;
-            if (observedCharacters < MinimumObservedCharacters || elapsed < initialObservationDelay)
+            if (observedCharacters < minimumObservedCharacters || elapsed < initialObservationDelay)
                 return null;
             if (lastSampleAt != TimeSpan.Zero && elapsed - lastSampleAt < sampleInterval)
                 return null;
@@ -116,15 +85,10 @@ internal sealed class ProviderStreamRepetitionWatchdog
 
             suspiciousSamples++;
             suspiciousSince ??= elapsed;
-            if (suspiciousSamples < RequiredSuspiciousSamples || elapsed - suspiciousSince.Value < minimumSuspiciousDuration)
+            if (suspiciousSamples < requiredSuspiciousSamples || elapsed - suspiciousSince.Value < minimumSuspiciousDuration)
                 return null;
 
-            return new ProviderStreamRepetitionException(
-                patternPreview,
-                periodTokens,
-                agreement,
-                elapsed.TotalSeconds,
-                suspiciousSamples);
+            return new ProviderStreamRepetitionException(patternPreview, periodTokens, agreement, elapsed.TotalSeconds, suspiciousSamples);
         }
         catch (Exception exception)
         {
@@ -133,22 +97,7 @@ internal sealed class ProviderStreamRepetitionWatchdog
         }
     }
 
-    /// <summary>
-    /// Finds an exact-ish periodic token cycle in the bounded text tail. Short cycles retain the historical six-cycle
-    /// and 97% agreement thresholds; longer sentence/paragraph cycles require four complete cycles and a stricter 98.5%
-    /// agreement floor. Broad lexical-diversity heuristics are intentionally avoided so legitimate prose, source code,
-    /// tables, and enumerations are not classified merely because they reuse vocabulary.
-    /// </summary>
-    /// <param name="text">Bounded recent provider text.</param>
-    /// <param name="patternPreview">Receives a short human-readable token-cycle preview when repetition is found.</param>
-    /// <param name="periodTokens">Receives the detected token-cycle length.</param>
-    /// <param name="agreement">Receives the periodic token-agreement ratio from zero through one.</param>
-    /// <returns><see langword="true"/> when a sustained-candidate token cycle is present in the current text sample.</returns>
-    private bool TryFindRepeatedTokenCycle(
-        string text,
-        out string patternPreview,
-        out int periodTokens,
-        out double agreement)
+    private bool TryFindRepeatedTokenCycle(string text, out string patternPreview, out int periodTokens, out double agreement)
     {
         try
         {
@@ -164,7 +113,6 @@ internal sealed class ProviderStreamRepetitionWatchdog
                     token.Append(char.ToLowerInvariant(character));
                     continue;
                 }
-
                 if (token.Length > 0)
                 {
                     tokens.Add(token.ToString());
@@ -173,17 +121,16 @@ internal sealed class ProviderStreamRepetitionWatchdog
             }
             if (token.Length > 0)
                 tokens.Add(token.ToString());
-
-            if (tokens.Count < MinimumAnalyzedTokens)
+            if (tokens.Count < minimumAnalyzedTokens)
                 return false;
 
-            var maximumPeriod = Math.Min(MaximumPeriodTokens, tokens.Count / MinimumLongPeriodRepeatedCycles);
+            var maximumPeriod = Math.Min(maximumPeriodTokens, tokens.Count / minimumLongPeriodRepeatedCycles);
             for (var period = 1; period <= maximumPeriod; period++)
             {
-                var isLongPeriod = period > ShortPeriodMaximumTokens;
-                var requiredCycles = isLongPeriod ? MinimumLongPeriodRepeatedCycles : MinimumRepeatedCycles;
-                var requiredAgreement = isLongPeriod ? MinimumLongPeriodAgreement : MinimumPeriodicAgreement;
-                var analyzedTokenCount = Math.Max(MinimumAnalyzedTokens, period * requiredCycles);
+                var isLongPeriod = period > shortPeriodMaximumTokens;
+                var requiredCycles = isLongPeriod ? minimumLongPeriodRepeatedCycles : minimumRepeatedCycles;
+                var requiredAgreement = isLongPeriod ? minimumLongPeriodAgreement : minimumPeriodicAgreement;
+                var analyzedTokenCount = Math.Max(minimumAnalyzedTokens, period * requiredCycles);
                 if (tokens.Count < analyzedTokenCount)
                     continue;
 
@@ -207,7 +154,6 @@ internal sealed class ProviderStreamRepetitionWatchdog
                     patternPreview = patternPreview[..180] + "…";
                 return true;
             }
-
             return false;
         }
         catch (Exception exception)
@@ -218,27 +164,10 @@ internal sealed class ProviderStreamRepetitionWatchdog
     }
 }
 
-/// <summary>
-/// Identifies a provider request that LocalGPT intentionally terminated because its actively generated output remained
-/// trapped in the same short token cycle across several time-spaced watchdog samples.
-/// </summary>
+/// <summary>Identifies a provider request intentionally stopped by an explicitly enabled repetition watchdog.</summary>
 internal sealed class ProviderStreamRepetitionException : InvalidOperationException
 {
-    /// <summary>
-    /// Creates a repetition failure containing only bounded diagnostic metadata; the full model output remains in the
-    /// normal provider-stream evidence surface instead of being duplicated into exception logs.
-    /// </summary>
-    /// <param name="patternPreview">Bounded preview of the repeated token cycle retained in memory for optional UI diagnostics.</param>
-    /// <param name="periodTokens">Detected cycle length in normalized tokens.</param>
-    /// <param name="agreement">Periodic token-agreement ratio from zero through one.</param>
-    /// <param name="observedSeconds">Elapsed active-generation time when the watchdog stopped the request.</param>
-    /// <param name="suspiciousSamples">Number of consecutive suspicious samples that triggered the stop.</param>
-    public ProviderStreamRepetitionException(
-        string patternPreview,
-        int periodTokens,
-        double agreement,
-        double observedSeconds,
-        int suspiciousSamples)
+    public ProviderStreamRepetitionException(string patternPreview, int periodTokens, double agreement, double observedSeconds, int suspiciousSamples)
         : base(
             $"Provider stream repetition watchdog stopped runaway generation after {observedSeconds:0.0}s because a " +
             $"{periodTokens}-token cycle remained at {agreement:P1} periodic agreement across {suspiciousSamples} consecutive samples. " +
@@ -251,23 +180,9 @@ internal sealed class ProviderStreamRepetitionException : InvalidOperationExcept
         SuspiciousSamples = suspiciousSamples;
     }
 
-    /// <summary>Gets the bounded repeated token-cycle preview retained in memory but omitted from exception logs.</summary>
-    /// <value>The normalized repeated-pattern preview.</value>
     public string PatternPreview { get; }
-
-    /// <summary>Reports how many normalized tokens form one detected repetition cycle.</summary>
-    /// <value>The period length in normalized tokens.</value>
     public int PeriodTokens { get; }
-
-    /// <summary>Reports the sampled tail agreement with the detected periodic token cycle.</summary>
-    /// <value>A value from zero through one.</value>
     public double Agreement { get; }
-
-    /// <summary>Reports how long active generation had run when LocalGPT terminated the repeated stream.</summary>
-    /// <value>The elapsed generation time in seconds.</value>
     public double ObservedSeconds { get; }
-
-    /// <summary>Reports how many time-spaced suspicious samples remained consecutive at termination.</summary>
-    /// <value>The number of time-spaced suspicious samples.</value>
     public int SuspiciousSamples { get; }
 }

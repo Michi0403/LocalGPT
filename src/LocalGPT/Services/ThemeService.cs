@@ -32,10 +32,6 @@ public sealed class ThemeService
     /// Defines the local theme contract path constant used by <see cref="ThemeService"/> so callers and internal logic share the same stable value.
     /// </summary>
     public const string LocalThemeContractPath = "css/localgpt-theme-contract.css";
-    /// <summary>
-    /// Defines the max fusion route steps constant used by <see cref="ThemeService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    public const int MaxFusionRouteSteps = 256;
 
     /// <summary>
     /// Stores the logger used by <see cref="ThemeService"/> to record operational diagnostics without coupling callers to logging details.
@@ -45,6 +41,8 @@ public sealed class ThemeService
     /// Stores the service activity service dependency used by <see cref="ThemeService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly IServiceActivityService serviceActivity;
+    /// <summary>Database-backed operator runtime policy for Theme Fusion history.</summary>
+    private readonly ILocalGptRuntimePolicyDataService runtimePolicy;
     /// <summary>
     /// Stores the in-memory highlight JavaScript theme names collection maintained internally by <see cref="ThemeService"/> for its current workflow state.
     /// </summary>
@@ -79,12 +77,15 @@ public sealed class ThemeService
     /// </summary>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     /// <param name="serviceActivity">Service activity service dependency used by the theme workflow to provide the corresponding application capability.</param>
+    /// <param name="runtimePolicy">Database-backed operator runtime policy.</param>
     public ThemeService(
         ILogger<ThemeService> logger,
-        IServiceActivityService serviceActivity)
+        IServiceActivityService serviceActivity,
+        ILocalGptRuntimePolicyDataService runtimePolicy)
     {
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.serviceActivity = serviceActivity ?? throw new ArgumentNullException(nameof(serviceActivity));
+        this.runtimePolicy = runtimePolicy ?? throw new ArgumentNullException(nameof(runtimePolicy));
         highlightJsThemeNames = CreateHighlightJsThemeNames();
         ThemeSets = CreateSets();
         themesByName = ThemeSets
@@ -113,6 +114,7 @@ public sealed class ThemeService
     /// </summary>
     /// <value>The active theme value exposed by <see cref="ThemeService"/>.</value>
     public Theme ActiveTheme => ActiveComponentTheme;
+    private int MaxFusionRouteSteps => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ThemeMaximumFusionRouteSteps));
 
     /// <summary>
     /// Gets or sets a value indicating whether initialized applies to the theme state.

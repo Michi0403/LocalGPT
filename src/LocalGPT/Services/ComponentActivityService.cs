@@ -11,18 +11,12 @@ namespace LocalGPT.Services;
 /// uploaded content, generated source, parameters, and full exception text are excluded.
 /// </summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-public sealed class ComponentActivityService(ILogger<ComponentActivityService> logger) :
+public sealed class ComponentActivityService(
+    ILocalGptRuntimePolicyDataService runtimePolicy,
+    ILogger<ComponentActivityService> logger) :
     IComponentActivityService,
     IServiceActivityService
 {
-    /// <summary>
-    /// Defines the capacity constant used by <see cref="ComponentActivityService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int Capacity = 192;
-    /// <summary>
-    /// Defines the max summary characters constant used by <see cref="ComponentActivityService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxSummaryCharacters = 320;
     /// <summary>
     /// Stores the internal entries state used by <see cref="ComponentActivityService"/> while executing its surrounding workflow.
     /// </summary>
@@ -232,7 +226,7 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
     public IReadOnlyList<ComponentActivitySnapshot> GetRecent(int take = 20) {
     try
     {
-        return entries.Reverse().Take(Math.Clamp(take, 1, Capacity)).Reverse().ToList();
+        return entries.Reverse().Take(Math.Clamp(take, 1, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ComponentActivityCapacity)))).Reverse().ToList();
     }
     catch (Exception __serviceMethodException)
     {
@@ -306,7 +300,7 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
                 Normalize(summary, "Operational state changed."),
                 NormalizeRoute(route));
             entries.Enqueue(entry);
-            while (entries.Count > Capacity && entries.TryDequeue(out _))
+            while (entries.Count > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ComponentActivityCapacity)) && entries.TryDequeue(out _))
             {
             }
             logger.LogDebug(
@@ -339,7 +333,7 @@ public sealed class ComponentActivityService(ILogger<ComponentActivityService> l
             var normalized = string.IsNullOrWhiteSpace(value)
                 ? fallback
                 : value.Replace('\r', ' ').Replace('\n', ' ').Trim();
-            return normalized[..Math.Min(normalized.Length, MaxSummaryCharacters)];
+            return normalized[..Math.Min(normalized.Length, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ComponentActivityMaximumSummaryCharacters)))];
     
     }
     catch (Exception __serviceMethodException)

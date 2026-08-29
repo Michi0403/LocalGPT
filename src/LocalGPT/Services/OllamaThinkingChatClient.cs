@@ -15,14 +15,10 @@ namespace LocalGPT.Services;
 /// </summary>
 public sealed partial class OllamaThinkingChatClient : IChatClient
 {
-    /// <summary>
-    /// Defines the max automatic tool rounds constant used by <see cref="OllamaThinkingChatClient"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxAutomaticToolRounds = 3;
-    /// <summary>
-    /// Defines the max tool result characters constant used by <see cref="OllamaThinkingChatClient"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxToolResultCharacters = 16_000;
+    /// <summary>Gets the operator-configured automatic tool-loop ceiling from database-backed runtime policy.</summary>
+    private int MaxAutomaticToolRounds => councilRuntime.OllamaMaximumAutomaticToolRounds;
+    /// <summary>Gets the operator-configured tool-result character ceiling from database-backed runtime policy.</summary>
+    private int MaxToolResultCharacters => councilRuntime.OllamaMaximumToolResultCharacters;
 
     /// <summary>
     /// Stores the internal JSON options state used by <see cref="OllamaThinkingChatClient"/> while executing its surrounding workflow.

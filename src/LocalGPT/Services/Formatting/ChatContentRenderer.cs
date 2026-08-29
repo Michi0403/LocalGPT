@@ -22,11 +22,6 @@ public sealed class ChatContentRenderer(
     ILogger<ChatContentRenderer> logger) : IChatContentRenderer
 {
     /// <summary>
-    /// Defines the automatic structured translation limit constant used by <see cref="ChatContentRenderer"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int AutomaticStructuredTranslationLimit = 120_000;
-
-    /// <summary>
     /// Stores the internal harmony marker regex state used by <see cref="ChatContentRenderer"/> while executing its surrounding workflow.
     /// </summary>
     private readonly Regex HarmonyMarkerRegex = new(
@@ -339,7 +334,7 @@ public sealed class ChatContentRenderer(
     {
     try
     {
-            if (text.Length > AutomaticStructuredTranslationLimit)
+            if (text.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.StructuredTextMaximumInputCharacters)))
                 return false;
 
             return !text.Contains(

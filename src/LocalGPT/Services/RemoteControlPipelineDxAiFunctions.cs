@@ -190,7 +190,6 @@ public sealed class ExecuteRemoteControlPipelineFunction(IRemoteControlPipelineS
             if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
             var parameters = binding.Value;
             var payloadText = parameters.Payload ?? string.Empty;
-            if (Encoding.UTF8.GetByteCount(payloadText) > RemoteControlLimits.AbsoluteMaximumPayloadBytes) return json.InvalidParameters("Payload exceeds the Remote Control absolute size limit.");
             var payload = new RemoteControlPayload
             {
                 ConnectorKey = string.IsNullOrWhiteSpace(parameters.ConnectorKey) ? "manual" : parameters.ConnectorKey,

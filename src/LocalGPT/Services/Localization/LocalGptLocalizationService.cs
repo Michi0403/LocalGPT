@@ -101,13 +101,9 @@ public interface ILocalGptLocalizationService
 [DocumentationUpdated("2.2.8")]
 public sealed class LocalGptLocalizationService(
     IWebHostEnvironment environment,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalGptLocalizationService> logger) : ILocalGptLocalizationService
 {
-    /// <summary>Maximum accepted UTF-8 catalog size.</summary>
-    private const int MaximumCatalogBytes = 4 * 1024 * 1024;
-
-    /// <summary>Maximum accepted localization entry count.</summary>
-    private const int MaximumCatalogEntries = 20000;
 
     /// <summary>Caches effective merged catalogs by normalized culture name.</summary>
     private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, string>> cache = new(StringComparer.OrdinalIgnoreCase);
@@ -395,9 +391,9 @@ public sealed class LocalGptLocalizationService(
                 result.Errors.Add("The localization catalog is empty.");
                 return result;
             }
-            if (Encoding.UTF8.GetByteCount(json) > MaximumCatalogBytes)
+            if (Encoding.UTF8.GetByteCount(json) > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.LocalizationMaximumCatalogBytes)))
             {
-                result.Errors.Add($"The localization catalog exceeds {MaximumCatalogBytes / 1024 / 1024} MiB.");
+                result.Errors.Add($"The localization catalog exceeds the configured LocalizationMaximumCatalogBytes policy.");
                 return result;
             }
 
@@ -407,8 +403,8 @@ public sealed class LocalGptLocalizationService(
                 result.Errors.Add("The localization catalog must be a JSON object containing string keys and values.");
                 return result;
             }
-            if (data.Count > MaximumCatalogEntries)
-                result.Errors.Add($"The localization catalog exceeds {MaximumCatalogEntries} entries.");
+            if (data.Count > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.LocalizationMaximumCatalogEntries)))
+                result.Errors.Add("The localization catalog exceeds the configured LocalizationMaximumCatalogEntries policy.");
 
             var invalidKeys = data.Keys.Count(string.IsNullOrWhiteSpace);
             if (invalidKeys > 0)

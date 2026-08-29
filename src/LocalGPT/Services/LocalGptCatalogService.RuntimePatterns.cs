@@ -204,6 +204,10 @@ namespace LocalGPT.Services
         /// </summary>
         /// <value>The Ollama mode limited GPU value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public string OllamaModeLimitedGpu => _runtimePolicy.GetString(LocalGptRuntimeValue.OllamaModeLimitedGpu);
+        /// <summary>Gets the operator-configured maximum automatic Ollama tool rounds.</summary>
+        public int OllamaMaximumAutomaticToolRounds => _runtimePolicy.GetInt(LocalGptRuntimeValue.OllamaMaximumAutomaticToolRounds);
+        /// <summary>Gets the operator-configured maximum Ollama tool-result character count.</summary>
+        public int OllamaMaximumToolResultCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.OllamaMaximumToolResultCharacters);
  
         /// <summary>
         /// Gets the detected Ollama session prefix value that forms part of the LocalGPT catalog state consumed or produced by the surrounding workflow.
@@ -260,6 +264,35 @@ namespace LocalGPT.Services
         /// </summary>
         /// <value>The max single conversation message characters value exposed by <see cref="LocalGptCatalogService"/>.</value>
         public int MaxSingleConversationMessageCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.MaxSingleConversationMessageCharacters);
+
+        /// <summary>Gets whether automatic provider-stream repetition termination is enabled by operator policy.</summary>
+        public bool ProviderStreamRepetitionWatchdogEnabled => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionWatchdogEnabled) != 0;
+        /// <summary>Gets the repetition watchdog rolling character window.</summary>
+        public int ProviderStreamRepetitionMaximumBufferedCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionMaximumBufferedCharacters);
+        /// <summary>Gets the minimum observed character count before repetition classification begins.</summary>
+        public int ProviderStreamRepetitionMinimumObservedCharacters => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionMinimumObservedCharacters);
+        /// <summary>Gets the minimum token count analyzed by repetition classification.</summary>
+        public int ProviderStreamRepetitionMinimumAnalyzedTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionMinimumAnalyzedTokens);
+        /// <summary>Gets the maximum token-cycle period analyzed by the repetition watchdog.</summary>
+        public int ProviderStreamRepetitionMaximumPeriodTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionMaximumPeriodTokens);
+        /// <summary>Gets the short-period boundary for repetition classification.</summary>
+        public int ProviderStreamRepetitionShortPeriodMaximumTokens => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionShortPeriodMaximumTokens);
+        /// <summary>Gets the required short-cycle repetitions.</summary>
+        public int ProviderStreamRepetitionMinimumRepeatedCycles => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionMinimumRepeatedCycles);
+        /// <summary>Gets the required long-cycle repetitions.</summary>
+        public int ProviderStreamRepetitionMinimumLongPeriodRepeatedCycles => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionMinimumLongPeriodRepeatedCycles);
+        /// <summary>Gets the short-cycle agreement threshold in basis points.</summary>
+        public int ProviderStreamRepetitionMinimumPeriodicAgreementBasisPoints => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionMinimumPeriodicAgreementBasisPoints);
+        /// <summary>Gets the long-cycle agreement threshold in basis points.</summary>
+        public int ProviderStreamRepetitionMinimumLongPeriodAgreementBasisPoints => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionMinimumLongPeriodAgreementBasisPoints);
+        /// <summary>Gets the suspicious sample count required before termination.</summary>
+        public int ProviderStreamRepetitionRequiredSuspiciousSamples => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionRequiredSuspiciousSamples);
+        /// <summary>Gets the initial watchdog observation delay in milliseconds.</summary>
+        public int ProviderStreamRepetitionInitialObservationMilliseconds => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionInitialObservationMilliseconds);
+        /// <summary>Gets the watchdog sample interval in milliseconds.</summary>
+        public int ProviderStreamRepetitionSampleIntervalMilliseconds => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionSampleIntervalMilliseconds);
+        /// <summary>Gets the minimum suspicious watchdog duration in milliseconds.</summary>
+        public int ProviderStreamRepetitionMinimumSuspiciousDurationMilliseconds => _runtimePolicy.GetInt(LocalGptRuntimeValue.ProviderStreamRepetitionMinimumSuspiciousDurationMilliseconds);
 
     
     }

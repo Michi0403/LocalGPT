@@ -8,6 +8,7 @@ namespace LocalGPT.Services.Persistence;
 /// </summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class OneWireReplayPolicyDataService(
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<OneWireReplayPolicyDataService> logger) : IOneWireReplayPolicyDataService
 {
     /// <summary>
@@ -18,7 +19,7 @@ public sealed class OneWireReplayPolicyDataService(
         Retention = TimeSpan.FromMinutes(15),
         AllowedFutureSkew = TimeSpan.FromMinutes(2),
         CleanupInterval = 64,
-        MaximumTrackedMessages = 4096
+        MaximumTrackedMessages = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.OneWireReplayMaximumTrackedMessages))
     };
 
     /// <summary>

@@ -113,7 +113,7 @@ public sealed class RemoteControlController(
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("webhook/{key}")]
-    [RequestSizeLimit(RemoteControlLimits.AbsoluteMaximumPayloadBytes)]
+    [DisableRequestSizeLimit]
     public async Task<IResult> ReceiveWebhook(string key, CancellationToken cancellationToken)
     {
         try

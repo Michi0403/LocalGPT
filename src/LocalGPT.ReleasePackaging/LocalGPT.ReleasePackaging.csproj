@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>localgpt-release-packaging</ToolCommandName>
+    <PackageId>LocalGPT.ReleasePackaging</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Michi0403</Authors>
+    <Description>Repository-owned deterministic release packaging primitives shared by LocalGPT and PublisherStudio.</Description>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+</Project>

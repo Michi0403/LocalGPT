@@ -41,7 +41,8 @@ public sealed class RemoteControlTransportService(
             ValidateUri(connector, initialUri, allowedHosts);
 
             using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutSource.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(connector.TimeoutSeconds, 1, RemoteControlLimits.MaximumTimeoutSeconds)));
+            if (connector.TimeoutSeconds > 0)
+                timeoutSource.CancelAfter(TimeSpan.FromSeconds(connector.TimeoutSeconds));
             var currentUri = initialUri;
             for (var redirect = 0; redirect <= MaximumRedirects; redirect++)
             {
@@ -100,7 +101,7 @@ public sealed class RemoteControlTransportService(
             if (connector.Transport != RemoteControlTransportKind.Webhook) throw new InvalidOperationException($"Remote Control connector '{connector.Key}' is not a webhook connector.");
             content ??= string.Empty;
             var bytes = Encoding.UTF8.GetByteCount(content);
-            var maximum = Math.Clamp(connector.MaxPayloadBytes, 1, RemoteControlLimits.AbsoluteMaximumPayloadBytes);
+            var maximum = Math.Max(1, connector.MaxPayloadBytes);
             if (bytes > maximum) throw new InvalidDataException($"Webhook payload exceeds the configured {maximum} byte limit.");
             var selectedJson = templates.ParseSelectedJson(content, contentType ?? string.Empty, connector.ResponseFormat, connector.ResponseSelector);
             return new RemoteControlPayload
@@ -175,7 +176,7 @@ public sealed class RemoteControlTransportService(
     {
         try
         {
-            var maximum = Math.Clamp(configuredMaximumBytes, 1, RemoteControlLimits.AbsoluteMaximumPayloadBytes);
+            var maximum = Math.Max(1, configuredMaximumBytes);
             if (response.Content.Headers.ContentLength is long contentLength && contentLength > maximum)
                 throw new InvalidDataException($"Remote Control response exceeds the configured {maximum} byte limit.");
             await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);

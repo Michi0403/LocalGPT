@@ -6,12 +6,10 @@ namespace LocalGPT.Services;
 
 /// <summary>Reads bounded metadata from portable PDB and other debug files without loading or executing them.</summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
-public sealed class DebugArtifactInspectionService(ILogger<DebugArtifactInspectionService> logger) : IDebugArtifactInspectionService
+public sealed class DebugArtifactInspectionService(
+    ILocalGptRuntimePolicyDataService runtimePolicy,
+    ILogger<DebugArtifactInspectionService> logger) : IDebugArtifactInspectionService
 {
-    /// <summary>
-    /// Defines the maximum inspection bytes constant used by <see cref="DebugArtifactInspectionService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const long MaximumInspectionBytes = 1024L * 1024L * 1024L;
 
     /// <summary>
     /// Performs inspect as part of the debug artifact inspection service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -26,8 +24,9 @@ public sealed class DebugArtifactInspectionService(ILogger<DebugArtifactInspecti
         var file = new FileInfo(fullPath);
         if (!file.Exists)
             throw new FileNotFoundException("The debug artifact was not found.", fullPath);
-        if (file.Length > MaximumInspectionBytes)
-            throw new InvalidOperationException($"The debug artifact is larger than the bounded {MaximumInspectionBytes:n0}-byte inspection ceiling.");
+        var maximumInspectionBytes = Math.Max(1L, runtimePolicy.GetLong(LocalGptRuntimeValue.DebugArtifactMaximumInspectionBytes));
+        if (file.Length > maximumInspectionBytes)
+            throw new InvalidOperationException($"The debug artifact exceeds the configured DebugArtifactMaximumInspectionBytes policy ({maximumInspectionBytes:n0} bytes).");
 
         var result = new DebugArtifactInspectionResult
         {

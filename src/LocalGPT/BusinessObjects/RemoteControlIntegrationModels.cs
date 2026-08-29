@@ -132,12 +132,12 @@ public sealed class RemoteControlConnectorDefinition
     /// Gets or sets the timeout seconds value that forms part of the remote control connector definition state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The timeout seconds value exposed by <see cref="RemoteControlConnectorDefinition"/>.</value>
-    public int TimeoutSeconds { get; set; } = 30;
+    public int TimeoutSeconds { get; set; } = 0;
     /// <summary>
     /// Gets or sets the max payload bytes value that forms part of the remote control connector definition state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The max payload bytes value exposed by <see cref="RemoteControlConnectorDefinition"/>.</value>
-    public int MaxPayloadBytes { get; set; } = RemoteControlLimits.DefaultMaximumPayloadBytes;
+    public int MaxPayloadBytes { get; set; } = int.MaxValue;
     /// <summary>Gets or sets whether the connector exists as an enabled user capability.</summary>
     /// <value>The is enabled value exposed by <see cref="RemoteControlConnectorDefinition"/>.</value>
     public bool IsEnabled { get; set; }
@@ -457,19 +457,3 @@ public sealed class RemoteControlPipelineExecutionResult
     public List<RemoteControlPipelineStepResult> Steps { get; } = [];
 }
 
-/// <summary>Defines code-owned bounds for user-created integration payloads and polling intervals.</summary>
-public sealed class RemoteControlLimits
-{
-    /// <summary>
-    /// Initializes a new <see cref="RemoteControlLimits"/> instance and captures the dependencies or initial state required by its remote control limits workflow.
-    /// </summary>
-    private RemoteControlLimits() { }
-    /// <summary>Default maximum payload size.</summary>
-    public const int DefaultMaximumPayloadBytes = 262_144;
-    /// <summary>Absolute maximum payload size accepted by this feature.</summary>
-    public const int AbsoluteMaximumPayloadBytes = 2_097_152;
-    /// <summary>Minimum automatic polling interval.</summary>
-    public const int MinimumPollIntervalSeconds = 60;
-    /// <summary>Maximum request timeout.</summary>
-    public const int MaximumTimeoutSeconds = 120;
-}

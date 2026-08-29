@@ -9,20 +9,14 @@ namespace LocalGPT.Services;
 /// <summary>Fetches explicitly approved CanIRun.ai device pages and converts their public model-card metadata into bounded LocalGPT recommendations.</summary>
 /// <param name="httpClientFactory">Creates the redirect-disabled HTTP client dedicated to the optional CanIRun.ai lookup.</param>
 /// <param name="regexPatterns">Provides database-backed parsers for model cards and HTML data attributes.</param>
-/// <param name="logger">Writes bounded lookup diagnostics without copying page bodies into logs.</param>
+/// <param name="runtimePolicy">Database-backed operator runtime policy.</param>
+/// <param name="logger">Writes lookup diagnostics without copying page bodies into logs.</param>
 public sealed class CanIRunHardwareRecommendationService(
     IHttpClientFactory httpClientFactory,
     IRegexPatternService regexPatterns,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CanIRunHardwareRecommendationService> logger) : ICanIRunHardwareRecommendationService
 {
-    /// <summary>
-    /// Defines the maximum page characters constant used by <see cref="CanIRunHardwareRecommendationService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaximumPageCharacters = 4_000_000;
-    /// <summary>
-    /// Defines the maximum recommendations constant used by <see cref="CanIRunHardwareRecommendationService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaximumRecommendations = 96;
 
     /// <summary>Fetches one explicitly approved CanIRun.ai device page and parses its public recommendation cards.</summary>
     /// <inheritdoc />
@@ -43,13 +37,13 @@ public sealed class CanIRunHardwareRecommendationService(
             ValidateCanIRunUri(uri);
             var client = httpClientFactory.CreateClient("LocalGPTCanIRun");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("LocalGPT/3.4.7 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
+            request.Headers.UserAgent.ParseAdd("LocalGPT/3.4.9 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if ((int)response.StatusCode is >= 300 and < 400)
                 throw new InvalidOperationException("CanIRun.ai redirects are not followed automatically. Review the configured device slug.");
             response.EnsureSuccessStatusCode();
             var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (html.Length > MaximumPageCharacters)
+            if (html.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumPageCharacters)))
                 throw new InvalidDataException("The CanIRun.ai response exceeded LocalGPT's bounded page size.");
 
             var cardRegex = await regexPatterns.GetRegexAsync("builtin.canirun-model-card-pattern").ConfigureAwait(false)
@@ -78,7 +72,7 @@ public sealed class CanIRunHardwareRecommendationService(
                     DeviceSlug = slug,
                     SourceUrl = uri.ToString()
                 });
-                if (recommendations.Count >= MaximumRecommendations)
+                if (recommendations.Count >= Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CanIRunMaximumRecommendations)))
                     break;
             }
 

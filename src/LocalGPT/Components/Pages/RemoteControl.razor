@@ -160,8 +160,8 @@
                 </label>
                 <label>@T("RemoteControl.ResponseSelector", "JSON selector")<input @bind="ConnectorEdit.ResponseSelector" placeholder="current.weather[0]" /></label>
                 <label>@T("RemoteControl.PollSeconds", "Poll seconds (0 = off)")<input type="number" min="0" @bind="ConnectorEdit.PollIntervalSeconds" /></label>
-                <label>@T("RemoteControl.TimeoutSeconds", "Timeout seconds")<input type="number" min="1" max="120" @bind="ConnectorEdit.TimeoutSeconds" /></label>
-                <label>@T("RemoteControl.MaxPayload", "Max payload bytes")<input type="number" min="1024" max="2097152" @bind="ConnectorEdit.MaxPayloadBytes" /></label>
+                <label>@T("RemoteControl.TimeoutSeconds", "Timeout seconds")<input type="number" min="0" @bind="ConnectorEdit.TimeoutSeconds" /></label>
+                <label>@T("RemoteControl.MaxPayload", "Max payload bytes")<input type="number" min="1" @bind="ConnectorEdit.MaxPayloadBytes" /></label>
             </div>
 
             <div class="remote-control-actions">

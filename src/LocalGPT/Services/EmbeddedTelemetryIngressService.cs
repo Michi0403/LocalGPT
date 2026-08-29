@@ -16,7 +16,7 @@ public sealed class EmbeddedTelemetryIngressService(
     /// <summary>
     /// Defines the maximum snapshots constant used by <see cref="EmbeddedTelemetryIngressService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int MaximumSnapshots = 500;
+    private const int Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.EmbeddedTelemetryMaximumSnapshots)) = 500;
     /// <summary>
     /// Stores the internal snapshots state used by <see cref="EmbeddedTelemetryIngressService"/> while executing its surrounding workflow.
     /// </summary>
@@ -54,7 +54,7 @@ public sealed class EmbeddedTelemetryIngressService(
                     TransportKey = request.TransportKey?.Trim() ?? string.Empty,
                     Readings = (request.Readings ?? []).Where(item => item is not null).Select(CloneReading).ToList()
                 });
-                while (snapshots.Count > MaximumSnapshots && snapshots.TryDequeue(out _)) { }
+                while (snapshots.Count > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.EmbeddedTelemetryMaximumSnapshots)) && snapshots.TryDequeue(out _)) { }
             }
 
             logger.LogInformation(

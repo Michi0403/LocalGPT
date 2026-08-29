@@ -7,24 +7,14 @@ using LocalGPT.Interfaces;
 namespace LocalGPT.Services;
 
 /// <summary>Runs explicitly bounded local commands through one cross-platform console abstraction and publishes sanitized live output for LocalGPT UI surfaces.</summary>
-/// <param name="platform">Cross-platform console adapter used to start and supervise bounded local commands.</param>
-/// <param name="logger">Writes bounded command lifecycle diagnostics without logging command arguments or output.</param>
+/// <param name="platform">Cross-platform console adapter used to start and supervise local commands.</param>
+/// <param name="runtimePolicy">Database-backed operator runtime policy.</param>
+/// <param name="logger">Writes command lifecycle diagnostics without logging command arguments or output.</param>
 public sealed class ConsoleCommandService(
     ILocalConsolePlatformService platform,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ConsoleCommandService> logger) : IConsoleCommandService
 {
-    /// <summary>
-    /// Defines the max recent events constant used by <see cref="ConsoleCommandService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxRecentEvents = 400;
-    /// <summary>
-    /// Defines the max event characters constant used by <see cref="ConsoleCommandService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxEventCharacters = 2048;
-    /// <summary>
-    /// Defines the max capture characters constant used by <see cref="ConsoleCommandService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxCaptureCharacters = 131072;
     /// <summary>
     /// Stores the internal recent output state used by <see cref="ConsoleCommandService"/> while executing its surrounding workflow.
     /// </summary>
@@ -45,7 +35,8 @@ public sealed class ConsoleCommandService(
 
             var operationId = Guid.NewGuid();
             var resolved = ResolveStartInfo(request);
-            var timeoutSeconds = Math.Clamp(request.TimeoutSeconds, 1, 600);
+            var maximumTimeoutSeconds = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumTimeoutSeconds));
+            var timeoutSeconds = request.TimeoutSeconds <= 0 ? maximumTimeoutSeconds : Math.Min(request.TimeoutSeconds, maximumTimeoutSeconds);
             var stdout = new StringBuilder();
             var stderr = new StringBuilder();
             Publish(operationId, request.DisplayName, "command", BuildDisplayCommand(request, resolved));
@@ -131,7 +122,7 @@ public sealed class ConsoleCommandService(
     {
         try
         {
-            return recentOutput.ToArray().TakeLast(Math.Clamp(maxItems, 1, MaxRecentEvents)).ToArray();
+            return recentOutput.ToArray().TakeLast(Math.Clamp(maxItems, 1, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumRecentEvents)))).ToArray();
         }
         catch (Exception exception)
         {
@@ -268,9 +259,9 @@ public sealed class ConsoleCommandService(
         {
             if (line is null)
                 return;
-            if (capture.Length < MaxCaptureCharacters)
+            if (capture.Length < Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters)))
             {
-                var remaining = MaxCaptureCharacters - capture.Length;
+                var remaining = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters)) - capture.Length;
                 var bounded = line.Length <= remaining ? line : line[..remaining];
                 capture.AppendLine(bounded);
             }
@@ -299,9 +290,9 @@ public sealed class ConsoleCommandService(
                 TimestampUtc = DateTimeOffset.UtcNow,
                 DisplayName = BoundDisplayName(displayName),
                 Stream = stream,
-                Text = text.Length <= MaxEventCharacters ? text : text[..MaxEventCharacters]
+                Text = text.Length <= Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumEventCharacters)) ? text : text[..Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumEventCharacters))]
             });
-            while (recentOutput.Count > MaxRecentEvents)
+            while (recentOutput.Count > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumRecentEvents)))
                 recentOutput.TryDequeue(out _);
             Changed?.Invoke();
         }
@@ -382,7 +373,7 @@ public sealed class ConsoleCommandService(
     {
         try
         {
-            return value.Length <= MaxCaptureCharacters ? value : value[..MaxCaptureCharacters];
+            return value.Length <= Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters)) ? value : value[..Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ConsoleMaximumCaptureCharacters))];
         }
         catch (Exception exception)
         {

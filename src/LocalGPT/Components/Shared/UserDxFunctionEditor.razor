@@ -185,7 +185,7 @@
     /// <summary>
     /// Stores the internal max payload bytes state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
     /// </summary>
-    private int _maxPayloadBytes = RemoteControlLimits.DefaultMaximumPayloadBytes;
+    private int _maxPayloadBytes = int.MaxValue;
     /// <summary>
     /// Stores the internal allow insecure HTTP state used by <see cref="UserDxFunctionEditor"/> while executing its surrounding workflow.
     /// </summary>
@@ -352,7 +352,7 @@
         _responseSelector = string.Empty;
         _headersJson = "{}";
         _timeoutSeconds = 30;
-        _maxPayloadBytes = RemoteControlLimits.DefaultMaximumPayloadBytes;
+        _maxPayloadBytes = int.MaxValue;
         _allowInsecureHttp = false;
         _originalGeneratedSourceKey = string.Empty;
     }
@@ -446,8 +446,8 @@
                 HeadersJson = string.IsNullOrWhiteSpace(_headersJson) ? "{}" : _headersJson.Trim(),
                 ResponseFormat = RemoteControlResponseFormat.Json,
                 ResponseSelector = _responseSelector?.Trim() ?? string.Empty,
-                TimeoutSeconds = Math.Clamp(_timeoutSeconds, 1, 300),
-                MaxPayloadBytes = Math.Clamp(_maxPayloadBytes, 1024, RemoteControlLimits.AbsoluteMaximumPayloadBytes),
+                TimeoutSeconds = Math.Max(0, _timeoutSeconds),
+                MaxPayloadBytes = Math.Max(1, _maxPayloadBytes),
                 IsEnabled = true,
                 NetworkEnabled = true,
                 AllowInsecureHttp = _allowInsecureHttp,

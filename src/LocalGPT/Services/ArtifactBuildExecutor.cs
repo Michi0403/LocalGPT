@@ -14,16 +14,9 @@ namespace LocalGPT.Services;
 public sealed class ArtifactBuildExecutor(
     IOptionsMonitor<ArtifactBuildOptions> options,
     IPlatformRuntimeService platform,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ArtifactBuildExecutor> logger) : IArtifactBuildExecutor
 {
-    /// <summary>
-    /// Defines the minimum timeout seconds constant used by <see cref="ArtifactBuildExecutor"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MinimumTimeoutSeconds = 5;
-    /// <summary>
-    /// Defines the maximum timeout seconds constant used by <see cref="ArtifactBuildExecutor"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaximumTimeoutSeconds = 900;
 
     /// <summary>
     /// Performs build for <see cref="ArtifactBuildExecutor"/>, keeping the operation consistent with the state and invariants of the surrounding artifact build executor workflow.
@@ -74,9 +67,11 @@ public sealed class ArtifactBuildExecutor(
             Directory.CreateDirectory(normalizedOutput);
         }
 
-        var configuredSeconds = Math.Clamp(settings.MaxDurationSeconds, MinimumTimeoutSeconds, MaximumTimeoutSeconds);
-        var requestedSeconds = (int)Math.Ceiling(requestedTimeout.TotalSeconds);
-        var timeoutSeconds = Math.Clamp(Math.Min(configuredSeconds, Math.Max(MinimumTimeoutSeconds, requestedSeconds)), MinimumTimeoutSeconds, MaximumTimeoutSeconds);
+        var minimumTimeoutSeconds = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ArtifactBuildMinimumTimeoutSeconds));
+        var maximumTimeoutSeconds = Math.Max(minimumTimeoutSeconds, runtimePolicy.GetInt(LocalGptRuntimeValue.ArtifactBuildMaximumTimeoutSeconds));
+        var configuredSeconds = settings.MaxDurationSeconds <= 0 ? maximumTimeoutSeconds : Math.Clamp(settings.MaxDurationSeconds, minimumTimeoutSeconds, maximumTimeoutSeconds);
+        var requestedSeconds = requestedTimeout <= TimeSpan.Zero ? configuredSeconds : (int)Math.Min(int.MaxValue, Math.Ceiling(requestedTimeout.TotalSeconds));
+        var timeoutSeconds = Math.Clamp(Math.Min(configuredSeconds, Math.Max(minimumTimeoutSeconds, requestedSeconds)), minimumTimeoutSeconds, maximumTimeoutSeconds);
 
         var startInfo = new ProcessStartInfo
         {

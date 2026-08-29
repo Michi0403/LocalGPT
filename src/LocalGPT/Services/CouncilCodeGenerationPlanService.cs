@@ -10,12 +10,9 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class CouncilCodeGenerationPlanService(
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilCodeGenerationPlanService> logger) : ICouncilCodeGenerationPlanService
 {
-    /// <summary>
-    /// Defines the max embedded plan characters constant used by <see cref="CouncilCodeGenerationPlanService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int MaxEmbeddedPlanCharacters = 4_000_000;
 
     /// <summary>
     /// Stores the internal tagged plan pattern state used by <see cref="CouncilCodeGenerationPlanService"/> while executing its surrounding workflow.
@@ -74,7 +71,7 @@ public sealed class CouncilCodeGenerationPlanService(
 
             foreach (var candidate in candidates.AsEnumerable().Reverse())
             {
-                if (string.IsNullOrWhiteSpace(candidate.Json) || candidate.Json.Length > MaxEmbeddedPlanCharacters)
+                if (string.IsNullOrWhiteSpace(candidate.Json) || candidate.Json.Length > Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilCodeGenerationMaximumEmbeddedPlanCharacters)))
                     continue;
 
                 try
