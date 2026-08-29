@@ -6,6 +6,7 @@ namespace LocalGPT.Services;
 
 /// <summary>Reads bounded metadata from portable PDB and other debug files without loading or executing them.</summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the debug artifact inspection workflow to provide the corresponding application capability.</param>
 public sealed class DebugArtifactInspectionService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<DebugArtifactInspectionService> logger) : IDebugArtifactInspectionService

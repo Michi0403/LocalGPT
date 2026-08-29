@@ -18,9 +18,15 @@ public sealed class LocalVisionOcrService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<LocalVisionOcrService> logger) : ILocalVisionOcrService
 {
+    /// <summary>
+    /// Stores the internal JSON options state used by <see cref="LocalVisionOcrService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     /// <summary>Recognizes visible text in the supplied browser-rendered image.</summary>
+    /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The local vision OCR result produced by the operation.</returns>
     public async Task<LocalVisionOcrResult> RecognizeAsync(LocalVisionOcrRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -103,6 +109,11 @@ public sealed class LocalVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Resolves provider as part of the local vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="requestedModel">Requested model value supplied to the local vision OCR operation and used when producing its result.</param>
+    /// <returns>The Ollama core options produced by the operation.</returns>
     private OllamaCoreOptions ResolveProvider(string? requestedModel)
     {
         try
@@ -135,6 +146,12 @@ public sealed class LocalVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Reads image base64 as part of the local vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="dataUrl">Data url value supplied to the local vision OCR operation and used when producing its result.</param>
+    /// <param name="mediaType">Media type value supplied to the local vision OCR operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string ReadImageBase64(string dataUrl, out string mediaType)
     {
         try
@@ -166,6 +183,12 @@ public sealed class LocalVisionOcrService(
         }
     }
 
+    /// <summary>
+    /// Performs trim as part of the local vision OCR service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the local vision OCR operation and used when producing its result.</param>
+    /// <param name="maximum">Maximum value supplied to the local vision OCR operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string Trim(string value, int maximum)
     {
         try

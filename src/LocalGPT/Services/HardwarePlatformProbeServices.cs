@@ -7,8 +7,12 @@ using System.Runtime.InteropServices;
 namespace LocalGPT.Services;
 
 /// <summary>Windows-specific read-only GPU inventory fallback.</summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class WindowsHardwarePlatformProbeService(ILogger<WindowsHardwarePlatformProbeService> logger) : IHardwarePlatformProbeService
 {
+    /// <summary>
+    /// Performs probe platform gpus as part of the windows hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbePlatformGpusAsync(CancellationToken cancellationToken = default)
     {
@@ -45,6 +49,13 @@ public sealed class WindowsHardwarePlatformProbeService(ILogger<WindowsHardwareP
         }
     }
 
+    /// <summary>
+    /// Performs run probe as part of the windows hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="fileName">File name value supplied to the windows hardware platform probe operation and used when producing its result.</param>
+    /// <param name="arguments">Arguments value supplied to the windows hardware platform probe operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<string>> RunProbeAsync(string fileName, string arguments, CancellationToken cancellationToken)
     {
         try
@@ -77,6 +88,11 @@ public sealed class WindowsHardwarePlatformProbeService(ILogger<WindowsHardwareP
         }
     }
 
+    /// <summary>
+    /// Performs infer vendor as part of the windows hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="name">Name value supplied to the windows hardware platform probe operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string InferVendor(string name)
     {
         try
@@ -96,8 +112,12 @@ public sealed class WindowsHardwarePlatformProbeService(ILogger<WindowsHardwareP
 }
 
 /// <summary>Unix implementation for Linux DRM/sysfs and macOS system_profiler GPU discovery.</summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatformProbeService> logger) : IHardwarePlatformProbeService
 {
+    /// <summary>
+    /// Performs probe platform gpus as part of the unix hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbePlatformGpusAsync(CancellationToken cancellationToken = default)
     {
@@ -120,6 +140,11 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         }
     }
 
+    /// <summary>
+    /// Performs probe linux drm as part of the unix hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeLinuxDrmAsync(CancellationToken cancellationToken)
     {
         try
@@ -198,6 +223,11 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         }
     }
 
+    /// <summary>
+    /// Performs probe mac displays as part of the unix hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<OneWireHardwareDescriptor>> ProbeMacDisplaysAsync(CancellationToken cancellationToken)
     {
         try
@@ -261,6 +291,11 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         }
     }
 
+    /// <summary>
+    /// Parses memory bytes as part of the unix hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="line">Line value supplied to the unix hardware platform probe operation and used when producing its result.</param>
+    /// <returns>The long produced by the operation.</returns>
     private long? ParseMemoryBytes(string line)
     {
         try
@@ -285,6 +320,12 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         }
     }
 
+    /// <summary>
+    /// Reads trimmed file as part of the unix hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="path">Path value supplied to the unix hardware platform probe operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The string produced by the operation.</returns>
     private async Task<string> ReadTrimmedFileAsync(string path, CancellationToken cancellationToken)
     {
         try
@@ -300,6 +341,13 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         }
     }
 
+    /// <summary>
+    /// Performs run probe as part of the unix hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="fileName">File name value supplied to the unix hardware platform probe operation and used when producing its result.</param>
+    /// <param name="arguments">Arguments value supplied to the unix hardware platform probe operation and used when producing its result.</param>
+    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private async Task<IReadOnlyList<string>> RunProbeAsync(string fileName, string arguments, CancellationToken cancellationToken)
     {
         try
@@ -332,6 +380,11 @@ public sealed class UnixHardwarePlatformProbeService(ILogger<UnixHardwarePlatfor
         }
     }
 
+    /// <summary>
+    /// Performs infer vendor as part of the unix hardware platform probe service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="name">Name value supplied to the unix hardware platform probe operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string InferVendor(string name)
     {
         try

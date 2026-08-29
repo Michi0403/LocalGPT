@@ -6,10 +6,21 @@ using System.Text;
 
 namespace LocalGPT.ReleasePackaging;
 
+/// <summary>
+/// Represents a program application type, grouping the state and behavior that belong to that domain concept.
+/// </summary>
 internal static class Program
 {
+    /// <summary>
+    /// Stores the shared read-only reproducible timestamp value used by <see cref="Program"/> across instances of the containing type.
+    /// </summary>
     private static readonly DateTimeOffset ReproducibleTimestamp = new(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
+    /// <summary>
+    /// Performs main for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+    /// <returns>The int produced by the operation.</returns>
     public static int Main(string[] args)
     {
         try
@@ -33,6 +44,11 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Performs parse for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="args">Args value supplied to the program operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private static Dictionary<string, List<string>> Parse(string[] args)
     {
         var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -47,11 +63,37 @@ internal static class Program
         return result;
     }
 
+    /// <summary>
+    /// Performs required for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="values">Values value supplied to the program operation and used when producing its result.</param>
+    /// <param name="key">Key value supplied to the program operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string Required(Dictionary<string, List<string>> values, string key) =>
         values.TryGetValue(key, out var list) && list.Count > 0 && !string.IsNullOrWhiteSpace(list[^1]) ? list[^1] : throw new ArgumentException($"--{key} is required.");
+    /// <summary>
+    /// Performs optional for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="values">Values value supplied to the program operation and used when producing its result.</param>
+    /// <param name="key">Key value supplied to the program operation and used when producing its result.</param>
+    /// <param name="fallback">Fallback value supplied to the program operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string Optional(Dictionary<string, List<string>> values, string key, string fallback) => values.TryGetValue(key, out var list) && list.Count > 0 ? list[^1] : fallback;
+    /// <summary>
+    /// Performs multi for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="values">Values value supplied to the program operation and used when producing its result.</param>
+    /// <param name="key">Key value supplied to the program operation and used when producing its result.</param>
+    /// <returns>The collection produced by the operation.</returns>
     private static IReadOnlyList<string> Multi(Dictionary<string, List<string>> values, string key) => values.TryGetValue(key, out var list) ? list : [];
 
+    /// <summary>
+    /// Creates tar gz for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="sourceDirectory">Source directory value supplied to the program operation and used when producing its result.</param>
+    /// <param name="outputPath">Output path value supplied to the program operation and used when producing its result.</param>
+    /// <param name="rootName">Root name value supplied to the program operation and used when producing its result.</param>
+    /// <param name="executablePaths">String dependency used by the program workflow to provide the corresponding application capability.</param>
     private static void CreateTarGz(string sourceDirectory, string outputPath, string rootName, IReadOnlyList<string> executablePaths)
     {
         sourceDirectory = Path.GetFullPath(sourceDirectory);
@@ -72,6 +114,13 @@ internal static class Program
         Console.WriteLine(outputPath);
     }
 
+    /// <summary>
+    /// Writes tree for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="writer">Writer value supplied to the program operation and used when producing its result.</param>
+    /// <param name="sourceDirectory">Source directory value supplied to the program operation and used when producing its result.</param>
+    /// <param name="rootName">Root name value supplied to the program operation and used when producing its result.</param>
+    /// <param name="executableSet">Executable set value supplied to the program operation and used when producing its result.</param>
     private static void WriteTree(TarWriter writer, string sourceDirectory, string rootName, HashSet<string> executableSet)
     {
         var root = Path.GetFullPath(sourceDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -96,11 +145,22 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Performs prefix for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="rootName">Root name value supplied to the program operation and used when producing its result.</param>
+    /// <param name="relative">Relative value supplied to the program operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string Prefix(string rootName, string relative)
     {
         var root = NormalizeArchivePath(rootName).Trim('/');
         return string.IsNullOrEmpty(root) ? relative : $"{root}/{relative}";
     }
+    /// <summary>
+    /// Normalizes archive path for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="value">Value value supplied to the program operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private static string NormalizeArchivePath(string value)
     {
         var normalized = value.Replace('\\', '/').TrimStart('/');
@@ -108,6 +168,10 @@ internal static class Program
         return normalized;
     }
 
+    /// <summary>
+    /// Creates deb for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="values">Values value supplied to the program operation and used when producing its result.</param>
     private static void CreateDeb(Dictionary<string, List<string>> values)
     {
         var source = Path.GetFullPath(Required(values, "source"));
@@ -163,6 +227,11 @@ internal static class Program
         finally { try { Directory.Delete(work, true); } catch { } }
     }
 
+    /// <summary>
+    /// Performs copy directory for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="source">Source value supplied to the program operation and used when producing its result.</param>
+    /// <param name="destination">Destination value supplied to the program operation and used when producing its result.</param>
     private static void CopyDirectory(string source, string destination)
     {
         foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories)) Directory.CreateDirectory(Path.Combine(destination, Path.GetRelativePath(source, directory)));
@@ -172,6 +241,12 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Writes ar member for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="output">Output value supplied to the program operation and used when producing its result.</param>
+    /// <param name="name">Name value supplied to the program operation and used when producing its result.</param>
+    /// <param name="input">Input value supplied to the program operation and used when producing its result.</param>
     private static void WriteArMember(Stream output, string name, Stream input)
     {
         if (!input.CanSeek) throw new InvalidOperationException("AR member streams must be seekable.");
@@ -190,6 +265,11 @@ internal static class Program
         if ((length & 1) != 0) output.WriteByte((byte)'\n');
     }
 
+    /// <summary>
+    /// Creates SHA-256 for <see cref="Program"/>, keeping the operation consistent with the state and invariants of the surrounding program workflow.
+    /// </summary>
+    /// <param name="directory">Directory value supplied to the program operation and used when producing its result.</param>
+    /// <param name="outputPath">Output path value supplied to the program operation and used when producing its result.</param>
     private static void CreateSha256(string directory, string outputPath)
     {
         directory = Path.GetFullPath(directory); outputPath = Path.GetFullPath(outputPath);

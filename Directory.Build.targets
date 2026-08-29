@@ -182,6 +182,7 @@
     <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == '' and '$(Configuration)' == 'Release'">true</RequireLocalGptDocumentationPdf>
     <RequireLocalGptDocumentationPdf Condition="'$(RequireLocalGptDocumentationPdf)' == ''">false</RequireLocalGptDocumentationPdf>
     <LocalGptDocumentationPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' == 'true'">-RequirePdf</LocalGptDocumentationPdfArgument>
+    <LocalGptPagesPdfArgument Condition="'$(RequireLocalGptDocumentationPdf)' != 'true'">-AllowMissingPdf</LocalGptPagesPdfArgument>
   </PropertyGroup>
 
   <!--
@@ -222,12 +223,12 @@
           Condition="'$(DesignTimeBuild)' != 'true' and '$(BuildLocalGptDocumentation)' == 'true' and '$(SeedLocalGptGitHubPagesSnapshotOnBuild)' == 'true' and ('$(Configuration)' == 'Debug' or '$(Configuration)' == 'Release') and '$(MSBuildProjectName)' == 'LocalGPT'">
     <Error Condition="!Exists('$(LocalGptPagesSnapshotScript)')" Text="LocalGPT GitHub Pages snapshot script is missing: $(LocalGptPagesSnapshotScript)" />
     <Message Importance="High" Text="Validating and seeding the LocalGPT $(Version) GitHub Pages snapshot from $(LocalGptDocumentationOutputRoot)" />
-    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptPagesSnapshotScript)&quot; -DocumentationRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; -OutputArchive &quot;$(LocalGptPagesSnapshotArchive)&quot;"
+    <Exec Command="&quot;$(RepositoryPowerShell)&quot; $(RepositoryPowerShellArguments) -File &quot;$(LocalGptPagesSnapshotScript)&quot; -DocumentationRoot &quot;$(LocalGptDocumentationOutputRoot)&quot; -OutputArchive &quot;$(LocalGptPagesSnapshotArchive)&quot; $(LocalGptPagesPdfArgument)"
           WorkingDirectory="$(MSBuildThisFileDirectory)"
           ConsoleToMSBuild="true"
           StandardOutputImportance="High"
           StandardErrorImportance="High" />
-    <Error Condition="!Exists('$(LocalGptPagesSnapshotArchive)')" Text="LocalGPT GitHub Pages snapshot was not created: $(LocalGptPagesSnapshotArchive)" />
+    <Error Condition="'$(RequireLocalGptDocumentationPdf)' == 'true' and !Exists('$(LocalGptPagesSnapshotArchive)')" Text="LocalGPT GitHub Pages snapshot was not created: $(LocalGptPagesSnapshotArchive)" />
   </Target>
 
   <Target Name="IncludeLocalGptDocumentationInPublish"

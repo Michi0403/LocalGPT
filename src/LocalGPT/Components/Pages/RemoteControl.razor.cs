@@ -713,7 +713,9 @@ public partial class RemoteControl : ComponentBase
         }
     }
 
-    /// <summary>Represents one editable request-header row in the guided Remote Control connector editor.</summary>
+    /// <summary>
+    /// Renders the remote control header edit row Razor component and coordinates the component-local state, commands, and presentation behavior used by the surrounding LocalGPT interface.
+    /// </summary>
     private sealed class RemoteControlHeaderEditRow
     {
         /// <summary>Stores the editable HTTP request-header name serialized into the connector header dictionary.</summary>

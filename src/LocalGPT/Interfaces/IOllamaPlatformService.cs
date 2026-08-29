@@ -6,6 +6,7 @@ namespace LocalGPT.Interfaces;
 public interface IOllamaPlatformService
 {
     /// <summary>Gets the short platform name used in diagnostics and setup guidance.</summary>
+    /// <value>The platform name value exposed by <see cref="IOllamaPlatformService"/>.</value>
     string PlatformName { get; }
 
     /// <summary>Resolves the local Ollama executable, or <see langword="null"/> when it is not installed in a known location.</summary>

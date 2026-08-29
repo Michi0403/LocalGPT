@@ -8,15 +8,13 @@ namespace LocalGPT.Services;
 /// Coordinates embedded telemetry ingress behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 /// <param name="bridge">Embedded telemetry bridge service dependency used by the embedded telemetry ingress workflow to provide the corresponding application capability.</param>
+/// <param name="runtimePolicy">Persisted operator runtime policy used to control telemetry retention.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class EmbeddedTelemetryIngressService(
     IEmbeddedTelemetryBridgeService bridge,
+    ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<EmbeddedTelemetryIngressService> logger) : IEmbeddedTelemetryIngressService
 {
-    /// <summary>
-    /// Defines the maximum snapshots constant used by <see cref="EmbeddedTelemetryIngressService"/> so callers and internal logic share the same stable value.
-    /// </summary>
-    private const int Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.EmbeddedTelemetryMaximumSnapshots)) = 500;
     /// <summary>
     /// Stores the internal snapshots state used by <see cref="EmbeddedTelemetryIngressService"/> while executing its surrounding workflow.
     /// </summary>
@@ -94,7 +92,8 @@ public sealed class EmbeddedTelemetryIngressService(
     {
     try
     {
-            var bounded = Math.Clamp(maximum, 1, 500);
+            var configuredMaximum = Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.EmbeddedTelemetryMaximumSnapshots));
+            var bounded = Math.Clamp(maximum, 1, configuredMaximum);
             return snapshots.Reverse()
                 .Where(item => string.IsNullOrWhiteSpace(deviceId) || string.Equals(item.DeviceId, deviceId.Trim(), StringComparison.OrdinalIgnoreCase))
                 .Take(bounded)

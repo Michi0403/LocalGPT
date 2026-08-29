@@ -6,6 +6,9 @@ namespace LocalGPT.Services;
 /// <summary>Windows shell resolution for the shared console service.</summary>
 public sealed class WindowsLocalConsolePlatformService : ILocalConsolePlatformService
 {
+    /// <summary>
+    /// Resolves shell as part of the windows local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public LocalConsoleShellKind ResolveShell(LocalConsoleShellKind requestedShell) 
     {
@@ -20,6 +23,9 @@ public sealed class WindowsLocalConsolePlatformService : ILocalConsolePlatformSe
         }
     }
 
+    /// <summary>
+    /// Creates shell command as part of the windows local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public LocalConsolePlatformCommand CreateShellCommand(LocalConsoleShellKind shell, string commandText)
     {
@@ -45,6 +51,9 @@ public sealed class WindowsLocalConsolePlatformService : ILocalConsolePlatformSe
         }
     }
 
+    /// <summary>
+    /// Creates power shell script command as part of the windows local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public LocalConsolePlatformCommand CreatePowerShellScriptCommand(string scriptPath)
     {
@@ -70,6 +79,11 @@ public sealed class WindowsLocalConsolePlatformService : ILocalConsolePlatformSe
         }
     }
 
+    /// <summary>
+    /// Performs format display argument as part of the windows local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the windows local console platform operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FormatDisplayArgument(string value) 
     {
         try
@@ -83,6 +97,13 @@ public sealed class WindowsLocalConsolePlatformService : ILocalConsolePlatformSe
         }
     }
 
+    /// <summary>
+    /// Performs create as part of the windows local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="executable">Executable value supplied to the windows local console platform operation and used when producing its result.</param>
+    /// <param name="shell">Shell value supplied to the windows local console platform operation and used when producing its result.</param>
+    /// <param name="arguments">Arguments value supplied to the windows local console platform operation and used when producing its result.</param>
+    /// <returns>The local console platform command produced by the operation.</returns>
     private LocalConsolePlatformCommand Create(string executable, LocalConsoleShellKind shell, List<string> arguments) 
     {
         try
@@ -102,6 +123,10 @@ public sealed class WindowsLocalConsolePlatformService : ILocalConsolePlatformSe
         }
     }
 
+    /// <summary>
+    /// Resolves power shell executable as part of the windows local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <returns>The string produced by the operation.</returns>
     private string ResolvePowerShellExecutable()
     {
         try
@@ -126,6 +151,9 @@ public sealed class WindowsLocalConsolePlatformService : ILocalConsolePlatformSe
 /// <summary>Unix/macOS/Linux shell resolution for the shared console service.</summary>
 public sealed class UnixLocalConsolePlatformService : ILocalConsolePlatformService
 {
+    /// <summary>
+    /// Resolves shell as part of the unix local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public LocalConsoleShellKind ResolveShell(LocalConsoleShellKind requestedShell) 
     {
@@ -140,6 +168,9 @@ public sealed class UnixLocalConsolePlatformService : ILocalConsolePlatformServi
         }
     }
 
+    /// <summary>
+    /// Creates shell command as part of the unix local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public LocalConsolePlatformCommand CreateShellCommand(LocalConsoleShellKind shell, string commandText)
     {
@@ -162,6 +193,9 @@ public sealed class UnixLocalConsolePlatformService : ILocalConsolePlatformServi
         }
     }
 
+    /// <summary>
+    /// Creates power shell script command as part of the unix local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public LocalConsolePlatformCommand CreatePowerShellScriptCommand(string scriptPath)
     {
@@ -179,6 +213,11 @@ public sealed class UnixLocalConsolePlatformService : ILocalConsolePlatformServi
         }
     }
 
+    /// <summary>
+    /// Performs format display argument as part of the unix local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="value">Value value supplied to the unix local console platform operation and used when producing its result.</param>
+    /// <returns>The string produced by the operation.</returns>
     private string FormatDisplayArgument(string value) 
     {
         try
@@ -192,6 +231,13 @@ public sealed class UnixLocalConsolePlatformService : ILocalConsolePlatformServi
         }
     }
 
+    /// <summary>
+    /// Performs create as part of the unix local console platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
+    /// <param name="executable">Executable value supplied to the unix local console platform operation and used when producing its result.</param>
+    /// <param name="shell">Shell value supplied to the unix local console platform operation and used when producing its result.</param>
+    /// <param name="arguments">Arguments value supplied to the unix local console platform operation and used when producing its result.</param>
+    /// <returns>The local console platform command produced by the operation.</returns>
     private LocalConsolePlatformCommand Create(string executable, LocalConsoleShellKind shell, List<string> arguments) 
     {
         try

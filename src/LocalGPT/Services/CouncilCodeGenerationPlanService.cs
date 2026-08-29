@@ -9,6 +9,7 @@ namespace LocalGPT.Services;
 /// Coordinates council code generation plan behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the council code generation plan workflow to provide the corresponding application capability.</param>
 public sealed class CouncilCodeGenerationPlanService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilCodeGenerationPlanService> logger) : ICouncilCodeGenerationPlanService

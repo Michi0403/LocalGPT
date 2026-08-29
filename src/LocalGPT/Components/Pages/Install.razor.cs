@@ -75,6 +75,7 @@ namespace LocalGPT.Components.Pages
     }
 
     /// <summary>Opens the service-backed setup assistant where provider installation, start, model and endpoint actions are confirmation-gated.</summary>
+    /// <returns>A task that completes when the operation has finished.</returns>
     private Task OpenGuidedRuntimeSetup()
     {
         InstallSectionUserSelected = true;

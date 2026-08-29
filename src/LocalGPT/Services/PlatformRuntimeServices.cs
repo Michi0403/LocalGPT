@@ -7,18 +7,33 @@ namespace LocalGPT.Services;
 /// <summary>Windows filesystem and platform identity implementation.</summary>
 public sealed class WindowsPlatformRuntimeService : IPlatformRuntimeService
 {
+    /// <summary>
+    /// Gets the toolchain platform value that forms part of the windows platform runtime state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     public ToolchainPlatformKind ToolchainPlatform => ToolchainPlatformKind.Windows;
 
+    /// <summary>
+    /// Gets the provider bootstrap token value that forms part of the windows platform runtime state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     public string ProviderBootstrapToken => "windows";
 
+    /// <summary>
+    /// Gets the path comparer used by this windows platform runtime instance to locate the associated file-system resource.
+    /// </summary>
     /// <inheritdoc />
     public StringComparer PathComparer => StringComparer.OrdinalIgnoreCase;
 
+    /// <summary>
+    /// Gets the path comparison used by this windows platform runtime instance to locate the associated file-system resource.
+    /// </summary>
     /// <inheritdoc />
     public StringComparison PathComparison => StringComparison.OrdinalIgnoreCase;
 
+    /// <summary>
+    /// Normalizes absolute path as part of the windows platform runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public string NormalizeAbsolutePath(string path) 
     {
@@ -33,6 +48,9 @@ public sealed class WindowsPlatformRuntimeService : IPlatformRuntimeService
         }
     }
 
+    /// <summary>
+    /// Performs paths equal as part of the windows platform runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public bool PathsEqual(string left, string right) 
     {
@@ -47,6 +65,9 @@ public sealed class WindowsPlatformRuntimeService : IPlatformRuntimeService
         }
     }
 
+    /// <summary>
+    /// Determines whether same or descendant path as part of the windows platform runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public bool IsSameOrDescendantPath(string root, string candidate)
     {
@@ -69,6 +90,9 @@ public sealed class WindowsPlatformRuntimeService : IPlatformRuntimeService
         }
     }
 
+    /// <summary>
+    /// Determines whether protected workspace root as part of the windows platform runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public bool IsProtectedWorkspaceRoot(string path)
     {
@@ -101,9 +125,18 @@ public sealed class WindowsPlatformRuntimeService : IPlatformRuntimeService
 /// <summary>Unix/macOS/Linux filesystem and platform identity implementation.</summary>
 public sealed class UnixPlatformRuntimeService : IPlatformRuntimeService
 {
+    /// <summary>
+    /// Stores the internal is mac OS state used by <see cref="UnixPlatformRuntimeService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly bool isMacOS = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+    /// <summary>
+    /// Stores the internal is linux state used by <see cref="UnixPlatformRuntimeService"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly bool isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
 
+    /// <summary>
+    /// Gets the toolchain platform value that forms part of the unix platform runtime state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     public ToolchainPlatformKind ToolchainPlatform => isMacOS
         ? ToolchainPlatformKind.MacOS
@@ -111,15 +144,27 @@ public sealed class UnixPlatformRuntimeService : IPlatformRuntimeService
             ? ToolchainPlatformKind.Linux
             : ToolchainPlatformKind.Other;
 
+    /// <summary>
+    /// Gets the provider bootstrap token value that forms part of the unix platform runtime state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     public string ProviderBootstrapToken => isMacOS ? "macos" : isLinux ? "linux" : "other";
 
+    /// <summary>
+    /// Gets the path comparer used by this unix platform runtime instance to locate the associated file-system resource.
+    /// </summary>
     /// <inheritdoc />
     public StringComparer PathComparer => StringComparer.Ordinal;
 
+    /// <summary>
+    /// Gets the path comparison used by this unix platform runtime instance to locate the associated file-system resource.
+    /// </summary>
     /// <inheritdoc />
     public StringComparison PathComparison => StringComparison.Ordinal;
 
+    /// <summary>
+    /// Normalizes absolute path as part of the unix platform runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public string NormalizeAbsolutePath(string path) 
     {
@@ -134,6 +179,9 @@ public sealed class UnixPlatformRuntimeService : IPlatformRuntimeService
         }
     }
 
+    /// <summary>
+    /// Performs paths equal as part of the unix platform runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public bool PathsEqual(string left, string right) 
     {
@@ -148,6 +196,9 @@ public sealed class UnixPlatformRuntimeService : IPlatformRuntimeService
         }
     }
 
+    /// <summary>
+    /// Determines whether same or descendant path as part of the unix platform runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public bool IsSameOrDescendantPath(string root, string candidate)
     {
@@ -170,6 +221,9 @@ public sealed class UnixPlatformRuntimeService : IPlatformRuntimeService
         }
     }
 
+    /// <summary>
+    /// Determines whether protected workspace root as part of the unix platform runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public bool IsProtectedWorkspaceRoot(string path)
     {

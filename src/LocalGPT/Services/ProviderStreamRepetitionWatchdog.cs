@@ -10,29 +10,94 @@ namespace LocalGPT.Services;
 /// </summary>
 internal sealed class ProviderStreamRepetitionWatchdog
 {
+    /// <summary>
+    /// Stores the logger used by <see cref="ProviderStreamRepetitionWatchdog"/> to record operational diagnostics without coupling callers to logging details.
+    /// </summary>
     private readonly ILogger logger;
+    /// <summary>
+    /// Stores the internal enabled state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly bool enabled;
+    /// <summary>
+    /// Stores the internal maximum buffered characters state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly int maximumBufferedCharacters;
+    /// <summary>
+    /// Stores the internal minimum observed characters state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly int minimumObservedCharacters;
+    /// <summary>
+    /// Stores the internal minimum analyzed tokens state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly int minimumAnalyzedTokens;
+    /// <summary>
+    /// Stores the internal maximum period tokens state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly int maximumPeriodTokens;
+    /// <summary>
+    /// Stores the internal short period maximum tokens state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly int shortPeriodMaximumTokens;
+    /// <summary>
+    /// Stores the internal minimum repeated cycles state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly int minimumRepeatedCycles;
+    /// <summary>
+    /// Stores the internal minimum long period repeated cycles state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly int minimumLongPeriodRepeatedCycles;
+    /// <summary>
+    /// Stores the internal minimum periodic agreement state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly double minimumPeriodicAgreement;
+    /// <summary>
+    /// Stores the internal minimum long period agreement state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly double minimumLongPeriodAgreement;
+    /// <summary>
+    /// Stores the internal required suspicious samples state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly int requiredSuspiciousSamples;
+    /// <summary>
+    /// Stores the internal initial observation delay state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly TimeSpan initialObservationDelay;
+    /// <summary>
+    /// Stores the internal sample interval state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly TimeSpan sampleInterval;
+    /// <summary>
+    /// Stores the internal minimum suspicious duration state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly TimeSpan minimumSuspiciousDuration;
+    /// <summary>
+    /// Stores the internal recent text state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private readonly StringBuilder recentText = new();
+    /// <summary>
+    /// Stores the synchronization primitive that protects concurrent access to generation clock state owned by <see cref="ProviderStreamRepetitionWatchdog"/>.
+    /// </summary>
     private readonly Stopwatch generationClock = new();
+    /// <summary>
+    /// Stores the internal observed characters state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private long observedCharacters;
+    /// <summary>
+    /// Stores the internal last sample at state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private TimeSpan lastSampleAt;
+    /// <summary>
+    /// Stores the internal suspicious since state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private TimeSpan? suspiciousSince;
+    /// <summary>
+    /// Stores the internal suspicious samples state used by <see cref="ProviderStreamRepetitionWatchdog"/> while executing its surrounding workflow.
+    /// </summary>
     private int suspiciousSamples;
 
     /// <summary>Creates a repetition watchdog from database-backed operator policy.</summary>
+    /// <param name="catalog">Local gpt catalog service dependency used by the provider stream repetition watchdog workflow to provide the corresponding application capability.</param>
+    /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     public ProviderStreamRepetitionWatchdog(LocalGptCatalogService catalog, ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(catalog);
@@ -54,6 +119,8 @@ internal sealed class ProviderStreamRepetitionWatchdog
     }
 
     /// <summary>Observes one provider-generated fragment and returns a failure only when the operator enabled the watchdog.</summary>
+    /// <param name="fragment">Fragment value supplied to the provider stream repetition watchdog operation and used when producing its result.</param>
+    /// <returns>The provider stream repetition exception produced by the operation.</returns>
     public ProviderStreamRepetitionException? Observe(string? fragment)
     {
         try
@@ -97,6 +164,14 @@ internal sealed class ProviderStreamRepetitionWatchdog
         }
     }
 
+    /// <summary>
+    /// Attempts to find repeated token cycle for <see cref="ProviderStreamRepetitionWatchdog"/>, keeping the operation consistent with the state and invariants of the surrounding provider stream repetition watchdog workflow.
+    /// </summary>
+    /// <param name="text">Text value supplied to the provider stream repetition watchdog operation and used when producing its result.</param>
+    /// <param name="patternPreview">Pattern preview value supplied to the provider stream repetition watchdog operation and used when producing its result.</param>
+    /// <param name="periodTokens">Period tokens value supplied to the provider stream repetition watchdog operation and used when producing its result.</param>
+    /// <param name="agreement">Agreement value supplied to the provider stream repetition watchdog operation and used when producing its result.</param>
+    /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
     private bool TryFindRepeatedTokenCycle(string text, out string patternPreview, out int periodTokens, out double agreement)
     {
         try
@@ -167,6 +242,14 @@ internal sealed class ProviderStreamRepetitionWatchdog
 /// <summary>Identifies a provider request intentionally stopped by an explicitly enabled repetition watchdog.</summary>
 internal sealed class ProviderStreamRepetitionException : InvalidOperationException
 {
+    /// <summary>
+    /// Initializes a new <see cref="ProviderStreamRepetitionException"/> instance and captures the dependencies or initial state required by its provider stream repetition exception workflow.
+    /// </summary>
+    /// <param name="patternPreview">Pattern preview value supplied to the provider stream repetition exception operation and used when producing its result.</param>
+    /// <param name="periodTokens">Period tokens value supplied to the provider stream repetition exception operation and used when producing its result.</param>
+    /// <param name="agreement">Agreement value supplied to the provider stream repetition exception operation and used when producing its result.</param>
+    /// <param name="observedSeconds">Observed seconds value supplied to the provider stream repetition exception operation and used when producing its result.</param>
+    /// <param name="suspiciousSamples">Suspicious samples value supplied to the provider stream repetition exception operation and used when producing its result.</param>
     public ProviderStreamRepetitionException(string patternPreview, int periodTokens, double agreement, double observedSeconds, int suspiciousSamples)
         : base(
             $"Provider stream repetition watchdog stopped runaway generation after {observedSeconds:0.0}s because a " +
@@ -180,9 +263,29 @@ internal sealed class ProviderStreamRepetitionException : InvalidOperationExcept
         SuspiciousSamples = suspiciousSamples;
     }
 
+    /// <summary>
+    /// Gets the pattern preview value that forms part of the provider stream repetition exception state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The pattern preview value exposed by <see cref="ProviderStreamRepetitionException"/>.</value>
     public string PatternPreview { get; }
+    /// <summary>
+    /// Gets the period tokens value that forms part of the provider stream repetition exception state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The period tokens value exposed by <see cref="ProviderStreamRepetitionException"/>.</value>
     public int PeriodTokens { get; }
+    /// <summary>
+    /// Gets the agreement value that forms part of the provider stream repetition exception state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The agreement value exposed by <see cref="ProviderStreamRepetitionException"/>.</value>
     public double Agreement { get; }
+    /// <summary>
+    /// Gets the observed seconds value that forms part of the provider stream repetition exception state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The observed seconds value exposed by <see cref="ProviderStreamRepetitionException"/>.</value>
     public double ObservedSeconds { get; }
+    /// <summary>
+    /// Gets the suspicious samples value that forms part of the provider stream repetition exception state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The suspicious samples value exposed by <see cref="ProviderStreamRepetitionException"/>.</value>
     public int SuspiciousSamples { get; }
 }

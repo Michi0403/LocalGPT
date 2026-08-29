@@ -11,6 +11,7 @@ namespace LocalGPT.Services;
 /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
 /// <param name="platform">Platform runtime service used for cross-platform process and filesystem behavior during artifact builds.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the artifact build executor workflow to provide the corresponding application capability.</param>
 public sealed class ArtifactBuildExecutor(
     IOptionsMonitor<ArtifactBuildOptions> options,
     IPlatformRuntimeService platform,

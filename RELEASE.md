@@ -1,7 +1,7 @@
-# LocalGPT 3.4.9
+# LocalGPT 3.5.0
 
-LocalGPT 3.4.9 is the **Operator Policy and Cross-Platform Release Packaging** release.
+LocalGPT 3.5.0 is the **Build Maintenance and Cross-Platform Review** release.
 
-It removes remaining hidden local-runtime ceilings identified during review, keeps permissive operator-owned limits in the persisted runtime-policy structure, and completes the source-side release packaging refactor for Windows, macOS, and Linux.
+It repairs the reported `EmbeddedTelemetryIngressService` compiler break, keeps telemetry retention operator-owned, hardens Debug documentation/Pages handling, completes static XML-documentation maintenance, and revalidates the Windows/macOS/Linux release architecture against the supplied older baseline.
 
-This handoff is source-only. No .NET build and no GitHub access are used as evidence while preparing it. See `CHANGELOG-v3.4.9-OPERATOR-POLICY-RELEASE-PACKAGING.md` and `VALIDATION-v3.4.9-source.md`.
+This handoff is source-only. No .NET build and no GitHub access are used as evidence while preparing it. See `CHANGELOG-v3.5.0-BUILD-MAINTENANCE-CROSS-PLATFORM-REVIEW.md` and `VALIDATION-v3.5.0-source.md`.

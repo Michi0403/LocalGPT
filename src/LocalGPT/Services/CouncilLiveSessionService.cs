@@ -9,14 +9,35 @@ namespace LocalGPT.Services;
 /// Coordinates council live session behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the council live session workflow to provide the corresponding application capability.</param>
 public sealed class CouncilLiveSessionService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<CouncilLiveSessionService> logger) : ICouncilLiveSessionService
 {
+    /// <summary>
+    /// Gets the max transcript characters value that forms part of the council live session state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The max transcript characters value exposed by <see cref="CouncilLiveSessionService"/>.</value>
     private int MaxTranscriptCharacters => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilLiveMaximumTranscriptCharacters));
+    /// <summary>
+    /// Gets the transcript trim target characters value that forms part of the council live session state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The transcript trim target characters value exposed by <see cref="CouncilLiveSessionService"/>.</value>
     private int TranscriptTrimTargetCharacters => Math.Max(1, MaxTranscriptCharacters - Math.Max(1, MaxTranscriptCharacters / 8));
+    /// <summary>
+    /// Gets the max participant activity characters value that forms part of the council live session state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The max participant activity characters value exposed by <see cref="CouncilLiveSessionService"/>.</value>
     private int MaxParticipantActivityCharacters => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilLiveMaximumParticipantActivityCharacters));
+    /// <summary>
+    /// Gets the participant activity trim target characters value that forms part of the council live session state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The participant activity trim target characters value exposed by <see cref="CouncilLiveSessionService"/>.</value>
     private int ParticipantActivityTrimTargetCharacters => Math.Max(1, MaxParticipantActivityCharacters - Math.Max(1, MaxParticipantActivityCharacters / 8));
+    /// <summary>
+    /// Gets the live transcript display characters value that forms part of the council live session state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The live transcript display characters value exposed by <see cref="CouncilLiveSessionService"/>.</value>
     private int LiveTranscriptDisplayCharacters => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilLiveMaximumDisplayCharacters));
 
     /// <summary>Maximum transient stream projection for a participant that is still actively producing output.</summary>

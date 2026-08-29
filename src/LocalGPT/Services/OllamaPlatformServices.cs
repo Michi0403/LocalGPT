@@ -5,6 +5,9 @@ namespace LocalGPT.Services;
 /// <summary>Shared executable-search helpers for operating-system-specific Ollama platform services.</summary>
 public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
 {
+    /// <summary>
+    /// Gets the platform name value that forms part of the Ollama platform service base state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     public abstract string PlatformName { get; }
 
@@ -13,11 +16,16 @@ public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
     protected abstract IEnumerable<string> GetKnownExecutableCandidates();
 
     /// <summary>Gets the comparer used to de-duplicate executable paths on the current host filesystem.</summary>
+    /// <value>The executable path comparer value exposed by <see cref="OllamaPlatformServiceBase"/>.</value>
     protected virtual StringComparer ExecutablePathComparer => StringComparer.Ordinal;
 
     /// <summary>Gets the executable file name expected on the current operating system.</summary>
+    /// <value>The executable name value exposed by <see cref="OllamaPlatformServiceBase"/>.</value>
     protected virtual string ExecutableName => "ollama";
 
+    /// <summary>
+    /// Resolves executable for <see cref="OllamaPlatformServiceBase"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama platform service base workflow.
+    /// </summary>
     /// <inheritdoc />
     public string? ResolveExecutable()
     {
@@ -43,6 +51,9 @@ public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
         }
     }
 
+    /// <summary>
+    /// Determines whether gui executable for <see cref="OllamaPlatformServiceBase"/>, keeping the operation consistent with the state and invariants of the surrounding Ollama platform service base workflow.
+    /// </summary>
     /// <inheritdoc />
     public virtual bool IsGuiExecutable(string executable)
     {
@@ -80,15 +91,27 @@ public abstract class OllamaPlatformServiceBase : IOllamaPlatformService
 /// <summary>Resolves Windows Ollama installations from standard per-user/system locations and PATH.</summary>
 public sealed class WindowsOllamaPlatformService : OllamaPlatformServiceBase
 {
+    /// <summary>
+    /// Gets the executable path comparer used by this windows Ollama platform instance to locate the associated file-system resource.
+    /// </summary>
     /// <inheritdoc />
     protected override StringComparer ExecutablePathComparer => StringComparer.OrdinalIgnoreCase;
 
+    /// <summary>
+    /// Gets the platform name value that forms part of the windows Ollama platform state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     public override string PlatformName => "Windows";
 
+    /// <summary>
+    /// Gets the executable name value that forms part of the windows Ollama platform state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     protected override string ExecutableName => "ollama.exe";
 
+    /// <summary>
+    /// Retrieves known executable candidates as part of the windows Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     protected override IEnumerable<string> GetKnownExecutableCandidates()
     {
@@ -120,6 +143,9 @@ public sealed class WindowsOllamaPlatformService : OllamaPlatformServiceBase
         }
     }
 
+    /// <summary>
+    /// Determines whether gui executable as part of the windows Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public override bool IsGuiExecutable(string executable)
     {
@@ -142,9 +168,15 @@ public sealed class WindowsOllamaPlatformService : OllamaPlatformServiceBase
 /// <summary>Resolves native macOS Ollama command-line installations from Homebrew/common user locations and PATH.</summary>
 public sealed class MacOsOllamaPlatformService : OllamaPlatformServiceBase
 {
+    /// <summary>
+    /// Gets the platform name value that forms part of the mac OS Ollama platform state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     public override string PlatformName => "macOS";
 
+    /// <summary>
+    /// Retrieves known executable candidates as part of the mac OS Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     protected override IEnumerable<string> GetKnownExecutableCandidates()
     {
@@ -163,9 +195,15 @@ public sealed class MacOsOllamaPlatformService : OllamaPlatformServiceBase
 /// <summary>Resolves Linux Ollama command-line installations from common system/user locations and PATH.</summary>
 public sealed class LinuxOllamaPlatformService : OllamaPlatformServiceBase
 {
+    /// <summary>
+    /// Gets the platform name value that forms part of the linux Ollama platform state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     public override string PlatformName => "Linux";
 
+    /// <summary>
+    /// Retrieves known executable candidates as part of the linux Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     protected override IEnumerable<string> GetKnownExecutableCandidates()
     {
@@ -184,9 +222,15 @@ public sealed class LinuxOllamaPlatformService : OllamaPlatformServiceBase
 /// <summary>Fallback platform service that restricts Ollama discovery to PATH on unsupported operating systems.</summary>
 public sealed class GenericOllamaPlatformService : OllamaPlatformServiceBase
 {
+    /// <summary>
+    /// Gets the platform name value that forms part of the generic Ollama platform state consumed or produced by the surrounding workflow.
+    /// </summary>
     /// <inheritdoc />
     public override string PlatformName => "Other";
 
+    /// <summary>
+    /// Retrieves known executable candidates as part of the generic Ollama platform service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     protected override IEnumerable<string> GetKnownExecutableCandidates()
     {

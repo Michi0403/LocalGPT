@@ -2568,6 +2568,22 @@ finally {
     Remove-LocalGptTemporaryPath -Path $printBookRoot -Attempts 8 -DelayMilliseconds 250
 }
 
+# HTML-only Debug documentation intentionally has no standalone PDF. Keep the generated
+# documentation self-consistent by disabling the handbook link instead of publishing a broken local link.
+if (-not $pdfGenerated) {
+    $escapedPdfName = [regex]::Escape($pdfName)
+    foreach ($htmlFile in Get-ChildItem -LiteralPath $siteRoot -Filter "*.html" -File -Recurse -ErrorAction SilentlyContinue) {
+        $htmlText = [IO.File]::ReadAllText($htmlFile.FullName)
+        $updatedHtmlText = [regex]::Replace(
+            $htmlText,
+            '(?i)href=(?<quote>["''])(?:\.\./|\./)?' + $escapedPdfName + '\k<quote>',
+            'href="#" aria-disabled="true" data-localgpt-pdf-unavailable="true" title="PDF handbook is available in Release documentation"')
+        if (-not [string]::Equals($htmlText, $updatedHtmlText, [StringComparison]::Ordinal)) {
+            [IO.File]::WriteAllText($htmlFile.FullName, $updatedHtmlText, [Text.UTF8Encoding]::new($false))
+        }
+    }
+}
+
 # GitHub Pages must serve the generated DocFX files verbatim rather than passing them through Jekyll.
 $noJekyllPath = Join-Path $siteRoot ".nojekyll"
 if (-not (Test-Path -LiteralPath $noJekyllPath -PathType Leaf)) {

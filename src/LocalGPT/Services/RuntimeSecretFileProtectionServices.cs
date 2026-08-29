@@ -5,6 +5,9 @@ namespace LocalGPT.Services;
 /// <summary>Windows runtime-secret protection implementation. The containing user profile/application ACL remains authoritative.</summary>
 public sealed class WindowsRuntimeSecretFileProtectionService : IRuntimeSecretFileProtectionService
 {
+    /// <summary>
+    /// Performs restrict to current user as part of the windows runtime secret file protection service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public void RestrictToCurrentUser(string path)
     {
@@ -22,8 +25,12 @@ public sealed class WindowsRuntimeSecretFileProtectionService : IRuntimeSecretFi
 }
 
 /// <summary>Unix runtime-secret protection implementation using owner-only file mode.</summary>
+/// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class UnixRuntimeSecretFileProtectionService(ILogger<UnixRuntimeSecretFileProtectionService> logger) : IRuntimeSecretFileProtectionService
 {
+    /// <summary>
+    /// Performs restrict to current user as part of the unix runtime secret file protection service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// </summary>
     /// <inheritdoc />
     public void RestrictToCurrentUser(string path)
     {

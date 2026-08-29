@@ -11,6 +11,7 @@ namespace LocalGPT.Services;
 /// uploaded content, generated source, parameters, and full exception text are excluded.
 /// </summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the component activity workflow to provide the corresponding application capability.</param>
 public sealed class ComponentActivityService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<ComponentActivityService> logger) :

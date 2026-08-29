@@ -426,6 +426,7 @@ namespace LocalGPT.Services
         }
 
         /// <summary>Returns the host-specific command users can run to build the generated workspace.</summary>
+        /// <returns>The string produced by the operation.</returns>
         private string CreateBuildCommandDisplay()
         {
             try

@@ -89,13 +89,15 @@ function Assert-LocalGptDocumentationPayload {
         throw "Published LocalGPT documentation version '$($status.version)' does not match application version '$Version'."
     }
     $versionedPdfs = @(Get-ChildItem -LiteralPath $DocumentationRoot -File -Filter 'LocalGPT-*.pdf' -ErrorAction SilentlyContinue)
+    $versionedPdfNames = @($versionedPdfs | ForEach-Object { $_.Name })
+    $versionedPdfDisplay = if ($versionedPdfNames.Count -eq 0) { '<none>' } else { $versionedPdfNames -join ', ' }
     if ($RequirePhysicalPdf) {
         if ($versionedPdfs.Count -ne 1 -or -not [string]::Equals($versionedPdfs[0].Name, "LocalGPT-$Version.pdf", [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Published LocalGPT documentation must contain exactly one current versioned PDF (LocalGPT-$Version.pdf). Found: $($versionedPdfs.Name -join ', ')"
+            throw "Published LocalGPT documentation must contain exactly one current versioned PDF (LocalGPT-$Version.pdf). Found: $versionedPdfDisplay"
         }
     }
     elseif ($versionedPdfs.Count -ne 0) {
-        throw "Runtime HTML documentation must not duplicate the standalone release PDF. Found: $($versionedPdfs.Name -join ', ')"
+        throw "Runtime HTML documentation must not duplicate the standalone release PDF. Found: $versionedPdfDisplay"
     }
     $apiIndex = Join-Path $DocumentationRoot 'api/index.html'
     if (-not (Test-Path -LiteralPath $apiIndex -PathType Leaf)) { throw "Published LocalGPT documentation is missing api/index.html: $apiIndex" }

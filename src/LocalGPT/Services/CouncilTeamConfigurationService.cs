@@ -56,8 +56,20 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
     /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
     private const int CurrentSeedVersion = 27;
+    /// <summary>
+    /// Gets the max roles value that forms part of the council team configuration state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The max roles value exposed by <see cref="CouncilTeamConfigurationService"/>.</value>
     private int MaxRoles => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilTeamMaximumRoles));
+    /// <summary>
+    /// Gets the max workflow steps value that forms part of the council team configuration state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The max workflow steps value exposed by <see cref="CouncilTeamConfigurationService"/>.</value>
     private int MaxWorkflowSteps => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilTeamMaximumWorkflowSteps));
+    /// <summary>
+    /// Gets the max expanded workflow steps value that forms part of the council team configuration state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The max expanded workflow steps value exposed by <see cref="CouncilTeamConfigurationService"/>.</value>
     private int MaxExpandedWorkflowSteps => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.CouncilTeamMaximumExpandedWorkflowSteps));
 
     /// <summary>

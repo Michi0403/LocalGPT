@@ -41,8 +41,10 @@ namespace LocalGPT.Services
         private readonly IPlatformRuntimeService platform;
 
         /// <summary>Gets the database-backed operator ceiling for automatic Ollama tool rounds.</summary>
+        /// <value>The Ollama maximum automatic tool rounds value exposed by <see cref="CouncilRuntimeService"/>.</value>
         internal int OllamaMaximumAutomaticToolRounds => Math.Max(1, catalog.OllamaMaximumAutomaticToolRounds);
         /// <summary>Gets the database-backed operator ceiling for Ollama tool-result characters.</summary>
+        /// <value>The Ollama maximum tool result characters value exposed by <see cref="CouncilRuntimeService"/>.</value>
         internal int OllamaMaximumToolResultCharacters => Math.Max(1, catalog.OllamaMaximumToolResultCharacters);
 
         /// <summary>

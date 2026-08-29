@@ -7,6 +7,7 @@ namespace LocalGPT.Services.Persistence;
 /// Coordinates one wire replay policy behavior for the application, centralizing the workflow, policy, and diagnostics needed by its callers.
 /// </summary>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the one wire replay policy workflow to provide the corresponding application capability.</param>
 public sealed class OneWireReplayPolicyDataService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILogger<OneWireReplayPolicyDataService> logger) : IOneWireReplayPolicyDataService

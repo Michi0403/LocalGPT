@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.WebUtilities;
 using LocalGPT.BusinessObjects;
+using LocalGPT.Interfaces;
 
 namespace LocalGPT.Services.Localization;
 
@@ -98,6 +99,7 @@ public interface ILocalGptLocalizationService
 /// </summary>
 /// <param name="environment">Provides the application content root containing built-in catalogs.</param>
 /// <param name="logger">Writes bounded catalog discovery and validation diagnostics.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the local GPT localization workflow to provide the corresponding application capability.</param>
 [DocumentationUpdated("2.2.8")]
 public sealed class LocalGptLocalizationService(
     IWebHostEnvironment environment,

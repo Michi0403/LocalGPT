@@ -13,6 +13,7 @@ namespace LocalGPT.Services;
 /// <param name="dbContextFactory">Local gpt memory database context dependency used by the deferred DevExpress AI invocation workflow to provide the corresponding application capability.</param>
 /// <param name="scopeFactory">Service scope factory dependency used by the deferred DevExpress AI invocation workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the deferred DevExpress AI invocation workflow to provide the corresponding application capability.</param>
 public sealed class DeferredDxAiInvocationService(ILocalGptVocabularyService vocabulary,
     
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,

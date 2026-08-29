@@ -1,6 +1,7 @@
 param(
     [string]$DocumentationRoot = "",
-    [string]$OutputArchive = ""
+    [string]$OutputArchive = "",
+    [switch]$AllowMissingPdf
 )
 
 $ErrorActionPreference = "Stop"
@@ -66,13 +67,42 @@ if ([string]::IsNullOrWhiteSpace($DocumentationRoot)) {
     Write-Host "Selected version-matched LocalGPT documentation output: $DocumentationRoot" -ForegroundColor Cyan
 }
 $DocumentationRoot = [IO.Path]::GetFullPath($DocumentationRoot)
-$versionedDocumentationPdfs = @(Get-ChildItem -LiteralPath $DocumentationRoot -File -Filter 'LocalGPT-*.pdf' -ErrorAction SilentlyContinue)
-$expectedDocumentationPdf = 'LocalGPT-' + $expectedVersion + '.pdf'
-if ($versionedDocumentationPdfs.Count -ne 1 -or -not [string]::Equals($versionedDocumentationPdfs[0].Name, $expectedDocumentationPdf, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "LocalGPT Pages source must contain exactly one current versioned PDF '$expectedDocumentationPdf'. Found: $($versionedDocumentationPdfs.Name -join ', ')"
-}
 if (-not (Test-Path -LiteralPath $DocumentationRoot -PathType Container)) {
     throw "Generated LocalGPT documentation was not found: $DocumentationRoot"
+}
+$versionedDocumentationPdfs = @(Get-ChildItem -LiteralPath $DocumentationRoot -File -Filter 'LocalGPT-*.pdf' -ErrorAction SilentlyContinue)
+$expectedDocumentationPdf = 'LocalGPT-' + $expectedVersion + '.pdf'
+$foundPdfNames = @($versionedDocumentationPdfs | ForEach-Object { $_.Name })
+
+if ($versionedDocumentationPdfs.Count -eq 0 -and $AllowMissingPdf) {
+    $statusPath = Join-Path $DocumentationRoot 'documentation-status.json'
+    if (-not (Test-Path -LiteralPath $statusPath -PathType Leaf)) {
+        throw "Generated LocalGPT documentation is missing documentation-status.json: $DocumentationRoot"
+    }
+    $status = [IO.File]::ReadAllText($statusPath) | ConvertFrom-Json
+    $pdfAvailableProperty = $status.PSObject.Properties['pdfAvailable']
+    if ($null -eq $pdfAvailableProperty -or [bool]$pdfAvailableProperty.Value) {
+        throw "LocalGPT documentation omitted '$expectedDocumentationPdf' without declaring pdfAvailable=false."
+    }
+
+    $validator = Join-Path $repositoryRoot ".github/scripts/prepare-pages-artifact.py"
+    if (-not (Test-Path -LiteralPath $validator -PathType Leaf)) {
+        throw "Repository-root GitHub Pages validator was not found: $validator"
+    }
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $python) { $python = Get-Command python3 -ErrorAction SilentlyContinue }
+    if ($null -eq $python) { throw "Python 3 is required to validate the GitHub Pages documentation." }
+    & $python.Source $validator --source $DocumentationRoot --html-only
+    if ($LASTEXITCODE -ne 0) {
+        throw "Generated LocalGPT HTML documentation failed validation for version $expectedVersion."
+    }
+    Write-Host "Validated LocalGPT $expectedVersion HTML documentation. A PDF was not required for this build, so the tracked Pages release snapshot was left unchanged." -ForegroundColor Green
+    return
+}
+
+if ($versionedDocumentationPdfs.Count -ne 1 -or -not [string]::Equals($versionedDocumentationPdfs[0].Name, $expectedDocumentationPdf, [StringComparison]::OrdinalIgnoreCase)) {
+    $found = if ($foundPdfNames.Count -eq 0) { '<none>' } else { $foundPdfNames -join ', ' }
+    throw "LocalGPT Pages source must contain exactly one current versioned PDF '$expectedDocumentationPdf'. Found: $found"
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputArchive)) {

@@ -14,6 +14,7 @@ namespace LocalGPT.Services;
 /// <param name="dbContextFactory">Local gpt memory database context dependency used by the safe text document workflow to provide the corresponding application capability.</param>
 /// <param name="databaseInitializer">Database initialization service dependency used by the safe text document workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+/// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the safe text document workflow to provide the corresponding application capability.</param>
 public sealed class SafeTextDocumentService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,

@@ -15,6 +15,7 @@ namespace LocalGPT.Services
     /// <param name="databaseOptions">Database options value supplied to the sqlite table editor operation and used when producing its result.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
     /// <param name="sqliteUtility">Sqlite utility service dependency used by the sqlite table editor workflow to provide the corresponding application capability.</param>
+    /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the sqlite table editor workflow to provide the corresponding application capability.</param>
     public sealed class SqliteTableEditorService(
         IDatabaseInitializationService databaseInitializer,
         LocalGptDatabaseOptions databaseOptions,

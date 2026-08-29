@@ -24,7 +24,7 @@ try:
         raise AssertionError('repetition watchdog must ship disabled (opt-in)')
     if re.search(r'const\s+(?:int|double|TimeSpan)\s+(?:MaximumBufferedCharacters|MinimumObservedCharacters|MinimumAnalyzedTokens|MaximumPeriodTokens|RequiredSuspiciousSamples)',watch):
         raise AssertionError('watchdog still owns developer hard-coded resource/threshold constants')
-    if 'if (!enabled)' not in watch: raise AssertionError('disabled watchdog fast path is missing')
+    if not re.search(r'if\s*\(\s*!enabled(?:\s*\|\||\s*\))', watch): raise AssertionError('disabled watchdog fast path is missing')
     if 'catalog.ProviderStreamRepetition' not in watch: raise AssertionError('watchdog does not consume central runtime policy')
     # Preserve previous behavior only as configurable seed values, never as source-owned ceilings.
     expected=['32768','1024','72','512','32','6','4','9700','9850','4','4000','2000','6000']

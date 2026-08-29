@@ -114,6 +114,10 @@ public sealed class ThemeService
     /// </summary>
     /// <value>The active theme value exposed by <see cref="ThemeService"/>.</value>
     public Theme ActiveTheme => ActiveComponentTheme;
+    /// <summary>
+    /// Gets the max fusion route steps value that forms part of the theme state consumed or produced by the surrounding workflow.
+    /// </summary>
+    /// <value>The max fusion route steps value exposed by <see cref="ThemeService"/>.</value>
     private int MaxFusionRouteSteps => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ThemeMaximumFusionRouteSteps));
 
     /// <summary>

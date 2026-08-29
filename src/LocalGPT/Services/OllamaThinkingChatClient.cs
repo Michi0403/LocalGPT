@@ -16,8 +16,10 @@ namespace LocalGPT.Services;
 public sealed partial class OllamaThinkingChatClient : IChatClient
 {
     /// <summary>Gets the operator-configured automatic tool-loop ceiling from database-backed runtime policy.</summary>
+    /// <value>The max automatic tool rounds value exposed by <see cref="OllamaThinkingChatClient"/>.</value>
     private int MaxAutomaticToolRounds => councilRuntime.OllamaMaximumAutomaticToolRounds;
     /// <summary>Gets the operator-configured tool-result character ceiling from database-backed runtime policy.</summary>
+    /// <value>The max tool result characters value exposed by <see cref="OllamaThinkingChatClient"/>.</value>
     private int MaxToolResultCharacters => councilRuntime.OllamaMaximumToolResultCharacters;
 
     /// <summary>
