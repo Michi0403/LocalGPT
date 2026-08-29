@@ -386,8 +386,8 @@ public sealed class ThemeJsChangeDispatcher : ComponentBase, IThemeChangeRequest
             if (browserSteps is null || browserSteps.Count == 0)
                 return [];
 
-            var route = new List<ThemeFusionStep>(Math.Min(browserSteps.Count, ThemeService.MaxFusionRouteSteps));
-            foreach (var browserStep in browserSteps.TakeLast(ThemeService.MaxFusionRouteSteps))
+            var route = new List<ThemeFusionStep>(Math.Min(browserSteps.Count, Themes.MaxFusionRouteSteps));
+            foreach (var browserStep in browserSteps.TakeLast(Themes.MaxFusionRouteSteps))
             {
                 if (string.IsNullOrWhiteSpace(browserStep.ThemeName)
                     || !Enum.TryParse<ThemeApplicationTarget>(browserStep.Target, true, out var target))

@@ -118,7 +118,7 @@ public sealed class ThemeService
     /// Gets the max fusion route steps value that forms part of the theme state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The max fusion route steps value exposed by <see cref="ThemeService"/>.</value>
-    private int MaxFusionRouteSteps => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ThemeMaximumFusionRouteSteps));
+    public int MaxFusionRouteSteps => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.ThemeMaximumFusionRouteSteps));
 
     /// <summary>
     /// Gets or sets a value indicating whether initialized applies to the theme state.

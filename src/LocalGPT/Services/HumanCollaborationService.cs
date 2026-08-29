@@ -79,6 +79,10 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
     /// </summary>
     private readonly Guid approvalSessionId = Guid.NewGuid();
 
+    /// <summary>Gets the operator-configured maximum text length shared by all human-collaboration partials.</summary>
+    /// <value>The database-backed Human Collaboration text limit.</value>
+    private int MaxTextLength => Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.HumanCollaborationMaximumTextLength));
+
     /// <summary>
     /// Occurs when changed changes or completes in <see cref="HumanCollaborationService"/>, allowing interested callers to react without polling internal state.
     /// </summary>
@@ -302,7 +306,7 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
                     RequestedCouncilPhase = Normalize(request.RequestedCouncilPhase, 120),
                     SuggestedResponsesText = NormalizeMultiline(request.SuggestedResponsesText, 1600),
                     ResponsePrompt = Normalize(request.ResponsePrompt, 500),
-                    PrefillText = NormalizeMultiline(request.PrefillText, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.HumanCollaborationMaximumTextLength))),
+                    PrefillText = NormalizeMultiline(request.PrefillText, MaxTextLength),
                     EarliestCouncilRound = Math.Max(0, request.EarliestCouncilRound),
                     RequiredBeforeCompletion = gateMode == "Completion",
                     IsSensitive = request.IsSensitive,
@@ -388,7 +392,7 @@ public sealed partial class HumanCollaborationService : IHumanCollaborationServi
                     throw new InvalidOperationException("Feedback and guidance requests require a response.");
 
                 var previousStatus = request.Status;
-                request.UserResponse = NormalizeMultiline(submission.Response, Math.Max(1, runtimePolicy.GetInt(LocalGptRuntimeValue.HumanCollaborationMaximumTextLength)));
+                request.UserResponse = NormalizeMultiline(submission.Response, MaxTextLength);
                 request.DecisionReason = NormalizeMultiline(submission.Reason, 2000);
                 request.DecisionBy = Normalize(ambientContext.Current.ActorDisplayName, 120, "Human User");
                 request.DecisionByProfileId = ambientContext.Current.HumanProfileId ?? runtimePolicy.GetGuid(LocalGptRuntimeValue.LocalHumanProfileId);

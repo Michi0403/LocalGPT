@@ -37,7 +37,7 @@ public sealed class CanIRunHardwareRecommendationService(
             ValidateCanIRunUri(uri);
             var client = httpClientFactory.CreateClient("LocalGPTCanIRun");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("LocalGPT/3.5.0 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
+            request.Headers.UserAgent.ParseAdd("LocalGPT/3.5.1 (+offline-first; explicit-user-opt-in; source-credit-canirun.ai)");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if ((int)response.StatusCode is >= 300 and < 400)
                 throw new InvalidOperationException("CanIRun.ai redirects are not followed automatically. Review the configured device slug.");

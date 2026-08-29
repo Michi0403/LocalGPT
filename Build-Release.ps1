@@ -43,6 +43,8 @@ $documentationCacheRoot = Join-Path $artifacts ".documentation-cache"
 $documentationPrepared = $false
 $releaseZipPaths = New-Object 'System.Collections.Generic.List[string]'
 $releasePackagingVersion = '1.0.0'
+$releasePackagingPackageName = "LocalGPT.ReleasePackaging.$releasePackagingVersion.nupkg"
+$releasePackagingPackage = Join-Path $packageDirectory $releasePackagingPackageName
 $releasePackagingTool = $null
 $nativeReleasePackagingScript = Join-Path $root 'build/NativeReleasePackaging.ps1'
 
@@ -393,6 +395,7 @@ function Complete-ReleaseBundle {
         [Parameter(Mandatory)][string]$ReadmePath,
         [Parameter(Mandatory)][string]$LicensePath,
         [Parameter(Mandatory)][string]$WireProtocolPackagePath,
+        [Parameter(Mandatory)][string]$ReleasePackagingPackagePath,
         [Parameter(Mandatory)][string]$SetupIconPath,
         [Parameter(Mandatory)][bool]$RequireWindowsX64Setup
     )
@@ -407,7 +410,7 @@ function Complete-ReleaseBundle {
     foreach ($zipPath in $uniqueZipPaths) {
         if (-not (Test-Path -LiteralPath $zipPath -PathType Leaf)) { throw "Expected release ZIP is missing: $zipPath" }
     }
-    foreach ($requiredFile in @($DocumentationPdfPath, $ReadmePath, $LicensePath, $WireProtocolPackagePath, $SetupIconPath)) {
+    foreach ($requiredFile in @($DocumentationPdfPath, $ReadmePath, $LicensePath, $WireProtocolPackagePath, $ReleasePackagingPackagePath, $SetupIconPath)) {
         if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) { throw "Required upload-ready release file is missing: $requiredFile" }
     }
     if ($RequireWindowsX64Setup -and -not (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf)) {
@@ -424,6 +427,7 @@ function Complete-ReleaseBundle {
         Copy-Item -LiteralPath $ReadmePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($ReadmePath))) -Force
         Copy-Item -LiteralPath $LicensePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($LicensePath))) -Force
         Copy-Item -LiteralPath $WireProtocolPackagePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($WireProtocolPackagePath))) -Force
+        Copy-Item -LiteralPath $ReleasePackagingPackagePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($ReleasePackagingPackagePath))) -Force
         Copy-Item -LiteralPath $SetupIconPath -Destination (Join-Path $stagingDirectory "LocalGPT.ico") -Force
         if (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf) {
             Copy-Item -LiteralPath $WindowsX64SetupExecutablePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($WindowsX64SetupExecutablePath))) -Force
@@ -440,7 +444,7 @@ function Complete-ReleaseBundle {
             $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $($file.Name)"
         }
-        $checksumLines | Set-Content -LiteralPath $checksumPath -Encoding utf8NoBOM
+        [IO.File]::WriteAllLines($checksumPath, [string[]]$checksumLines, (New-Object Text.UTF8Encoding($false)))
 
         foreach ($zipPath in $uniqueZipPaths) {
             Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
@@ -623,11 +627,14 @@ New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
 Remove-Item -LiteralPath $documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
 Ensure-WireProtocolPackage
 $releasePackagingTool = & (Join-Path $root 'build/Ensure-ReleasePackagingPackage.ps1') -Configuration $Configuration -Version $releasePackagingVersion
+if (-not (Test-Path -LiteralPath $releasePackagingPackage -PathType Leaf)) { throw "Release-packaging package preparation did not produce $releasePackagingPackage" }
 Copy-Item $wirePackage (Join-Path $artifacts $wirePackageName) -Force
+Copy-Item $releasePackagingPackage (Join-Path $artifacts $releasePackagingPackageName) -Force
 if ($sharedWirePackageDirectory) {
     New-Item -ItemType Directory -Path $sharedWirePackageDirectory -Force | Out-Null
     Copy-Item $wirePackage (Join-Path $sharedWirePackageDirectory $wirePackageName) -Force
-    Write-Host "Updated shared LocalGPT protocol package cache: $sharedWirePackageDirectory" -ForegroundColor Green
+    Copy-Item $releasePackagingPackage (Join-Path $sharedWirePackageDirectory $releasePackagingPackageName) -Force
+    Write-Host "Updated shared LocalGPT protocol/release-packaging package cache: $sharedWirePackageDirectory" -ForegroundColor Green
 }
 
 Prepare-LocalGptDocumentation
@@ -657,6 +664,7 @@ try {
         -ReadmePath (Join-Path $root "README.md") `
         -LicensePath $licensePath `
         -WireProtocolPackagePath $wirePackage `
+        -ReleasePackagingPackagePath $releasePackagingPackage `
         -SetupIconPath (Join-Path $root "src/LocalGPT/wwwroot/favicon.ico") `
         -RequireWindowsX64Setup $requireWinX64Setup
 }
