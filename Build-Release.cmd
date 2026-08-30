@@ -1,5 +1,6 @@
 @echo off
 setlocal
+chcp 65001 >nul
 pushd "%~dp0"
 powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%~dp0Build-Release.ps1" %*
 set "EXITCODE=%ERRORLEVEL%"

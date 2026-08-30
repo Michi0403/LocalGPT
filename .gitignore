@@ -121,4 +121,3 @@ docs/.tools/
 docs/.print-book/
 docs/LocalGPT-*.pdf
 src/LocalGPT/wwwroot/help-docs/
-build/__pycache__/

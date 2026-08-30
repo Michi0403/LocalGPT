@@ -1,11 +1,11 @@
-# LocalGPT 3.5.3
+# LocalGPT 3.5.4
 
-LocalGPT 3.5.3 is the **Windows-hosted native packaging file-handle repair** maintenance release.
+LocalGPT 3.5.4 is the **host-aware release packaging** maintenance release.
 
-The supplied Windows release log proves the LocalGPT application, documentation, all three Windows application/setup RIDs, and the linux-x64 Full application payload build successfully. The failure occurs only when the LocalGPT-owned release-packaging helper tries to move its completed temporary TAR.GZ while its own `FileStream`/compression writer chain is still open.
+The supplied Windows 3.5.3 release log reaches successful Windows x64/x86/ARM64 application/setup publishing and successful Linux TAR.GZ/DEB generation before failing only at the mandatory RPM step. The default release path no longer asks a Windows machine to complete Linux/macOS native packaging.
 
-This release closes the TAR.GZ writer chain before the final move and applies the same correction to DEB creation. The shared helper package is versioned as `LocalGPT.ReleasePackaging` 1.0.1 so PublisherStudio cannot silently reuse the broken 1.0.0 package.
+`Build-Release` now treats `-Runtime all` as all maintained runtimes for the current host OS. `-Runtime all-rids` is retained for an explicit cross-host publish attempt. Linux RPM/AppImage finishing is optional and native-tool driven; Docker/Podman is opt-in rather than a release prerequisite.
 
-The intended package matrix remains unchanged: Windows uses the one-click setup console and portable ZIPs; Linux uses Full/Light application payloads with TAR.GZ, DEB, RPM, and AppImage outputs; macOS uses Full/Light `.app`/TAR.GZ outputs and DMG completion on a macOS host.
+Windows-only LocalGPT builds still create and populate the shared `LocalGPT.ReleasePackaging` 1.0.1 NuGet cache for PublisherStudio, without installing the Unix packaging tool when it is not used. Windows command/PowerShell entry points also initialize UTF-8 console handling for `dotnet` output.
 
-See `CHANGELOG-v3.5.3-WINDOWS-NATIVE-PACKAGING-FILE-HANDLE-REPAIR.md` and `VALIDATION-v3.5.3-source.md`.
+See `CHANGELOG-v3.5.4-HOST-AWARE-RELEASE-PACKAGING.md` and `VALIDATION-v3.5.4-source.md`.

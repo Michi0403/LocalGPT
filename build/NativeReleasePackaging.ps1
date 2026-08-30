@@ -7,12 +7,22 @@ param(
     [Parameter(Mandatory)][string]$PayloadDirectory,
     [Parameter(Mandatory)][string]$OutputDirectory,
     [Parameter(Mandatory)][string]$PackagingTool,
-    [ValidateSet('LocalGPT','PublisherStudio')][string]$DependencyPolicy = 'LocalGPT'
+    [ValidateSet('LocalGPT','PublisherStudio')][string]$DependencyPolicy = 'LocalGPT',
+    [switch]$UseContainerFallback
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+$isWindowsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)
+$isLinuxHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux)
 $isMacHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)
+$hostArchitecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+
+function Test-TargetMatchesHostArchitecture([string]$RuntimeIdentifier) {
+    if ($RuntimeIdentifier.EndsWith('arm64')) { return $hostArchitecture -eq 'arm64' }
+    if ($RuntimeIdentifier.EndsWith('x64')) { return $hostArchitecture -eq 'x64' }
+    return $false
+}
 function Write-Utf8NoBom([string]$Path, [string]$Text) {
     [IO.File]::WriteAllText($Path, $Text, [Text.UTF8Encoding]::new($false))
 }
@@ -95,7 +105,27 @@ function New-Dmg([string]$AppPath,[string]$Destination) {
     } finally { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
 }
 function New-AppImage([string]$Source,[string]$Destination) {
+    if (-not $isLinuxHost) {
+        Write-Warning "Skipping AppImage for $Rid. AppImage is a native Linux packaging step and this host is not Linux."
+        return $false
+    }
+    if (-not (Test-TargetMatchesHostArchitecture $Rid)) {
+        Write-Warning "Skipping AppImage for $Rid. The native AppImage step is limited to the current host architecture ($hostArchitecture)."
+        return $false
+    }
+
     $tool = Get-Command appimagetool -ErrorAction SilentlyContinue
+    $engine = $null
+    if (-not $tool -and $UseContainerFallback) {
+        $engine = Get-Command docker -ErrorAction SilentlyContinue
+        if (-not $engine) { $engine = Get-Command podman -ErrorAction SilentlyContinue }
+    }
+    if (-not $tool -and -not $engine) {
+        $containerHint = if ($UseContainerFallback) { ' Docker/Podman was requested but is unavailable.' } else { ' Pass -UseContainerFallback to opt into an already-installed Docker/Podman engine.' }
+        Write-Warning "Skipping AppImage for $Rid because appimagetool is unavailable.$containerHint"
+        return $false
+    }
+
     $appDir = Join-Path ([IO.Path]::GetTempPath()) ("appimage-" + [Guid]::NewGuid().ToString('N') + '.AppDir')
     New-Item -ItemType Directory -Path $appDir -Force | Out-Null
     try {
@@ -108,28 +138,46 @@ exec "$HERE/__EXECUTABLE__" "$@"
 '@
         Write-Utf8NoBom $appRun ($appRunTemplate.Replace('__EXECUTABLE__', $ExecutableName))
         $desktop = Join-Path $appDir "$ProductName.desktop"
-        "[Desktop Entry]`nType=Application`nName=$ProductName`nExec=$ExecutableName`nTerminal=false`nCategories=Utility;`n" | Set-Content -LiteralPath $desktop -Encoding UTF8
+        Write-Utf8NoBom $desktop "[Desktop Entry]`nType=Application`nName=$ProductName`nExec=$ExecutableName`nTerminal=false`nCategories=Utility;`n"
         if ($tool) {
             & $tool.Source $appDir $Destination | Out-Host
             if ($LASTEXITCODE -ne 0) { throw 'appimagetool failed.' }
         } else {
-            $engine = Get-Command docker -ErrorAction SilentlyContinue
-            if (-not $engine) { $engine = Get-Command podman -ErrorAction SilentlyContinue }
-            if (-not $engine) { throw 'AppImage needs appimagetool, Docker, or Podman. Set APPIMAGETOOL_CONTAINER_IMAGE to override the container image.' }
             $image = if ($env:APPIMAGETOOL_CONTAINER_IMAGE) { $env:APPIMAGETOOL_CONTAINER_IMAGE } else { 'ghcr.io/appimage/appimagetool:continuous' }
-            $parent = Split-Path -Parent $appDir; $leaf = Split-Path -Leaf $appDir; $outLeaf = [IO.Path]::GetFileName($Destination)
+            $parent = Split-Path -Parent $appDir
+            $leaf = Split-Path -Leaf $appDir
+            $outLeaf = [IO.Path]::GetFileName($Destination)
             & $engine.Source run --rm --privileged -v "${parent}:/work" $image "/work/$leaf" "/work/$outLeaf" | Out-Host
             if ($LASTEXITCODE -ne 0) { throw 'Containerized appimagetool failed.' }
             Move-Item -LiteralPath (Join-Path $parent $outLeaf) -Destination $Destination -Force
         }
+        return $true
     } finally { Remove-Item -LiteralPath $appDir -Recurse -Force -ErrorAction SilentlyContinue }
 }
+
 function New-Rpm([string]$Source,[string]$Destination,[string]$Architecture) {
+    if (-not $isLinuxHost) {
+        Write-Warning "Skipping RPM for $Rid. RPM is a native Linux packaging step and this host is not Linux."
+        return $false
+    }
+    if (-not (Test-TargetMatchesHostArchitecture $Rid)) {
+        Write-Warning "Skipping RPM for $Rid. The native RPM step is limited to the current host architecture ($hostArchitecture)."
+        return $false
+    }
+
     $rpmbuild = Get-Command rpmbuild -ErrorAction SilentlyContinue
-    if (-not $rpmbuild) {
+    $engine = $null
+    if (-not $rpmbuild -and $UseContainerFallback) {
         $engine = Get-Command docker -ErrorAction SilentlyContinue
         if (-not $engine) { $engine = Get-Command podman -ErrorAction SilentlyContinue }
-        if (-not $engine) { throw 'RPM packaging needs rpmbuild, Docker, or Podman.' }
+    }
+    if (-not $rpmbuild -and -not $engine) {
+        $containerHint = if ($UseContainerFallback) { ' Docker/Podman was requested but is unavailable.' } else { ' Pass -UseContainerFallback to opt into an already-installed Docker/Podman engine.' }
+        Write-Warning "Skipping RPM for $Rid because rpmbuild is unavailable.$containerHint"
+        return $false
+    }
+
+    if ($engine) {
         $image = if ($env:RPMBUILD_CONTAINER_IMAGE) { $env:RPMBUILD_CONTAINER_IMAGE } else { 'fedora:42' }
         $work = Join-Path ([IO.Path]::GetTempPath()) ("rpm-container-" + [Guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Path $work -Force | Out-Null
@@ -165,15 +213,19 @@ cp /root/rpmbuild/RPMS/*/*.rpm /out/package.rpm
             & $engine.Source run --rm -v "${work}:/work:ro" -v "${out}:/out" $image sh -lc $script | Out-Host
             if ($LASTEXITCODE -ne 0) { throw 'Containerized RPM packaging failed.' }
             Move-Item -LiteralPath (Join-Path $out 'package.rpm') -Destination $Destination -Force
-            return
+            return $true
         } finally { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
     }
+
     $top = Join-Path ([IO.Path]::GetTempPath()) ("rpmbuild-" + [Guid]::NewGuid().ToString('N'))
     foreach ($d in 'BUILD','RPMS','SOURCES','SPECS','SRPMS') { New-Item -ItemType Directory -Path (Join-Path $top $d) -Force | Out-Null }
     try {
-        $payload = Join-Path $top 'SOURCES/payload'; New-Item -ItemType Directory -Path $payload -Force | Out-Null; Copy-Item -Path (Join-Path $Source '*') -Destination $payload -Recurse -Force
-        $lower = $ProductName.ToLowerInvariant(); $spec = Join-Path $top 'SPECS/package.spec'
-@"
+        $payload = Join-Path $top 'SOURCES/payload'
+        New-Item -ItemType Directory -Path $payload -Force | Out-Null
+        Copy-Item -Path (Join-Path $Source '*') -Destination $payload -Recurse -Force
+        $lower = $ProductName.ToLowerInvariant()
+        $spec = Join-Path $top 'SPECS/package.spec'
+        $specText = @"
 Name: $lower
 Version: $Version
 Release: 1
@@ -190,12 +242,14 @@ chmod 0755 %{buildroot}/usr/bin/$lower %{buildroot}/opt/$lower/$ExecutableName
 %files
 /opt/$lower
 /usr/bin/$lower
-"@ | Set-Content -LiteralPath $spec -Encoding UTF8
+"@
+        Write-Utf8NoBom $spec $specText
         & $rpmbuild.Source --define "_topdir $top" -bb $spec | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'rpmbuild failed.' }
         $rpm = Get-ChildItem (Join-Path $top 'RPMS') -Filter '*.rpm' -File -Recurse | Select-Object -First 1
         if (-not $rpm) { throw 'rpmbuild produced no RPM.' }
         Copy-Item -LiteralPath $rpm.FullName -Destination $Destination -Force
+        return $true
     } finally { Remove-Item -LiteralPath $top -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
@@ -237,9 +291,11 @@ elseif ($Rid.StartsWith('linux-')) {
         $debArgs = @('deb','--source',$workingPayload,'--output',$deb,'--package',$ProductName.ToLowerInvariant(),'--version',$Version,'--architecture',$debArch,'--executable',$ExecutableName,'--description',"$ProductName $Mode")
         if ($DependencyPolicy -eq 'PublisherStudio') { $debArgs += @('--dependency','ffmpeg') }
         Invoke-PackagingTool $debArgs; Add-Artifact $artifacts $deb
-        $rpm = Join-Path $OutputDirectory "$base.rpm"; $rpmArch = if ($Rid.EndsWith('arm64')) { 'aarch64' } else { 'x86_64' }
-        New-Rpm $workingPayload $rpm $rpmArch; Add-Artifact $artifacts $rpm
-        $appImage = Join-Path $OutputDirectory "$base.AppImage"; New-AppImage $workingPayload $appImage; Add-Artifact $artifacts $appImage
+        $rpm = Join-Path $OutputDirectory "$base.rpm"
+        $rpmArch = if ($Rid.EndsWith('arm64')) { 'aarch64' } else { 'x86_64' }
+        if (New-Rpm $workingPayload $rpm $rpmArch) { Add-Artifact $artifacts $rpm }
+        $appImage = Join-Path $OutputDirectory "$base.AppImage"
+        if (New-AppImage $workingPayload $appImage) { Add-Artifact $artifacts $appImage }
     } finally { Remove-Item -LiteralPath $workingPayload -Recurse -Force -ErrorAction SilentlyContinue }
 } else { throw "Native packaging only accepts Linux/macOS RIDs: $Rid" }
 $artifacts
