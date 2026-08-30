@@ -104,11 +104,15 @@ internal static class Program
         var temp = outputPath + ".tmp-" + Guid.NewGuid().ToString("N");
         try
         {
-            using var file = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.SequentialScan);
-            using var gzip = new GZipStream(file, CompressionLevel.SmallestSize, leaveOpen: false);
-            using var tar = new TarWriter(gzip, TarEntryFormat.Pax, leaveOpen: false);
-            WriteTree(tar, sourceDirectory, rootName, executableSet);
-            File.Move(temp, outputPath, true);
+            // Close the TAR/GZip/FileStream chain before committing the temporary artifact.
+            // Windows does not permit File.Move while the source file is still open with FileShare.None.
+            using (var file = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.SequentialScan))
+            using (var gzip = new GZipStream(file, CompressionLevel.SmallestSize, leaveOpen: false))
+            using (var tar = new TarWriter(gzip, TarEntryFormat.Pax, leaveOpen: false))
+            {
+                WriteTree(tar, sourceDirectory, rootName, executableSet);
+            }
+            CommitTemporaryFile(temp, outputPath);
         }
         finally { if (File.Exists(temp)) File.Delete(temp); }
         Console.WriteLine(outputPath);
@@ -214,17 +218,48 @@ internal static class Program
             var temp = output + ".tmp-" + Guid.NewGuid().ToString("N");
             try
             {
-                using var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.SequentialScan);
-                stream.Write(Encoding.ASCII.GetBytes("!<arch>\n"));
-                WriteArMember(stream, "debian-binary", new MemoryStream(Encoding.ASCII.GetBytes("2.0\n"), writable: false));
-                using (var member = File.OpenRead(controlTar)) WriteArMember(stream, "control.tar.gz", member);
-                using (var member = File.OpenRead(dataTar)) WriteArMember(stream, "data.tar.gz", member);
-                File.Move(temp, output, true);
+                // Close the AR output stream before moving the completed package into place.
+                // Keeping this stream open is a deterministic sharing violation on Windows.
+                using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.SequentialScan))
+                {
+                    stream.Write(Encoding.ASCII.GetBytes("!<arch>\n"));
+                    using (var debianBinary = new MemoryStream(Encoding.ASCII.GetBytes("2.0\n"), writable: false))
+                    {
+                        WriteArMember(stream, "debian-binary", debianBinary);
+                    }
+                    using (var member = File.OpenRead(controlTar)) WriteArMember(stream, "control.tar.gz", member);
+                    using (var member = File.OpenRead(dataTar)) WriteArMember(stream, "data.tar.gz", member);
+                }
+                CommitTemporaryFile(temp, output);
             }
             finally { if (File.Exists(temp)) File.Delete(temp); }
             Console.WriteLine(output);
         }
         finally { try { Directory.Delete(work, true); } catch { } }
+    }
+
+    /// <summary>
+    /// Atomically commits a completed temporary artifact after every writer has released the file handle.
+    /// </summary>
+    /// <param name="temporaryPath">Fully written temporary artifact path.</param>
+    /// <param name="destinationPath">Final artifact path to replace.</param>
+    private static void CommitTemporaryFile(string temporaryPath, string destinationPath)
+    {
+        const int maximumAttempts = 20;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Move(temporaryPath, destinationPath, true);
+                return;
+            }
+            catch (IOException) when (attempt < maximumAttempts)
+            {
+                // Antivirus/indexer activity can briefly hold a previous artifact on Windows.
+                // The temporary source is already closed, so a short bounded retry is safe.
+                Thread.Sleep(100);
+            }
+        }
     }
 
     /// <summary>
