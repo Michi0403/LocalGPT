@@ -99,7 +99,19 @@ $nodeVersionUsed = ""
 $nodeProvisioned = $false
 $nodePlatformUsed = ""
 $nodeArchitectureUsed = ""
-$pdfTimeoutMilliseconds = 1800000
+$isMacOsHost = $false
+try {
+    $isMacOsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)
+}
+catch {
+    if ([IO.Path]::DirectorySeparatorChar -ne '\') {
+        try { $isMacOsHost = [string]::Equals(([string](& uname -s 2>$null | Select-Object -First 1)).Trim(), 'Darwin', [StringComparison]::OrdinalIgnoreCase) } catch { $isMacOsHost = $false }
+    }
+}
+# DocFX's Playwright PDF engine has shown host-specific 30-minute navigation stalls on macOS.
+# Browser print gets two renderer profiles first; the plug-in remains a bounded final fallback.
+$pdfTimeoutMilliseconds = if ($isMacOsHost) { 300000 } else { 1800000 }
+$pdfAccessibilityMode = "unavailable"
 $pdfCompressionMode = "none"
 $pdfBytesBeforeCompression = 0
 $pdfCompressionSavedBytes = 0
@@ -1594,7 +1606,8 @@ function Invoke-LocalGptBrowserPdf {
         [Parameter(Mandatory)][string]$BrowserPath,
         [Parameter(Mandatory)][string]$HtmlPath,
         [Parameter(Mandatory)][string]$PdfPath,
-        [Parameter(Mandatory)][string]$WorkingRoot
+        [Parameter(Mandatory)][string]$WorkingRoot,
+        [long]$MinimumBytes = 1048576
     )
 
     Remove-Item -LiteralPath $PdfPath -Force -ErrorAction SilentlyContinue
@@ -1602,90 +1615,109 @@ function Invoke-LocalGptBrowserPdf {
     $diagnostics = [System.Collections.Generic.List[string]]::new()
     $profileParentRoot = Join-Path ([IO.Path]::GetTempPath()) "LocalGPT/DocumentationBrowserProfiles"
     New-Item -ItemType Directory -Path $profileParentRoot -Force | Out-Null
-    foreach ($headlessMode in @("--headless=new", "--headless")) {
-        # Keep Chromium's volatile profile outside the print-book directory. Chromium child
-        # processes can retire profile files asynchronously, which makes recursive Remove-Item
-        # race with disappearing files on Windows PowerShell.
-        $profileRoot = Join-Path $profileParentRoot ("browser-profile-" + [Guid]::NewGuid().ToString('N'))
-        New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
-        try {
-            $arguments = @(
-                $headlessMode,
-                "--disable-gpu",
-                "--disable-extensions",
-                "--disable-dev-shm-usage",
-                "--disable-background-mode",
-                "--disable-background-networking",
-                "--disable-background-timer-throttling",
-                "--disable-component-update",
-                "--disable-renderer-backgrounding",
-                "--disable-sync",
-                "--disable-breakpad",
-                "--disable-crash-reporter",
-                "--no-service-autorun",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--allow-file-access-from-files",
-                "--hide-scrollbars",
-                "--run-all-compositor-stages-before-draw",
-                "--virtual-time-budget=180000",
-                "--js-flags=--max-old-space-size=4096",
-                "--disable-features=BackForwardCache,CalculateNativeWinOcclusion,MediaRouter,OptimizationHints,Translate,msEdgeStartupBoost,msEdgeBackgroundMode",
-                "--print-to-pdf-no-header",
-                "--no-pdf-header-footer",
-                "--export-tagged-pdf",
-                "--generate-pdf-document-outline",
-                "--user-data-dir=$profileRoot",
-                "--print-to-pdf=$PdfPath",
-                $inputUri
-            )
-            $previousErrorActionPreference = $ErrorActionPreference
+    $lastExitCode = -1
+    $renderProfiles = @(
+        [pscustomobject]@{ Name = "tagged"; AccessibilityMode = "tagged-pdf-required"; ExtraFlags = @("--export-tagged-pdf", "--generate-pdf-document-outline") },
+        [pscustomobject]@{ Name = "compatibility"; AccessibilityMode = "html-accessibility-fallback"; ExtraFlags = @() }
+    )
+
+    foreach ($renderProfile in $renderProfiles) {
+        foreach ($headlessMode in @("--headless=new", "--headless")) {
+            Remove-Item -LiteralPath $PdfPath -Force -ErrorAction SilentlyContinue
+            # Keep Chromium's volatile profile outside the print-book directory. Chromium child
+            # processes can retire profile files asynchronously, which makes recursive Remove-Item
+            # race with disappearing files on Windows PowerShell.
+            $profileRoot = Join-Path $profileParentRoot ("browser-profile-" + [Guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
             try {
-                $ErrorActionPreference = "Continue"
-                $output = @(& $BrowserPath @arguments 2>&1)
-                $exitCode = [int]$LASTEXITCODE
+                $arguments = @(
+                    $headlessMode,
+                    "--disable-gpu",
+                    "--disable-extensions",
+                    "--disable-dev-shm-usage",
+                    "--disable-background-mode",
+                    "--disable-background-networking",
+                    "--disable-background-timer-throttling",
+                    "--disable-component-update",
+                    "--disable-renderer-backgrounding",
+                    "--disable-sync",
+                    "--disable-breakpad",
+                    "--disable-crash-reporter",
+                    "--no-service-autorun",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--allow-file-access-from-files",
+                    "--hide-scrollbars",
+                    "--run-all-compositor-stages-before-draw",
+                    "--virtual-time-budget=180000",
+                    "--js-flags=--max-old-space-size=4096",
+                    "--disable-features=BackForwardCache,CalculateNativeWinOcclusion,MediaRouter,OptimizationHints,Translate,msEdgeStartupBoost,msEdgeBackgroundMode",
+                    "--print-to-pdf-no-header",
+                    "--no-pdf-header-footer"
+                ) + @($renderProfile.ExtraFlags) + @(
+                    "--user-data-dir=$profileRoot",
+                    "--print-to-pdf=$PdfPath",
+                    $inputUri
+                )
+                $previousErrorActionPreference = $ErrorActionPreference
+                try {
+                    $ErrorActionPreference = "Continue"
+                    $output = @(& $BrowserPath @arguments 2>&1)
+                    $lastExitCode = [int]$LASTEXITCODE
+                }
+                finally {
+                    $ErrorActionPreference = $previousErrorActionPreference
+                }
+                foreach ($line in $output) {
+                    $safeLine = [regex]::Replace([string]$line, '(?i)\berror\s*:', 'diagnostic:')
+                    if (-not [string]::IsNullOrWhiteSpace($safeLine)) { $diagnostics.Add($safeLine) }
+                }
+                $lastObservedLength = -1L
+                $stableLengthChecks = 0
+                for ($attempt = 0; $attempt -lt 360; $attempt++) {
+                    $pdfFile = Get-Item -LiteralPath $PdfPath -ErrorAction SilentlyContinue
+                    if ($null -ne $pdfFile -and $pdfFile.Length -gt 0) {
+                        if ($pdfFile.Length -eq $lastObservedLength) {
+                            $stableLengthChecks++
+                        }
+                        else {
+                            $lastObservedLength = [long]$pdfFile.Length
+                            $stableLengthChecks = 0
+                        }
+                        if ($stableLengthChecks -ge 4) { break }
+                    }
+                    Start-Sleep -Milliseconds 500
+                }
+                if (Test-LocalGptCompletePdf -Path $PdfPath -MinimumBytes $MinimumBytes) {
+                    if ($lastExitCode -ne 0) {
+                        $diagnostics.Add("The browser returned exit code $lastExitCode after writing a valid PDF candidate; LocalGPT accepted the validated file.")
+                    }
+                    return [pscustomobject]@{
+                        Succeeded = $true
+                        ExitCode = $lastExitCode
+                        Diagnostics = @($diagnostics)
+                        HeadlessMode = $headlessMode
+                        RenderMode = [string]$renderProfile.Name
+                        AccessibilityMode = [string]$renderProfile.AccessibilityMode
+                    }
+                }
+
+                $candidate = Get-Item -LiteralPath $PdfPath -ErrorAction SilentlyContinue
+                if ($null -ne $candidate) {
+                    $diagnostics.Add("Browser renderer '$($renderProfile.Name)' wrote an invalid or incomplete PDF candidate ($($candidate.Length) bytes); retrying with the next renderer profile.")
+                }
+                elseif ($lastExitCode -eq 0) {
+                    $diagnostics.Add("Browser renderer '$($renderProfile.Name)' exited successfully but produced no PDF; retrying with the next renderer profile.")
+                }
             }
             finally {
-                $ErrorActionPreference = $previousErrorActionPreference
+                Remove-LocalGptTemporaryPath -Path $profileRoot -Attempts 8 -DelayMilliseconds 250
             }
-            foreach ($line in $output) {
-                $safeLine = [regex]::Replace([string]$line, '(?i)\berror\s*:', 'diagnostic:')
-                if (-not [string]::IsNullOrWhiteSpace($safeLine)) { $diagnostics.Add($safeLine) }
-            }
-            $lastObservedLength = -1L
-            $stableLengthChecks = 0
-            for ($attempt = 0; $attempt -lt 360; $attempt++) {
-                $pdfFile = Get-Item -LiteralPath $PdfPath -ErrorAction SilentlyContinue
-                if ($null -ne $pdfFile -and $pdfFile.Length -gt 0) {
-                    if ($pdfFile.Length -eq $lastObservedLength) {
-                        $stableLengthChecks++
-                    }
-                    else {
-                        $lastObservedLength = [long]$pdfFile.Length
-                        $stableLengthChecks = 0
-                    }
-                    if ($stableLengthChecks -ge 4) { break }
-                }
-                Start-Sleep -Milliseconds 500
-            }
-            if (Test-Path -LiteralPath $PdfPath -PathType Leaf) {
-                $pdfFile = Get-Item -LiteralPath $PdfPath -ErrorAction SilentlyContinue
-                if ($null -ne $pdfFile -and $pdfFile.Length -gt 0) {
-                    if ($exitCode -ne 0) {
-                        $diagnostics.Add("The browser returned exit code $exitCode after writing a PDF candidate; the candidate will be validated by LocalGPT.")
-                    }
-                    return [pscustomobject]@{ Succeeded = $true; ExitCode = $exitCode; Diagnostics = @($diagnostics); HeadlessMode = $headlessMode }
-                }
-            }
-        }
-        finally {
-            Remove-LocalGptTemporaryPath -Path $profileRoot -Attempts 8 -DelayMilliseconds 250
         }
     }
 
-    return [pscustomobject]@{ Succeeded = $false; ExitCode = [int]$LASTEXITCODE; Diagnostics = @($diagnostics); HeadlessMode = "" }
+    return [pscustomobject]@{ Succeeded = $false; ExitCode = $lastExitCode; Diagnostics = @($diagnostics); HeadlessMode = ""; RenderMode = ""; AccessibilityMode = "unavailable" }
 }
-
 
 function Find-LocalGptGhostscript {
     $candidates = [System.Collections.Generic.List[string]]::new()
@@ -2415,15 +2447,16 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                 if ($null -ne $browser) {
                     $pdfSourcePageCount = New-LocalGptHtmlPrintBook -SiteRoot $siteRoot -DestinationPath $printBookPath
                     Write-Host "Printing $pdfSourcePageCount DocFX HTML pages as one complete LocalGPT PDF with $($browser.Name)." -ForegroundColor Cyan
-                    $browserResult = Invoke-LocalGptBrowserPdf -BrowserPath $browser.Path -HtmlPath $printBookPath -PdfPath $pdfPath -WorkingRoot $printBookRoot
+                    $browserResult = Invoke-LocalGptBrowserPdf -BrowserPath $browser.Path -HtmlPath $printBookPath -PdfPath $pdfPath -WorkingRoot $printBookRoot -MinimumBytes $minimumCompletePdfBytes
                     $pdfCandidateCount = if (Test-Path -LiteralPath $pdfPath -PathType Leaf) { 1 } else { 0 }
                     if ($browserResult.Succeeded) {
                         $pdfGenerated = Test-LocalGptCompletePdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
                         if ($pdfGenerated) {
                             $resolvedPdf = Get-Item -LiteralPath $pdfPath
                             $pdfFileSize = $resolvedPdf.Length
-                            $pdfMode = "html-browser-print"
-                            $pdfRenderer = [string]$browser.Name
+                            $pdfMode = if ([string]$browserResult.RenderMode -eq "compatibility") { "html-browser-print-compatibility" } else { "html-browser-print" }
+                            $pdfAccessibilityMode = [string]$browserResult.AccessibilityMode
+                            $pdfRenderer = "$([string]$browser.Name) / $([string]$browserResult.RenderMode)"
                             $pdfGeneratedSourcePath = Get-LocalGptRelativePath -Root $docsRoot -Path $printBookPath
                         }
                         else {
@@ -2463,7 +2496,10 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                     $env:PLAYWRIGHT_NODEJS_PATH = [string]$nodeInfo.Path
                     $env:PLAYWRIGHT_BROWSERS_PATH = $playwrightBrowserRoot
                     $configuredPdfTimeout = 0
-                    if (-not [int]::TryParse([string]$env:DOCFX_PDF_TIMEOUT, [ref]$configuredPdfTimeout) -or $configuredPdfTimeout -lt $pdfTimeoutMilliseconds) {
+                    if ([int]::TryParse([string]$env:DOCFX_PDF_TIMEOUT, [ref]$configuredPdfTimeout) -and $configuredPdfTimeout -gt 0) {
+                        $pdfTimeoutMilliseconds = $configuredPdfTimeout
+                    }
+                    else {
                         $env:DOCFX_PDF_TIMEOUT = [string]$pdfTimeoutMilliseconds
                     }
                     if ([string]::IsNullOrWhiteSpace($env:NODE_OPTIONS)) {
@@ -2497,6 +2533,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                             $resolvedPdf = Get-Item -LiteralPath $pdfPath
                             $pdfFileSize = $resolvedPdf.Length
                             $pdfMode = "docfx-pdf-plugin"
+                            $pdfAccessibilityMode = "html-accessibility-fallback"
                             $pdfRenderer = "DocFX PDF plug-in"
                         }
                     }
@@ -2518,7 +2555,7 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
         }
 
         if ($pdfGenerated) {
-            if ($pdfMode -eq "html-browser-print") {
+            if ($pdfMode -like "html-browser-print*") {
                 # Chromium's tagged PDF structure is more important than post-render compression.
                 # Ghostscript pdfwrite may discard or rewrite accessibility structure metadata.
                 $pdfBytesBeforeCompression = (Get-Item -LiteralPath $pdfPath).Length
@@ -2603,7 +2640,7 @@ foreach ($publishRoot in $publishRoots) {
         xmlDocumentationFileName = "LocalGPT.xml"
         documentationMode = $documentationMode
         pdfMode = $pdfMode
-        pdfAccessibilityMode = if ($pdfMode -eq "docfx-pdf-plugin") { "html-accessibility-fallback" } else { "tagged-pdf-required" }
+        pdfAccessibilityMode = $pdfAccessibilityMode
         docfxVersion = "2.78.5"
         toolSource = $toolSource
         articleSourceCount = $articleSourceCount

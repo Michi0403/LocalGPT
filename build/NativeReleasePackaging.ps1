@@ -155,7 +155,9 @@ function New-Dmg([string]$AppPath,[string]$Destination) {
 }
 function New-AppImage([string]$Source,[string]$Destination) {
     $tool = $null
-    if ($isLinuxHost -and (Test-TargetMatchesHostArchitecture $Rid)) {
+    if ($isLinuxHost) {
+        # appimagetool itself runs on the host architecture, but ARCH selects the runtime embedded
+        # into the resulting AppImage. This allows an x64 WSL/Linux host to finish an arm64 AppDir.
         $tool = Get-ExternalCommandPath 'appimagetool'
     }
 
@@ -167,14 +169,10 @@ function New-AppImage([string]$Source,[string]$Destination) {
 
     if (-not $tool -and -not $engine) {
         if ($isMacHost) {
-            Complete-OptionalPackageFailure 'AppImage' "AppImage is Linux-only. macOS can cross-publish the Linux payload, but AppImage finishing needs a Linux builder or an explicitly enabled Docker/Podman fallback (-UseContainerFallback)."
+            Complete-OptionalPackageFailure 'AppImage' "AppImage finishing needs Linux. macOS can cross-publish the Linux payload, but finishing needs a Linux builder or an explicitly enabled Docker/Podman fallback (-UseContainerFallback)."
             return $false
         }
-        if ($isLinuxHost -and -not (Test-TargetMatchesHostArchitecture $Rid)) {
-            Complete-OptionalPackageFailure 'AppImage' "Native appimagetool is limited to the current Linux architecture ($hostArchitecture). Use a matching Linux host or opt into a container fallback."
-            return $false
-        }
-        Complete-OptionalPackageFailure 'AppImage' "appimagetool is unavailable. Install it on Linux or opt into an already-installed Docker/Podman engine with -UseContainerFallback."
+        Complete-OptionalPackageFailure 'AppImage' "appimagetool is unavailable. Install it on Linux/WSL or opt into an already-installed Docker/Podman engine with -UseContainerFallback."
         return $false
     }
 
@@ -193,16 +191,31 @@ exec "$HERE/__EXECUTABLE__" "$@"
         Set-UnixExecutable (Join-Path $appDir $ExecutableName)
         $desktop = Join-Path $appDir "$ProductName.desktop"
         Write-Utf8NoBom $desktop "[Desktop Entry]`nType=Application`nName=$ProductName`nExec=$ExecutableName`nTerminal=false`nCategories=Utility;`n"
+        $appImageArch = if ($Rid.EndsWith('arm64')) { 'aarch64' } else { 'x86_64' }
         if ($tool) {
-            & $tool $appDir $Destination | Out-Host
-            if ($LASTEXITCODE -ne 0) { throw 'appimagetool failed.' }
+            $hadArch = Test-Path Env:ARCH
+            $previousArch = $env:ARCH
+            $hadExtractAndRun = Test-Path Env:APPIMAGE_EXTRACT_AND_RUN
+            $previousExtractAndRun = $env:APPIMAGE_EXTRACT_AND_RUN
+            try {
+                $env:ARCH = $appImageArch
+                if (-not [string]::IsNullOrWhiteSpace($env:WSL_DISTRO_NAME) -or -not [string]::IsNullOrWhiteSpace($env:WSL_INTEROP)) {
+                    # WSL commonly has no FUSE device. appimagetool supports extract-and-run mode.
+                    $env:APPIMAGE_EXTRACT_AND_RUN = '1'
+                }
+                & $tool $appDir $Destination | Out-Host
+                if ($LASTEXITCODE -ne 0) { throw 'appimagetool failed.' }
+            }
+            finally {
+                if ($hadArch) { $env:ARCH = $previousArch } else { Remove-Item Env:ARCH -ErrorAction SilentlyContinue }
+                if ($hadExtractAndRun) { $env:APPIMAGE_EXTRACT_AND_RUN = $previousExtractAndRun } else { Remove-Item Env:APPIMAGE_EXTRACT_AND_RUN -ErrorAction SilentlyContinue }
+            }
         } else {
             $image = if ($env:APPIMAGETOOL_CONTAINER_IMAGE) { $env:APPIMAGETOOL_CONTAINER_IMAGE } else { 'ghcr.io/appimage/appimagetool:continuous' }
             $parent = Split-Path -Parent $appDir
             $leaf = Split-Path -Leaf $appDir
             $outLeaf = [IO.Path]::GetFileName($Destination)
             $platform = if ($Rid.EndsWith('arm64')) { 'linux/arm64' } else { 'linux/amd64' }
-            $appImageArch = if ($Rid.EndsWith('arm64')) { 'aarch64' } else { 'x86_64' }
             & $engine run --rm --privileged --platform $platform -e "ARCH=$appImageArch" -v "${parent}:/work" $image "/work/$leaf" "/work/$outLeaf" | Out-Host
             if ($LASTEXITCODE -ne 0) { throw 'Containerized appimagetool failed.' }
             Move-Item -LiteralPath (Join-Path $parent $outLeaf) -Destination $Destination -Force
@@ -213,7 +226,6 @@ exec "$HERE/__EXECUTABLE__" "$@"
         return $false
     } finally { Remove-Item -LiteralPath $appDir -Recurse -Force -ErrorAction SilentlyContinue }
 }
-
 function New-Rpm([string]$Source,[string]$Destination,[string]$Architecture) {
     $rpmbuild = $null
     if ($isLinuxHost -or $isMacHost) { $rpmbuild = Resolve-RpmBuildPath }

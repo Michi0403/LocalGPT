@@ -4,7 +4,9 @@
 
 Releases use a clean, reviewable lane. The version must be greater than prior public releases, repository state must be understood, and required build/validation steps must finish before assets are published.
 
-The release package matrix is host-aware by default. Windows builds the maintained Windows x64/x86/ARM64 application and setup outputs. macOS builds macOS x64/ARM64 plus Linux x64/ARM64 Full/Light application packages in one owner-side run: DMG finishing is native, Linux TAR.GZ/DEB use the managed LocalGPT packaging helper, and RPM can use `rpmbuild` from Homebrew's `rpm` formula. Linux remains a first-class release host for Linux x64/ARM64 packages. `Build-Release.ps1 -Runtime all-rids` remains available for an explicit cross-host publish attempt. AppImage remains Linux-native unless an already-installed Docker/Podman fallback is explicitly enabled; optional RPM/AppImage failures warn rather than invalidating the rest of the release unless `-RequireOptionalNativePackages` is supplied.
+The release package matrix is host-aware by default. Windows always builds the maintained Windows x64/x86/ARM64 application/setup outputs. When a release-ready WSL distro is already installed, the default `-WslLinux Auto` mode additionally delegates Linux x64/ARM64 Full/Light builds to WSL and imports the Linux artifacts into the same release bundle. Missing/unready WSL is non-fatal for the ordinary Windows release. Native Linux remains a first-class Linux lane, and macOS continues to build macOS x64/ARM64 plus Linux x64/ARM64 as supported in the previous release.
+
+WSL provisioning is explicit through `Setup-WslLinuxBuild.ps1 -Provision` or the opt-in `-ProvisionWslBuildTools` switch. The WSL bridge mirrors source to the Linux filesystem, reuses parent-prepared documentation, and normally terminates only a distro it had to start. Linux TAR.GZ/DEB are mandatory; RPM/AppImage are optional unless `-RequireOptionalNativePackages` is supplied. `Build-Release.ps1 -Runtime all-rids` remains an explicit cross-host attempt; native DMG/signing/notarization still belongs on macOS.
 
 ## Documentation build
 

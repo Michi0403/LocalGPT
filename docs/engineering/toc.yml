@@ -4,5 +4,7 @@
   href: build-validation.md
 - name: "Release and documentation"
   href: release-and-docs.md
+- name: "Windows + WSL Linux releases"
+  href: wsl-linux-release.md
 - name: "Maintenance status"
   href: maintenance-status.md

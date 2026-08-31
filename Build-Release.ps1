@@ -10,7 +10,17 @@ param(
     [switch]$UseContainerPackaging,
     [switch]$ProvisionNativePackagingTools,
     [switch]$RequireOptionalNativePackages,
-    [switch]$AllowMissingDevExpressLicense
+    [switch]$AllowMissingDevExpressLicense,
+    [ValidateSet("Auto", "Off", "Require")]
+    [string]$WslLinux = "Auto",
+    [string]$WslDistribution = "",
+    [ValidateSet("IfStarted", "Always", "Never")]
+    [string]$WslShutdown = "IfStarted",
+    [switch]$ProvisionWslBuildTools,
+    [switch]$KeepWslBuildTree,
+    [switch]$WslChildBuild,
+    [switch]$SkipReleaseBundle,
+    [string]$PreparedDocumentationRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,8 +37,11 @@ function Initialize-BuildConsoleEncoding {
 Initialize-BuildConsoleEncoding
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$wslCommonScript = Join-Path $root 'build/WslRelease.Common.ps1'
+if (-not (Test-Path -LiteralPath $wslCommonScript -PathType Leaf)) { throw "WSL release helper is missing: $wslCommonScript" }
+. $wslCommonScript
 & (Join-Path $root 'build/Assert-PowerShellCompatibility.ps1')
-& (Join-Path $root 'build/Initialize-BuildPrerequisites.ps1') -AllowMissingDevExpressLicense:$AllowMissingDevExpressLicense
+& (Join-Path $root 'build/Initialize-BuildPrerequisites.ps1') -AllowMissingDevExpressLicense:$AllowMissingDevExpressLicense -SkipDocumentationNodeProvisioning:($WslChildBuild -and -not [string]::IsNullOrWhiteSpace($PreparedDocumentationRoot))
 & (Join-Path $root 'build/Assert-CrossPlatformBoundaries.ps1')
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
 & (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
@@ -134,9 +147,9 @@ function Assert-LocalGptDocumentationPayload {
     $physicalApiHtmlCount = @(Get-ChildItem -LiteralPath (Join-Path $DocumentationRoot 'api') -Filter '*.html' -File -Recurse -ErrorAction SilentlyContinue).Count
     if ($physicalApiHtmlCount -le 1) { throw "Published LocalGPT documentation API directory is physically incomplete ($physicalApiHtmlCount HTML file(s))." }
     if ([string]$status.documentationMode -ne "docfx") { throw "Published LocalGPT documentation did not use the DocFX modern site." }
-    if ([string]$status.pdfMode -notin @("html-browser-print", "docfx-pdf-plugin")) { throw "Published LocalGPT documentation does not contain the complete HTML-backed documentation PDF." }
-    if ([string]$status.pdfMode -eq "html-browser-print" -and [int]$status.pdfSourcePageCount -lt 10) { throw "The LocalGPT documentation PDF did not include the expected HTML page set." }
-    if ([string]$status.pdfMode -eq "html-browser-print" -and [int]$status.apiHtmlCount -gt 0 -and [int]$status.pdfSourcePageCount -lt [int]$status.apiHtmlCount) { throw "The LocalGPT documentation PDF omitted generated API pages." }
+    if ([string]$status.pdfMode -notin @("html-browser-print", "html-browser-print-compatibility", "docfx-pdf-plugin")) { throw "Published LocalGPT documentation does not contain the complete HTML-backed documentation PDF." }
+    if ([string]$status.pdfMode -like "html-browser-print*" -and [int]$status.pdfSourcePageCount -lt 10) { throw "The LocalGPT documentation PDF did not include the expected HTML page set." }
+    if ([string]$status.pdfMode -like "html-browser-print*" -and [int]$status.apiHtmlCount -gt 0 -and [int]$status.pdfSourcePageCount -lt [int]$status.apiHtmlCount) { throw "The LocalGPT documentation PDF omitted generated API pages." }
     if (-not ([bool]$status.completeApiReference)) { throw "Published LocalGPT documentation is missing the complete XML-generated API reference." }
     if (-not ([bool]$status.htmlPreflightValidated)) { throw "Published LocalGPT documentation did not pass the pre-PDF HTML accessibility/link preflight." }
     if ([int]$status.unresolvedAssemblyReferenceCount -ne 0) { throw "Published LocalGPT documentation contains unresolved assembly references: $($status.unresolvedAssemblyReferences -join ', ')" }
@@ -157,6 +170,18 @@ $appVersion = Resolve-ProjectVersion -ProjectPath $appProject
 
 function Prepare-LocalGptDocumentation {
     if ($script:documentationPrepared) { return }
+
+    if (-not [string]::IsNullOrWhiteSpace($PreparedDocumentationRoot)) {
+        $preparedRoot = [IO.Path]::GetFullPath($PreparedDocumentationRoot)
+        if (-not (Test-Path -LiteralPath $preparedRoot -PathType Container)) { throw "Prepared LocalGPT documentation root is missing: $preparedRoot" }
+        Assert-LocalGptDocumentationPayload -DocumentationRoot $preparedRoot -Version $appVersion -RequirePhysicalPdf
+        Remove-Item -LiteralPath $script:documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Path $script:documentationCacheRoot -Force | Out-Null
+        Copy-Item -Path (Join-Path $preparedRoot '*') -Destination $script:documentationCacheRoot -Recurse -Force
+        $script:documentationPrepared = $true
+        Write-Host "Reused parent-prepared LocalGPT documentation for this Linux release child." -ForegroundColor Green
+        return
+    }
 
     if (-not (Test-Path -LiteralPath $documentationScript -PathType Leaf)) {
         throw "Documentation build script not found: $documentationScript"
@@ -659,9 +684,65 @@ $runtimes = if ($Runtime -eq "all") {
 } else {
     @($Runtime)
 }
-Write-Host "Release host $releaseHost selected runtime(s): $($runtimes -join ', ')" -ForegroundColor Cyan
+
+$wslLinuxRuntimes = @()
+$wslResolvedDistribution = ''
+$wslWasRunningBeforeProbe = $false
+$wslEffectiveShutdown = $WslShutdown
+$wslExecutable = $null
+if ($releaseHost -eq 'Windows' -and -not $WslChildBuild -and $WslLinux -ne 'Off') {
+    $wslCandidates = if ($Runtime -eq 'all') {
+        @('linux-x64','linux-arm64')
+    } else {
+        @($runtimes | Where-Object { $_ -in @('linux-x64','linux-arm64') })
+    }
+
+    if ($wslCandidates.Count -gt 0) {
+        $wslExecutable = Get-WslReleaseExecutable
+        if (-not [string]::IsNullOrWhiteSpace($wslExecutable)) {
+            $wslResolvedDistribution = Resolve-WslReleaseDistribution -WslExecutable $wslExecutable -RequestedDistribution $WslDistribution
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($wslResolvedDistribution)) {
+            $runningBeforeProbe = @(Get-WslReleaseRunningDistributions -WslExecutable $wslExecutable)
+            $wslWasRunningBeforeProbe = @($runningBeforeProbe | Where-Object { [string]::Equals($_, $wslResolvedDistribution, [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0
+            $wslStatus = Get-WslReleaseBuildStatus -WslExecutable $wslExecutable -Distribution $wslResolvedDistribution
+            if ((-not $wslStatus.CoreReady) -and $ProvisionWslBuildTools) {
+                Write-Host "Provisioning the existing WSL distribution '$wslResolvedDistribution' because -ProvisionWslBuildTools was requested..." -ForegroundColor Cyan
+                & (Join-Path $root 'Setup-WslLinuxBuild.ps1') -Distribution $wslResolvedDistribution -Provision -Shutdown Never
+                $wslStatus = Get-WslReleaseBuildStatus -WslExecutable $wslExecutable -Distribution $wslResolvedDistribution
+            }
+            $wslLicenseReady = $wslStatus.CoreReady -and (Test-WslReleaseDevExpressLicenseAvailable -WslExecutable $wslExecutable -Distribution $wslResolvedDistribution -Status $wslStatus)
+            if ($wslStatus.CoreReady -and $wslLicenseReady) {
+                $wslLinuxRuntimes = @($wslCandidates)
+                $runtimes = @($runtimes | Where-Object { $_ -notin $wslLinuxRuntimes })
+                if ($WslShutdown -eq 'IfStarted') { $wslEffectiveShutdown = if ($wslWasRunningBeforeProbe) { 'Never' } else { 'Always' } }
+                Write-Host "Ready WSL Linux backend '$wslResolvedDistribution' will build: $($wslLinuxRuntimes -join ', ')." -ForegroundColor Cyan
+            }
+            else {
+                $reason = if (-not $wslStatus.CoreReady) { Get-WslReleaseReadinessMessage $wslStatus } else { 'DevExpress build license is not available through the WSL profile or Windows license bridge.' }
+                if (-not $wslWasRunningBeforeProbe) { & $wslExecutable --terminate $wslResolvedDistribution 2>$null | Out-Null }
+                if ($WslLinux -eq 'Require') { throw "WSL Linux release was required, but '$wslResolvedDistribution' is not ready: $reason" }
+                Write-Host "WSL Linux release backend not used: $reason" -ForegroundColor DarkCyan
+                if ($Runtime -eq 'all') { Write-Host 'Continuing with the normal Windows release only. Run .\\Setup-WslLinuxBuild.ps1 -Provision to enable automatic Linux packaging.' -ForegroundColor DarkCyan }
+                else { Write-Host 'Explicit Linux RIDs remain in the local runtime list, so the existing cross-publish path is preserved.' -ForegroundColor DarkCyan }
+            }
+        }
+        else {
+            if ($WslLinux -eq 'Require') { throw 'WSL Linux release was required, but no usable WSL distribution is installed and initialized.' }
+            if ($Runtime -eq 'all') { Write-Host 'No ready WSL distribution was found; continuing with the normal Windows release only.' -ForegroundColor DarkCyan }
+            else { Write-Host 'No ready WSL distribution was found; explicit Linux RIDs will use the existing Windows cross-publish path.' -ForegroundColor DarkCyan }
+        }
+    }
+}
+
+$displayRuntimes = @($runtimes) + @($wslLinuxRuntimes | ForEach-Object { "$_ (WSL)" })
+Write-Host "Release host $releaseHost selected runtime(s): $($displayRuntimes -join ', ')" -ForegroundColor Cyan
 if ($Runtime -eq 'all') {
     Write-Host "Runtime 'all' is host-aware. Use -Runtime all-rids only for an explicit cross-host publish attempt." -ForegroundColor DarkCyan
+    if ($releaseHost -eq 'Windows' -and $wslLinuxRuntimes.Count -gt 0) {
+        Write-Host 'Windows is the release coordinator: Windows packages are native; Linux Full/Light packages are delegated headlessly to WSL and imported into the same release bundle.' -ForegroundColor DarkCyan
+    }
     if ($releaseHost -eq 'macOS') {
         Write-Host "macOS host release also includes Linux x64/ARM64 payloads. TAR.GZ/DEB are managed; RPM uses rpmbuild (Homebrew rpm is supported); AppImage remains Linux/container-only." -ForegroundColor DarkCyan
     }
@@ -699,6 +780,23 @@ Prepare-LocalGptDocumentation
 try {
     foreach ($rid in $runtimes) { Publish-Runtime $rid }
 
+    if ($wslLinuxRuntimes.Count -gt 0) {
+        $wslArtifacts = @(& (Join-Path $root 'build/Invoke-WslLinuxRelease.ps1') `
+            -ProductName LocalGPT `
+            -RepositoryRoot $root `
+            -OutputDirectory $artifacts `
+            -PreparedDocumentationRoot $documentationCacheRoot `
+            -Version $appVersion `
+            -Runtimes $wslLinuxRuntimes `
+            -Configuration $Configuration `
+            -Distribution $wslResolvedDistribution `
+            -UseContainerPackaging:$UseContainerPackaging `
+            -RequireOptionalNativePackages:$RequireOptionalNativePackages `
+            -KeepBuildTree:$KeepWslBuildTree `
+            -Shutdown $wslEffectiveShutdown)
+        foreach ($artifact in $wslArtifacts) { if (-not [string]::IsNullOrWhiteSpace([string]$artifact)) { $script:releaseZipPaths.Add([string]$artifact) } }
+    }
+
     $documentationPdf = Join-Path $documentationCacheRoot "LocalGPT-$appVersion.pdf"
     $winX64Profile = Resolve-ReleaseProfile -Rid "win-x64"
     $winX64SetupFolder = Resolve-ProfilePublishFolder -ProjectPath $setupProject -ProfileName $winX64Profile.SetupProfile
@@ -707,22 +805,27 @@ try {
     $licensePath = Join-Path $root "LICENSE.MD"
     if (-not (Test-Path -LiteralPath $licensePath -PathType Leaf)) { $licensePath = Join-Path $root "LICENSE" }
 
-    Complete-ReleaseBundle `
-        -Version $appVersion `
-        -ReleaseZipPaths @($releaseZipPaths) `
-        -DocumentationPdfPath $documentationPdf `
-        -WindowsX64SetupExecutablePath $winX64SetupExecutable `
-        -ReadmePath (Join-Path $root "README.md") `
-        -LicensePath $licensePath `
-        -WireProtocolPackagePath $wirePackage `
-        -ReleasePackagingPackagePath $releasePackagingPackage `
-        -SetupIconPath (Join-Path $root "src/LocalGPT/wwwroot/favicon.ico") `
-        -RequireWindowsX64Setup $requireWinX64Setup
+    if (-not $SkipReleaseBundle) {
+        Complete-ReleaseBundle `
+            -Version $appVersion `
+            -ReleaseZipPaths @($releaseZipPaths) `
+            -DocumentationPdfPath $documentationPdf `
+            -WindowsX64SetupExecutablePath $winX64SetupExecutable `
+            -ReadmePath (Join-Path $root "README.md") `
+            -LicensePath $licensePath `
+            -WireProtocolPackagePath $wirePackage `
+            -ReleasePackagingPackagePath $releasePackagingPackage `
+            -SetupIconPath (Join-Path $root "src/LocalGPT/wwwroot/favicon.ico") `
+            -RequireWindowsX64Setup $requireWinX64Setup
+    }
+    else {
+        Write-Host 'Skipping the upload-ready version bundle because this is a delegated Linux release child.' -ForegroundColor DarkCyan
+    }
 }
 finally {
     Remove-Item -LiteralPath $documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-$releaseBundle = Join-Path $artifacts $appVersion
+$releaseBundle = if ($SkipReleaseBundle) { $artifacts } else { Join-Path $artifacts $appVersion }
 Write-Host "Release output: $releaseBundle" -ForegroundColor Green
 Write-Host "Protocol package cache: $(Join-Path $artifacts $wirePackageName)" -ForegroundColor Green
