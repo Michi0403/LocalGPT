@@ -8,6 +8,8 @@ param(
     [switch]$UseBundledWireProtocolPackage,
     [switch]$IncludeWindowsWrapper,
     [switch]$UseContainerPackaging,
+    [switch]$ProvisionNativePackagingTools,
+    [switch]$RequireOptionalNativePackages,
     [switch]$AllowMissingDevExpressLicense
 )
 
@@ -76,7 +78,7 @@ function Get-HostDefaultRuntimes {
     switch (Get-ReleaseHostFamily) {
         'Windows' { return @('win-x64', 'win-x86', 'win-arm64') }
         'Linux'   { return @('linux-x64', 'linux-arm64') }
-        'macOS'   { return @('osx-x64', 'osx-arm64') }
+        'macOS'   { return @('osx-x64', 'osx-arm64', 'linux-x64', 'linux-arm64') }
     }
 }
 
@@ -558,7 +560,7 @@ function Publish-UnixRuntime {
         Assert-LocalGptDocumentationPayload -DocumentationRoot (Join-Path $publishFolder 'wwwroot/help-docs') -Version $appVersion
         $protocolDirectory = Join-Path $publishFolder 'protocol'; New-Item -ItemType Directory -Path $protocolDirectory -Force | Out-Null
         Copy-Item -LiteralPath $wirePackage -Destination (Join-Path $protocolDirectory $wirePackageName) -Force
-        $nativeArtifacts = & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName $appExecutable -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT -UseContainerFallback:$UseContainerPackaging
+        $nativeArtifacts = & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName $appExecutable -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT -UseContainerFallback:$UseContainerPackaging -ProvisionHomebrewTools:$ProvisionNativePackagingTools -RequireOptionalPackages:$RequireOptionalNativePackages
         foreach ($artifact in @($nativeArtifacts)) { if (-not [string]::IsNullOrWhiteSpace([string]$artifact)) { $script:releaseZipPaths.Add([string]$artifact) } }
     }
 }
@@ -660,6 +662,9 @@ $runtimes = if ($Runtime -eq "all") {
 Write-Host "Release host $releaseHost selected runtime(s): $($runtimes -join ', ')" -ForegroundColor Cyan
 if ($Runtime -eq 'all') {
     Write-Host "Runtime 'all' is host-aware. Use -Runtime all-rids only for an explicit cross-host publish attempt." -ForegroundColor DarkCyan
+    if ($releaseHost -eq 'macOS') {
+        Write-Host "macOS host release also includes Linux x64/ARM64 payloads. TAR.GZ/DEB are managed; RPM uses rpmbuild (Homebrew rpm is supported); AppImage remains Linux/container-only." -ForegroundColor DarkCyan
+    }
 }
 $requiresNativePackaging = @($runtimes | Where-Object { -not $_.StartsWith('win-') }).Count -gt 0
 

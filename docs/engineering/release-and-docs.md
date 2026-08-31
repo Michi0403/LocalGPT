@@ -4,7 +4,7 @@
 
 Releases use a clean, reviewable lane. The version must be greater than prior public releases, repository state must be understood, and required build/validation steps must finish before assets are published.
 
-The release package matrix is host-aware by default. Windows builds the maintained Windows x64/x86/ARM64 application and setup outputs; Linux builds the Linux x64/ARM64 Full/Light application packages; macOS builds the macOS x64/ARM64 Full/Light application packages and performs DMG finishing natively. `Build-Release.ps1 -Runtime all-rids` remains available for an explicit cross-host publish attempt. RPM/AppImage finishing is optional and Linux-native; container fallback is opt-in rather than a release prerequisite.
+The release package matrix is host-aware by default. Windows builds the maintained Windows x64/x86/ARM64 application and setup outputs. macOS builds macOS x64/ARM64 plus Linux x64/ARM64 Full/Light application packages in one owner-side run: DMG finishing is native, Linux TAR.GZ/DEB use the managed LocalGPT packaging helper, and RPM can use `rpmbuild` from Homebrew's `rpm` formula. Linux remains a first-class release host for Linux x64/ARM64 packages. `Build-Release.ps1 -Runtime all-rids` remains available for an explicit cross-host publish attempt. AppImage remains Linux-native unless an already-installed Docker/Podman fallback is explicitly enabled; optional RPM/AppImage failures warn rather than invalidating the rest of the release unless `-RequireOptionalNativePackages` is supplied.
 
 ## Documentation build
 

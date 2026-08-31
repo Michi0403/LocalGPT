@@ -1,11 +1,11 @@
-# LocalGPT 3.5.4
+# LocalGPT 3.5.6
 
-LocalGPT 3.5.4 is the **host-aware release packaging** maintenance release.
+LocalGPT 3.5.6 is the **macOS Linux cross-release and Homebrew RPM** maintenance release.
 
-The supplied Windows 3.5.3 release log reaches successful Windows x64/x86/ARM64 application/setup publishing and successful Linux TAR.GZ/DEB generation before failing only at the mandatory RPM step. The default release path no longer asks a Windows machine to complete Linux/macOS native packaging.
+The ordinary release matrix now intentionally uses two primary workstation lanes: Windows builds the Windows x64/x86/ARM64 application/setup outputs, while macOS builds both macOS x64/ARM64 and Linux x64/ARM64 application packages. Linux remains fully supported for developers and Linux-native release work.
 
-`Build-Release` now treats `-Runtime all` as all maintained runtimes for the current host OS. `-Runtime all-rids` is retained for an explicit cross-host publish attempt. Linux RPM/AppImage finishing is optional and native-tool driven; Docker/Podman is opt-in rather than a release prerequisite.
+On macOS, Linux TAR.GZ and DEB outputs use the managed LocalGPT.ReleasePackaging helper. RPM finishing can use Homebrew's `rpm`/`rpmbuild` (`brew install rpm`) and targets the Linux architecture explicitly. `-ProvisionNativePackagingTools` may install the Homebrew `rpm` formula only when the operator opts in and Homebrew already exists. AppImage remains Linux-native; it is skipped on macOS unless the operator explicitly enables the optional container fallback.
 
-Windows-only LocalGPT builds still create and populate the shared `LocalGPT.ReleasePackaging` 1.0.1 NuGet cache for PublisherStudio, without installing the Unix packaging tool when it is not used. Windows command/PowerShell entry points also initialize UTF-8 console handling for `dotnet` output.
+RPM/AppImage are optional finishers by default and cannot destroy an otherwise valid release just because a tool is missing or a native finisher fails. Use `-RequireOptionalNativePackages` when those optional formats must be strict.
 
-See `CHANGELOG-v3.5.4-HOST-AWARE-RELEASE-PACKAGING.md` and `VALIDATION-v3.5.4-source.md`.
+See `CHANGELOG-v3.5.6-MACOS-LINUX-HOMEBREW-RELEASE.md` and `VALIDATION-v3.5.6-source.md`.
