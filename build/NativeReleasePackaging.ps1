@@ -10,9 +10,14 @@ param(
     [ValidateSet('LocalGPT','PublisherStudio')][string]$DependencyPolicy = 'LocalGPT',
     [switch]$UseContainerFallback,
     [switch]$ProvisionHomebrewTools,
-    [switch]$RequireOptionalPackages
+    [switch]$RequireOptionalPackages,
+    [string]$MacIconSource = '',
+    [string]$DmgBackgroundPath = ''
 )
 $ErrorActionPreference = 'Stop'
+# Provider progress records from large Remove-Item/Copy-Item operations become corrupt when
+# interleaved with external DocFX/package progress. Keep cleanup deterministic and line-oriented.
+$ProgressPreference = 'SilentlyContinue'
 Set-StrictMode -Version Latest
 
 $isWindowsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)
@@ -111,29 +116,133 @@ printf '%s\n' 'FFmpeg is not bundled by PublisherStudio. Install it with your pl
     }
     Set-UnixExecutable $Destination
 }
+function New-MacBundleIcon([string]$AppPath) {
+    if ([string]::IsNullOrWhiteSpace($MacIconSource)) { return $null }
+    if (-not $isMacHost) { return $null }
+    if (-not (Test-Path -LiteralPath $MacIconSource -PathType Leaf)) {
+        throw "macOS icon source was not found: $MacIconSource"
+    }
+    $sips = Get-ExternalCommandPath 'sips'
+    $iconutil = Get-ExternalCommandPath 'iconutil'
+    if (-not $sips -or -not $iconutil) {
+        throw 'macOS application icon generation requires the built-in sips and iconutil tools.'
+    }
+    $iconSet = Join-Path ([IO.Path]::GetTempPath()) ("$ProductName-" + [Guid]::NewGuid().ToString('N') + '.iconset')
+    $destination = Join-Path $AppPath 'Contents/Resources/AppIcon.icns'
+    New-Item -ItemType Directory -Path $iconSet -Force | Out-Null
+    try {
+        $sizes = @(
+            @{ Name='icon_16x16.png'; Size=16 }, @{ Name='icon_16x16@2x.png'; Size=32 },
+            @{ Name='icon_32x32.png'; Size=32 }, @{ Name='icon_32x32@2x.png'; Size=64 },
+            @{ Name='icon_128x128.png'; Size=128 }, @{ Name='icon_128x128@2x.png'; Size=256 },
+            @{ Name='icon_256x256.png'; Size=256 }, @{ Name='icon_256x256@2x.png'; Size=512 },
+            @{ Name='icon_512x512.png'; Size=512 }, @{ Name='icon_512x512@2x.png'; Size=1024 }
+        )
+        foreach ($item in $sizes) {
+            & $sips -z $item.Size $item.Size $MacIconSource --out (Join-Path $iconSet $item.Name) | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "sips failed while generating macOS icon size $($item.Size)." }
+        }
+        & $iconutil -c icns $iconSet -o $destination | Out-Null
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $destination -PathType Leaf)) {
+            throw "iconutil failed while creating $destination"
+        }
+        return 'AppIcon'
+    }
+    finally { Remove-Item -LiteralPath $iconSet -Recurse -Force -ErrorAction SilentlyContinue }
+}
+function Sign-MacBundleAdHoc([string]$AppPath) {
+    if (-not $isMacHost) { return }
+    $codesign = Get-ExternalCommandPath 'codesign'
+    if (-not $codesign) {
+        Write-Warning "codesign is unavailable; $ProductName.app will remain unsigned."
+        return
+    }
+    & $codesign --force --deep --sign - --timestamp=none $AppPath 2>&1 | ForEach-Object { Write-Host $_ }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Ad-hoc codesign failed for $AppPath"
+    }
+}
 function New-MacLauncher([string]$Destination,[string]$BinaryRelativePath) {
     $template = @'
 #!/bin/sh
-set -eu
+set -u
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 APP=$(CDPATH= cd -- "$HERE/../Resources/app" && pwd)
 BIN="$APP/__EXECUTABLE__"
-find_endpoint() {
-  for f in "$HOME/Library/Application Support/__PRODUCT__/runtime/server.json" "$HOME/.local/share/__PRODUCT__/runtime/server.json"; do
+PRODUCT="__PRODUCT__"
+LOG_DIR="$HOME/Library/Logs/$PRODUCT"
+LOG_FILE="$LOG_DIR/launcher.log"
+mkdir -p "$LOG_DIR"
+
+read_endpoint() {
+  for f in \
+    "$HOME/Library/Application Support/$PRODUCT/runtime/server.json" \
+    "$HOME/.local/share/$PRODUCT/runtime/server.json"
+  do
     [ -f "$f" ] || continue
-    url=$(sed -nE 's/.*"[Uu]rl"[[:space:]]*:[[:space:]]*"([^\"]+)".*/\1/p' "$f" | head -n 1)
-    [ -n "${url:-}" ] && { printf '%s' "$url"; return 0; }
+    pid=$(sed -nE 's/.*"[Pp]rocess[Ii]d"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$f" | head -n 1)
+    if [ -n "${pid:-}" ] && ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$f" 2>/dev/null || true
+      continue
+    fi
+    url=$(sed -nE 's/.*"([Bb]ase[Uu]rl|[Uu]rl)"[[:space:]]*:[[:space:]]*"([^\"]+)".*/\2/p' "$f" | head -n 1)
+    case "${url:-}" in
+      http://127.0.0.1:*|http://localhost:*|https://127.0.0.1:*|https://localhost:*) printf '%s' "$url"; return 0 ;;
+    esac
   done
   return 1
 }
-if url=$(find_endpoint 2>/dev/null); then open "$url" >/dev/null 2>&1 || true; exit 0; fi
-"$BIN" --no-browser >/tmp/__PRODUCT__.log 2>&1 &
+show_failure() {
+  reason="$1"
+  printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') $reason" >>"$LOG_FILE"
+  if [ -x /usr/bin/osascript ]; then
+    /usr/bin/osascript - "$PRODUCT" "$reason" "$LOG_FILE" <<'APPLESCRIPT' >/dev/null 2>&1 || true
+on run argv
+  set productName to item 1 of argv
+  set reasonText to item 2 of argv
+  set logPath to item 3 of argv
+  display alert (productName & " could not start") message (reasonText & return & return & "Startup log: " & logPath) as critical buttons {"OK"} default button "OK"
+end run
+APPLESCRIPT
+  fi
+  /usr/bin/open -R "$LOG_FILE" >/dev/null 2>&1 || true
+}
+
+if url=$(read_endpoint 2>/dev/null); then
+  /usr/bin/open "$url" >/dev/null 2>&1 || true
+  exit 0
+fi
+
+if [ ! -x "$BIN" ]; then
+  show_failure "The packaged application executable is missing or is not executable: $BIN"
+  exit 1
+fi
+
+cd "$APP" || { show_failure "The packaged application directory could not be opened: $APP"; exit 1; }
+printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Starting $PRODUCT from $BIN" >>"$LOG_FILE"
+"$BIN" >>"$LOG_FILE" 2>&1 &
+pid=$!
+
 i=0
-while [ $i -lt 60 ]; do
-  if url=$(find_endpoint 2>/dev/null); then open "$url" >/dev/null 2>&1 || true; exit 0; fi
-  i=$((i+1)); sleep 0.5
+while [ $i -lt 120 ]; do
+  if url=$(read_endpoint 2>/dev/null); then
+    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') $PRODUCT ready at $url (pid $pid)" >>"$LOG_FILE"
+    /usr/bin/open "$url" >/dev/null 2>&1 || true
+    exit 0
+  fi
+  if ! kill -0 "$pid" 2>/dev/null; then
+    wait "$pid" 2>/dev/null
+    code=$?
+    show_failure "$PRODUCT exited during startup with code $code."
+    if [ "$code" -eq 0 ]; then exit 1; fi
+    exit "$code"
+  fi
+  i=$((i+1))
+  sleep 0.25
 done
-open "http://127.0.0.1" >/dev/null 2>&1 || true
+
+show_failure "$PRODUCT is still running but did not publish its local web address within 30 seconds."
+exit 1
 '@
     Write-Utf8NoBom $Destination ($template.Replace('__PRODUCT__', $ProductName).Replace('__EXECUTABLE__', $BinaryRelativePath))
     Set-UnixExecutable $Destination
@@ -143,15 +252,115 @@ function New-Dmg([string]$AppPath,[string]$Destination) {
         Write-Warning "DMG materialization is a native macOS finishing step; $Destination was not produced on this host."
         return $false
     }
-    $stage = Join-Path ([IO.Path]::GetTempPath()) ("dmg-" + [Guid]::NewGuid().ToString('N'))
+
+    $appName = [IO.Path]::GetFileName($AppPath)
+    $volumeName = "$ProductName $Version"
+    $stage = Join-Path ([IO.Path]::GetTempPath()) ("dmg-stage-" + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
     try {
-        Copy-Item -LiteralPath $AppPath -Destination (Join-Path $stage ([IO.Path]::GetFileName($AppPath))) -Recurse -Force
+        Copy-Item -LiteralPath $AppPath -Destination (Join-Path $stage $appName) -Recurse -Force
         New-Item -ItemType SymbolicLink -Path (Join-Path $stage 'Applications') -Target '/Applications' | Out-Null
-        & hdiutil create -volname "$ProductName $Version" -srcfolder $stage -ov -format UDZO $Destination | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "hdiutil failed while creating $Destination" }
+
+        # Keep the branded background in the image as an asset, but never automate Finder during
+        # a release. Finder AppleEvents can block a headless build for minutes and return -1712.
+        if (-not [string]::IsNullOrWhiteSpace($DmgBackgroundPath)) {
+            if (-not (Test-Path -LiteralPath $DmgBackgroundPath -PathType Leaf)) { throw "DMG background was not found: $DmgBackgroundPath" }
+            $backgroundDirectory = Join-Path $stage '.background'
+            New-Item -ItemType Directory -Path $backgroundDirectory -Force | Out-Null
+            Copy-Item -LiteralPath $DmgBackgroundPath -Destination (Join-Path $backgroundDirectory 'background.png') -Force
+        }
+
+        Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+        & hdiutil create -volname $volumeName -srcfolder $stage -ov -format UDZO -imagekey zlib-level=9 $Destination | Out-Null
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
+            throw "hdiutil failed while creating $Destination"
+        }
+
+        # Verify the compressed image without mounting it or opening Finder.
+        & hdiutil verify $Destination | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            throw "hdiutil verification failed for $Destination"
+        }
+
+        Write-Host "Created and verified headless DMG with $appName and Applications alias: $Destination" -ForegroundColor Green
         return $true
-    } finally { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    finally {
+        Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+function New-MacPkg([string]$AppPath,[string]$Destination) {
+    if (-not $isMacHost) { return $false }
+    $pkgbuild = Get-ExternalCommandPath 'pkgbuild'
+    if (-not $pkgbuild) {
+        Write-Warning "pkgbuild is unavailable; $Destination was not produced. The DMG and TAR.GZ remain available."
+        return $false
+    }
+
+    $pkgutil = Get-ExternalCommandPath 'pkgutil'
+    if (-not $pkgutil) {
+        Write-Warning "pkgutil is unavailable; a PKG cannot be payload-validated, so $Destination was not produced."
+        return $false
+    }
+
+    $identifier = "io.github.michi0403.$($ProductName.ToLowerInvariant())"
+    $appName = [IO.Path]::GetFileName($AppPath)
+    $pkgRoot = Join-Path ([IO.Path]::GetTempPath()) ("pkg-root-" + [Guid]::NewGuid().ToString('N'))
+    $applicationsRoot = Join-Path $pkgRoot 'Applications'
+    New-Item -ItemType Directory -Path $applicationsRoot -Force | Out-Null
+    try {
+        # Root-mode packaging makes the payload layout explicit:
+        # /Applications/<Product>.app/Contents/... instead of relying on component inference.
+        Copy-Item -LiteralPath $AppPath -Destination (Join-Path $applicationsRoot $appName) -Recurse -Force
+        $stagedInfoPlist = Join-Path $applicationsRoot "$appName/Contents/Info.plist"
+        $stagedMacOsRoot = Join-Path $applicationsRoot "$appName/Contents/MacOS"
+        if (-not (Test-Path -LiteralPath $stagedInfoPlist -PathType Leaf) -or -not (Test-Path -LiteralPath $stagedMacOsRoot -PathType Container)) {
+            throw "macOS PKG staging does not contain a complete application bundle: $applicationsRoot/$appName"
+        }
+
+        Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+        & $pkgbuild `
+            --root $pkgRoot `
+            --identifier $identifier `
+            --version $Version `
+            --install-location '/' `
+            --ownership recommended `
+            $Destination 2>&1 | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
+            Write-Warning "pkgbuild failed while creating $Destination. The DMG and TAR.GZ remain available."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+
+        $payloadLines = @(& $pkgutil --payload-files $Destination 2>&1 | ForEach-Object { [string]$_ })
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "pkgutil could not inspect $Destination. The unverified PKG was removed."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+
+        $normalizedPayload = @(
+            $payloadLines |
+                ForEach-Object { ([string]$_).Trim().TrimStart([char[]]"./\") } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        )
+        $bundlePrefix = "Applications/$appName/"
+        $hasBundle = @($normalizedPayload | Where-Object { $_ -eq "Applications/$appName" -or $_.StartsWith($bundlePrefix, [StringComparison]::Ordinal) }).Count -gt 0
+        $hasInfoPlist = @($normalizedPayload | Where-Object { $_ -eq "${bundlePrefix}Contents/Info.plist" }).Count -gt 0
+        $hasMacOsPayload = @($normalizedPayload | Where-Object { $_.StartsWith("${bundlePrefix}Contents/MacOS/", [StringComparison]::Ordinal) }).Count -gt 0
+        if (-not $hasBundle -or -not $hasInfoPlist -or -not $hasMacOsPayload) {
+            Write-Warning "PKG payload validation failed for $Destination; expected /Applications/$appName/Contents layout was not present."
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+
+        Write-Host "Validated PKG payload root /Applications/$appName with Info.plist and executable content." -ForegroundColor Green
+        return $true
+    }
+    finally {
+        Remove-Item -LiteralPath $pkgRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 function New-AppImage([string]$Source,[string]$Destination) {
     $tool = $null
@@ -190,7 +399,12 @@ exec "$HERE/__EXECUTABLE__" "$@"
         Set-UnixExecutable $appRun
         Set-UnixExecutable (Join-Path $appDir $ExecutableName)
         $desktop = Join-Path $appDir "$ProductName.desktop"
-        Write-Utf8NoBom $desktop "[Desktop Entry]`nType=Application`nName=$ProductName`nExec=$ExecutableName`nTerminal=false`nCategories=Utility;`n"
+        $iconLine = ''
+        if (-not [string]::IsNullOrWhiteSpace($MacIconSource) -and (Test-Path -LiteralPath $MacIconSource -PathType Leaf)) {
+            Copy-Item -LiteralPath $MacIconSource -Destination (Join-Path $appDir "$ProductName.png") -Force
+            $iconLine = "Icon=$ProductName`n"
+        }
+        Write-Utf8NoBom $desktop "[Desktop Entry]`nType=Application`nName=$ProductName`nExec=$ExecutableName`n${iconLine}Terminal=false`nCategories=Utility;`n"
         $appImageArch = if ($Rid.EndsWith('arm64')) { 'aarch64' } else { 'x86_64' }
         if ($tool) {
             $hadArch = Test-Path Env:ARCH
@@ -344,17 +558,22 @@ if ($Rid.StartsWith('osx-')) {
     Set-UnixExecutable (Join-Path $resources $ExecutableName)
     Write-DependencyHelper (Join-Path $resources 'install-dependencies.sh')
     New-MacLauncher (Join-Path $macos $ProductName) $ExecutableName
+    $bundleIcon = New-MacBundleIcon $app
+    $iconPlist = if ([string]::IsNullOrWhiteSpace($bundleIcon)) { '' } else { "<key>CFBundleIconFile</key><string>$bundleIcon</string>" }
     $infoPlist = @"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>CFBundleName</key><string>$ProductName</string><key>CFBundleDisplayName</key><string>$ProductName</string><key>CFBundleIdentifier</key><string>io.github.michi0403.$($ProductName.ToLowerInvariant())</string><key>CFBundleVersion</key><string>$Version</string><key>CFBundleShortVersionString</key><string>$Version</string><key>CFBundleExecutable</key><string>$ProductName</string></dict></plist>
+<plist version="1.0"><dict><key>CFBundleName</key><string>$ProductName</string><key>CFBundleDisplayName</key><string>$ProductName</string><key>CFBundleIdentifier</key><string>io.github.michi0403.$($ProductName.ToLowerInvariant())</string><key>CFBundleVersion</key><string>$Version</string><key>CFBundleShortVersionString</key><string>$Version</string><key>CFBundleExecutable</key><string>$ProductName</string><key>CFBundlePackageType</key><string>APPL</string>$iconPlist<key>NSHighResolutionCapable</key><true/></dict></plist>
 "@
     Write-Utf8NoBom (Join-Path $app 'Contents/Info.plist') $infoPlist
+    Sign-MacBundleAdHoc $app
     $tar = Join-Path $OutputDirectory "$base.tar.gz"
     Invoke-PackagingTool @('tar','--source',$app,'--output',$tar,'--root',"$ProductName.app",'--executable',"Contents/MacOS/$ProductName",'--executable',"Contents/Resources/app/$ExecutableName",'--executable','Contents/Resources/app/install-dependencies.sh')
     Add-Artifact $artifacts $tar
     $dmg = Join-Path $OutputDirectory "$base.dmg"
     if (New-Dmg $app $dmg) { Add-Artifact $artifacts $dmg }
+    $pkg = Join-Path $OutputDirectory "$base.pkg"
+    if (New-MacPkg $app $pkg) { Add-Artifact $artifacts $pkg }
 }
 elseif ($Rid.StartsWith('linux-')) {
     $workingPayload = Join-Path $OutputDirectory ('.payload-' + [Guid]::NewGuid().ToString('N'))

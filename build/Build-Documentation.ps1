@@ -8,6 +8,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# Suppress PowerShell provider progress. Redirected recursive cleanup otherwise emits stale/asynchronous
+# yellow "Removed X of Y" records that corrupt DocFX progress and can even report impossible totals.
+$ProgressPreference = "SilentlyContinue"
 Set-StrictMode -Version Latest
 
 function Set-Utf8TextFileIdempotent {
@@ -93,24 +96,26 @@ $playwrightBrowserRoot = Join-Path $documentationToolCacheRoot "ms-playwright-do
 $documentationLockRoot = Join-Path $documentationToolCacheRoot "locks"
 $documentationLockPath = Join-Path $documentationLockRoot "LocalGPT-documentation.lock"
 $documentationWorkRoot = Join-Path $documentationToolCacheRoot ("work/" + [Guid]::NewGuid().ToString('N'))
+$documentationPayloadCacheRoot = Join-Path $documentationToolCacheRoot "payload-cache/LocalGPT"
+$documentationCacheKey = ""
+$documentationCacheEntryRoot = ""
+$documentationCachedSiteRoot = ""
+$documentationCachedPdfPath = ""
+$documentationCacheManifestPath = ""
+$documentationCacheManifestData = $null
+$documentationHtmlCacheReused = $false
+$sharedPdfLockStream = $null
+$documentationCoreSucceeded = $false
 $polishedXmlPath = Join-Path $documentationWorkRoot "LocalGPT.xml"
 $documentationLockStream = $null
 $nodeVersionUsed = ""
 $nodeProvisioned = $false
 $nodePlatformUsed = ""
 $nodeArchitectureUsed = ""
-$isMacOsHost = $false
-try {
-    $isMacOsHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)
-}
-catch {
-    if ([IO.Path]::DirectorySeparatorChar -ne '\') {
-        try { $isMacOsHost = [string]::Equals(([string](& uname -s 2>$null | Select-Object -First 1)).Trim(), 'Darwin', [StringComparison]::OrdinalIgnoreCase) } catch { $isMacOsHost = $false }
-    }
-}
-# DocFX's Playwright PDF engine has shown host-specific 30-minute navigation stalls on macOS.
-# Browser print gets two renderer profiles first; the plug-in remains a bounded final fallback.
-$pdfTimeoutMilliseconds = if ($isMacOsHost) { 300000 } else { 1800000 }
+# DocFX's PDF timeout is per navigation. Five minutes was too short on slower macOS hosts and
+# caused valid long renders to fail at a single API page. Keep a 30-minute default everywhere;
+# DOCFX_PDF_TIMEOUT can still override it explicitly for an operator/build machine.
+$pdfTimeoutMilliseconds = 1800000
 $pdfAccessibilityMode = "unavailable"
 $pdfCompressionMode = "none"
 $pdfBytesBeforeCompression = 0
@@ -155,6 +160,152 @@ function Remove-LocalGptTemporaryPath {
 
             Write-Warning "Temporary documentation cleanup could not remove '$Path': $($_.Exception.Message)"
             return
+        }
+    }
+}
+
+function Get-LocalGptDocumentationCacheKey {
+    param(
+        [Parameter(Mandatory)][string]$Assembly,
+        [Parameter(Mandatory)][string]$Xml,
+        [Parameter(Mandatory)][string]$Docs,
+        [Parameter(Mandatory)][string]$VersionValue
+    )
+
+    $parts = [System.Collections.Generic.List[string]]::new()
+    $parts.Add("schema=2")
+    $parts.Add("product=LocalGPT")
+    $parts.Add("version=$VersionValue")
+    foreach ($inputFile in @($Assembly, $Xml, $PSCommandPath)) {
+        if (-not (Test-Path -LiteralPath $inputFile -PathType Leaf)) { throw "Documentation cache input is missing: $inputFile" }
+        $parts.Add(([IO.Path]::GetFileName($inputFile) + "=" + (Get-FileHash -LiteralPath $inputFile -Algorithm SHA256).Hash))
+    }
+
+    $cacheExtensions = @('.md','.yml','.yaml','.json','.html','.css','.js','.svg','.png','.ico','.csproj','.txt')
+    foreach ($file in Get-ChildItem -LiteralPath $Docs -File -Recurse -Force -ErrorAction SilentlyContinue | Sort-Object FullName) {
+        $relative = $file.FullName.Substring($Docs.Length).TrimStart([char[]]"\/").Replace('\','/')
+        if ($relative -match '^(api|input|_site|\.tools|\.print-book|internal-notes)(/|$)') { continue }
+        if ($cacheExtensions -notcontains $file.Extension.ToLowerInvariant()) { continue }
+        $parts.Add(("docs/" + $relative + "=" + (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash))
+    }
+
+    $repairScript = Join-Path $RepositoryRoot "build/Repair-DocfxNamespacePages.ps1"
+    if (Test-Path -LiteralPath $repairScript -PathType Leaf) {
+        $parts.Add(("Repair-DocfxNamespacePages.ps1=" + (Get-FileHash -LiteralPath $repairScript -Algorithm SHA256).Hash))
+    }
+
+    $payload = [Text.Encoding]::UTF8.GetBytes(($parts -join "`n"))
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $hash = $sha.ComputeHash($payload)
+        return ([BitConverter]::ToString($hash)).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha.Dispose()
+    }
+}
+
+function Restore-LocalGptDocumentationHtmlCache {
+    param(
+        [Parameter(Mandatory)][string]$CacheEntryRoot,
+        [Parameter(Mandatory)][string]$CacheSiteRoot,
+        [Parameter(Mandatory)][string]$ManifestPath,
+        [Parameter(Mandatory)][string]$DestinationSiteRoot,
+        [Parameter(Mandatory)][string]$ExpectedKey,
+        [Parameter(Mandatory)][string]$ExpectedVersion
+    )
+
+    if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf) -or -not (Test-Path -LiteralPath $CacheSiteRoot -PathType Container)) { return $null }
+    try {
+        $manifest = Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if (-not [string]::Equals([string]$manifest.cacheKey, $ExpectedKey, [StringComparison]::Ordinal) -or
+            -not [string]::Equals([string]$manifest.version, $ExpectedVersion, [StringComparison]::Ordinal)) {
+            return $null
+        }
+        if (-not (Test-Path -LiteralPath (Join-Path $CacheSiteRoot 'index.html') -PathType Leaf) -or
+            -not (Test-Path -LiteralPath (Join-Path $CacheSiteRoot 'api/index.html') -PathType Leaf)) {
+            return $null
+        }
+        $cachedApiHtmlCount = @(Get-ChildItem -LiteralPath (Join-Path $CacheSiteRoot 'api') -Filter '*.html' -File -Recurse -ErrorAction SilentlyContinue).Count
+        if ($cachedApiHtmlCount -le 1) { return $null }
+
+        Remove-LocalGptTemporaryPath -Path $DestinationSiteRoot -Attempts 8 -DelayMilliseconds 250
+        New-Item -ItemType Directory -Path $DestinationSiteRoot -Force | Out-Null
+        foreach ($entry in Get-ChildItem -LiteralPath $CacheSiteRoot -Force) {
+            Copy-Item -LiteralPath $entry.FullName -Destination (Join-Path $DestinationSiteRoot $entry.Name) -Recurse -Force
+        }
+        Write-Host "Reused durable LocalGPT DocFX HTML cache $ExpectedKey; bin/obj cleanup does not remove this cache." -ForegroundColor Green
+        return $manifest
+    }
+    catch {
+        Write-Warning "Ignoring invalid LocalGPT documentation cache '$CacheEntryRoot': $($_.Exception.Message)"
+        return $null
+    }
+}
+
+function Save-LocalGptDocumentationHtmlCache {
+    param(
+        [Parameter(Mandatory)][string]$CacheEntryRoot,
+        [Parameter(Mandatory)][string]$SiteRoot,
+        [Parameter(Mandatory)][System.Collections.IDictionary]$Manifest
+    )
+
+    $parent = Split-Path -Parent $CacheEntryRoot
+    New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    $temporary = "$CacheEntryRoot.tmp.$([Guid]::NewGuid().ToString('N'))"
+    Remove-LocalGptTemporaryPath -Path $temporary -Attempts 4 -DelayMilliseconds 100
+    New-Item -ItemType Directory -Path (Join-Path $temporary 'site') -Force | Out-Null
+    try {
+        foreach ($entry in Get-ChildItem -LiteralPath $SiteRoot -Force) {
+            Copy-Item -LiteralPath $entry.FullName -Destination (Join-Path $temporary 'site' $entry.Name) -Recurse -Force
+        }
+        $Manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $temporary 'manifest.json') -Encoding utf8
+        Remove-LocalGptTemporaryPath -Path $CacheEntryRoot -Attempts 8 -DelayMilliseconds 250
+        Move-Item -LiteralPath $temporary -Destination $CacheEntryRoot
+    }
+    finally {
+        if (Test-Path -LiteralPath $temporary) { Remove-LocalGptTemporaryPath -Path $temporary -Attempts 4 -DelayMilliseconds 100 }
+    }
+}
+
+function Save-LocalGptDocumentationPdfCache {
+    param(
+        [Parameter(Mandatory)][string]$CacheEntryRoot,
+        [Parameter(Mandatory)][string]$PdfPath,
+        [Parameter(Mandatory)][string]$PdfName,
+        [Parameter(Mandatory)][string]$PdfMode,
+        [Parameter(Mandatory)][string]$PdfAccessibilityMode,
+        [Parameter(Mandatory)][string]$PdfRenderer,
+        [Parameter(Mandatory)][int]$PdfSourcePageCount,
+        [Parameter(Mandatory)][long]$PdfBytes
+    )
+
+    $manifestPath = Join-Path $CacheEntryRoot 'manifest.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { return }
+    Copy-Item -LiteralPath $PdfPath -Destination (Join-Path $CacheEntryRoot $PdfName) -Force
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $manifest | Add-Member -NotePropertyName pdfMode -NotePropertyValue $PdfMode -Force
+    $manifest | Add-Member -NotePropertyName pdfAccessibilityMode -NotePropertyValue $PdfAccessibilityMode -Force
+    $manifest | Add-Member -NotePropertyName pdfRenderer -NotePropertyValue $PdfRenderer -Force
+    $manifest | Add-Member -NotePropertyName pdfSourcePageCount -NotePropertyValue $PdfSourcePageCount -Force
+    $manifest | Add-Member -NotePropertyName pdfBytes -NotePropertyValue $PdfBytes -Force
+    $manifest | Add-Member -NotePropertyName pdfCachedAtUtc -NotePropertyValue ([DateTime]::UtcNow.ToString('O')) -Force
+    $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+}
+
+function Enter-LocalGptSharedPdfLock {
+    $lockPath = Join-Path ([IO.Path]::GetTempPath()) 'localgpt-publisherstudio-docfx-pdf.lock'
+    $waitingMessageWritten = $false
+    while ($true) {
+        try {
+            return [IO.File]::Open($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        }
+        catch [IO.IOException] {
+            if (-not $waitingMessageWritten) {
+                Write-Host "Another LocalGPT/PublisherStudio PDF render is active. Waiting so the two DocFX/Chromium jobs do not compete for the same machine." -ForegroundColor DarkCyan
+                $waitingMessageWritten = $true
+            }
+            Start-Sleep -Seconds 2
         }
     }
 }
@@ -2251,11 +2402,31 @@ function Invoke-LocalGptDocfx {
     }
 }
 
-Remove-Item -LiteralPath $siteRoot -Recurse -Force -ErrorAction SilentlyContinue
+
+$documentationCacheKey = Get-LocalGptDocumentationCacheKey -Assembly $AssemblyPath -Xml $XmlDocumentationPath -Docs $docsRoot -VersionValue $Version
+$documentationCacheEntryRoot = Join-Path $documentationPayloadCacheRoot $documentationCacheKey
+$documentationCachedSiteRoot = Join-Path $documentationCacheEntryRoot 'site'
+$documentationCachedPdfPath = Join-Path $documentationCacheEntryRoot $pdfName
+$documentationCacheManifestPath = Join-Path $documentationCacheEntryRoot 'manifest.json'
+$documentationCacheManifestData = Restore-LocalGptDocumentationHtmlCache `
+    -CacheEntryRoot $documentationCacheEntryRoot `
+    -CacheSiteRoot $documentationCachedSiteRoot `
+    -ManifestPath $documentationCacheManifestPath `
+    -DestinationSiteRoot $siteRoot `
+    -ExpectedKey $documentationCacheKey `
+    -ExpectedVersion $Version
+$documentationHtmlCacheReused = $null -ne $documentationCacheManifestData
+if (-not $documentationHtmlCacheReused) {
+    Remove-LocalGptTemporaryPath -Path $siteRoot -Attempts 8 -DelayMilliseconds 250
+}
 
 Push-Location $RepositoryRoot
 try {
-    if ((Test-Path -LiteralPath $manifestPath) -and (Test-Path -LiteralPath $configPath)) {
+    if ($documentationHtmlCacheReused) {
+        $toolSource = "durable-cache"
+        Write-Host "Skipping DocFX tool restore because validated LocalGPT HTML was restored from the durable documentation cache." -ForegroundColor DarkCyan
+    }
+    elseif ((Test-Path -LiteralPath $manifestPath) -and (Test-Path -LiteralPath $configPath)) {
         & dotnet tool restore --tool-manifest $manifestPath
         if ($LASTEXITCODE -eq 0) {
             $useManifestTool = $true
@@ -2282,7 +2453,17 @@ try {
     $docfxAvailable = $useManifestTool -or -not [string]::IsNullOrWhiteSpace($docfxExecutable)
     $metadataSucceeded = $false
     $docfxBuildSucceeded = $false
-    if ($docfxAvailable) {
+    if ($documentationHtmlCacheReused) {
+        $metadataSucceeded = $true
+        $docfxBuildSucceeded = $true
+        $documentationMode = "docfx"
+        $apiYamlCount = [int]$documentationCacheManifestData.apiYamlCount
+        $apiHtmlCount = @(Get-ChildItem -LiteralPath (Join-Path $siteRoot 'api') -Filter '*.html' -File -Recurse -ErrorAction SilentlyContinue).Count
+        $apiNavigationGroupCount = [int]$documentationCacheManifestData.apiNavigationGroupCount
+        $websiteThemeAssetCount = [int]$documentationCacheManifestData.websiteThemeAssetCount
+        $unresolvedAssemblyReferences = @()
+    }
+    elseif ($docfxAvailable) {
         try {
             Remove-Item -LiteralPath $apiRoot -Recurse -Force -ErrorAction SilentlyContinue
             if (-not (Test-Path -LiteralPath $documentationXmlPath -PathType Leaf)) {
@@ -2419,6 +2600,24 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
         }
     }
 
+    if ($docfxBuildSucceeded -and $htmlPreflightValidated -and -not $documentationHtmlCacheReused) {
+        $cacheManifest = [ordered]@{
+            schemaVersion = 2
+            cacheKey = $documentationCacheKey
+            version = $Version
+            product = "LocalGPT"
+            createdAtUtc = [DateTime]::UtcNow.ToString("O")
+            apiYamlCount = $apiYamlCount
+            apiHtmlCount = $apiHtmlCount
+            apiNavigationGroupCount = $apiNavigationGroupCount
+            websiteThemeAssetCount = $websiteThemeAssetCount
+            htmlPreflightValidated = $htmlPreflightValidated
+        }
+        Save-LocalGptDocumentationHtmlCache -CacheEntryRoot $documentationCacheEntryRoot -SiteRoot $siteRoot -Manifest $cacheManifest
+        $documentationCacheManifestData = [pscustomobject]$cacheManifest
+        Write-Host "Cached validated LocalGPT DocFX HTML outside bin/obj so a failed PDF attempt can resume without rebuilding the API site." -ForegroundColor Green
+    }
+
     # Publish the current HTML tree before the long PDF render. This prevents a failed or
     # interrupted PDF step from leaving the running LocalGPT application with stale, blank,
     # or unthemed help content. The final publication pass below adds status and PDF metadata.
@@ -2432,7 +2631,30 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
     $xmlMemberCount = @($xmlForCount.SelectNodes("/doc/members/member")).Count
     $pdfPath = Join-Path $siteRoot $pdfName
     $pdfGenerated = $false
-    if ($docfxBuildSucceeded -and $RequirePdf) {
+    if ($docfxBuildSucceeded -and $RequirePdf -and $documentationHtmlCacheReused -and
+        (Test-Path -LiteralPath $documentationCachedPdfPath -PathType Leaf) -and
+        (Test-LocalGptCompletePdf -Path $documentationCachedPdfPath -MinimumBytes $minimumCompletePdfBytes)) {
+        $cachedPdfMode = [string]$documentationCacheManifestData.pdfMode
+        $cachedPdfAccessibilityMode = [string]$documentationCacheManifestData.pdfAccessibilityMode
+        if (-not [string]::IsNullOrWhiteSpace($cachedPdfMode) -and -not [string]::IsNullOrWhiteSpace($cachedPdfAccessibilityMode)) {
+            Copy-Item -LiteralPath $documentationCachedPdfPath -Destination $pdfPath -Force
+            $pdfGenerated = $true
+            $pdfMode = $cachedPdfMode
+            $pdfAccessibilityMode = $cachedPdfAccessibilityMode
+            $pdfRenderer = [string]$documentationCacheManifestData.pdfRenderer
+            $pdfSourcePageCount = [int]$documentationCacheManifestData.pdfSourcePageCount
+            $pdfFileSize = (Get-Item -LiteralPath $pdfPath).Length
+            $pdfBytesBeforeCompression = $pdfFileSize
+            $pdfCompressionMode = "cached-validated-pdf"
+            $pdfCompressionSavedBytes = 0
+            $pdfGeneratedSourcePath = "durable-cache/$documentationCacheKey/$pdfName"
+            $pdfCandidateCount = 1
+            Write-Host "Reused validated cached LocalGPT PDF ($pdfFileSize bytes); no browser/Playwright render was needed." -ForegroundColor Green
+        }
+    }
+
+    if ($docfxBuildSucceeded -and $RequirePdf -and -not $pdfGenerated) {
+        $sharedPdfLockStream = Enter-LocalGptSharedPdfLock
         Get-ChildItem -LiteralPath $siteRoot -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue |
             Remove-Item -Force -ErrorAction SilentlyContinue
         Remove-LocalGptTemporaryPath -Path $printBookRoot
@@ -2579,7 +2801,20 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
             }
         }
     }
-    elseif ($docfxBuildSucceeded) {
+    if ($pdfGenerated -and $RequirePdf -and -not [string]::Equals($pdfCompressionMode, "cached-validated-pdf", [StringComparison]::Ordinal)) {
+        Save-LocalGptDocumentationPdfCache `
+            -CacheEntryRoot $documentationCacheEntryRoot `
+            -PdfPath $pdfPath `
+            -PdfName $pdfName `
+            -PdfMode $pdfMode `
+            -PdfAccessibilityMode $pdfAccessibilityMode `
+            -PdfRenderer $pdfRenderer `
+            -PdfSourcePageCount $pdfSourcePageCount `
+            -PdfBytes $pdfFileSize
+        Write-Host "Cached the validated LocalGPT PDF beside the durable HTML cache." -ForegroundColor Green
+    }
+
+    if (-not $RequirePdf -and $docfxBuildSucceeded) {
         $warnings.Add("Complete PDF generation was explicitly disabled; this HTML-only diagnostic build does not emit a fallback PDF.")
     }
 
@@ -2594,8 +2829,19 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
         }
         throw "Complete documentation PDF generation failed. $pdfFailureDetails"
     }
+    $documentationCoreSucceeded = $true
 }
 finally {
+    if ($null -ne $sharedPdfLockStream) {
+        $sharedPdfLockStream.Dispose()
+        $sharedPdfLockStream = $null
+    }
+    # Release the per-product workspace lock immediately on a failed PDF/render stage. On success,
+    # keep it until final status/publication validation is complete below.
+    if (-not $documentationCoreSucceeded -and $null -ne $documentationLockStream) {
+        $documentationLockStream.Dispose()
+        $documentationLockStream = $null
+    }
     Pop-Location
     if ($pdfLinkStubCreated) {
         Remove-Item -LiteralPath $pdfLinkStubPath -Force -ErrorAction SilentlyContinue

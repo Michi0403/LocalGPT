@@ -24,6 +24,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# File-provider progress is deliberately suppressed. Recursive Remove-Item progress races with
+# DocFX/Spectre rendering and can report impossible file/byte totals in the shared terminal.
+$ProgressPreference = "SilentlyContinue"
 Set-StrictMode -Version Latest
 
 function Initialize-BuildConsoleEncoding {
@@ -47,10 +50,17 @@ Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the o
 & (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')
 Write-Host "Clearing repository-local bin/obj build state for the authoritative release build..." -ForegroundColor Cyan
-Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force |
-    Where-Object { $_.Name -in @("bin", "obj") } |
-    Sort-Object FullName -Descending |
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+$buildStateDirectories = @(
+    Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force |
+        Where-Object { $_.Name -in @("bin", "obj") } |
+        Sort-Object FullName -Descending
+)
+foreach ($buildStateDirectory in $buildStateDirectories) {
+    if (Test-Path -LiteralPath $buildStateDirectory.FullName) {
+        Remove-Item -LiteralPath $buildStateDirectory.FullName -Recurse -Force -ErrorAction Stop
+    }
+}
+Write-Host "Cleared $($buildStateDirectories.Count) repository-local bin/obj director$(if ($buildStateDirectories.Count -eq 1) { 'y' } else { 'ies' }). Durable documentation caches outside bin/obj were preserved." -ForegroundColor DarkCyan
 $solutionRoot = Join-Path $root "src"
 $artifacts = Join-Path $root "artifacts/release"
 $packageDirectory = Join-Path $root "packages"
@@ -91,7 +101,7 @@ function Get-HostDefaultRuntimes {
     switch (Get-ReleaseHostFamily) {
         'Windows' { return @('win-x64', 'win-x86', 'win-arm64') }
         'Linux'   { return @('linux-x64', 'linux-arm64') }
-        'macOS'   { return @('osx-x64', 'osx-arm64', 'linux-x64', 'linux-arm64') }
+        'macOS'   { return @('osx-x64', 'osx-arm64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-x86', 'win-arm64') }
     }
 }
 
@@ -585,7 +595,7 @@ function Publish-UnixRuntime {
         Assert-LocalGptDocumentationPayload -DocumentationRoot (Join-Path $publishFolder 'wwwroot/help-docs') -Version $appVersion
         $protocolDirectory = Join-Path $publishFolder 'protocol'; New-Item -ItemType Directory -Path $protocolDirectory -Force | Out-Null
         Copy-Item -LiteralPath $wirePackage -Destination (Join-Path $protocolDirectory $wirePackageName) -Force
-        $nativeArtifacts = & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName $appExecutable -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT -UseContainerFallback:$UseContainerPackaging -ProvisionHomebrewTools:$ProvisionNativePackagingTools -RequireOptionalPackages:$RequireOptionalNativePackages
+        $nativeArtifacts = & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName $appExecutable -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT -UseContainerFallback:$UseContainerPackaging -ProvisionHomebrewTools:$ProvisionNativePackagingTools -RequireOptionalPackages:$RequireOptionalNativePackages -MacIconSource (Join-Path $root 'src/LocalGPT/wwwroot/android-chrome-512x512.png') -DmgBackgroundPath (Join-Path $root 'build/assets/LocalGPT-dmg-background.png')
         foreach ($artifact in @($nativeArtifacts)) { if (-not [string]::IsNullOrWhiteSpace([string]$artifact)) { $script:releaseZipPaths.Add([string]$artifact) } }
     }
 }
@@ -653,15 +663,20 @@ function Publish-Runtime {
     Copy-Item $wirePackage (Join-Path $protocolSetupDirectory $wirePackageName) -Force
 
     if ($IncludeWindowsWrapper -and $profile.WrapperProfile) {
-        $wrapperFolder = Resolve-ProfilePublishFolder -ProjectPath $wrapperProject -ProfileName $profile.WrapperProfile
-        Remove-Item $wrapperFolder -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Host "Publishing the optional WinUI wrapper through profile $($profile.WrapperProfile)..." -ForegroundColor Cyan
-        Invoke-DotNet -Arguments @(
-            "publish", $wrapperProject,
-            "-c", $Configuration,
-            "-p:PublishProfile=$($profile.WrapperProfile)"
-        ) -FailureMessage "WinUI wrapper publish failed for $Rid."
-        Copy-Item (Join-Path $wrapperFolder "*") $appFolder -Recurse -Force
+        if ($releaseHost -ne 'Windows') {
+            Write-Warning "Skipping the optional WinUI/WebView wrapper for $Rid because it is a Windows-native finishing step. The Windows LocalGPT application and setup payloads are still cross-published from $releaseHost."
+        }
+        else {
+            $wrapperFolder = Resolve-ProfilePublishFolder -ProjectPath $wrapperProject -ProfileName $profile.WrapperProfile
+            Remove-Item $wrapperFolder -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "Publishing the optional WinUI wrapper through profile $($profile.WrapperProfile)..." -ForegroundColor Cyan
+            Invoke-DotNet -Arguments @(
+                "publish", $wrapperProject,
+                "-c", $Configuration,
+                "-p:PublishProfile=$($profile.WrapperProfile)"
+            ) -FailureMessage "WinUI wrapper publish failed for $Rid."
+            Copy-Item (Join-Path $wrapperFolder "*") $appFolder -Recurse -Force
+        }
     }
 
     # Final release-boundary check: optional wrapper/publish steps must not reintroduce stale documentation.
@@ -744,7 +759,9 @@ if ($Runtime -eq 'all') {
         Write-Host 'Windows is the release coordinator: Windows packages are native; Linux Full/Light packages are delegated headlessly to WSL and imported into the same release bundle.' -ForegroundColor DarkCyan
     }
     if ($releaseHost -eq 'macOS') {
-        Write-Host "macOS host release also includes Linux x64/ARM64 payloads. TAR.GZ/DEB are managed; RPM uses rpmbuild (Homebrew rpm is supported); AppImage remains Linux/container-only." -ForegroundColor DarkCyan
+        Write-Host "macOS is the full release coordinator: macOS x64/ARM64, Linux x64/ARM64, and Windows x64/x86/ARM64 application/setup payloads are built in one run." -ForegroundColor DarkCyan
+        Write-Host "macOS produces native DMG/PKG/TAR.GZ packages; Linux TAR.GZ/DEB are managed and RPM uses Homebrew rpmbuild when available. AppImage remains a Linux/WSL/container finishing step." -ForegroundColor DarkCyan
+        if ($IncludeWindowsWrapper) { Write-Host 'The optional WinUI/WebView wrapper remains Windows-host-only and is skipped on macOS.' -ForegroundColor DarkCyan }
     }
 }
 $requiresNativePackaging = @($runtimes | Where-Object { -not $_.StartsWith('win-') }).Count -gt 0
