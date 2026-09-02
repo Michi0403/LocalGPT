@@ -264,46 +264,29 @@ public sealed class RuntimeCapabilityDirectoryService(
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class RuntimeCapabilityDirectoryHostedService(
     IServiceScopeFactory scopeFactory,
-    ILogger<RuntimeCapabilityDirectoryHostedService> logger) : IHostedService
+    ILogger<RuntimeCapabilityDirectoryHostedService> logger) : BackgroundService
 {
     /// <summary>
-    /// Performs start as part of the runtime capability directory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// Feeds the runtime capability directory in the background so first-run database and capability
+    /// reconciliation cannot keep the local HTTP listener offline.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    public async Task StartAsync(CancellationToken cancellationToken)
+    /// <param name="stoppingToken">Cancellation token that is signaled when the host is stopping.</param>
+    /// <returns>A task that completes when synchronization has finished.</returns>
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await Task.Delay(1, stoppingToken).ConfigureAwait(false);
+
         try
         {
             var scope = scopeFactory.CreateAsyncScope();
             await using var configuredScopeAsyncDisposal = scope.ConfigureAwait(false);
             var service = scope.ServiceProvider.GetRequiredService<IRuntimeCapabilityDirectoryService>();
-            await service.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
+            await service.SynchronizeAsync(stoppingToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
         catch (Exception ex)
         {
             logger.LogError(ex, "The boot-time runtime capability directory feed failed. Startup continues; database content was not deleted or reset, and the next Council preflight will retry.");
         }
     }
-
-    /// <summary>
-    /// Performs stop as part of the runtime capability directory service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    public Task StopAsync(CancellationToken cancellationToken) {
-    try
-    {
-        return Task.CompletedTask;
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(RuntimeCapabilityDirectoryHostedService)}.{nameof(StopAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(RuntimeCapabilityDirectoryHostedService)}.{nameof(StopAsync)} failed.");
-        throw;
-    }
-}
 }

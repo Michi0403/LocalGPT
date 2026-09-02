@@ -92,13 +92,52 @@ function Write-DependencyHelper([string]$Destination) {
 @'
 #!/bin/sh
 set -eu
-printf '%s\n' 'Optional local AI runtime setup:' '  1) Ollama' '  2) LM Studio / llmster' '  3) Skip'
-printf 'Choice [3]: '
-read choice || choice=3
-case "${choice:-3}" in
-  1) printf '%s\n' 'Install Ollama from its official distribution, then configure the provider in LocalGPT.' ;;
-  2) printf '%s\n' 'Install LM Studio / llmster from its official distribution, then configure the provider in LocalGPT.' ;;
-  *) printf '%s\n' 'Skipped. LocalGPT does not redistribute an AI runtime.' ;;
+printf '%s\n' \
+  'Optional LocalGPT AI runtime helper:' \
+  '  1) Install Ollama (Homebrew when available)' \
+  '  2) Pull an Ollama model' \
+  '  3) Open the official LM Studio download page' \
+  '  4) Show detected runtime status' \
+  '  5) Skip'
+printf 'Choice [5]: '
+read choice || choice=5
+case "${choice:-5}" in
+  1)
+    if command -v ollama >/dev/null 2>&1; then
+      printf '%s\n' "Ollama is already installed: $(command -v ollama)"
+    elif command -v brew >/dev/null 2>&1; then
+      printf '%s\n' 'Installing Ollama with Homebrew...'
+      brew install ollama
+    else
+      printf '%s\n' 'Homebrew is not installed. Opening the official Ollama download page.'
+      if command -v open >/dev/null 2>&1; then open 'https://ollama.com/download' >/dev/null 2>&1 || true; fi
+    fi
+    ;;
+  2)
+    if ! command -v ollama >/dev/null 2>&1; then
+      printf '%s\n' 'Ollama is not installed yet. Run this helper again and choose option 1 first.'
+      exit 1
+    fi
+    printf 'Model to pull [llama3.2:3b]: '
+    read model || model=''
+    model=${model:-llama3.2:3b}
+    printf '%s\n' "Pulling $model..."
+    ollama pull "$model"
+    ;;
+  3)
+    printf '%s\n' 'Opening the official LM Studio download page. LocalGPT does not redistribute LM Studio.'
+    if command -v open >/dev/null 2>&1; then open 'https://lmstudio.ai/download' >/dev/null 2>&1 || true; fi
+    ;;
+  4)
+    if command -v ollama >/dev/null 2>&1; then
+      printf '%s\n' "Ollama: $(command -v ollama)"
+      ollama list 2>/dev/null || true
+    else
+      printf '%s\n' 'Ollama: not detected'
+    fi
+    if [ -d '/Applications/LM Studio.app' ]; then printf '%s\n' 'LM Studio: /Applications/LM Studio.app'; else printf '%s\n' 'LM Studio: not detected in /Applications'; fi
+    ;;
+  *) printf '%s\n' 'Skipped. LocalGPT does not redistribute third-party AI runtimes or models.' ;;
 esac
 '@ | Set-Content -LiteralPath $Destination -Encoding UTF8
     $raw = Get-Content -LiteralPath $Destination -Raw; Write-Utf8NoBom $Destination $raw
@@ -172,7 +211,9 @@ BIN="$APP/__EXECUTABLE__"
 PRODUCT="__PRODUCT__"
 LOG_DIR="$HOME/Library/Logs/$PRODUCT"
 LOG_FILE="$LOG_DIR/launcher.log"
-mkdir -p "$LOG_DIR"
+USER_DATA_DIR="$HOME/Library/Application Support/$PRODUCT"
+USER_CACHE_DIR="$HOME/Library/Caches/$PRODUCT"
+SHOW_CONSOLE="${LOCALGPT_SHOW_CONSOLE:-1}"
 
 read_endpoint() {
   for f in \
@@ -180,8 +221,8 @@ read_endpoint() {
     "$HOME/.local/share/$PRODUCT/runtime/server.json"
   do
     [ -f "$f" ] || continue
-    pid=$(sed -nE 's/.*"[Pp]rocess[Ii]d"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$f" | head -n 1)
-    if [ -n "${pid:-}" ] && ! kill -0 "$pid" 2>/dev/null; then
+    owner_pid=$(sed -nE 's/.*"[Pp]rocess[Ii]d"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p' "$f" | head -n 1)
+    if [ -n "${owner_pid:-}" ] && ! kill -0 "$owner_pid" 2>/dev/null; then
       rm -f "$f" 2>/dev/null || true
       continue
     fi
@@ -192,9 +233,132 @@ read_endpoint() {
   done
   return 1
 }
+endpoint_responds() {
+  candidate="$1"
+  probe="${candidate%/}/health"
+  if [ -x /usr/bin/curl ]; then
+    /usr/bin/curl --silent --show-error --fail --connect-timeout 1 --max-time 2 --output /dev/null "$probe" >/dev/null 2>&1
+    return $?
+  fi
+  return 1
+}
+ensure_writable_dir() {
+  target="$1"
+  /bin/mkdir -p "$target" 2>/dev/null || return 1
+  probe="$target/.write-test-$$"
+  ( umask 077; : >"$probe" ) 2>/dev/null || return 1
+  /bin/rm -f "$probe" 2>/dev/null || true
+  return 0
+}
+repair_user_directory() {
+  target="$1"
+  [ -x /usr/bin/osascript ] || return 1
+  uid=$(/usr/bin/id -u)
+  gid=$(/usr/bin/id -g)
+  /usr/bin/osascript - "$PRODUCT" "$target" "$uid" "$gid" <<'APPLESCRIPT' >/dev/null 2>&1
+on run argv
+  set productName to item 1 of argv
+  set targetPath to item 2 of argv
+  set userId to item 3 of argv
+  set groupId to item 4 of argv
+  set response to display dialog (productName & " needs write access to its per-user data folder:" & return & return & targetPath & return & return & "The application bundle in /Applications remains read-only. Only this user-data folder will be repaired.") buttons {"Cancel", "Repair Access"} default button "Repair Access" with icon caution
+  if button returned of response is not "Repair Access" then error number -128
+  do shell script ("/bin/mkdir -p " & quoted form of targetPath & " && /usr/sbin/chown -R " & userId & ":" & groupId & " " & quoted form of targetPath & " && /bin/chmod -R u+rwX " & quoted form of targetPath) with administrator privileges
+end run
+APPLESCRIPT
+}
+ensure_user_storage() {
+  for target in "$USER_DATA_DIR" "$USER_DATA_DIR/runtime" "$LOG_DIR" "$USER_CACHE_DIR"; do
+    if ensure_writable_dir "$target"; then
+      continue
+    fi
+    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') User-data write probe failed for $target; requesting a scoped permission repair." >>"$LOG_FILE" 2>/dev/null || true
+    repair_user_directory "$target" || return 1
+    ensure_writable_dir "$target" || return 1
+  done
+  : >>"$LOG_FILE" 2>/dev/null || return 1
+  return 0
+}
+open_startup_terminal() {
+  case "$SHOW_CONSOLE" in
+    0|false|FALSE|no|NO|off|OFF) return 0 ;;
+  esac
+  helper="$LOG_DIR/startup-watch.command"
+  cat >"$helper" <<EOF
+#!/bin/sh
+clear
+printf '%s\n' '$PRODUCT console' 'Application output is mirrored into this launcher log for the same visible/debuggable startup experience used on Windows and Linux.' 'The browser opens automatically when the local server is ready. Close this Terminal window when you no longer need the live log.' ''
+exec /usr/bin/tail -n 120 -f '$LOG_FILE'
+EOF
+  chmod +x "$helper" 2>/dev/null || true
+  if /usr/bin/open -a Terminal "$helper" >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -x /usr/bin/osascript ]; then
+    if /usr/bin/osascript - "$helper" <<'APPLESCRIPT' >/dev/null 2>&1
+on run argv
+  tell application "Terminal"
+    activate
+    do script quoted form of (item 1 of argv)
+  end tell
+end run
+APPLESCRIPT
+    then
+      return 0
+    fi
+  fi
+  printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Could not open Terminal for the visible $PRODUCT console; startup will continue and retry once if it remains slow." >>"$LOG_FILE" 2>/dev/null || true
+  return 1
+}
+verify_runtime_architecture() {
+  [ -x /usr/bin/file ] || return 0
+  [ -x /usr/bin/uname ] || return 0
+  machine=$(/usr/bin/uname -m 2>/dev/null || true)
+  description=$(/usr/bin/file "$BIN" 2>/dev/null || true)
+  case "$machine" in
+    arm64)
+      case "$description" in
+        *arm64*) return 0 ;;
+        *x86_64*)
+          show_failure "This installation contains an Intel-only LocalGPT runtime on Apple Silicon. Install the osx-arm64 package instead; the launcher will not invoke Rosetta because future macOS versions are dropping Intel-app support."
+          return 1
+          ;;
+      esac
+      ;;
+    x86_64)
+      case "$description" in
+        *x86_64*) return 0 ;;
+        *arm64*)
+          show_failure "This installation contains an Apple-Silicon-only LocalGPT runtime on an Intel Mac. Install the osx-x64 package instead."
+          return 1
+          ;;
+      esac
+      ;;
+  esac
+  return 0
+}
+
+terminate_stale_processes() {
+  [ -x /usr/bin/pgrep ] || return 0
+  stale_pids=$(/usr/bin/pgrep -f "$BIN" 2>/dev/null || true)
+  [ -n "${stale_pids:-}" ] || return 0
+  for stale_pid in $stale_pids; do
+    [ "$stale_pid" = "$$" ] && continue
+    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Stopping stale $PRODUCT process $stale_pid that has no responding runtime endpoint." >>"$LOG_FILE" 2>/dev/null || true
+    /bin/kill -TERM "$stale_pid" 2>/dev/null || true
+  done
+  sleep 1
+  for stale_pid in $stale_pids; do
+    [ "$stale_pid" = "$$" ] && continue
+    if /bin/kill -0 "$stale_pid" 2>/dev/null; then
+      /bin/kill -KILL "$stale_pid" 2>/dev/null || true
+    fi
+  done
+}
+
 show_failure() {
   reason="$1"
-  printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') $reason" >>"$LOG_FILE"
+  printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') $reason" >>"$LOG_FILE" 2>/dev/null || printf '%s\n' "$reason" >&2
   if [ -x /usr/bin/osascript ]; then
     /usr/bin/osascript - "$PRODUCT" "$reason" "$LOG_FILE" <<'APPLESCRIPT' >/dev/null 2>&1 || true
 on run argv
@@ -208,27 +372,47 @@ APPLESCRIPT
   /usr/bin/open -R "$LOG_FILE" >/dev/null 2>&1 || true
 }
 
-if url=$(read_endpoint 2>/dev/null); then
-  /usr/bin/open "$url" >/dev/null 2>&1 || true
-  exit 0
+if ! ensure_user_storage; then
+  show_failure "$PRODUCT cannot write to its per-user Application Support/Logs/Cache directories. Repair the ownership when prompted, or fix those user folders and start the application again."
+  exit 1
 fi
+
+if open_startup_terminal; then
+  terminal_opened=1
+else
+  terminal_opened=0
+fi
+
+if url=$(read_endpoint 2>/dev/null); then
+  if endpoint_responds "$url"; then
+    /usr/bin/open "$url" >/dev/null 2>&1 || true
+    exit 0
+  fi
+fi
+
+terminate_stale_processes
 
 if [ ! -x "$BIN" ]; then
   show_failure "The packaged application executable is missing or is not executable: $BIN"
   exit 1
 fi
+if ! verify_runtime_architecture; then
+  exit 1
+fi
 
 cd "$APP" || { show_failure "The packaged application directory could not be opened: $APP"; exit 1; }
-printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Starting $PRODUCT from $BIN" >>"$LOG_FILE"
-"$BIN" >>"$LOG_FILE" 2>&1 &
+printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Starting $PRODUCT from $BIN with an automatically selected loopback port (macOS port 5000 is commonly occupied by AirPlay Receiver)." >>"$LOG_FILE"
+"$BIN" --port 0 >>"$LOG_FILE" 2>&1 &
 pid=$!
 
 i=0
-while [ $i -lt 120 ]; do
+while [ $i -lt 600 ]; do
   if url=$(read_endpoint 2>/dev/null); then
-    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') $PRODUCT ready at $url (pid $pid)" >>"$LOG_FILE"
-    /usr/bin/open "$url" >/dev/null 2>&1 || true
-    exit 0
+    if endpoint_responds "$url"; then
+      printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') $PRODUCT ready at $url (pid $pid)" >>"$LOG_FILE"
+      /usr/bin/open "$url" >/dev/null 2>&1 || true
+      exit 0
+    fi
   fi
   if ! kill -0 "$pid" 2>/dev/null; then
     wait "$pid" 2>/dev/null
@@ -237,16 +421,84 @@ while [ $i -lt 120 ]; do
     if [ "$code" -eq 0 ]; then exit 1; fi
     exit "$code"
   fi
+  if [ $i -eq 40 ] && [ $terminal_opened -eq 0 ]; then
+    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Startup is taking longer than 20 seconds; opening a Terminal log helper while $PRODUCT continues starting." >>"$LOG_FILE"
+    open_startup_terminal
+    terminal_opened=1
+  fi
   i=$((i+1))
-  sleep 0.25
+  sleep 0.5
 done
 
-show_failure "$PRODUCT is still running but did not publish its local web address within 30 seconds."
+printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') $PRODUCT did not publish a healthy local endpoint within 5 minutes; terminating launcher-owned process $pid so the next start cannot inherit a stale database/port lock." >>"$LOG_FILE"
+if /bin/kill -0 "$pid" 2>/dev/null; then
+  /bin/kill -TERM "$pid" 2>/dev/null || true
+  sleep 2
+fi
+if /bin/kill -0 "$pid" 2>/dev/null; then
+  /bin/kill -KILL "$pid" 2>/dev/null || true
+fi
+show_failure "$PRODUCT did not publish a healthy local HTTP endpoint within 5 minutes. The stuck process was terminated; inspect the launcher log and start the application again."
 exit 1
 '@
     Write-Utf8NoBom $Destination ($template.Replace('__PRODUCT__', $ProductName).Replace('__EXECUTABLE__', $BinaryRelativePath))
     Set-UnixExecutable $Destination
 }
+function Remove-NonTargetMacRuntimeAssets([string]$AppPath,[string]$RuntimeIdentifier) {
+    if (-not $isMacHost) { return }
+
+    $targetRuntime = if ($RuntimeIdentifier.EndsWith('arm64')) { 'osx-arm64' } elseif ($RuntimeIdentifier.EndsWith('x64')) { 'osx-x64' } else { $null }
+    if ([string]::IsNullOrWhiteSpace($targetRuntime)) { return }
+
+    $removed = [Collections.Generic.List[string]]::new()
+    foreach ($runtimeDirectory in @(Get-ChildItem -LiteralPath $AppPath -Directory -Recurse -ErrorAction SilentlyContinue | Where-Object {
+        $isRuntimeChild = $_.Parent -and $_.Parent.Name -eq 'runtimes'
+        $isWrongOsxRuntime = $_.Name.StartsWith('osx-', [StringComparison]::OrdinalIgnoreCase) -and
+            -not $_.Name.Equals($targetRuntime, [StringComparison]::OrdinalIgnoreCase)
+        $isOtherAppleRuntime = $_.Name -match '^(maccatalyst|ios|iossimulator|tvos|tvossimulator)-'
+        $isRuntimeChild -and ($isWrongOsxRuntime -or $isOtherAppleRuntime)
+    })) {
+        $removed.Add($runtimeDirectory.Name)
+        Remove-Item -LiteralPath $runtimeDirectory.FullName -Recurse -Force -ErrorAction Stop
+    }
+
+    if ($removed.Count -gt 0) {
+        $summary = ($removed | Sort-Object -Unique) -join ', '
+        Write-Host "Removed $($removed.Count) non-target Apple runtime asset folder(s) from the $RuntimeIdentifier macOS bundle: $summary" -ForegroundColor DarkCyan
+    }
+}
+function Assert-MacBundleArchitecture([string]$AppPath,[string]$RuntimeIdentifier) {
+    if (-not $isMacHost) { return }
+
+    $fileCommand = Get-ExternalCommandPath 'file'
+    if (-not $fileCommand) { throw "The macOS 'file' utility is required to validate native bundle architecture." }
+
+    $expectedPattern = if ($RuntimeIdentifier.EndsWith('arm64')) { '\barm64e?\b' } elseif ($RuntimeIdentifier.EndsWith('x64')) { '\bx86_64\b' } else { throw "Unsupported macOS runtime identifier for architecture validation: $RuntimeIdentifier" }
+    $machOCount = 0
+    $mismatches = [Collections.Generic.List[string]]::new()
+
+    foreach ($item in Get-ChildItem -LiteralPath $AppPath -File -Recurse -ErrorAction Stop) {
+        $description = [string](& $fileCommand $item.FullName 2>$null)
+        if ($LASTEXITCODE -ne 0 -or $description -notmatch 'Mach-O') { continue }
+
+        $machOCount++
+        if ($description -notmatch $expectedPattern) {
+            $relative = [IO.Path]::GetRelativePath($AppPath, $item.FullName)
+            $mismatches.Add("$relative => $description")
+        }
+    }
+
+    if ($machOCount -eq 0) {
+        throw "No Mach-O payload was found in $AppPath. Refusing to ship a macOS application whose native architecture cannot be verified."
+    }
+    if ($mismatches.Count -gt 0) {
+        $details = ($mismatches | Select-Object -First 12) -join [Environment]::NewLine
+        throw "The $RuntimeIdentifier bundle contains native component(s) without the required architecture. This would trigger Rosetta/Intel compatibility warnings on Apple Silicon. Mismatches:$([Environment]::NewLine)$details"
+    }
+
+    Write-Host "Validated $machOCount Mach-O component(s) in $ProductName.app for $RuntimeIdentifier; no incompatible Intel/ARM-only payload was found." -ForegroundColor Green
+}
+
 function New-Dmg([string]$AppPath,[string]$Destination) {
     if (-not $isMacHost -or -not (Get-Command hdiutil -ErrorAction SilentlyContinue)) {
         Write-Warning "DMG materialization is a native macOS finishing step; $Destination was not produced on this host."
@@ -392,10 +644,22 @@ function New-AppImage([string]$Source,[string]$Destination) {
         $appRun = Join-Path $appDir 'AppRun'
         $appRunTemplate = @'
 #!/bin/sh
+set -u
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PRODUCT="__PRODUCT__"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+for target in "$DATA_HOME/$PRODUCT" "$STATE_HOME/$PRODUCT" "$CACHE_HOME/$PRODUCT"; do
+  mkdir -p "$target" 2>/dev/null || { printf '%s\n' "$PRODUCT needs write access to $target" >&2; exit 73; }
+  probe="$target/.write-test-$$"
+  ( umask 077; : >"$probe" ) 2>/dev/null || { printf '%s\n' "$PRODUCT cannot write to $target. Fix ownership/permissions for this per-user directory and try again." >&2; exit 73; }
+  rm -f "$probe" 2>/dev/null || true
+done
+export XDG_DATA_HOME="$DATA_HOME" XDG_STATE_HOME="$STATE_HOME" XDG_CACHE_HOME="$CACHE_HOME"
 exec "$HERE/__EXECUTABLE__" "$@"
 '@
-        Write-Utf8NoBom $appRun ($appRunTemplate.Replace('__EXECUTABLE__', $ExecutableName))
+        Write-Utf8NoBom $appRun ($appRunTemplate.Replace('__EXECUTABLE__', $ExecutableName).Replace('__PRODUCT__', $ProductName))
         Set-UnixExecutable $appRun
         Set-UnixExecutable (Join-Path $appDir $ExecutableName)
         $desktop = Join-Path $appDir "$ProductName.desktop"
@@ -404,7 +668,7 @@ exec "$HERE/__EXECUTABLE__" "$@"
             Copy-Item -LiteralPath $MacIconSource -Destination (Join-Path $appDir "$ProductName.png") -Force
             $iconLine = "Icon=$ProductName`n"
         }
-        Write-Utf8NoBom $desktop "[Desktop Entry]`nType=Application`nName=$ProductName`nExec=$ExecutableName`n${iconLine}Terminal=false`nCategories=Utility;`n"
+        Write-Utf8NoBom $desktop "[Desktop Entry]`nType=Application`nName=$ProductName`nExec=$ExecutableName`n${iconLine}Terminal=true`nCategories=Utility;`n"
         $appImageArch = if ($Rid.EndsWith('arm64')) { 'aarch64' } else { 'x86_64' }
         if ($tool) {
             $hadArch = Test-Path Env:ARCH
@@ -555,6 +819,7 @@ if ($Rid.StartsWith('osx-')) {
     $resources = Join-Path $app 'Contents/Resources/app'; $macos = Join-Path $app 'Contents/MacOS'
     New-Item -ItemType Directory -Path $resources,$macos -Force | Out-Null
     Copy-Item -Path (Join-Path $PayloadDirectory '*') -Destination $resources -Recurse -Force
+    Remove-NonTargetMacRuntimeAssets $app $Rid
     Set-UnixExecutable (Join-Path $resources $ExecutableName)
     Write-DependencyHelper (Join-Path $resources 'install-dependencies.sh')
     New-MacLauncher (Join-Path $macos $ProductName) $ExecutableName
@@ -566,6 +831,7 @@ if ($Rid.StartsWith('osx-')) {
 <plist version="1.0"><dict><key>CFBundleName</key><string>$ProductName</string><key>CFBundleDisplayName</key><string>$ProductName</string><key>CFBundleIdentifier</key><string>io.github.michi0403.$($ProductName.ToLowerInvariant())</string><key>CFBundleVersion</key><string>$Version</string><key>CFBundleShortVersionString</key><string>$Version</string><key>CFBundleExecutable</key><string>$ProductName</string><key>CFBundlePackageType</key><string>APPL</string>$iconPlist<key>NSHighResolutionCapable</key><true/></dict></plist>
 "@
     Write-Utf8NoBom (Join-Path $app 'Contents/Info.plist') $infoPlist
+    Assert-MacBundleArchitecture $app $Rid
     Sign-MacBundleAdHoc $app
     $tar = Join-Path $OutputDirectory "$base.tar.gz"
     Invoke-PackagingTool @('tar','--source',$app,'--output',$tar,'--root',"$ProductName.app",'--executable',"Contents/MacOS/$ProductName",'--executable',"Contents/Resources/app/$ExecutableName",'--executable','Contents/Resources/app/install-dependencies.sh')

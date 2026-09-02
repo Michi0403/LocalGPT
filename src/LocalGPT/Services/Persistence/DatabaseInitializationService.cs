@@ -335,18 +335,28 @@ public sealed partial class DatabaseInitializationService : IDatabaseInitializat
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DatabaseInitializationHostedService(
     IDatabaseInitializationService initializer,
-    ILogger<DatabaseInitializationHostedService> logger) : IHostedService
+    ILogger<DatabaseInitializationHostedService> logger) : BackgroundService
 {
     /// <summary>
-    /// Performs start as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// Performs database initialization after the web host has begun starting so lengthy first-run
+    /// migration/seed work cannot hold Kestrel offline. Database-backed services still await the same
+    /// singleton initializer when they need data before this background pass completes.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    public async Task StartAsync(CancellationToken cancellationToken)
+    /// <param name="stoppingToken">Cancellation token that is signaled when the host is stopping.</param>
+    /// <returns>A task that completes when initialization has finished.</returns>
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await Task.Delay(1, stoppingToken).ConfigureAwait(false);
+
         try
         {
-            await initializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Starting LocalGPT database initialization in the background.");
+            await initializer.InitializeAsync(stoppingToken).ConfigureAwait(false);
+            logger.LogInformation("Background LocalGPT database initialization completed.");
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            logger.LogDebug("Background LocalGPT database initialization was canceled because the host is stopping.");
         }
         catch (Exception ex)
         {
@@ -354,25 +364,5 @@ public sealed class DatabaseInitializationHostedService(
             throw;
         }
     }
-
-    /// <summary>
-    /// Performs stop as part of the database initialization service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    public Task StopAsync(CancellationToken cancellationToken) {
-    try
-    {
-        return Task.CompletedTask;
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DatabaseInitializationHostedService)}.{nameof(StopAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(DatabaseInitializationHostedService)}.{nameof(StopAsync)} failed.");
-        throw;
-    }
-}
 }
 

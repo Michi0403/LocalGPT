@@ -478,46 +478,29 @@ public sealed partial class DxAiFunctionCatalogService : IDxAiFunctionCatalogSer
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class DxAiFunctionCatalogHostedService(
     IServiceScopeFactory scopeFactory,
-    ILogger<DxAiFunctionCatalogHostedService> logger) : IHostedService
+    ILogger<DxAiFunctionCatalogHostedService> logger) : BackgroundService
 {
     /// <summary>
-    /// Performs start as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
+    /// Synchronizes the DevExpress AI function catalog in the background so catalog/database work
+    /// cannot prevent the local HTTP listener from coming online.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    public async Task StartAsync(CancellationToken cancellationToken)
+    /// <param name="stoppingToken">Cancellation token that is signaled when the host is stopping.</param>
+    /// <returns>A task that completes when synchronization has finished.</returns>
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await Task.Delay(1, stoppingToken).ConfigureAwait(false);
+
         try
         {
             var scope = scopeFactory.CreateAsyncScope();
             await using var configuredScopeAsyncDisposal = scope.ConfigureAwait(false);
             await scope.ServiceProvider.GetRequiredService<IDxAiFunctionCatalogService>()
-                .SynchronizeAsync(cancellationToken).ConfigureAwait(false);
+                .SynchronizeAsync(stoppingToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
         catch (Exception ex)
         {
             logger.LogError(ex, "DX function catalog synchronization failed. Existing database content was left untouched and startup continues.");
         }
     }
-
-    /// <summary>
-    /// Performs stop as part of the DevExpress AI function catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    public Task StopAsync(CancellationToken cancellationToken) {
-    try
-    {
-        return Task.CompletedTask;
-    }
-    catch (Exception __serviceMethodException)
-    {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(DxAiFunctionCatalogHostedService)}.{nameof(StopAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(DxAiFunctionCatalogHostedService)}.{nameof(StopAsync)} failed.");
-        throw;
-    }
-}
 }

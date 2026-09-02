@@ -597,6 +597,11 @@ function Publish-UnixRuntime {
         Copy-Item -LiteralPath $wirePackage -Destination (Join-Path $protocolDirectory $wirePackageName) -Force
         $nativeArtifacts = & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName $appExecutable -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT -UseContainerFallback:$UseContainerPackaging -ProvisionHomebrewTools:$ProvisionNativePackagingTools -RequireOptionalPackages:$RequireOptionalNativePackages -MacIconSource (Join-Path $root 'src/LocalGPT/wwwroot/android-chrome-512x512.png') -DmgBackgroundPath (Join-Path $root 'build/assets/LocalGPT-dmg-background.png')
         foreach ($artifact in @($nativeArtifacts)) { if (-not [string]::IsNullOrWhiteSpace([string]$artifact)) { $script:releaseZipPaths.Add([string]$artifact) } }
+        # Native artifacts are now complete; do not keep another multi-gigabyte documentation-bearing RID tree alive.
+        Remove-Item -LiteralPath $publishFolder -Recurse -Force -ErrorAction SilentlyContinue
+        $transientMacApp = Join-Path $artifacts 'LocalGPT.app'
+        if ($Rid.StartsWith('osx-')) { Remove-Item -LiteralPath $transientMacApp -Recurse -Force -ErrorAction SilentlyContinue }
+        Write-Host "Released transient $Rid $mode staging workspace after native package validation." -ForegroundColor DarkCyan
     }
 }
 

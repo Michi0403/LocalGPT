@@ -72,11 +72,11 @@ function New-DevMicroserviceCertificate {
         -AsPlainText
 
     # Enhanced Key Usages:
-    # 1.3.6.1.5.5.7.3.1 = Server Authentication
-    # 1.3.6.1.5.5.7.3.2 = Client Authentication
-    # 1.3.6.1.5.5.7.3.3 = Code Signing
+    # 1.3.6.2.5.5.7.3.1 = Server Authentication
+    # 1.3.6.2.5.5.7.3.2 = Client Authentication
+    # 1.3.6.2.5.5.7.3.3 = Code Signing
     $ekuExtension = @(
-        "2.5.29.37={text}1.3.6.1.5.5.7.3.1,1.3.6.1.5.5.7.3.2,1.3.6.1.5.5.7.3.3"
+        "2.5.29.37={text}1.3.6.2.5.5.7.3.1,1.3.6.2.5.5.7.3.2,1.3.6.2.5.5.7.3.3"
     )
 
     $cert = New-SelfSignedCertificate `

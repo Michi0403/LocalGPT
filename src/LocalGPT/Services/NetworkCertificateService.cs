@@ -83,7 +83,7 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
                 X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment,
                 true));
             certificateRequest.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
-                new OidCollection { new Oid("1.3.6.1.5.5.7.3.1", "TLS Web Server Authentication") },
+                new OidCollection { new Oid("1.3.6.2.5.5.7.3.1", "TLS Web Server Authentication") },
                 false));
 
             var sanBuilder = new SubjectAlternativeNameBuilder();
