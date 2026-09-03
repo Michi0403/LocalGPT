@@ -310,17 +310,56 @@ APPLESCRIPT
   printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Could not open Terminal for the visible $PRODUCT console; startup will continue and retry once if it remains slow." >>"$LOG_FILE" 2>/dev/null || true
   return 1
 }
+detect_hardware_architecture() {
+  if [ -x /usr/sbin/sysctl ]; then
+    apple_silicon=$(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null || true)
+    if [ "$apple_silicon" = "1" ]; then
+      printf '%s' 'arm64'
+      return 0
+    fi
+  fi
+  if [ -x /usr/bin/uname ]; then
+    /usr/bin/uname -m 2>/dev/null || printf '%s' 'unknown'
+    return 0
+  fi
+  printf '%s' 'unknown'
+}
+detect_translation_state() {
+  if [ -x /usr/sbin/sysctl ]; then
+    translated=$(/usr/sbin/sysctl -n sysctl.proc_translated 2>/dev/null || true)
+    case "${translated:-0}" in
+      1) printf '%s' '1'; return 0 ;;
+    esac
+  fi
+  printf '%s' '0'
+}
+ensure_native_launcher_process() {
+  hardware=$(detect_hardware_architecture)
+  process_arch=$(/usr/bin/uname -m 2>/dev/null || printf '%s' 'unknown')
+  translated=$(detect_translation_state)
+  printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Launcher architecture: hardware=$hardware process=$process_arch translated=$translated." >>"$LOG_FILE" 2>/dev/null || true
+
+  if [ "$hardware" = "arm64" ] && [ "$translated" = "1" ] && [ "${LOCALGPT_NATIVE_REEXEC:-0}" != "1" ] && [ -x /usr/bin/arch ]; then
+    printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') The launcher was started through Rosetta on Apple Silicon; re-executing the same launcher with the native arm64 system shell." >>"$LOG_FILE" 2>/dev/null || true
+    export LOCALGPT_NATIVE_REEXEC=1
+    exec /usr/bin/arch -arm64 /bin/sh "$0" "$@"
+  fi
+}
 verify_runtime_architecture() {
   [ -x /usr/bin/file ] || return 0
-  [ -x /usr/bin/uname ] || return 0
-  machine=$(/usr/bin/uname -m 2>/dev/null || true)
+  hardware=$(detect_hardware_architecture)
+  process_arch=$(/usr/bin/uname -m 2>/dev/null || printf '%s' 'unknown')
+  translated=$(detect_translation_state)
   description=$(/usr/bin/file "$BIN" 2>/dev/null || true)
-  case "$machine" in
+  manifest="$APP/../native-architecture-manifest.txt"
+  printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Runtime architecture check: hardware=$hardware process=$process_arch translated=$translated; $BIN => $description" >>"$LOG_FILE" 2>/dev/null || true
+
+  case "$hardware" in
     arm64)
       case "$description" in
         *arm64*) return 0 ;;
-        *x86_64*)
-          show_failure "This installation contains an Intel-only LocalGPT runtime on Apple Silicon. Install the osx-arm64 package instead; the launcher will not invoke Rosetta because future macOS versions are dropping Intel-app support."
+        *)
+          show_failure "Architecture mismatch on Apple Silicon (process=$process_arch translated=$translated). Exact runtime: $BIN => $description. Package inventory: $manifest. Install the osx-arm64 package; if this still fails, report the manifest so the exact native dependency can be identified."
           return 1
           ;;
       esac
@@ -328,13 +367,15 @@ verify_runtime_architecture() {
     x86_64)
       case "$description" in
         *x86_64*) return 0 ;;
-        *arm64*)
-          show_failure "This installation contains an Apple-Silicon-only LocalGPT runtime on an Intel Mac. Install the osx-x64 package instead."
+        *)
+          show_failure "Architecture mismatch on an Intel Mac (process=$process_arch). Exact runtime: $BIN => $description. Package inventory: $manifest. Install the osx-x64 package."
           return 1
           ;;
       esac
       ;;
   esac
+
+  printf '%s\n' "$(date '+%Y-%m-%d %H:%M:%S') Hardware architecture could not be classified; startup continues because the package-time Mach-O manifest already validated the bundle." >>"$LOG_FILE" 2>/dev/null || true
   return 0
 }
 
@@ -376,6 +417,8 @@ if ! ensure_user_storage; then
   show_failure "$PRODUCT cannot write to its per-user Application Support/Logs/Cache directories. Repair the ownership when prompted, or fix those user folders and start the application again."
   exit 1
 fi
+
+ensure_native_launcher_process "$@"
 
 if open_startup_terminal; then
   terminal_opened=1
@@ -476,27 +519,41 @@ function Assert-MacBundleArchitecture([string]$AppPath,[string]$RuntimeIdentifie
     $expectedPattern = if ($RuntimeIdentifier.EndsWith('arm64')) { '\barm64e?\b' } elseif ($RuntimeIdentifier.EndsWith('x64')) { '\bx86_64\b' } else { throw "Unsupported macOS runtime identifier for architecture validation: $RuntimeIdentifier" }
     $machOCount = 0
     $mismatches = [Collections.Generic.List[string]]::new()
+    $inventory = [Collections.Generic.List[string]]::new()
 
     foreach ($item in Get-ChildItem -LiteralPath $AppPath -File -Recurse -ErrorAction Stop) {
         $description = [string](& $fileCommand $item.FullName 2>$null)
         if ($LASTEXITCODE -ne 0 -or $description -notmatch 'Mach-O') { continue }
 
         $machOCount++
+        $relative = [IO.Path]::GetRelativePath($AppPath, $item.FullName)
+        $entry = "$relative => $description"
+        $inventory.Add($entry)
         if ($description -notmatch $expectedPattern) {
-            $relative = [IO.Path]::GetRelativePath($AppPath, $item.FullName)
-            $mismatches.Add("$relative => $description")
+            $mismatches.Add($entry)
         }
     }
 
+    $manifestPath = Join-Path $AppPath 'Contents/Resources/native-architecture-manifest.txt'
+    $manifestLines = @(
+        "$ProductName $Version native architecture manifest",
+        "RID: $RuntimeIdentifier",
+        "Expected Mach-O architecture: $expectedPattern",
+        "Generated: $([DateTimeOffset]::UtcNow.ToString('O'))",
+        ''
+    ) + @($inventory)
+    Write-Utf8NoBom $manifestPath (($manifestLines -join [Environment]::NewLine) + [Environment]::NewLine)
+
     if ($machOCount -eq 0) {
-        throw "No Mach-O payload was found in $AppPath. Refusing to ship a macOS application whose native architecture cannot be verified."
+        throw "No Mach-O payload was found in $AppPath. Refusing to ship a macOS application whose native architecture cannot be verified. Manifest: $manifestPath"
     }
     if ($mismatches.Count -gt 0) {
-        $details = ($mismatches | Select-Object -First 12) -join [Environment]::NewLine
-        throw "The $RuntimeIdentifier bundle contains native component(s) without the required architecture. This would trigger Rosetta/Intel compatibility warnings on Apple Silicon. Mismatches:$([Environment]::NewLine)$details"
+        $details = ($mismatches | Select-Object -First 20) -join [Environment]::NewLine
+        throw "The $RuntimeIdentifier bundle contains native component(s) without the required architecture. Exact offending file(s):$([Environment]::NewLine)$details$([Environment]::NewLine)Full architecture inventory: $manifestPath"
     }
 
     Write-Host "Validated $machOCount Mach-O component(s) in $ProductName.app for $RuntimeIdentifier; no incompatible Intel/ARM-only payload was found." -ForegroundColor Green
+    Write-Host "Native architecture manifest: $manifestPath" -ForegroundColor DarkCyan
 }
 
 function New-Dmg([string]$AppPath,[string]$Destination) {
@@ -825,10 +882,12 @@ if ($Rid.StartsWith('osx-')) {
     New-MacLauncher (Join-Path $macos $ProductName) $ExecutableName
     $bundleIcon = New-MacBundleIcon $app
     $iconPlist = if ([string]::IsNullOrWhiteSpace($bundleIcon)) { '' } else { "<key>CFBundleIconFile</key><string>$bundleIcon</string>" }
+    $launchArchitecture = if ($Rid.EndsWith('arm64')) { 'arm64' } else { 'x86_64' }
+    $nativeExecutionPlist = if ($Rid.EndsWith('arm64')) { '<key>LSRequiresNativeExecution</key><true/>' } else { '' }
     $infoPlist = @"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>CFBundleName</key><string>$ProductName</string><key>CFBundleDisplayName</key><string>$ProductName</string><key>CFBundleIdentifier</key><string>io.github.michi0403.$($ProductName.ToLowerInvariant())</string><key>CFBundleVersion</key><string>$Version</string><key>CFBundleShortVersionString</key><string>$Version</string><key>CFBundleExecutable</key><string>$ProductName</string><key>CFBundlePackageType</key><string>APPL</string>$iconPlist<key>NSHighResolutionCapable</key><true/></dict></plist>
+<plist version="1.0"><dict><key>CFBundleName</key><string>$ProductName</string><key>CFBundleDisplayName</key><string>$ProductName</string><key>CFBundleIdentifier</key><string>io.github.michi0403.$($ProductName.ToLowerInvariant())</string><key>CFBundleVersion</key><string>$Version</string><key>CFBundleShortVersionString</key><string>$Version</string><key>CFBundleExecutable</key><string>$ProductName</string><key>CFBundlePackageType</key><string>APPL</string><key>LSArchitecturePriority</key><array><string>$launchArchitecture</string></array>$nativeExecutionPlist$iconPlist<key>NSHighResolutionCapable</key><true/></dict></plist>
 "@
     Write-Utf8NoBom (Join-Path $app 'Contents/Info.plist') $infoPlist
     Assert-MacBundleArchitecture $app $Rid

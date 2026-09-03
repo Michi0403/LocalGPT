@@ -41,15 +41,11 @@ LocalGPT uses DevExpress components.
 
 DevExpress is **not** licensed under the Apache License, Version 2.0.
 
-DevExpress is a proprietary third-party product. To build, run, modify, distribute, or use LocalGPT in a way that depends on DevExpress components, you may need your own valid DevExpress license from Developer Express Inc. or its authorized licensing channels.
+DevExpress is a proprietary third-party product. Building or modifying the maintained DevExpress-based UI requires an appropriately licensed DevExpress development environment as described by Developer Express Inc. The repository's build scripts validate the developer/build-machine license separately from ordinary package restore.
 
-This repository does not grant you any license to DevExpress.
+This repository does not grant you any license to DevExpress and does not relicense DevExpress under Apache-2.0. Rights and obligations for building, using, or redistributing DevExpress components are determined solely by the applicable DevExpress license terms. This notice does not add a new DevExpress requirement beyond those terms.
 
-This repository does not redistribute DevExpress under the Apache License.
-
-This repository does not remove, replace, bypass, or weaken any DevExpress license requirement.
-
-If you do not have a valid DevExpress license, you are responsible for obtaining one before using DevExpress-dependent parts of this project.
+Lawfully produced application binaries may contain redistributable DevExpress runtime components when the producing developer's DevExpress terms permit that redistribution; the private developer license itself is not part of the source repository or end-user installation.
 
 ## What Apache-2.0 covers
 
@@ -85,7 +81,7 @@ The presence of DevExpress references, package names, code integration, componen
 
 You must comply with DevExpress licensing separately.
 
-If the project fails to build because DevExpress packages, credentials, feeds, assets, or licenses are missing, that is expected unless your environment has valid DevExpress access configured.
+If the project fails to build because the required DevExpress developer license or generated/licensed assets are unavailable, configure an appropriately licensed development environment as documented by the project.
 
 ## Distribution warning
 
@@ -113,7 +109,7 @@ LocalGPT’s own code is public under Apache-2.0.
 
 DevExpress is not public, not Apache-2.0, and not free through this repository.
 
-To use the DevExpress-based version of LocalGPT, you need your own valid DevExpress license.
+DevExpress-dependent development and redistribution remain subject to DevExpress's own terms; this repository grants no DevExpress license and does not create additional licensing conditions beyond those terms.
 
 ## Final notice
 

@@ -120,7 +120,7 @@ $pdfAccessibilityMode = "unavailable"
 $pdfCompressionMode = "none"
 $pdfBytesBeforeCompression = 0
 $pdfCompressionSavedBytes = 0
-$maximumBrowserPrintSourcePages = 1500
+$maximumBrowserPrintSourcePages = 1000
 
 if (-not (Test-Path -LiteralPath $AssemblyPath)) { throw "Documentation assembly was not found: $AssemblyPath" }
 if (-not (Test-Path -LiteralPath $XmlDocumentationPath)) { throw "XML documentation file was not found: $XmlDocumentationPath" }
@@ -2402,6 +2402,50 @@ function Invoke-LocalGptDocfx {
     }
 }
 
+function Ensure-LocalGptDocfxToolForPdfFallback {
+    # Durable HTML can legitimately be restored without restoring the repository-local DocFX tool.
+    # A missing/invalid cached PDF must still be able to fall back to the DocFX PDF plug-in. Resolve
+    # the command lazily here so Invoke-LocalGptDocfx never receives a null command target.
+    if ($script:useManifestTool -or -not [string]::IsNullOrWhiteSpace([string]$script:docfxExecutable)) {
+        return $true
+    }
+
+    if (Test-Path -LiteralPath $script:manifestPath -PathType Leaf) {
+        Write-Host "PDF fallback requires DocFX; resolving the repository-local tool now." -ForegroundColor DarkCyan
+        & dotnet tool restore --tool-manifest $script:manifestPath
+        if ($LASTEXITCODE -eq 0) {
+            $script:useManifestTool = $true
+            $script:toolSource = "manifest-pdf-fallback"
+            return $true
+        }
+        $script:warnings.Add("Repository-local DocFX restore for PDF fallback failed; trying the isolated tool path.")
+    }
+    else {
+        $script:warnings.Add("DocFX PDF fallback could not find the repository-local tool manifest; trying the isolated pinned tool path instead.")
+    }
+
+    New-Item -ItemType Directory -Path $script:fallbackToolRoot -Force | Out-Null
+    $script:docfxExecutable = Get-ChildItem -LiteralPath $script:fallbackToolRoot -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -in @("docfx", "docfx.exe") } |
+        Select-Object -First 1 -ExpandProperty FullName
+    if ([string]::IsNullOrWhiteSpace([string]$script:docfxExecutable)) {
+        & dotnet tool install docfx --tool-path $script:fallbackToolRoot --version 2.78.5
+        if ($LASTEXITCODE -eq 0) {
+            $script:docfxExecutable = Get-ChildItem -LiteralPath $script:fallbackToolRoot -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -in @("docfx", "docfx.exe") } |
+                Select-Object -First 1 -ExpandProperty FullName
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$script:docfxExecutable)) {
+        $script:toolSource = "isolated-tool-path-pdf-fallback"
+        return $true
+    }
+
+    $script:warnings.Add("DocFX PDF fallback could not resolve a runnable DocFX command after repository-local and isolated-tool restoration attempts.")
+    return $false
+}
+
 
 $documentationCacheKey = Get-LocalGptDocumentationCacheKey -Assembly $AssemblyPath -Xml $XmlDocumentationPath -Docs $docsRoot -VersionValue $Version
 $documentationCacheEntryRoot = Join-Path $documentationPayloadCacheRoot $documentationCacheKey
@@ -2731,6 +2775,9 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                         $env:NODE_OPTIONS = "$($env:NODE_OPTIONS) --max-old-space-size=4096"
                     }
 
+                    if (-not (Ensure-LocalGptDocfxToolForPdfFallback)) {
+                        throw "DocFX PDF fallback is unavailable because no runnable DocFX command could be resolved."
+                    }
                     Write-Host "Browser printing was unavailable; generating the complete PDF with the DocFX PDF plug-in and Node.js $nodeVersionUsed. This can take several minutes for $pdfSourcePageCount pages; DocFX output is streamed live below." -ForegroundColor Cyan
                     $pdfResult = Invoke-LocalGptDocfx -Arguments @("pdf", $configPath, "--logLevel", "verbose")
                     $pdfCandidates = @(

@@ -2,9 +2,9 @@
 
 # LocalGPT
 
-### Garage-built for personal use. Open for everyone. Powerful enough for much more.
+### User-owned AI and software infrastructure — from one machine to independent AI centers.
 
-A local-first .NET and Blazor platform for AI councils, model orchestration, persistent knowledge, project workflows, human participation, and practical experimentation with local AI.
+An open-source, local-first .NET 10 and Blazor platform for AI councils, model orchestration, persistent knowledge, project workflows, human participation, automation, connected systems, and independently operated AI.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.MD)
 [![Latest release](https://img.shields.io/github/v/release/Michi0403/LocalGPT?display_name=tag&sort=semver)](https://github.com/Michi0403/LocalGPT/releases/latest)
@@ -29,11 +29,19 @@ PublisherStudio: <https://michi0403.github.io/BlazorPublisher/>
 
 ## What LocalGPT is
 
-LocalGPT is an independent, garage-built project created and maintained by **Michael Fleischer (`Michi0403`)**. It is developed primarily as a serious personal tool, a shared workshop for friends, and a public engineering project—not as a conventional commercial product.
+LocalGPT is an independent, garage-built project created and maintained by **Michael Fleischer (`Michi0403`)**. It began as a serious personal tool and shared workshop, but the architecture is deliberately aimed beyond a single desktop application.
 
-The project combines a local AI runtime with a database-backed .NET application, a DevExpress Blazor interface, configurable council teams, persistent project context, human collaboration checkpoints, bounded tool access, diagnostics, installers, and release tooling.
+The project combines a local AI runtime with a database-backed .NET application, a DevExpress Blazor interface, configurable council teams, persistent project context, human collaboration checkpoints, bounded tool access, diagnostics, installers, release tooling, and explicit local/remote system boundaries.
 
-The goal is simple: build an AI environment that is useful, expressive, inspectable, and enjoyable to work with. The fact that the same architecture can support larger facilities, internal tools, laboratories, or company-specific platforms is a welcome side effect rather than the product pitch.
+### Future2 mission
+
+LocalGPT is part of the **Future2** direction: practical, user-owned AI and software infrastructure that can operate without making a centralized corporate or government service a technical requirement or authority. External cloud providers may be connected when they are useful, but they remain optional providers rather than owners of the system, its data, or its decisions.
+
+The intended scale runs from one person's computer and local models, through workstations, embedded devices and explicitly authorized robots, to independently operated AI centers and specialized software environments. The engineering priorities behind that goal are local ownership, human authority, provider neutrality, inspectability, durable persistence, explicit permissions, and replaceable integrations.
+
+PublisherStudio is a companion demonstration of the same broader direction outside the AI-workbench category: it is independently usable creative/productivity software that can optionally cooperate with LocalGPT and 1-Wire rather than being technically dependent on a remote platform.
+
+For .NET developers and companies, the project is also a substantial open-source .NET 10/Blazor reference that can be studied, forked, adapted, or integrated under Apache-2.0. The maintained UI uses separately licensed DevExpress components; the repository documents that boundary rather than pretending every dependency is open source.
 
 ## Project stance
 

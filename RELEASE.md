@@ -1,11 +1,9 @@
-# LocalGPT 3.6.4
+# LocalGPT 3.6.6
 
-LocalGPT 3.6.4 is a focused build-repair release for the 3.6.3 macOS startup work.
+LocalGPT 3.6.6 repairs the documentation release path exposed by a clean/retry build on macOS. The application assembly itself built successfully, the durable DocFX HTML cache restored successfully, and the failure occurred only when the large browser print job failed and the script attempted the DocFX PDF fallback without having restored a DocFX command for that cached-HTML path.
 
-The 3.6.3 source converted three expensive startup workers to `BackgroundService` and inserted an initial asynchronous hand-off so Kestrel could begin listening before database migration, runtime-capability synchronization, and DX AI-function catalog synchronization completed. The repository's own zero-tolerance async-continuation policy correctly rejected the bare `await Task.Yield()` statements, so the release stopped during the RID-neutral LocalGPT build before packaging.
+The release script now resolves DocFX lazily when the PDF plug-in fallback is required. This keeps durable HTML-cache reuse fast while preventing a null PowerShell invocation target. LocalGPT manuals above 1000 printable HTML pages also bypass the monolithic browser print-book attempt and go directly to the DocFX PDF plug-in; the current 1100+ page manual has already demonstrated that Edge can fail the one-shot print path on macOS.
 
-3.6.4 preserves the intended startup behavior while using a cancellable, policy-compliant `Task.Delay(1, stoppingToken).ConfigureAwait(false)` hand-off in all three workers. The same async-continuation audit that failed 3.6.3 is included in the 3.6.4 source validation.
+The 3.6.5 Apple-Silicon/Rosetta architecture diagnostics, exact Mach-O package manifest, dynamic macOS port handling, Future2 positioning, DevExpress licensing clarification, visible console, user-data permissions, optional local-AI setup helpers, and cross-platform packaging work remain in place.
 
-All other 3.6.3 fixes remain in place: dynamic macOS loopback-port selection, runtime endpoint discovery, `/health` readiness probing, visible Terminal diagnostics, stale-process cleanup, user-data permission repair, Ollama/LM Studio helper, and macOS native-architecture validation.
-
-See `CHANGELOG-v3.6.4-ASYNC-CONTINUATION-BUILD-GUARD-REPAIR.md` and `VALIDATION-v3.6.4-source.md`.
+See `CHANGELOG-v3.6.6-DOCFX-PDF-CACHE-FALLBACK-REPAIR.md` and `VALIDATION-v3.6.6-source.md`.
