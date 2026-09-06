@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'RepositoryValidation.Common.ps1')
 $errors = [System.Collections.Generic.List[string]]::new()
 
 function Read-RequiredText([string]$relativePath) {
@@ -64,7 +65,7 @@ $allowedApprovalCapabilityFiles = @(
 $sourceRoot = Join-Path $RepositoryRoot 'src/LocalGPT'
 Get-ChildItem -Path $sourceRoot -Recurse -File | Where-Object { $_.Extension -in @('.cs', '.razor') } | ForEach-Object {
     $content = Get-Content -LiteralPath $_.FullName -Raw
-    $relative = [IO.Path]::GetRelativePath($sourceRoot, $_.FullName).Replace('\', '/')
+    $relative = (Get-RelativePathPortable -BasePath $sourceRoot -TargetPath $_.FullName).Replace('\', '/')
     if (($content.IndexOf('ILocalHumanInteractionContext', [System.StringComparison]::Ordinal) -ge 0) -and
         $relative -notin $allowedInteractionCapabilityFiles) {
         $errors.Add("Local human interaction capability is used outside the allowlist: $relative")

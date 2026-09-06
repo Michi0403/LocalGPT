@@ -1,8 +1,11 @@
 using System.Formats.Tar;
 using System.Globalization;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
+using PdfSharp.Pdf;
+using PdfSharp.Pdf.IO;
 
 namespace LocalGPT.ReleasePackaging;
 
@@ -25,7 +28,7 @@ internal static class Program
     {
         try
         {
-            if (args.Length == 0) throw new ArgumentException("A command is required: tar, deb, or sha256.");
+            if (args.Length == 0) throw new ArgumentException("A command is required: tar, deb, sha256, pdf-merge, or pdf-optimize.");
             var command = args[0].ToLowerInvariant();
             var values = Parse(args.Skip(1).ToArray());
             switch (command)
@@ -33,6 +36,8 @@ internal static class Program
                 case "tar": CreateTarGz(Required(values, "source"), Required(values, "output"), Optional(values, "root", string.Empty), Multi(values, "executable")); break;
                 case "deb": CreateDeb(values); break;
                 case "sha256": CreateSha256(Required(values, "directory"), Required(values, "output")); break;
+                case "pdf-merge": MergePdf(values); break;
+                case "pdf-optimize": OptimizePdf(values); break;
                 default: throw new ArgumentException($"Unknown packaging command '{command}'.");
             }
             return 0;
@@ -298,6 +303,156 @@ internal static class Program
         output.Write(Encoding.ASCII.GetBytes(header));
         input.CopyTo(output, 1024 * 1024);
         if ((length & 1) != 0) output.WriteByte((byte)'\n');
+    }
+
+
+    /// <summary>
+    /// Merges one or more PDF files in the supplied order using the cross-platform PDFsharp core package.
+    /// </summary>
+    /// <param name="values">Parsed command-line values containing repeated input paths and the output path.</param>
+    private static void MergePdf(Dictionary<string, List<string>> values)
+    {
+        var output = Path.GetFullPath(Required(values, "output"));
+        var inputs = Multi(values, "input").Where(x => !string.IsNullOrWhiteSpace(x)).Select(Path.GetFullPath).ToArray();
+        if (inputs.Length == 0) throw new ArgumentException("At least one --input PDF is required.");
+        foreach (var input in inputs) if (!File.Exists(input)) throw new FileNotFoundException("PDF input was not found.", input);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+        var temporary = output + ".tmp-" + Guid.NewGuid().ToString("N") + ".pdf";
+        try
+        {
+            using (var destination = new PdfDocument())
+            {
+                foreach (var input in inputs)
+                {
+                    using var source = PdfReader.Open(input, PdfDocumentOpenMode.Import);
+                    foreach (var page in source.Pages) destination.AddPage(page);
+                }
+                destination.Save(temporary);
+            }
+            if (!LooksLikePdf(temporary)) throw new InvalidDataException("Merged PDF output is invalid or empty.");
+            CommitTemporaryFile(temporary, output);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        Console.WriteLine(output);
+    }
+
+    /// <summary>
+    /// Optimizes a PDF with trusted native tools when available, while remaining a safe no-op copy when they are absent.
+    /// </summary>
+    /// <param name="values">Parsed command-line values containing input/output paths and optional tool overrides.</param>
+    private static void OptimizePdf(Dictionary<string, List<string>> values)
+    {
+        var input = Path.GetFullPath(Required(values, "input"));
+        var output = Path.GetFullPath(Required(values, "output"));
+        if (!File.Exists(input)) throw new FileNotFoundException("PDF input was not found.", input);
+        Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+
+        var candidates = new List<(string Path, string Mode)> { (input, "original") };
+        var work = Path.Combine(Path.GetTempPath(), "localgpt-pdf-optimize-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(work);
+        try
+        {
+            var qpdf = FindExecutable(Optional(values, "qpdf", string.Empty), "qpdf");
+            if (qpdf is not null)
+            {
+                var qpdfOut = Path.Combine(work, "qpdf.pdf");
+                var qpdfArgs = new[] { "--compress-streams=y", "--decode-level=generalized", "--recompress-flate", "--compression-level=9", "--object-streams=generate", "--optimize-images", "--jpeg-quality=82", input, qpdfOut };
+                if (RunTool(qpdf, qpdfArgs) == 0 && LooksLikePdf(qpdfOut)) candidates.Add((qpdfOut, "qpdf"));
+            }
+
+            var smallestBeforeGs = candidates.OrderBy(x => new FileInfo(x.Path).Length).First();
+            var ghostscript = FindExecutable(Optional(values, "ghostscript", string.Empty), OperatingSystem.IsWindows() ? "gswin64c" : "gs", "gswin32c", "gs");
+            if (ghostscript is not null)
+            {
+                var gsOut = Path.Combine(work, "ghostscript.pdf");
+                var gsArgs = new[] {
+                    "-dNOPAUSE", "-dBATCH", "-dSAFER", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.7",
+                    "-dAutoRotatePages=/None", "-dDetectDuplicateImages=true", "-dCompressFonts=true", "-dSubsetFonts=true",
+                    "-dCompressPages=true", "-dEmbedAllFonts=true", "-dPDFSETTINGS=/ebook", "-dDownsampleColorImages=true",
+                    "-dColorImageResolution=150", "-dAutoFilterColorImages=false", "-dColorImageFilter=/DCTEncode", "-dJPEGQ=85",
+                    "-dDownsampleGrayImages=true", "-dGrayImageResolution=150", "-dAutoFilterGrayImages=false", "-dGrayImageFilter=/DCTEncode",
+                    "-dDownsampleMonoImages=true", "-dMonoImageResolution=300", $"-sOutputFile={gsOut}", smallestBeforeGs.Path
+                };
+                if (RunTool(ghostscript, gsArgs) == 0 && LooksLikePdf(gsOut)) candidates.Add((gsOut, smallestBeforeGs.Mode == "qpdf" ? "qpdf+ghostscript" : "ghostscript"));
+            }
+
+            var best = candidates.OrderBy(x => new FileInfo(x.Path).Length).First();
+            var temporary = output + ".tmp-" + Guid.NewGuid().ToString("N") + ".pdf";
+            File.Copy(best.Path, temporary, true);
+            CommitTemporaryFile(temporary, output);
+            Console.WriteLine($"mode={best.Mode};before={new FileInfo(input).Length};after={new FileInfo(output).Length};output={output}");
+        }
+        finally { try { Directory.Delete(work, true); } catch { } }
+    }
+
+    /// <summary>
+    /// Locates a requested command from an explicit path, PATH, and common Homebrew locations.
+    /// </summary>
+    /// <param name="explicitPath">Optional explicit path to the executable; an empty value falls back to name-based discovery.</param>
+    /// <param name="names">Candidate executable names to search in PATH and supported platform-specific locations.</param>
+    /// <returns>The resolved absolute executable path, or <see langword="null"/> when no candidate can be found.</returns>
+    private static string? FindExecutable(string explicitPath, params string[] names)
+    {
+        var candidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(explicitPath)) candidates.Add(explicitPath);
+        foreach (var name in names.Where(x => !string.IsNullOrWhiteSpace(x)))
+        {
+            if (Path.IsPathRooted(name)) candidates.Add(name);
+            var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            foreach (var directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+            {
+                candidates.Add(Path.Combine(directory, name));
+                if (OperatingSystem.IsWindows() && string.IsNullOrEmpty(Path.GetExtension(name))) candidates.Add(Path.Combine(directory, name + ".exe"));
+            }
+            if (OperatingSystem.IsMacOS())
+            {
+                candidates.Add(Path.Combine("/opt/homebrew/bin", name));
+                candidates.Add(Path.Combine("/usr/local/bin", name));
+            }
+        }
+        foreach (var candidate in candidates)
+        {
+            try { if (File.Exists(candidate)) return Path.GetFullPath(candidate); } catch { }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Runs a native helper with argument-list escaping handled by <see cref="ProcessStartInfo.ArgumentList"/>.
+    /// </summary>
+    /// <param name="executable">Resolved native helper executable to launch.</param>
+    /// <param name="arguments">Arguments to pass as individual process argument-list entries.</param>
+    /// <returns>The native helper process exit code.</returns>
+    private static int RunTool(string executable, IEnumerable<string> arguments)
+    {
+        var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
+        foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        using var process = Process.Start(start) ?? throw new InvalidOperationException($"Could not start {executable}.");
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
+        process.WaitForExit();
+        Task.WaitAll(stdout, stderr);
+        if (process.ExitCode != 0)
+        {
+            var detail = string.Join(" | ", new[] { stdout.Result, stderr.Result }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()));
+            if (!string.IsNullOrWhiteSpace(detail)) Console.Error.WriteLine(detail);
+        }
+        return process.ExitCode;
+    }
+
+    /// <summary>
+    /// Performs a lightweight PDF signature/size check before a generated artifact is committed.
+    /// </summary>
+    /// <param name="path">Path to the candidate PDF file to validate.</param>
+    /// <returns><see langword="true"/> when the file exists, has a plausible size, and begins with the PDF signature; otherwise <see langword="false"/>.</returns>
+    private static bool LooksLikePdf(string path)
+    {
+        var info = new FileInfo(path);
+        if (!info.Exists || info.Length < 1024) return false;
+        Span<byte> header = stackalloc byte[5];
+        using var stream = File.OpenRead(path);
+        return stream.Read(header) == header.Length && header.SequenceEqual("%PDF-"u8);
     }
 
     /// <summary>

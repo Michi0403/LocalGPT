@@ -1,6 +1,7 @@
 param([string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot))
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'RepositoryValidation.Common.ps1')
 $sourceRoot = Join-Path $RepositoryRoot 'src/LocalGPT'
 $servicesRoot = Join-Path $sourceRoot 'Services'
 $errors = [System.Collections.Generic.List[string]]::new()
@@ -11,7 +12,7 @@ if (-not (Test-Path -LiteralPath $servicesRoot -PathType Container)) {
 
 $serviceFiles = Get-ChildItem -LiteralPath $servicesRoot -Recurse -File -Filter '*.cs'
 foreach ($file in $serviceFiles) {
-    $relative = [IO.Path]::GetRelativePath($RepositoryRoot, $file.FullName).Replace('\', '/')
+    $relative = (Get-RelativePathPortable -BasePath $RepositoryRoot -TargetPath $file.FullName).Replace('\', '/')
     $text = Get-Content -LiteralPath $file.FullName -Raw
 
     $staticClasses = [regex]::Matches(
@@ -39,7 +40,7 @@ $maintainedFiles = Get-ChildItem -LiteralPath $sourceRoot -Recurse -File |
     Where-Object { $_.Extension -in @('.cs', '.razor') -and
         $_.FullName -notmatch '[\\/](bin|obj)[\\/]' }
 foreach ($file in $maintainedFiles) {
-    $relative = [IO.Path]::GetRelativePath($RepositoryRoot, $file.FullName).Replace('\', '/')
+    $relative = (Get-RelativePathPortable -BasePath $RepositoryRoot -TargetPath $file.FullName).Replace('\', '/')
     $text = Get-Content -LiteralPath $file.FullName -Raw
 
     if ($text -match '(?m)^\s*_\s*=(?!>)\s*[^;\r\n]*Async\s*\(') {

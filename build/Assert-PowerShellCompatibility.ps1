@@ -5,6 +5,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $unsupportedContainsPattern = '\.Contains\([^\r\n]*,\s*\[(?:System\.)?StringComparison\]::'
+$unsupportedPathRelativePattern = '\[(?:System\.)?IO\.Path\]::GetRelativePath\s*\('
+$unsupportedArgumentListPattern = '\.ArgumentList(?:\.|\s*=)'
+$unsupportedKillTreePattern = '\.Kill\(\s*\$true\s*\)'
 $readOnlyPlatformVariableAssignmentPattern = '(?i)\$(?:IsWindows|IsLinux|IsMacOS|IsCoreCLR)\s*='
 $failures = [System.Collections.Generic.List[string]]::new()
 
@@ -89,6 +92,18 @@ foreach ($file in $scriptFiles) {
         $failures.Add("${relative}:$line uses String.Contains(value, StringComparison), which is unavailable in Windows PowerShell 5.1. Use String.IndexOf(value, comparison) instead.")
     }
 
+    foreach ($compatibilityPattern in @(
+        [pscustomobject]@{ Pattern = $unsupportedPathRelativePattern; Message = 'uses Path.GetRelativePath directly, which is unavailable on Windows PowerShell 5.1/.NET Framework. Use the portable reflection/URI helper instead.' },
+        [pscustomobject]@{ Pattern = $unsupportedArgumentListPattern; Message = 'uses ProcessStartInfo.ArgumentList directly, which is unavailable on Windows PowerShell 5.1/.NET Framework. Use the portable process-argument helper instead.' },
+        [pscustomobject]@{ Pattern = $unsupportedKillTreePattern; Message = 'uses Process.Kill(true), which is unavailable on Windows PowerShell 5.1/.NET Framework. Use the portable process-stop helper instead.' }
+    )) {
+        foreach ($match in [regex]::Matches($content, $compatibilityPattern.Pattern)) {
+            $line = [regex]::Matches($content.Substring(0, $match.Index), "`r`n|`r|`n").Count + 1
+            $relative = Get-RepositoryRelativePath -Path $file.FullName
+            $failures.Add("${relative}:$line $($compatibilityPattern.Message)")
+        }
+    }
+
     $sourceLines = $content -split "`r`n|`r|`n"
     for ($lineIndex = 0; $lineIndex -lt $sourceLines.Length; $lineIndex++) {
         $sourceLine = $sourceLines[$lineIndex]
@@ -111,4 +126,4 @@ if ($failures.Count -gt 0) {
     throw "PowerShell compatibility validation failed:`n - $($failures -join "`n - ")"
 }
 
-Write-Host 'PowerShell compatibility validation passed for parser syntax, Windows PowerShell 5.1, cross-platform pwsh path literals, and protected platform automatic-variable assignments.'
+Write-Host 'PowerShell compatibility validation passed for Windows PowerShell 5.1 and modern pwsh parser/runtime API usage, cross-platform path handling, and protected platform automatic-variable assignments.'

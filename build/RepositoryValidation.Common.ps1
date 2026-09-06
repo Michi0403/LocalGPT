@@ -19,7 +19,7 @@ function Get-RelativePathPortable {
 
     $method = [IO.Path].GetMethod('GetRelativePath', [Type[]]@([string], [string]))
     if ($method) {
-        return [IO.Path]::GetRelativePath($BasePath, $TargetPath)
+        return [string]$method.Invoke($null, @($BasePath, $TargetPath))
     }
 
     $baseFull = [IO.Path]::GetFullPath($BasePath).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar

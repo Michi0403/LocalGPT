@@ -33,3 +33,9 @@ Generated projects or artifacts may add dependencies. Review their manifests, tr
 - `lotgd/lotgd` may be downloaded only when a user explicitly selects that optional knowledge source. Its own license and notices apply. LocalGPT's Green Dragon runtime story is an original configuration example and is not an official LOTGD distribution.
 
 LocalGPT is not affiliated with, endorsed by, or sponsored by id Software, ZeniMax, Bethesda, LOTGD, or their contributors. Names are used only to identify optional upstream source references selected by the user.
+
+## Release-documentation PDF tooling
+
+- **PDFsharp 6.2.4** — MIT license. Used by the repository-owned `LocalGPT.ReleasePackaging` .NET tool to merge bounded browser-rendered documentation PDF chunks cross-platform. It is a build/release dependency, not a DevExpress component.
+- **qpdf** — Apache-2.0 license. Optional external build-time PDF optimizer when installed; not bundled with LocalGPT.
+- **Ghostscript** — AGPL-3.0-or-later. Optional external build-time PDF optimizer when installed; not bundled with LocalGPT. The normal browser-chunk/PDFsharp merge path does not require it.

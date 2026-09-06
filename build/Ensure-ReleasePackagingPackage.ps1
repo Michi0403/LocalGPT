@@ -1,6 +1,6 @@
 param(
     [string]$Configuration = "Release",
-    [string]$Version = "1.0.1"
+    [string]$Version = "1.0.2"
 )
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
@@ -28,6 +28,7 @@ $nugetConfigText = @"
   <packageSources>
     <clear />
     <add key="LocalReleasePackages" value="$escapedPackages" />
+    <add key="NuGetOrg" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
   </packageSources>
 </configuration>
 "@

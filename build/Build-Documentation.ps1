@@ -4,7 +4,10 @@ param(
     [Parameter(Mandatory)][string]$XmlDocumentationPath,
     [Parameter(Mandatory)][string]$Version,
     [string]$OutputWebRoot = "",
-    [switch]$RequirePdf
+    [string]$DocumentationCacheRoot = "",
+    [string]$PackagingTool = "",
+    [switch]$RequirePdf,
+    [switch]$DisablePdfToolProvisioning
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,6 +36,10 @@ $AssemblyPath = [IO.Path]::GetFullPath($AssemblyPath)
 $XmlDocumentationPath = [IO.Path]::GetFullPath($XmlDocumentationPath)
 if (-not [string]::IsNullOrWhiteSpace($OutputWebRoot)) {
     $OutputWebRoot = [IO.Path]::GetFullPath($OutputWebRoot)
+}
+if (-not [string]::IsNullOrWhiteSpace($PackagingTool)) {
+    $PackagingTool = [IO.Path]::GetFullPath($PackagingTool)
+    if (-not (Test-Path -LiteralPath $PackagingTool -PathType Leaf)) { throw "Release-packaging tool was not found: $PackagingTool" }
 }
 
 . (Join-Path $RepositoryRoot "build/NodeRuntime.Common.ps1")
@@ -91,7 +98,12 @@ $minimumNodeMajor = 20
 $maximumPreferredNodeMajor = 22
 $provisionedNodeVersion = "22.23.2"
 $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
-$documentationToolCacheRoot = Get-LocalGptDocumentationToolCacheRoot -FallbackRoot $fallbackToolRoot
+$documentationToolCacheRoot = if (-not [string]::IsNullOrWhiteSpace($DocumentationCacheRoot)) {
+    [IO.Path]::GetFullPath($DocumentationCacheRoot)
+}
+else {
+    Get-LocalGptDocumentationToolCacheRoot -FallbackRoot $fallbackToolRoot
+}
 $playwrightBrowserRoot = Join-Path $documentationToolCacheRoot "ms-playwright-docfx-2.78.5"
 $documentationLockRoot = Join-Path $documentationToolCacheRoot "locks"
 $documentationLockPath = Join-Path $documentationLockRoot "LocalGPT-documentation.lock"
@@ -120,7 +132,38 @@ $pdfAccessibilityMode = "unavailable"
 $pdfCompressionMode = "none"
 $pdfBytesBeforeCompression = 0
 $pdfCompressionSavedBytes = 0
-$maximumBrowserPrintSourcePages = 1000
+$maximumBrowserPrintSourcePages = 1400
+$configuredBrowserPageLimit = 0
+if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_PDF_MAX_PAGES, [ref]$configuredBrowserPageLimit) -and $configuredBrowserPageLimit -gt 0) {
+    $maximumBrowserPrintSourcePages = $configuredBrowserPageLimit
+}
+$browserPdfTimeoutMilliseconds = 480000
+$configuredBrowserTimeout = 0
+if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_PDF_TIMEOUT, [ref]$configuredBrowserTimeout) -and $configuredBrowserTimeout -gt 0) {
+    $browserPdfTimeoutMilliseconds = $configuredBrowserTimeout
+}
+$browserPdfChunkPages = 100
+try {
+    $availableMemory = [long][GC]::GetGCMemoryInfo().TotalAvailableMemoryBytes
+    if ($availableMemory -gt 0) {
+        if ($availableMemory -le 8589934592L) { $browserPdfChunkPages = 50 }
+        elseif ($availableMemory -le 17179869184L) { $browserPdfChunkPages = 80 }
+        elseif ($availableMemory -le 34359738368L) { $browserPdfChunkPages = 120 }
+        else { $browserPdfChunkPages = 160 }
+    }
+} catch { }
+$configuredBrowserChunkPages = 0
+if ([int]::TryParse([string]$env:FUTURE2_DOCUMENTATION_BROWSER_PDF_CHUNK_PAGES, [ref]$configuredBrowserChunkPages) -and $configuredBrowserChunkPages -ge 20) {
+    $browserPdfChunkPages = [Math]::Min(250, $configuredBrowserChunkPages)
+}
+$pdfCompressionTriggerBytes = 134217728L
+# A standalone handbook larger than 256 MiB is already too large for a sane desktop-app release.
+# The PDF is embedded for offline help, so a pathological handbook would directly bloat every self-contained package.
+$maximumSanePdfBytes = 268435456L
+$configuredPdfMaxBytes = 0L
+if ([long]::TryParse([string]$env:FUTURE2_DOCUMENTATION_PDF_MAX_BYTES, [ref]$configuredPdfMaxBytes) -and $configuredPdfMaxBytes -gt 0) {
+    $maximumSanePdfBytes = $configuredPdfMaxBytes
+}
 
 if (-not (Test-Path -LiteralPath $AssemblyPath)) { throw "Documentation assembly was not found: $AssemblyPath" }
 if (-not (Test-Path -LiteralPath $XmlDocumentationPath)) { throw "XML documentation file was not found: $XmlDocumentationPath" }
@@ -776,8 +819,17 @@ function Test-LocalGptCompletePdf {
         $read = $stream.Read($buffer, 0, $buffer.Length)
         if ($read -le 0) { return $false }
         $prefix = [Text.Encoding]::ASCII.GetString($buffer, 0, $read)
-        return $prefix.StartsWith("%PDF-", [StringComparison]::Ordinal) -and
-            $prefix -notmatch 'Deterministic fallback documentation index'
+        if (-not $prefix.StartsWith("%PDF-", [StringComparison]::Ordinal) -or $prefix -match 'Deterministic fallback documentation index') { return $false }
+
+        # Durable chunk reuse must reject browser output that was interrupted after writing a
+        # plausible PDF header. A complete PDF keeps an %%EOF marker close to the physical end.
+        $tailLength = [int][Math]::Min(65536L, [long]$file.Length)
+        [void]$stream.Seek(-$tailLength, [IO.SeekOrigin]::End)
+        $tailBuffer = New-Object byte[] $tailLength
+        $tailRead = $stream.Read($tailBuffer, 0, $tailBuffer.Length)
+        if ($tailRead -le 0) { return $false }
+        $tail = [Text.Encoding]::ASCII.GetString($tailBuffer, 0, $tailRead)
+        return $tail.IndexOf('%%EOF', [StringComparison]::Ordinal) -ge 0
     }
     finally {
         $stream.Dispose()
@@ -1377,18 +1429,25 @@ function Convert-LocalGptPrintDocumentLinks {
 function New-LocalGptHtmlPrintBook {
     param(
         [Parameter(Mandatory)][string]$SiteRoot,
-        [Parameter(Mandatory)][string]$DestinationPath
+        [Parameter(Mandatory)][string]$DestinationPath,
+        [ValidateRange(0, 1000000)][int]$StartIndex = 0,
+        [ValidateRange(0, 1000000)][int]$MaximumPages = 0,
+        [switch]$SuppressFrontMatter,
+        [switch]$FrontMatterOnly
     )
 
-    $pages = @(Get-LocalGptPrintPageFiles -SiteRoot $SiteRoot)
-    if ($pages.Count -eq 0) { throw "The DocFX site did not contain printable HTML pages." }
+
+    $allPages = @(Get-LocalGptPrintPageFiles -SiteRoot $SiteRoot)
+    if ($allPages.Count -eq 0) { throw "The DocFX site did not contain printable HTML pages." }
+    $pages = if ($FrontMatterOnly) { @($allPages) } elseif ($MaximumPages -gt 0) { @($allPages | Select-Object -Skip $StartIndex -First $MaximumPages) } else { @($allPages | Select-Object -Skip $StartIndex) }
+    if ($pages.Count -eq 0) { throw "The requested DocFX print-book slice did not contain any pages (start=$StartIndex; maximum=$MaximumPages; total=$($allPages.Count))." }
 
     $anchorMap = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([StringComparer]::OrdinalIgnoreCase)
     $pageModels = [System.Collections.Generic.List[object]]::new()
     for ($index = 0; $index -lt $pages.Count; $index++) {
         $page = $pages[$index]
         $relative = (Get-LocalGptRelativePath -Root $SiteRoot -Path $page.FullName).Replace('\', '/')
-        $anchor = 'localgpt-document-{0:D5}' -f ($index + 1)
+        $anchor = 'localgpt-document-{0:D5}' -f (($StartIndex + $index) + 1)
         $anchorMap[$relative] = $anchor
         $html = Get-Content -LiteralPath $page.FullName -Raw -Encoding UTF8
         $title = Get-LocalGptHtmlDocumentTitle -Html $html -Fallback $relative
@@ -1421,8 +1480,11 @@ function New-LocalGptHtmlPrintBook {
     }
 
     $destinationDirectory = Split-Path -Parent $DestinationPath
-    Remove-LocalGptTemporaryPath -Path $destinationDirectory
+    # Destination directories may be shared by the front matter and multiple browser-PDF chunks.
+    # Never delete the parent here: doing so would remove already-rendered chunk PDFs before the
+    # managed merge step. Only replace the HTML file this invocation owns.
     New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+    Remove-Item -LiteralPath $DestinationPath -Force -ErrorAction SilentlyContinue
 
     $builder = [Text.StringBuilder]::new()
     [void]$builder.AppendLine('<!doctype html>')
@@ -1648,6 +1710,7 @@ html, body { background: #fff0f8 !important; color: #51285d !important; }
 '@
     [void]$builder.AppendLine($printStyles)
     [void]$builder.AppendLine('</head><body class="localgpt-print-book">')
+    if (-not $SuppressFrontMatter) {
     [void]$builder.AppendLine('<section class="localgpt-print-cover">')
     [void]$builder.AppendLine("<h1>LocalGPT $Version</h1>")
     [void]$builder.AppendLine('<p>A cozy, complete guide to LocalGPT product behavior, architecture, operations, and XML-generated API details.</p>')
@@ -1721,7 +1784,9 @@ html, body { background: #fff0f8 !important; color: #51285d !important; }
         [void]$builder.AppendLine('</section>')
     }
     [void]$builder.AppendLine('</div></section>')
+    }
 
+    if (-not $FrontMatterOnly) {
     foreach ($page in $pageModels) {
         $body = [string]$page.Body
         $body = [regex]::Replace($body, '(?i)\s+hidden(?:\s*=\s*(?:"hidden"|''hidden''|hidden))?', '')
@@ -1746,10 +1811,78 @@ html, body { background: #fff0f8 !important; color: #51285d !important; }
         [void]$builder.AppendLine('<article class="localgpt-print-content">' + $body + '</article>')
         [void]$builder.AppendLine('</section>')
     }
+    }
 
     [void]$builder.AppendLine('</body></html>')
     [IO.File]::WriteAllText($DestinationPath, $builder.ToString(), [Text.UTF8Encoding]::new($false))
     return $pageModels.Count
+}
+
+function ConvertTo-PortableProcessArgument {
+    param([AllowEmptyString()][string]$Argument)
+
+    if ($null -eq $Argument -or $Argument.Length -eq 0) { return '""' }
+    if ($Argument -notmatch '[\s"]') { return $Argument }
+
+    # Windows PowerShell 5.1 runs on .NET Framework, where ProcessStartInfo.ArgumentList
+    # does not exist. Quote arguments with the standard Windows command-line escaping
+    # rules for that fallback. Modern pwsh uses ArgumentList through reflection below.
+    $builder = New-Object Text.StringBuilder
+    [void]$builder.Append([char]34)
+    $backslashes = 0
+    foreach ($character in $Argument.ToCharArray()) {
+        if ($character -eq [char]92) {
+            $backslashes++
+            continue
+        }
+        if ($character -eq [char]34) {
+            if ($backslashes -gt 0) { [void]$builder.Append([char]92, ($backslashes * 2)) }
+            [void]$builder.Append([char]92)
+            [void]$builder.Append([char]34)
+            $backslashes = 0
+            continue
+        }
+        if ($backslashes -gt 0) {
+            [void]$builder.Append([char]92, $backslashes)
+            $backslashes = 0
+        }
+        [void]$builder.Append($character)
+    }
+    if ($backslashes -gt 0) { [void]$builder.Append([char]92, ($backslashes * 2)) }
+    [void]$builder.Append([char]34)
+    return $builder.ToString()
+}
+
+function Set-PortableProcessArguments {
+    param(
+        [Parameter(Mandatory)][Diagnostics.ProcessStartInfo]$StartInfo,
+        [Parameter(Mandatory)][object[]]$Arguments
+    )
+
+    $argumentListProperty = $StartInfo.GetType().GetProperty('ArgumentList')
+    if ($null -ne $argumentListProperty) {
+        $argumentList = $argumentListProperty.GetValue($StartInfo, $null)
+        foreach ($argument in $Arguments) { [void]$argumentList.Add([string]$argument) }
+        return
+    }
+
+    $quoted = @($Arguments | ForEach-Object { ConvertTo-PortableProcessArgument -Argument ([string]$_) })
+    $StartInfo.Arguments = $quoted -join ' '
+}
+
+function Stop-PortableProcessTree {
+    param([Parameter(Mandatory)][Diagnostics.Process]$Process)
+
+    try {
+        $killTreeMethod = $Process.GetType().GetMethod('Kill', [Type[]]@([bool]))
+        if ($null -ne $killTreeMethod) {
+            [void]$killTreeMethod.Invoke($Process, @($true))
+            return
+        }
+    }
+    catch { }
+
+    try { $Process.Kill() } catch { }
 }
 
 function Invoke-LocalGptBrowserPdf {
@@ -1810,15 +1943,30 @@ function Invoke-LocalGptBrowserPdf {
                     "--print-to-pdf=$PdfPath",
                     $inputUri
                 )
-                $previousErrorActionPreference = $ErrorActionPreference
-                try {
-                    $ErrorActionPreference = "Continue"
-                    $output = @(& $BrowserPath @arguments 2>&1)
-                    $lastExitCode = [int]$LASTEXITCODE
+                $processInfo = [Diagnostics.ProcessStartInfo]::new()
+                $processInfo.FileName = $BrowserPath
+                $processInfo.UseShellExecute = $false
+                $processInfo.RedirectStandardOutput = $true
+                $processInfo.RedirectStandardError = $true
+                Set-PortableProcessArguments -StartInfo $processInfo -Arguments @($arguments)
+                $process = [Diagnostics.Process]::new()
+                $process.StartInfo = $processInfo
+                [void]$process.Start()
+                $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+                $stderrTask = $process.StandardError.ReadToEndAsync()
+                if (-not $process.WaitForExit($browserPdfTimeoutMilliseconds)) {
+                    Stop-PortableProcessTree -Process $process
+                    try { $process.WaitForExit() } catch { }
+                    $lastExitCode = -2
+                    $diagnostics.Add("Browser PDF renderer exceeded the configured timeout of $browserPdfTimeoutMilliseconds ms and was terminated.")
                 }
-                finally {
-                    $ErrorActionPreference = $previousErrorActionPreference
+                else {
+                    $lastExitCode = [int]$process.ExitCode
                 }
+                $output = @()
+                try { $output += @(([string]$stdoutTask.Result -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } catch { }
+                try { $output += @(([string]$stderrTask.Result -split "`r?`n") | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) } catch { }
+                $process.Dispose()
                 foreach ($line in $output) {
                     $safeLine = [regex]::Replace([string]$line, '(?i)\berror\s*:', 'diagnostic:')
                     if (-not [string]::IsNullOrWhiteSpace($safeLine)) { $diagnostics.Add($safeLine) }
@@ -1870,6 +2018,155 @@ function Invoke-LocalGptBrowserPdf {
     return [pscustomobject]@{ Succeeded = $false; ExitCode = $lastExitCode; Diagnostics = @($diagnostics); HeadlessMode = ""; RenderMode = ""; AccessibilityMode = "unavailable" }
 }
 
+
+function Invoke-LocalGptChunkedBrowserPdf {
+    param(
+        [Parameter(Mandatory)][string]$BrowserPath,
+        [Parameter(Mandatory)][string]$SiteRoot,
+        [Parameter(Mandatory)][string]$PdfPath,
+        [Parameter(Mandatory)][string]$WorkingRoot,
+        [Parameter(Mandatory)][string]$PackagingTool,
+        [Parameter(Mandatory)][int]$TotalPageCount,
+        [Parameter(Mandatory)][int]$ChunkPages,
+        [Parameter(Mandatory)][string]$ChunkCacheRoot,
+        [long]$MinimumBytes = 1048576
+    )
+
+    $diagnostics = [System.Collections.Generic.List[string]]::new()
+    $chunkRoot = Join-Path $WorkingRoot 'browser-chunks'
+    Remove-LocalGptTemporaryPath -Path $chunkRoot
+    New-Item -ItemType Directory -Path $chunkRoot -Force | Out-Null
+    $durableChunkRoot = Join-Path $ChunkCacheRoot ("pages-{0}-total-{1}" -f $ChunkPages,$TotalPageCount)
+    New-Item -ItemType Directory -Path $durableChunkRoot -Force | Out-Null
+    $chunkPdfs = [System.Collections.Generic.List[string]]::new()
+    $renderedChunks = 0
+    $reusedChunks = 0
+    try {
+        # Keep browser output durable by documentation hash. A release interrupted after hours of
+        # printing can therefore resume at the first missing chunk instead of re-rendering page 1.
+        $frontMatterHtml = Join-Path $chunkRoot 'front-matter.html'
+        $frontMatterPdf = Join-Path $durableChunkRoot 'front-matter.pdf'
+        $indexedPages = New-LocalGptHtmlPrintBook -SiteRoot $SiteRoot -DestinationPath $frontMatterHtml -FrontMatterOnly
+        if (Test-LocalGptCompletePdf -Path $frontMatterPdf -MinimumBytes 65536) {
+            $reusedChunks++
+            Write-Host "Reusing durable documentation PDF cover/index for $indexedPages source pages." -ForegroundColor DarkGreen
+        }
+        else {
+            Remove-Item -LiteralPath $frontMatterPdf -Force -ErrorAction SilentlyContinue
+            Write-Host "Printing complete documentation PDF cover/index for $indexedPages source pages with the installed browser..." -ForegroundColor DarkCyan
+            $timer = [Diagnostics.Stopwatch]::StartNew()
+            $frontMatterResult = Invoke-LocalGptBrowserPdf -BrowserPath $BrowserPath -HtmlPath $frontMatterHtml -PdfPath $frontMatterPdf -WorkingRoot $chunkRoot -MinimumBytes 65536
+            $timer.Stop()
+            if (-not $frontMatterResult.Succeeded) {
+                foreach ($line in @($frontMatterResult.Diagnostics)) { $diagnostics.Add([string]$line) }
+                return [pscustomobject]@{ Succeeded = $false; ExitCode = [int]$frontMatterResult.ExitCode; Diagnostics = @($diagnostics); RenderMode = ''; AccessibilityMode = 'unavailable'; ChunkCount = 0; RenderedChunkCount = $renderedChunks; ReusedChunkCount = $reusedChunks }
+            }
+            $renderedChunks++
+            Write-Host ("Completed PDF cover/index in {0:n1}s ({1:n0} bytes)." -f $timer.Elapsed.TotalSeconds,(Get-Item -LiteralPath $frontMatterPdf).Length) -ForegroundColor DarkGreen
+        }
+        $chunkPdfs.Add($frontMatterPdf)
+
+        $chunkNumber = 0
+        for ($start = 0; $start -lt $TotalPageCount; $start += $ChunkPages) {
+            $chunkNumber++
+            $htmlPath = Join-Path $chunkRoot ("chunk-{0:D3}.html" -f $chunkNumber)
+            $chunkPdf = Join-Path $durableChunkRoot ("chunk-{0:D3}.pdf" -f $chunkNumber)
+            $writtenPages = New-LocalGptHtmlPrintBook -SiteRoot $SiteRoot -DestinationPath $htmlPath -StartIndex $start -MaximumPages $ChunkPages -SuppressFrontMatter
+            if (Test-LocalGptCompletePdf -Path $chunkPdf -MinimumBytes 65536) {
+                $reusedChunks++
+                Write-Host "Reusing durable documentation PDF chunk $chunkNumber ($writtenPages source pages; start $start of $TotalPageCount)." -ForegroundColor DarkGreen
+            }
+            else {
+                Remove-Item -LiteralPath $chunkPdf -Force -ErrorAction SilentlyContinue
+                Write-Host "Printing documentation PDF chunk $chunkNumber ($writtenPages source pages; start $start of $TotalPageCount) with the installed browser..." -ForegroundColor DarkCyan
+                $timer = [Diagnostics.Stopwatch]::StartNew()
+                $result = Invoke-LocalGptBrowserPdf -BrowserPath $BrowserPath -HtmlPath $htmlPath -PdfPath $chunkPdf -WorkingRoot $chunkRoot -MinimumBytes 65536
+                $timer.Stop()
+                if (-not $result.Succeeded) {
+                    foreach ($line in @($result.Diagnostics)) { $diagnostics.Add([string]$line) }
+                    return [pscustomobject]@{ Succeeded = $false; ExitCode = [int]$result.ExitCode; Diagnostics = @($diagnostics); RenderMode = ''; AccessibilityMode = 'unavailable'; ChunkCount = $chunkNumber; RenderedChunkCount = $renderedChunks; ReusedChunkCount = $reusedChunks }
+                }
+                $renderedChunks++
+                Write-Host ("Completed documentation PDF chunk {0} in {1:n1}s ({2:n0} bytes)." -f $chunkNumber,$timer.Elapsed.TotalSeconds,(Get-Item -LiteralPath $chunkPdf).Length) -ForegroundColor DarkGreen
+            }
+            $chunkPdfs.Add($chunkPdf)
+        }
+
+        Remove-Item -LiteralPath $PdfPath -Force -ErrorAction SilentlyContinue
+        $mergeArguments = [System.Collections.Generic.List[string]]::new()
+        $mergeArguments.Add('pdf-merge'); $mergeArguments.Add('--output'); $mergeArguments.Add($PdfPath)
+        foreach ($chunkPdf in $chunkPdfs) { $mergeArguments.Add('--input'); $mergeArguments.Add($chunkPdf) }
+        Write-Host "Merging $($chunkPdfs.Count) durable PDF part(s) with LocalGPT.ReleasePackaging ($reusedChunks reused, $renderedChunks rendered this run)..." -ForegroundColor DarkCyan
+        $mergeOutput = @(& $PackagingTool @($mergeArguments) 2>&1)
+        $mergeExitCode = [int]$LASTEXITCODE
+        foreach ($line in $mergeOutput) { if (-not [string]::IsNullOrWhiteSpace([string]$line)) { $diagnostics.Add([string]$line) } }
+        if ($mergeExitCode -ne 0 -or -not (Test-LocalGptCompletePdf -Path $PdfPath -MinimumBytes $MinimumBytes)) {
+            $diagnostics.Add("Managed PDF merge failed or produced an incomplete PDF (exit=$mergeExitCode). Durable chunks were retained for the next attempt.")
+            return [pscustomobject]@{ Succeeded = $false; ExitCode = $mergeExitCode; Diagnostics = @($diagnostics); RenderMode = ''; AccessibilityMode = 'unavailable'; ChunkCount = $chunkPdfs.Count; RenderedChunkCount = $renderedChunks; ReusedChunkCount = $reusedChunks }
+        }
+        return [pscustomobject]@{ Succeeded = $true; ExitCode = 0; Diagnostics = @($diagnostics); RenderMode = 'chunked-managed-merge'; AccessibilityMode = 'html-accessibility-fallback'; ChunkCount = $chunkPdfs.Count; RenderedChunkCount = $renderedChunks; ReusedChunkCount = $reusedChunks }
+    }
+    finally { Remove-LocalGptTemporaryPath -Path $chunkRoot }
+}
+
+function Resolve-LocalGptHomebrew {
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    $command = Get-Command brew -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $command) {
+        $commandPath = if (-not [string]::IsNullOrWhiteSpace([string]$command.Source)) { [string]$command.Source } else { [string]$command.Path }
+        if (-not [string]::IsNullOrWhiteSpace($commandPath)) { $candidates.Add($commandPath) }
+    }
+    # VS Code and non-login PowerShell shells on macOS do not always inherit the Homebrew PATH.
+    # Probe both canonical Apple-Silicon and Intel Homebrew locations explicitly.
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
+        $candidates.Add('/opt/homebrew/bin/brew')
+        $candidates.Add('/usr/local/bin/brew')
+    }
+    foreach ($candidate in $candidates) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { return [IO.Path]::GetFullPath($candidate) }
+    }
+    return $null
+}
+
+
+function Find-LocalGptQpdf {
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    if (-not [string]::IsNullOrWhiteSpace($env:FUTURE2_DOCUMENTATION_QPDF)) { $candidates.Add($env:FUTURE2_DOCUMENTATION_QPDF) }
+    $command = Get-Command qpdf -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $command) {
+        $commandPath = if (-not [string]::IsNullOrWhiteSpace([string]$command.Source)) { [string]$command.Source } else { [string]$command.Path }
+        if (-not [string]::IsNullOrWhiteSpace($commandPath)) { $candidates.Add($commandPath) }
+    }
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
+        foreach ($candidate in @('/opt/homebrew/bin/qpdf', '/usr/local/bin/qpdf')) { $candidates.Add($candidate) }
+        $brewPath = Resolve-LocalGptHomebrew
+        if (-not [string]::IsNullOrWhiteSpace($brewPath)) {
+            $prefixOutput = @(& $brewPath --prefix qpdf 2>$null | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            if ($LASTEXITCODE -eq 0 -and $prefixOutput.Count -gt 0) { $candidates.Add((Join-Path ([string]$prefixOutput[-1]) 'bin/qpdf')) }
+        }
+    }
+    foreach ($candidate in $candidates) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        try { $fullPath = [IO.Path]::GetFullPath($candidate) } catch { continue }
+        if (Test-Path -LiteralPath $fullPath -PathType Leaf) { return $fullPath }
+    }
+    return $null
+}
+
+function Ensure-LocalGptQpdf {
+    $existing = Find-LocalGptQpdf
+    if (-not [string]::IsNullOrWhiteSpace($existing)) { return $existing }
+    if ($DisablePdfToolProvisioning) { return $null }
+    if (-not [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) { return $null }
+    $brewPath = Resolve-LocalGptHomebrew
+    if ([string]::IsNullOrWhiteSpace($brewPath)) { return $null }
+    Write-Host "Provisioning Apache-2.0 qpdf through Homebrew for optional documentation-PDF optimization..." -ForegroundColor DarkCyan
+    & $brewPath install qpdf | Out-Host
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return Find-LocalGptQpdf
+}
+
 function Find-LocalGptGhostscript {
     $candidates = [System.Collections.Generic.List[string]]::new()
     if (-not [string]::IsNullOrWhiteSpace($env:LOCALGPT_DOCUMENTATION_PDF_COMPRESSOR)) {
@@ -1881,6 +2178,16 @@ function Find-LocalGptGhostscript {
         if ($null -ne $command) {
             $commandPath = if (-not [string]::IsNullOrWhiteSpace([string]$command.Source)) { [string]$command.Source } else { [string]$command.Path }
             if (-not [string]::IsNullOrWhiteSpace($commandPath)) { $candidates.Add($commandPath) }
+        }
+    }
+
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) {
+        $brewPath = Resolve-LocalGptHomebrew
+        if (-not [string]::IsNullOrWhiteSpace($brewPath)) {
+            $prefixOutput = @(& $brewPath --prefix ghostscript 2>$null | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+            if ($LASTEXITCODE -eq 0 -and $prefixOutput.Count -gt 0) {
+                $candidates.Add((Join-Path ([string]$prefixOutput[-1]) 'bin/gs'))
+            }
         }
     }
 
@@ -1907,6 +2214,33 @@ function Find-LocalGptGhostscript {
     return $null
 }
 
+function Ensure-LocalGptGhostscript {
+    $existing = Find-LocalGptGhostscript
+    if (-not [string]::IsNullOrWhiteSpace($existing)) { return $existing }
+    if ($DisablePdfToolProvisioning) { return $null }
+    if (-not [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)) { return $null }
+
+    $brewPath = Resolve-LocalGptHomebrew
+    if ([string]::IsNullOrWhiteSpace($brewPath)) {
+        Write-Warning "Homebrew was not found. Automatic Ghostscript provisioning cannot continue. Install Homebrew once, install Ghostscript manually, or set LOCALGPT_DOCUMENTATION_PDF_COMPRESSOR to a compatible gs executable."
+        return $null
+    }
+    Write-Host "Ghostscript is required to keep documentation PDFs compact; provisioning Homebrew ghostscript with $brewPath ..." -ForegroundColor Cyan
+    & $brewPath install ghostscript | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Homebrew failed to install Ghostscript. Run '$brewPath install ghostscript' manually for full diagnostics."
+        return $null
+    }
+    $installed = Find-LocalGptGhostscript
+    if ([string]::IsNullOrWhiteSpace($installed)) {
+        Write-Warning "Homebrew reported success but the Ghostscript executable could not be located."
+        return $null
+    }
+    Write-Host "Documentation PDF compressor ready: $installed" -ForegroundColor Green
+    return $installed
+}
+
+
 function Optimize-LocalGptPdf {
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -1918,9 +2252,38 @@ function Optimize-LocalGptPdf {
         return [pscustomobject]@{ Applied = $false; Mode = "none"; BeforeBytes = 0L; AfterBytes = 0L; SavedBytes = 0L; Diagnostic = "PDF was not found." }
     }
 
-    $ghostscript = Find-LocalGptGhostscript
+    # First let the shared cross-platform packaging helper choose the best available optimizer.
+    # It can use qpdf (loss-minimizing structural/image optimization) and Ghostscript when present,
+    # while the browser-chunk path normally needs neither tool at all.
+    if (-not [string]::IsNullOrWhiteSpace($PackagingTool)) {
+        $qpdf = Ensure-LocalGptQpdf
+        $existingGhostscript = Find-LocalGptGhostscript
+        $managedTemporary = Join-Path $source.DirectoryName ("." + $source.Name + ".packaging-optimized.pdf")
+        Remove-Item -LiteralPath $managedTemporary -Force -ErrorAction SilentlyContinue
+        $managedArguments = [System.Collections.Generic.List[string]]::new()
+        $managedArguments.Add('pdf-optimize'); $managedArguments.Add('--input'); $managedArguments.Add($source.FullName); $managedArguments.Add('--output'); $managedArguments.Add($managedTemporary)
+        if (-not [string]::IsNullOrWhiteSpace($qpdf)) { $managedArguments.Add('--qpdf'); $managedArguments.Add($qpdf) }
+        if (-not [string]::IsNullOrWhiteSpace($existingGhostscript)) { $managedArguments.Add('--ghostscript'); $managedArguments.Add($existingGhostscript) }
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $managedOutput = @(& $PackagingTool @($managedArguments) 2>&1)
+            $managedExitCode = [int]$LASTEXITCODE
+        }
+        finally { $ErrorActionPreference = $previousErrorActionPreference }
+        $managedOptimized = Get-Item -LiteralPath $managedTemporary -ErrorAction SilentlyContinue
+        if ($managedExitCode -eq 0 -and $null -ne $managedOptimized -and $managedOptimized.Length -lt $source.Length -and (Test-LocalGptCompletePdf -Path $managedTemporary -MinimumBytes $MinimumBytes)) {
+            $before = [long]$source.Length
+            $after = [long]$managedOptimized.Length
+            Move-Item -LiteralPath $managedTemporary -Destination $source.FullName -Force
+            return [pscustomobject]@{ Applied = $true; Mode = 'release-packaging-adaptive'; BeforeBytes = $before; AfterBytes = $after; SavedBytes = ($before - $after); Diagnostic = (@($managedOutput | Select-Object -Last 4) -join ' | ') }
+        }
+        Remove-Item -LiteralPath $managedTemporary -Force -ErrorAction SilentlyContinue
+    }
+
+    $ghostscript = Ensure-LocalGptGhostscript
     if ([string]::IsNullOrWhiteSpace($ghostscript)) {
-        return [pscustomobject]@{ Applied = $false; Mode = "none"; BeforeBytes = [long]$source.Length; AfterBytes = [long]$source.Length; SavedBytes = 0L; Diagnostic = "Ghostscript was not installed; the browser renderer's native compression was retained." }
+        return [pscustomobject]@{ Applied = $false; Mode = "none"; BeforeBytes = [long]$source.Length; AfterBytes = [long]$source.Length; SavedBytes = 0L; Diagnostic = "Ghostscript is required for oversized documentation-PDF compression. On macOS install Homebrew ghostscript (`brew install ghostscript`) or provide the compressor override." }
     }
 
     $temporary = Join-Path $source.DirectoryName ("." + $source.Name + ".optimized.pdf")
@@ -1937,9 +2300,18 @@ function Optimize-LocalGptPdf {
         "-dSubsetFonts=true",
         "-dCompressPages=true",
         "-dEmbedAllFonts=true",
-        "-dDownsampleColorImages=false",
-        "-dDownsampleGrayImages=false",
-        "-dDownsampleMonoImages=false",
+        "-dPDFSETTINGS=/ebook",
+        "-dDownsampleColorImages=true",
+        "-dColorImageResolution=150",
+        "-dAutoFilterColorImages=false",
+        "-dColorImageFilter=/DCTEncode",
+        "-dJPEGQ=85",
+        "-dDownsampleGrayImages=true",
+        "-dGrayImageResolution=150",
+        "-dAutoFilterGrayImages=false",
+        "-dGrayImageFilter=/DCTEncode",
+        "-dDownsampleMonoImages=true",
+        "-dMonoImageResolution=300",
         "-sOutputFile=$temporary",
         $source.FullName
     )
@@ -1959,7 +2331,7 @@ function Optimize-LocalGptPdf {
         $before = [long]$source.Length
         $after = [long]$optimized.Length
         Move-Item -LiteralPath $temporary -Destination $source.FullName -Force
-        return [pscustomobject]@{ Applied = $true; Mode = "ghostscript-lossless-resources"; BeforeBytes = $before; AfterBytes = $after; SavedBytes = ($before - $after); Diagnostic = "Optimized with $ghostscript" }
+        return [pscustomobject]@{ Applied = $true; Mode = "ghostscript-screen-optimized"; BeforeBytes = $before; AfterBytes = $after; SavedBytes = ($before - $after); Diagnostic = "Optimized with $ghostscript" }
     }
 
     Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue
@@ -2707,30 +3079,50 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
         # Prefer one browser-printed book while the API graph remains within a bounded source-page count.
         # It uses the same rendered HTML as the working site, embeds shared fonts once, and permits compact
         # print-only formatting. The official DocFX PDF plug-in remains the reliable compatibility fallback.
-        if ($pdfSourcePageCount -gt 0 -and $pdfSourcePageCount -le $maximumBrowserPrintSourcePages) {
+        if ($pdfSourcePageCount -gt 0) {
+            $browserResult = $null
             try {
                 $browser = Find-LocalGptDocumentationBrowser
                 if ($null -ne $browser) {
-                    $pdfSourcePageCount = New-LocalGptHtmlPrintBook -SiteRoot $siteRoot -DestinationPath $printBookPath
-                    Write-Host "Printing $pdfSourcePageCount DocFX HTML pages as one complete LocalGPT PDF with $($browser.Name)." -ForegroundColor Cyan
-                    $browserResult = Invoke-LocalGptBrowserPdf -BrowserPath $browser.Path -HtmlPath $printBookPath -PdfPath $pdfPath -WorkingRoot $printBookRoot -MinimumBytes $minimumCompletePdfBytes
-                    $pdfCandidateCount = if (Test-Path -LiteralPath $pdfPath -PathType Leaf) { 1 } else { 0 }
-                    if ($browserResult.Succeeded) {
-                        $pdfGenerated = Test-LocalGptCompletePdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
-                        if ($pdfGenerated) {
-                            $resolvedPdf = Get-Item -LiteralPath $pdfPath
-                            $pdfFileSize = $resolvedPdf.Length
-                            $pdfMode = if ([string]$browserResult.RenderMode -eq "compatibility") { "html-browser-print-compatibility" } else { "html-browser-print" }
-                            $pdfAccessibilityMode = [string]$browserResult.AccessibilityMode
-                            $pdfRenderer = "$([string]$browser.Name) / $([string]$browserResult.RenderMode)"
-                            $pdfGeneratedSourcePath = Get-LocalGptRelativePath -Root $docsRoot -Path $printBookPath
-                        }
-                        else {
-                            $warnings.Add("The browser produced a PDF, but it was smaller than $minimumCompletePdfBytes bytes or did not have a valid PDF header.")
+                    if (-not [string]::IsNullOrWhiteSpace($PackagingTool) -and $pdfSourcePageCount -gt $browserPdfChunkPages) {
+                        Write-Host "Printing $pdfSourcePageCount DocFX HTML pages in adaptive chunks of up to $browserPdfChunkPages pages with $($browser.Name); LocalGPT.ReleasePackaging will merge the chunks without a commercial PDF dependency." -ForegroundColor Cyan
+                        $browserChunkCacheRoot = Join-Path $documentationCacheEntryRoot 'browser-pdf-chunks'
+                        $browserResult = Invoke-LocalGptChunkedBrowserPdf -BrowserPath $browser.Path -SiteRoot $siteRoot -PdfPath $pdfPath -WorkingRoot $printBookRoot -PackagingTool $PackagingTool -TotalPageCount $pdfSourcePageCount -ChunkPages $browserPdfChunkPages -ChunkCacheRoot $browserChunkCacheRoot -MinimumBytes $minimumCompletePdfBytes
+                        $pdfCandidateCount = if (Test-Path -LiteralPath $pdfPath -PathType Leaf) { 1 } else { 0 }
+                        if ($browserResult.Succeeded) {
+                            $pdfGenerated = Test-LocalGptCompletePdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
+                            if ($pdfGenerated) {
+                                $resolvedPdf = Get-Item -LiteralPath $pdfPath
+                                $pdfFileSize = $resolvedPdf.Length
+                                $pdfMode = "html-browser-chunked"
+                                $pdfAccessibilityMode = [string]$browserResult.AccessibilityMode
+                                $pdfRenderer = "$([string]$browser.Name) / adaptive chunks + PDFsharp merge"
+                                $pdfGeneratedSourcePath = "adaptive-browser-chunks"
+                            }
                         }
                     }
+                    elseif ($pdfSourcePageCount -le $maximumBrowserPrintSourcePages) {
+                        $pdfSourcePageCount = New-LocalGptHtmlPrintBook -SiteRoot $siteRoot -DestinationPath $printBookPath
+                        Write-Host "Printing $pdfSourcePageCount DocFX HTML pages as one complete LocalGPT PDF with $($browser.Name)." -ForegroundColor Cyan
+                        $browserResult = Invoke-LocalGptBrowserPdf -BrowserPath $browser.Path -HtmlPath $printBookPath -PdfPath $pdfPath -WorkingRoot $printBookRoot -MinimumBytes $minimumCompletePdfBytes
+                        $pdfCandidateCount = if (Test-Path -LiteralPath $pdfPath -PathType Leaf) { 1 } else { 0 }
+                        if ($browserResult.Succeeded) {
+                            $pdfGenerated = Test-LocalGptCompletePdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
+                            if ($pdfGenerated) {
+                                $resolvedPdf = Get-Item -LiteralPath $pdfPath
+                                $pdfFileSize = $resolvedPdf.Length
+                                $pdfMode = if ([string]$browserResult.RenderMode -eq "compatibility") { "html-browser-print-compatibility" } else { "html-browser-print" }
+                                $pdfAccessibilityMode = [string]$browserResult.AccessibilityMode
+                                $pdfRenderer = "$([string]$browser.Name) / $([string]$browserResult.RenderMode)"
+                                $pdfGeneratedSourcePath = Get-LocalGptRelativePath -Root $docsRoot -Path $printBookPath
+                            }
+                        }
+                    }
+                    else {
+                        $warnings.Add("The documentation has $pdfSourcePageCount printable pages and the managed release-packaging PDF merge helper is unavailable; skipping the unsafe giant browser print job.")
+                    }
 
-                    if (-not $pdfGenerated) {
+                    if (-not $pdfGenerated -and $null -ne $browserResult) {
                         $browserTail = @($browserResult.Diagnostics | Select-Object -Last 20) -join " | "
                         if ([string]::IsNullOrWhiteSpace($browserTail)) { $browserTail = "The browser returned no additional diagnostic." }
                         $warnings.Add("HTML browser PDF generation failed with exit code $($browserResult.ExitCode): $browserTail")
@@ -2741,11 +3133,8 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
                 }
             }
             catch {
-                $warnings.Add("Complete DocFX HTML print-book generation failed: $($_.Exception.Message)")
+                $warnings.Add("Complete DocFX HTML browser PDF generation failed: $($_.Exception.Message)")
             }
-        }
-        elseif ($pdfSourcePageCount -gt $maximumBrowserPrintSourcePages) {
-            Write-Host "The DocFX site contains $pdfSourcePageCount printable HTML pages, above the host browser-print limit of $maximumBrowserPrintSourcePages; using the DocFX PDF plug-in directly." -ForegroundColor DarkCyan
         }
 
         if (-not $pdfGenerated) {
@@ -2824,30 +3213,64 @@ Use the grouped API navigation to browse namespaces, types, properties, methods,
         }
 
         if ($pdfGenerated) {
-            if ($pdfMode -like "html-browser-print*") {
-                # Chromium's tagged PDF structure is more important than post-render compression.
-                # Ghostscript pdfwrite may discard or rewrite accessibility structure metadata.
-                $pdfBytesBeforeCompression = (Get-Item -LiteralPath $pdfPath).Length
-                $pdfFileSize = $pdfBytesBeforeCompression
-                $pdfCompressionMode = "skipped-preserve-tagging"
-                $pdfCompressionSavedBytes = 0
-            }
-            else {
+            $pdfBytesBeforeCompression = (Get-Item -LiteralPath $pdfPath).Length
+            $pdfFileSize = $pdfBytesBeforeCompression
+            $shouldCompress = $pdfMode -eq "docfx-pdf-plugin" -or $pdfBytesBeforeCompression -ge $pdfCompressionTriggerBytes
+            if ($shouldCompress) {
                 $compression = Optimize-LocalGptPdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
                 $pdfCompressionMode = [string]$compression.Mode
                 $pdfBytesBeforeCompression = [long]$compression.BeforeBytes
                 $pdfCompressionSavedBytes = [long]$compression.SavedBytes
                 if ($compression.Applied) {
                     $pdfFileSize = [long]$compression.AfterBytes
-                    Write-Host "Compressed the documentation PDF from $pdfBytesBeforeCompression to $pdfFileSize bytes without downsampling content." -ForegroundColor Green
+                    if ($pdfMode -in @("html-browser-print", "html-browser-print-compatibility", "html-browser-chunked")) {
+                        # Ghostscript rewrites the PDF. Keep HTML as the accessibility fallback instead of
+                        # claiming that browser-native PDF tagging necessarily survived post-processing.
+                        $pdfAccessibilityMode = "html-accessibility-fallback"
+                    }
+                    Write-Host "Compressed the documentation PDF from $pdfBytesBeforeCompression to $pdfFileSize bytes; vector text is retained and raster assets are screen-optimized." -ForegroundColor Green
                 }
                 elseif (-not [string]::IsNullOrWhiteSpace([string]$compression.Diagnostic)) {
                     $warnings.Add([string]$compression.Diagnostic)
                     $pdfFileSize = (Get-Item -LiteralPath $pdfPath).Length
                 }
             }
+            else {
+                $pdfCompressionMode = "browser-native"
+                $pdfCompressionSavedBytes = 0
+            }
+            if ($pdfFileSize -gt $maximumSanePdfBytes) {
+                throw "Documentation PDF remained $pdfFileSize bytes after the compression stage, above the sane release limit of $maximumSanePdfBytes bytes. Refusing to publish a multi-gigabyte documentation payload."
+            }
         }
     }
+    # A durable cache entry can have been produced by an older build policy. Re-apply the
+    # current size policy before trusting it so a historic multi-gigabyte DocFX PDF cannot
+    # bypass compression simply because its HTML cache key still matches.
+    if ($pdfGenerated -and $RequirePdf -and [string]::Equals($pdfCompressionMode, "cached-validated-pdf", [StringComparison]::Ordinal)) {
+        $pdfFileSize = (Get-Item -LiteralPath $pdfPath).Length
+        $pdfBytesBeforeCompression = $pdfFileSize
+        if ($pdfFileSize -ge $pdfCompressionTriggerBytes) {
+            $compression = Optimize-LocalGptPdf -Path $pdfPath -MinimumBytes $minimumCompletePdfBytes
+            $pdfBytesBeforeCompression = [long]$compression.BeforeBytes
+            $pdfCompressionSavedBytes = [long]$compression.SavedBytes
+            if ($compression.Applied) {
+                $pdfFileSize = [long]$compression.AfterBytes
+                $pdfCompressionMode = "cached-$([string]$compression.Mode)"
+                $pdfAccessibilityMode = "html-accessibility-fallback"
+                Write-Host "Re-compressed the cached documentation PDF from $pdfBytesBeforeCompression to $pdfFileSize bytes under the current release policy." -ForegroundColor Green
+            }
+            else {
+                $pdfCompressionMode = "cached-validated-pdf"
+                if (-not [string]::IsNullOrWhiteSpace([string]$compression.Diagnostic)) { $warnings.Add([string]$compression.Diagnostic) }
+                $pdfFileSize = (Get-Item -LiteralPath $pdfPath).Length
+            }
+        }
+        if ($pdfFileSize -gt $maximumSanePdfBytes) {
+            throw "Cached documentation PDF is $pdfFileSize bytes after the compression stage, above the sane release limit of $maximumSanePdfBytes bytes. Delete the stale cache entry or install Ghostscript; the build will not publish a giant handbook."
+        }
+    }
+
     if ($pdfGenerated -and $RequirePdf -and -not [string]::Equals($pdfCompressionMode, "cached-validated-pdf", [StringComparison]::Ordinal)) {
         Save-LocalGptDocumentationPdfCache `
             -CacheEntryRoot $documentationCacheEntryRoot `
@@ -2896,6 +3319,10 @@ finally {
     Remove-LocalGptTemporaryPath -Path $inputRoot
     Remove-LocalGptTemporaryPath -Path $documentationWorkRoot -Attempts 8 -DelayMilliseconds 250
     Remove-LocalGptTemporaryPath -Path $printBookRoot -Attempts 8 -DelayMilliseconds 250
+    if (-not $documentationCoreSucceeded) {
+        # A failed PDF stage must not strand a complete generated DocFX site in the repository.
+        Remove-LocalGptTemporaryPath -Path $siteRoot -Attempts 8 -DelayMilliseconds 250
+    }
 }
 
 # HTML-only Debug documentation intentionally has no standalone PDF. Keep the generated
@@ -2923,13 +3350,18 @@ if (-not (Test-Path -LiteralPath $noJekyllPath -PathType Leaf)) {
 foreach ($publishRoot in $publishRoots) {
     Remove-Item -LiteralPath $publishRoot -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path $publishRoot -Force | Out-Null
-    Copy-Item -Path (Join-Path $siteRoot "*") -Destination $publishRoot -Recurse -Force
+    foreach ($siteEntry in Get-ChildItem -LiteralPath $siteRoot -Force) {
+        Copy-Item -LiteralPath $siteEntry.FullName -Destination (Join-Path $publishRoot $siteEntry.Name) -Recurse -Force
+    }
     $status = [ordered]@{
         version = $Version
         generatedAtUtc = [DateTime]::UtcNow.ToString("O")
         htmlAvailable = Test-Path -LiteralPath (Join-Path $publishRoot "index.html")
         pdfAvailable = Test-Path -LiteralPath (Join-Path $publishRoot $pdfName)
         pdfFileName = $pdfName
+        releasePdfFileName = $pdfName
+        releasePdfBytes = $pdfFileSize
+        runtimePdfPublished = Test-Path -LiteralPath (Join-Path $publishRoot $pdfName)
         xmlDocumentationFileName = "LocalGPT.xml"
         documentationMode = $documentationMode
         pdfMode = $pdfMode
@@ -2958,6 +3390,10 @@ foreach ($publishRoot in $publishRoots) {
         nodePlatform = $nodePlatformUsed
         nodeArchitecture = $nodeArchitectureUsed
         pdfTimeoutMilliseconds = $pdfTimeoutMilliseconds
+        browserPdfTimeoutMilliseconds = $browserPdfTimeoutMilliseconds
+        browserPdfChunkPages = $browserPdfChunkPages
+        documentationCacheRoot = $documentationToolCacheRoot
+        maximumSanePdfBytes = $maximumSanePdfBytes
         completeApiReference = $documentationMode -eq "docfx" -and $apiYamlCount -gt 1 -and $apiHtmlCount -gt 1 -and $unresolvedAssemblyReferences.Count -eq 0
         unresolvedAssemblyReferenceCount = $unresolvedAssemblyReferences.Count
         unresolvedAssemblyReferences = @($unresolvedAssemblyReferences)
@@ -2995,6 +3431,30 @@ foreach ($publishRoot in $publishRoots) {
         }
     }
 }
+
+# The source-tree/runtime documentation snapshot is also the embedded help payload. Keep the
+# already size-controlled PDF beside the HTML so the in-app documentation mechanism remains fully offline.
+if (Test-Path -LiteralPath $sourceWebRoot -PathType Container) {
+    $sourcePdfPath = Join-Path $sourceWebRoot $pdfName
+    if (-not (Test-Path -LiteralPath $sourcePdfPath -PathType Leaf)) {
+        throw "Embedded LocalGPT documentation PDF was not published into the runtime help-docs tree: $sourcePdfPath"
+    }
+    $sourcePdfBytes = [long](Get-Item -LiteralPath $sourcePdfPath).Length
+    if ($sourcePdfBytes -gt $maximumSanePdfBytes) {
+        throw "Embedded LocalGPT documentation PDF is $sourcePdfBytes bytes, above the configured sane-size ceiling of $maximumSanePdfBytes bytes."
+    }
+    $sourceStatusPath = Join-Path $sourceWebRoot 'documentation-status.json'
+    if (Test-Path -LiteralPath $sourceStatusPath -PathType Leaf) {
+        $sourceStatus = Get-Content -LiteralPath $sourceStatusPath -Raw | ConvertFrom-Json
+        $sourceStatus | Add-Member -NotePropertyName releasePdfFileName -NotePropertyValue $pdfName -Force
+        $sourceStatus | Add-Member -NotePropertyName releasePdfBytes -NotePropertyValue $sourcePdfBytes -Force
+        $sourceStatus | Add-Member -NotePropertyName runtimePdfPublished -NotePropertyValue $true -Force
+        $sourceStatus | Add-Member -NotePropertyName pdfAvailable -NotePropertyValue $true -Force
+        $sourceStatus | Add-Member -NotePropertyName pdfBytes -NotePropertyValue $sourcePdfBytes -Force
+        $sourceStatus | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $sourceStatusPath -Encoding utf8
+    }
+}
+Remove-LocalGptTemporaryPath -Path $siteRoot -Attempts 8 -DelayMilliseconds 250
 
 Write-Host "LocalGPT documentation generated for version $Version using $documentationMode; PDF mode: $pdfMode." -ForegroundColor Green
 if ($null -ne $documentationLockStream) {

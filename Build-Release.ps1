@@ -10,6 +10,11 @@ param(
     [switch]$UseContainerPackaging,
     [switch]$ProvisionNativePackagingTools,
     [switch]$RequireOptionalNativePackages,
+    [switch]$AllowUnsignedMacPackages,
+    [string]$DocumentationCacheRoot = "",
+    [switch]$DisableDocumentationToolProvisioning,
+    [string]$ReleaseOutputRoot = "",
+    [switch]$ForceRebuildArtifacts,
     [switch]$AllowMissingDevExpressLicense,
     [ValidateSet("Auto", "Off", "Require")]
     [string]$WslLinux = "Auto",
@@ -40,6 +45,12 @@ function Initialize-BuildConsoleEncoding {
 Initialize-BuildConsoleEncoding
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not [string]::IsNullOrWhiteSpace($DocumentationCacheRoot)) {
+    $env:FUTURE2_DOCUMENTATION_CACHE_ROOT = [IO.Path]::GetFullPath($DocumentationCacheRoot)
+}
+$nodeRuntimeCommonScript = Join-Path $root 'build/NodeRuntime.Common.ps1'
+if (-not (Test-Path -LiteralPath $nodeRuntimeCommonScript -PathType Leaf)) { throw "Documentation runtime helper is missing: $nodeRuntimeCommonScript" }
+. $nodeRuntimeCommonScript
 $wslCommonScript = Join-Path $root 'build/WslRelease.Common.ps1'
 if (-not (Test-Path -LiteralPath $wslCommonScript -PathType Leaf)) { throw "WSL release helper is missing: $wslCommonScript" }
 . $wslCommonScript
@@ -49,20 +60,27 @@ if (-not (Test-Path -LiteralPath $wslCommonScript -PathType Leaf)) { throw "WSL 
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
 & (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')
-Write-Host "Clearing repository-local bin/obj build state for the authoritative release build..." -ForegroundColor Cyan
-$buildStateDirectories = @(
-    Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force |
-        Where-Object { $_.Name -in @("bin", "obj") } |
-        Sort-Object FullName -Descending
-)
-foreach ($buildStateDirectory in $buildStateDirectories) {
-    if (Test-Path -LiteralPath $buildStateDirectory.FullName) {
-        Remove-Item -LiteralPath $buildStateDirectory.FullName -Recurse -Force -ErrorAction Stop
+function Clear-RepositoryReleaseBuildState {
+    param([switch]$BestEffort)
+    $directories = @(
+        Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in @("bin", "obj") } |
+            Sort-Object FullName -Descending
+    )
+    foreach ($directory in $directories) {
+        if (-not (Test-Path -LiteralPath $directory.FullName)) { continue }
+        if ($BestEffort) { Remove-Item -LiteralPath $directory.FullName -Recurse -Force -ErrorAction SilentlyContinue }
+        else { Remove-Item -LiteralPath $directory.FullName -Recurse -Force -ErrorAction Stop }
     }
+    return $directories.Count
 }
-Write-Host "Cleared $($buildStateDirectories.Count) repository-local bin/obj director$(if ($buildStateDirectories.Count -eq 1) { 'y' } else { 'ies' }). Durable documentation caches outside bin/obj were preserved." -ForegroundColor DarkCyan
+
+Write-Host "Clearing repository-local bin/obj build state for the authoritative release build..." -ForegroundColor Cyan
+$clearedBuildStateCount = Clear-RepositoryReleaseBuildState
+Write-Host "Cleared $clearedBuildStateCount repository-local bin/obj director$(if ($clearedBuildStateCount -eq 1) { 'y' } else { 'ies' }). Durable documentation caches outside bin/obj were preserved." -ForegroundColor DarkCyan
 $solutionRoot = Join-Path $root "src"
-$artifacts = Join-Path $root "artifacts/release"
+$configuredReleaseOutputRoot = if (-not [string]::IsNullOrWhiteSpace($ReleaseOutputRoot)) { $ReleaseOutputRoot } else { [string]$env:FUTURE2_RELEASE_OUTPUT_ROOT }
+$artifacts = if (-not [string]::IsNullOrWhiteSpace($configuredReleaseOutputRoot)) { [IO.Path]::GetFullPath($configuredReleaseOutputRoot) } else { Join-Path $root "artifacts/release" }
 $packageDirectory = Join-Path $root "packages"
 $appProject = Join-Path $solutionRoot "LocalGPT/LocalGPT.csproj"
 $setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj"
@@ -75,10 +93,11 @@ $wirePackageName = "LocalGPT.WireProtocolVersion.$WireProtocolVersion.nupkg"
 $wirePackage = Join-Path $packageDirectory $wirePackageName
 $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
 $sharedWirePackageDirectory = if ([string]::IsNullOrWhiteSpace($localApplicationData)) { $null } else { Join-Path $localApplicationData "LocalGPT/NuGet" }
-$documentationCacheRoot = Join-Path $artifacts ".documentation-cache"
+$documentationToolCacheBase = Get-LocalGptDocumentationToolCacheRoot -FallbackRoot (Join-Path $root 'docs/.tools')
+$documentationCacheRoot = Join-Path $documentationToolCacheBase 'release-payload/LocalGPT' 
 $documentationPrepared = $false
 $releaseZipPaths = New-Object 'System.Collections.Generic.List[string]'
-$releasePackagingVersion = '1.0.1'
+$releasePackagingVersion = '1.0.2'
 $releasePackagingPackageName = "LocalGPT.ReleasePackaging.$releasePackagingVersion.nupkg"
 $releasePackagingPackage = Join-Path $packageDirectory $releasePackagingPackageName
 $releasePackagingTool = $null
@@ -127,9 +146,9 @@ function Assert-LocalGptDocumentationPayload {
     $requiredArtifacts = @(
         (Join-Path $DocumentationRoot "index.html"),
         (Join-Path $DocumentationRoot "documentation-status.json"),
-        (Join-Path $DocumentationRoot "LocalGPT.xml")
+        (Join-Path $DocumentationRoot "LocalGPT.xml"),
+        (Join-Path $DocumentationRoot "LocalGPT-$Version.pdf")
     )
-    if ($RequirePhysicalPdf) { $requiredArtifacts += (Join-Path $DocumentationRoot "LocalGPT-$Version.pdf") }
     foreach ($requiredArtifact in $requiredArtifacts) {
         if (-not (Test-Path -LiteralPath $requiredArtifact -PathType Leaf)) {
             throw "Published LocalGPT documentation is incomplete: $requiredArtifact"
@@ -144,36 +163,44 @@ function Assert-LocalGptDocumentationPayload {
     $versionedPdfs = @(Get-ChildItem -LiteralPath $DocumentationRoot -File -Filter 'LocalGPT-*.pdf' -ErrorAction SilentlyContinue)
     $versionedPdfNames = @($versionedPdfs | ForEach-Object { $_.Name })
     $versionedPdfDisplay = if ($versionedPdfNames.Count -eq 0) { '<none>' } else { $versionedPdfNames -join ', ' }
-    if ($RequirePhysicalPdf) {
-        if ($versionedPdfs.Count -ne 1 -or -not [string]::Equals($versionedPdfs[0].Name, "LocalGPT-$Version.pdf", [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Published LocalGPT documentation must contain exactly one current versioned PDF (LocalGPT-$Version.pdf). Found: $versionedPdfDisplay"
-        }
-    }
-    elseif ($versionedPdfs.Count -ne 0) {
-        throw "Runtime HTML documentation must not duplicate the standalone release PDF. Found: $versionedPdfDisplay"
+    if ($versionedPdfs.Count -ne 1 -or -not [string]::Equals($versionedPdfs[0].Name, "LocalGPT-$Version.pdf", [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Published LocalGPT documentation must contain exactly one current embedded PDF (LocalGPT-$Version.pdf). Found: $versionedPdfDisplay"
     }
     $apiIndex = Join-Path $DocumentationRoot 'api/index.html'
     if (-not (Test-Path -LiteralPath $apiIndex -PathType Leaf)) { throw "Published LocalGPT documentation is missing api/index.html: $apiIndex" }
     $physicalApiHtmlCount = @(Get-ChildItem -LiteralPath (Join-Path $DocumentationRoot 'api') -Filter '*.html' -File -Recurse -ErrorAction SilentlyContinue).Count
     if ($physicalApiHtmlCount -le 1) { throw "Published LocalGPT documentation API directory is physically incomplete ($physicalApiHtmlCount HTML file(s))." }
     if ([string]$status.documentationMode -ne "docfx") { throw "Published LocalGPT documentation did not use the DocFX modern site." }
-    if ([string]$status.pdfMode -notin @("html-browser-print", "html-browser-print-compatibility", "docfx-pdf-plugin")) { throw "Published LocalGPT documentation does not contain the complete HTML-backed documentation PDF." }
-    if ([string]$status.pdfMode -like "html-browser-print*" -and [int]$status.pdfSourcePageCount -lt 10) { throw "The LocalGPT documentation PDF did not include the expected HTML page set." }
-    if ([string]$status.pdfMode -like "html-browser-print*" -and [int]$status.apiHtmlCount -gt 0 -and [int]$status.pdfSourcePageCount -lt [int]$status.apiHtmlCount) { throw "The LocalGPT documentation PDF omitted generated API pages." }
+    $browserBackedPdfModes = @("html-browser-print", "html-browser-print-compatibility", "html-browser-chunked")
+    if ([string]$status.pdfMode -notin @($browserBackedPdfModes + "docfx-pdf-plugin")) { throw "Published LocalGPT documentation does not contain the complete HTML-backed documentation PDF." }
+    $acceptedPdfAccessibilityModes = if ([string]$status.pdfMode -eq "html-browser-print" -and [string]$status.pdfCompressionMode -eq "browser-native") {
+        @("tagged-pdf-required")
+    } elseif ([string]$status.pdfMode -eq "html-browser-print" -and [string]$status.pdfCompressionMode -eq "cached-validated-pdf") {
+        # The durable cache preserves the validated PDF/accessibility result but intentionally records cache reuse
+        # rather than the original compression mode. A cached browser-native tagged PDF and a cached post-processed
+        # HTML-fallback PDF are therefore both valid, while unknown/unavailable accessibility states remain rejected.
+        @("tagged-pdf-required", "html-accessibility-fallback")
+    } else {
+        @("html-accessibility-fallback")
+    }
+    if ([string]$status.pdfAccessibilityMode -notin $acceptedPdfAccessibilityModes) { throw "Published LocalGPT documentation has an unexpected PDF accessibility mode '$($status.pdfAccessibilityMode)' for PDF mode '$($status.pdfMode)' and compression mode '$($status.pdfCompressionMode)'." }
+    if ([string]$status.pdfMode -in $browserBackedPdfModes -and [int]$status.pdfSourcePageCount -lt 10) { throw "The LocalGPT documentation PDF did not include the expected HTML page set." }
+    if ([string]$status.pdfMode -in $browserBackedPdfModes -and [int]$status.apiHtmlCount -gt 0 -and [int]$status.pdfSourcePageCount -lt [int]$status.apiHtmlCount) { throw "The LocalGPT documentation PDF omitted generated API pages." }
     if (-not ([bool]$status.completeApiReference)) { throw "Published LocalGPT documentation is missing the complete XML-generated API reference." }
     if (-not ([bool]$status.htmlPreflightValidated)) { throw "Published LocalGPT documentation did not pass the pre-PDF HTML accessibility/link preflight." }
     if ([int]$status.unresolvedAssemblyReferenceCount -ne 0) { throw "Published LocalGPT documentation contains unresolved assembly references: $($status.unresolvedAssemblyReferences -join ', ')" }
     if ([int]$status.apiYamlCount -le 1 -or [int]$status.apiHtmlCount -le 1) { throw "Published LocalGPT documentation contains an incomplete API graph." }
     if ([long]$status.pdfBytes -lt 1048576) { throw "Published LocalGPT documentation contains an unexpectedly small PDF." }
     if ([int]$status.pdfCandidateCount -lt 1 -or [string]::IsNullOrWhiteSpace([string]$status.pdfGeneratedSourcePath)) { throw "Published LocalGPT documentation did not record a real documentation PDF source." }
-    if (-not $RequirePhysicalPdf) {
-        if ([bool]$status.pdfAvailable) { throw "Runtime documentation status must declare pdfAvailable=false when the standalone PDF is not embedded." }
-        if (-not [string]::Equals([string]$status.releasePdfFileName, "LocalGPT-$Version.pdf", [StringComparison]::OrdinalIgnoreCase)) { throw "Runtime documentation did not preserve the standalone release PDF identity." }
-        if ([long]$status.releasePdfBytes -lt 1048576) { throw "Runtime documentation did not preserve the standalone release PDF size metadata." }
-    }
+    if (-not ([bool]$status.pdfAvailable)) { throw "Runtime documentation status must declare pdfAvailable=true because the compressed handbook is embedded." }
+    if (-not ([bool]$status.runtimePdfPublished)) { throw "Runtime documentation status must declare runtimePdfPublished=true because the compressed handbook is embedded." }
+    if (-not [string]::Equals([string]$status.releasePdfFileName, "LocalGPT-$Version.pdf", [StringComparison]::OrdinalIgnoreCase)) { throw "Runtime documentation did not preserve the embedded PDF identity." }
+    if ([long]$status.releasePdfBytes -lt 1048576) { throw "Runtime documentation did not preserve the embedded PDF size metadata." }
+    $physicalPdf = Get-Item -LiteralPath (Join-Path $DocumentationRoot "LocalGPT-$Version.pdf")
+    if ([long]$physicalPdf.Length -ne [long]$status.pdfBytes) { throw "Embedded LocalGPT PDF byte size does not match documentation-status.json." }
+    if ($null -ne $status.maximumSanePdfBytes -and [long]$physicalPdf.Length -gt [long]$status.maximumSanePdfBytes) { throw "Embedded LocalGPT PDF exceeds the configured sane-size ceiling." }
 
-    $payloadLabel = if ($RequirePhysicalPdf) { "modern HTML and HTML-backed PDF" } else { "modern HTML with standalone release-PDF metadata" }
-    Write-Host "Verified complete LocalGPT $Version DocFX $payloadLabel documentation in $DocumentationRoot" -ForegroundColor Green
+    Write-Host "Verified complete LocalGPT $Version DocFX modern HTML and compressed embedded PDF documentation in $DocumentationRoot" -ForegroundColor Green
 }
 
 $appVersion = Resolve-ProjectVersion -ProjectPath $appProject
@@ -229,7 +256,10 @@ function Prepare-LocalGptDocumentation {
         -XmlDocumentationPath $documentationXml `
         -Version $appVersion `
         -OutputWebRoot $documentationOutput `
-        -RequirePdf
+        -DocumentationCacheRoot $documentationToolCacheBase `
+        -PackagingTool $releasePackagingTool `
+        -RequirePdf `
+        -DisablePdfToolProvisioning:$DisableDocumentationToolProvisioning
 
     Assert-LocalGptDocumentationPayload -DocumentationRoot $documentationOutput -Version $appVersion -RequirePhysicalPdf
     if (-not (Test-Path -LiteralPath $pagesSnapshotScript -PathType Leaf)) { throw "GitHub Pages snapshot script not found: $pagesSnapshotScript" }
@@ -254,28 +284,22 @@ function Copy-LocalGptRuntimeDocumentation {
     Remove-Item -LiteralPath $DestinationRoot -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path $DestinationRoot -Force | Out-Null
     foreach ($entry in Get-ChildItem -LiteralPath $SourceRoot -Force) {
-        if (-not $entry.PSIsContainer -and [string]::Equals($entry.Name, $pdfName, [StringComparison]::OrdinalIgnoreCase)) { continue }
         Copy-Item -LiteralPath $entry.FullName -Destination (Join-Path $DestinationRoot $entry.Name) -Recurse -Force
     }
 
+    $pdfPath = Join-Path $DestinationRoot $pdfName
+    if (-not (Test-Path -LiteralPath $pdfPath -PathType Leaf)) {
+        throw "Embedded LocalGPT documentation PDF is missing after runtime documentation copy: $pdfPath"
+    }
     $statusPath = Join-Path $DestinationRoot "documentation-status.json"
     $status = Get-Content -LiteralPath $statusPath -Raw | ConvertFrom-Json
-    $releasePdfBytes = [long]$status.pdfBytes
+    $releasePdfBytes = [long](Get-Item -LiteralPath $pdfPath).Length
     $status | Add-Member -NotePropertyName releasePdfFileName -NotePropertyValue $pdfName -Force
     $status | Add-Member -NotePropertyName releasePdfBytes -NotePropertyValue $releasePdfBytes -Force
-    $status | Add-Member -NotePropertyName runtimePdfPublished -NotePropertyValue $false -Force
-    $status | Add-Member -NotePropertyName pdfAvailable -NotePropertyValue $false -Force
+    $status | Add-Member -NotePropertyName runtimePdfPublished -NotePropertyValue $true -Force
+    $status | Add-Member -NotePropertyName pdfAvailable -NotePropertyValue $true -Force
+    $status | Add-Member -NotePropertyName pdfBytes -NotePropertyValue $releasePdfBytes -Force
     $status | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $statusPath -Encoding utf8
-
-    $releaseUrl = "https://github.com/Michi0403/LocalGPT/releases/latest"
-    foreach ($htmlFile in Get-ChildItem -LiteralPath $DestinationRoot -Filter '*.html' -File -Recurse -ErrorAction SilentlyContinue) {
-        $html = [IO.File]::ReadAllText($htmlFile.FullName)
-        if ($html.IndexOf($pdfName, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
-            $escapedPdf = [regex]::Escape($pdfName)
-            $html = [regex]::Replace($html, '(?i)href=["''](?:\.\./|\./)?' + $escapedPdf + '["'']', 'href="' + $releaseUrl + '"')
-            [IO.File]::WriteAllText($htmlFile.FullName, $html, [Text.UTF8Encoding]::new($false))
-        }
-    }
 }
 
 function Resolve-PublishProfilePath {
@@ -449,6 +473,66 @@ function Test-VersionDirectoryName {
     return $Name -match '^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$'
 }
 
+function Test-ExistingReleaseBundleComplete {
+    param([Parameter(Mandatory)][string]$Version)
+    $versionDirectory = Join-Path $artifacts $Version
+    $checksumPath = Join-Path $versionDirectory 'SHA256SUMS.txt'
+    if (-not (Test-Path -LiteralPath $checksumPath -PathType Leaf)) { return $false }
+    $lines = @(Get-Content -LiteralPath $checksumPath -Encoding UTF8 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($lines.Count -eq 0) { return $false }
+    $manifestNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($line in $lines) {
+        if ([string]$line -notmatch '^([0-9A-Fa-f]{64})\s+(.+)$') { return $false }
+        $expectedHash = $Matches[1].ToLowerInvariant()
+        $name = $Matches[2].Trim()
+        if ([string]::IsNullOrWhiteSpace($name) -or $name.IndexOfAny([char[]]"/\\") -ge 0) { return $false }
+        $path = Join-Path $versionDirectory $name
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $false }
+        $actualHash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if (-not [string]::Equals($expectedHash, $actualHash, [StringComparison]::Ordinal)) { return $false }
+        [void]$manifestNames.Add($name)
+    }
+    $requiredBundleNames = @($wirePackageName, $releasePackagingPackageName, "LocalGPT-$Version.pdf")
+    foreach ($requiredBundleName in $requiredBundleNames) {
+        if (-not $manifestNames.Contains($requiredBundleName)) { return $false }
+    }
+    $payloadFiles = @(Get-ChildItem -LiteralPath $versionDirectory -File | Where-Object { $_.Name -ne 'SHA256SUMS.txt' })
+    return $manifestNames.Count -eq $payloadFiles.Count
+}
+
+function Move-OrReuseReleaseFile {
+    param(
+        [Parameter(Mandatory)][string]$SourcePath,
+        [Parameter(Mandatory)][string]$DestinationDirectory,
+        [switch]$Move
+    )
+    $destination = Join-Path $DestinationDirectory ([IO.Path]::GetFileName($SourcePath))
+    $sourceFull = [IO.Path]::GetFullPath($SourcePath)
+    $destinationFull = [IO.Path]::GetFullPath($destination)
+    if ([string]::Equals($sourceFull, $destinationFull, [StringComparison]::OrdinalIgnoreCase)) {
+        if (-not (Test-Path -LiteralPath $destinationFull -PathType Leaf)) { throw "Release file is missing: $destinationFull" }
+        return $destinationFull
+    }
+
+    if (Test-Path -LiteralPath $destinationFull -PathType Leaf) {
+        if (Test-Path -LiteralPath $sourceFull -PathType Leaf) {
+            $sourceInfo = Get-Item -LiteralPath $sourceFull
+            $destinationInfo = Get-Item -LiteralPath $destinationFull
+            if ($sourceInfo.Length -ne $destinationInfo.Length) { throw "Release resume conflict: $sourceFull and $destinationFull have different sizes." }
+            $sourceHash = (Get-FileHash -LiteralPath $sourceFull -Algorithm SHA256).Hash
+            $destinationHash = (Get-FileHash -LiteralPath $destinationFull -Algorithm SHA256).Hash
+            if (-not [string]::Equals($sourceHash, $destinationHash, [StringComparison]::OrdinalIgnoreCase)) { throw "Release resume conflict: $sourceFull and $destinationFull contain different bytes." }
+            if ($Move) { Remove-Item -LiteralPath $sourceFull -Force }
+        }
+        return $destinationFull
+    }
+
+    if (-not (Test-Path -LiteralPath $sourceFull -PathType Leaf)) { throw "Required release file is missing: $sourceFull" }
+    if ($Move) { Move-Item -LiteralPath $sourceFull -Destination $destinationFull }
+    else { Copy-Item -LiteralPath $sourceFull -Destination $destinationFull -Force }
+    return $destinationFull
+}
+
 function Complete-ReleaseBundle {
     param(
         [Parameter(Mandatory)][string]$Version,
@@ -464,66 +548,51 @@ function Complete-ReleaseBundle {
     )
 
     $versionDirectory = Join-Path $artifacts $Version
-    if (Test-Path -LiteralPath $versionDirectory) {
-        throw "Release bundle '$versionDirectory' already exists. Existing version directories are never overwritten."
+    if ($ForceRebuildArtifacts -and (Test-Path -LiteralPath $versionDirectory -PathType Container)) {
+        Remove-Item -LiteralPath $versionDirectory -Recurse -Force
     }
+    if ((Test-ExistingReleaseBundleComplete -Version $Version) -and -not $ForceRebuildArtifacts) {
+        Write-Host "Upload-ready release bundle already exists and all SHA-256 entries validate: $versionDirectory" -ForegroundColor Green
+        return
+    }
+    New-Item -ItemType Directory -Path $versionDirectory -Force | Out-Null
 
     $uniqueZipPaths = @($ReleaseZipPaths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
-    if ($uniqueZipPaths.Count -eq 0) { throw "No release ZIPs were produced for release $Version." }
+    if ($uniqueZipPaths.Count -eq 0) { throw "No release artifacts were produced for release $Version." }
+
+    # Move large generated artifacts directly into the final version directory. If a previous run
+    # died halfway through this step, byte-identical files already present there are reused instead
+    # of copied again. This keeps peak disk usage low and makes final-bundle assembly crash-resumable.
     foreach ($zipPath in $uniqueZipPaths) {
-        if (-not (Test-Path -LiteralPath $zipPath -PathType Leaf)) { throw "Expected release ZIP is missing: $zipPath" }
+        Move-OrReuseReleaseFile -SourcePath $zipPath -DestinationDirectory $versionDirectory -Move | Out-Null
     }
-    foreach ($requiredFile in @($DocumentationPdfPath, $ReadmePath, $LicensePath, $WireProtocolPackagePath, $ReleasePackagingPackagePath, $SetupIconPath)) {
-        if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) { throw "Required upload-ready release file is missing: $requiredFile" }
+    Move-OrReuseReleaseFile -SourcePath $DocumentationPdfPath -DestinationDirectory $versionDirectory -Move | Out-Null
+    foreach ($supportFile in @($ReadmePath, $LicensePath, $WireProtocolPackagePath, $ReleasePackagingPackagePath, $SetupIconPath)) {
+        if (-not (Test-Path -LiteralPath $supportFile -PathType Leaf)) { throw "Required upload-ready release file is missing: $supportFile" }
+        Move-OrReuseReleaseFile -SourcePath $supportFile -DestinationDirectory $versionDirectory | Out-Null
     }
-    if ($RequireWindowsX64Setup -and -not (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf)) {
-        throw "Windows x64 setup executable is required for the full release bundle but is missing: $WindowsX64SetupExecutablePath"
+    if ($RequireWindowsX64Setup) {
+        if (-not (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf)) { throw "Windows x64 setup executable is required for the full release bundle but is missing: $WindowsX64SetupExecutablePath" }
+        Move-OrReuseReleaseFile -SourcePath $WindowsX64SetupExecutablePath -DestinationDirectory $versionDirectory | Out-Null
+    }
+    elseif (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf) {
+        Move-OrReuseReleaseFile -SourcePath $WindowsX64SetupExecutablePath -DestinationDirectory $versionDirectory | Out-Null
     }
 
-    $stagingDirectory = Join-Path $artifacts (".release-bundle-" + [Guid]::NewGuid().ToString("N"))
-    New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
-    try {
-        foreach ($zipPath in $uniqueZipPaths) {
-            Copy-Item -LiteralPath $zipPath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($zipPath))) -Force
-        }
-        Copy-Item -LiteralPath $DocumentationPdfPath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($DocumentationPdfPath))) -Force
-        Copy-Item -LiteralPath $ReadmePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($ReadmePath))) -Force
-        Copy-Item -LiteralPath $LicensePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($LicensePath))) -Force
-        Copy-Item -LiteralPath $WireProtocolPackagePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($WireProtocolPackagePath))) -Force
-        Copy-Item -LiteralPath $ReleasePackagingPackagePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($ReleasePackagingPackagePath))) -Force
-        Copy-Item -LiteralPath $SetupIconPath -Destination (Join-Path $stagingDirectory "LocalGPT.ico") -Force
-        if (Test-Path -LiteralPath $WindowsX64SetupExecutablePath -PathType Leaf) {
-            Copy-Item -LiteralPath $WindowsX64SetupExecutablePath -Destination (Join-Path $stagingDirectory ([IO.Path]::GetFileName($WindowsX64SetupExecutablePath))) -Force
-        }
-
-        New-Item -ItemType Directory -Path $versionDirectory -Force | Out-Null
-        foreach ($file in Get-ChildItem -LiteralPath $stagingDirectory -File) {
-            Move-Item -LiteralPath $file.FullName -Destination (Join-Path $versionDirectory $file.Name)
-        }
-
-        $checksumPath = Join-Path $versionDirectory 'SHA256SUMS.txt'
-        $checksumLines = foreach ($file in Get-ChildItem -LiteralPath $versionDirectory -File | Sort-Object Name) {
-            if ($file.Name -eq 'SHA256SUMS.txt') { continue }
-            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$hash  $($file.Name)"
-        }
-        [IO.File]::WriteAllLines($checksumPath, [string[]]$checksumLines, (New-Object Text.UTF8Encoding($false)))
-
-        foreach ($zipPath in $uniqueZipPaths) {
-            Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
-        }
-
-        foreach ($directory in Get-ChildItem -LiteralPath $artifacts -Directory -Force) {
-            if ($directory.FullName -eq $versionDirectory) { continue }
-            if (Test-VersionDirectoryName -Name $directory.Name) { continue }
-            Remove-Item -LiteralPath $directory.FullName -Recurse -Force -ErrorAction Stop
-        }
-
-        Write-Host "Upload-ready release bundle: $versionDirectory" -ForegroundColor Green
+    $checksumPath = Join-Path $versionDirectory 'SHA256SUMS.txt'
+    $checksumLines = foreach ($file in Get-ChildItem -LiteralPath $versionDirectory -File | Sort-Object Name) {
+        if ($file.Name -eq 'SHA256SUMS.txt') { continue }
+        $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        "$hash  $($file.Name)"
     }
-    finally {
-        Remove-Item -LiteralPath $stagingDirectory -Recurse -Force -ErrorAction SilentlyContinue
-    }
+    [IO.File]::WriteAllLines($checksumPath, [string[]]$checksumLines, (New-Object Text.UTF8Encoding($false)))
+    if (-not (Test-ExistingReleaseBundleComplete -Version $Version)) { throw "Release bundle checksum verification failed after assembly: $versionDirectory" }
+    Write-Host "Upload-ready release bundle: $versionDirectory" -ForegroundColor Green
+}
+
+if (-not $ForceRebuildArtifacts -and -not $SkipReleaseBundle -and $Runtime -eq 'all' -and (Test-ExistingReleaseBundleComplete -Version $appVersion)) {
+    Write-Host "Release $appVersion is already complete and SHA-256 verified at $(Join-Path $artifacts $appVersion). Nothing will be rebuilt or resubmitted. Use -ForceRebuildArtifacts to intentionally rebuild it." -ForegroundColor Green
+    return
 }
 
 function Ensure-WireProtocolPackage {
@@ -572,9 +641,18 @@ function Publish-UnixRuntime {
     if (-not $script:releasePackagingTool) { throw 'Release packaging tool was not prepared.' }
     if (-not (Test-Path -LiteralPath $script:nativeReleasePackagingScript -PathType Leaf)) { throw "Native packaging script is missing: $script:nativeReleasePackagingScript" }
 
-    foreach ($mode in @('Full','Light')) {
-        $selfContained = if ($mode -eq 'Full') { 'true' } else { 'false' }
-        $publishFolder = Join-Path $artifacts ("staging/$Rid/$($mode.ToLowerInvariant())")
+    $mode = 'Full'
+    $selfContained = 'true'
+    $publishFolder = Join-Path $artifacts ("staging/$Rid/$($mode.ToLowerInvariant())")
+    if ($Rid.StartsWith('osx-') -and -not $ForceRebuildArtifacts) {
+        $existingNativeArtifacts = @(
+            & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName 'LocalGPT' -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT -ProbeExistingArtifactsOnly -MacIconSource (Join-Path $root 'src/LocalGPT/wwwroot/android-chrome-512x512.png') -DmgBackgroundPath (Join-Path $root 'build/assets/LocalGPT-dmg-background.png')
+        )
+        if ($existingNativeArtifacts.Count -eq 3) {
+            foreach ($artifact in $existingNativeArtifacts) { $script:releaseZipPaths.Add([string]$artifact) }
+            return
+        }
+    }
         Remove-Item -LiteralPath $publishFolder -Recurse -Force -ErrorAction SilentlyContinue
         New-Item -ItemType Directory -Path $publishFolder -Force | Out-Null
         Write-Host "Publishing LocalGPT $Rid $mode application payload (no setup console)..." -ForegroundColor Cyan
@@ -595,14 +673,13 @@ function Publish-UnixRuntime {
         Assert-LocalGptDocumentationPayload -DocumentationRoot (Join-Path $publishFolder 'wwwroot/help-docs') -Version $appVersion
         $protocolDirectory = Join-Path $publishFolder 'protocol'; New-Item -ItemType Directory -Path $protocolDirectory -Force | Out-Null
         Copy-Item -LiteralPath $wirePackage -Destination (Join-Path $protocolDirectory $wirePackageName) -Force
-        $nativeArtifacts = & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName $appExecutable -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT -UseContainerFallback:$UseContainerPackaging -ProvisionHomebrewTools:$ProvisionNativePackagingTools -RequireOptionalPackages:$RequireOptionalNativePackages -MacIconSource (Join-Path $root 'src/LocalGPT/wwwroot/android-chrome-512x512.png') -DmgBackgroundPath (Join-Path $root 'build/assets/LocalGPT-dmg-background.png')
+        $nativeArtifacts = & $script:nativeReleasePackagingScript -ProductName 'LocalGPT' -ExecutableName $appExecutable -Version $appVersion -Rid $Rid -Mode $mode -PayloadDirectory $publishFolder -OutputDirectory $artifacts -PackagingTool $script:releasePackagingTool -DependencyPolicy LocalGPT -UseContainerFallback:$UseContainerPackaging -ProvisionHomebrewTools:$ProvisionNativePackagingTools -RequireOptionalPackages:$RequireOptionalNativePackages -ForceRebuildArtifacts:$ForceRebuildArtifacts -MacIconSource (Join-Path $root 'src/LocalGPT/wwwroot/android-chrome-512x512.png') -DmgBackgroundPath (Join-Path $root 'build/assets/LocalGPT-dmg-background.png')
         foreach ($artifact in @($nativeArtifacts)) { if (-not [string]::IsNullOrWhiteSpace([string]$artifact)) { $script:releaseZipPaths.Add([string]$artifact) } }
         # Native artifacts are now complete; do not keep another multi-gigabyte documentation-bearing RID tree alive.
         Remove-Item -LiteralPath $publishFolder -Recurse -Force -ErrorAction SilentlyContinue
         $transientMacApp = Join-Path $artifacts 'LocalGPT.app'
         if ($Rid.StartsWith('osx-')) { Remove-Item -LiteralPath $transientMacApp -Recurse -Force -ErrorAction SilentlyContinue }
         Write-Host "Released transient $Rid $mode staging workspace after native package validation." -ForegroundColor DarkCyan
-    }
 }
 
 function Publish-Runtime {
@@ -653,7 +730,7 @@ function Publish-Runtime {
             throw "The shared LocalGPT documentation cache is missing: $script:documentationCacheRoot"
         }
         Copy-LocalGptRuntimeDocumentation -SourceRoot $script:documentationCacheRoot -DestinationRoot $publishedDocumentationRoot -Version $appVersion
-        Write-Host "Reused the verified HTML documentation payload for $Rid without duplicating the standalone release PDF." -ForegroundColor Cyan
+        Write-Host "Reused the verified HTML documentation and compressed embedded PDF payload for $Rid." -ForegroundColor Cyan
     }
 
     Assert-LocalGptDocumentationPayload -DocumentationRoot $publishedDocumentationRoot -Version $appVersion
@@ -761,31 +838,26 @@ Write-Host "Release host $releaseHost selected runtime(s): $($displayRuntimes -j
 if ($Runtime -eq 'all') {
     Write-Host "Runtime 'all' is host-aware. Use -Runtime all-rids only for an explicit cross-host publish attempt." -ForegroundColor DarkCyan
     if ($releaseHost -eq 'Windows' -and $wslLinuxRuntimes.Count -gt 0) {
-        Write-Host 'Windows is the release coordinator: Windows packages are native; Linux Full/Light packages are delegated headlessly to WSL and imported into the same release bundle.' -ForegroundColor DarkCyan
+        Write-Host 'Windows is the release coordinator: Windows packages are native; Linux self-contained Full packages are delegated headlessly to WSL and imported into the same release bundle.' -ForegroundColor DarkCyan
     }
     if ($releaseHost -eq 'macOS') {
         Write-Host "macOS is the full release coordinator: macOS x64/ARM64, Linux x64/ARM64, and Windows x64/x86/ARM64 application/setup payloads are built in one run." -ForegroundColor DarkCyan
-        Write-Host "macOS produces native DMG/PKG/TAR.GZ packages; Linux TAR.GZ/DEB are managed and RPM uses Homebrew rpmbuild when available. AppImage remains a Linux/WSL/container finishing step." -ForegroundColor DarkCyan
+        Write-Host "macOS produces native self-contained Full DMG/PKG/TAR.GZ packages; Linux self-contained Full TAR.GZ/DEB are managed and RPM uses Homebrew rpmbuild when available. AppImage remains a Linux/WSL/container finishing step." -ForegroundColor DarkCyan
         if ($IncludeWindowsWrapper) { Write-Host 'The optional WinUI/WebView wrapper remains Windows-host-only and is skipped on macOS.' -ForegroundColor DarkCyan }
     }
 }
+& (Join-Path $root 'build/Initialize-MacReleaseTrust.ps1') -ProductName 'LocalGPT' -SelectedRuntimes @($runtimes) -AllowUnsignedMacPackages:$AllowUnsignedMacPackages
 $requiresNativePackaging = @($runtimes | Where-Object { -not $_.StartsWith('win-') }).Count -gt 0
 
 New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
 Remove-Item -LiteralPath $documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
 Ensure-WireProtocolPackage
 
-if ($requiresNativePackaging) {
-    $releasePackagingToolOutput = @(& (Join-Path $root 'build/Ensure-ReleasePackagingPackage.ps1') -Configuration $Configuration -Version $releasePackagingVersion)
-    if ($releasePackagingToolOutput.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$releasePackagingToolOutput[0])) { throw "Release-packaging tool preparation returned $($releasePackagingToolOutput.Count) pipeline value(s); expected exactly one executable path." }
-    $releasePackagingTool = [string]$releasePackagingToolOutput[0]
-    if (-not (Test-Path -LiteralPath $releasePackagingTool -PathType Leaf)) { throw "Prepared release-packaging tool is missing: $releasePackagingTool" }
-} else {
-    $releasePackagingPackageOutput = @(& (Join-Path $root 'build/Publish-ReleasePackagingPackage.ps1') -Configuration $Configuration -Version $releasePackagingVersion)
-    if ($releasePackagingPackageOutput.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$releasePackagingPackageOutput[0])) { throw "Release-packaging package publication returned $($releasePackagingPackageOutput.Count) pipeline value(s); expected exactly one package path." }
-    $releasePackagingPackage = [string]$releasePackagingPackageOutput[0]
-    Write-Host "Prepared the shared LocalGPT.ReleasePackaging package without installing its Unix packaging tool because this release contains Windows runtimes only." -ForegroundColor DarkCyan
-}
+# Documentation PDF assembly now also uses the shared release-packaging tool, so prepare it on every host.
+$releasePackagingToolOutput = @(& (Join-Path $root 'build/Ensure-ReleasePackagingPackage.ps1') -Configuration $Configuration -Version $releasePackagingVersion)
+if ($releasePackagingToolOutput.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$releasePackagingToolOutput[0])) { throw "Release-packaging tool preparation returned $($releasePackagingToolOutput.Count) pipeline value(s); expected exactly one executable path." }
+$releasePackagingTool = [string]$releasePackagingToolOutput[0]
+if (-not (Test-Path -LiteralPath $releasePackagingTool -PathType Leaf)) { throw "Prepared release-packaging tool is missing: $releasePackagingTool" }
 if (-not (Test-Path -LiteralPath $releasePackagingPackage -PathType Leaf)) { throw "Release-packaging package preparation did not produce $releasePackagingPackage" }
 
 Copy-Item $wirePackage (Join-Path $artifacts $wirePackageName) -Force
@@ -846,8 +918,15 @@ try {
 }
 finally {
     Remove-Item -LiteralPath $documentationCacheRoot -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $artifacts 'staging') -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $artifacts 'LocalGPT.app') -Recurse -Force -ErrorAction SilentlyContinue
+    $postReleaseBuildStateCount = Clear-RepositoryReleaseBuildState -BestEffort
+    if ($postReleaseBuildStateCount -gt 0) {
+        Write-Host "Released $postReleaseBuildStateCount repository-local bin/obj build-state director$(if ($postReleaseBuildStateCount -eq 1) { 'y' } else { 'ies' }) after the release attempt." -ForegroundColor DarkCyan
+    }
 }
 
 $releaseBundle = if ($SkipReleaseBundle) { $artifacts } else { Join-Path $artifacts $appVersion }
 Write-Host "Release output: $releaseBundle" -ForegroundColor Green
 Write-Host "Protocol package cache: $(Join-Path $artifacts $wirePackageName)" -ForegroundColor Green
+Write-Host "Release-packaging package cache: $(Join-Path $artifacts $releasePackagingPackageName)" -ForegroundColor Green

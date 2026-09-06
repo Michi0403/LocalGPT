@@ -54,6 +54,23 @@ foreach ($relative in $inheritedThemeChildren) {
     }
 }
 
+# Every routed application page except the static fatal-error fallback must retain its own
+# prerendered InteractiveServer boundary. This makes a newly added route fail validation instead
+# of silently shipping as static SSR because it was omitted from the reviewed list above.
+$pagesRoot = Join-Path $appRoot 'Components/Pages'
+foreach ($file in @(Get-ChildItem -LiteralPath $pagesRoot -Recurse -File -Filter '*.razor')) {
+    $text = [System.IO.File]::ReadAllText($file.FullName, $utf8)
+    if ($text.IndexOf('@page ', [StringComparison]::Ordinal) -lt 0) { continue }
+    $relative = $file.FullName.Substring($appRoot.Length + 1).Replace('\','/')
+    if ($relative -eq 'Components/Pages/Error.razor') {
+        if ($text.IndexOf('@rendermode', [StringComparison]::Ordinal) -ge 0) { Fail 'Error.razor is the static fatal-error fallback and must not open a circuit.' }
+        continue
+    }
+    if (-not $expected.Contains($relative) -or $expected[$relative] -cne '@rendermode InteractiveServer') {
+        Fail "$relative is a routed application page but is not registered as a prerendered InteractiveServer page."
+    }
+}
+
 $appPath = Join-Path $appRoot 'Components/App.razor'
 $programPaths = @(Get-ChildItem -LiteralPath $appRoot -File -Filter 'Program*.cs' | Sort-Object Name | Select-Object -ExpandProperty FullName)
 $importsPath = Join-Path $appRoot 'Components/_Imports.razor'

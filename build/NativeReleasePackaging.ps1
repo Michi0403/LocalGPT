@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory)][string]$ExecutableName,
     [Parameter(Mandatory)][string]$Version,
     [Parameter(Mandatory)][string]$Rid,
-    [Parameter(Mandatory)][ValidateSet('Full','Light')][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet('Full')][string]$Mode,
     [Parameter(Mandatory)][string]$PayloadDirectory,
     [Parameter(Mandatory)][string]$OutputDirectory,
     [Parameter(Mandatory)][string]$PackagingTool,
@@ -11,6 +11,8 @@ param(
     [switch]$UseContainerFallback,
     [switch]$ProvisionHomebrewTools,
     [switch]$RequireOptionalPackages,
+    [switch]$ForceRebuildArtifacts,
+    [switch]$ProbeExistingArtifactsOnly,
     [string]$MacIconSource = '',
     [string]$DmgBackgroundPath = ''
 )
@@ -25,6 +27,18 @@ $isLinuxHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runti
 $isMacHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::OSX)
 $hostArchitecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
 
+function Get-RelativePathPortable([string]$BasePath,[string]$TargetPath) {
+    $relativeMethod = [IO.Path].GetMethod('GetRelativePath', [Type[]]@([string], [string]))
+    if ($relativeMethod) {
+        return [string]$relativeMethod.Invoke($null, @($BasePath, $TargetPath))
+    }
+
+    $baseFull = [IO.Path]::GetFullPath($BasePath).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    $targetFull = [IO.Path]::GetFullPath($TargetPath)
+    $baseUri = New-Object Uri($baseFull)
+    $targetUri = New-Object Uri($targetFull)
+    return [Uri]::UnescapeDataString($baseUri.MakeRelativeUri($targetUri).ToString()).Replace('/', [IO.Path]::DirectorySeparatorChar)
+}
 function Test-TargetMatchesHostArchitecture([string]$RuntimeIdentifier) {
     if ($RuntimeIdentifier.EndsWith('arm64')) { return $hostArchitecture -eq 'arm64' }
     if ($RuntimeIdentifier.EndsWith('x64')) { return $hostArchitecture -eq 'x64' }
@@ -60,13 +74,13 @@ function Resolve-HomebrewFormulaExecutable([string]$Name,[string]$Formula) {
 }
 function Resolve-RpmBuildPath {
     $rpmbuild = Resolve-HomebrewFormulaExecutable 'rpmbuild' 'rpm'
-    if ($rpmbuild -or -not $isMacHost -or -not $ProvisionHomebrewTools) { return $rpmbuild }
+    if ($rpmbuild -or -not $isMacHost) { return $rpmbuild }
     $brew = Get-ExternalCommandPath 'brew'
     if (-not $brew) {
-        Write-Warning "Homebrew is not installed, so macOS cannot provision rpmbuild automatically. TAR.GZ and DEB can still be produced."
+        Write-Warning "Homebrew is not installed, so macOS cannot provision rpmbuild automatically. Install Homebrew/rpm or use a Linux builder."
         return $null
     }
-    Write-Host "Provisioning Homebrew rpm for Linux RPM materialization..." -ForegroundColor Cyan
+    Write-Host "rpmbuild is missing on macOS; provisioning the supported Homebrew rpm formula automatically..." -ForegroundColor Cyan
     & $brew install rpm | Out-Host
     if ($LASTEXITCODE -ne 0) {
         Write-Warning "Homebrew could not install rpm. Linux TAR.GZ and DEB outputs remain available."
@@ -86,6 +100,13 @@ function Invoke-PackagingTool([string[]]$Arguments) {
 function Add-Artifact([Collections.Generic.List[string]]$List,[string]$Path) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Expected native package was not created: $Path" }
     $List.Add([IO.Path]::GetFullPath($Path))
+}
+function Resolve-ExistingReleaseArtifactPath([string]$PrimaryPath) {
+    if (Test-Path -LiteralPath $PrimaryPath -PathType Leaf) { return [IO.Path]::GetFullPath($PrimaryPath) }
+    $versionDirectory = Join-Path $OutputDirectory $Version
+    $bundled = Join-Path $versionDirectory ([IO.Path]::GetFileName($PrimaryPath))
+    if (Test-Path -LiteralPath $bundled -PathType Leaf) { return [IO.Path]::GetFullPath($bundled) }
+    return [IO.Path]::GetFullPath($PrimaryPath)
 }
 function Write-DependencyHelper([string]$Destination) {
     if ($DependencyPolicy -eq 'LocalGPT') {
@@ -189,18 +210,739 @@ function New-MacBundleIcon([string]$AppPath) {
     }
     finally { Remove-Item -LiteralPath $iconSet -Recurse -Force -ErrorAction SilentlyContinue }
 }
-function Sign-MacBundleAdHoc([string]$AppPath) {
-    if (-not $isMacHost) { return }
-    $codesign = Get-ExternalCommandPath 'codesign'
-    if (-not $codesign) {
-        Write-Warning "codesign is unavailable; $ProductName.app will remain unsigned."
-        return
+$script:MacSigningResolved = $false
+$script:MacApplicationSigningIdentity = $null
+$script:MacInstallerSigningIdentity = $null
+$script:MacNotaryWarningIssued = $false
+
+function Get-EnvironmentText([string]$Name) {
+    $value = [Environment]::GetEnvironmentVariable($Name)
+    if ([string]::IsNullOrWhiteSpace([string]$value)) { return $null }
+    return ([string]$value).Trim()
+}
+function Resolve-MacDistributionSigning {
+    if ($script:MacSigningResolved -or -not $isMacHost) { return }
+    $script:MacSigningResolved = $true
+
+    $script:MacApplicationSigningIdentity = Get-EnvironmentText 'MACOS_DEVELOPER_ID_APPLICATION'
+    $script:MacInstallerSigningIdentity = Get-EnvironmentText 'MACOS_DEVELOPER_ID_INSTALLER'
+
+    $security = Get-ExternalCommandPath 'security'
+    if ($security -and ([string]::IsNullOrWhiteSpace([string]$script:MacApplicationSigningIdentity) -or [string]::IsNullOrWhiteSpace([string]$script:MacInstallerSigningIdentity))) {
+        $identityLines = @(& $security find-identity -v 2>$null | ForEach-Object { [string]$_ })
+        if ($LASTEXITCODE -eq 0) {
+            foreach ($line in $identityLines) {
+                if ([string]::IsNullOrWhiteSpace([string]$script:MacApplicationSigningIdentity) -and $line -match '"(Developer ID Application:[^"]+)"') {
+                    $script:MacApplicationSigningIdentity = $Matches[1]
+                }
+                if ([string]::IsNullOrWhiteSpace([string]$script:MacInstallerSigningIdentity) -and $line -match '"(Developer ID Installer:[^"]+)"') {
+                    $script:MacInstallerSigningIdentity = $Matches[1]
+                }
+            }
+        }
     }
-    & $codesign --force --deep --sign - --timestamp=none $AppPath 2>&1 | ForEach-Object { Write-Host $_ }
-    if ($LASTEXITCODE -ne 0) {
-        throw "Ad-hoc codesign failed for $AppPath"
+
+    if ($script:MacApplicationSigningIdentity) {
+        Write-Host "macOS distribution signing: Developer ID Application identity '$($script:MacApplicationSigningIdentity)'." -ForegroundColor Cyan
+    } else {
+        Write-Warning "No Developer ID Application identity was found. $ProductName.app will receive only an ad-hoc signature; Gatekeeper can reject copies downloaded on another Mac. Set MACOS_DEVELOPER_ID_APPLICATION or install the certificate in the login keychain."
+    }
+    if ($script:MacInstallerSigningIdentity) {
+        Write-Host "macOS installer signing: Developer ID Installer identity '$($script:MacInstallerSigningIdentity)'." -ForegroundColor Cyan
+    } else {
+        Write-Warning "No Developer ID Installer identity was found. PKG output cannot be trusted by Gatekeeper after Internet download. Set MACOS_DEVELOPER_ID_INSTALLER or install the certificate in the login keychain."
     }
 }
+function Get-MacNotaryKeychainProfile {
+    return (Get-EnvironmentText 'MACOS_NOTARY_KEYCHAIN_PROFILE')
+}
+function Get-MacNotaryKeychainPath {
+    return (Get-EnvironmentText 'MACOS_NOTARY_KEYCHAIN_PATH')
+}
+function Test-MacNotaryCredentialsAvailable {
+    if (Get-MacNotaryKeychainProfile) { return $true }
+    $keyId = Get-EnvironmentText 'APPLE_NOTARY_KEY_ID'
+    $issuer = Get-EnvironmentText 'APPLE_NOTARY_ISSUER'
+    $keyPath = Get-EnvironmentText 'APPLE_NOTARY_KEY_PATH'
+    if ($keyId -and $issuer -and $keyPath) { return $true }
+    $appleId = Get-EnvironmentText 'APPLE_NOTARY_APPLE_ID'
+    $teamId = Get-EnvironmentText 'APPLE_NOTARY_TEAM_ID'
+    $password = Get-EnvironmentText 'APPLE_NOTARY_PASSWORD'
+    return [bool]($appleId -and $teamId -and $password)
+}
+function Get-MacNotaryArguments {
+    $profile = Get-MacNotaryKeychainProfile
+    if ($profile) {
+        $arguments = @('--keychain-profile', $profile)
+        $keychainPath = Get-MacNotaryKeychainPath
+        if ($keychainPath) { $arguments += @('--keychain', $keychainPath) }
+        return $arguments
+    }
+
+    $keyId = Get-EnvironmentText 'APPLE_NOTARY_KEY_ID'
+    $issuer = Get-EnvironmentText 'APPLE_NOTARY_ISSUER'
+    $keyPath = Get-EnvironmentText 'APPLE_NOTARY_KEY_PATH'
+    if ($keyId -and $issuer -and $keyPath) {
+        if (-not (Test-Path -LiteralPath $keyPath -PathType Leaf)) { throw "APPLE_NOTARY_KEY_PATH does not exist: $keyPath" }
+        return @('--key', $keyPath, '--key-id', $keyId, '--issuer', $issuer)
+    }
+
+    $appleId = Get-EnvironmentText 'APPLE_NOTARY_APPLE_ID'
+    $teamId = Get-EnvironmentText 'APPLE_NOTARY_TEAM_ID'
+    $password = Get-EnvironmentText 'APPLE_NOTARY_PASSWORD'
+    if ($appleId -and $teamId -and $password) {
+        return @('--apple-id', $appleId, '--team-id', $teamId, '--password', $password)
+    }
+    return @()
+}
+function Test-MacNotaryCredentialRecoveryRequired([string]$Details) {
+    if ([string]::IsNullOrWhiteSpace($Details)) { return $false }
+    return $Details -match '(?i)(No Keychain password item found|User interaction is not allowed|errSecInteractionNotAllowed|specified item could not be found in the keychain|keychain[^\r\n]*(?:locked|unavailable|interaction)|credential profile[^\r\n]*(?:missing|unavailable))'
+}
+function Test-MacNotaryTransientServiceRecoveryRequired([string]$Details) {
+    if ([string]::IsNullOrWhiteSpace($Details)) { return $false }
+    return $Details -match '(?i)(NSURLError|internet connection[^\r\n]*(?:offline|lost)|network[^\r\n]*(?:offline|unavailable|failed|error)|could not connect to (?:the )?server|connection[^\r\n]*(?:reset|refused|lost)|request[^\r\n]*timed out|operation[^\r\n]*timed out|HTTP[^\r\n]*(?:408|425|429|500|502|503|504)|service[^\r\n]*(?:temporarily unavailable|unavailable|busy)|server[^\r\n]*(?:temporarily unavailable|unavailable|busy))'
+}
+function Get-MacNotaryCredentialRetrySeconds {
+    $configured = 15
+    $value = Get-EnvironmentText 'MACOS_NOTARY_CREDENTIAL_RETRY_SECONDS'
+    if ($value) {
+        $parsed = 0
+        if ([int]::TryParse($value, [ref]$parsed) -and $parsed -ge 1 -and $parsed -le 3600) { return $parsed }
+    }
+    return $configured
+}
+function Get-MacNotaryCredentialDiagnosticCommand {
+    $profile = Get-MacNotaryKeychainProfile
+    if (-not $profile) { return 'xcrun notarytool history' }
+    $command = "xcrun notarytool history --keychain-profile '$profile'"
+    $keychainPath = Get-MacNotaryKeychainPath
+    if ($keychainPath) { $command += " --keychain '$keychainPath'" }
+    return $command
+}
+function Invoke-MacNotaryToolOnce([string]$Operation,[string[]]$Arguments) {
+    $xcrun = Get-ExternalCommandPath 'xcrun'
+    if (-not $xcrun) { throw 'xcrun is required for Apple notarization.' }
+    $nativePreferenceVariable = Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue
+    $previousNativePreference = $null
+    if ($null -ne $nativePreferenceVariable) {
+        $previousNativePreference = [bool]$PSNativeCommandUseErrorActionPreference
+        $PSNativeCommandUseErrorActionPreference = $false
+    }
+    try {
+        $output = @(& $xcrun notarytool @Arguments 2>&1)
+        $exitCode = [int]$LASTEXITCODE
+    }
+    finally {
+        if ($null -ne $nativePreferenceVariable) { $PSNativeCommandUseErrorActionPreference = $previousNativePreference }
+    }
+    $details = if ($exitCode -eq 0) { '' } else { @($output | Select-Object -Last 12) -join ' | ' }
+    return [pscustomobject]@{ ExitCode = $exitCode; Output = @($output); Details = $details; Operation = $Operation }
+}
+function Invoke-MacNotaryToolWithCredentialRecovery([string]$Operation,[string[]]$Arguments) {
+    # This retry wrapper is intentionally reserved for idempotent notarytool operations such as
+    # history, info, wait-state queries, and log retrieval. Never call it for `notarytool submit`:
+    # a submit can reach Apple even when the local process reports an ambiguous failure.
+    $credentialFailureCount = 0
+    while ($true) {
+        $result = Invoke-MacNotaryToolOnce -Operation $Operation -Arguments $Arguments
+        if ($result.ExitCode -eq 0) { return $result }
+        $details = [string]$result.Details
+        $profile = Get-MacNotaryKeychainProfile
+        if ($profile -and (Test-MacNotaryCredentialRecoveryRequired -Details $details)) {
+            $credentialFailureCount++
+            $retrySeconds = Get-MacNotaryCredentialRetrySeconds
+            Write-Warning "Apple notarytool temporarily cannot read keychain profile '$profile' during $Operation (read-only attempt $credentialFailureCount). Retrying this idempotent query in $retrySeconds seconds; no artifact is uploaded by this retry. Ctrl+C remains the explicit operator stop."
+            if (-not [string]::IsNullOrWhiteSpace($details)) { Write-Warning $details }
+            if (($credentialFailureCount % 5) -eq 0) {
+                Write-Warning "Manual read-only diagnostic, if desired in another terminal: $(Get-MacNotaryCredentialDiagnosticCommand)"
+                Write-Warning "Do not recreate certificates. Apple documents that the default profile uses the data-protection keychain unless an explicit --keychain is supplied."
+            }
+            Start-Sleep -Seconds $retrySeconds
+            continue
+        }
+        if (Test-MacNotaryTransientServiceRecoveryRequired -Details $details) {
+            Write-Warning "Apple notarization is temporarily unavailable during $Operation. Retrying this idempotent operation in 60 seconds; no submit is repeated. Ctrl+C remains the explicit operator stop."
+            if (-not [string]::IsNullOrWhiteSpace($details)) { Write-Warning $details }
+            Start-Sleep -Seconds 60
+            continue
+        }
+        return $result
+    }
+}
+
+function Test-MacNotarizationRequired {
+    $value = Get-EnvironmentText 'MACOS_REQUIRE_NOTARIZATION'
+    if (-not $value) { return $false }
+    return @('1','true','yes','on') -contains $value.ToLowerInvariant()
+}
+function Sign-MacBundle([string]$AppPath) {
+    if (-not $isMacHost) { return }
+    Resolve-MacDistributionSigning
+    $codesign = Get-ExternalCommandPath 'codesign'
+    if (-not $codesign) { throw 'codesign is required to prepare macOS application bundles.' }
+
+    if ($script:MacApplicationSigningIdentity) {
+        $fileCommand = Get-ExternalCommandPath 'file'
+        if (-not $fileCommand) { throw "The macOS 'file' utility is required for Developer ID signing." }
+        $entitlementsPath = Join-Path ([IO.Path]::GetTempPath()) ("$ProductName-notarization-" + [Guid]::NewGuid().ToString('N') + '.entitlements.plist')
+        $entitlements = @'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+</dict>
+</plist>
+'@
+        Write-Utf8NoBom $entitlementsPath $entitlements
+        try {
+            $appHost = [IO.Path]::GetFullPath((Join-Path $AppPath "Contents/Resources/app/$ExecutableName"))
+            $machOFiles = [Collections.Generic.List[IO.FileInfo]]::new()
+            foreach ($item in Get-ChildItem -LiteralPath $AppPath -File -Recurse -ErrorAction Stop) {
+                $description = [string](& $fileCommand $item.FullName 2>$null)
+                if ($LASTEXITCODE -eq 0 -and $description -match 'Mach-O') { $machOFiles.Add($item) }
+            }
+            foreach ($item in @($machOFiles | Sort-Object { $_.FullName.Length } -Descending)) {
+                $signArguments = @('--force','--options','runtime','--timestamp','--sign',$script:MacApplicationSigningIdentity)
+                if ([IO.Path]::GetFullPath($item.FullName) -eq $appHost) { $signArguments += @('--entitlements',$entitlementsPath) }
+                $signArguments += $item.FullName
+                & $codesign @signArguments 2>&1 | ForEach-Object { Write-Host $_ }
+                if ($LASTEXITCODE -ne 0) { throw "Developer ID codesign failed for nested Mach-O component $($item.FullName)" }
+            }
+
+            # Frameworks, plug-ins and other nested code containers own signatures in addition to
+            # the individual Mach-O files they contain. Sign these deepest-first before the app.
+            $nestedCodeBundles = @(
+                Get-ChildItem -LiteralPath $AppPath -Directory -Recurse -ErrorAction Stop |
+                    Where-Object { $_.Extension -in @('.framework','.bundle','.plugin','.xpc','.app') } |
+                    Sort-Object { $_.FullName.Length } -Descending
+            )
+            foreach ($bundle in $nestedCodeBundles) {
+                & $codesign --force --options runtime --timestamp --sign $script:MacApplicationSigningIdentity $bundle.FullName 2>&1 | ForEach-Object { Write-Host $_ }
+                if ($LASTEXITCODE -ne 0) { throw "Developer ID codesign failed for nested code bundle $($bundle.FullName)" }
+            }
+
+            # Sign the enclosing bundle last. The .NET apphost above owns the JIT entitlement;
+            # the small Contents/MacOS shell launcher does not need it.
+            & $codesign --force --options runtime --timestamp --sign $script:MacApplicationSigningIdentity $AppPath 2>&1 | ForEach-Object { Write-Host $_ }
+            if ($LASTEXITCODE -ne 0) { throw "Developer ID codesign failed for $AppPath" }
+            & $codesign --verify --deep --strict --verbose=2 $AppPath 2>&1 | ForEach-Object { Write-Host $_ }
+            if ($LASTEXITCODE -ne 0) { throw "Developer ID signature verification failed for $AppPath" }
+            foreach ($item in $machOFiles) {
+                & $codesign --verify --strict $item.FullName 2>&1 | ForEach-Object { Write-Host $_ }
+                if ($LASTEXITCODE -ne 0) { throw "Developer ID signature verification failed for nested Mach-O component $($item.FullName)" }
+            }
+            Write-Host "Developer ID signed and verified $($machOFiles.Count) Mach-O component(s), $($nestedCodeBundles.Count) nested code bundle(s), and the $ProductName app bundle." -ForegroundColor Green
+        }
+        finally { Remove-Item -LiteralPath $entitlementsPath -Force -ErrorAction SilentlyContinue }
+        return
+    }
+
+    & $codesign --force --deep --sign - --timestamp=none $AppPath 2>&1 | ForEach-Object { Write-Host $_ }
+    if ($LASTEXITCODE -ne 0) { throw "Ad-hoc codesign failed for $AppPath" }
+}
+function Sign-MacDiskImage([string]$DiskImagePath) {
+    if (-not $isMacHost -or -not (Test-Path -LiteralPath $DiskImagePath -PathType Leaf)) { return }
+    Resolve-MacDistributionSigning
+    if (-not $script:MacApplicationSigningIdentity) {
+        if (Test-MacNotarizationRequired) { throw "Developer ID Application identity is required to sign disk image $DiskImagePath" }
+        return
+    }
+    $codesign = Get-ExternalCommandPath 'codesign'
+    if (-not $codesign) { throw 'codesign is required to sign macOS disk images.' }
+    & $codesign --force --timestamp --sign $script:MacApplicationSigningIdentity $DiskImagePath 2>&1 | ForEach-Object { Write-Host $_ }
+    if ($LASTEXITCODE -ne 0) { throw "Developer ID disk-image signing failed for $DiskImagePath" }
+    & $codesign --verify --strict --verbose=2 $DiskImagePath 2>&1 | ForEach-Object { Write-Host $_ }
+    if ($LASTEXITCODE -ne 0) { throw "Developer ID disk-image signature verification failed for $DiskImagePath" }
+    Write-Host "Developer ID signed disk image: $DiskImagePath" -ForegroundColor Green
+}
+function Get-MacNotaryObjectPropertyValue([object]$InputObject,[string]$PropertyName) {
+    if ($null -eq $InputObject -or [string]::IsNullOrWhiteSpace($PropertyName)) { return $null }
+    if ($InputObject -is [Collections.IDictionary]) {
+        if ($InputObject.Contains($PropertyName)) { return $InputObject[$PropertyName] }
+        return $null
+    }
+    $property = $InputObject.PSObject.Properties[$PropertyName]
+    if ($null -eq $property) { return $null }
+    return $property.Value
+}
+function Get-MacNotaryObjectPropertyText([object]$InputObject,[string]$PropertyName) {
+    $value = Get-MacNotaryObjectPropertyValue -InputObject $InputObject -PropertyName $PropertyName
+    if ($null -eq $value) { return '' }
+    return [string]$value
+}
+function Set-MacNotaryObjectPropertyValue([object]$InputObject,[string]$PropertyName,[object]$Value) {
+    if ($null -eq $InputObject -or [string]::IsNullOrWhiteSpace($PropertyName)) { return }
+    if ($InputObject -is [Collections.IDictionary]) {
+        $InputObject[$PropertyName] = $Value
+        return
+    }
+    $property = $InputObject.PSObject.Properties[$PropertyName]
+    if ($null -eq $property) {
+        $InputObject | Add-Member -NotePropertyName $PropertyName -NotePropertyValue $Value -Force
+        return
+    }
+    $property.Value = $Value
+}
+function Get-MacNotaryStatePath([string]$ArtifactPath) {
+    return "$ArtifactPath.notary-state.json"
+}
+function Remove-MacNotaryState([string]$ArtifactPath) {
+    Remove-Item -LiteralPath (Get-MacNotaryStatePath $ArtifactPath) -Force -ErrorAction SilentlyContinue
+}
+function Get-MacNotaryWaitTimeout {
+    $configured = Get-EnvironmentText 'MACOS_NOTARY_WAIT_TIMEOUT'
+    if (-not $configured) { return '2h' }
+    if ($configured -notmatch '^\d+(?:[smh])?$') { throw "MACOS_NOTARY_WAIT_TIMEOUT must be an integer optionally followed by s, m, or h; received '$configured'." }
+    return $configured
+}
+function ConvertTo-MacNotaryTimeoutSeconds([string]$Timeout) {
+    if ([string]::IsNullOrWhiteSpace($Timeout) -or $Timeout -notmatch '^(\d+)([smh]?)$') {
+        throw "Invalid macOS notarization wait timeout '$Timeout'."
+    }
+    $value = [int64]$Matches[1]
+    $multiplier = switch ($Matches[2]) {
+        'h' { 3600L }
+        'm' { 60L }
+        default { 1L }
+    }
+    $seconds = $value * $multiplier
+    if ($seconds -lt 1 -or $seconds -gt [int]::MaxValue) { throw "macOS notarization wait timeout '$Timeout' is outside the supported range." }
+    return [int]$seconds
+}
+function Get-MacNotaryPollIntervalSeconds {
+    $configured = Get-EnvironmentText 'MACOS_NOTARY_POLL_INTERVAL_SECONDS'
+    if (-not $configured) { return 20 }
+    $seconds = 0
+    if (-not [int]::TryParse($configured, [ref]$seconds) -or $seconds -lt 5 -or $seconds -gt 300) {
+        throw "MACOS_NOTARY_POLL_INTERVAL_SECONDS must be an integer from 5 through 300; received '$configured'."
+    }
+    return $seconds
+}
+function ConvertFrom-MacNotaryJsonOutput([object[]]$Output,[string]$Operation) {
+    $text = @($Output | ForEach-Object { [string]$_ }) -join "`n"
+    $first = $text.IndexOf('{')
+    $last = $text.LastIndexOf('}')
+    if ($first -lt 0 -or $last -lt $first) { throw "Apple notarytool $Operation did not return JSON: $text" }
+    try { return ($text.Substring($first, $last - $first + 1) | ConvertFrom-Json) }
+    catch { throw "Apple notarytool $Operation returned invalid JSON: $($_.Exception.Message)" }
+}
+function Save-MacNotaryStateObject([string]$ArtifactPath,[object]$State) {
+    $statePath = Get-MacNotaryStatePath $ArtifactPath
+    $State | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $statePath -Encoding utf8
+    return $statePath
+}
+function New-MacNotaryPendingState([string]$ArtifactPath,[string[]]$BaselineSubmissionIds,[DateTime]$SubmitStartedAtUtc) {
+    $state = [ordered]@{
+        schema = 2
+        artifactName = [IO.Path]::GetFileName($ArtifactPath)
+        artifactSha256 = (Get-FileHash -LiteralPath $ArtifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        phase = 'submit-pending'
+        submissionId = ''
+        submitStartedAtUtc = $SubmitStartedAtUtc.ToUniversalTime().ToString('O')
+        submittedAtUtc = ''
+        acceptedAtUtc = ''
+        completedAtUtc = ''
+        baselineSubmissionIds = @($BaselineSubmissionIds)
+    }
+    Save-MacNotaryStateObject -ArtifactPath $ArtifactPath -State $state | Out-Null
+    return $state
+}
+function Save-MacNotarySubmittedState([string]$ArtifactPath,[object]$ExistingState,[string]$SubmissionId,[string]$SubmittedAtUtc) {
+    $state = if ($null -eq $ExistingState) {
+        [ordered]@{
+            schema = 2
+            artifactName = [IO.Path]::GetFileName($ArtifactPath)
+            artifactSha256 = (Get-FileHash -LiteralPath $ArtifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            phase = 'submitted'
+            submissionId = $SubmissionId
+            submitStartedAtUtc = [DateTime]::UtcNow.ToString('O')
+            submittedAtUtc = $SubmittedAtUtc
+            acceptedAtUtc = ''
+            completedAtUtc = ''
+            baselineSubmissionIds = @()
+        }
+    } else {
+        [ordered]@{
+            schema = 2
+            artifactName = (Get-MacNotaryObjectPropertyText -InputObject $ExistingState -PropertyName 'artifactName')
+            artifactSha256 = (Get-MacNotaryObjectPropertyText -InputObject $ExistingState -PropertyName 'artifactSha256')
+            phase = 'submitted'
+            submissionId = $SubmissionId
+            submitStartedAtUtc = (Get-MacNotaryObjectPropertyText -InputObject $ExistingState -PropertyName 'submitStartedAtUtc')
+            submittedAtUtc = $SubmittedAtUtc
+            acceptedAtUtc = (Get-MacNotaryObjectPropertyText -InputObject $ExistingState -PropertyName 'acceptedAtUtc')
+            completedAtUtc = (Get-MacNotaryObjectPropertyText -InputObject $ExistingState -PropertyName 'completedAtUtc')
+            baselineSubmissionIds = @(Get-MacNotaryObjectPropertyValue -InputObject $ExistingState -PropertyName 'baselineSubmissionIds')
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$state['artifactName'])) { $state['artifactName'] = [IO.Path]::GetFileName($ArtifactPath) }
+    if ([string]::IsNullOrWhiteSpace([string]$state['artifactSha256'])) { $state['artifactSha256'] = (Get-FileHash -LiteralPath $ArtifactPath -Algorithm SHA256).Hash.ToLowerInvariant() }
+    if ([string]::IsNullOrWhiteSpace([string]$state['submitStartedAtUtc'])) { $state['submitStartedAtUtc'] = [DateTime]::UtcNow.ToString('O') }
+    Save-MacNotaryStateObject -ArtifactPath $ArtifactPath -State $state | Out-Null
+    return $state
+}
+function Set-MacNotaryStatePhase([string]$ArtifactPath,[object]$State,[ValidateSet('submitted','accepted','complete')][string]$Phase) {
+    if ($null -eq $State) { return $null }
+    Set-MacNotaryObjectPropertyValue -InputObject $State -PropertyName 'phase' -Value $Phase
+    if ($Phase -eq 'accepted') {
+        Set-MacNotaryObjectPropertyValue -InputObject $State -PropertyName 'acceptedAtUtc' -Value ([DateTime]::UtcNow.ToString('O'))
+    }
+    elseif ($Phase -eq 'complete') {
+        Set-MacNotaryObjectPropertyValue -InputObject $State -PropertyName 'completedAtUtc' -Value ([DateTime]::UtcNow.ToString('O'))
+    }
+    Save-MacNotaryStateObject -ArtifactPath $ArtifactPath -State $State | Out-Null
+    return $State
+}
+function Save-MacNotaryState([string]$ArtifactPath,[string]$SubmissionId) {
+    # Compatibility entry point for state written by older release code.
+    $state = Save-MacNotarySubmittedState -ArtifactPath $ArtifactPath -ExistingState $null -SubmissionId $SubmissionId -SubmittedAtUtc ([DateTime]::UtcNow.ToString('O'))
+    return (Get-MacNotaryStatePath $ArtifactPath)
+}
+
+function Get-MacNotaryState([string]$ArtifactPath) {
+    $statePath = Get-MacNotaryStatePath $ArtifactPath
+    if (-not (Test-Path -LiteralPath $statePath -PathType Leaf) -or -not (Test-Path -LiteralPath $ArtifactPath -PathType Leaf)) { return $null }
+    try { $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json }
+    catch {
+        Write-Warning "Ignoring unreadable notarization state '$statePath': $($_.Exception.Message)"
+        Remove-Item -LiteralPath $statePath -Force -ErrorAction SilentlyContinue
+        return $null
+    }
+    $stateArtifactSha256 = Get-MacNotaryObjectPropertyText -InputObject $state -PropertyName 'artifactSha256'
+    if ([string]::IsNullOrWhiteSpace($stateArtifactSha256)) {
+        Remove-Item -LiteralPath $statePath -Force -ErrorAction SilentlyContinue
+        return $null
+    }
+    $currentHash = (Get-FileHash -LiteralPath $ArtifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if (-not [string]::Equals($currentHash, $stateArtifactSha256, [StringComparison]::OrdinalIgnoreCase)) {
+        Write-Host "Discarding stale notarization state for $([IO.Path]::GetFileName($ArtifactPath)) because the artifact bytes changed." -ForegroundColor DarkCyan
+        Remove-Item -LiteralPath $statePath -Force -ErrorAction SilentlyContinue
+        return $null
+    }
+    $phase = Get-MacNotaryObjectPropertyText -InputObject $state -PropertyName 'phase'
+    $submissionId = Get-MacNotaryObjectPropertyText -InputObject $state -PropertyName 'submissionId'
+    if ([string]::IsNullOrWhiteSpace($phase)) {
+        # Schema 1 compatibility: an ID plus matching hash means the artifact was submitted.
+        if ([string]::IsNullOrWhiteSpace($submissionId)) {
+            Remove-Item -LiteralPath $statePath -Force -ErrorAction SilentlyContinue
+            return $null
+        }
+        $state = Save-MacNotarySubmittedState -ArtifactPath $ArtifactPath -ExistingState $state -SubmissionId $submissionId -SubmittedAtUtc ([DateTime]::UtcNow.ToString('O'))
+    }
+    elseif ($phase -ne 'submit-pending' -and [string]::IsNullOrWhiteSpace($submissionId)) {
+        Write-Warning "Ignoring notarization state '$statePath' because phase '$phase' requires a submission ID."
+        return $null
+    }
+    return $state
+}
+
+function Get-MacNotaryHistoryEntries([string[]]$NotaryArguments) {
+    $arguments = @('history') + @($NotaryArguments) + @('--output-format','json','--no-progress')
+    $result = Invoke-MacNotaryToolWithCredentialRecovery -Operation 'submission-history query' -Arguments $arguments
+    if ($result.ExitCode -ne 0) { throw "Apple notarytool could not query submission history: $($result.Details)" }
+    $historyObject = ConvertFrom-MacNotaryJsonOutput -Output $result.Output -Operation 'history'
+    $history = Get-MacNotaryObjectPropertyValue -InputObject $historyObject -PropertyName 'history'
+    if ($null -eq $history) { return @() }
+    return @($history)
+}
+function Get-MacNotaryHistoryIds([object[]]$Entries) {
+    $ids = [Collections.Generic.List[string]]::new()
+    foreach ($entry in @($Entries)) {
+        $id = Get-MacNotaryObjectPropertyText -InputObject $entry -PropertyName 'id'
+        if (-not [string]::IsNullOrWhiteSpace($id) -and -not $ids.Contains($id)) { $ids.Add($id) }
+    }
+    return @($ids)
+}
+function ConvertFrom-MacNotaryCreatedDate([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) { return [DateTime]::MinValue }
+    $parsed = [DateTime]::MinValue
+    if ([DateTime]::TryParse($Value, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind, [ref]$parsed)) {
+        return $parsed.ToUniversalTime()
+    }
+    return [DateTime]::MinValue
+}
+function Find-MacNotarySubmissionForPendingState([string]$ArtifactPath,[object]$State,[string[]]$NotaryArguments) {
+    $entries = @(Get-MacNotaryHistoryEntries -NotaryArguments $NotaryArguments)
+    $artifactName = [IO.Path]::GetFileName($ArtifactPath)
+    $startedText = Get-MacNotaryObjectPropertyText -InputObject $State -PropertyName 'submitStartedAtUtc'
+    $startedAt = ConvertFrom-MacNotaryCreatedDate $startedText
+    if ($startedAt -eq [DateTime]::MinValue) { $startedAt = [DateTime]::UtcNow.AddMinutes(-30) }
+    $windowStart = $startedAt.AddMinutes(-2)
+    $baseline = @()
+    $baselineValue = Get-MacNotaryObjectPropertyValue -InputObject $State -PropertyName 'baselineSubmissionIds'
+    if ($null -ne $baselineValue) { $baseline = @($baselineValue | ForEach-Object { [string]$_ }) }
+    $candidates = [Collections.Generic.List[object]]::new()
+    foreach ($entry in $entries) {
+        $name = Get-MacNotaryObjectPropertyText -InputObject $entry -PropertyName 'name'
+        $id = Get-MacNotaryObjectPropertyText -InputObject $entry -PropertyName 'id'
+        if ([string]::IsNullOrWhiteSpace($id) -or -not [string]::Equals($name, $artifactName, [StringComparison]::Ordinal)) { continue }
+        if ($baseline -contains $id) { continue }
+        $created = ConvertFrom-MacNotaryCreatedDate (Get-MacNotaryObjectPropertyText -InputObject $entry -PropertyName 'createdDate')
+        if ($created -lt $windowStart) { continue }
+        $candidates.Add([pscustomobject]@{ Id = $id; Created = $created; Status = (Get-MacNotaryObjectPropertyText -InputObject $entry -PropertyName 'status') })
+    }
+    if ($candidates.Count -eq 0) { return $null }
+    $ordered = @($candidates | Sort-Object -Property Created -Descending)
+    if ($ordered.Count -gt 1) {
+        Write-Warning "Apple history contains $($ordered.Count) new submissions named '$artifactName' after this artifact-local submit started. Adopting the newest ID $($ordered[0].Id) and never issuing another upload for this pending transaction."
+    }
+    return $ordered[0]
+}
+function Get-MacNotaryReconcileSeconds {
+    $value = Get-EnvironmentText 'MACOS_NOTARY_SUBMIT_RECONCILE_SECONDS'
+    if (-not $value) { return 600 }
+    $seconds = 0
+    if (-not [int]::TryParse($value, [ref]$seconds) -or $seconds -lt 30 -or $seconds -gt 3600) {
+        throw "MACOS_NOTARY_SUBMIT_RECONCILE_SECONDS must be an integer from 30 through 3600; received '$value'."
+    }
+    return $seconds
+}
+function Resolve-MacNotaryPendingSubmission([string]$ArtifactPath,[object]$State,[string[]]$NotaryArguments,[switch]$WaitForVisibility) {
+    $deadline = if ($WaitForVisibility) { [DateTime]::UtcNow.AddSeconds((Get-MacNotaryReconcileSeconds)) } else { [DateTime]::UtcNow }
+    do {
+        $candidate = Find-MacNotarySubmissionForPendingState -ArtifactPath $ArtifactPath -State $State -NotaryArguments $NotaryArguments
+        if ($null -ne $candidate) {
+            $submittedAt = if ($candidate.Created -eq [DateTime]::MinValue) { [DateTime]::UtcNow.ToString('O') } else { $candidate.Created.ToString('O') }
+            $resolved = Save-MacNotarySubmittedState -ArtifactPath $ArtifactPath -ExistingState $State -SubmissionId $candidate.Id -SubmittedAtUtc $submittedAt
+            Write-Host "Recovered Apple submission $($candidate.Id) for $([IO.Path]::GetFileName($ArtifactPath)) from history; no duplicate upload was issued." -ForegroundColor Green
+            return $resolved
+        }
+        if ([DateTime]::UtcNow -ge $deadline) { break }
+        Write-Warning "The submit result for $([IO.Path]::GetFileName($ArtifactPath)) is ambiguous and no new matching history entry is visible yet. Waiting 15 seconds and querying history again; the artifact will NOT be resubmitted while this transaction is unresolved."
+        Start-Sleep -Seconds 15
+    } while ($true)
+    return $null
+}
+function Get-MacNotarySubmissionInfo([string]$SubmissionId,[string[]]$NotaryArguments) {
+    $arguments = @('info',$SubmissionId) + @($NotaryArguments) + @('--output-format','json','--no-progress')
+    $result = Invoke-MacNotaryToolWithCredentialRecovery -Operation "status query for submission $SubmissionId" -Arguments $arguments
+    if ($result.ExitCode -ne 0) { throw "Apple notarytool could not query submission ${SubmissionId}: $($result.Details)" }
+    return ConvertFrom-MacNotaryJsonOutput -Output $result.Output -Operation "info $SubmissionId"
+}
+
+function Save-MacNotaryFailureLog([string]$ArtifactPath,[string]$SubmissionId,[string[]]$NotaryArguments) {
+    $logPath = "$ArtifactPath.notary-log.json"
+    $arguments = @('log',$SubmissionId) + @($NotaryArguments) + @($logPath)
+    $result = Invoke-MacNotaryToolWithCredentialRecovery -Operation "failure-log download for submission $SubmissionId" -Arguments $arguments
+    if ($result.ExitCode -eq 0 -and (Test-Path -LiteralPath $logPath -PathType Leaf)) {
+        Write-Warning "Apple notarization diagnostics were saved to $logPath"
+        return $logPath
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$result.Details)) { Write-Warning $result.Details }
+    return $null
+}
+function Wait-MacNotarySubmission([string]$ArtifactPath,[string]$SubmissionId,[string[]]$NotaryArguments) {
+    $checkpoint = Get-MacNotaryWaitTimeout
+    $checkpointSeconds = ConvertTo-MacNotaryTimeoutSeconds $checkpoint
+    $pollIntervalSeconds = Get-MacNotaryPollIntervalSeconds
+    $nextCheckpoint = [DateTime]::UtcNow.AddSeconds($checkpointSeconds)
+    Write-Host "Waiting for Apple notarization submission $SubmissionId for $([IO.Path]::GetFileName($ArtifactPath)). Only idempotent info queries are retried; the artifact upload will never be repeated by this wait loop." -ForegroundColor Cyan
+
+    while ($true) {
+        $info = Get-MacNotarySubmissionInfo -SubmissionId $SubmissionId -NotaryArguments $NotaryArguments
+        $status = Get-MacNotaryObjectPropertyText -InputObject $info -PropertyName 'status'
+        if ([string]::IsNullOrWhiteSpace($status)) {
+            Write-Warning "Apple notarytool info returned valid JSON without a status for submission $SubmissionId. Retrying in $pollIntervalSeconds seconds instead of aborting the release."
+            Start-Sleep -Seconds $pollIntervalSeconds
+            continue
+        }
+        if ([string]::Equals($status, 'Accepted', [StringComparison]::OrdinalIgnoreCase)) {
+            $state = Get-MacNotaryState $ArtifactPath
+            if ($null -ne $state) { Set-MacNotaryStatePhase -ArtifactPath $ArtifactPath -State $state -Phase accepted | Out-Null }
+            Write-Host "Apple notarization accepted submission $SubmissionId for $([IO.Path]::GetFileName($ArtifactPath))." -ForegroundColor Green
+            return
+        }
+        if (-not [string]::Equals($status, 'In Progress', [StringComparison]::OrdinalIgnoreCase)) {
+            Save-MacNotaryFailureLog -ArtifactPath $ArtifactPath -SubmissionId $SubmissionId -NotaryArguments $NotaryArguments | Out-Null
+            throw "Apple notarization submission $SubmissionId finished with terminal status '$status' for $ArtifactPath."
+        }
+        if ([DateTime]::UtcNow -ge $nextCheckpoint) {
+            Write-Warning "Apple notarization submission $SubmissionId for $([IO.Path]::GetFileName($ArtifactPath)) is still In Progress after another $checkpoint. Continuing only status polling; no upload or package build is repeated."
+            $nextCheckpoint = [DateTime]::UtcNow.AddSeconds($checkpointSeconds)
+        }
+        Start-Sleep -Seconds $pollIntervalSeconds
+    }
+}
+
+function Ensure-MacNotarySubmissionAccepted([string]$ArtifactPath) {
+    if (-not (Get-ExternalCommandPath 'xcrun')) { throw 'xcrun is required for Apple notarization.' }
+    $notaryArgs = @(Get-MacNotaryArguments)
+    $state = Get-MacNotaryState $ArtifactPath
+
+    if ($null -ne $state) {
+        $phase = Get-MacNotaryObjectPropertyText -InputObject $state -PropertyName 'phase'
+        $submissionId = Get-MacNotaryObjectPropertyText -InputObject $state -PropertyName 'submissionId'
+        if ([string]::Equals($phase, 'submit-pending', [StringComparison]::OrdinalIgnoreCase) -and [string]::IsNullOrWhiteSpace($submissionId)) {
+            Write-Host "Reconciling the pending Apple submit transaction for unchanged artifact $([IO.Path]::GetFileName($ArtifactPath)) before any new upload is allowed." -ForegroundColor Cyan
+            $resolved = Resolve-MacNotaryPendingSubmission -ArtifactPath $ArtifactPath -State $state -NotaryArguments $notaryArgs -WaitForVisibility
+            if ($null -eq $resolved) {
+                throw "Apple submission state for $ArtifactPath remains ambiguous after history reconciliation. No duplicate upload was attempted. Keep the artifact and its .notary-state.json file, then rerun later; the next run will reconcile this exact artifact before it can submit anything new."
+            }
+            $state = $resolved
+            $submissionId = Get-MacNotaryObjectPropertyText -InputObject $state -PropertyName 'submissionId'
+        }
+        if (-not [string]::IsNullOrWhiteSpace($submissionId)) {
+            Write-Host "Resuming Apple notarization submission $submissionId for unchanged artifact $([IO.Path]::GetFileName($ArtifactPath)); no upload is repeated." -ForegroundColor Cyan
+            Wait-MacNotarySubmission -ArtifactPath $ArtifactPath -SubmissionId $submissionId -NotaryArguments $notaryArgs
+            return $submissionId
+        }
+    }
+
+    # Per-artifact transaction boundary. First obtain an idempotent history snapshot so an ambiguous
+    # submit can be reconciled against the exact set of submissions that existed before this upload.
+    $artifactName = [IO.Path]::GetFileName($ArtifactPath)
+    Write-Host "Preparing artifact-local Apple notarization transaction for $artifactName..." -ForegroundColor Cyan
+    $baselineEntries = @(Get-MacNotaryHistoryEntries -NotaryArguments $notaryArgs)
+    $baselineIds = @(Get-MacNotaryHistoryIds -Entries $baselineEntries)
+    $submitStartedAtUtc = [DateTime]::UtcNow
+    $state = New-MacNotaryPendingState -ArtifactPath $ArtifactPath -BaselineSubmissionIds $baselineIds -SubmitStartedAtUtc $submitStartedAtUtc
+
+    Write-Host "Submitting $artifactName to Apple notary service exactly once for this transaction..." -ForegroundColor Cyan
+    $submitArguments = @('submit',$ArtifactPath) + @($notaryArgs) + @('--output-format','json','--no-progress')
+    $submitResult = Invoke-MacNotaryToolOnce -Operation "single upload of $artifactName" -Arguments $submitArguments
+    $submissionId = ''
+    if ($submitResult.ExitCode -eq 0) {
+        try {
+            $submit = ConvertFrom-MacNotaryJsonOutput -Output $submitResult.Output -Operation 'submit'
+            $submissionId = Get-MacNotaryObjectPropertyText -InputObject $submit -PropertyName 'id'
+        }
+        catch {
+            Write-Warning "Apple submit exited successfully but its local response could not be parsed. The transaction will be reconciled through history rather than uploaded again: $($_.Exception.Message)"
+        }
+    }
+    else {
+        Write-Warning "Apple submit returned a non-zero local result for $artifactName. Because submit is non-idempotent, this release will not retry the upload blindly."
+        if (-not [string]::IsNullOrWhiteSpace([string]$submitResult.Details)) { Write-Warning $submitResult.Details }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($submissionId)) {
+        $resolved = Resolve-MacNotaryPendingSubmission -ArtifactPath $ArtifactPath -State $state -NotaryArguments $notaryArgs -WaitForVisibility
+        if ($null -eq $resolved) {
+            throw "Apple submit for $ArtifactPath had an ambiguous local result and no matching new history entry became visible during reconciliation. No second upload was attempted. The hash-bound pending state is preserved for a later rerun."
+        }
+        $state = $resolved
+        $submissionId = Get-MacNotaryObjectPropertyText -InputObject $state -PropertyName 'submissionId'
+    }
+    else {
+        $state = Save-MacNotarySubmittedState -ArtifactPath $ArtifactPath -ExistingState $state -SubmissionId $submissionId -SubmittedAtUtc ([DateTime]::UtcNow.ToString('O'))
+        Write-Host "Apple upload completed; submission $submissionId was persisted immediately in $(Get-MacNotaryStatePath $ArtifactPath)." -ForegroundColor Green
+    }
+
+    Wait-MacNotarySubmission -ArtifactPath $ArtifactPath -SubmissionId $submissionId -NotaryArguments $notaryArgs
+    return $submissionId
+}
+
+function Complete-MacArtifactLocalValidation([string]$ArtifactPath,[ValidateSet('dmg','pkg')][string]$Kind,[switch]$Quiet) {
+    $xcrun = Get-ExternalCommandPath 'xcrun'
+    if (-not $xcrun) { return $false }
+    if ($Quiet) { & $xcrun stapler validate $ArtifactPath *> $null }
+    else { & $xcrun stapler validate $ArtifactPath 2>&1 | ForEach-Object { Write-Host $_ } }
+    if ($LASTEXITCODE -ne 0) { return $false }
+
+    if ($Kind -eq 'pkg') {
+        $pkgutil = Get-ExternalCommandPath 'pkgutil'
+        if (-not $pkgutil) { return $false }
+        if ($Quiet) { & $pkgutil --check-signature $ArtifactPath *> $null }
+        else { & $pkgutil --check-signature $ArtifactPath 2>&1 | ForEach-Object { Write-Host $_ } }
+        if ($LASTEXITCODE -ne 0) { return $false }
+    }
+    else {
+        $hdiutil = Get-ExternalCommandPath 'hdiutil'
+        $codesign = Get-ExternalCommandPath 'codesign'
+        if (-not $hdiutil -or -not $codesign) { return $false }
+        if ($Quiet) { & $hdiutil verify $ArtifactPath *> $null } else { & $hdiutil verify $ArtifactPath 2>&1 | ForEach-Object { Write-Host $_ } }
+        if ($LASTEXITCODE -ne 0) { return $false }
+        if ($Quiet) { & $codesign --verify --strict --verbose=2 $ArtifactPath *> $null } else { & $codesign --verify --strict --verbose=2 $ArtifactPath 2>&1 | ForEach-Object { Write-Host $_ } }
+        if ($LASTEXITCODE -ne 0) { return $false }
+    }
+    return $true
+}
+function Test-MacDistributionArtifactReady([string]$ArtifactPath,[ValidateSet('dmg','pkg')][string]$Kind) {
+    if ($ForceRebuildArtifacts -or -not $isMacHost -or -not (Test-Path -LiteralPath $ArtifactPath -PathType Leaf)) { return $false }
+    $xcrun = Get-ExternalCommandPath 'xcrun'
+    if (-not $xcrun) { return $false }
+
+    if (Complete-MacArtifactLocalValidation -ArtifactPath $ArtifactPath -Kind $Kind -Quiet) {
+        $state = Get-MacNotaryState $ArtifactPath
+        if ($null -ne $state) { Set-MacNotaryStatePhase -ArtifactPath $ArtifactPath -State $state -Phase complete | Out-Null }
+        Write-Host "Reusing already signed, notarized, stapled, and validated macOS $Kind artifact: $ArtifactPath" -ForegroundColor Green
+        return $true
+    }
+
+    # An unchanged artifact with a state file is always resumed/reconciled before rebuild. This is
+    # the per-package no-duplicate boundary: pending/submitted/accepted state blocks a fresh upload.
+    $state = Get-MacNotaryState $ArtifactPath
+    if ($null -ne $state -and (Test-MacNotaryCredentialsAvailable)) {
+        Ensure-MacNotarySubmissionAccepted -ArtifactPath $ArtifactPath | Out-Null
+    }
+    else {
+        # Legacy recovery for artifacts notarized by an older release script that did not persist
+        # state through completion. A successful staple proves Apple already has a ticket.
+        & $xcrun stapler staple $ArtifactPath *> $null
+        if ($LASTEXITCODE -ne 0) { return $false }
+    }
+
+    if (-not (Complete-MacArtifactLocalValidation -ArtifactPath $ArtifactPath -Kind $Kind -Quiet)) { return $false }
+    $state = Get-MacNotaryState $ArtifactPath
+    if ($null -ne $state) { Set-MacNotaryStatePhase -ArtifactPath $ArtifactPath -State $state -Phase complete | Out-Null }
+    Write-Host "Recovered and reused already notarized macOS $Kind artifact: $ArtifactPath" -ForegroundColor Green
+    return $true
+}
+
+
+function Complete-MacDistributionArtifact([string]$ArtifactPath,[ValidateSet('dmg','pkg')][string]$Kind) {
+    if (-not $isMacHost -or -not (Test-Path -LiteralPath $ArtifactPath -PathType Leaf)) { return }
+    Resolve-MacDistributionSigning
+
+    $hasRequiredSigningIdentity = if ($Kind -eq 'pkg') { [bool]$script:MacInstallerSigningIdentity } else { [bool]$script:MacApplicationSigningIdentity }
+    $hasNotaryCredentials = Test-MacNotaryCredentialsAvailable
+    if (-not $hasRequiredSigningIdentity -or -not $hasNotaryCredentials) {
+        $reason = if (-not $hasRequiredSigningIdentity) { 'the required Developer ID signing identity is unavailable' } else { 'notary credentials are unavailable' }
+        $message = "$([IO.Path]::GetFileName($ArtifactPath)) is NOT notarized because $reason. A quarantined Internet/WhatsApp/browser download can be blocked by Gatekeeper on another Mac."
+        if (Test-MacNotarizationRequired) { throw "$message Configure Apple Developer ID signing and notarytool credentials or unset MACOS_REQUIRE_NOTARIZATION for local-only artifacts." }
+        if (-not $script:MacNotaryWarningIssued) {
+            Write-Warning $message
+            Write-Warning 'Recommended Apple-ID setup: `xcrun notarytool store-credentials <profile> --apple-id <APPLE_ID> --team-id <TEAM_ID>` and enter the app-specific password when prompted; then set MACOS_NOTARY_KEYCHAIN_PROFILE=<profile>. API-key authentication remains supported through APPLE_NOTARY_KEY_* variables.'
+            $script:MacNotaryWarningIssued = $true
+        }
+        return
+    }
+
+    $xcrun = Get-ExternalCommandPath 'xcrun'
+    if (-not $xcrun) { throw 'xcrun is required for Apple notarization.' }
+    $submissionId = Ensure-MacNotarySubmissionAccepted -ArtifactPath $ArtifactPath
+    & $xcrun stapler staple $ArtifactPath 2>&1 | ForEach-Object { Write-Host $_ }
+    if ($LASTEXITCODE -ne 0) { throw "Apple notarization ticket stapling failed for $ArtifactPath" }
+    if (-not (Complete-MacArtifactLocalValidation -ArtifactPath $ArtifactPath -Kind $Kind)) {
+        throw "macOS $Kind validation failed after notarization/stapling: $ArtifactPath"
+    }
+    $state = Get-MacNotaryState $ArtifactPath
+    if ($null -ne $state) { Set-MacNotaryStatePhase -ArtifactPath $ArtifactPath -State $state -Phase complete | Out-Null }
+
+    $spctl = Get-ExternalCommandPath 'spctl'
+    if ($Kind -eq 'pkg') {
+        if ($spctl) {
+            $assessment = @(& $spctl --assess --type install --verbose=4 $ArtifactPath 2>&1 | ForEach-Object { [string]$_ })
+            if ($LASTEXITCODE -eq 0) {
+                $assessment | ForEach-Object { Write-Host $_ }
+                Write-Host "Gatekeeper installer assessment accepted $([IO.Path]::GetFileName($ArtifactPath))." -ForegroundColor Green
+            } else {
+                $assessment | ForEach-Object { Write-Warning $_ }
+                Write-Warning "Local spctl installer assessment rejected $([IO.Path]::GetFileName($ArtifactPath)) even though notarization, stapling, and pkgutil signature validation succeeded. Test the downloaded PKG on a clean Mac before publishing."
+            }
+        }
+    } else {
+        if ($spctl) {
+            & $spctl --assess --type open --context 'context:primary-signature' --verbose=4 $ArtifactPath 2>&1 | ForEach-Object { Write-Host $_ }
+            if ($LASTEXITCODE -ne 0) { throw "Gatekeeper disk-image assessment failed after notarization: $ArtifactPath" }
+        }
+    }
+    Write-Host "Signed, notarized, stapled, and validated macOS $Kind artifact: $ArtifactPath (submission $submissionId)." -ForegroundColor Green
+}
+
 function New-MacLauncher([string]$Destination,[string]$BinaryRelativePath) {
     $template = @'
 #!/bin/sh
@@ -526,7 +1268,7 @@ function Assert-MacBundleArchitecture([string]$AppPath,[string]$RuntimeIdentifie
         if ($LASTEXITCODE -ne 0 -or $description -notmatch 'Mach-O') { continue }
 
         $machOCount++
-        $relative = [IO.Path]::GetRelativePath($AppPath, $item.FullName)
+        $relative = Get-RelativePathPortable -BasePath $AppPath -TargetPath $item.FullName
         $entry = "$relative => $description"
         $inventory.Add($entry)
         if ($description -notmatch $expectedPattern) {
@@ -592,7 +1334,13 @@ function New-Dmg([string]$AppPath,[string]$Destination) {
             throw "hdiutil verification failed for $Destination"
         }
 
-        Write-Host "Created and verified headless DMG with $appName and Applications alias: $Destination" -ForegroundColor Green
+        Sign-MacDiskImage $Destination
+        & hdiutil verify $Destination | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            throw "hdiutil verification failed after Developer ID signing for $Destination"
+        }
+        Write-Host "Created, verified, and distribution-signed headless DMG with $appName and Applications alias: $Destination" -ForegroundColor Green
         return $true
     }
     finally {
@@ -629,13 +1377,17 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
         }
 
         Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
-        & $pkgbuild `
-            --root $pkgRoot `
-            --identifier $identifier `
-            --version $Version `
-            --install-location '/' `
-            --ownership recommended `
-            $Destination 2>&1 | ForEach-Object { Write-Host $_ }
+        Resolve-MacDistributionSigning
+        $pkgBuildArguments = @(
+            '--root', $pkgRoot,
+            '--identifier', $identifier,
+            '--version', $Version,
+            '--install-location', '/',
+            '--ownership', 'recommended'
+        )
+        if ($script:MacInstallerSigningIdentity) { $pkgBuildArguments += @('--sign', $script:MacInstallerSigningIdentity) }
+        $pkgBuildArguments += $Destination
+        & $pkgbuild @pkgBuildArguments 2>&1 | ForEach-Object { Write-Host $_ }
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
             Write-Warning "pkgbuild failed while creating $Destination. The DMG and TAR.GZ remain available."
             Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
@@ -774,7 +1526,7 @@ function New-Rpm([string]$Source,[string]$Destination,[string]$Architecture) {
     if (-not $rpmbuild -and -not $engine) {
         if ($isMacHost) {
             $brew = Get-ExternalCommandPath 'brew'
-            $hint = if ($brew) { " Install it with 'brew install rpm', or pass -ProvisionHomebrewTools to let this build invoke Homebrew." } else { ' Install Homebrew and then install the rpm formula, or use a Linux builder.' }
+            $hint = if ($brew) { " The build normally provisions it with 'brew install rpm'; inspect the Homebrew error above if provisioning failed." } else { ' Install Homebrew and then install the rpm formula, or use a Linux builder.' }
             Complete-OptionalPackageFailure 'RPM' "rpmbuild is unavailable on macOS.$hint"
             return $false
         }
@@ -870,6 +1622,23 @@ $artifacts = [Collections.Generic.List[string]]::new()
 $arch = if ($Rid.EndsWith('arm64')) { 'arm64' } else { 'x64' }
 $base = "$ProductName-$Version-$Rid-$($Mode.ToLowerInvariant())"
 
+if ($ProbeExistingArtifactsOnly) {
+    if (-not $Rid.StartsWith('osx-') -or $ForceRebuildArtifacts -or -not $isMacHost) { return }
+    $existingTar = Resolve-ExistingReleaseArtifactPath (Join-Path $OutputDirectory "$base.tar.gz")
+    $existingDmg = Resolve-ExistingReleaseArtifactPath (Join-Path $OutputDirectory "$base.dmg")
+    $existingPkg = Resolve-ExistingReleaseArtifactPath (Join-Path $OutputDirectory "$base.pkg")
+    $tarReady = (Test-Path -LiteralPath $existingTar -PathType Leaf) -and (Get-Item -LiteralPath $existingTar).Length -gt 1048576
+    $dmgReady = Test-MacDistributionArtifactReady $existingDmg 'dmg'
+    $pkgReady = Test-MacDistributionArtifactReady $existingPkg 'pkg'
+    if ($tarReady -and $dmgReady -and $pkgReady) {
+        Write-Host "The complete $Rid Full macOS release already exists and passed local notarization/staple validation; skipping publish/sign/package work for this RID." -ForegroundColor Green
+        $existingTar
+        $existingDmg
+        $existingPkg
+    }
+    return
+}
+
 if ($Rid.StartsWith('osx-')) {
     $app = Join-Path $OutputDirectory "$ProductName.app"
     Remove-Item -LiteralPath $app -Recurse -Force -ErrorAction SilentlyContinue
@@ -891,14 +1660,43 @@ if ($Rid.StartsWith('osx-')) {
 "@
     Write-Utf8NoBom (Join-Path $app 'Contents/Info.plist') $infoPlist
     Assert-MacBundleArchitecture $app $Rid
-    Sign-MacBundleAdHoc $app
-    $tar = Join-Path $OutputDirectory "$base.tar.gz"
-    Invoke-PackagingTool @('tar','--source',$app,'--output',$tar,'--root',"$ProductName.app",'--executable',"Contents/MacOS/$ProductName",'--executable',"Contents/Resources/app/$ExecutableName",'--executable','Contents/Resources/app/install-dependencies.sh')
+    Sign-MacBundle $app
+    $tarDestination = Join-Path $OutputDirectory "$base.tar.gz"
+    $tar = if ($ForceRebuildArtifacts) { $tarDestination } else { Resolve-ExistingReleaseArtifactPath $tarDestination }
+    if (-not $ForceRebuildArtifacts -and (Test-Path -LiteralPath $tar -PathType Leaf) -and (Get-Item -LiteralPath $tar).Length -gt 1048576) {
+        Write-Host "Reusing existing TAR.GZ for $Rid Full: $tar" -ForegroundColor Green
+    }
+    else {
+        $tar = $tarDestination
+        Invoke-PackagingTool @('tar','--source',$app,'--output',$tar,'--root',"$ProductName.app",'--executable',"Contents/MacOS/$ProductName",'--executable',"Contents/Resources/app/$ExecutableName",'--executable','Contents/Resources/app/install-dependencies.sh')
+    }
     Add-Artifact $artifacts $tar
-    $dmg = Join-Path $OutputDirectory "$base.dmg"
-    if (New-Dmg $app $dmg) { Add-Artifact $artifacts $dmg }
-    $pkg = Join-Path $OutputDirectory "$base.pkg"
-    if (New-MacPkg $app $pkg) { Add-Artifact $artifacts $pkg }
+
+    $dmgDestination = Join-Path $OutputDirectory "$base.dmg"
+    $dmg = if ($ForceRebuildArtifacts) { $dmgDestination } else { Resolve-ExistingReleaseArtifactPath $dmgDestination }
+    if (Test-MacDistributionArtifactReady $dmg 'dmg') {
+        Add-Artifact $artifacts $dmg
+    }
+    else {
+        $dmg = $dmgDestination
+        if (New-Dmg $app $dmg) {
+            Complete-MacDistributionArtifact $dmg 'dmg'
+            Add-Artifact $artifacts $dmg
+        }
+    }
+
+    $pkgDestination = Join-Path $OutputDirectory "$base.pkg"
+    $pkg = if ($ForceRebuildArtifacts) { $pkgDestination } else { Resolve-ExistingReleaseArtifactPath $pkgDestination }
+    if (Test-MacDistributionArtifactReady $pkg 'pkg') {
+        Add-Artifact $artifacts $pkg
+    }
+    else {
+        $pkg = $pkgDestination
+        if (New-MacPkg $app $pkg) {
+            Complete-MacDistributionArtifact $pkg 'pkg'
+            Add-Artifact $artifacts $pkg
+        }
+    }
 }
 elseif ($Rid.StartsWith('linux-')) {
     $workingPayload = Join-Path $OutputDirectory ('.payload-' + [Guid]::NewGuid().ToString('N'))

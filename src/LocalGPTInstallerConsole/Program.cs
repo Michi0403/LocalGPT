@@ -910,6 +910,8 @@ internal static class Program
     private static bool TryResolveShortcutTarget(string shortcutPath, ILogger logger, out string targetPath)
     {
         targetPath = string.Empty;
+        if (!OperatingSystem.IsWindows())
+            return false;
         try
         {
             if (Path.GetExtension(shortcutPath).Equals(".url", StringComparison.OrdinalIgnoreCase))

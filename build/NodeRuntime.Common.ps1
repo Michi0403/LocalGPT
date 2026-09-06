@@ -63,6 +63,11 @@ function Get-LocalGptDocumentationToolCacheRoot {
         [AllowEmptyString()][string]$FallbackRoot = ''
     )
 
+    $sharedCacheRoot = [string]$env:FUTURE2_DOCUMENTATION_CACHE_ROOT
+    if (-not [string]::IsNullOrWhiteSpace($sharedCacheRoot)) {
+        return Join-Path ([IO.Path]::GetFullPath($sharedCacheRoot)) 'LocalGPT/DocumentationTools'
+    }
+
     $localApplicationData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
     if (-not [string]::IsNullOrWhiteSpace($localApplicationData)) {
         return Join-Path $localApplicationData 'LocalGPT/DocumentationTools'
