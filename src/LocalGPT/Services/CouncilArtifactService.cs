@@ -27,10 +27,7 @@ namespace LocalGPT.Services
         /// Gets the artifact root value that forms part of the council artifact state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The artifact root value exposed by <see cref="CouncilArtifactService"/>.</value>
-        public string ArtifactRoot { get; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "LocalGPT",
-            "CouncilArtifacts");
+        public string ArtifactRoot { get; } = LocalGptApplicationDataPaths.ResolveUserPath("CouncilArtifacts");
 
         /// <summary>
         /// Creates implementation artifacts as part of the council artifact service workflow, applying the service's runtime policy, state management, and diagnostics as required.

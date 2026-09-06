@@ -50,7 +50,7 @@ namespace LocalGPT.Services
     {
             var safeHost = SanitizeSegment(sourceUri.Host, allowLeadingDot: true);
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceUri.AbsoluteUri)))[..16].ToLowerInvariant();
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalGPT", "LearningBase", "RemoteSources", safeHost, hash);
+            return LocalGptApplicationDataPaths.ResolveUserPath("LearningBase", "RemoteSources", safeHost, hash);
     
     }
     catch (Exception __serviceMethodException)

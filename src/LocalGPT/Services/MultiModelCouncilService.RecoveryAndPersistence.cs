@@ -755,10 +755,7 @@ namespace LocalGPT.Services
                 // what happened. Keep the token in the API for compatibility but deliberately do not
                 // apply it to the durable write.
                 _ = cancellationToken;
-                var directory = Path.Combine(
-                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                     "LocalGPT",
-                     "CouncilLogs");
+                var directory = LocalGptApplicationDataPaths.ResolveUserPath("CouncilLogs");
                 Directory.CreateDirectory(directory);
 
                 var path = string.IsNullOrWhiteSpace(result.LogPath)

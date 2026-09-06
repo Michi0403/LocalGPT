@@ -23,10 +23,7 @@ namespace LocalGPT.Services
         /// Gets the artifact root value that forms part of the build debug inventory state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The artifact root value exposed by <see cref="BuildDebugInventoryService"/>.</value>
-        public string ArtifactRoot { get; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "LocalGPT",
-            "BuildDebugFiles");
+        public string ArtifactRoot { get; } = LocalGptApplicationDataPaths.ResolveUserPath("BuildDebugFiles");
 
         /// <summary>
         /// Performs capture as part of the build debug inventory service workflow, applying the service's runtime policy, state management, and diagnostics as required.

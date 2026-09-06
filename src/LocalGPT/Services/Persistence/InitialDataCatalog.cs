@@ -14,12 +14,14 @@ namespace LocalGPT.Services.Persistence;
 /// <param name="systemVariables">System variable definition service dependency used by the initial data workflow to provide the corresponding application capability.</param>
 /// <param name="runtimePolicySeed">Local gpt runtime policy seed data service dependency used by the initial data workflow to provide the corresponding application capability.</param>
 /// <param name="platform">Platform runtime service used for cross-platform initial-data path and host semantics.</param>
+/// <param name="applicationPaths">Application path service that documents the effective per-user runtime layout.</param>
 public sealed class InitialDataCatalog(
     IWebHostEnvironment environment,
     ILogger<InitialDataCatalog> logger,
     ISystemVariableDefinitionService systemVariables,
     ILocalGptRuntimePolicySeedDataService runtimePolicySeed,
-    IPlatformRuntimeService platform) : IInitialDataCatalog
+    IPlatformRuntimeService platform,
+    ILocalGptApplicationPathService applicationPaths) : IInitialDataCatalog
 {
     /// <summary>
     /// Gets the regex patterns collection maintained or exposed by this initial data instance for downstream processing.
@@ -215,6 +217,7 @@ public sealed class InitialDataCatalog(
             "docs/engineering/build-validation.md",
             "docs/reference/capability-map.md",
             "docs/reference/toolchain-discovery.md",
+            "docs/reference/runtime-path-layout.md",
             "docs/reference/ai-provider-installation.md",
             "docs/reference/canonical-repositories.md"
         ];
@@ -225,24 +228,27 @@ public sealed class InitialDataCatalog(
             cancellationToken.ThrowIfCancellationRequested();
             var normalizedRelative = relativePath.Replace('/', Path.DirectorySeparatorChar);
             var path = Path.GetFullPath(Path.Combine(root, normalizedRelative));
-            if (!IsPathInsideRoot(path, root) || !File.Exists(path))
+            if (!IsPathInsideRoot(path, root))
                 continue;
 
             try
             {
-                var content = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+                var content = File.Exists(path)
+                    ? await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false)
+                    : await TryReadEmbeddedKnowledgeAsync(relativePath, cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(content))
                     continue;
 
-                var relative = Path.GetRelativePath(root, path).Replace('\\', '/');
+                var relative = relativePath.Replace('\\', '/');
+                var sourceBackedByFile = File.Exists(path);
                 var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
                 entries.Add(new CouncilKnowledgeEntry
                 {
                     Id = CreateDeterministicGuid(relative),
-                    Topic = Path.GetFileNameWithoutExtension(path).Replace('_', ' '),
+                    Topic = Path.GetFileNameWithoutExtension(relative).Replace('_', ' '),
                     Scope = "Repository Reference",
                     Content = content,
-                    Source = $"repository:{relative}",
+                    Source = sourceBackedByFile ? $"repository:{relative}" : $"embedded:{relative}",
                     HelpfulSources = relative,
                     Tags = "repository;reference;human-reviewed;source-backed",
                     Confidence = 100,
@@ -250,7 +256,7 @@ public sealed class InitialDataCatalog(
                     ReviewStatus = "Current",
                     LastVerifiedAtUtc = DateTime.UtcNow,
                     SourceHash = hash,
-                    SourceDateUtc = File.GetLastWriteTimeUtc(path),
+                    SourceDateUtc = sourceBackedByFile ? File.GetLastWriteTimeUtc(path) : DateTime.UnixEpoch,
                     IsUserApproved = true,
                     IsPinned = true
                 });
@@ -261,7 +267,75 @@ public sealed class InitialDataCatalog(
             }
         }
 
+        try
+        {
+            var runtimePathKnowledge = applicationPaths.BuildKnowledgeSummary();
+            var runtimePathHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(runtimePathKnowledge)));
+            entries.Add(new CouncilKnowledgeEntry
+            {
+                Id = CreateDeterministicGuid("runtime/application-path-layout"),
+                Topic = "runtime application path layout",
+                Scope = "Runtime Environment",
+                Content = runtimePathKnowledge,
+                Source = "runtime:application-path-layout",
+                HelpfulSources = applicationPaths.GetLayout().LayoutReportFile,
+                Tags = "runtime;paths;installation;configuration;first-boot;cross-platform",
+                Confidence = 100,
+                VerificationStatus = "RuntimeDetected",
+                ReviewStatus = "Current",
+                LastVerifiedAtUtc = DateTime.UtcNow,
+                SourceHash = runtimePathHash,
+                SourceDateUtc = DateTime.UtcNow,
+                IsUserApproved = true,
+                IsPinned = true
+            });
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not add the detected LocalGPT runtime path layout to initial knowledge.");
+        }
+
         return entries;
+    }
+
+    /// <summary>Reads critical setup knowledge embedded into the assembly when a publish layout cannot expose the corresponding file.</summary>
+    /// <param name="relativePath">Repository-relative knowledge path.</param>
+    /// <param name="cancellationToken">Cancellation token for the bounded read.</param>
+    /// <returns>Embedded article text, or <see langword="null"/> when the path is not an embedded fallback.</returns>
+    private async Task<string?> TryReadEmbeddedKnowledgeAsync(string relativePath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var resourceName = relativePath.Replace('\\', '/').ToLowerInvariant() switch
+            {
+                "docs/reference/ai-provider-installation.md" => "LocalGPT.Knowledge.ai-provider-installation.md",
+                "docs/reference/toolchain-discovery.md" => "LocalGPT.Knowledge.toolchain-discovery.md",
+                "docs/reference/runtime-path-layout.md" => "LocalGPT.Knowledge.runtime-path-layout.md",
+                _ => string.Empty
+            };
+            if (string.IsNullOrWhiteSpace(resourceName))
+                return null;
+
+            using var stream = typeof(InitialDataCatalog).Assembly.GetManifestResourceStream(resourceName);
+            if (stream is null)
+            {
+                logger.LogWarning("Embedded fallback knowledge resource {ResourceName} is unavailable.", resourceName);
+                return null;
+            }
+
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not read embedded fallback knowledge for {RelativePath}.", relativePath);
+            return null;
+        }
     }
 
     /// <summary>

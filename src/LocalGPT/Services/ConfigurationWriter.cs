@@ -21,11 +21,9 @@ namespace LocalGPT.Services
         {
             try
             {
-                var directory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "LocalGPT");
+                var directory = LocalGptApplicationDataPaths.ResolveUserRoot();
                 Directory.CreateDirectory(directory);
-                var file = Path.Combine(directory, "appsettings.user.json");
+                var file = LocalGptApplicationDataPaths.ResolveUserPath("appsettings.user.json");
                 var serializerOptions = new JsonSerializerOptions { WriteIndented = true };
                 JsonObject settings;
 

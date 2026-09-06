@@ -224,7 +224,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             var path = selected?.RootPath;
             if (string.IsNullOrWhiteSpace(path))
             {
-                path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalGPT", "Workspaces");
+                path = LocalGptApplicationDataPaths.ResolveUserPath("Workspaces");
                 reason = "Per-user LocalGPT fallback";
             }
 

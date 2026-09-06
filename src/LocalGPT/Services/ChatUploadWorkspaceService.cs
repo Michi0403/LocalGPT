@@ -27,10 +27,7 @@ namespace LocalGPT.Services
         /// Gets the workspace root value that forms part of the chat upload workspace state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The workspace root value exposed by <see cref="ChatUploadWorkspaceService"/>.</value>
-        public string WorkspaceRoot { get; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "LocalGPT",
-            "ChatUploadWorkspaces");
+        public string WorkspaceRoot { get; } = LocalGptApplicationDataPaths.ResolveUserPath("ChatUploadWorkspaces");
 
         /// <summary>
         /// Creates workspace as part of the chat upload workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.

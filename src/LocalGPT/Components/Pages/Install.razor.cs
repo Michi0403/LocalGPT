@@ -43,6 +43,8 @@ namespace LocalGPT.Components.Pages
     /// </summary>
     /// <value>The active install section value exposed by <see cref="Install"/>.</value>
     private string ActiveInstallSection { get; set; } = "providers";
+    /// <summary>Gets the detected per-user/runtime path layout shown on the setup page.</summary>
+    private LocalGptApplicationPathLayout? ApplicationPathLayout { get; set; }
     /// <summary>
     /// Stores the internal install section user selected state used by <see cref="Install"/> while executing its surrounding workflow.
     /// </summary>
@@ -318,6 +320,7 @@ namespace LocalGPT.Components.Pages
         ApplyRequestedInstallSection();
         try
         {
+            ApplicationPathLayout = ApplicationPaths.GetLayout();
             var current = Opts.CurrentValue.AICore ?? new AICoreOptions();
             // Provider settings are edited transactionally. Never alias IOptionsMonitor.CurrentValue into the UI;
             // otherwise typing a new endpoint mutates the live registry before Save and can replace another host.

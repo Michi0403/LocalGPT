@@ -48,11 +48,7 @@ public sealed class CouncilSpoolerService : ICouncilSpoolerService, IDisposable
     /// Gets the checkpoint path used by this council spooler instance to locate the associated file-system resource.
     /// </summary>
     /// <value>The checkpoint path value exposed by <see cref="CouncilSpoolerService"/>.</value>
-    private string CheckpointPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "LocalGPT",
-        "CouncilSpooler",
-        "recent-runs.json");
+    private string CheckpointPath { get; } = LocalGptApplicationDataPaths.ResolveUserPath("CouncilSpooler", "recent-runs.json");
 
     /// <summary>
     /// Initializes a new <see cref="CouncilSpoolerService"/> instance and captures the dependencies or initial state required by its council spooler workflow.

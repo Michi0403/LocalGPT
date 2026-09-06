@@ -31,6 +31,7 @@ using Microsoft.Extensions.Logging;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.ServiceModel.Channels;
 using System.Text;
 using System.Text.Json;
@@ -111,15 +112,28 @@ namespace LocalGPT
                     builder.Services.AddSingleton<IHardwarePlatformProbeService, UnixHardwarePlatformProbeService>();
                     builder.Services.AddSingleton<IRuntimeSecretFileProtectionService, UnixRuntimeSecretFileProtectionService>();
                 }
+                builder.Services.AddSingleton<ILocalGptApplicationPathService, LocalGptApplicationPathService>();
 
                 if (OperatingSystem.IsWindows())
+                {
                     builder.Services.AddSingleton<IOllamaPlatformService, WindowsOllamaPlatformService>();
+                    builder.Services.AddSingleton<ILmStudioPlatformService, WindowsLmStudioPlatformService>();
+                }
                 else if (OperatingSystem.IsMacOS())
+                {
                     builder.Services.AddSingleton<IOllamaPlatformService, MacOsOllamaPlatformService>();
+                    builder.Services.AddSingleton<ILmStudioPlatformService, MacOsLmStudioPlatformService>();
+                }
                 else if (OperatingSystem.IsLinux())
+                {
                     builder.Services.AddSingleton<IOllamaPlatformService, LinuxOllamaPlatformService>();
+                    builder.Services.AddSingleton<ILmStudioPlatformService, LinuxLmStudioPlatformService>();
+                }
                 else
+                {
                     builder.Services.AddSingleton<IOllamaPlatformService, GenericOllamaPlatformService>();
+                    builder.Services.AddSingleton<ILmStudioPlatformService, GenericLmStudioPlatformService>();
+                }
                 builder.Services.AddSingleton<IOllamaProcessService, OllamaProcessService>();
                 builder.Services.AddSingleton<IAiFeatureReportService, AiFeatureReportService>();
                 builder.Services.AddSingleton<IArtifactBuildExecutor, ArtifactBuildExecutor>();
@@ -148,10 +162,7 @@ namespace LocalGPT
 
                 var configuredDatabasePath = builder.Configuration[$"{LocalGptDatabaseOptions.SectionName}:Path"];
                 var memoryDbPath = string.IsNullOrWhiteSpace(configuredDatabasePath)
-                    ? Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        "LocalGPT",
-                        "localgpt-memory.db")
+                    ? LocalGptApplicationDataPaths.ResolveUserPath("localgpt-memory.db")
                     : Path.IsPathRooted(configuredDatabasePath)
                         ? configuredDatabasePath
                         : Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, configuredDatabasePath));
@@ -172,7 +183,7 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IInitialDataCatalog, InitialDataCatalog>();
                 builder.Services.AddSingleton<IDatabaseMigrationCompatibilityService, DatabaseMigrationCompatibilityService>();
                 builder.Services.AddSingleton<IDatabaseInitializationService, DatabaseInitializationService>();
-                builder.Services.AddHostedService<DatabaseInitializationHostedService>();
+                builder.Services.AddSingleton<DatabaseInitializationHostedService>();
                 builder.Services.AddSingleton<IDxAiFunctionJsonService, DxAiFunctionJsonService>();
                 builder.Services.AddScoped<IDxAiFunctionCallRecoveryService, DxAiFunctionCallRecoveryService>();
                 builder.Services.AddSingleton<ILocalPathExplorerService, LocalPathExplorerService>();
@@ -235,7 +246,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IRemoteControlConnectorService, RemoteControlConnectorService>();
                 builder.Services.AddHttpClient("LocalGPTRemoteControl")
                     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-                builder.Services.AddHostedService<RemoteControlPollingHostedService>();
+                builder.Services.AddSingleton<RemoteControlPollingHostedService>();
                 builder.Services.AddSingleton<RemoteImportDxParameterReader>();
                 builder.Services.AddScoped<IEngineeringBenchmarkService, EngineeringBenchmarkService>();
                 builder.Services.AddScoped<IAiContextBootstrapService, AiContextBootstrapService>();
@@ -243,7 +254,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<ICouncilCodeGenerationPlanService, CouncilCodeGenerationPlanService>();
                 builder.Services.AddSingleton<ICouncilSpoolerService, LocalGPT.Services.Council.CouncilSpoolerService>();
                 builder.Services.AddScoped<IRuntimeCapabilityDirectoryService, LocalGPT.Services.Council.RuntimeCapabilityDirectoryService>();
-                builder.Services.AddHostedService<LocalGPT.Services.Council.RuntimeCapabilityDirectoryHostedService>();
+                builder.Services.AddSingleton<LocalGPT.Services.Council.RuntimeCapabilityDirectoryHostedService>();
                 builder.Services.AddScoped<ICouncilPreflightService, LocalGPT.Services.Council.CouncilPreflightService>();
                 builder.Services.AddScoped<IDebugArtifactInspectionService, DebugArtifactInspectionService>();
                 builder.Services.AddSingleton<IUserDxAiFunctionService, UserDxAiFunctionService>();
@@ -254,7 +265,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IDxAiFunctionCatalogService, DxAiFunctionCatalogService>();
                 builder.Services.AddScoped<ICouncilDxFunctionOrchestrator, CouncilDxFunctionOrchestrator>();
                 builder.Services.AddScoped<IPublicServiceMethodInvoker, PublicServiceMethodInvoker>();
-                builder.Services.AddHostedService<DxAiFunctionCatalogHostedService>();
+                builder.Services.AddSingleton<DxAiFunctionCatalogHostedService>();
                 builder.Services.AddScoped<IChatSessionContext, ChatSessionContext>();
                 builder.Services.AddScoped<IDxAiFunctionServiceClient, DxAiFunctionServiceClient>();
 
@@ -297,10 +308,11 @@ namespace LocalGPT
                     provider.GetRequiredService<IOneWireCapabilityCatalog>());
                 builder.Services.AddSingleton<IOneWireOperationExecutor, OneWireOperationExecutor>();
                 builder.Services.AddSingleton<IOneWireMessageDispatcher, OneWireMessageDispatcher>();
-                builder.Services.AddHostedService<OneWireTcpHostedService>();
-                builder.Services.AddHostedService<OneWireDiscoveryHostedService>();
-                builder.Services.AddHostedService<OneWireCouncilApprovalProcessorHostedService>();
-                builder.Services.AddHostedService<OneWireWorkProcessorHostedService>();
+                builder.Services.AddSingleton<OneWireTcpHostedService>();
+                builder.Services.AddSingleton<OneWireDiscoveryHostedService>();
+                builder.Services.AddSingleton<OneWireCouncilApprovalProcessorHostedService>();
+                builder.Services.AddSingleton<OneWireWorkProcessorHostedService>();
+                builder.Services.AddHostedService<LocalGptPostListenHostedServiceCoordinator>();
                 builder.Services.AddSingleton<IOrganicAddonManifestService, OrganicAddonManifestService>();
                 builder.Services.AddScoped<IOrganicSkillRegistryService, OrganicSkillRegistryService>();
                 builder.Services.AddScoped<IModelCapabilitySelfAssessmentService, LocalGPT.Services.Council.Skills.ModelCapabilitySelfAssessmentService>();
@@ -379,4 +391,124 @@ namespace LocalGPT
         }
 
     }
+
+    /// <summary>
+    /// Resolves LocalGPT application-data roots without leaking operating-system policy into application services.
+    /// Per-user writable storage is always the default; portable and system-wide roots are discovery-only candidates.
+    /// </summary>
+    internal static class LocalGptApplicationDataPaths
+    {
+        public const string ProductName = "LocalGPT";
+    
+        /// <summary>Resolves the host's per-user local application-data base with durable fallbacks.</summary>
+        public static string ResolveUserDataBase()
+        {
+            var userProfile = Environment.GetFolderPath(
+                Environment.SpecialFolder.UserProfile,
+                Environment.SpecialFolderOption.DoNotVerify);
+    
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var windowsLocal = Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData,
+                    Environment.SpecialFolderOption.DoNotVerify);
+                if (!string.IsNullOrWhiteSpace(windowsLocal))
+                    return Path.GetFullPath(windowsLocal);
+                if (!string.IsNullOrWhiteSpace(userProfile))
+                    return Path.GetFullPath(Path.Combine(userProfile, "AppData", "Local"));
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var macLocal = Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData,
+                    Environment.SpecialFolderOption.DoNotVerify);
+                if (!string.IsNullOrWhiteSpace(macLocal))
+                    return Path.GetFullPath(macLocal);
+                if (!string.IsNullOrWhiteSpace(userProfile))
+                    return Path.GetFullPath(Path.Combine(userProfile, "Library", "Application Support"));
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+                if (!string.IsNullOrWhiteSpace(xdgDataHome))
+                    return Path.GetFullPath(xdgDataHome);
+    
+                var linuxLocal = Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData,
+                    Environment.SpecialFolderOption.DoNotVerify);
+                if (!string.IsNullOrWhiteSpace(linuxLocal))
+                    return Path.GetFullPath(linuxLocal);
+                if (!string.IsNullOrWhiteSpace(userProfile))
+                    return Path.GetFullPath(Path.Combine(userProfile, ".local", "share"));
+            }
+    
+            var configured = Environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData,
+                Environment.SpecialFolderOption.DoNotVerify);
+            if (!string.IsNullOrWhiteSpace(configured))
+                return Path.GetFullPath(configured);
+    
+            var applicationData = Environment.GetFolderPath(
+                Environment.SpecialFolder.ApplicationData,
+                Environment.SpecialFolderOption.DoNotVerify);
+            if (!string.IsNullOrWhiteSpace(applicationData))
+                return Path.GetFullPath(applicationData);
+            if (!string.IsNullOrWhiteSpace(userProfile))
+                return Path.GetFullPath(Path.Combine(userProfile, ".local", "share"));
+    
+            throw new InvalidOperationException("LocalGPT could not resolve a durable per-user application-data directory.");
+        }
+    
+        /// <summary>Gets the canonical per-user LocalGPT root.</summary>
+        public static string ResolveUserRoot() => Path.Combine(ResolveUserDataBase(), ProductName);
+    
+        /// <summary>Gets a child path under the canonical per-user LocalGPT root.</summary>
+        public static string ResolveUserPath(params string[] segments)
+        {
+            var parts = new string[segments.Length + 1];
+            parts[0] = ResolveUserRoot();
+            Array.Copy(segments, 0, parts, 1, segments.Length);
+            return Path.Combine(parts);
+        }
+    
+        /// <summary>Returns read/discovery-only system-wide LocalGPT roots for the current host.</summary>
+        public static IReadOnlyList<string> EnumerateSystemWideRoots()
+        {
+            var candidates = new List<string>();
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                AddFolderCandidate(candidates, Environment.SpecialFolder.CommonApplicationData);
+                AddFolderCandidate(candidates, Environment.SpecialFolder.ProgramFiles);
+                AddFolderCandidate(candidates, Environment.SpecialFolder.ProgramFilesX86);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                candidates.Add("/Library/Application Support/LocalGPT");
+                candidates.Add("/Applications/LocalGPT.app/Contents/Resources");
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                candidates.Add("/var/lib/LocalGPT");
+                candidates.Add("/usr/local/share/LocalGPT");
+                candidates.Add("/usr/share/LocalGPT");
+                candidates.Add("/opt/LocalGPT");
+            }
+    
+            return candidates
+                .Select(Path.GetFullPath)
+                .Distinct(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+                .ToArray();
+        }
+    
+        /// <summary>Gets the application directory as a portable/read-only discovery root, not a mutable-data default.</summary>
+        public static string ResolvePortableRoot() => Path.GetFullPath(AppContext.BaseDirectory);
+    
+        private static void AddFolderCandidate(ICollection<string> candidates, Environment.SpecialFolder folder)
+        {
+            var value = Environment.GetFolderPath(folder, Environment.SpecialFolderOption.DoNotVerify);
+            if (!string.IsNullOrWhiteSpace(value))
+                candidates.Add(Path.Combine(value, ProductName));
+        }
+    }
+
 }

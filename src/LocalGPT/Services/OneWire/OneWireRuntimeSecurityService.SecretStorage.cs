@@ -115,10 +115,7 @@ public sealed partial class OneWireRuntimeSecurityService
                 return resolvedPath = portable;
             }
 
-            var preferred = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "LocalGPT",
-                "Security",
+            var preferred = LocalGptApplicationDataPaths.ResolveUserPath("Security",
                 "onewire-secret.json");
             if (CanWriteDirectory(Path.GetDirectoryName(preferred)!))
                 return resolvedPath = preferred;

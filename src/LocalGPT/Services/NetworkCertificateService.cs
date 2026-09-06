@@ -18,7 +18,7 @@ public sealed class NetworkCertificateService(ILogger<NetworkCertificateService>
     {
         try
         {
-            var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalGPT", "certificates");
+            var directory = LocalGptApplicationDataPaths.ResolveUserPath("certificates");
             var sans = new List<string> { Environment.MachineName, "localhost", "127.0.0.1" };
             try
             {

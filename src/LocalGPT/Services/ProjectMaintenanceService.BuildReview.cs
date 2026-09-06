@@ -74,7 +74,7 @@ namespace LocalGPT.Services
                     : DefaultBuildArguments(compiler.Language, target, request.Configuration);
             var executionEnvironmentJson = MergeEnvironmentJson(compiler.EnvironmentVariablesJson, workspace?.EnvironmentVariablesJson);
             var timeout = Math.Clamp(request.TimeoutSeconds, 10, 7200);
-            var outputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalGPT", "BuildVerifications", projectId.ToString("N"));
+            var outputDirectory = LocalGptApplicationDataPaths.ResolveUserPath("BuildVerifications", projectId.ToString("N"));
             Directory.CreateDirectory(outputDirectory);
             var verification = new ProjectBuildVerification
             {

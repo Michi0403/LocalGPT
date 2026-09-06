@@ -57,6 +57,7 @@ if (-not (Test-Path -LiteralPath $wslCommonScript -PathType Leaf)) { throw "WSL 
 & (Join-Path $root 'build/Assert-PowerShellCompatibility.ps1')
 & (Join-Path $root 'build/Initialize-BuildPrerequisites.ps1') -AllowMissingDevExpressLicense:$AllowMissingDevExpressLicense -SkipDocumentationNodeProvisioning:($WslChildBuild -and -not [string]::IsNullOrWhiteSpace($PreparedDocumentationRoot))
 & (Join-Path $root 'build/Assert-CrossPlatformBoundaries.ps1')
+& (Join-Path $root 'build/Assert-OperationalDiagnostics.ps1')
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
 & (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')
@@ -248,6 +249,9 @@ function Prepare-LocalGptDocumentation {
 
     if (-not (Test-Path -LiteralPath $documentationAssembly -PathType Leaf)) { throw "Documentation assembly not found: $documentationAssembly" }
     if (-not (Test-Path -LiteralPath $documentationXml -PathType Leaf)) { throw "Documentation XML not found: $documentationXml" }
+
+    Write-Host "Running fail-fast LocalGPT HTTP startup smoke test before documentation generation..." -ForegroundColor Cyan
+    & (Join-Path $root 'build/Test-LocalGptStartupHealth.ps1') -AssemblyPath $documentationAssembly -TimeoutSeconds 45
 
     Write-Host "Generating the complete LocalGPT documentation once for all runtime packages..." -ForegroundColor Cyan
     & $documentationScript `

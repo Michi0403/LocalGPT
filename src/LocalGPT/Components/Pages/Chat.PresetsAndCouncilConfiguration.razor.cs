@@ -307,11 +307,13 @@ namespace LocalGPT.Components.Pages
                     {
                         ApplyPreparationConfiguration(preparation);
                     }
-                    else
+                    else if (SelectedModelPreset is null && DiagnosticCouncilModelNames.Count == 0)
                     {
-                        var defaultPreset = loadedPresets.FirstOrDefault(item => item.IsDefault);
-                        if (SelectedModelPreset is null && defaultPreset is not null && DiagnosticCouncilModelNames.Count == 0)
-                            ApplyModelPreset(defaultPreset);
+                        // Presets are templates, not proof that a provider/model is reachable.
+                        // Keep the initial chat configuration empty until discovery, saved user state, or an explicit preset selection provides a real model choice.
+                        modelStatus = loadedPresets.Count == 0
+                            ? "No model presets are available yet."
+                            : "Model presets are available; select one explicitly after connecting a provider, or refresh provider models.";
                     }
                 }
             }).ConfigureAwait(false);

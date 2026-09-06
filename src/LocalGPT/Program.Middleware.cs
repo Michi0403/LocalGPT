@@ -137,10 +137,7 @@ namespace LocalGPT
         {
             try
             {
-                var directory = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "LocalGPT",
-                    "runtime");
+                var directory = LocalGptApplicationDataPaths.ResolveUserPath("runtime");
                 Directory.CreateDirectory(directory);
 
                 var payload = new
@@ -174,11 +171,7 @@ namespace LocalGPT
         {
             try
             {
-                var path = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "LocalGPT",
-                    "runtime",
-                    "server.json");
+                var path = LocalGptApplicationDataPaths.ResolveUserPath("runtime", "server.json");
                 if (!File.Exists(path))
                     return;
 

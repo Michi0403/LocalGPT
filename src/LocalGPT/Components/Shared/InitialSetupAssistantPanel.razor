@@ -115,6 +115,7 @@
                         <strong>@SelectedProvider.DisplayName</strong>
                         <code>@SelectedProvider.Endpoint</code>
                         <a href="@SelectedProvider.SourceUrl" target="_blank" rel="noopener noreferrer">Provider installation source</a>
+                        <small>If a guided install/start action is unavailable for this host, open the vendor source, complete the vendor setup, then use Detect again. LocalGPT keeps manual and guided paths equivalent.</small>
                     </div>
                     <div class="initial-setup-actions">
                         <button type="button" class="localgpt-native-button" disabled="@busy" @onclick="DetectProviderAsync">Detect</button>

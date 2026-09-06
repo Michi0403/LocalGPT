@@ -536,9 +536,10 @@ function Save-MacNotaryStateObject([string]$ArtifactPath,[object]$State) {
 }
 function New-MacNotaryPendingState([string]$ArtifactPath,[string[]]$BaselineSubmissionIds,[DateTime]$SubmitStartedAtUtc) {
     $state = [ordered]@{
-        schema = 2
+        schema = 3
         artifactName = [IO.Path]::GetFileName($ArtifactPath)
         artifactSha256 = (Get-FileHash -LiteralPath $ArtifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        finalArtifactSha256 = ''
         phase = 'submit-pending'
         submissionId = ''
         submitStartedAtUtc = $SubmitStartedAtUtc.ToUniversalTime().ToString('O')
@@ -553,9 +554,10 @@ function New-MacNotaryPendingState([string]$ArtifactPath,[string[]]$BaselineSubm
 function Save-MacNotarySubmittedState([string]$ArtifactPath,[object]$ExistingState,[string]$SubmissionId,[string]$SubmittedAtUtc) {
     $state = if ($null -eq $ExistingState) {
         [ordered]@{
-            schema = 2
+            schema = 3
             artifactName = [IO.Path]::GetFileName($ArtifactPath)
             artifactSha256 = (Get-FileHash -LiteralPath $ArtifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            finalArtifactSha256 = ''
             phase = 'submitted'
             submissionId = $SubmissionId
             submitStartedAtUtc = [DateTime]::UtcNow.ToString('O')
@@ -566,9 +568,10 @@ function Save-MacNotarySubmittedState([string]$ArtifactPath,[object]$ExistingSta
         }
     } else {
         [ordered]@{
-            schema = 2
+            schema = 3
             artifactName = (Get-MacNotaryObjectPropertyText -InputObject $ExistingState -PropertyName 'artifactName')
             artifactSha256 = (Get-MacNotaryObjectPropertyText -InputObject $ExistingState -PropertyName 'artifactSha256')
+            finalArtifactSha256 = (Get-MacNotaryObjectPropertyText -InputObject $ExistingState -PropertyName 'finalArtifactSha256')
             phase = 'submitted'
             submissionId = $SubmissionId
             submitStartedAtUtc = (Get-MacNotaryObjectPropertyText -InputObject $ExistingState -PropertyName 'submitStartedAtUtc')
@@ -592,6 +595,9 @@ function Set-MacNotaryStatePhase([string]$ArtifactPath,[object]$State,[ValidateS
     }
     elseif ($Phase -eq 'complete') {
         Set-MacNotaryObjectPropertyValue -InputObject $State -PropertyName 'completedAtUtc' -Value ([DateTime]::UtcNow.ToString('O'))
+        if (Test-Path -LiteralPath $ArtifactPath -PathType Leaf) {
+            Set-MacNotaryObjectPropertyValue -InputObject $State -PropertyName 'finalArtifactSha256' -Value ((Get-FileHash -LiteralPath $ArtifactPath -Algorithm SHA256).Hash.ToLowerInvariant())
+        }
     }
     Save-MacNotaryStateObject -ArtifactPath $ArtifactPath -State $State | Out-Null
     return $State
@@ -617,8 +623,11 @@ function Get-MacNotaryState([string]$ArtifactPath) {
         return $null
     }
     $currentHash = (Get-FileHash -LiteralPath $ArtifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    if (-not [string]::Equals($currentHash, $stateArtifactSha256, [StringComparison]::OrdinalIgnoreCase)) {
-        Write-Host "Discarding stale notarization state for $([IO.Path]::GetFileName($ArtifactPath)) because the artifact bytes changed." -ForegroundColor DarkCyan
+    $stateFinalArtifactSha256 = Get-MacNotaryObjectPropertyText -InputObject $state -PropertyName 'finalArtifactSha256'
+    $matchesSubmittedBytes = [string]::Equals($currentHash, $stateArtifactSha256, [StringComparison]::OrdinalIgnoreCase)
+    $matchesFinalBytes = -not [string]::IsNullOrWhiteSpace($stateFinalArtifactSha256) -and [string]::Equals($currentHash, $stateFinalArtifactSha256, [StringComparison]::OrdinalIgnoreCase)
+    if (-not $matchesSubmittedBytes -and -not $matchesFinalBytes) {
+        Write-Host "Discarding stale notarization state for $([IO.Path]::GetFileName($ArtifactPath)) because the artifact bytes changed outside the recorded submitted/stapled hashes." -ForegroundColor DarkCyan
         Remove-Item -LiteralPath $statePath -Force -ErrorAction SilentlyContinue
         return $null
     }
@@ -914,13 +923,15 @@ function Complete-MacDistributionArtifact([string]$ArtifactPath,[ValidateSet('dm
     $xcrun = Get-ExternalCommandPath 'xcrun'
     if (-not $xcrun) { throw 'xcrun is required for Apple notarization.' }
     $submissionId = Ensure-MacNotarySubmissionAccepted -ArtifactPath $ArtifactPath
+    # Stapling intentionally mutates the DMG/PKG bytes. Keep the pre-staple state object in memory
+    # so completion can record the final stapled hash without misclassifying that expected mutation as stale state.
+    $stateBeforeStaple = Get-MacNotaryState $ArtifactPath
     & $xcrun stapler staple $ArtifactPath 2>&1 | ForEach-Object { Write-Host $_ }
     if ($LASTEXITCODE -ne 0) { throw "Apple notarization ticket stapling failed for $ArtifactPath" }
     if (-not (Complete-MacArtifactLocalValidation -ArtifactPath $ArtifactPath -Kind $Kind)) {
         throw "macOS $Kind validation failed after notarization/stapling: $ArtifactPath"
     }
-    $state = Get-MacNotaryState $ArtifactPath
-    if ($null -ne $state) { Set-MacNotaryStatePhase -ArtifactPath $ArtifactPath -State $state -Phase complete | Out-Null }
+    if ($null -ne $stateBeforeStaple) { Set-MacNotaryStatePhase -ArtifactPath $ArtifactPath -State $stateBeforeStaple -Phase complete | Out-Null }
 
     $spctl = Get-ExternalCommandPath 'spctl'
     if ($Kind -eq 'pkg') {

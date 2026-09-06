@@ -36,10 +36,7 @@ public sealed partial class ProviderModelBenchmarkService
     /// Gets the benchmark evidence root value that forms part of the provider model benchmark state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The benchmark evidence root value exposed by <see cref="ProviderModelBenchmarkService"/>.</value>
-    private string BenchmarkEvidenceRoot => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "LocalGPT",
-        "BenchmarkEvidence");
+    private string BenchmarkEvidenceRoot => LocalGptApplicationDataPaths.ResolveUserPath("BenchmarkEvidence");
 
     /// <summary>
     /// Retrieves stored evidence as part of the provider model benchmark service workflow, applying the service's runtime policy, state management, and diagnostics as required.

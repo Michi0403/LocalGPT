@@ -784,10 +784,7 @@ namespace LocalGPT.Services
         {
             try
             {
-                var path = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "LocalGPT",
-                    "runtime",
+                var path = LocalGptApplicationDataPaths.ResolveUserPath("runtime",
                     "server.json");
                 if (!File.Exists(path))
                     return string.Empty;

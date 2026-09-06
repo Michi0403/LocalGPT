@@ -65,7 +65,7 @@ namespace LocalGPT.BusinessObjects
         /// Gets or sets the model name value that forms part of the ChatGPT local core state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The model name value exposed by <see cref="ChatGPTLocalCoreOptions"/>.</value>
-        public string ModelName { get; set; } = "gpt-oss:20b";
+        public string ModelName { get; set; } = string.Empty;
         /// <summary>
         /// Gets or sets a value indicating whether auto start server applies to the ChatGPT local core state.
         /// </summary>
@@ -168,7 +168,7 @@ namespace LocalGPT.BusinessObjects
         /// Gets or sets the model name value that forms part of the Ollama core state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The model name value exposed by <see cref="OllamaCoreOptions"/>.</value>
-        public string ModelName { get; set; } = "gpt-oss:20b";
+        public string ModelName { get; set; } = string.Empty;
         /// <summary>
         /// Gets or sets the response protocol value that forms part of the Ollama core state consumed or produced by the surrounding workflow.
         /// </summary>

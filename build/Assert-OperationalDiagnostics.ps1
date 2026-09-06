@@ -162,9 +162,47 @@ Require-TextAcrossFiles $programDiagnosticsFiles @(
     'AddScoped<ControllerRequestLoggingFilter>',
     'Filters\.AddService<ControllerRequestLoggingFilter>',
     'AddScoped<INotificationService',
-    'AddHostedService<DatabaseInitializationHostedService>',
+    'AddSingleton<DatabaseInitializationHostedService>',
+    'AddHostedService<LocalGptPostListenHostedServiceCoordinator>',
     'AddSingleton<CircuitHandler, LocalGptCircuitDiagnosticsHandler>'
-) 'Controller, notifier, and startup diagnostics registration'
+) 'Controller, notifier, and post-listen startup diagnostics registration'
+
+Require-Text 'src/LocalGPT\Services\LocalGptPostListenHostedServiceCoordinator.cs' @(
+    'IHostApplicationLifetime',
+    'ApplicationStarted',
+    'services\.GetRequiredService<DatabaseInitializationHostedService>\(\)',
+    'services\.GetRequiredService<RemoteControlPollingHostedService>\(\)',
+    'services\.GetRequiredService<RuntimeCapabilityDirectoryHostedService>\(\)',
+    'services\.GetRequiredService<DxAiFunctionCatalogHostedService>\(\)',
+    'services\.GetRequiredService<OneWireTcpHostedService>\(\)',
+    'services\.GetRequiredService<OneWireDiscoveryHostedService>\(\)',
+    'services\.GetRequiredService<OneWireCouncilApprovalProcessorHostedService>\(\)',
+    'services\.GetRequiredService<OneWireWorkProcessorHostedService>\(\)',
+    'await\s+worker\.StartAsync\(stoppingToken\)\.ConfigureAwait\(false\)'
+) 'Post-listen worker lifecycle diagnostics'
+
+$serviceRegistrationPath = Join-Path $root 'src/LocalGPT/Program.ServiceRegistration.cs'
+if (Test-Path -LiteralPath $serviceRegistrationPath) {
+    $serviceRegistration = Get-Content -LiteralPath $serviceRegistrationPath -Raw
+    $startupBlockingRegistrations = @(
+        'DatabaseInitializationHostedService',
+        'RemoteControlPollingHostedService',
+        'RuntimeCapabilityDirectoryHostedService',
+        'DxAiFunctionCatalogHostedService',
+        'OneWireTcpHostedService',
+        'OneWireDiscoveryHostedService',
+        'OneWireCouncilApprovalProcessorHostedService',
+        'OneWireWorkProcessorHostedService'
+    )
+    foreach ($workerType in $startupBlockingRegistrations) {
+        if ($serviceRegistration -match ('AddHostedService<' + [regex]::Escape($workerType) + '>')) {
+            $failures.Add("Worker '$workerType' must remain behind LocalGptPostListenHostedServiceCoordinator instead of participating directly in host startup.")
+        }
+        if ($serviceRegistration -notmatch ('AddSingleton<' + [regex]::Escape($workerType) + '>')) {
+            $failures.Add("Post-listen worker '$workerType' must remain registered as a concrete singleton for coordinator resolution.")
+        }
+    }
+}
 Require-Text 'src/LocalGPT\Diagnostics\ControllerRequestLoggingFilter.cs' @(
     'IAsyncActionFilter',
     'ILogger<ControllerRequestLoggingFilter>',
@@ -180,9 +218,9 @@ Require-Text 'src/LocalGPT\Services\Persistence\DatabaseInitializationService.cs
 ) 'Automatic migration diagnostics'
 
 if ($failures.Count -gt 0) {
-    Write-Host 'Operational diagnostics validation failed:' -ForegroundColor Red
-    foreach ($failure in $failures) { Write-Host "  - $failure" -ForegroundColor Red }
+    Write-Output 'Operational diagnostics validation failed:'
+    foreach ($failure in $failures) { Write-Output "  - $failure" }
     throw "Operational diagnostics validation failed with $($failures.Count) problem(s)."
 }
 
-Write-Host 'Operational diagnostics validation passed for the reviewed InteractiveServer islands, Chat diagnostics, controllers, and automatic migration startup.' -ForegroundColor Green
+Write-Output 'Operational diagnostics validation passed for the reviewed InteractiveServer islands, Chat diagnostics, controllers, and post-listen application-worker startup.'

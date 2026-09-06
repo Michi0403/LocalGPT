@@ -99,7 +99,7 @@ Source/credit: [LM Studio documentation](https://lmstudio.ai/docs/developer/core
   "installCommand": "irm https://lmstudio.ai/install.ps1 | iex",
   "startCommand": "lms daemon up; lms server start",
   "listModelsCommand": "lms ls",
-  "installModelCommandTemplate": "lms get {{model}}",
+  "installModelCommandTemplate": "lms get {{model}}; if ($LASTEXITCODE -eq 0) { lms load {{model}} }",
   "modelAliases": {}
 }
 ```
@@ -121,7 +121,7 @@ Source/credit: [LM Studio documentation](https://lmstudio.ai/docs/developer/core
   "installCommand": "curl -fsSL https://lmstudio.ai/install.sh | bash",
   "startCommand": "lms daemon up && lms server start",
   "listModelsCommand": "lms ls",
-  "installModelCommandTemplate": "lms get {{model}}",
+  "installModelCommandTemplate": "lms get {{model}} && lms load {{model}}",
   "modelAliases": {}
 }
 ```
@@ -143,7 +143,7 @@ Source/credit: [LM Studio documentation](https://lmstudio.ai/docs/developer/core
   "installCommand": "curl -fsSL https://lmstudio.ai/install.sh | bash",
   "startCommand": "lms daemon up && lms server start",
   "listModelsCommand": "lms ls",
-  "installModelCommandTemplate": "lms get {{model}}",
+  "installModelCommandTemplate": "lms get {{model}} && lms load {{model}}",
   "modelAliases": {}
 }
 ```

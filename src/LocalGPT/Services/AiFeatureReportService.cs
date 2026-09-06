@@ -19,10 +19,7 @@ namespace LocalGPT.Services
         /// Gets the report root value that forms part of the AI feature report state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The report root value exposed by <see cref="AiFeatureReportService"/>.</value>
-        public string ReportRoot { get; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "LocalGPT",
-            "AIReports");
+        public string ReportRoot { get; } = LocalGptApplicationDataPaths.ResolveUserPath("AIReports");
 
         /// <summary>
         /// Writes if missing feature report as part of the AI feature report service workflow, applying the service's runtime policy, state management, and diagnostics as required.

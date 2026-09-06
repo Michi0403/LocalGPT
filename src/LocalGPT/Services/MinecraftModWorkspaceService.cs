@@ -26,10 +26,7 @@ namespace LocalGPT.Services
         /// Gets the workspace root value that forms part of the minecraft mod workspace state consumed or produced by the surrounding workflow.
         /// </summary>
         /// <value>The workspace root value exposed by <see cref="MinecraftModWorkspaceService"/>.</value>
-        public string WorkspaceRoot { get; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "LocalGPT",
-            "MinecraftModWorkspaces");
+        public string WorkspaceRoot { get; } = LocalGptApplicationDataPaths.ResolveUserPath("MinecraftModWorkspaces");
 
         /// <summary>
         /// Creates workspace as part of the minecraft mod workspace service workflow, applying the service's runtime policy, state management, and diagnostics as required.

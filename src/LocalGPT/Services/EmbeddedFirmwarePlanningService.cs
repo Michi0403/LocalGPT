@@ -104,7 +104,7 @@ public sealed partial class EmbeddedFirmwarePlanningService : IEmbeddedFirmwareP
             }
 
             var safeDevice = SafeFileName(plan.DeviceName);
-            var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LocalGPT", "Artifacts", "EmbeddedFirmware", $"{safeDevice}-{plan.PlanId:N}");
+            var root = LocalGptApplicationDataPaths.ResolveUserPath("Artifacts", "EmbeddedFirmware", $"{safeDevice}-{plan.PlanId:N}");
             Directory.CreateDirectory(root);
             var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {

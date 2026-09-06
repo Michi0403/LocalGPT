@@ -151,6 +151,7 @@ namespace LocalGPT
 
             var app = builder.Build();
             logger.LogInformation("Built web application.");
+            app.Services.GetRequiredService<ILocalGptApplicationPathService>().EnsureAndDocumentLayout();
             ConfigureMiddlewareAndEndpoints(app, logger);
             logger.LogInformation("Configured middleware and endpoints.");
             var runtimeEndpointLogger = app.Services.GetRequiredService<ILoggerFactory>()
@@ -212,11 +213,7 @@ namespace LocalGPT
         /// <returns>The collection produced by the operation.</returns>
         private static IEnumerable<string> GetRuntimeTraceDirectories()
         {
-            var localApplicationData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (string.IsNullOrWhiteSpace(localApplicationData))
-                return Array.Empty<string>();
-
-            return [Path.Combine(localApplicationData, "LocalGPT", "runtime")];
+            return [LocalGptApplicationDataPaths.ResolveUserPath("runtime")];
         }
 
         /// <summary>
@@ -244,10 +241,7 @@ namespace LocalGPT
         {
             try
             {
-                var userSettingsFile = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "LocalGPT",
-                    "appsettings.user.json");
+                var userSettingsFile = LocalGptApplicationDataPaths.ResolveUserPath("appsettings.user.json");
                 Directory.CreateDirectory(Path.GetDirectoryName(userSettingsFile)!);
 
                 builder.Configuration

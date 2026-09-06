@@ -120,10 +120,7 @@ public sealed class LocalGptLocalizationService(
     /// Gets the user localization path used by this LocalGPT localization instance to locate the associated file-system resource.
     /// </summary>
     /// <value>The user localization path value exposed by <see cref="LocalGptLocalizationService"/>.</value>
-    private string UserLocalizationPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "LocalGPT",
-        "Localization");
+    private string UserLocalizationPath => LocalGptApplicationDataPaths.ResolveUserPath("Localization");
 
     /// <summary>
     /// Retrieves available cultures as part of the LocalGPT localization service workflow, applying the service's runtime policy, state management, and diagnostics as required.

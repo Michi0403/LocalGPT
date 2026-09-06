@@ -11,6 +11,8 @@ namespace LocalGPT.Services;
 /// <param name="console">Runs read-only and explicitly approved provider commands through the common console feed.</param>
 /// <param name="jsonText">Applies the maintained LocalGPT JSON policy when reading provider profiles from Knowledge.</param>
 /// <param name="platformRuntime">Platform runtime service used to select the operating-system-specific provider bootstrap token.</param>
+/// <param name="ollamaPlatform">Platform-owned Ollama executable resolver used to keep Finder/desktop launches independent of shell PATH setup.</param>
+/// <param name="lmStudioPlatform">Platform-owned LM Studio/llmster executable resolver used to keep Finder/desktop launches independent of shell PATH setup.</param>
 /// <param name="logger">Writes bounded provider-bootstrap diagnostics without logging command text.</param>
 /// <param name="options">Options containing the caller-supplied values that control this operation.</param>
 /// <param name="configurationWriter">Configuration writer dependency used by the AI provider bootstrap workflow to provide the corresponding application capability.</param>
@@ -24,6 +26,8 @@ public sealed class AiProviderBootstrapService(
     IConfigurationWriter configurationWriter,
     IAiProviderConfigurationRegistryService providerRegistry,
     IPlatformRuntimeService platformRuntime,
+    IOllamaPlatformService ollamaPlatform,
+    ILmStudioPlatformService lmStudioPlatform,
     ILogger<AiProviderBootstrapService> logger) : IAiProviderBootstrapService
 {
 
@@ -268,6 +272,7 @@ public sealed class AiProviderBootstrapService(
                 DisplayName = $"{displayName}: {profile.DisplayName}",
                 Shell = profile.Shell,
                 CommandText = command,
+                Environment = BuildProviderCommandEnvironment(profile),
                 IsReadOnly = isReadOnly,
                 UserConfirmed = userConfirmed,
                 TimeoutSeconds = isReadOnly ? 30 : 600
@@ -275,6 +280,70 @@ public sealed class AiProviderBootstrapService(
         }
         catch (OperationCanceledException exception) { logger.LogDebug(exception, "Executing provider bootstrap command was cancelled."); throw; }
         catch (Exception exception) { logger.LogError(exception, "Executing provider bootstrap command failed; command text was omitted."); throw; }
+    }
+
+
+    /// <summary>Builds a bounded PATH override for a provider CLI discovered through the platform service.</summary>
+    /// <param name="profile">Selected provider bootstrap profile.</param>
+    /// <returns>Environment entries passed only to the reviewed provider command.</returns>
+    private List<ToolchainEnvironmentVariableSetting> BuildProviderCommandEnvironment(AiProviderBootstrapProfile profile)
+    {
+        try
+        {
+            var executable = ResolveProviderExecutable(profile);
+            if (string.IsNullOrWhiteSpace(executable))
+                return [];
+
+            var directory = Path.GetDirectoryName(executable);
+            if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+                return [];
+
+            var inheritedPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            var pathEntries = inheritedPath
+                .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(item => !string.Equals(item, directory, platformRuntime.PathComparison));
+            var value = string.Join(Path.PathSeparator, new[] { directory }.Concat(pathEntries));
+            return
+            [
+                new ToolchainEnvironmentVariableSetting
+                {
+                    Name = "PATH",
+                    Value = value,
+                    Source = $"LocalGPT {profile.DisplayName} platform discovery",
+                    IsEnabled = true
+                }
+            ];
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not enrich provider command PATH for profile {ProfileKey}; inherited PATH will be used.", profile.Key);
+            return [];
+        }
+    }
+
+    /// <summary>Resolves the CLI executable associated with a built-in local provider profile.</summary>
+    /// <param name="profile">Selected provider profile.</param>
+    /// <returns>Resolved executable path, or <see langword="null"/> when the provider is not installed yet.</returns>
+    private string? ResolveProviderExecutable(AiProviderBootstrapProfile profile)
+    {
+        try
+        {
+            if (profile.ProviderKind.Equals("Ollama", StringComparison.OrdinalIgnoreCase)
+                || profile.Key.StartsWith("ollama-", StringComparison.OrdinalIgnoreCase))
+                return ollamaPlatform.ResolveExecutable();
+
+            if (profile.Key.StartsWith("lmstudio-", StringComparison.OrdinalIgnoreCase)
+                || profile.DisplayName.Contains("LM Studio", StringComparison.OrdinalIgnoreCase)
+                || profile.DisplayName.Contains("llmster", StringComparison.OrdinalIgnoreCase))
+                return lmStudioPlatform.ResolveExecutable();
+
+            return null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not resolve provider executable for profile {ProfileKey}; inherited PATH will be used.", profile.Key);
+            return null;
+        }
     }
 
     /// <summary>

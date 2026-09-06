@@ -182,7 +182,14 @@ public sealed class MacOsOllamaPlatformService : OllamaPlatformServiceBase
     {
         try
         {
-            return ["/opt/homebrew/bin/ollama", "/usr/local/bin/ollama", "~/.local/bin/ollama"];
+            return
+            [
+                "/Applications/Ollama.app/Contents/Resources/ollama",
+                "~/Applications/Ollama.app/Contents/Resources/ollama",
+                "/opt/homebrew/bin/ollama",
+                "/usr/local/bin/ollama",
+                "~/.local/bin/ollama"
+            ];
         }
         catch (Exception exception)
         {

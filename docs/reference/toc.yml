@@ -6,3 +6,5 @@
   href: design-evolution.md
 - name: "Documentation migration"
   href: documentation-migration.md
+- name: "Runtime storage and paths"
+  href: runtime-path-layout.md

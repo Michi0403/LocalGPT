@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <Version>3.8.2</Version>
+    <Version>3.8.6</Version>
     <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
 	  <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -39,17 +39,27 @@
   </ItemGroup>
 
 	<ItemGroup>
-		<Content Include="..\..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\SECURITY.md" Link="SECURITY.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\index.md" Link="docs\index.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\system-overview.md" Link="docs\architecture\system-overview.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\ai-host.md" Link="docs\architecture\ai-host.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\council-runtime.md" Link="docs\architecture\council-runtime.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\project-data.md" Link="docs\architecture\project-data.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\onewire-security.md" Link="docs\architecture\onewire-security.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\architecture\frontend-and-themes.md" Link="docs\architecture\frontend-and-themes.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\engineering\build-validation.md" Link="docs\engineering\build-validation.md" CopyToOutputDirectory="PreserveNewest" />
-		<Content Include="..\..\docs\reference\capability-map.md" Link="docs\reference\capability-map.md" CopyToOutputDirectory="PreserveNewest" />
+		<Content Include="..\..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\SECURITY.md" Link="SECURITY.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\index.md" Link="docs\index.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\system-overview.md" Link="docs\architecture\system-overview.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\ai-host.md" Link="docs\architecture\ai-host.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\council-runtime.md" Link="docs\architecture\council-runtime.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\project-data.md" Link="docs\architecture\project-data.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\onewire-security.md" Link="docs\architecture\onewire-security.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\architecture\frontend-and-themes.md" Link="docs\architecture\frontend-and-themes.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\engineering\build-validation.md" Link="docs\engineering\build-validation.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\reference\capability-map.md" Link="docs\reference\capability-map.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\reference\toolchain-discovery.md" Link="docs\reference\toolchain-discovery.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\reference\runtime-path-layout.md" Link="docs\reference\runtime-path-layout.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\reference\ai-provider-installation.md" Link="docs\reference\ai-provider-installation.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\reference\canonical-repositories.md" Link="docs\reference\canonical-repositories.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\reference\design-evolution.md" Link="docs\reference\design-evolution.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\guide\embedded-and-games.md" Link="docs\guide\embedded-and-games.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<Content Include="..\..\docs\COUNCIL_KNOWLEDGE_SEED.sql" Link="docs\COUNCIL_KNOWLEDGE_SEED.sql" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<EmbeddedResource Include="..\..\docs\reference\ai-provider-installation.md" LogicalName="LocalGPT.Knowledge.ai-provider-installation.md" />
+		<EmbeddedResource Include="..\..\docs\reference\toolchain-discovery.md" LogicalName="LocalGPT.Knowledge.toolchain-discovery.md" />
+		<EmbeddedResource Include="..\..\docs\reference\runtime-path-layout.md" LogicalName="LocalGPT.Knowledge.runtime-path-layout.md" />
 	</ItemGroup>
 
 	<ItemGroup>

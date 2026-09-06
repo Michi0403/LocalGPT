@@ -568,7 +568,7 @@ namespace LocalGPT.Services
                         return string.Empty;
 
                     var expanded = path
-                        .Replace("%LOCALAPPDATA%", Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), StringComparison.OrdinalIgnoreCase)
+                        .Replace("%LOCALAPPDATA%", LocalGptApplicationDataPaths.ResolveUserDataBase(), StringComparison.OrdinalIgnoreCase)
                         .Replace("%USERPROFILE%", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), StringComparison.OrdinalIgnoreCase);
 
                     return expanded.StartsWith("~/", StringComparison.Ordinal) || expanded.StartsWith("~\\", StringComparison.Ordinal)
